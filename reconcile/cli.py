@@ -1158,18 +1158,12 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command(short_help="Validate permissions in Jira.")
-@click.option(
-    "--exit-on-permission-errors/--no-exit-on-permission-errors",
-    help="Throw and error in case of board permission errors. Useful for PR checks.",
-    default=True,
-)
 @enable_extended_early_exit
 @extended_early_exit_cache_ttl_seconds
 @log_cached_log_output
 @click.pass_context
 def jira_permissions_validator(
     ctx,
-    exit_on_permission_errors,
     enable_extended_early_exit,
     extended_early_exit_cache_ttl_seconds,
     log_cached_log_output,
@@ -1179,7 +1173,6 @@ def jira_permissions_validator(
     run_integration(
         reconcile.jira_permissions_validator,
         ctx.obj,
-        exit_on_permission_errors,
         enable_extended_early_exit=enable_extended_early_exit,
         extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
         log_cached_log_output=log_cached_log_output,

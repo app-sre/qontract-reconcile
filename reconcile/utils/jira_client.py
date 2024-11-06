@@ -241,3 +241,7 @@ class JiraClient:
     def components(self) -> list[str]:
         """Return a list of all components for the project."""
         return [c.name for c in self.jira.project_components(self.project)]
+
+    @property
+    def is_archived(self) -> bool:
+        return self.jira.project(self.project).archived

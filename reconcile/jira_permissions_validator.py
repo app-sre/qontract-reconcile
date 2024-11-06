@@ -61,11 +61,12 @@ class ValidationError(IntFlag):
     PERMISSION_ERROR = auto()
     PUBLIC_PROJECT_NO_SECURITY_LEVEL = auto()
     INVALID_COMPONENT = auto()
+    PROJECT_ARCHIVED = auto()
 
 
 class RunnerParams(TypedDict):
-    exit_on_permission_errors: bool
     boards: list[JiraBoardV1]
+    dry_run: bool
 
 
 class CacheSource(TypedDict):
@@ -82,6 +83,10 @@ def board_is_valid(
 ) -> ValidationError:
     error = ValidationError(0)
     try:
+        if jira.is_archived:
+            logging.error(f"[{board.name}] project is archived")
+            return ValidationError.PROJECT_ARCHIVED
+
         if not jira.can_create_issues():
             logging.error(f"[{board.name}] can not create issues in project")
             error |= ValidationError.CANT_CREATE_ISSUE
@@ -196,11 +201,11 @@ def board_is_valid(
 def validate_boards(
     metrics_container: metrics.MetricsContainer,
     secret_reader: SecretReaderBase,
-    exit_on_permission_errors: bool,
     jira_client_settings: JiraWatcherSettings | None,
     jira_boards: Iterable[JiraBoardV1],
     default_issue_type: str,
     default_reopen_state: str,
+    dry_run: bool,
     jira_client_class: type[JiraClient] = JiraClient,
 ) -> bool:
     error = False
@@ -238,15 +243,15 @@ def validate_boards(
                         ),
                         value=1,
                     )
-                    # don't fail during PR checks at the moment
-                    # this make the transistion to the new integration behaviour much smoother
-                    if exit_on_permission_errors:
+                    if dry_run:
+                        # throw an error for MR checks but not in prod mode
                         error = True
                 case (
-                    ValidationError.PERMISSION_ERROR | ValidationError.CANT_CREATE_ISSUE
+                    ValidationError.CANT_CREATE_ISSUE | ValidationError.PROJECT_ARCHIVED
                 ):
-                    # we can't create jira tickets, and we don't have all needed the permissions
-                    error = True
+                    if dry_run:
+                        # throw an error for MR checks but not in prod mode
+                        error = True
                 case _:
                     error = True
         except Exception as e:
@@ -269,7 +274,6 @@ def export_boards(boards: list[JiraBoardV1]) -> list[dict]:
 
 def run(
     dry_run: bool,
-    exit_on_permission_errors: bool,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,
     log_cached_log_output: bool = False,
@@ -277,8 +281,8 @@ def run(
     gql_api = gql.get_api()
     boards = get_jira_boards(query_func=gql_api.query)
     runner_params: RunnerParams = {
-        "exit_on_permission_errors": exit_on_permission_errors,
         "boards": boards,
+        "dry_run": dry_run,
     }
     if enable_extended_early_exit and get_feature_toggle_state(
         "jira-permissions-validator-extended-early-exit",
@@ -308,9 +312,7 @@ def run(
         runner(**runner_params)
 
 
-def runner(
-    exit_on_permission_errors: bool, boards: list[JiraBoardV1]
-) -> ExtendedEarlyExitRunnerResult:
+def runner(boards: list[JiraBoardV1], dry_run: bool) -> ExtendedEarlyExitRunnerResult:
     gql_api = gql.get_api()
     settings = get_jira_settings(gql_api=gql_api)
     jiralert_settings = get_jiralert_settings(query_func=gql_api.query)
@@ -321,11 +323,11 @@ def runner(
         error = validate_boards(
             metrics_container=metrics_container,
             secret_reader=secret_reader,
-            exit_on_permission_errors=exit_on_permission_errors,
             jira_client_settings=settings.jira_watcher,
             jira_boards=boards,
             default_issue_type=jiralert_settings.default_issue_type,
             default_reopen_state=jiralert_settings.default_reopen_state,
+            dry_run=dry_run,
         )
 
     if error:

@@ -93,7 +93,7 @@ def test_jira_permissions_validator_get_jira_boards(
 
 
 @pytest.mark.parametrize(
-    "board_is_valid, exit_on_permission_errors, error_returned, metric_set",
+    "board_is_valid, dry_run, error_returned, metric_set",
     [
         (0, True, False, False),
         (ValidationError.CANT_CREATE_ISSUE, True, True, False),
@@ -104,19 +104,11 @@ def test_jira_permissions_validator_get_jira_boards(
         (ValidationError.INVALID_PRIORITY, True, True, False),
         (ValidationError.PUBLIC_PROJECT_NO_SECURITY_LEVEL, True, True, False),
         (ValidationError.PERMISSION_ERROR, True, True, True),
-        # special case: CANT_CREATE_ISSUE and PERMISSION_ERROR
-        (
-            ValidationError.CANT_CREATE_ISSUE | ValidationError.PERMISSION_ERROR,
-            True,
-            True,
-            False,
-        ),
-        (
-            ValidationError.CANT_CREATE_ISSUE | ValidationError.PERMISSION_ERROR,
-            False,
-            True,
-            False,
-        ),
+        (ValidationError.PROJECT_ARCHIVED, True, True, False),
+        # no dry-run
+        (ValidationError.CANT_CREATE_ISSUE, False, False, False),
+        (ValidationError.PERMISSION_ERROR, False, False, True),
+        (ValidationError.PROJECT_ARCHIVED, False, False, False),
         # test with another error
         (
             ValidationError.INVALID_PRIORITY | ValidationError.PERMISSION_ERROR,
@@ -137,7 +129,7 @@ def test_jira_permissions_validator_validate_boards(
     boards: list[JiraBoardV1],
     secret_reader: Mock,
     board_is_valid: ValidationError,
-    exit_on_permission_errors: bool,
+    dry_run: bool,
     error_returned: bool,
     metric_set: bool,
 ) -> None:
@@ -151,11 +143,11 @@ def test_jira_permissions_validator_validate_boards(
         validate_boards(
             metrics_container=metrics_container_mock,
             secret_reader=secret_reader,
-            exit_on_permission_errors=exit_on_permission_errors,
             jira_client_settings=None,
             jira_boards=boards,
             default_issue_type="task",
             default_reopen_state="new",
+            dry_run=dry_run,
             jira_client_class=jira_client_class,
         )
         == error_returned
@@ -192,6 +184,7 @@ def test_jira_permissions_validator_board_is_valid_happy_path(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = False
     jira_client.can_create_issues.return_value = True
     jira_client.can_transition_issues.return_value = True
     jira_client.project_issue_types.return_value = [
@@ -239,6 +232,7 @@ def test_jira_permissions_validator_board_is_valid_all_errors(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = False
     jira_client.can_create_issues.return_value = False
     jira_client.can_transition_issues.return_value = False
     jira_client.project_issue_types.return_value = []
@@ -290,6 +284,7 @@ def test_jira_permissions_validator_board_is_valid_bad_issue_status(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = False
     jira_client.can_create_issues.return_value = True
     jira_client.can_transition_issues.return_value = True
     jira_client.project_issue_types.return_value = [
@@ -340,6 +335,7 @@ def test_jira_permissions_validator_board_is_valid_public_project(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = False
     jira_client.can_create_issues.return_value = True
     jira_client.can_transition_issues.return_value = True
     jira_client.project_issue_types.return_value = [
@@ -390,6 +386,7 @@ def test_jira_permissions_validator_board_is_valid_permission_error(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = False
     jira_client.can_create_issues.side_effect = JIRAError(status_code=403)
     assert (
         board_is_valid(
@@ -430,6 +427,7 @@ def test_jira_permissions_validator_board_is_valid_exception(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = False
     jira_client.can_create_issues.side_effect = JIRAError(status_code=500)
     with pytest.raises(JIRAError):
         board_is_valid(
@@ -468,6 +466,7 @@ def test_jira_permissions_validator_board_is_valid_exception_401(
         },
     )
     jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = False
     jira_client.can_create_issues.side_effect = JIRAError(status_code=401)
     # no error for 401
     board_is_valid(
@@ -477,4 +476,44 @@ def test_jira_permissions_validator_board_is_valid_exception_401(
         default_reopen_state="new",
         jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
         public_projects=[],
+    )
+
+
+def test_jira_permissions_validator_board_is_valid_archived(
+    mocker: MockerFixture, gql_class_factory: Callable
+) -> None:
+    board = gql_class_factory(
+        JiraBoardV1,
+        {
+            "name": "jira-board-default",
+            "server": {
+                "serverUrl": "https://jira-server.com",
+                "token": {"path": "vault/path/token", "field": "token"},
+            },
+            "issueType": "bug",
+            "issueResolveState": "Closed",
+            "issueReopenState": "Open",
+            "issueSecurityId": "32168",
+            "severityPriorityMappings": {
+                "name": "major-major",
+                "mappings": [
+                    {"priority": "Minor"},
+                    {"priority": "Major"},
+                    {"priority": "Critical"},
+                ],
+            },
+        },
+    )
+    jira_client = mocker.create_autospec(spec=JiraClient)
+    jira_client.is_archived = True
+    assert (
+        board_is_valid(
+            jira=jira_client,
+            board=board,
+            default_issue_type="task",
+            default_reopen_state="new",
+            jira_server_priorities={"Minor": "1", "Major": "2", "Critical": "3"},
+            public_projects=[],
+        )
+        == ValidationError.PROJECT_ARCHIVED
     )
