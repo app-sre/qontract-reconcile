@@ -40,6 +40,7 @@ class ChangeLogItem:
     change_types: list[str] = field(default_factory=list)
     error: bool = False
     apps: list[str] = field(default_factory=list)
+    description: str = ""
 
 
 @dataclass
@@ -136,6 +137,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             change_log_item = ChangeLogItem(
                 commit=commit,
                 merged_at=merged_at,
+                description=gl_commit.message.split("\n")[2],
             )
             change_log.items.append(change_log_item)
             obj = diff_state.get(key, None)
