@@ -343,10 +343,14 @@ class ExternalResourcesManager:
     ) -> None:
         # There is no need to update the state
         # if it's marked in progress
-        if state.resource_status in {
-            ResourceStatus.DELETE_IN_PROGRESS,
-            ResourceStatus.IN_PROGRESS,
-        }:
+        if (
+            state.resource_status
+            in {
+                ResourceStatus.DELETE_IN_PROGRESS,
+                ResourceStatus.IN_PROGRESS,
+            }
+            and status.resource_status == ResourceStatus.IN_PROGRESS
+        ):
             return
         state.ts = datetime.now(UTC)
         if status.resource_status == ResourceStatus.DELETED:
