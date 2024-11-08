@@ -71,6 +71,11 @@ class AWSElasticacheFactory(AWSDefaultResourceFactory):
         if data.get("parameter_group"):
             if not data["parameter_group"].get("name"):
                 data["parameter_group"]["name"] = f"{data['replication_group_id']}-pg"
+            else:
+                # prefix the parameter_group name with the replication_group_id
+                data["parameter_group"]["name"] = (
+                    f"{data['replication_group_id']}-{data['parameter_group']['name']}"
+                )
 
             if (
                 data.get("parameter_group_name")
