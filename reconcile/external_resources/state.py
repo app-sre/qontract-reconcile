@@ -81,9 +81,15 @@ class DynamoDBStateAdapter:
     MODCONF_VERSION = "version"
     MODCONF_DRIFT_MINS = "drift_detection_minutes"
     MODCONF_TIMEOUT_MINS = "timeout_minutes"
+    MODCONF_OUTPUTS_SECRET_IMAGE = "outputs_secret_image"
+    MODCONF_OUTPUTS_SECRET_VERSION = "outputs_secret_version"
 
     def _get_value(self, item: Mapping[str, Any], key: str, _type: str = "S") -> Any:
-        return item[key][_type]
+        try:
+            return item[key][_type]
+        except KeyError:
+            # We introduced a new dynamodb table field. It'll be there with the next reconciliation run
+            return ""
 
     def deserialize(
         self,
@@ -123,6 +129,12 @@ class DynamoDBStateAdapter:
                     ),
                     reconcile_timeout_minutes=self._get_value(
                         _modconf, self.MODCONF_TIMEOUT_MINS, _type="N"
+                    ),
+                    outputs_secret_image=self._get_value(
+                        _modconf, self.MODCONF_OUTPUTS_SECRET_IMAGE
+                    ),
+                    outputs_secret_version=self._get_value(
+                        _modconf, self.MODCONF_OUTPUTS_SECRET_VERSION
                     ),
                 ),
             )
@@ -171,6 +183,12 @@ class DynamoDBStateAdapter:
                                 "N": str(
                                     state.reconciliation.module_configuration.reconcile_timeout_minutes
                                 )
+                            },
+                            self.MODCONF_OUTPUTS_SECRET_IMAGE: {
+                                "S": state.reconciliation.module_configuration.outputs_secret_image
+                            },
+                            self.MODCONF_OUTPUTS_SECRET_VERSION: {
+                                "S": state.reconciliation.module_configuration.outputs_secret_version
                             },
                         }
                     },
