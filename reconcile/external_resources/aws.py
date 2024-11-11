@@ -9,7 +9,6 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
 from reconcile.utils.external_resources import ResourceValueResolver
-from reconcile.utils.helpers import generate_random_password
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -59,10 +58,6 @@ class AWSElasticacheFactory(AWSDefaultResourceFactory):
             pg_data = rvr._get_values(data["parameter_group"])
             data["parameter_group"] = pg_data
 
-        if data.get("transit_encryption_enabled", False):
-            data["auth_token"] = (
-                spec.get_secret_field("db.auth_token") or generate_random_password()
-            )
         return data
 
     def validate(self, resource: ExternalResource) -> None:

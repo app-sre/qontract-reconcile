@@ -9,7 +9,7 @@ from difflib import get_close_matches
 from enum import Enum
 from pathlib import Path
 from subprocess import CalledProcessError, run
-from typing import Protocol
+from typing import Any, Protocol
 
 from pydantic import BaseModel
 from rich import print as rich_print
@@ -245,8 +245,14 @@ class TfAction(Enum):
     DESTROY = "delete"
 
 
+class Change(BaseModel):
+    before: Any | None = None
+    after: Any | None = None
+
+
 class TfResource(BaseModel):
     address: str
+    change: Change | None = None
 
     @property
     def id(self) -> str:
@@ -354,6 +360,15 @@ class TerraformCli:
             if not self._dry_run:
                 self._tf_run(self._path, ["state", "push", str(self.state_file)])
 
+    def _tf_import(self, address: str, value: str) -> None:
+        """Import a resource."""
+        with task(
+            self.progress_spinner,
+            f"-- Importing resource {address} {'[b red](DRY-RUN)' if self._dry_run else ''}",
+        ):
+            if not self._dry_run:
+                self._tf_run(self._path, ["import", address, value])
+
     def upload_state(self) -> None:
         self._tf_state_push()
 
@@ -362,7 +377,10 @@ class TerraformCli:
         plan = json.loads(self._tf_run(self._path, ["show", "-json", "plan.out"]))
         return TfResourceList(
             resources=[
-                TfResource(address=r["address"])
+                TfResource(
+                    address=r["address"],
+                    change=Change(**r["change"]),
+                )
                 for r in plan["resource_changes"]
                 if action.value.lower() in r["change"]["actions"]
             ]
@@ -372,23 +390,89 @@ class TerraformCli:
         self, source_state_file: Path, source: TfResource, destination: TfResource
     ) -> None:
         """Move the resource from source state file to destination state file."""
-        if self.progress_spinner:
-            self.progress_spinner.log(
-                f"-- Moving {destination} {'[b red](DRY-RUN)' if self._dry_run else ''}"
-            )
+        with task(
+            self.progress_spinner,
+            f"-- Moving {destination} {'[b red](DRY-RUN)' if self._dry_run else ''}",
+        ):
+            if not self._dry_run:
+                self._tf_run(
+                    self._path,
+                    [
+                        "state",
+                        "mv",
+                        "-lock=false",
+                        f"-state={source_state_file!s}",
+                        f"-state-out={self.state_file!s}",
+                        f"{source.address}",
+                        f"{destination.address}",
+                    ],
+                )
+
+    def commit(self, source: TerraformCli) -> None:
+        """Commit the changes."""
         if not self._dry_run:
-            self._tf_run(
-                self._path,
-                [
-                    "state",
-                    "mv",
-                    "-lock=false",
-                    f"-state={source_state_file!s}",
-                    f"-state-out={self.state_file!s}",
-                    f"{source.address}",
-                    f"{destination.address}",
-                ],
+            if self.progress_spinner:
+                self.progress_spinner.stop()
+            if not Confirm.ask(
+                "\nEverything ok? Would you like to upload the modified terraform states",
+                default=False,
+            ):
+                return
+
+            if self.progress_spinner:
+                self.progress_spinner.start()
+
+            # finally push the terraform states
+            self.upload_state()
+            source.upload_state()
+
+    def migrate_elasticache_resources(self, source: TerraformCli) -> None:
+        source_resources = source.resource_changes(TfAction.DESTROY)
+        destination_resources = self.resource_changes(TfAction.CREATE)
+        if not source_resources or not destination_resources:
+            raise ValueError("No resource changes found!")
+
+        try:
+            source_ec = next(
+                r
+                for r in source_resources.resources
+                if r.type == "aws_elasticache_replication_group"
             )
+        except StopIteration:
+            raise ValueError("No source elasticache instance found!") from None
+
+        if not source_ec.change or not source_ec.change.before:
+            raise ValueError(
+                "Something went wrong with the source elasticache instance!"
+            )
+        current_auth_token = source_ec.change.before.get("auth_token")
+        if current_auth_token:
+            destination_random_password = next(
+                r
+                for r in destination_resources.resources
+                if r.type == "random_password"
+            )
+            self._tf_import(
+                address=destination_random_password.address, value=current_auth_token
+            )
+
+        # migrate resources
+        for destination_resource in destination_resources:
+            if current_auth_token and destination_resource.type == "random_password":
+                # random password handled above
+                continue
+
+            possible_source_resouces = source_resources[destination_resource]
+            if not possible_source_resouces or len(possible_source_resouces) > 1:
+                raise ValueError(
+                    f"Either source resource for {destination_resource} not found or more than one resource found!"
+                )
+            self.move_resource(
+                source_state_file=source.state_file,
+                source=possible_source_resouces[0],
+                destination=destination_resource,
+            )
+        self.commit(source)
 
     def migrate_resources(self, source: TerraformCli) -> None:
         """Migrate the resources from source."""
@@ -456,18 +540,4 @@ class TerraformCli:
                 destination=destination_resource,
             )
 
-        if not self._dry_run:
-            if self.progress_spinner:
-                self.progress_spinner.stop()
-            if not Confirm.ask(
-                "\nEverything ok? Would you like to upload the modified terraform states",
-                default=False,
-            ):
-                return
-
-            if self.progress_spinner:
-                self.progress_spinner.start()
-
-            # finally push the terraform states
-            self.upload_state()
-            source.upload_state()
+        self.commit(source)
