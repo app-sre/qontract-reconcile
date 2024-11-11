@@ -93,14 +93,6 @@ class ReconciliationStatus(BaseModel):
     reconcile_time: int = 0
     resource_status: ResourceStatus
 
-    @property
-    def has_errors(self) -> bool:
-        return self.resource_status == ResourceStatus.ERROR
-
-    @property
-    def needs_secret_sync(self) -> bool:
-        return self.resource_status == ResourceStatus.PENDING_SECRET_SYNC
-
     def publish_metrics(self, r: Reconciliation, spec: ExternalResourceSpec) -> None:
         job_name = ReconciliationK8sJob(reconciliation=r).name()
 
@@ -133,7 +125,7 @@ class ReconciliationStatus(BaseModel):
             self.reconcile_time,
         )
 
-        if self.has_errors:
+        if self.resource_status.has_errors:
             metrics.inc_counter(
                 ExternalResourcesReconcileErrorsCounter(
                     app=spec.namespace["app"]["name"],
@@ -277,28 +269,21 @@ class ExternalResourcesManager:
         r: Reconciliation,
         state: ExternalResourceState,
     ) -> ReconciliationStatus:
-        """Gets the resource reconciliation state from the Job and updates the
-        Resource state accordingly. It also returns if the target outputs secret needs
-        to be reconciled.
-
+        """Gets the reconciliation job status and returns a ReconciliationStatus object with the new
+        resource status and other reconciliation data.
         :param r: Reconciliation object
         :param state: State object
         :return: ReconciliationStatus
         """
 
         status = ReconciliationStatus(resource_status=state.resource_status)
-
-        if state.resource_status not in {
-            ResourceStatus.DELETE_IN_PROGRESS,
-            ResourceStatus.IN_PROGRESS,
-        }:
+        if not state.resource_status.is_in_progress:
+            logging.info(
+                "Reconciliation In progress. Action: %s, Key:%s",
+                state.reconciliation.action,
+                state.reconciliation.key,
+            )
             return status
-
-        logging.info(
-            "Reconciliation In progress. Action: %s, Key:%s",
-            state.reconciliation.action,
-            state.reconciliation.key,
-        )
 
         # Need to check the reconciliation set in the state, not the desired one
         # as the reconciliation object might be from a previous desired state
@@ -339,20 +324,21 @@ class ExternalResourcesManager:
         self,
         r: Reconciliation,
         state: ExternalResourceState,
-        status: ReconciliationStatus,
+        reconciliation_status: ReconciliationStatus,
     ) -> None:
-        # There is no need to update the state
-        # if it's marked in progress
-        if state.resource_status in {
-            ResourceStatus.DELETE_IN_PROGRESS,
-            ResourceStatus.IN_PROGRESS,
-        }:
+        if (
+            state.resource_status.is_in_progress
+            and reconciliation_status.resource_status.is_in_progress
+        ):
+            logging.debug(
+                "Reconciliation is still in progress. There is no need to update the state"
+            )
             return
         state.ts = datetime.now(UTC)
-        if status.resource_status == ResourceStatus.DELETED:
+        if reconciliation_status.resource_status == ResourceStatus.DELETED:
             self.state_mgr.del_external_resource_state(r.key)
         else:
-            state.resource_status = status.resource_status
+            state.resource_status = reconciliation_status.resource_status
             self.state_mgr.set_external_resource_state(state)
 
     def _set_resource_reconciliation_in_progress(
@@ -416,10 +402,10 @@ class ExternalResourcesManager:
         to_sync_keys: set[ExternalResourceKey] = set()
         for r in desired_r.union(deleted_r):
             state = self.state_mgr.get_external_resource_state(r.key)
-            status = self._get_reconciliation_status(r, state)
-            self._update_resource_state(r, state, status)
+            reconciliation_status = self._get_reconciliation_status(r, state)
+            self._update_resource_state(r, state, reconciliation_status)
 
-            if status.needs_secret_sync:
+            if reconciliation_status.resource_status.needs_secret_sync:
                 to_sync_keys.add(r.key)
 
             if self._resource_needs_reconciliation(reconciliation=r, state=state):
@@ -427,7 +413,7 @@ class ExternalResourcesManager:
                 self._set_resource_reconciliation_in_progress(r, state)
 
             if spec := self.er_inventory.get(r.key):
-                status.publish_metrics(r, spec)
+                reconciliation_status.publish_metrics(r, spec)
 
         pending_sync_keys = self.state_mgr.get_keys_by_status(
             ResourceStatus.PENDING_SECRET_SYNC

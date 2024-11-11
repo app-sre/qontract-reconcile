@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -8,6 +9,7 @@ from pytest_mock import MockerFixture
 from reconcile.external_resources.manager import (
     ExternalResourcesManager,
     ReconcileStatus,
+    ReconciliationStatus,
     ResourceStatus,
     setup_factories,
 )
@@ -160,3 +162,102 @@ def test_get_reconciliation_status(
     manager.reconciler.get_resource_reconcile_status.return_value = _reconcile_status  # type:ignore
     status = manager._get_reconciliation_status(_r, state)
     assert status.resource_status == _expected_status
+
+
+@pytest.mark.parametrize(
+    "_state_resource_status,_reconciliation_resource_status",
+    [
+        (
+            ResourceStatus.IN_PROGRESS,
+            ResourceStatus.IN_PROGRESS,
+        ),
+        (
+            ResourceStatus.DELETE_IN_PROGRESS,
+            ResourceStatus.DELETE_IN_PROGRESS,
+        ),
+        (
+            ResourceStatus.DELETE_IN_PROGRESS,
+            ResourceStatus.IN_PROGRESS,
+        ),
+        (
+            ResourceStatus.IN_PROGRESS,
+            ResourceStatus.DELETE_IN_PROGRESS,
+        ),
+    ],
+)
+def test_update_resource_state_does_nothing(
+    manager: ExternalResourcesManager,
+    reconciliation: Reconciliation,
+    reconciliation_status: ReconciliationStatus,
+    state: ExternalResourceState,
+    _state_resource_status: ResourceStatus,
+    _reconciliation_resource_status: ResourceStatus,
+) -> None:
+    state.resource_status = ResourceStatus.IN_PROGRESS
+    reconciliation_status.resource_status = ResourceStatus.IN_PROGRESS
+    manager._update_resource_state(reconciliation, state, reconciliation_status)
+    manager.state_mgr = cast(Mock, manager.state_mgr)
+    manager.state_mgr.del_external_resource_state.assert_not_called()
+    manager.state_mgr.set_external_resource_state.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "_state_resource_status,_reconciliation_resource_status",
+    [
+        (
+            ResourceStatus.IN_PROGRESS,
+            ResourceStatus.CREATED,
+        ),
+        (
+            ResourceStatus.IN_PROGRESS,
+            ResourceStatus.ERROR,
+        ),
+        (
+            ResourceStatus.IN_PROGRESS,
+            ResourceStatus.PENDING_SECRET_SYNC,
+        ),
+        (
+            ResourceStatus.DELETE_IN_PROGRESS,
+            ResourceStatus.ERROR,
+        ),
+    ],
+)
+def test_update_resource_state_updates_state(
+    manager: ExternalResourcesManager,
+    reconciliation: Reconciliation,
+    reconciliation_status: ReconciliationStatus,
+    state: ExternalResourceState,
+    _state_resource_status: ResourceStatus,
+    _reconciliation_resource_status: ResourceStatus,
+) -> None:
+    state.resource_status = _state_resource_status
+    reconciliation_status.resource_status = _reconciliation_resource_status
+    manager._update_resource_state(reconciliation, state, reconciliation_status)
+    manager.state_mgr = cast(Mock, manager.state_mgr)
+    manager.state_mgr.del_external_resource_state.assert_not_called()
+    manager.state_mgr.set_external_resource_state.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "_state_resource_status,_reconciliation_resource_status",
+    [
+        (
+            ResourceStatus.DELETE_IN_PROGRESS,
+            ResourceStatus.DELETED,
+        ),
+    ],
+)
+def test_update_resource_state_removes_state(
+    manager: ExternalResourcesManager,
+    reconciliation: Reconciliation,
+    reconciliation_status: ReconciliationStatus,
+    state: ExternalResourceState,
+    _state_resource_status: ResourceStatus,
+    _reconciliation_resource_status: ResourceStatus,
+) -> None:
+    state.resource_status = _state_resource_status
+    reconciliation_status.resource_status = _reconciliation_resource_status
+    manager._update_resource_state(reconciliation, state, reconciliation_status)
+    manager.state_mgr = cast(Mock, manager.state_mgr)
+    manager.state_mgr.del_external_resource_state.assert_called_once()
+    manager.state_mgr.set_external_resource_state.assert_not_called()

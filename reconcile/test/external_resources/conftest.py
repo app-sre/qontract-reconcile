@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pytest import fixture
 
-from reconcile.external_resources.manager import ResourceStatus
+from reconcile.external_resources.manager import ReconciliationStatus, ResourceStatus
 from reconcile.external_resources.model import (
     Action,
     ExternalResourceKey,
@@ -68,6 +68,13 @@ def reconciliation(key: ExternalResourceKey) -> Reconciliation:
             outputs_secret_image="path/to/er-output-secret-image",
             outputs_secret_version="er-output-secret-version",
         ),
+    )
+
+
+@fixture
+def reconciliation_status() -> ReconciliationStatus:
+    return ReconciliationStatus(
+        reconcile_time=1, resource_status=ResourceStatus.CREATED
     )
 
 
