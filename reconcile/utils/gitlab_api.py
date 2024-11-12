@@ -298,6 +298,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                 {
                     "user": m.username,
                     "access_level": self.get_access_level_string(m.access_level),
+                    "state": m.state,
                 }
                 for m in self.get_items(group.members.list)
                 if not self._is_bot_username(m.username)

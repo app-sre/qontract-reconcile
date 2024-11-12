@@ -38,6 +38,7 @@ QONTRACT_INTEGRATION = "gitlab-members"
 class GitlabUser(BaseModel):
     user: str
     access_level: str
+    state: str | None
 
 
 State = dict[str, list[GitlabUser]]
@@ -60,7 +61,7 @@ def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
     """Get current gitlab group members for all managed groups."""
     return {
         g: [
-            GitlabUser(user=u["user"], access_level=u["access_level"])
+            GitlabUser(user=u["user"], access_level=u["access_level"],state=u["state"])
             for u in gl.get_group_members(g)
         ]
         for g in instance.managed_groups
@@ -136,7 +137,7 @@ def subtract_states(
                     continue
                 found = True
                 break
-            if not found:
+            if not found and f_user.state=="active":
                 result.append(
                     Diff(
                         action=action,
