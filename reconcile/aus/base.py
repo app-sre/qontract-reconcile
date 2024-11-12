@@ -1115,18 +1115,6 @@ def calculate_diff(
                     gates=gates,
                     target_version_prefix=target_version_prefix,
                 )
-                # skipping upgrades when there are no version gates is a safety
-                # precaution to prevent cluster upgrades being scheduled.
-                # missing version gates are an indicator that the version has not yet gone
-                # through SREP gap analysis and is not yet ready for upgrades.
-                #
-                # this might change in the future - revisite for 4.16
-                if not minor_version_gates:
-                    logging.info(
-                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] no gates found for {target_version_prefix}. "
-                        "Skip creation of an upgrade policy."
-                    )
-                    continue
                 gates_with_missing_agreements = gates_to_agree(
                     gates=minor_version_gates,
                     cluster=spec.cluster,
