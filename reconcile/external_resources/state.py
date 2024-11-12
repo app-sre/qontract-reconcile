@@ -38,6 +38,18 @@ class ResourceStatus(StrEnum):
     PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
     RECONCILIATION_REQUESTED: str = "RECONCILIATION_REQUESTED"
 
+    @property
+    def is_in_progress(self) -> bool:
+        return self in {ResourceStatus.IN_PROGRESS, ResourceStatus.DELETE_IN_PROGRESS}
+
+    @property
+    def needs_secret_sync(self) -> bool:
+        return self == ResourceStatus.PENDING_SECRET_SYNC
+
+    @property
+    def has_errors(self) -> bool:
+        return self == ResourceStatus.ERROR
+
 
 class ExternalResourceState(BaseModel):
     key: ExternalResourceKey
