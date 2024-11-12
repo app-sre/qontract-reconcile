@@ -278,11 +278,6 @@ class ExternalResourcesManager:
 
         status = ReconciliationStatus(resource_status=state.resource_status)
         if not state.resource_status.is_in_progress:
-            logging.info(
-                "Reconciliation In progress. Action: %s, Key:%s",
-                state.reconciliation.action,
-                state.reconciliation.key,
-            )
             return status
 
         # Need to check the reconciliation set in the state, not the desired one
