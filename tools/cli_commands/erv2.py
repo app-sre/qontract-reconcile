@@ -178,6 +178,7 @@ class Erv2Cli:
 
             # run cdktf synth
             with task(self.progress_spinner, "-- Running CDKTF synth"):
+                run(["docker", "pull", self.image], check=True, capture_output=True)
                 run(
                     [
                         "docker",
