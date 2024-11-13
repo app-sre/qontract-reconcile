@@ -86,7 +86,7 @@ def get_current_state(
                     state=u["state"],
                     id=u["id"],
                 )
-                for u in gl.get_group_members(g)
+                for u in gl.get_group_members(gitlab_groups_map.get(g))
             ],
         )
         for g in instance.managed_groups
@@ -228,11 +228,7 @@ def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
 
 
 def get_all_groups_map(group_names: list[str], gl: GitLabApi) -> dict[str, Group]:
-    gitlab_groups = {
-        group_name: gitlab_group
-        for group_name in group_names
-        if (gitlab_group := gl.get_group(group_name))
-    }
+    gitlab_groups = {group_name: gl.get_group(group_name) for group_name in group_names}
     return gitlab_groups
 
 
@@ -273,9 +269,8 @@ def run(
         instance, pagerduty_map, permissions, all_gitlab_groups_map, all_users
     )
     diffs = calculate_diff(current_state, desired_state)
-
     for diff in diffs:
-        logging.info(diff)
+        logging.info([diff.user.user, diff.action, diff.group.name])
 
         if not dry_run:
             act(diff, gl)

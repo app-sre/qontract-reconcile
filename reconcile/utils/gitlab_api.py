@@ -84,6 +84,8 @@ GROUP_BOT_NAME_REGEX = re.compile(r"group_.+_bot_.+")
 
 
 class GLGroupMember(TypedDict):
+    id: str
+    state: str
     user: str
     access_level: str
 
@@ -288,10 +290,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         """
         return GROUP_BOT_NAME_REGEX.match(username) is not None
 
-    def get_group_members(self, group_name: str) -> list[GLGroupMember]:
-        group = self.get_group_if_exists(group_name)
+    def get_group_members(self, group: Group | None) -> list[GLGroupMember]:
         if group is None:
-            logging.error(group_name + " group not found")
+            logging.error("no group provided")
             return []
         else:
             return [
