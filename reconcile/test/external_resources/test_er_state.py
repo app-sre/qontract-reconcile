@@ -34,6 +34,12 @@ def dynamodb_serialized_values() -> dict[str, Any]:
                         DynamoDBStateAdapter.MODCONF_VERSION: {"S": "0.0.1"},
                         DynamoDBStateAdapter.MODCONF_DRIFT_MINS: {"N": "120"},
                         DynamoDBStateAdapter.MODCONF_TIMEOUT_MINS: {"N": "30"},
+                        DynamoDBStateAdapter.MODCONF_OUTPUTS_SECRET_IMAGE: {
+                            "S": "path/to/er-output-secret-image"
+                        },
+                        DynamoDBStateAdapter.MODCONF_OUTPUTS_SECRET_VERSION: {
+                            "S": "er-output-secret-version"
+                        },
                     }
                 },
             }
