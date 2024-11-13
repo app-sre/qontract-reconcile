@@ -296,6 +296,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         else:
             return [
                 {
+                    "id": m.id,
                     "user": m.username,
                     "access_level": self.get_access_level_string(m.access_level),
                     "state": m.state,
@@ -335,13 +336,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                     member = group.members.get(user.id)
                     member.access_level = access_level
 
-    def remove_group_member(self, group_name, username):
+    def remove_group_member(self, group, user):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        group = self.gl.groups.get(group_name)
-        user = self.get_user(username)
-        if user is not None:
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            group.members.delete(user.id)
+        group.members.delete(user.id)
 
     def change_access(self, group, username, access):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()

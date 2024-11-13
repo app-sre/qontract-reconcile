@@ -3,6 +3,9 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from gitlab.v4.objects import (
+    Group,
+)
 from pydantic import BaseModel
 
 from reconcile import queries
@@ -36,12 +39,21 @@ QONTRACT_INTEGRATION = "gitlab-members"
 
 
 class GitlabUser(BaseModel):
+    id: str | None
     user: str
     access_level: str
     state: str | None
 
 
-State = dict[str, list[GitlabUser]]
+class GitLabGroup(BaseModel):
+    group: Group
+    members: list[GitlabUser]
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+State = dict[str, GitLabGroup]
 
 
 class Action(enum.Enum):
@@ -52,18 +64,31 @@ class Action(enum.Enum):
 
 class Diff(BaseModel):
     action: Action
-    group: str
-    user: str
+    group: Group
+    user: GitlabUser
     access_level: str
 
+    class Config:
+        arbitrary_types_allowed = True
 
-def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
+
+def get_current_state(
+    instance: GitlabInstanceV1, gl: GitLabApi, gitlab_groups_map: dict[str, Group]
+) -> State:
     """Get current gitlab group members for all managed groups."""
     return {
-        g: [
-            GitlabUser(user=u["user"], access_level=u["access_level"],state=u["state"])
-            for u in gl.get_group_members(g)
-        ]
+        g: GitLabGroup(
+            group=gitlab_groups_map.get(g),
+            members=[
+                GitlabUser(
+                    user=u["user"],
+                    access_level=u["access_level"],
+                    state=u["state"],
+                    id=u["id"],
+                )
+                for u in gl.get_group_members(g)
+            ],
+        )
         for g in instance.managed_groups
     }
 
@@ -72,10 +97,10 @@ def add_or_update_user(
     group_members: State, group_name: str, gitlab_user: GitlabUser
 ) -> None:
     existing_users = [
-        gu for gu in group_members[group_name] if gu.user == gitlab_user.user
+        gu for gu in group_members[group_name].members if gu.user == gitlab_user.user
     ]
     if not existing_users:
-        group_members[group_name].append(gitlab_user)
+        group_members[group_name].members.append(gitlab_user)
     else:
         existing_user = existing_users[0]
         if GitLabApi.get_access_level(
@@ -88,10 +113,14 @@ def get_desired_state(
     instance: GitlabInstanceV1,
     pagerduty_map: PagerDutyMap,
     permissions: list[PermissionGitlabGroupMembershipV1],
+    gitlab_group_map: dict[str, Group],
     all_users: list[User],
 ) -> State:
     """Fetch all desired gitlab users from app-interface."""
-    desired_group_members: State = {g: [] for g in instance.managed_groups}
+    desired_group_members: State = {
+        g: GitLabGroup(group=gitlab_group_map.get(g), members=[])
+        for g in instance.managed_groups
+    }
     for g in desired_group_members:
         for p in permissions:
             if p.group == g:
@@ -128,21 +157,21 @@ def subtract_states(
 ) -> list[Diff]:
     """Return diff objects for items in from_state but not in subtract_state."""
     result = []
-    for f_group, f_users in from_state.items():
-        s_group = subtract_state[f_group]
-        for f_user in f_users:
+    for f_group_name, f_gitlab_group in from_state.items():
+        s_group = subtract_state[f_group_name]
+        for f_user in f_gitlab_group.members:
             found = False
-            for s_user in s_group:
+            for s_user in s_group.members:
                 if f_user.user != s_user.user:
                     continue
                 found = True
                 break
-            if not found and f_user.state=="active":
+            if not found:
                 result.append(
                     Diff(
                         action=action,
-                        group=f_group,
-                        user=f_user.user,
+                        group=f_gitlab_group.group,
+                        user=f_user,
                         access_level=f_user.access_level,
                     )
                 )
@@ -152,17 +181,17 @@ def subtract_states(
 def check_access(current_state: State, desired_state: State) -> list[Diff]:
     """Return diff objects for item where access level is different."""
     result = []
-    for d_group, d_users in desired_state.items():
-        c_group = current_state[d_group]
-        for d_user in d_users:
-            for c_user in c_group:
+    for d_group_name, d_gitlab_group in desired_state.items():
+        c_group = current_state[d_group_name]
+        for d_user in d_gitlab_group.members:
+            for c_user in c_group.members:
                 if d_user.user == c_user.user:
                     if d_user.access_level != c_user.access_level:
                         result.append(
                             Diff(
                                 action=Action.change_access,
-                                group=d_group,
-                                user=c_user.user,
+                                group=d_gitlab_group.group,
+                                user=c_user,
                                 access_level=d_user.access_level,
                             )
                         )
@@ -198,6 +227,15 @@ def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
     raise AppInterfaceSettingsError("No gitlab instance found!")
 
 
+def get_all_groups_map(group_names: list[str], gl: GitLabApi) -> dict[str, Group]:
+    gitlab_groups = {
+        group_name: gitlab_group
+        for group_name in group_names
+        if (gitlab_group := gl.get_group(group_name))
+    }
+    return gitlab_groups
+
+
 @defer
 def run(
     dry_run: bool,
@@ -229,10 +267,11 @@ def run(
     pagerduty_map = get_pagerduty_map(
         secret_reader, pagerduty_instances=pagerduty_instances
     )
-
-    # act
-    current_state = get_current_state(instance, gl)
-    desired_state = get_desired_state(instance, pagerduty_map, permissions, all_users)
+    all_gitlab_groups_map = get_all_groups_map(instance.managed_groups, gl)
+    current_state = get_current_state(instance, gl, all_gitlab_groups_map)
+    desired_state = get_desired_state(
+        instance, pagerduty_map, permissions, all_gitlab_groups_map, all_users
+    )
     diffs = calculate_diff(current_state, desired_state)
 
     for diff in diffs:
