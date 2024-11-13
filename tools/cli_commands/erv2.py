@@ -4,7 +4,7 @@ import json
 import os
 import sys
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from difflib import get_close_matches
 from enum import Enum
 from pathlib import Path
@@ -276,13 +276,19 @@ class TfResourceList(BaseModel):
     def __iter__(self) -> Iterator[TfResource]:  # type: ignore
         return iter(self.resources)
 
-    def _get_resource_by_address(self, address: str) -> TfResource | None:
+    def get_resource_by_address(self, address: str) -> TfResource | None:
         for resource in self.resources:
             if resource.address == address:
                 return resource
         return None
 
-    def _get_resources_by_type(self, type: str) -> list[TfResource]:
+    def get_resource_by_type(self, type: str) -> TfResource:
+        results = self.get_resources_by_type(type)
+        if len(results) > 1:
+            raise ValueError(f"More than one resource found for type '{type}'!")
+        return results[0]
+
+    def get_resources_by_type(self, type: str) -> list[TfResource]:
         results = [resource for resource in self.resources if resource.type == type]
         if not results:
             raise KeyError(f"Resource type '{type}' not found!")
@@ -294,13 +300,13 @@ class TfResourceList(BaseModel):
         self holds the source resources (terraform-resources).
         The tf_resource is the destination resource (ERv2).
         """
-        if resource := self._get_resource_by_address(tf_resource.address):
+        if resource := self.get_resource_by_address(tf_resource.address):
             # exact match by AWS address
             return [resource]
 
         # a resource with the same ID does not exist
         # let's try to find the resource by the AWS type
-        results = self._get_resources_by_type(tf_resource.type)
+        results = self.get_resources_by_type(tf_resource.type)
         if len(results) == 1:
             # there is just one resource with the same type
             # this must be the searched resource.
@@ -362,13 +368,23 @@ class TerraformCli:
                 self._tf_run(self._path, ["state", "push", str(self.state_file)])
 
     def _tf_import(self, address: str, value: str) -> None:
-        """Import a resource."""
+        """Import a resource.
+
+        !!! Attention !!!
+
+        Because terraform import doesn't use the local state file and always imports the resource to the remote state,
+        we need to push and pull the state file again.
+        """
+        # push local changes
+        self._tf_state_push()
         with task(
             self.progress_spinner,
             f"-- Importing resource {address} {'[b red](DRY-RUN)' if self._dry_run else ''}",
         ):
             if not self._dry_run:
                 self._tf_run(self._path, ["import", address, value])
+        # and pull the state file again
+        self._tf_state_pull()
 
     def upload_state(self) -> None:
         self._tf_state_push()
@@ -427,35 +443,57 @@ class TerraformCli:
             self.upload_state()
             source.upload_state()
 
+    def _elasticache_import_password(
+        self, destination: TfResource, password: str
+    ) -> None:
+        """Import the elasticache auth_token random_password."""
+        self._tf_import(address=destination.address, value=password)
+
+        if (
+            not destination.change
+            or not destination.change.after
+            or not destination.change.after.get("override_special")
+        ):
+            # nothing to change, nothing to do
+            return
+
+        state_data = json.loads(self.state_file.read_text())
+        state_data["serial"] += 1
+        if self._dry_run:
+            # in dry-run mode, tf_import is a no-op, therefore, the password is not in the state yet.
+            return
+        state_password_obj = next(
+            r for r in state_data["resources"] if r["name"] == destination.id
+        )
+
+        # Set the "override_special" to disable the password reset
+        state_password_obj["instances"][0]["attributes"]["override_special"] = (
+            destination.change.after["override_special"]
+        )
+        # Write the state,
+        self.state_file.write_text(json.dumps(state_data, indent=2))
+
     def migrate_elasticache_resources(self, source: TerraformCli) -> None:
         source_resources = source.resource_changes(TfAction.DESTROY)
         destination_resources = self.resource_changes(TfAction.CREATE)
         if not source_resources or not destination_resources:
             raise ValueError("No resource changes found!")
 
-        try:
-            source_ec = next(
-                r
-                for r in source_resources.resources
-                if r.type == "aws_elasticache_replication_group"
-            )
-        except StopIteration:
-            raise ValueError("No source elasticache instance found!") from None
-
+        source_ec = source_resources.get_resource_by_type(
+            "aws_elasticache_replication_group"
+        )
         if not source_ec.change or not source_ec.change.before:
             raise ValueError(
                 "Something went wrong with the source elasticache instance!"
             )
+
         current_auth_token = source_ec.change.before.get("auth_token")
         if current_auth_token:
-            destination_random_password = next(
-                r
-                for r in destination_resources.resources
-                if r.type == "random_password"
-            )
-            self._tf_import(
-                address=destination_random_password.address, value=current_auth_token
-            )
+            with suppress(KeyError):
+                self._elasticache_import_password(
+                    destination_resources.get_resource_by_type("random_password"),
+                    current_auth_token,
+                )
 
         # migrate resources
         for destination_resource in destination_resources:
