@@ -66,7 +66,6 @@ class Diff(BaseModel):
     action: Action
     group: Group
     user: GitlabUser
-    access_level: str
 
     class Config:
         arbitrary_types_allowed = True
@@ -172,7 +171,6 @@ def subtract_states(
                         action=action,
                         group=f_gitlab_group.group,
                         user=f_user,
-                        access_level=f_user.access_level,
                     )
                 )
     return result
@@ -187,12 +185,13 @@ def check_access(current_state: State, desired_state: State) -> list[Diff]:
             for c_user in c_group.members:
                 if d_user.user == c_user.user:
                     if d_user.access_level != c_user.access_level:
+                        update_user = c_user
+                        update_user.access_level = d_user.access_level
                         result.append(
                             Diff(
                                 action=Action.change_access,
                                 group=d_gitlab_group.group,
-                                user=c_user,
-                                access_level=d_user.access_level,
+                                user=update_user,
                             )
                         )
                     break
@@ -204,9 +203,9 @@ def act(diff: Diff, gl: GitLabApi) -> None:
     if diff.action == Action.remove_user_from_group:
         gl.remove_group_member(diff.group, diff.user)
     if diff.action == Action.add_user_to_group:
-        gl.add_group_member(diff.group, diff.user, diff.access_level)
+        gl.add_group_member(diff.group, diff.user)
     if diff.action == Action.change_access:
-        gl.change_access(diff.group, diff.user, diff.access_level)
+        gl.change_access(diff.group, diff.user)
 
 
 def get_permissions(query_func: Callable) -> list[PermissionGitlabGroupMembershipV1]:

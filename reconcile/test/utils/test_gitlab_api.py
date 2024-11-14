@@ -453,10 +453,20 @@ def test_get_group_members(
     mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
 ):
-    user = create_autospec(GroupMember, username="small", access_level=50)
+    user = create_autospec(
+        GroupMember,
+        username="small",
+        access_level=50,
+        id="123",
+        state="active",
+    )
     # group bots should be ignored
     group_bot = create_autospec(
-        GroupMember, username="group_123_bot_deadbeef", access_level=50
+        GroupMember,
+        username="group_123_bot_deadbeef",
+        access_level=50,
+        id="121",
+        state="active",
     )
     group = create_autospec(Group)
     group.members = create_autospec(GroupMemberManager)
@@ -466,10 +476,8 @@ def test_get_group_members(
     groups.get.return_value = group
     mocked_gl.groups = groups
 
-    assert mocked_gitlab_api.get_group_if_exists("group") is group
-
-    assert mocked_gitlab_api.get_group_members("group") == [
-        {"user": "small", "access_level": "owner"}
+    assert mocked_gitlab_api.get_group_members(group) == [
+        {"user": "small", "access_level": "owner", "id": "123", "state": "active"}
     ]
 
 

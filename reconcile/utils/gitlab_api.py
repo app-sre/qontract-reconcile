@@ -318,36 +318,28 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             member.access_level = access_level
             member.save()
 
-    def add_group_member(self, group_name, username, access):
-        group = self.get_group_if_exists(group_name)
-        if not group:
-            logging.error(group_name + " group not found")
-        else:
-            user = self.get_user(username)
-            access_level = self.get_access_level(access)
-            if user is not None:
-                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-                try:
-                    group.members.create({
-                        "user_id": user.id,
-                        "access_level": access_level,
-                    })
-                except gitlab.exceptions.GitlabCreateError:
-                    gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-                    member = group.members.get(user.id)
-                    member.access_level = access_level
+    def add_group_member(self, group, user):
+        access_level = self.get_access_level(user.access_level)
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        try:
+            group.members.create({
+                "user_id": user.id,
+                "access_level": access_level,
+            })
+        except gitlab.exceptions.GitlabCreateError:
+            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+            member = group.members.get(user.id)
+            member.access_level = access_level
+            member.save()
 
     def remove_group_member(self, group, user):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group.members.delete(user.id)
 
-    def change_access(self, group, username, access):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        group = self.gl.groups.get(group)
-        user = self.get_user(username)
+    def change_access(self, group, user):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member = group.members.get(user.id)
-        member.access_level = self.get_access_level(access)
+        member.access_level = self.get_access_level(user.access_level)
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member.save()
 
