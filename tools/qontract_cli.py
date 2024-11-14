@@ -4304,7 +4304,11 @@ def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
             progress,
             "Migrating the resources from terraform-resources to ERv2",
         ):
-            erv2_tf_cli.migrate_resources(source=tfr_tf_cli)
+            if ctx.obj["provider"] == "elasticache":
+                # Elasticache migration is a bit different
+                erv2_tf_cli.migrate_elasticache_resources(source=tfr_tf_cli)
+            else:
+                erv2_tf_cli.migrate_resources(source=tfr_tf_cli)
 
     rich_print(f"[b red]Please remove the temporary directory ({tempdir}) manually!")
 
