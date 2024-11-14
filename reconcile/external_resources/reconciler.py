@@ -21,6 +21,7 @@ from kubernetes.client import (
 from pydantic import BaseModel
 
 from reconcile.external_resources.model import (
+    Action,
     Reconciliation,
 )
 from reconcile.external_resources.state import ReconcileStatus
@@ -88,6 +89,75 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
         }
 
     def job_spec(self) -> V1JobSpec:
+        job_container = V1Container(
+            name="job",
+            image=self.reconciliation.module_configuration.image_version,
+            image_pull_policy="Always",
+            env=[
+                V1EnvVar(
+                    name="DRY_RUN",
+                    value=str(self.is_dry_run),
+                ),
+                V1EnvVar(
+                    name="ACTION",
+                    value=self.reconciliation.action.value,
+                ),
+            ],
+            volume_mounts=[
+                V1VolumeMount(
+                    name="credentials",
+                    mount_path="/credentials",
+                    sub_path="credentials",
+                ),
+                V1VolumeMount(
+                    name="workdir",
+                    mount_path="/work",
+                ),
+                self.scripts_volume_mount("/inputs"),
+            ],
+        )
+        outputs_secret_container = V1Container(
+            name="outputs",
+            image=self.reconciliation.module_configuration.outputs_secret_image_version,
+            image_pull_policy="Always",
+            env=[
+                V1EnvVar(
+                    name="NAMESPACE",
+                    value_from=V1EnvVarSource(
+                        field_ref=V1ObjectFieldSelector(field_path="metadata.namespace")
+                    ),
+                ),
+                V1EnvVar(
+                    name="ACTION",
+                    value=self.reconciliation.action,
+                ),
+                V1EnvVar(
+                    name="DRY_RUN",
+                    value=str(self.is_dry_run),
+                ),
+            ],
+            volume_mounts=[
+                V1VolumeMount(
+                    name="credentials",
+                    mount_path="/.aws/credentials",
+                    sub_path="credentials",
+                ),
+                V1VolumeMount(
+                    name="workdir",
+                    mount_path="/work",
+                ),
+                self.scripts_volume_mount("/inputs"),
+            ],
+        )
+
+        # For delete actions, we don't need to run the outputs_secrets container
+        if self.reconciliation.action == Action.APPLY:
+            init_containers = [job_container]
+            containers = [outputs_secret_container]
+        else:
+            init_containers = []
+            containers = [job_container]
+
         return V1JobSpec(
             backoff_limit=0,
             active_deadline_seconds=self.reconciliation.module_configuration.reconcile_timeout_minutes
@@ -98,72 +168,8 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                     annotations=self.annotations(), labels=self.labels()
                 ),
                 spec=V1PodSpec(
-                    init_containers=[
-                        V1Container(
-                            name="job",
-                            image=self.reconciliation.module_configuration.image_version,
-                            image_pull_policy="Always",
-                            env=[
-                                V1EnvVar(
-                                    name="DRY_RUN",
-                                    value=str(self.is_dry_run),
-                                ),
-                                V1EnvVar(
-                                    name="ACTION",
-                                    value=self.reconciliation.action.value,
-                                ),
-                            ],
-                            volume_mounts=[
-                                V1VolumeMount(
-                                    name="credentials",
-                                    mount_path="/credentials",
-                                    sub_path="credentials",
-                                ),
-                                V1VolumeMount(
-                                    name="workdir",
-                                    mount_path="/work",
-                                ),
-                                self.scripts_volume_mount("/inputs"),
-                            ],
-                        )
-                    ],
-                    containers=[
-                        V1Container(
-                            name="outputs",
-                            image=self.reconciliation.module_configuration.outputs_secret_image_version,
-                            image_pull_policy="Always",
-                            env=[
-                                V1EnvVar(
-                                    name="NAMESPACE",
-                                    value_from=V1EnvVarSource(
-                                        field_ref=V1ObjectFieldSelector(
-                                            field_path="metadata.namespace"
-                                        )
-                                    ),
-                                ),
-                                V1EnvVar(
-                                    name="ACTION",
-                                    value=self.reconciliation.action,
-                                ),
-                                V1EnvVar(
-                                    name="DRY_RUN",
-                                    value=str(self.is_dry_run),
-                                ),
-                            ],
-                            volume_mounts=[
-                                V1VolumeMount(
-                                    name="credentials",
-                                    mount_path="/.aws/credentials",
-                                    sub_path="credentials",
-                                ),
-                                V1VolumeMount(
-                                    name="workdir",
-                                    mount_path="/work",
-                                ),
-                                self.scripts_volume_mount("/inputs"),
-                            ],
-                        )
-                    ],
+                    init_containers=init_containers,
+                    containers=containers,
                     image_pull_secrets=[V1LocalObjectReference(name="quay.io")],
                     volumes=[
                         V1Volume(
