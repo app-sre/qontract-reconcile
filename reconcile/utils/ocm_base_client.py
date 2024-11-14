@@ -87,10 +87,8 @@ class OCMBaseClient:
         """
         Note, that pagination is currently broken.
         Each call will return a random order, meaning pages are not consistent.
-        ALWAYS by default use "orderBy: id", as id exists for every resource and has an index in the db.
+        ALWAYS by default try to use "orderBy: id", as id exists for every resource and has an index in the db.
         """
-        params = params or {}
-        params.setdefault("orderBy", "id")
         params_copy = {} if not params else params.copy()
         params_copy["size"] = max_page_size
 
