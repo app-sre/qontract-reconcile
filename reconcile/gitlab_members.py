@@ -42,7 +42,6 @@ class GitlabUser(BaseModel):
     id: str | None
     user: str
     access_level: str
-    state: str | None
 
 
 class GitLabGroup(BaseModel):
@@ -82,7 +81,6 @@ def get_current_state(
                 GitlabUser(
                     user=u["user"],
                     access_level=u["access_level"],
-                    state=u["state"],
                     id=u["id"],
                 )
                 for u in gl.get_group_members(gitlab_groups_map.get(g))

@@ -458,7 +458,6 @@ def test_get_group_members(
         username="small",
         access_level=50,
         id="123",
-        state="active",
     )
     # group bots should be ignored
     group_bot = create_autospec(
@@ -466,7 +465,6 @@ def test_get_group_members(
         username="group_123_bot_deadbeef",
         access_level=50,
         id="121",
-        state="active",
     )
     group = create_autospec(Group)
     group.members = create_autospec(GroupMemberManager)
@@ -477,7 +475,7 @@ def test_get_group_members(
     mocked_gl.groups = groups
 
     assert mocked_gitlab_api.get_group_members(group) == [
-        {"user": "small", "access_level": "owner", "id": "123", "state": "active"}
+        {"user": "small", "access_level": "owner", "id": "123"}
     ]
 
 

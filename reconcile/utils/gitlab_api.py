@@ -85,7 +85,6 @@ GROUP_BOT_NAME_REGEX = re.compile(r"group_.+_bot_.+")
 
 class GLGroupMember(TypedDict):
     id: str
-    state: str
     user: str
     access_level: str
 
@@ -300,7 +299,6 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
                     "id": m.id,
                     "user": m.username,
                     "access_level": self.get_access_level_string(m.access_level),
-                    "state": m.state,
                 }
                 for m in self.get_items(group.members.list)
                 if not self._is_bot_username(m.username)

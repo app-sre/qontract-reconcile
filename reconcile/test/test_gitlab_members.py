@@ -111,13 +111,11 @@ def test_gitlab_members_get_current_state(
                 "user": "user1",
                 "access_level": "developer",
                 "id": "123",
-                "state": "active",
             },
             {
                 "user": "user2",
                 "access_level": "maintainer",
                 "id": "124",
-                "state": "active",
             },
         ],
         [
@@ -125,13 +123,11 @@ def test_gitlab_members_get_current_state(
                 "user": "user3",
                 "access_level": "developer",
                 "id": "125",
-                "state": "active",
             },
             {
                 "user": "user4",
                 "access_level": "maintainer",
                 "id": "126",
-                "state": "active",
             },
         ],
     ]
@@ -198,7 +194,7 @@ def test_gitlab_members_subtract_states_add(
     current_state = copy.deepcopy(state)
     # enforce add users to groups
     current_state["group2"].members = [
-        GitlabUser(access_level="maintainer", user="otherone", state="active", id="121")
+        GitlabUser(access_level="maintainer", user="otherone", id="121")
     ]
     del current_state["group1"].members[1]
 
@@ -209,23 +205,17 @@ def test_gitlab_members_subtract_states_add(
         Diff(
             action=Action.add_user_to_group,
             group=gitlab_groups_map.get("group1"),
-            user=GitlabUser(
-                user="user2", access_level="maintainer", id="124", state="active"
-            ),
+            user=GitlabUser(user="user2", access_level="maintainer", id="124"),
         ),
         Diff(
             action=Action.add_user_to_group,
             group=gitlab_groups_map.get("group2"),
-            user=GitlabUser(
-                user="user3", access_level="developer", id="125", state="active"
-            ),
+            user=GitlabUser(user="user3", access_level="developer", id="125"),
         ),
         Diff(
             action=Action.add_user_to_group,
             group=gitlab_groups_map.get("group2"),
-            user=GitlabUser(
-                user="user4", access_level="maintainer", id="126", state="active"
-            ),
+            user=GitlabUser(user="user4", access_level="maintainer", id="126"),
         ),
     ]
 
@@ -236,7 +226,7 @@ def test_gitlab_members_subtract_states_remove(
     current_state = copy.deepcopy(state)
     # enforce remove user from group
     current_state["group2"].members = [
-        GitlabUser(access_level="maintainer", user="otherone", state="active", id="121")
+        GitlabUser(access_level="maintainer", user="otherone", id="121")
     ]
 
     desired_state = state
@@ -246,9 +236,7 @@ def test_gitlab_members_subtract_states_remove(
         Diff(
             action=Action.remove_user_from_group,
             group=gitlab_groups_map.get("group2"),
-            user=GitlabUser(
-                access_level="maintainer", user="otherone", state="active", id="121"
-            ),
+            user=GitlabUser(access_level="maintainer", user="otherone", id="121"),
         )
     ]
 
@@ -269,9 +257,7 @@ def test_gitlab_members_check_access(
         Diff(
             action=Action.change_access,
             group=gitlab_groups_map.get("group1"),
-            user=GitlabUser(
-                access_level="developer", user="user1", state="active", id="123"
-            ),
+            user=GitlabUser(access_level="developer", user="user1", id="123"),
         ),
     ]
 
@@ -282,7 +268,7 @@ def test_gitlab_members_calculate_diff_changes(
     current_state = copy.deepcopy(state)
     # enforce remove user from group
     current_state["group2"].members = [
-        GitlabUser(access_level="maintainer", user="otherone", id="121", state="active")
+        GitlabUser(access_level="maintainer", user="otherone", id="121")
     ]
     # enforce add user to group
     del current_state["group1"].members[1]
@@ -293,37 +279,31 @@ def test_gitlab_members_calculate_diff_changes(
         Diff(
             action=Action.add_user_to_group,
             group=gitlab_groups_map.get("group1"),
-            user=GitlabUser(
-                access_level="maintainer", user="user2", state="active", id="124"
-            ),
+            user=GitlabUser(access_level="maintainer", user="user2", id="124"),
         ),
         Diff(
             action=Action.add_user_to_group,
             group=gitlab_groups_map.get("group2"),
-            user=GitlabUser(
-                access_level="developer", user="user3", state="active", id="125"
-            ),
+            user=GitlabUser(access_level="developer", user="user3", id="125"),
         ),
         Diff(
             action=Action.add_user_to_group,
             group=gitlab_groups_map.get("group2"),
-            user=GitlabUser(
-                access_level="maintainer", user="user4", state="active", id="126"
-            ),
+            user=GitlabUser(access_level="maintainer", user="user4", id="126"),
         ),
         Diff(
             action=Action.remove_user_from_group,
             group=gitlab_groups_map.get("group2"),
             user=GitlabUser(
-                access_level="maintainer", user="otherone", id="121", state="active"
+                access_level="maintainer",
+                user="otherone",
+                id="121",
             ),
         ),
         Diff(
             action=Action.change_access,
             group=gitlab_groups_map.get("group1"),
-            user=GitlabUser(
-                access_level="developer", user="user1", state="active", id="123"
-            ),
+            user=GitlabUser(access_level="developer", user="user1", id="123"),
         ),
     ]
 
@@ -335,9 +315,7 @@ def test_gitlab_members_act_add(
     diff = Diff(
         action=Action.add_user_to_group,
         group=gitlab_groups_map.get("group2"),
-        user=GitlabUser(
-            access_level="maintainer", user="user4", state="active", id="126"
-        ),
+        user=GitlabUser(access_level="maintainer", user="user4", id="126"),
     )
     gitlab_members.act(diff, gl_mock)
     gl_mock.add_group_member.assert_called_once()
@@ -352,9 +330,7 @@ def test_gitlab_members_act_remove(
     diff = Diff(
         action=Action.remove_user_from_group,
         group=gitlab_groups_map.get("group2"),
-        user=GitlabUser(
-            access_level="maintainer", user="otherone", state="active", id="121"
-        ),
+        user=GitlabUser(access_level="maintainer", user="otherone", id="121"),
     )
     gitlab_members.act(diff, gl_mock)
     gl_mock.add_group_member.assert_not_called()
@@ -369,9 +345,7 @@ def test_gitlab_members_act_change(
     diff = Diff(
         action=Action.change_access,
         group=gitlab_groups_map.get("group1"),
-        user=GitlabUser(
-            access_level="developer", user="user1", state="active", id="121"
-        ),
+        user=GitlabUser(access_level="developer", user="user1", id="121"),
     )
     gitlab_members.act(diff, gl_mock)
     gl_mock.add_group_member.assert_not_called()
@@ -382,7 +356,7 @@ def test_gitlab_members_act_change(
 def test_add_or_update_user_add():
     grp = create_autospec(Group, name="t")
     group_members: State = {"t": GitLabGroup(members=[], group=grp)}
-    gu = GitlabUser(user="u", access_level="owner", id="1234", state="active")
+    gu = GitlabUser(user="u", access_level="owner", id="1234")
     add_or_update_user(group_members, "t", gu)
     assert group_members == {"t": GitLabGroup(members=[gu], group=grp)}
 
