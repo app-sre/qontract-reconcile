@@ -771,38 +771,37 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         before_version = before["engine_version"]
         after = resource_change["after"]
         after_version = after["engine_version"]
-        if after_version == before_version:
-            return
 
-        region_name = get_region_from_availability_zone(before["availability_zone"])
-        if self._aws_api is not None:
-            valid_upgrade_target = self._aws_api.get_db_valid_upgrade_target(
-                account_name, engine, before_version, region_name=region_name
-            )
-            target = next(
-                (
-                    t
-                    for t in valid_upgrade_target
-                    if t["EngineVersion"] == after_version
-                ),
-                None,
-            )
-            if target is None:
-                logging.error(
-                    f"Cannot upgrade RDS instance: {resource_name} "
-                    f"from {before_version} to {after_version}"
+        if after_version != before_version:
+            region_name = get_region_from_availability_zone(before["availability_zone"])
+            if self._aws_api is not None:
+                valid_upgrade_target = self._aws_api.get_db_valid_upgrade_target(
+                    account_name, engine, before_version, region_name=region_name
                 )
-                return
-            allow_major_version_upgrade = after.get(
-                "allow_major_version_upgrade",
-                False,
-            )
-            if target["IsMajorVersionUpgrade"] and not allow_major_version_upgrade:
-                logging.error(
-                    "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
-                    f"{resource_name} to a new major version."
+                target = next(
+                    (
+                        t
+                        for t in valid_upgrade_target
+                        if t["EngineVersion"] == after_version
+                    ),
+                    None,
                 )
-                return
+                if target is None:
+                    logging.error(
+                        f"Cannot upgrade RDS instance: {resource_name} "
+                        f"from {before_version} to {after_version}"
+                    )
+                    return
+                allow_major_version_upgrade = after.get(
+                    "allow_major_version_upgrade",
+                    False,
+                )
+                if target["IsMajorVersionUpgrade"] and not allow_major_version_upgrade:
+                    logging.error(
+                        "allow_major_version_upgrade is not enabled for upgrading RDS instance: "
+                        f"{resource_name} to a new major version."
+                    )
+                    return
 
             blue_green_update = after.get("blue_green_update", [])
             if blue_green_update and blue_green_update[0]["enabled"]:
