@@ -18,9 +18,12 @@ def get_subscriptions(
     subscriptions = {}
     chunk_size = 100
     for filter_chunk in filter.chunk_by("id", chunk_size, ignore_missing=True):
+        # Note, that pagination is currently broken.
+        # Each call will return a random order, meaning pages are not consistent.
+        # ALWAYS by default use "orderBy: id", as id has an index in the db.
         for subscription_dict in ocm_api.get_paginated(
             api_path="/api/accounts_mgmt/v1/subscriptions?fetchCapabilities=true&fetchLabels=true",
-            params={"search": filter_chunk.render()},
+            params={"search": filter_chunk.render(), "orderBy": "id"},
             max_page_size=chunk_size,
         ):
             try:
