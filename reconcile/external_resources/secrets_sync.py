@@ -195,6 +195,9 @@ class SecretsReconciler:
             integration=QONTRACT_INTEGRATION,
         )
 
+    def secret_path(self, vault_path: str, spec: ExternalResourceSpec) -> str:
+        return f"{vault_path}/{spec.cluster_name}/{spec.namespace_name}/{spec.output_resource_name}"
+
     def sync_secrets(
         self, specs: Iterable[ExternalResourceSpec]
     ) -> list[ExternalResourceSpec]:
@@ -363,10 +366,12 @@ class InClusterSecretsReconciler(SecretsReconciler):
         self.oc.delete(namespace=self.namespace, kind="Secret", name=secret_name)
 
     def _write_secret_to_vault(self, spec: ExternalResourceSpec) -> None:
-        secret_path = f"{self.vault_path}/{spec.cluster_name}/{spec.namespace_name}/{spec.identifier}"
         secret = {k: str(v) for k, v in spec.secret.items()}
         secret[SECRET_UPDATED_AT] = spec.metadata[SECRET_UPDATED_AT]
-        desired_secret = {"path": secret_path, "data": secret}
+        desired_secret = {
+            "path": self.secret_path(self.vault_path, spec),
+            "data": secret,
+        }
         self.vault_client.write(desired_secret, decode_base64=False)  # type: ignore[attr-defined]
 
     def sync_secrets(
@@ -447,7 +452,7 @@ class VaultSecretsReconciler(SecretsReconciler):
         threaded.run(self._read_secret, specs, self.thread_pool_size)
 
     def _read_secret(self, spec: ExternalResourceSpec) -> None:
-        secret_path = f"{self.vault_path}/{spec.cluster_name}/{spec.namespace_name}/{spec.identifier}"
+        secret_path = self.secret_path(self.vault_path, spec)
         try:
             logging.debug("Reading Secret %s", secret_path)
             data = self.secrets_reader.read_all({"path": secret_path})
