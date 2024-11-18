@@ -100,7 +100,6 @@ class TerraformRepoIntegration(
                 desired_state=desired,
                 dry_run=dry_run,
                 state=state,
-                recreate_state=False,
             )
 
             if repo_diff_result:
@@ -110,17 +109,18 @@ class TerraformRepoIntegration(
             # the existing state stored in S3. This is due to a behavior in Pydantic V1 that has since been addressed in V2
             # https://docs.pydantic.dev/latest/blog/pydantic-v2/#required-vs-nullable-cleanup
             # so in this case, tf-repo will just recreate all of those state files in S3 and not actually do a plan or apply
-            logging.error(err)
-            logging.info(
-                "Unable to parse existing Terraform-Repo state from S3. Note that this is separate from the actual .tfstate files. Terraform Repo will re-create its own state upon merge and will not update any infrastructure. This typically occurs with changes to the Terraform Repo schema files and is normally resolved once state is re-created."
+            logging.warning(
+                "Unable to parse existing Terraform-Repo state from S3. Will re-create internal state upon apply, more info here: https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/terraform-repo/sop/statefile-load-errors.md",
+                exc_info=err,
             )
             repo_diff_result = self.calculate_diff(
                 existing_state=[],
                 desired_state=desired,
                 dry_run=dry_run,
                 state=state,
-                recreate_state=True,
             )
+
+            # we don't call print_output here meaning that the executor will not plan/apply
 
     def print_output(self, diff: list[TerraformRepoV1], dry_run: bool) -> OutputFile:
         """Parses and prints the output of a Terraform Repo diff for the executor
@@ -302,7 +302,6 @@ class TerraformRepoIntegration(
         desired_state: list[TerraformRepoV1],
         dry_run: bool,
         state: State | None,
-        recreate_state: bool,
     ) -> list[TerraformRepoV1] | None:
         """Calculated the difference between existing and desired state
         to determine what actions the executor will need to take
@@ -315,8 +314,6 @@ class TerraformRepoIntegration(
         :type dry_run: bool
         :param state: AWS S3 state
         :type state: Optional[State]
-        :param recreate_state: whether we are recreating our own state
-        :type recreate_state: bool
         :raises ParameterError: if there is an invalid operation performed like trying to delete
         a representation in A-I before setting the delete flag
         :return: the terraform repo to act on
@@ -325,13 +322,6 @@ class TerraformRepoIntegration(
         diff = diff_iterables(existing_state, desired_state, lambda x: x.name)
 
         merged = self.merge_results(diff)
-
-        # validate that only one repo is being modified in each MR
-        # this lets us fail early and avoid multiple GL requests we don't need to make
-        if dry_run and len(merged) > 1 and not recreate_state:
-            raise Exception(
-                "Only one repository can be modified per merge request, please split your change out into multiple MRs. Hint: try rebasing your merge request"
-            )
 
         # added repos: do standard validation that SHA is valid
         if self.params.validate_git:
