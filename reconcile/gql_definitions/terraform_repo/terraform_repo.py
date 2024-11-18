@@ -47,6 +47,9 @@ query TerraformRepo {
       }
     }
     name
+    app {
+      name
+    }
     repository
     ref
     projectPath
@@ -92,6 +95,10 @@ class AWSAccountV1(ConfiguredBaseModel):
     terraform_state: Optional[TerraformStateAWSV1] = Field(..., alias="terraformState")
 
 
+class AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+
+
 class TerraformRepoVariablesV1(ConfiguredBaseModel):
     inputs: VaultSecret = Field(..., alias="inputs")
     outputs: VaultSecret = Field(..., alias="outputs")
@@ -100,6 +107,7 @@ class TerraformRepoVariablesV1(ConfiguredBaseModel):
 class TerraformRepoV1(ConfiguredBaseModel):
     account: AWSAccountV1 = Field(..., alias="account")
     name: str = Field(..., alias="name")
+    app: Optional[AppV1] = Field(..., alias="app")
     repository: str = Field(..., alias="repository")
     ref: str = Field(..., alias="ref")
     project_path: str = Field(..., alias="projectPath")

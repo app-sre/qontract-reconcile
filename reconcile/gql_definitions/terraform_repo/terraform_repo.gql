@@ -19,6 +19,9 @@ query TerraformRepo {
       }
     }
     name
+    app {
+      name
+    }
     repository
     ref
     projectPath
