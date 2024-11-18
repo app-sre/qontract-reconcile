@@ -42,6 +42,7 @@ def existing_repo(aws_account, tf_variables) -> TerraformRepoV1:
         repository=A_REPO,
         ref=A_REPO_SHA,
         account=aws_account,
+        app=None,
         projectPath="tf",
         delete=False,
         requireFips=True,
@@ -83,6 +84,7 @@ def new_repo(aws_account_no_state) -> TerraformRepoV1:
         repository=B_REPO,
         ref=B_REPO_SHA,
         account=aws_account_no_state,
+        app=None,
         projectPath="tf",
         delete=False,
         requireFips=False,
@@ -316,6 +318,7 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo, tf_variable
                 "tfVersion": A_REPO_VERSION,
                 "variables": tf_variables,
                 "forceRerunTimestamp": None,
+                "app": None,
                 "account": {
                     "name": "foo",
                     "uid": AWS_UID,
