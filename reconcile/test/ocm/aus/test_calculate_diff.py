@@ -118,7 +118,12 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
     ocm_api: OCMBaseClient,
     cluster: OCMCluster,
     now: datetime,
+    mocker: MockerFixture,
 ) -> None:
+    get_version_agreement_mock = mocker.patch(
+        "reconcile.aus.base.get_version_agreement"
+    )
+    get_version_agreement_mock.return_value = []
     workload = "wl"
     org_upgrade_spec = build_organization_upgrade_spec(
         specs=[
@@ -141,7 +146,17 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
             soak_days=11,
         ),
     )
-    assert diffs == []
+    assert diffs == [
+        UpgradePolicyHandler(
+            action="create",
+            policy=ClusterUpgradePolicy(
+                cluster=cluster,
+                version="4.12.19",
+                schedule_type="manual",
+                next_run="2021-08-30T18:07:00Z",
+            ),
+        )
+    ]
 
 
 def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
@@ -260,6 +275,10 @@ def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
 def test_calculate_diff_create_control_plane_upgrade_no_gates(
     ocm_api: OCMBaseClient, cluster: OCMCluster, now: datetime, mocker: MockerFixture
 ) -> None:
+    get_version_agreement_mock = mocker.patch(
+        "reconcile.aus.base.get_version_agreement"
+    )
+    get_version_agreement_mock.return_value = []
     cnpd = mocker.patch("reconcile.aus.base._calculate_node_pool_diffs")
     cnpd.return_value = None
     workload = "wl"
@@ -285,7 +304,17 @@ def test_calculate_diff_create_control_plane_upgrade_no_gates(
             soak_days=11,
         ),
     )
-    assert diffs == []
+    assert diffs == [
+        UpgradePolicyHandler(
+            action="create",
+            policy=ControlPlaneUpgradePolicy(
+                cluster=cluster,
+                version="4.12.19",
+                schedule_type="manual",
+                next_run="2021-08-30T18:07:00Z",
+            ),
+        )
+    ]
 
 
 def test_calculate_diff_create_control_plane_node_pool_only(
