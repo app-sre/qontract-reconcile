@@ -79,9 +79,6 @@ def get_current_state(
 def add_or_update_user(
     group_members: Desired_State, group_name: str, gitlab_user: GitlabUser
 ) -> None:
-    # existing_users = [
-    #     gu for gu in group_members[group_name].members if gu.user == gitlab_user.user
-    # ]
     existing_user = group_members[group_name].members.get(gitlab_user.user)
     if not existing_user:
         group_members[group_name].members[gitlab_user.user] = gitlab_user

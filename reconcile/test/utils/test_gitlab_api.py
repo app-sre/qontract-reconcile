@@ -474,9 +474,7 @@ def test_get_group_members(
     groups.get.return_value = group
     mocked_gl.groups = groups
 
-    assert mocked_gitlab_api.get_group_members(group) == [
-        {"user": "small", "access_level": "owner", "id": "123"}
-    ]
+    assert mocked_gitlab_api.get_group_members(group) == [user]
 
 
 def test_share_project_with_group_positive(
