@@ -42,6 +42,7 @@ def existing_repo(aws_account, tf_variables) -> TerraformRepoV1:
         repository=A_REPO,
         ref=A_REPO_SHA,
         account=aws_account,
+        app=None,
         projectPath="tf",
         delete=False,
         requireFips=True,
@@ -83,6 +84,7 @@ def new_repo(aws_account_no_state) -> TerraformRepoV1:
         repository=B_REPO,
         ref=B_REPO_SHA,
         account=aws_account_no_state,
+        app=None,
         projectPath="tf",
         delete=False,
         requireFips=False,
@@ -191,7 +193,6 @@ def test_addition_to_existing_repo(existing_repo, new_repo, int_params, state_mo
         desired_state=desired,
         dry_run=False,
         state=state_mock,
-        recreate_state=False,
     )
 
     assert diff == [new_repo]
@@ -213,7 +214,6 @@ def test_updating_repo_ref(existing_repo, int_params, state_mock):
         desired_state=[updated_repo],
         dry_run=False,
         state=state_mock,
-        recreate_state=False,
     )
 
     assert diff == [updated_repo]
@@ -234,7 +234,6 @@ def test_force_rerun(existing_repo, int_params, state_mock):
         desired_state=[updated_repo],
         dry_run=False,
         state=state_mock,
-        recreate_state=False,
     )
 
     assert diff == [updated_repo]
@@ -261,7 +260,6 @@ def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
             desired_state=[updated_repo],
             dry_run=True,
             state=None,
-            recreate_state=False,
         )
 
 
@@ -277,7 +275,6 @@ def test_delete_repo(existing_repo, int_params, state_mock):
         desired_state=[updated_repo],
         dry_run=False,
         state=state_mock,
-        recreate_state=False,
     )
 
     assert diff == [updated_repo]
@@ -296,7 +293,6 @@ def test_delete_repo_without_flag(existing_repo, int_params):
             desired_state=[],
             dry_run=True,
             state=None,
-            recreate_state=False,
         )
 
 
@@ -316,6 +312,7 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo, tf_variable
                 "tfVersion": A_REPO_VERSION,
                 "variables": tf_variables,
                 "forceRerunTimestamp": None,
+                "app": None,
                 "account": {
                     "name": "foo",
                     "uid": AWS_UID,
@@ -358,7 +355,6 @@ def test_update_repo_state(int_params, existing_repo, state_mock):
         desired_state=desired_state,
         dry_run=False,
         state=state_mock,
-        recreate_state=False,
     )
 
     state_mock.add.assert_called_once_with(
@@ -381,7 +377,6 @@ def test_output_correct_statefile(
         desired_state=desired_state,
         dry_run=True,
         state=state_mock,
-        recreate_state=False,
     )
 
     assert diff
@@ -403,28 +398,12 @@ def test_output_correct_no_statefile(
         desired_state=desired_state,
         dry_run=True,
         state=state_mock,
-        recreate_state=False,
     )
 
     assert diff
     current_output = integration.print_output(diff, True)
 
     assert new_repo_output == current_output
-
-
-def test_fail_on_multiple_repos_dry_run(int_params, existing_repo, new_repo):
-    integration = TerraformRepoIntegration(params=int_params)
-
-    desired_state = [existing_repo, new_repo]
-
-    with pytest.raises(Exception):
-        integration.calculate_diff(
-            existing_state=[],
-            desired_state=desired_state,
-            dry_run=True,
-            state=None,
-            recreate_state=False,
-        )
 
 
 def test_succeed_on_multiple_repos_non_dry_run(int_params, existing_repo, new_repo):
@@ -437,7 +416,6 @@ def test_succeed_on_multiple_repos_non_dry_run(int_params, existing_repo, new_re
         desired_state=desired_state,
         dry_run=False,
         state=None,
-        recreate_state=False,
     )
 
     assert diff
@@ -457,7 +435,6 @@ def test_no_op_succeeds(int_params, existing_repo):
         desired_state=state,
         dry_run=True,
         state=None,
-        recreate_state=False,
     )
 
     assert diff is None

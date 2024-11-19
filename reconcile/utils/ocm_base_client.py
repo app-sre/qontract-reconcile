@@ -84,6 +84,11 @@ class OCMBaseClient:
         max_page_size: int = 100,
         max_pages: int | None = None,
     ) -> Generator[dict[str, Any], None, None]:
+        """
+        Note, that pagination is currently broken.
+        Each call will return a random order, meaning pages are not consistent.
+        ALWAYS by default try to use "orderBy: id", as id exists for every resource and has an index in the db.
+        """
         params_copy = {} if not params else params.copy()
         params_copy["size"] = max_page_size
 
