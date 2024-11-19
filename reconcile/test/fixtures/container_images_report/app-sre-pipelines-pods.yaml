@@ -1,0 +1,30 @@
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: saas-aws-resource-exporter-app-sre-stage-b8rm7-clamav-scan-pod
+    namespace: app-sre-pipelines
+  spec:
+    containers:
+    - image: quay.io/app-sre/clamav@sha256:70b78ac82860ef7d50e4558cea655a671499d5dfe0dee8ca6607d88046db390a
+      name: step-clamav-scan
+    - image: quay.io/redhat-appstudio/clamav-db:v1
+      name: sidecar-database
+    - image: registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8@sha256:a8b0fc4ca05fb7b2d22cf0f62fc85986c231fa6604c62f487560400dc0d32a1f
+      name: prepare
+    initContainers:
+    - image: registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8@sha256:a8b0fc4ca05fb7b2d22cf0f62fc85986c231fa6604c62f487560400dc0d32a1f
+      name: prepare
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: saas-aws-resource-exporter-app-sre-stage-b8rm7-dast-scan-pod
+    namespace: app-sre-pipelines
+  spec:
+    containers:
+    - image: quay.io/app-sre/internal-redhat-ca:0.3.0
+      name: step-init-dast-config
+    - image: quay.io/redhatproductsecurity/rapidast:latest
+      name: step-dast-scan
+    initContainers:
+    - image: registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8@sha256:a8b0fc4ca05fb7b2d22cf0f62fc85986c231fa6604c62f487560400dc0d32a1f
+      name: prepare

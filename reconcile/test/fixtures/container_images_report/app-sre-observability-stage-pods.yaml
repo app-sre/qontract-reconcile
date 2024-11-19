@@ -1,0 +1,23 @@
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: blackbox-exporter-b8b5658c4-25xmr
+    namespace: app-sre-observability-stage
+  spec:
+    containers:
+    - image: quay.io/prometheus/blackbox-exporter:v0.25.0
+      name: blackbox-exporter
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: gitlab-project-exporter-f64f9c9f8-225x4
+    namespace: app-sre-observability-stage
+  spec:
+    containers:
+    - image: quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main:4175d51
+      name: gitlab-project-exporter
+    - image: quay.io/app-sre/internal-redhat-ca:0.2.0
+      name: certificates
+    initContainers:
+    - image: quay.io/app-sre/internal-redhat-ca:0.2.0
+      name: certificates
