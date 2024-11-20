@@ -224,7 +224,6 @@ def reconcile_gitlab_members(
                 key,
                 "remove_user_from_group",
                 group.name,
-                gl.get_access_level_string(group_member.access_level),
             ])
             if not dry_run:
                 gl.remove_group_member(group, group_member.id)

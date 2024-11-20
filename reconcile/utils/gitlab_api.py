@@ -314,17 +314,19 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             member.save()
 
     def add_group_member(self, group, user):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        try:
-            group.members.create({
-                "username": user.user,
-                "access_level": user.access_level,
-            })
-        except gitlab.exceptions.GitlabCreateError:
+        gitlab_user = self.get_user(user.user)
+        if gitlab_user is not None:
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            member = group.members.get(user.id)
-            member.access_level = user.access_level
-            member.save()
+            try:
+                group.members.create({
+                    "user_id": gitlab_user.id,
+                    "access_level": user.access_level,
+                })
+            except gitlab.exceptions.GitlabCreateError:
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+                member = group.members.get(user.user)
+                member.access_level = user.access_level
+                member.save()
 
     def remove_group_member(self, group, user_id):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
