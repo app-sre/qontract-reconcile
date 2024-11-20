@@ -58,13 +58,13 @@ class DesiredStateSpec(BaseModel):
         arbitrary_types_allowed = True
 
 
-Current_State = dict[str, CurrentStateSpec]
-Desired_State = dict[str, DesiredStateSpec]
+CurrentState = dict[str, CurrentStateSpec]
+DesiredState = dict[str, DesiredStateSpec]
 
 
 def get_current_state(
     instance: GitlabInstanceV1, gl: GitLabApi, gitlab_groups_map: dict[str, Group]
-) -> Current_State:
+) -> CurrentState:
     """Get current gitlab group members for all managed groups."""
     return {
         g: CurrentStateSpec(
@@ -77,13 +77,15 @@ def get_current_state(
 
 
 def add_or_update_user(
-    group_members: Desired_State, group_name: str, gitlab_user: GitlabUser
+    desired_state_spec: DesiredStateSpec, gitlab_user: GitlabUser
 ) -> None:
-    existing_user = group_members[group_name].members.get(gitlab_user.user)
+    existing_user = desired_state_spec.members.get(gitlab_user.user)
     if not existing_user:
-        group_members[group_name].members[gitlab_user.user] = gitlab_user
-    elif existing_user.access_level < gitlab_user.access_level:
-        existing_user.access_level = gitlab_user.access_level
+        desired_state_spec.members[gitlab_user.user] = gitlab_user
+    else:
+        existing_user.access_level = max(
+            existing_user.access_level, gitlab_user.access_level
+        )
 
 
 def get_desired_state(
@@ -91,34 +93,41 @@ def get_desired_state(
     pagerduty_map: PagerDutyMap,
     permissions: list[PermissionGitlabGroupMembershipV1],
     all_users: list[User],
-) -> Desired_State:
+) -> DesiredState:
     """Fetch all desired gitlab users from app-interface."""
-    desired_group_members: Desired_State = {
-        g: DesiredStateSpec(members={}) for g in instance.managed_groups
+    desired_group_members: DesiredState = {
+        g: build_desired_state_spec(g, permissions, pagerduty_map, all_users)
+        for g in instance.managed_groups
     }
-    for g in desired_group_members:
-        for p in permissions:
-            if p.group == g:
-                p_access_level = GitLabApi.get_access_level(p.access)
-                for r in p.roles or []:
-                    for u in (r.users or []) + (r.bots or []):
-                        gu = GitlabUser(
-                            user=u.org_username, access_level=p_access_level
-                        )
-                        add_or_update_user(desired_group_members, g, gu)
-                if p.pagerduty:
-                    usernames_from_pagerduty = get_usernames_from_pagerduty(
-                        p.pagerduty,
-                        all_users,
-                        g,
-                        pagerduty_map,
-                        get_username_method=lambda u: u.org_username,
-                    )
-                    for u in usernames_from_pagerduty:
-                        gu = GitlabUser(user=u, access_level=p_access_level)
-                        add_or_update_user(desired_group_members, g, gu)
-
     return desired_group_members
+
+
+def build_desired_state_spec(
+    group_name: str,
+    permissions: list[PermissionGitlabGroupMembershipV1],
+    pagerduty_map: PagerDutyMap,
+    all_users: list[User],
+) -> DesiredStateSpec:
+    desired_state_spec = DesiredStateSpec(members={})
+    for p in permissions:
+        if p.group == group_name:
+            p_access_level = GitLabApi.get_access_level(p.access)
+            for r in p.roles or []:
+                for u in (r.users or []) + (r.bots or []):
+                    gu = GitlabUser(user=u.org_username, access_level=p_access_level)
+                    add_or_update_user(desired_state_spec, gu)
+            if p.pagerduty:
+                usernames_from_pagerduty = get_usernames_from_pagerduty(
+                    p.pagerduty,
+                    all_users,
+                    group_name,
+                    pagerduty_map,
+                    get_username_method=lambda u: u.org_username,
+                )
+                for u in usernames_from_pagerduty:
+                    gu = GitlabUser(user=u, access_level=p_access_level)
+                    add_or_update_user(desired_state_spec, gu)
+    return desired_state_spec
 
 
 def get_permissions(query_func: Callable) -> list[PermissionGitlabGroupMembershipV1]:
@@ -215,7 +224,7 @@ def reconcile_gitlab_members(
                 key,
                 "remove_user_from_group",
                 group.name,
-                gl.get_access_level_string(gitlab_user.access_level),
+                gl.get_access_level_string(group_member.access_level),
             ])
             if not dry_run:
                 gl.remove_group_member(group, group_member.id)

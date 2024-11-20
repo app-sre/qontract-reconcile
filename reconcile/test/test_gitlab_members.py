@@ -10,9 +10,9 @@ from pytest_mock import MockerFixture
 
 from reconcile import gitlab_members
 from reconcile.gitlab_members import (
-    Current_State,
+    CurrentState,
     CurrentStateSpec,
-    Desired_State,
+    DesiredState,
     DesiredStateSpec,
     GitlabUser,
     add_or_update_user,
@@ -63,7 +63,7 @@ def all_users() -> list[GroupMember]:
 
 
 @pytest.fixture()
-def current_state(all_users: list[GroupMember]) -> Current_State:
+def current_state(all_users: list[GroupMember]) -> CurrentState:
     return {
         "group1": CurrentStateSpec(
             members={
@@ -104,7 +104,7 @@ def user() -> User:
 def test_gitlab_members_get_current_state(
     mocker: MockerFixture,
     instance: GitlabInstanceV1,
-    current_state: Current_State,
+    current_state: CurrentState,
     gitlab_groups_map: dict[str, Group],
     all_users: list[GroupMember],
 ) -> None:
@@ -162,7 +162,7 @@ def test_gitlab_members_reconcile_gitlab_members(
     all_users: list[GroupMember],
 ) -> None:
     gl_mock = mocker.create_autospec(GitLabApi)
-    current_state: Current_State = {
+    current_state: CurrentState = {
         "group1": CurrentStateSpec(
             members={
                 "user1": all_users[0],
@@ -172,7 +172,7 @@ def test_gitlab_members_reconcile_gitlab_members(
         )
     }
     new_user = GitlabUser(user="new_user", access_level=40)
-    desired_state: Desired_State = {
+    desired_state: DesiredState = {
         "group1": DesiredStateSpec(
             members={
                 "user1": GitlabUser(user="user1", access_level=30),
@@ -195,25 +195,25 @@ def test_gitlab_members_reconcile_gitlab_members(
 
 
 def test_add_or_update_user_add():
-    group_members: Desired_State = {"t": DesiredStateSpec(members={})}
+    desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
     gu = GitlabUser(user="u", access_level=50, id="1234")
-    add_or_update_user(group_members, "t", gu)
-    assert group_members == {"t": DesiredStateSpec(members={"u": gu})}
+    add_or_update_user(desired_state_spec, gu)
+    assert desired_state_spec == DesiredStateSpec(members={"u": gu})
 
 
 def test_add_or_update_user_update_higher():
-    group_members: Desired_State = {"t": DesiredStateSpec(members={})}
+    desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
     gu1 = GitlabUser(user="u", access_level=40)
     gu2 = GitlabUser(user="u", access_level=50)
-    add_or_update_user(group_members, "t", gu1)
-    add_or_update_user(group_members, "t", gu2)
-    assert group_members == {"t": DesiredStateSpec(members={"u": gu2})}
+    add_or_update_user(desired_state_spec, gu1)
+    add_or_update_user(desired_state_spec, gu2)
+    assert desired_state_spec == DesiredStateSpec(members={"u": gu2})
 
 
 def test_add_or_update_user_update_lower():
-    group_members: Desired_State = {"t": DesiredStateSpec(members={})}
+    desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
     gu1 = GitlabUser(user="u", access_level=50)
     gu2 = GitlabUser(user="u", access_level=40)
-    add_or_update_user(group_members, "t", gu1)
-    add_or_update_user(group_members, "t", gu2)
-    assert group_members == {"t": DesiredStateSpec(members={"u": gu1})}
+    add_or_update_user(desired_state_spec, gu1)
+    add_or_update_user(desired_state_spec, gu2)
+    assert desired_state_spec == DesiredStateSpec(members={"u": gu1})
