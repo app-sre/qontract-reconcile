@@ -179,58 +179,55 @@ def run(
     current_state = get_current_state(instance, gl, managed_groups_map)
     desired_state = get_desired_state(instance, pagerduty_map, permissions, all_users)
     for group_name in instance.managed_groups:
-        current_state_spec = current_state.get(group_name)
-        desired_state_spec = desired_state.get(group_name)
-        group = managed_groups_map.get(group_name)
-        if current_state_spec and desired_state_spec and group:
-            reconcile_gitlab_members(
-                current_state_spec=current_state_spec,
-                desired_state_spec=desired_state_spec,
-                group=group,
-                gl=gl,
-                dry_run=dry_run,
-            )
+        reconcile_gitlab_members(
+            current_state_spec=current_state.get(group_name),
+            desired_state_spec=desired_state.get(group_name),
+            group=managed_groups_map.get(group_name),
+            gl=gl,
+            dry_run=dry_run,
+        )
 
 
 def reconcile_gitlab_members(
-    current_state_spec: CurrentStateSpec,
-    desired_state_spec: DesiredStateSpec,
-    group: Group,
+    current_state_spec: CurrentStateSpec | None,
+    desired_state_spec: DesiredStateSpec | None,
+    group: Group | None,
     gl: GitLabApi,
     dry_run: bool,
 ) -> None:
-    diff_data = diff_mappings(
-        current=current_state_spec.members,
-        desired=desired_state_spec.members,
-        equal=lambda c, d: c.access_level == d.access_level,
-    )
-    for key, gitlab_user in diff_data.add.items():
-        logging.info([
-            key,
-            "add_user_to_group",
-            group.name,
-            gl.get_access_level_string(gitlab_user.access_level),
-        ])
-        if not dry_run:
-            gl.add_group_member(group, gitlab_user)
-    for key, group_member in diff_data.delete.items():
-        logging.info([
-            key,
-            "remove_user_from_group",
-            group.name,
-            gl.get_access_level_string(gitlab_user.access_level),
-        ])
-        if not dry_run:
-            gl.remove_group_member(group, group_member.id)
-    for key, diff_pair in diff_data.change.items():
-        logging.info([
-            key,
-            "change_access",
-            group.name,
-            gl.get_access_level_string(diff_pair.desired.access_level),
-        ])
-        if not dry_run:
-            gl.change_access(diff_pair.current, diff_pair.desired.access_level)
+    if current_state_spec and desired_state_spec and group:
+        diff_data = diff_mappings(
+            current=current_state_spec.members,
+            desired=desired_state_spec.members,
+            equal=lambda current, desired: current.access_level == desired.access_level,
+        )
+        for key, gitlab_user in diff_data.add.items():
+            logging.info([
+                key,
+                "add_user_to_group",
+                group.name,
+                gl.get_access_level_string(gitlab_user.access_level),
+            ])
+            if not dry_run:
+                gl.add_group_member(group, gitlab_user)
+        for key, group_member in diff_data.delete.items():
+            logging.info([
+                key,
+                "remove_user_from_group",
+                group.name,
+                gl.get_access_level_string(gitlab_user.access_level),
+            ])
+            if not dry_run:
+                gl.remove_group_member(group, group_member.id)
+        for key, diff_pair in diff_data.change.items():
+            logging.info([
+                key,
+                "change_access",
+                group.name,
+                gl.get_access_level_string(diff_pair.desired.access_level),
+            ])
+            if not dry_run:
+                gl.change_access(diff_pair.current, diff_pair.desired.access_level)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
