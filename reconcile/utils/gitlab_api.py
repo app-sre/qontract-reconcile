@@ -29,6 +29,7 @@ from gitlab.const import (
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
+    GroupMember,
     PersonalAccessToken,
     Project,
     ProjectIssue,
@@ -84,6 +85,7 @@ GROUP_BOT_NAME_REGEX = re.compile(r"group_.+_bot_.+")
 
 
 class GLGroupMember(TypedDict):
+    id: str
     user: str
     access_level: str
 
@@ -288,17 +290,13 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         """
         return GROUP_BOT_NAME_REGEX.match(username) is not None
 
-    def get_group_members(self, group_name: str) -> list[GLGroupMember]:
-        group = self.get_group_if_exists(group_name)
+    def get_group_members(self, group: Group | None) -> list[GroupMember]:
         if group is None:
-            logging.error(group_name + " group not found")
+            logging.error("no group provided")
             return []
         else:
             return [
-                {
-                    "user": m.username,
-                    "access_level": self.get_access_level_string(m.access_level),
-                }
+                m
                 for m in self.get_items(group.members.list)
                 if not self._is_bot_username(m.username)
             ]
@@ -315,40 +313,27 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             member.access_level = access_level
             member.save()
 
-    def add_group_member(self, group_name, username, access):
-        group = self.get_group_if_exists(group_name)
-        if not group:
-            logging.error(group_name + " group not found")
-        else:
-            user = self.get_user(username)
-            access_level = self.get_access_level(access)
-            if user is not None:
-                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-                try:
-                    group.members.create({
-                        "user_id": user.id,
-                        "access_level": access_level,
-                    })
-                except gitlab.exceptions.GitlabCreateError:
-                    gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-                    member = group.members.get(user.id)
-                    member.access_level = access_level
-
-    def remove_group_member(self, group_name, username):
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        group = self.gl.groups.get(group_name)
-        user = self.get_user(username)
-        if user is not None:
+    def add_group_member(self, group, user):
+        gitlab_user = self.get_user(user.user)
+        if gitlab_user is not None:
             gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            group.members.delete(user.id)
+            try:
+                group.members.create({
+                    "user_id": gitlab_user.id,
+                    "access_level": user.access_level,
+                })
+            except gitlab.exceptions.GitlabCreateError:
+                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+                member = group.members.get(user.user)
+                member.access_level = user.access_level
+                member.save()
 
-    def change_access(self, group, username, access):
+    def remove_group_member(self, group, user_id):
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        group = self.gl.groups.get(group)
-        user = self.get_user(username)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        member = group.members.get(user.id)
-        member.access_level = self.get_access_level(access)
+        group.members.delete(user_id)
+
+    def change_access(self, member, access_level):
+        member.access_level = access_level
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member.save()
 

@@ -1,15 +1,20 @@
-import copy
 from typing import Any
+from unittest.mock import create_autospec
 
 import pytest
+from gitlab.v4.objects import (
+    Group,
+    GroupMember,
+)
 from pytest_mock import MockerFixture
 
 from reconcile import gitlab_members
 from reconcile.gitlab_members import (
-    Action,
-    Diff,
+    CurrentState,
+    CurrentStateSpec,
+    DesiredState,
+    DesiredStateSpec,
     GitlabUser,
-    State,
     add_or_update_user,
     get_permissions,
 )
@@ -37,16 +42,41 @@ def instance(vault_secret: VaultSecret) -> GitlabInstanceV1:
 
 
 @pytest.fixture()
-def state() -> State:
+def gitlab_groups_map() -> dict[str, Group]:
+    group1 = create_autospec(Group, name="group1", id="123")
+    group1.name = "group1"
+    group2 = create_autospec(Group, name="group2", id="124")
+    group2.name = "group2"
     return {
-        "group1": [
-            GitlabUser(access_level="developer", user="user1"),
-            GitlabUser(access_level="maintainer", user="user2"),
-        ],
-        "group2": [
-            GitlabUser(access_level="developer", user="user3"),
-            GitlabUser(access_level="maintainer", user="user4"),
-        ],
+        "group1": group1,
+        "group2": group2,
+    }
+
+
+@pytest.fixture()
+def all_users() -> list[GroupMember]:
+    user1 = create_autospec(GroupMember, username="user1", id="123", access_level=30)
+    user2 = create_autospec(GroupMember, username="user2", id="124", access_level=40)
+    user3 = create_autospec(GroupMember, username="user3", id="125", access_level=30)
+    user4 = create_autospec(GroupMember, username="user4", id="126", access_level=40)
+    return [user1, user2, user3, user4]
+
+
+@pytest.fixture()
+def current_state(all_users: list[GroupMember]) -> CurrentState:
+    return {
+        "group1": CurrentStateSpec(
+            members={
+                "user1": all_users[0],
+                "user2": all_users[1],
+            },
+        ),
+        "group2": CurrentStateSpec(
+            members={
+                "user3": all_users[2],
+                "user4": all_users[3],
+            },
+        ),
     }
 
 
@@ -72,20 +102,27 @@ def user() -> User:
 
 
 def test_gitlab_members_get_current_state(
-    mocker: MockerFixture, instance: GitlabInstanceV1, state: State
+    mocker: MockerFixture,
+    instance: GitlabInstanceV1,
+    current_state: CurrentState,
+    gitlab_groups_map: dict[str, Group],
+    all_users: list[GroupMember],
 ) -> None:
     gl_mock = mocker.create_autospec(GitLabApi)
     gl_mock.get_group_members.side_effect = [
         [
-            {"user": "user1", "access_level": "developer"},
-            {"user": "user2", "access_level": "maintainer"},
+            all_users[0],
+            all_users[1],
         ],
         [
-            {"user": "user3", "access_level": "developer"},
-            {"user": "user4", "access_level": "maintainer"},
+            all_users[2],
+            all_users[3],
         ],
     ]
-    assert gitlab_members.get_current_state(instance, gl_mock) == state
+    assert (
+        gitlab_members.get_current_state(instance, gl_mock, gitlab_groups_map)
+        == current_state
+    )
 
 
 def test_gitlab_members_get_desired_state(
@@ -103,210 +140,80 @@ def test_gitlab_members_get_desired_state(
     assert gitlab_members.get_desired_state(
         instance, mock_pagerduty_map, permissions, [user]
     ) == {
-        "group1": [GitlabUser(user="devtools-bot", access_level="owner")],
-        "group2": [
-            GitlabUser(user="devtools-bot", access_level="owner"),
-            GitlabUser(user="user1", access_level="owner"),
-            GitlabUser(user="user2", access_level="owner"),
-            GitlabUser(user="user3", access_level="owner"),
-            GitlabUser(user="user4", access_level="owner"),
-            GitlabUser(user="another-bot", access_level="owner"),
-        ],
+        "group1": DesiredStateSpec(
+            members={"devtools-bot": GitlabUser(user="devtools-bot", access_level=50)},
+        ),
+        "group2": DesiredStateSpec(
+            members={
+                "devtools-bot": GitlabUser(user="devtools-bot", access_level=50),
+                "user1": GitlabUser(user="user1", access_level=50),
+                "user2": GitlabUser(user="user2", access_level=50),
+                "user3": GitlabUser(user="user3", access_level=50),
+                "user4": GitlabUser(user="user4", access_level=50),
+                "another-bot": GitlabUser(user="another-bot", access_level=50),
+            },
+        ),
     }
 
 
-def test_gitlab_members_calculate_diff_no_changes(state: State) -> None:
-    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readability
-    assert gitlab_members.calculate_diff(state, state) == []
-
-
-def test_gitlab_members_subtract_states_no_changes_add(state: State) -> None:
-    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readability
-    assert gitlab_members.subtract_states(state, state, Action.add_user_to_group) == []
-
-
-def test_gitlab_members_subtract_states_no_changes_remove(state: State) -> None:
-    # pylint: disable=use-implicit-booleaness-not-comparison # for better readability
-    assert (
-        gitlab_members.subtract_states(state, state, Action.remove_user_from_group)
-        == []
-    )
-
-
-def test_gitlab_members_subtract_states_add(state: State) -> None:
-    current_state = copy.deepcopy(state)
-    # enforce add users to groups
-    current_state["group2"] = [GitlabUser(access_level="maintainer", user="otherone")]
-    del current_state["group1"][1]
-
-    desired_state = state
-    assert gitlab_members.subtract_states(
-        desired_state, current_state, Action.add_user_to_group
-    ) == [
-        Diff(
-            action=Action.add_user_to_group,
-            group="group1",
-            user="user2",
-            access_level="maintainer",
-        ),
-        Diff(
-            action=Action.add_user_to_group,
-            group="group2",
-            user="user3",
-            access_level="developer",
-        ),
-        Diff(
-            action=Action.add_user_to_group,
-            group="group2",
-            user="user4",
-            access_level="maintainer",
-        ),
-    ]
-
-
-def test_gitlab_members_subtract_states_remove(state: State) -> None:
-    current_state = copy.deepcopy(state)
-    # enforce remove user from group
-    current_state["group2"] = [GitlabUser(access_level="maintainer", user="otherone")]
-
-    desired_state = state
-    assert gitlab_members.subtract_states(
-        current_state, desired_state, Action.remove_user_from_group
-    ) == [
-        Diff(
-            action=Action.remove_user_from_group,
-            group="group2",
-            user="otherone",
-            access_level="maintainer",
+def test_gitlab_members_reconcile_gitlab_members(
+    gitlab_groups_map: dict[str, Group],
+    mocker: MockerFixture,
+    all_users: list[GroupMember],
+) -> None:
+    gl_mock = mocker.create_autospec(GitLabApi)
+    current_state: CurrentState = {
+        "group1": CurrentStateSpec(
+            members={
+                "user1": all_users[0],
+                "user3": all_users[2],
+                "user4": all_users[3],
+            },
         )
-    ]
-
-
-def test_gitlab_members_check_access_no_changes(state: State) -> None:
-    # pylint: disable-next=use-implicit-booleaness-not-comparison # for better readability
-    assert gitlab_members.check_access(state, state) == []
-
-
-def test_gitlab_members_check_access(state: State) -> None:
-    current_state = copy.deepcopy(state)
-    # enforce access change
-    current_state["group1"][0].access_level = "owner"
-    desired_state = state
-    assert gitlab_members.check_access(current_state, desired_state) == [
-        Diff(
-            action=Action.change_access,
-            group="group1",
-            user="user1",
-            access_level="developer",
-        ),
-    ]
-
-
-def test_gitlab_members_calculate_diff_changes(state: State) -> None:
-    current_state = copy.deepcopy(state)
-    # enforce remove user from group
-    current_state["group2"] = [GitlabUser(access_level="maintainer", user="otherone")]
-    # enforce add user to group
-    del current_state["group1"][1]
-    # enforce access change
-    current_state["group1"][0].access_level = "owner"
-    desired_state = state
-    assert gitlab_members.calculate_diff(current_state, desired_state) == [
-        Diff(
-            action=Action.add_user_to_group,
-            group="group1",
-            user="user2",
-            access_level="maintainer",
-        ),
-        Diff(
-            action=Action.add_user_to_group,
-            group="group2",
-            user="user3",
-            access_level="developer",
-        ),
-        Diff(
-            action=Action.add_user_to_group,
-            group="group2",
-            user="user4",
-            access_level="maintainer",
-        ),
-        Diff(
-            action=Action.remove_user_from_group,
-            group="group2",
-            user="otherone",
-            access_level="maintainer",
-        ),
-        Diff(
-            action=Action.change_access,
-            group="group1",
-            user="user1",
-            access_level="developer",
-        ),
-    ]
-
-
-def test_gitlab_members_act_add(mocker: MockerFixture) -> None:
-    gl_mock = mocker.create_autospec(GitLabApi)
-    diff = Diff(
-        action=Action.add_user_to_group,
-        group="group2",
-        user="user4",
-        access_level="maintainer",
+    }
+    new_user = GitlabUser(user="new_user", access_level=40)
+    desired_state: DesiredState = {
+        "group1": DesiredStateSpec(
+            members={
+                "user1": GitlabUser(user="user1", access_level=30),
+                "new_user": new_user,
+                "user3": GitlabUser(user="user3", access_level=50),
+            }
+        )
+    }
+    group = gitlab_groups_map.get("group1")
+    gitlab_members.reconcile_gitlab_members(
+        current_state_spec=current_state.get("group1"),
+        desired_state_spec=desired_state.get("group1"),
+        group=group,
+        dry_run=False,
+        gl=gl_mock,
     )
-    gitlab_members.act(diff, gl_mock)
-    gl_mock.add_group_member.assert_called_once()
-    gl_mock.remove_group_member.assert_not_called()
-    gl_mock.change_access.assert_not_called()
-
-
-def test_gitlab_members_act_remove(mocker: MockerFixture) -> None:
-    gl_mock = mocker.create_autospec(GitLabApi)
-    diff = Diff(
-        action=Action.remove_user_from_group,
-        group="group2",
-        user="otherone",
-        access_level="maintainer",
-    )
-    gitlab_members.act(diff, gl_mock)
-    gl_mock.add_group_member.assert_not_called()
-    gl_mock.remove_group_member.assert_called_once()
-    gl_mock.change_access.assert_not_called()
-
-
-def test_gitlab_members_act_change(mocker: MockerFixture) -> None:
-    gl_mock = mocker.create_autospec(GitLabApi)
-    diff = Diff(
-        action=Action.change_access,
-        group="group1",
-        user="user1",
-        access_level="developer",
-    )
-    gitlab_members.act(diff, gl_mock)
-    gl_mock.add_group_member.assert_not_called()
-    gl_mock.remove_group_member.assert_not_called()
-    gl_mock.change_access.assert_called_once()
+    gl_mock.add_group_member.assert_called_once_with(group, new_user)
+    gl_mock.change_access.assert_called_once_with(all_users[2], 50)
+    gl_mock.remove_group_member.assert_called_once_with(group, all_users[3].id)
 
 
 def test_add_or_update_user_add():
-    group_members: State = {"t": []}
-    gu = GitlabUser(user="u", access_level="owner")
-    add_or_update_user(group_members, "t", gu)
-    assert group_members == {"t": [gu]}
+    desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
+    gu = GitlabUser(user="u", access_level=50, id="1234")
+    add_or_update_user(desired_state_spec, gu)
+    assert desired_state_spec == DesiredStateSpec(members={"u": gu})
 
 
 def test_add_or_update_user_update_higher():
-    group_members: State = {"t": []}
-    gu1 = GitlabUser(user="u", access_level="maintainer")
-    gu2 = GitlabUser(user="u", access_level="owner")
-    add_or_update_user(group_members, "t", gu1)
-    add_or_update_user(group_members, "t", gu2)
-    assert group_members == {"t": [gu2]}
+    desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
+    gu1 = GitlabUser(user="u", access_level=40)
+    gu2 = GitlabUser(user="u", access_level=50)
+    add_or_update_user(desired_state_spec, gu1)
+    add_or_update_user(desired_state_spec, gu2)
+    assert desired_state_spec == DesiredStateSpec(members={"u": gu2})
 
 
 def test_add_or_update_user_update_lower():
-    group_members: State = {"t": []}
-    gu1 = GitlabUser(user="u", access_level="owner")
-    gu2 = GitlabUser(user="u", access_level="maintainer")
-    add_or_update_user(group_members, "t", gu1)
-    add_or_update_user(group_members, "t", gu2)
-    assert group_members == {"t": [gu1]}
+    desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
+    gu1 = GitlabUser(user="u", access_level=50)
+    gu2 = GitlabUser(user="u", access_level=40)
+    add_or_update_user(desired_state_spec, gu1)
+    add_or_update_user(desired_state_spec, gu2)
+    assert desired_state_spec == DesiredStateSpec(members={"u": gu1})

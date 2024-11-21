@@ -1,8 +1,11 @@
-import enum
 import logging
 from collections.abc import Callable
 from typing import Any
 
+from gitlab.v4.objects import (
+    Group,
+    GroupMember,
+)
 from pydantic import BaseModel
 
 from reconcile import queries
@@ -23,6 +26,7 @@ from reconcile.gql_definitions.gitlab_members.permissions import (
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
+from reconcile.utils.differ import diff_mappings
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
@@ -37,50 +41,51 @@ QONTRACT_INTEGRATION = "gitlab-members"
 
 class GitlabUser(BaseModel):
     user: str
-    access_level: str
+    access_level: int
 
 
-State = dict[str, list[GitlabUser]]
+class CurrentStateSpec(BaseModel):
+    members: dict[str, GroupMember]
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
-class Action(enum.Enum):
-    add_user_to_group = enum.auto()
-    remove_user_from_group = enum.auto()
-    change_access = enum.auto()
+class DesiredStateSpec(BaseModel):
+    members: dict[str, GitlabUser]
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
-class Diff(BaseModel):
-    action: Action
-    group: str
-    user: str
-    access_level: str
+CurrentState = dict[str, CurrentStateSpec]
+DesiredState = dict[str, DesiredStateSpec]
 
 
-def get_current_state(instance: GitlabInstanceV1, gl: GitLabApi) -> State:
+def get_current_state(
+    instance: GitlabInstanceV1, gl: GitLabApi, gitlab_groups_map: dict[str, Group]
+) -> CurrentState:
     """Get current gitlab group members for all managed groups."""
     return {
-        g: [
-            GitlabUser(user=u["user"], access_level=u["access_level"])
-            for u in gl.get_group_members(g)
-        ]
+        g: CurrentStateSpec(
+            members={
+                u.username: u for u in gl.get_group_members(gitlab_groups_map.get(g))
+            },
+        )
         for g in instance.managed_groups
     }
 
 
 def add_or_update_user(
-    group_members: State, group_name: str, gitlab_user: GitlabUser
+    desired_state_spec: DesiredStateSpec, gitlab_user: GitlabUser
 ) -> None:
-    existing_users = [
-        gu for gu in group_members[group_name] if gu.user == gitlab_user.user
-    ]
-    if not existing_users:
-        group_members[group_name].append(gitlab_user)
+    existing_user = desired_state_spec.members.get(gitlab_user.user)
+    if not existing_user:
+        desired_state_spec.members[gitlab_user.user] = gitlab_user
     else:
-        existing_user = existing_users[0]
-        if GitLabApi.get_access_level(
-            existing_user.access_level
-        ) < GitLabApi.get_access_level(gitlab_user.access_level):
-            existing_user.access_level = gitlab_user.access_level
+        existing_user.access_level = max(
+            existing_user.access_level, gitlab_user.access_level
+        )
 
 
 def get_desired_state(
@@ -88,95 +93,41 @@ def get_desired_state(
     pagerduty_map: PagerDutyMap,
     permissions: list[PermissionGitlabGroupMembershipV1],
     all_users: list[User],
-) -> State:
+) -> DesiredState:
     """Fetch all desired gitlab users from app-interface."""
-    desired_group_members: State = {g: [] for g in instance.managed_groups}
-    for g in desired_group_members:
-        for p in permissions:
-            if p.group == g:
-                for r in p.roles or []:
-                    for u in (r.users or []) + (r.bots or []):
-                        gu = GitlabUser(user=u.org_username, access_level=p.access)
-                        add_or_update_user(desired_group_members, g, gu)
-                if p.pagerduty:
-                    usernames_from_pagerduty = get_usernames_from_pagerduty(
-                        p.pagerduty,
-                        all_users,
-                        g,
-                        pagerduty_map,
-                        get_username_method=lambda u: u.org_username,
-                    )
-                    for u in usernames_from_pagerduty:
-                        gu = GitlabUser(user=u, access_level=p.access)
-                        add_or_update_user(desired_group_members, g, gu)
-
+    desired_group_members: DesiredState = {
+        g: build_desired_state_spec(g, permissions, pagerduty_map, all_users)
+        for g in instance.managed_groups
+    }
     return desired_group_members
 
 
-def calculate_diff(current_state: State, desired_state: State) -> list[Diff]:
-    """Compare current and desired state and return all differences."""
-    diff: list[Diff] = []
-    diff += subtract_states(desired_state, current_state, Action.add_user_to_group)
-    diff += subtract_states(current_state, desired_state, Action.remove_user_from_group)
-    diff += check_access(current_state, desired_state)
-    return diff
-
-
-def subtract_states(
-    from_state: State, subtract_state: State, action: Action
-) -> list[Diff]:
-    """Return diff objects for items in from_state but not in subtract_state."""
-    result = []
-    for f_group, f_users in from_state.items():
-        s_group = subtract_state[f_group]
-        for f_user in f_users:
-            found = False
-            for s_user in s_group:
-                if f_user.user != s_user.user:
-                    continue
-                found = True
-                break
-            if not found:
-                result.append(
-                    Diff(
-                        action=action,
-                        group=f_group,
-                        user=f_user.user,
-                        access_level=f_user.access_level,
-                    )
+def build_desired_state_spec(
+    group_name: str,
+    permissions: list[PermissionGitlabGroupMembershipV1],
+    pagerduty_map: PagerDutyMap,
+    all_users: list[User],
+) -> DesiredStateSpec:
+    desired_state_spec = DesiredStateSpec(members={})
+    for p in permissions:
+        if p.group == group_name:
+            p_access_level = GitLabApi.get_access_level(p.access)
+            for r in p.roles or []:
+                for u in (r.users or []) + (r.bots or []):
+                    gu = GitlabUser(user=u.org_username, access_level=p_access_level)
+                    add_or_update_user(desired_state_spec, gu)
+            if p.pagerduty:
+                usernames_from_pagerduty = get_usernames_from_pagerduty(
+                    p.pagerduty,
+                    all_users,
+                    group_name,
+                    pagerduty_map,
+                    get_username_method=lambda u: u.org_username,
                 )
-    return result
-
-
-def check_access(current_state: State, desired_state: State) -> list[Diff]:
-    """Return diff objects for item where access level is different."""
-    result = []
-    for d_group, d_users in desired_state.items():
-        c_group = current_state[d_group]
-        for d_user in d_users:
-            for c_user in c_group:
-                if d_user.user == c_user.user:
-                    if d_user.access_level != c_user.access_level:
-                        result.append(
-                            Diff(
-                                action=Action.change_access,
-                                group=d_group,
-                                user=c_user.user,
-                                access_level=d_user.access_level,
-                            )
-                        )
-                    break
-    return result
-
-
-def act(diff: Diff, gl: GitLabApi) -> None:
-    """Apply a diff object."""
-    if diff.action == Action.remove_user_from_group:
-        gl.remove_group_member(diff.group, diff.user)
-    if diff.action == Action.add_user_to_group:
-        gl.add_group_member(diff.group, diff.user, diff.access_level)
-    if diff.action == Action.change_access:
-        gl.change_access(diff.group, diff.user, diff.access_level)
+                for u in usernames_from_pagerduty:
+                    gu = GitlabUser(user=u, access_level=p_access_level)
+                    add_or_update_user(desired_state_spec, gu)
+    return desired_state_spec
 
 
 def get_permissions(query_func: Callable) -> list[PermissionGitlabGroupMembershipV1]:
@@ -195,6 +146,11 @@ def get_gitlab_instance(query_func: Callable) -> GitlabInstanceV1:
             raise AppInterfaceSettingsError("More than one gitlab instance found!")
         return instances[0]
     raise AppInterfaceSettingsError("No gitlab instance found!")
+
+
+def get_managed_groups_map(group_names: list[str], gl: GitLabApi) -> dict[str, Group]:
+    gitlab_groups = {group_name: gl.get_group(group_name) for group_name in group_names}
+    return gitlab_groups
 
 
 @defer
@@ -228,17 +184,58 @@ def run(
     pagerduty_map = get_pagerduty_map(
         secret_reader, pagerduty_instances=pagerduty_instances
     )
-
-    # act
-    current_state = get_current_state(instance, gl)
+    managed_groups_map = get_managed_groups_map(instance.managed_groups, gl)
+    current_state = get_current_state(instance, gl, managed_groups_map)
     desired_state = get_desired_state(instance, pagerduty_map, permissions, all_users)
-    diffs = calculate_diff(current_state, desired_state)
+    for group_name in instance.managed_groups:
+        reconcile_gitlab_members(
+            current_state_spec=current_state.get(group_name),
+            desired_state_spec=desired_state.get(group_name),
+            group=managed_groups_map.get(group_name),
+            gl=gl,
+            dry_run=dry_run,
+        )
 
-    for diff in diffs:
-        logging.info(diff)
 
-        if not dry_run:
-            act(diff, gl)
+def reconcile_gitlab_members(
+    current_state_spec: CurrentStateSpec | None,
+    desired_state_spec: DesiredStateSpec | None,
+    group: Group | None,
+    gl: GitLabApi,
+    dry_run: bool,
+) -> None:
+    if current_state_spec and desired_state_spec and group:
+        diff_data = diff_mappings(
+            current=current_state_spec.members,
+            desired=desired_state_spec.members,
+            equal=lambda current, desired: current.access_level == desired.access_level,
+        )
+        for key, gitlab_user in diff_data.add.items():
+            logging.info([
+                key,
+                "add_user_to_group",
+                group.name,
+                gl.get_access_level_string(gitlab_user.access_level),
+            ])
+            if not dry_run:
+                gl.add_group_member(group, gitlab_user)
+        for key, group_member in diff_data.delete.items():
+            logging.info([
+                key,
+                "remove_user_from_group",
+                group.name,
+            ])
+            if not dry_run:
+                gl.remove_group_member(group, group_member.id)
+        for key, diff_pair in diff_data.change.items():
+            logging.info([
+                key,
+                "change_access",
+                group.name,
+                gl.get_access_level_string(diff_pair.desired.access_level),
+            ])
+            if not dry_run:
+                gl.change_access(diff_pair.current, diff_pair.desired.access_level)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
