@@ -9,6 +9,12 @@ from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.gql_definitions.oum.organizations import (
+    OpenShiftClusterManagerV1,
+)
+from reconcile.gql_definitions.oum.organizations import (
+    query as ocm_orgs_query,
+)
 from reconcile.oum.metrics import (
     OCMUserManagementOrganizationActionCounter as ReconcileActionCounter,
 )
@@ -35,6 +41,7 @@ from reconcile.utils import (
     gql,
     metrics,
 )
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm.base import (
     CAPABILITY_MANAGE_CLUSTER_ADMIN,
     OCMClusterGroupId,
@@ -56,7 +63,6 @@ from reconcile.utils.runtime.integration import (
 
 class OCMUserManagementIntegrationParams(PydanticRunParams):
     ocm_environment: str | None = None
-    ocm_organization_ids: set[str] | None = None
     group_provider_specs: list[str]
 
 
@@ -87,7 +93,7 @@ class OCMUserManagementIntegration(
 
     @abstractmethod
     def get_user_mgmt_config_for_ocm_env(
-        self, ocm_env: OCMEnvironment, org_ids: set[str] | None
+        self, ocm_env: OCMEnvironment
     ) -> dict[str, OrganizationUserManagementConfiguration]:
         """
         Discover cluster user mgmt configurations in the given OCM environment.
@@ -101,9 +107,7 @@ class OCMUserManagementIntegration(
         Processes user management configuration for all OCM organizations
         within the given OCM environment.
         """
-        org_configs = self.get_user_mgmt_config_for_ocm_env(
-            ocm_env, self.params.ocm_organization_ids
-        )
+        org_configs = self.get_user_mgmt_config_for_ocm_env(ocm_env)
 
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
         for org_id, org_config in org_configs.items():
@@ -385,3 +389,14 @@ def get_group_providers(
         else:
             raise ValueError(f"unknown group member provider type {provider_type}")
     return providers
+
+
+def get_ocm_orgs_from_env(
+    env_name: str, int_name: str
+) -> list[OpenShiftClusterManagerV1]:
+    orgs = ocm_orgs_query(gql.get_api().query).organizations
+    return [
+        org
+        for org in orgs or []
+        if integration_is_enabled(int_name, org) and org.environment.name == env_name
+    ]

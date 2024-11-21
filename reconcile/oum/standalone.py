@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import timedelta
 
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
-from reconcile.oum.base import OCMUserManagementIntegration
+from reconcile.oum.base import OCMUserManagementIntegration, get_ocm_orgs_from_env
 from reconcile.oum.labelset import build_cluster_config_from_labels
 from reconcile.oum.models import (
     ClusterError,
@@ -35,12 +35,14 @@ class OCMStandaloneUserManagementIntegration(OCMUserManagementIntegration):
         return "ocm-standalone-user-management"
 
     def get_user_mgmt_config_for_ocm_env(
-        self, ocm_env: OCMEnvironment, org_ids: set[str] | None
+        self, ocm_env: OCMEnvironment
     ) -> dict[str, OrganizationUserManagementConfiguration]:
         ocm_api = init_ocm_base_client(ocm_env, self.secret_reader)
         clusters_by_org = discover_clusters(
             ocm_api=ocm_api,
-            org_ids=org_ids,
+            org_ids={
+                org.org_id for org in get_ocm_orgs_from_env(ocm_env.name, self.name)
+            },
         )
         configs: dict[str, OrganizationUserManagementConfiguration] = {}
         for org_id, org_clusters in clusters_by_org.items():

@@ -3357,28 +3357,20 @@ def status_page_maintenances(ctx):
     envvar="OCM_ENV",
 )
 @click.option(
-    "--ocm-org-ids",
-    help="A comma seperated list of OCM organization IDs the integration should operator on. If none is specified, all organizations are considered.",
-    required=False,
-    envvar="OCM_ORG_IDS",
-)
-@click.option(
     "--group-provider",
     help="A group provider spec is the form of <provider-name>:<provider-type>:<provider-args>.",
     required=False,
     multiple=True,
 )
 @click.pass_context
-def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
+def ocm_standalone_user_management(ctx, ocm_env, group_provider):
     from reconcile.oum.base import OCMUserManagementIntegrationParams
     from reconcile.oum.standalone import OCMStandaloneUserManagementIntegration
 
-    ocm_organization_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
     run_class_integration(
         OCMStandaloneUserManagementIntegration(
             OCMUserManagementIntegrationParams(
                 ocm_environment=ocm_env,
-                ocm_organization_ids=ocm_organization_ids,
                 group_provider_specs=group_provider,
             ),
         ),
