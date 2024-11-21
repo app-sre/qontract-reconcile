@@ -63,8 +63,13 @@ from reconcile.checkpoint import report_invalid_metadata
 from reconcile.cli import (
     TERRAFORM_VERSION,
     TERRAFORM_VERSION_REGEX,
+    cluster_name,
     config_file,
+    namespace_name,
     use_jump_host,
+)
+from reconcile.cli import (
+    threaded as thread_pool_size,
 )
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
@@ -136,7 +141,9 @@ from reconcile.utils.oc import (
     OC_Map,
     OCLogMsg,
 )
-from reconcile.utils.oc_map import init_oc_map_from_clusters
+from reconcile.utils.oc_map import (
+    init_oc_map_from_clusters,
+)
 from reconcile.utils.ocm import OCM_PRODUCT_ROSA, OCMMap
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.output import print_output
@@ -4311,6 +4318,69 @@ def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
                 erv2_tf_cli.migrate_resources(source=tfr_tf_cli)
 
     rich_print(f"[b red]Please remove the temporary directory ({tempdir}) manually!")
+
+
+@get.command(help="Get all container images in app-interface defined namespaces")
+@cluster_name
+@namespace_name
+@thread_pool_size()
+@use_jump_host()
+@click.option("--exclude-pattern", help="Exclude images that match this pattern")
+@click.option("--include-pattern", help="Only include images that match this pattern")
+@click.pass_context
+def container_images(
+    ctx,
+    cluster_name,
+    namespace_name,
+    thread_pool_size,
+    use_jump_host,
+    exclude_pattern,
+    include_pattern,
+):
+    from tools.cli_commands.container_images_report import get_all_pods_images
+
+    results = get_all_pods_images(
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+        thread_pool_size=thread_pool_size,
+        use_jump_host=use_jump_host,
+        exclude_pattern=exclude_pattern,
+        include_pattern=include_pattern,
+    )
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "name", "sortable": True},
+                {"key": "namespaces", "sortable": True},
+                {"key": "count", "sortable": True},
+            ],
+            "items": results,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(results)} container images found.
+
+exclude-pattern = {exclude_pattern}
+include-pattern = {include_pattern}
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "name",
+            "namespaces",
+            "count",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], results, columns)
 
 
 if __name__ == "__main__":
