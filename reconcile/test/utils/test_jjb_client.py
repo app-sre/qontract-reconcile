@@ -28,6 +28,51 @@ def gitlab_job_fixture():
 
 
 @pytest.fixture
+def gitlab_pr_check_job_fixture():
+    return {
+        "name": "service-foobar-pr-check",
+        "properties": [
+            {"github": {"url": "http://mygilabinstance.org/service/foobar"}},
+        ],
+        "triggers": [
+            {"gitlab": {"trigger-merge-request": True}},
+        ],
+    }
+
+
+@pytest.fixture
+def gitlab_build_job_fixture():
+    return {
+        "name": "service-foobar-pr-check",
+        "properties": [
+            {"github": {"url": "http://mygilabinstance.org/service/foobar"}},
+        ],
+        "triggers": [
+            {"gitlab": {"trigger-merge-request": False, "trigger-push": True}},
+        ],
+    }
+
+
+@pytest.fixture
+def gitlab_test_job_fixture():
+    return {
+        "name": "service-foobar-pr-check",
+        "properties": [
+            {"github": {"url": "http://mygilabinstance.org/service/foobar"}},
+        ],
+        "triggers": [
+            {
+                "gitlab": {
+                    "trigger-merge-request": False,
+                    "trigger-push": False,
+                    "trigger-note": True,
+                }
+            },
+        ],
+    }
+
+
+@pytest.fixture
 def patch_jjb(mocker, github_job_fixture, gitlab_job_fixture):
     mocker.patch(
         "reconcile.utils.jjb_client.JJB.__init__", return_value=None, autospec=True
@@ -50,3 +95,23 @@ def test_get_job_by_repo_url(patch_jjb, gitlab_job_fixture):
 def test_get_trigger_phrases_regex(patch_jjb, gitlab_job_fixture):
     jjb = JJB(None)
     assert jjb.get_trigger_phrases_regex(gitlab_job_fixture) == "my_trigger_regex.*"
+
+
+def test_get_gitlab_webhook_trigger(patch_jjb, gitlab_job_fixture):
+    jjb = JJB(None)
+    assert jjb.get_gitlab_webhook_trigger(gitlab_job_fixture) == []
+
+
+def test_get_gitlab_webhook_trigger_pr_check(patch_jjb, gitlab_pr_check_job_fixture):
+    jjb = JJB(None)
+    assert jjb.get_gitlab_webhook_trigger(gitlab_pr_check_job_fixture) == ["mr", "note"]
+
+
+def test_get_gitlab_webhook_trigger_build(patch_jjb, gitlab_build_job_fixture):
+    jjb = JJB(None)
+    assert jjb.get_gitlab_webhook_trigger(gitlab_build_job_fixture) == ["push"]
+
+
+def test_get_gitlab_webhook_trigger_test(patch_jjb, gitlab_test_job_fixture):
+    jjb = JJB(None)
+    assert jjb.get_gitlab_webhook_trigger(gitlab_test_job_fixture) == ["note"]
