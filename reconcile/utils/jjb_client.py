@@ -294,11 +294,8 @@ class JJB:  # pylint: disable=too-many-public-methods
                         self.instance_urls[name], job["name"]
                     )
                     project_url = project_url_raw.strip("/").replace(".git", "")
-                    gitlab_triggers = job["triggers"][0]["gitlab"]
-                    mr_trigger = gitlab_triggers["trigger-merge-request"]
-                    push_trigger = gitlab_triggers["trigger-push"]
-                    trigger = "mr" if mr_trigger else "push" if push_trigger else None
-                    if trigger is None:
+                    trigger = self.get_gitlab_webhook_trigger(job)
+                    if not trigger:
                         continue
                     hook = {
                         "job_url": job_url,
@@ -399,3 +396,19 @@ class JJB:  # pylint: disable=too-many-public-methods
             if "github-pull-request" in trigger:
                 return trigger["github-pull-request"].get("trigger-phrase")
         return None
+
+    @staticmethod
+    def get_gitlab_webhook_trigger(job: dict) -> list[str]:
+        gitlab_triggers = job["triggers"][0]["gitlab"]
+        # pr-check job should be triggered by merge request events
+        # and certain comments: [test]|/retest|/lgtm|/lgtm cancel|/hold|/hold cancel
+        if gitlab_triggers.get("trigger-merge-request"):
+            return ["mr", "note"]
+        # build main/master job should be triggered by push events
+        elif gitlab_triggers.get("trigger-push"):
+            return ["push"]
+        # On-demand test job should be triggered by special comment
+        elif gitlab_triggers.get("trigger-note"):
+            return ["note"]
+        else:
+            return []

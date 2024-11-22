@@ -24,7 +24,13 @@ def get_hooks_to_add(desired_state, gl):
             current_hooks = gl.get_project_hooks(project_url)
             for h in current_hooks:
                 job_url = h.url
-                trigger = "mr" if h.merge_requests_events else "push"
+                trigger = []
+                if h.merge_requests_events:
+                    trigger.append("mr")
+                if h.push_events:
+                    trigger.append("push")
+                if h.note_events:
+                    trigger.append("note")
                 item = {
                     "job_url": job_url.strip("/"),
                     "trigger": trigger,

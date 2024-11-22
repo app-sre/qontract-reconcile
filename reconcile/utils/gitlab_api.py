@@ -670,9 +670,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         hook = {
             "url": url,
             "enable_ssl_verification": 1,
-            "note_events": int(trigger == "mr"),
-            "push_events": int(trigger == "push"),
-            "merge_requests_events": int(trigger == "mr"),
+            "note_events": int("note" in trigger),
+            "push_events": int("push" in trigger),
+            "merge_requests_events": int("mr" in trigger),
         }
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         p.hooks.create(hook)
