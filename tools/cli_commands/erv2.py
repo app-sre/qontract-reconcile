@@ -215,8 +215,44 @@ class Erv2Cli:
                     capture_output=True,
                 )
         except CalledProcessError as e:
-            print(e.stderr.decode("utf-8"))
-            print(e.stdout.decode("utf-8"))
+            if e.stderr:
+                print(e.stderr.decode("utf-8"))
+            if e.stdout:
+                print(e.stdout.decode("utf-8"))
+            raise
+
+    def enter_shell(self, credentials: Path) -> None:
+        """Run the CDKTF container and enter the shell."""
+        input_file = self.temp / "input.json"
+        input_file.write_text(self.input_data)
+
+        try:
+            run(["docker", "pull", self.image], check=True, capture_output=True)
+            run(
+                [
+                    "docker",
+                    "run",
+                    "--name",
+                    "erv2-debug-shell",
+                    "--rm",
+                    "-it",
+                    "--mount",
+                    f"type=bind,source={input_file!s},target=/inputs/input.json",
+                    "--mount",
+                    f"type=bind,source={credentials!s},target=/credentials",
+                    "-e",
+                    "AWS_SHARED_CREDENTIALS_FILE=/credentials",
+                    "--entrypoint",
+                    "/bin/bash",
+                    self.image,
+                ],
+                check=True,
+            )
+        except CalledProcessError as e:
+            if e.stderr:
+                print(e.stderr.decode("utf-8"))
+            if e.stdout:
+                print(e.stdout.decode("utf-8"))
             raise
 
 
@@ -236,8 +272,10 @@ def tf_run(path: Path, cmd: list[str]) -> str:
             env=env,
         ).stdout.decode("utf-8")
     except CalledProcessError as e:
-        print(e.stderr.decode("utf-8"))
-        print(e.stdout.decode("utf-8"))
+        if e.stderr:
+            print(e.stderr.decode("utf-8"))
+        if e.stdout:
+            print(e.stdout.decode("utf-8"))
         raise
 
 
