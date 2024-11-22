@@ -537,93 +537,91 @@ def test_validate_db_upgrade_major_version_upgrade(aws_api, tf):
 
 
 def test_validate_db_upgrade_cannot_upgrade(
-    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [  # type: ignore[attr-defined]
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
 
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-
-    tf.validate_db_upgrade(
-        account_name="a1",
-        resource_name="test-database-1",
-        resource_change={
-            "before": {
-                "engine": "postgres",
-                "engine_version": "11.12",
-                "availability_zone": "us-east-1a",
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_db_upgrade(
+            account_name="a1",
+            resource_name="test-database-1",
+            resource_change={
+                "before": {
+                    "engine": "postgres",
+                    "engine_version": "11.12",
+                    "availability_zone": "us-east-1a",
+                },
+                "after": {
+                    "engine": "postgres",
+                    "engine_version": "14.2",
+                },
             },
-            "after": {
-                "engine": "postgres",
-                "engine_version": "14.2",
-            },
-        },
-    )
+        )
 
-    mocked_logging.error.assert_called_once_with(
-        "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2"
-    )
+        assert (
+            str(error.value)
+            == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2"
+        )
 
 
 def test_validate_db_upgrade_major_version_upgrade_not_allow(
-    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [  # type: ignore[attr-defined]
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
 
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-
-    tf.validate_db_upgrade(
-        account_name="a1",
-        resource_name="test-database-1",
-        resource_change={
-            "before": {
-                "engine": "postgres",
-                "engine_version": "11.12",
-                "availability_zone": "us-east-1a",
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_db_upgrade(
+            account_name="a1",
+            resource_name="test-database-1",
+            resource_change={
+                "before": {
+                    "engine": "postgres",
+                    "engine_version": "11.12",
+                    "availability_zone": "us-east-1a",
+                },
+                "after": {
+                    "engine": "postgres",
+                    "engine_version": "13.3",
+                },
             },
-            "after": {
-                "engine": "postgres",
-                "engine_version": "13.3",
-            },
-        },
-    )
+        )
 
-    mocked_logging.error.assert_called_once_with(
-        "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
-    )
+        assert (
+            str(error.value)
+            == "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
+        )
 
 
 def test_validate_db_upgrade_with_empty_valid_upgrade_target(
-    mocker: MockerFixture,
-    aws_api: AWSApi,
-    tf: tfclient.TerraformClient,
+    aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = []  # type: ignore[attr-defined]
 
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
-
-    tf.validate_db_upgrade(
-        account_name="a1",
-        resource_name="test-database-1",
-        resource_change={
-            "before": {
-                "engine": "postgres",
-                "engine_version": "11.12",
-                "availability_zone": "us-east-1a",
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_db_upgrade(
+            account_name="a1",
+            resource_name="test-database-1",
+            resource_change={
+                "before": {
+                    "engine": "postgres",
+                    "engine_version": "11.12",
+                    "availability_zone": "us-east-1a",
+                },
+                "after": {
+                    "engine": "postgres",
+                    "engine_version": "11.17",
+                },
             },
-            "after": {
-                "engine": "postgres",
-                "engine_version": "11.17",
-            },
-        },
-    )
+        )
 
-    mocked_logging.error.assert_called_once_with(
-        "Cannot upgrade RDS instance: test-database-1 from 11.12 to 11.17"
-    )
+        assert (
+            str(error.value)
+            == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 11.17"
+        )
 
 
 def test_validate_blue_green_update_requirements_supported_version(
@@ -644,68 +642,72 @@ def test_validate_blue_green_update_requirements_supported_version(
 
 
 def test_validate_blue_green_update_requirements_unsupported_version(
-    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    tf.validate_blue_green_update_requirements(
-        account_name="a1",
-        resource_name="test-database-1",
-        engine="postgres",
-        version="11.19",
-        replica=False,
-        parameter_group="test-pg",
-        region_name="us-east-1",
-        changed_fields=set(),
-    )
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            resource_name="test-database-1",
+            engine="postgres",
+            version="11.19",
+            replica=False,
+            parameter_group="test-pg",
+            region_name="us-east-1",
+            changed_fields=set(),
+        )
 
-    mocked_logging.error.assert_called_once_with(
-        "Cannot upgrade RDS instance: test-database-1. Engine version 11.19 is not supported for blue/green updates."
-    )
+        assert (
+            str(error.value)
+            == "Cannot upgrade RDS instance: test-database-1. Engine version 11.19 is not supported for blue/green updates."
+        )
 
 
 def test_validate_blue_green_update_requirements_missing_logical_replication(
-    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "0"}  # type: ignore[attr-defined]
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    tf.validate_blue_green_update_requirements(
-        account_name="a1",
-        resource_name="test-database-1",
-        engine="postgres",
-        version="12.16",
-        replica=False,
-        parameter_group="test-pg",
-        region_name="us-east-1",
-        changed_fields=set(),
-    )
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            resource_name="test-database-1",
+            engine="postgres",
+            version="12.16",
+            replica=False,
+            parameter_group="test-pg",
+            region_name="us-east-1",
+            changed_fields=set(),
+        )
 
-    mocked_logging.error.assert_called_once_with(
-        "Cannot upgrade RDS instance: test-database-1. Blue/green updates require logical replication to be enabled in the Parameter group test-pg."
-    )
+        assert (
+            str(error.value)
+            == "Cannot upgrade RDS instance: test-database-1. Blue/green updates require logical replication to be enabled in the Parameter group test-pg."
+        )
 
 
 def test_validate_blue_green_update_requirements_with_replica_source(
-    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    tf.validate_blue_green_update_requirements(
-        account_name="a1",
-        resource_name="test-database-1",
-        engine="postgres",
-        version="12.16",
-        parameter_group="test-pg",
-        replica=True,
-        region_name="us-east-1",
-        changed_fields=set(),
-    )
-    mocked_logging.error.assert_called_once_with(
-        "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported for instances with read replicas."
-    )
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            resource_name="test-database-1",
+            engine="postgres",
+            version="12.16",
+            parameter_group="test-pg",
+            replica=True,
+            region_name="us-east-1",
+            changed_fields=set(),
+        )
+
+        assert (
+            str(error.value)
+            == "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported for instances with read replicas."
+        )
 
 
 def test_validate_db_upgrade_with_blue_green_update(
@@ -722,7 +724,7 @@ def test_validate_db_upgrade_with_blue_green_update(
         resource_change={
             "before": {
                 "engine": "postgres",
-                "engine_version": "11.12",
+                "engine_version": "11.21",
                 "availability_zone": "us-east-1a",
                 "parameter_group_name": "test-pg",
                 "replicas": [],
@@ -738,25 +740,26 @@ def test_validate_db_upgrade_with_blue_green_update(
 
 
 def test_validate_blue_green_update_requirements_with_storage_type_change(
-    mocker: MockerFixture, aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
-    mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
 
-    tf.validate_blue_green_update_requirements(
-        account_name="a1",
-        resource_name="test-database-1",
-        engine="postgres",
-        version="12.16",
-        replica=False,
-        parameter_group="test-pg",
-        region_name="us-east-1",
-        changed_fields={"storage_type"},
-    )
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            resource_name="test-database-1",
+            engine="postgres",
+            version="12.16",
+            replica=False,
+            parameter_group="test-pg",
+            region_name="us-east-1",
+            changed_fields={"storage_type"},
+        )
 
-    mocked_logging.error.assert_called_once_with(
-        "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported when 'storage_type' or 'allocated_storage' has changed."
-    )
+        assert (
+            str(error.value)
+            == "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported when 'storage_type' or 'allocated_storage' has changed."
+        )
 
 
 def test_check_output_debug(
