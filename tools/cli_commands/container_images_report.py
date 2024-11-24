@@ -20,7 +20,8 @@ IMAGE_NAME_REGEX = re.compile(r"^(?P<name>[a-zA-Z0-9][a-zA-Z0-9/_.-]+)(?:@sha256
 
 class NamespaceImages(BaseModel):
     namespace_name: str
-    image_names: list[str]
+    image_names: list[str] | None = None
+    error_message: str | None = None
 
 
 def get_all_pods_images(
@@ -77,9 +78,14 @@ def fetch_pods_images_from_namespaces(
         oc_map=oc_map,
     )
 
+    errors: defaultdict = defaultdict(int)
     result: defaultdict = defaultdict(_get_all_images_default)
     for ni in all_namespace_images:
-        for name in ni.image_names:
+        if ni.error_message:
+            errors[f"{ni.namespace_name}/{ni.error_message}"] += 1
+            continue
+
+        for name in ni.image_names or []:
             result[name]["namespaces"].add(ni.namespace_name)
             result[name]["count"] += 1
 
@@ -92,7 +98,7 @@ def fetch_pods_images_from_namespaces(
         include_pattern_compiled = re.compile(include_pattern)
 
     result_filtered_flattened: list[dict[str, Any]] = []
-    for name, value in result.items():
+    for name, value in sorted(result.items()):
         if include_pattern_compiled and not include_pattern_compiled.match(name):
             continue
         if exclude_pattern_compiled and exclude_pattern_compiled.match(name):
@@ -104,6 +110,16 @@ def fetch_pods_images_from_namespaces(
             "count": value["count"],
         })
 
+    # append errors if they exist in the filtered result
+    # not very canonical, but it is better than ignoring them
+    if errors:
+        for message, count in sorted(errors.items()):
+            result_filtered_flattened.append({
+                "name": "error",
+                "namespaces": message,
+                "count": count,
+            })
+
     return result_filtered_flattened
 
 
@@ -113,15 +129,22 @@ def _get_all_images_default() -> dict[str, Any]:
 
 def _get_namespace_images(ns: NamespaceV1, oc_map: OCMap) -> NamespaceImages:
     image_names = []
-    oc = oc_map.get_cluster(ns.cluster.name)
-    pod_items = oc.get_items("Pod", namespace=ns.name)
-    for pod in pod_items:
-        containers = pod.get("spec", {}).get("containers", [])
-        containers.extend(pod.get("spec", {}).get("initContainers", []))
 
-        for c in containers:
-            if m := IMAGE_NAME_REGEX.match(c["image"]):
-                image_names.append(m.group("name"))
+    try:
+        oc = oc_map.get_cluster(ns.cluster.name)
+        pod_items = oc.get_items("Pod", namespace=ns.name)
+        for pod in pod_items:
+            containers = pod.get("spec", {}).get("containers", [])
+            containers.extend(pod.get("spec", {}).get("initContainers", []))
+
+            for c in containers:
+                if m := IMAGE_NAME_REGEX.match(c["image"]):
+                    image_names.append(m.group("name"))
+    except Exception as exc:
+        return NamespaceImages(
+            namespace_name=ns.name,
+            error_message=str(exc),
+        )
 
     return NamespaceImages(
         namespace_name=ns.name,
