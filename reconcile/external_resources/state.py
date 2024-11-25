@@ -10,6 +10,8 @@ from reconcile.external_resources.model import (
     ExternalResourceKey,
     ExternalResourceModuleConfiguration,
     Reconciliation,
+    ReconciliationStatus,
+    ResourceStatus,
 )
 from reconcile.utils.aws_api_typed.api import AWSApi
 
@@ -27,35 +29,25 @@ class ReconcileStatus(StrEnum):
     NOT_EXISTS: str = "NOT_EXISTS"
 
 
-class ResourceStatus(StrEnum):
-    CREATED: str = "CREATED"
-    DELETED: str = "DELETED"
-    ABANDONED: str = "ABANDONED"
-    NOT_EXISTS: str = "NOT_EXISTS"
-    IN_PROGRESS: str = "IN_PROGRESS"
-    DELETE_IN_PROGRESS: str = "DELETE_IN_PROGRESS"
-    ERROR: str = "ERROR"
-    PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
-    RECONCILIATION_REQUESTED: str = "RECONCILIATION_REQUESTED"
-
-    @property
-    def is_in_progress(self) -> bool:
-        return self in {ResourceStatus.IN_PROGRESS, ResourceStatus.DELETE_IN_PROGRESS}
-
-    @property
-    def needs_secret_sync(self) -> bool:
-        return self == ResourceStatus.PENDING_SECRET_SYNC
-
-    @property
-    def has_errors(self) -> bool:
-        return self == ResourceStatus.ERROR
-
-
 class ExternalResourceState(BaseModel):
     key: ExternalResourceKey
     ts: datetime
     resource_status: ResourceStatus
     reconciliation: Reconciliation
+
+    def update_resource_status(
+        self, reconciliation_status: ReconciliationStatus
+    ) -> None:
+        if self.reconciliation_needs_state_update(reconciliation_status):
+            self.ts = datetime.now()
+            self.resource_status = reconciliation_status.resource_status
+
+    def reconciliation_needs_state_update(
+        self, reconciliation_status: ReconciliationStatus
+    ) -> bool:
+        return (
+            self.resource_status.is_in_progress or self.resource_status.does_not_exist
+        ) and not reconciliation_status.resource_status.is_in_progress
 
 
 class DynamoDBStateAdapter:

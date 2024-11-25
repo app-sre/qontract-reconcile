@@ -245,6 +245,34 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
         )
 
 
+class ResourceStatus(StrEnum):
+    CREATED: str = "CREATED"
+    DELETED: str = "DELETED"
+    ABANDONED: str = "ABANDONED"
+    NOT_EXISTS: str = "NOT_EXISTS"
+    IN_PROGRESS: str = "IN_PROGRESS"
+    DELETE_IN_PROGRESS: str = "DELETE_IN_PROGRESS"
+    ERROR: str = "ERROR"
+    PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
+    RECONCILIATION_REQUESTED: str = "RECONCILIATION_REQUESTED"
+
+    @property
+    def does_not_exist(self) -> bool:
+        return self == ResourceStatus.NOT_EXISTS
+
+    @property
+    def is_in_progress(self) -> bool:
+        return self in {ResourceStatus.IN_PROGRESS, ResourceStatus.DELETE_IN_PROGRESS}
+
+    @property
+    def needs_secret_sync(self) -> bool:
+        return self == ResourceStatus.PENDING_SECRET_SYNC
+
+    @property
+    def has_errors(self) -> bool:
+        return self == ResourceStatus.ERROR
+
+
 class Reconciliation(BaseModel, frozen=True):
     key: ExternalResourceKey
     resource_hash: str = ""
@@ -253,6 +281,22 @@ class Reconciliation(BaseModel, frozen=True):
     module_configuration: ExternalResourceModuleConfiguration = (
         ExternalResourceModuleConfiguration()
     )
+
+
+class ReconcileAction(StrEnum):
+    NOOP = "NOOP"
+    APPLY_NOT_EXISTS = "Resource does not exist"
+    APPLY_ERROR = "Resource status in ERROR state"
+    APPLY_SPEC_CHANGED = "Resource spec has changed"
+    APPLY_DRIFT_DETECTION = "Resource drift detection run"
+    APPLY_USER_REQUESTED = "Resource reconciliation requested"
+    DESTROY_CREATED = "Resource no longer exists in the configuration"
+    DESTROY_ERROR = "Resource status in ERROR state"
+
+
+class ReconciliationStatus(BaseModel):
+    reconcile_time: int = 0
+    resource_status: ResourceStatus
 
 
 class ModuleProvisionData(ABC, BaseModel):
