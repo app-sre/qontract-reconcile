@@ -4399,9 +4399,6 @@ You can view the source of this Markdown to extract the JSON data.
 
 {len(results)} container images found.
 
-exclude-pattern = {exclude_pattern}
-include-pattern = {include_pattern}
-
 ```json:table
 {json.dumps(json_table)}
 ```
