@@ -956,35 +956,42 @@ class AWSApi:  # pylint: disable=too-many-public-methods
                     for s in vpc_subnets
                 ]
             if hcp_vpc_endpoint_sg:
-                endpoints = AWSApi._get_vpc_endpoints(
-                    [
-                        {"Name": "vpc-id", "Values": [vpc_id]},
-                        {
-                            "Name": "tag:AWSEndpointService",
-                            "Values": ["private-router"],
-                        },
-                    ],
-                    assumed_ec2,
+                api_security_group_id = self._get_api_security_group_id(
+                    assumed_ec2, vpc_id
                 )
-                if len(endpoints) > 1:
-                    raise ValueError(
-                        f"exactly one VPC endpoint for private API router in VPC {vpc_id} expected but {len(endpoints)} found"
-                    )
-                vpc_endpoint_id = endpoints[0]["VpcEndpointId"]
-                # https://github.com/openshift/hypershift/blob/c855f68e84e78924ccc9c2132b75dc7e30c4e1d8/control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go#L4243
-                security_groups = [
-                    sg
-                    for sg in endpoints[0]["Groups"]
-                    if sg["GroupName"].endswith("-default-sg")
-                ]
-                if len(security_groups) != 1:
-                    raise ValueError(
-                        f"exactly one VPC endpoint default security group for private API router {vpc_endpoint_id} "
-                        f"in VPC {vpc_id} expected but {len(security_groups)} found"
-                    )
-                api_security_group_id = security_groups[0]["GroupId"]
 
         return vpc_id, route_table_ids, subnets_id_az, api_security_group_id
+
+    def _get_api_security_group_id(self, assumed_ec2, vpc_id):
+        endpoints = AWSApi._get_vpc_endpoints(
+            [
+                {"Name": "vpc-id", "Values": [vpc_id]},
+                {
+                    "Name": "tag:AWSEndpointService",
+                    "Values": ["private-router"],
+                },
+            ],
+            assumed_ec2,
+        )
+        if not endpoints:
+            return None
+        if len(endpoints) > 1:
+            raise ValueError(
+                f"exactly one VPC endpoint for private API router in VPC {vpc_id} expected but {len(endpoints)} found"
+            )
+        vpc_endpoint_id = endpoints[0]["VpcEndpointId"]
+        # https://github.com/openshift/hypershift/blob/c855f68e84e78924ccc9c2132b75dc7e30c4e1d8/control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go#L4243
+        security_groups = [
+            sg
+            for sg in endpoints[0]["Groups"]
+            if sg["GroupName"].endswith("-default-sg")
+        ]
+        if len(security_groups) != 1:
+            raise ValueError(
+                f"exactly one VPC endpoint default security group for private API router {vpc_endpoint_id} "
+                f"in VPC {vpc_id} expected but {len(security_groups)} found"
+            )
+        return security_groups[0]["GroupId"]
 
     def get_cluster_nat_gateways_egress_ips(self, account: dict[str, Any], vpc_id: str):
         assumed_role_data = self._get_account_assume_data(account)
