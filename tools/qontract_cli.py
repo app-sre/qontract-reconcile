@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import tempfile
 import textwrap
 from collections import defaultdict
 from datetime import (
@@ -4203,7 +4204,7 @@ def request_reconciliation(ctx):
 
 
 @external_resources.command()
-@binary(["terraform"])
+@binary(["terraform", "docker"])
 @binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
 @click.option(
     "--dry-run/--no-dry-run",
@@ -4318,6 +4319,39 @@ def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
                 erv2_tf_cli.migrate_resources(source=tfr_tf_cli)
 
     rich_print(f"[b red]Please remove the temporary directory ({tempdir}) manually!")
+
+
+@external_resources.command()
+@binary(["docker"])
+@click.pass_context
+def debug_shell(ctx) -> None:
+    """Enter an ERv2 debug shell to manually migrate resources."""
+    # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
+    with tempfile.TemporaryDirectory(dir=Path.home(), prefix="erv2-debug.") as _tempdir:
+        tempdir = Path(_tempdir)
+        with progress_spinner() as progress:
+            with task(progress, "Preparing environment ..."):
+                credentials_file = tempdir / "credentials"
+                credentials_file.write_text(
+                    ctx.obj["secret_reader"].read_with_parameters(
+                        path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
+                        field="credentials",
+                        format=None,
+                        version=None,
+                    )
+                )
+            os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
+
+        erv2cli = Erv2Cli(
+            provision_provider=ctx.obj["provision_provider"],
+            provisioner=ctx.obj["provisioner"],
+            provider=ctx.obj["provider"],
+            identifier=ctx.obj["identifier"],
+            secret_reader=ctx.obj["secret_reader"],
+            temp_dir=tempdir,
+            progress_spinner=progress,
+        )
+        erv2cli.enter_shell(credentials_file)
 
 
 @get.command(help="Get all container images in app-interface defined namespaces")
