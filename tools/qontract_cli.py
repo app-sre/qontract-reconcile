@@ -6,8 +6,8 @@ import json
 import logging
 import os
 import re
-import shutil
 import sys
+import tempfile
 import textwrap
 from collections import defaultdict
 from datetime import (
@@ -4327,35 +4327,31 @@ def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
 def debug_shell(ctx) -> None:
     """Enter an ERv2 debug shell to manually migrate resources."""
     # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
-    tempdir = Path.home() / ".erv2-debug"
-    tempdir.mkdir(exist_ok=False)
-
-    with progress_spinner() as progress:
-        with task(progress, "Preparing environment ..."):
-            credentials_file = tempdir / "credentials"
-            credentials_file.write_text(
-                ctx.obj["secret_reader"].read_with_parameters(
-                    path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
-                    field="credentials",
-                    format=None,
-                    version=None,
+    with tempfile.TemporaryDirectory(dir=Path.home(), prefix="erv2-debug.") as _tempdir:
+        tempdir = Path(_tempdir)
+        with progress_spinner() as progress:
+            with task(progress, "Preparing environment ..."):
+                credentials_file = tempdir / "credentials"
+                credentials_file.write_text(
+                    ctx.obj["secret_reader"].read_with_parameters(
+                        path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
+                        field="credentials",
+                        format=None,
+                        version=None,
+                    )
                 )
-            )
-        os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
+            os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
 
-    erv2cli = Erv2Cli(
-        provision_provider=ctx.obj["provision_provider"],
-        provisioner=ctx.obj["provisioner"],
-        provider=ctx.obj["provider"],
-        identifier=ctx.obj["identifier"],
-        secret_reader=ctx.obj["secret_reader"],
-        temp_dir=tempdir,
-        progress_spinner=progress,
-    )
-    erv2cli.enter_shell(credentials_file)
-
-    # Cleanup
-    shutil.rmtree(tempdir)
+        erv2cli = Erv2Cli(
+            provision_provider=ctx.obj["provision_provider"],
+            provisioner=ctx.obj["provisioner"],
+            provider=ctx.obj["provider"],
+            identifier=ctx.obj["identifier"],
+            secret_reader=ctx.obj["secret_reader"],
+            temp_dir=tempdir,
+            progress_spinner=progress,
+        )
+        erv2cli.enter_shell(credentials_file)
 
 
 @get.command(help="Get all container images in app-interface defined namespaces")
