@@ -45,8 +45,8 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query OUMOrganizations($name: String) {
-  organizations: ocm_instances_v1(name: $name) {
+query OUMOrganizations {
+  organizations: ocm_instances_v1 {
     name
     environment {
       ...OCMEnvironment

@@ -1,7 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
-query OUMOrganizations($name: String) {
-  organizations: ocm_instances_v1(name: $name) {
+query OUMOrganizations {
+  organizations: ocm_instances_v1 {
     name
     environment {
       ...OCMEnvironment
