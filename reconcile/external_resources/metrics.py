@@ -1,6 +1,10 @@
 from pydantic import BaseModel
 
 from reconcile.external_resources.meta import QONTRACT_INTEGRATION
+from reconcile.external_resources.model import Reconciliation, ReconciliationStatus
+from reconcile.external_resources.reconciler import ReconciliationK8sJob
+from reconcile.utils import metrics
+from reconcile.utils.external_resources import ExternalResourceSpec
 from reconcile.utils.metrics import (
     CounterMetric,
     GaugeMetric,
@@ -39,3 +43,53 @@ class ExternalResourcesResourceStatus(ExternalResourcesBaseMetric, GaugeMetric):
     @classmethod
     def name(cls) -> str:
         return "external_resources_resource_status"
+
+
+def publish_metrics(
+    r: Reconciliation,
+    spec: ExternalResourceSpec,
+    reconciliation_status: ReconciliationStatus,
+) -> None:
+    job_name = ReconciliationK8sJob(reconciliation=r).name()
+
+    # Use transactional_metrics to remove old status, we just want to expose the latest status
+    with metrics.transactional_metrics(scope=job_name) as metrics_container:
+        metrics_container.set_gauge(
+            ExternalResourcesResourceStatus(
+                app=spec.namespace["app"]["name"],
+                environment=spec.namespace["environment"]["name"],
+                provision_provider=r.key.provision_provider,
+                provisioner_name=r.key.provisioner_name,
+                provider=r.key.provider,
+                identifier=r.key.identifier,
+                job_name=job_name,
+                status=reconciliation_status.resource_status,
+            ),
+            1,
+        )
+
+    metrics.set_gauge(
+        ExternalResourcesReconcileTimeGauge(
+            app=spec.namespace["app"]["name"],
+            environment=spec.namespace["environment"]["name"],
+            provision_provider=r.key.provision_provider,
+            provisioner_name=r.key.provisioner_name,
+            provider=r.key.provider,
+            identifier=r.key.identifier,
+            job_name=job_name,
+        ),
+        reconciliation_status.reconcile_time,
+    )
+
+    if reconciliation_status.resource_status.has_errors:
+        metrics.inc_counter(
+            ExternalResourcesReconcileErrorsCounter(
+                app=spec.namespace["app"]["name"],
+                environment=spec.namespace["environment"]["name"],
+                provision_provider=r.key.provision_provider,
+                provisioner_name=r.key.provisioner_name,
+                provider=r.key.provider,
+                identifier=r.key.identifier,
+                job_name=job_name,
+            )
+        )
