@@ -415,3 +415,60 @@ def test_get_cluster_vpc_details_no_endpoints(
     assert route_table_ids is None
     assert subnets_id_az is None
     assert api_security_group_id is None
+
+
+@pytest.mark.parametrize(
+    "group_name",
+    [
+        "abc-default-sg",
+        "abc-vpce-private-router",
+    ],
+)
+def test_get_cluster_vpc_details_with_hcp_security_group(
+    mocker: MockerFixture,
+    aws_api: AWSApi,
+    group_name: str,
+) -> None:
+    expected_vpc_id = "id"
+    expected_sg_id = "sg-id"
+    mocker.patch.object(
+        aws_api,
+        "get_account_vpcs",
+        return_value=[
+            {
+                "CidrBlock": "cidr",
+                "VpcId": expected_vpc_id,
+            }
+        ],
+    )
+    mocker.patch.object(
+        AWSApi,
+        "_get_vpc_endpoints",
+        return_value=[
+            {
+                "VpcEndpointId": "vpce-id",
+                "Groups": [
+                    {
+                        "GroupName": group_name,
+                        "GroupId": expected_sg_id,
+                    }
+                ],
+            }
+        ],
+    )
+
+    vpc_id, route_table_ids, subnets_id_az, api_security_group_id = (
+        aws_api.get_cluster_vpc_details(
+            {
+                "name": "some-account",
+                "assume_region": "us-east-1",
+                "assume_cidr": "cidr",
+            },
+            hcp_vpc_endpoint_sg=True,
+        )
+    )
+
+    assert vpc_id == expected_vpc_id
+    assert route_table_ids is None
+    assert subnets_id_az is None
+    assert api_security_group_id == expected_sg_id

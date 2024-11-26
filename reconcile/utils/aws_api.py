@@ -979,12 +979,15 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             raise ValueError(
                 f"exactly one VPC endpoint for private API router in VPC {vpc_id} expected but {len(endpoints)} found"
             )
-        vpc_endpoint_id = endpoints[0]["VpcEndpointId"]
+        endpoint = endpoints[0]
+        vpc_endpoint_id = endpoint["VpcEndpointId"]
         # https://github.com/openshift/hypershift/blob/c855f68e84e78924ccc9c2132b75dc7e30c4e1d8/control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go#L4243
+        # https://github.com/openshift/hypershift/blob/2569f3353ef5ac0858eace9ee77310c3cc38b8e0/control-plane-operator/controllers/awsprivatelink/awsprivatelink_controller.go#L787
         security_groups = [
             sg
-            for sg in endpoints[0]["Groups"]
+            for sg in endpoint["Groups"]
             if sg["GroupName"].endswith("-default-sg")
+            or sg["GroupName"].endswith("-vpce-private-router")
         ]
         if len(security_groups) != 1:
             raise ValueError(
