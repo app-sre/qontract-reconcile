@@ -1113,23 +1113,33 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     base64.b64decode(auth["auth"]).decode("utf-8").split(":")
                 )
                 with suppress(Exception):
-                    return Image(
+                    img = Image(
                         image,
                         username=username,
                         password=password,
                         auth_server=image_auth.auth_server,
                         timeout=REQUEST_TIMEOUT,
                     )
+                    if img:
+                        return img
+                    else:
+                        logging.error(f"{error_prefix} image:{image} not found")
+                        return None
 
         # basic auth fallback for backwards compatibility
         try:
-            return Image(
+            img = Image(
                 image,
                 username=image_auth.username,
                 password=image_auth.password,
                 auth_server=image_auth.auth_server,
                 timeout=REQUEST_TIMEOUT,
             )
+            if img:
+                return img
+            else:
+                logging.error(f"{error_prefix} image:{image} not found")
+                return None
         except Exception as e:
             logging.error(
                 f"{error_prefix} Image is invalid: {image}. " + f"details: {e!s}"
