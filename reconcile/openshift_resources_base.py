@@ -34,6 +34,7 @@ import reconcile.openshift_base as ob
 import reconcile.utils.jinja2.utils as jinja2_utils
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
+from reconcile.external_resources.meta import SECRET_UPDATED_AT
 from reconcile.utils import (
     amtool,
     gql,
@@ -233,6 +234,9 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 2)
 QONTRACT_BASE64_SUFFIX = "_qb64"
 KUBERNETES_SECRET_DATA_KEY_RE = "^[-._a-zA-Z0-9]+$"
 
+# Keys in vault secrets that do not need to land
+# into K8S secrets.
+VAULT_SECRETS_EXCLUDED_KEYS = {SECRET_UPDATED_AT}
 _log_lock = Lock()
 
 
@@ -401,7 +405,11 @@ def fetch_provider_vault_secret(
 ) -> OR:
     # get the fields from vault
     secret_reader = SecretReader(settings)
-    raw_data = secret_reader.read_all({"path": path, "version": version})
+    raw_data = {
+        k: v
+        for k, v in secret_reader.read_all({"path": path, "version": version}).items()
+        if k not in VAULT_SECRETS_EXCLUDED_KEYS
+    }
 
     if validate_alertmanager_config:
         check_alertmanager_config(raw_data, path, alertmanager_config_key)
