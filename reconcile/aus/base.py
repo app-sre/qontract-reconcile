@@ -941,7 +941,7 @@ def verify_schedule_should_skip(
     addon_id: str = "",
 ) -> str | None:
     schedule = desired.upgrade_policy.schedule
-    iter = croniter(schedule)
+    iter = croniter(schedule, day_or=False)
     # ClusterService refuses scheduling upgrades less than 5m in advance
     # Let's find the next schedule that is at least 5m ahead.
     # We do not need that much delay for addon upgrades since they run

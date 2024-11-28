@@ -131,7 +131,7 @@ class Subscriber:
                 self.schedule,
             )
             return False
-        return croniter.match(self.schedule, datetime.now(UTC))
+        return croniter.match(self.schedule, datetime.now(UTC), day_or=False)
 
     def _compute_desired_ref(self) -> None:
         """
