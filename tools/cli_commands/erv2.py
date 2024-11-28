@@ -470,7 +470,7 @@ class TerraformCli:
                 self.progress_spinner.stop()
             if not Confirm.ask(
                 "\nEverything ok? Would you like to upload the modified terraform states",
-                default=False,
+                default=True,
             ):
                 return
 

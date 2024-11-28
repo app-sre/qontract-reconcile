@@ -4229,8 +4229,7 @@ def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
 
     if not Confirm.ask(
         dedent("""
-            Please disable terraform-resources: [i blue]https://app-interface.unleash.devshift.net/projects/default/features/terraform-resources[/]
-            in Unleash before proceeding!
+            Please ensure [red]terraform-resources[/] is disabled before proceeding!
 
             Do you want to proceed?"""),
         default=True,
