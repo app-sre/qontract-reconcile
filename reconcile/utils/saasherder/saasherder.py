@@ -1112,29 +1112,54 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 username, password = (
                     base64.b64decode(auth["auth"]).decode("utf-8").split(":")
                 )
-                with suppress(Exception):
-                    return Image(
-                        image,
-                        username=username,
-                        password=password,
-                        auth_server=image_auth.auth_server,
-                        timeout=REQUEST_TIMEOUT,
-                    )
+
+                return SaasHerder._get_and_validate_image(
+                    full_image_path=image,
+                    username=username,
+                    password=password,
+                    auth_server=image_auth.auth_server,
+                    timeout=REQUEST_TIMEOUT,
+                    error_prefix=error_prefix,
+                )
 
         # basic auth fallback for backwards compatibility
+        return SaasHerder._get_and_validate_image(
+            full_image_path=image,
+            username=image_auth.username,
+            password=image_auth.password,
+            auth_server=image_auth.auth_server,
+            timeout=REQUEST_TIMEOUT,
+            error_prefix=error_prefix,
+        )
+
+    @staticmethod
+    def _get_and_validate_image(
+        full_image_path: str,
+        username: str | Any,
+        password: str | Any,
+        auth_server: str | Any,
+        timeout: int,
+        error_prefix: str,
+    ) -> Image | None:
         try:
-            return Image(
-                image,
-                username=image_auth.username,
-                password=image_auth.password,
-                auth_server=image_auth.auth_server,
-                timeout=REQUEST_TIMEOUT,
+            img = Image(
+                full_image_path,
+                username=username,
+                password=password,
+                auth_server=auth_server,
+                timeout=timeout,
             )
+            if img:
+                return img
+            else:
+                logging.error(
+                    f"{error_prefix} Image : {full_image_path} does not exist"
+                )
         except Exception as e:
             logging.error(
-                f"{error_prefix} Image is invalid: {image}. " + f"details: {e!s}"
+                f"{error_prefix} Image is invalid: {full_image_path}. "
+                + f"details: {e!s}"
             )
-
         return None
 
     def _check_images(
