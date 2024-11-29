@@ -186,9 +186,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                                 )
                             app_name = app_name_by_path.get(app_path)
                             if not app_name:
-                                raise KeyError(
-                                    f"app name is expected. missing in query? app information: {c_app}"
+                                logging.info(
+                                    f"app name not found, maybe deleted, use path as name, path: {app_path}"
                                 )
+                                app_name = app_path
                             change_log_item.apps.append(app_name)
                     case "/openshift/cluster-1.yml":
                         changed_apps = {
