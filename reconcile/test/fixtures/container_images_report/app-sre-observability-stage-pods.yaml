@@ -10,6 +10,15 @@
 - apiVersion: v1
   kind: Pod
   metadata:
+    name: prom-cloudwatch-exporter-86dcf83a3-xdr63
+    namespace: app-sre-observability-stage
+  spec:
+    containers:
+    - image: quay.io/app-sre/prom-cloudwatch-exporter
+      name: prom-cloudwatch-exporter
+- apiVersion: v1
+  kind: Pod
+  metadata:
     name: gitlab-project-exporter-f64f9c9f8-225x4
     namespace: app-sre-observability-stage
   spec:

@@ -15,7 +15,9 @@ from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespac
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_namespaces
 from reconcile.utils.secret_reader import create_secret_reader
 
-IMAGE_NAME_REGEX = re.compile(r"^(?P<name>[a-zA-Z0-9][a-zA-Z0-9/_.-]+)(?:@sha256)?:.+$")
+IMAGE_NAME_REGEX = re.compile(
+    r"^(?P<name>[a-zA-Z0-9][a-zA-Z0-9/_.-]+)(?:$|(?:@sha256)?:.+.$)"
+)
 
 
 class NamespaceImages(BaseModel):

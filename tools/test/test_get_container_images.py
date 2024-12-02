@@ -118,6 +118,11 @@ def test_fetch_no_filter(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
             "count": 3,
         },
         {
+            "name": "quay.io/app-sre/prom-cloudwatch-exporter",
+            "namespaces": "app-sre-observability-stage",
+            "count": 1,
+        },
+        {
             "name": "quay.io/prometheus/blackbox-exporter",
             "namespaces": "app-sre-observability-stage",
             "count": 1,
@@ -201,6 +206,11 @@ def test_fetch_exception(
             "name": "quay.io/app-sre/internal-redhat-ca",
             "namespaces": "app-sre-observability-stage",
             "count": 2,
+        },
+        {
+            "name": "quay.io/app-sre/prom-cloudwatch-exporter",
+            "namespaces": "app-sre-observability-stage",
+            "count": 1,
         },
         {
             "name": "quay.io/prometheus/blackbox-exporter",
