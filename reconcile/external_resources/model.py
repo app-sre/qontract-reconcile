@@ -3,11 +3,7 @@ import json
 from abc import (
     ABC,
 )
-from collections.abc import (
-    Iterable,
-    Iterator,
-    MutableMapping,
-)
+from collections.abc import ItemsView, Iterable, Iterator, MutableMapping
 from enum import StrEnum
 from typing import Any
 
@@ -82,17 +78,17 @@ class ExternalResourcesInventory(MutableMapping):
     def __init__(self, namespaces: Iterable[NamespaceV1]) -> None:
         self._inventory: dict[ExternalResourceKey, ExternalResourceSpec] = {}
 
-        desired_providers = [
-            (p, ns)
+        resource_providers = [
+            (rp, ns)
             for ns in namespaces
-            for p in ns.external_resources or []
-            if isinstance(p, SUPPORTED_RESOURCE_PROVIDERS) and p.resources
+            for rp in ns.external_resources or []
+            if isinstance(rp, SUPPORTED_RESOURCE_PROVIDERS) and rp.resources
         ]
 
         desired_specs = [
-            self._build_external_resource_spec(ns, p, r)
-            for (p, ns) in desired_providers
-            for r in p.resources
+            self._build_external_resource_spec(ns, rp, r)
+            for (rp, ns) in resource_providers
+            for r in rp.resources
             if isinstance(r, SUPPORTED_RESOURCE_TYPES) and r.managed_by_erv2
         ]
 
@@ -135,6 +131,9 @@ class ExternalResourcesInventory(MutableMapping):
 
     def __len__(self) -> int:
         return len(self._inventory)
+
+    def items(self) -> ItemsView[ExternalResourceKey, ExternalResourceSpec]:
+        return self._inventory.items()
 
     def get_inventory_spec(
         self, provision_provider: str, provisioner: str, provider: str, identifier: str
@@ -281,6 +280,9 @@ class Reconciliation(BaseModel, frozen=True):
     module_configuration: ExternalResourceModuleConfiguration = (
         ExternalResourceModuleConfiguration()
     )
+    # linked_resources store dependants resources. They will get reconciled
+    # every time the parent resource reconciliation finishes.
+    linked_resources: frozenset[ExternalResourceKey] | None
 
 
 class ReconcileAction(StrEnum):

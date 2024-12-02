@@ -3,6 +3,7 @@ from typing import Any
 
 from reconcile.external_resources.model import (
     ExternalResource,
+    ExternalResourceKey,
     ExternalResourcesInventory,
 )
 from reconcile.utils.external_resource_spec import (
@@ -24,6 +25,13 @@ class AWSResourceFactory(ABC):
 
     @abstractmethod
     def validate(self, resource: ExternalResource) -> None: ...
+
+    def find_linked_resources(
+        self, spec: ExternalResourceSpec
+    ) -> set[ExternalResourceKey]:
+        """Method to find dependant resources. Resources in this list
+        will be reconciled every time the parent resource finishes its reconciliation."""
+        return set()
 
 
 class AWSDefaultResourceFactory(AWSResourceFactory):
@@ -135,6 +143,17 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
         return data
 
     def validate(self, resource: ExternalResource) -> None: ...
+
+    def find_linked_resources(
+        self, spec: ExternalResourceSpec
+    ) -> set[ExternalResourceKey]:
+        return {
+            k
+            for k, s in self.er_inventory.items()
+            if s.provision_provider == "aws"
+            and s.provider == "rds"
+            and s.resource["replica_source"] == spec.identifier
+        }
 
 
 class AWSMskFactory(AWSDefaultResourceFactory):

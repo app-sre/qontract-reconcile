@@ -20,7 +20,9 @@ from reconcile.external_resources.meta import (
     SECRET_UPDATED_AT,
     SECRET_UPDATED_AT_TIMEFORMAT,
 )
-from reconcile.external_resources.model import ExternalResourceKey
+from reconcile.external_resources.model import (
+    ExternalResourceKey,
+)
 from reconcile.openshift_base import ApplyOptions, apply_action
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.differ import diff_mappings
@@ -207,7 +209,7 @@ class SecretsReconciler:
             If current is newer; don't apply.
             If other changes; apply and Recycle Pods
             Desired can not be newer than current.
-        External reosurce to Cluster (last reconciliation):
+        External resource to Cluster (last reconciliation):
             If updated_at annotation is the only change; Don't update
             If other changes; Update Secret and Recycle Pods
             Current can not be newer then Desired
@@ -233,7 +235,7 @@ class SecretsReconciler:
 
         if self.ri.has_error_registered():
             # Return all specs as error if there are errors.
-            # There is no a clear way to kwno which specs failed.
+            # There is not a clear way to know which specs have failed.
             return list(specs)
         else:
             return []
