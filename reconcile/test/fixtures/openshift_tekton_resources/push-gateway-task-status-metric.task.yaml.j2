@@ -28,7 +28,7 @@ spec:
     type: string
   steps:
   - name: push-gateway-task-status-metric
-    image: quay.io/app-sre/ubi8-ubi-minimal:{{ ubi8_ubi_minimal_image_tag }}
+    image: registry.access.redhat.com/ubi8/ubi-minimal:{{ ubi8_ubi_minimal_image_tag }}
     computeResources:
       requests:
         cpu: 10m
