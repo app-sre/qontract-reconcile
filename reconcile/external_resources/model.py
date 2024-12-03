@@ -34,6 +34,17 @@ from reconcile.utils.external_resource_spec import (
 )
 
 
+class ExternalResourceOrphanedResourcesError(Exception):
+    def __init__(self, orphans: Iterable["ExternalResourceKey"]) -> None:
+        msg = [
+            "There are orphaned resources in the configuration. ",
+            "To delete ERv2 managed external resources, set the 'delete: true' attribute.\n",
+            "Orphans:\n",
+            "\n".join(map(str, orphans)),
+        ]
+        super().__init__("".join(msg))
+
+
 class ExternalResourceValidationError(Exception):
     errors: list[str] = []
 
