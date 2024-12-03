@@ -218,6 +218,33 @@ data:
             }
           ],
           "title": "Reconcile Time (seconds)",
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "sum.*",
+                "renamePattern": "time"
+              }
+            },
+            {
+              "id": "filterByValue",
+              "options": {
+                "filters": [
+                  {
+                    "config": {
+                      "id": "equal",
+                      "options": {
+                        "value": ""
+                      }
+                    },
+                    "fieldName": "time"
+                  }
+                ],
+                "match": "all",
+                "type": "exclude"
+              }
+            }
+          ],
           "type": "stat"
         },
         {
@@ -431,7 +458,7 @@ data:
         "list": [
           {
             "current": {
-              "selected": true,
+              "selected": false,
               "text": "aws",
               "value": "aws"
             },
@@ -458,9 +485,9 @@ data:
           },
           {
             "current": {
-              "selected": false,
-              "text": "insights-perf",
-              "value": "insights-perf"
+              "selected": true,
+              "text": "app-sre-stage",
+              "value": "app-sre-stage"
             },
             "datasource": {
               "type": "prometheus",
@@ -485,9 +512,9 @@ data:
           },
           {
             "current": {
-              "selected": false,
-              "text": "msk",
-              "value": "msk"
+              "selected": true,
+              "text": "rds",
+              "value": "rds"
             },
             "datasource": {
               "type": "prometheus",
@@ -512,9 +539,9 @@ data:
           },
           {
             "current": {
-              "selected": false,
-              "text": "consoledot-perf",
-              "value": "consoledot-perf"
+              "selected": true,
+              "text": "grafana-dev",
+              "value": "grafana-dev"
             },
             "datasource": {
               "type": "prometheus",
@@ -540,8 +567,8 @@ data:
           {
             "current": {
               "selected": false,
-              "text": "er-16c68767e2",
-              "value": "er-16c68767e2"
+              "text": "er-916ace39e5",
+              "value": "er-916ace39e5"
             },
             "datasource": {
               "type": "prometheus",

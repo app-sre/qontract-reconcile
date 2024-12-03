@@ -60,6 +60,13 @@ class ExternalResourceFactory(ABC):
     def validate_external_resource(self, resource: ExternalResource) -> None:
         pass
 
+    def find_linked_resources(
+        self, spec: ExternalResourceSpec
+    ) -> set[ExternalResourceKey]:
+        """Method to find dependant resources. Resources in this list
+        will be reconciled every time the parent resource finishes its reconciliation."""
+        return set()
+
 
 class ModuleProvisionDataFactory(ABC):
     @abstractmethod
@@ -148,3 +155,9 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
     def validate_external_resource(self, resource: ExternalResource) -> None:
         f = self.resource_factories.get_factory(resource.provision.provider)
         f.validate(resource)
+
+    def find_linked_resources(
+        self, spec: ExternalResourceSpec
+    ) -> set[ExternalResourceKey]:
+        f = self.resource_factories.get_factory(spec.provider)
+        return f.find_linked_resources(spec)

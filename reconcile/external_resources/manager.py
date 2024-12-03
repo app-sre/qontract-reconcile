@@ -161,7 +161,7 @@ class ExternalResourcesManager:
                 continue
             module = self.module_inventory.get_from_spec(spec)
             try:
-                resource = self._build_external_resource(spec, self.er_inventory)
+                resource = self._build_external_resource(spec)
             except ExternalResourceValidationError as e:
                 self.errors[key] = e
                 continue
@@ -169,11 +169,12 @@ class ExternalResourcesManager:
             reconciliation = Reconciliation(
                 key=key,
                 resource_hash=resource.hash(),
-                input=self._serialize_resource_input(resource),
+                input=resource.json(),
                 action=Action.APPLY,
                 module_configuration=ExternalResourceModuleConfiguration.resolve_configuration(
                     module, spec, self.settings
                 ),
+                linked_resources=self._find_linked_resources(spec),
             )
             r.add(reconciliation)
         return r
@@ -273,6 +274,13 @@ class ExternalResourcesManager:
             state.update_resource_status(reconciliation_status)
             self.state_mgr.set_external_resource_state(state)
 
+            if r.linked_resources:
+                for lr in r.linked_resources:
+                    lrs = self.state_mgr.get_external_resource_state(lr)
+                    if not lrs.resource_status.is_in_progress:
+                        lrs.resource_status = ResourceStatus.RECONCILIATION_REQUESTED
+                        self.state_mgr.set_external_resource_state(lrs)
+
     def _set_resource_reconciliation_in_progress(
         self, r: Reconciliation, state: ExternalResourceState
     ) -> None:
@@ -317,16 +325,17 @@ class ExternalResourcesManager:
                 )
                 self.state_mgr.update_resource_status(key, ResourceStatus.CREATED)
 
-    def _build_external_resource(
-        self, spec: ExternalResourceSpec, er_inventory: ExternalResourcesInventory
-    ) -> ExternalResource:
+    def _build_external_resource(self, spec: ExternalResourceSpec) -> ExternalResource:
         f = self.factories.get_factory(spec.provision_provider)
         resource = f.create_external_resource(spec)
         f.validate_external_resource(resource)
         return resource
 
-    def _serialize_resource_input(self, resource: ExternalResource) -> str:
-        return resource.json()
+    def _find_linked_resources(
+        self, spec: ExternalResourceSpec
+    ) -> set[ExternalResourceKey]:
+        f = self.factories.get_factory(spec.provision_provider)
+        return f.find_linked_resources(spec)
 
     def handle_resources(self) -> None:
         desired_r = self._get_desired_objects_reconciliations()
