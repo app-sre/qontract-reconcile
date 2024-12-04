@@ -18,6 +18,7 @@ from reconcile.external_resources.model import (
     ExternalResource,
     ExternalResourceKey,
     ExternalResourceModuleConfiguration,
+    ExternalResourceOrphanedResourcesError,
     ExternalResourcesInventory,
     ExternalResourceValidationError,
     ModuleInventory,
@@ -198,6 +199,13 @@ class ExternalResourcesManager:
             to_reconcile.add(r)
         return to_reconcile
 
+    def _check_orphaned_objects(self) -> None:
+        state_keys = self.state_mgr.get_all_resource_keys()
+        inventory_keys = set(self.er_inventory.keys())
+        orphans = state_keys - inventory_keys
+        if len(orphans) > 0:
+            raise ExternalResourceOrphanedResourcesError(orphans)
+
     def _get_reconciliation_status(
         self,
         r: Reconciliation,
@@ -364,6 +372,7 @@ class ExternalResourcesManager:
             self._sync_secrets(to_sync_keys=to_sync_keys | pending_sync_keys)
 
     def handle_dry_run_resources(self) -> None:
+        self._check_orphaned_objects()
         desired_r = self._get_desired_objects_reconciliations()
         deleted_r = self._get_deleted_objects_reconciliations()
         reconciliations = desired_r.union(deleted_r)
@@ -374,7 +383,9 @@ class ExternalResourcesManager:
             if (
                 r.action == Action.APPLY
                 and state.reconciliation.resource_hash != r.resource_hash
-            ) or r.action == Action.DESTROY:
+            ) or (
+                r.action == Action.DESTROY and not state.resource_status.is_in_progress
+            ):
                 triggered.add(r)
 
         threaded.run(
