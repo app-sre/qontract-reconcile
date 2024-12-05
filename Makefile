@@ -8,10 +8,8 @@ IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 COMMIT_AUTHOR_EMAIL := $(shell git show -s --format='%ae' HEAD)
 COMMIT_SHA := $(shell git rev-parse HEAD)
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
-VENV_CMD := . venv/bin/activate &&
 BUILD_TARGET := prod-image
 UUID := $(shell python3 -c 'import uuid; print(str(uuid.uuid4()))')
-EXPECTED_QENERATE_VERSION := $(shell grep qenerate requirements/requirements-type.txt | cut -d = -f3)
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -24,24 +22,18 @@ CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
 help: ## Prints help for targets with comments
 	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-# this will write a GIT_VERSION file in the current dir, which allows to get the info from a non-git-repo folder, like during docker build
-git_version:
-	rm -f GIT_VERSION
-	python3 --version
-	./version --git
-
-build: git_version
+build:
 	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile --target $(BUILD_TARGET) . --progress=plain
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
-build-dev: git_version
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile --target dev-image .
+build-dev:
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --progress=plain --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile --target dev-image .
 
 push:
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
 
-rc: git_version
+rc:
 	@$(CONTAINER_ENGINE) build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc --build-arg quay_expiration=3d -f dockerfiles/Dockerfile --target prod-image .
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
@@ -50,11 +42,8 @@ generate:
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager.yaml > openshift/qontract-manager.yaml
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager-fedramp.yaml > openshift/qontract-manager-fedramp.yaml
 
-build-test:
-	@$(CONTAINER_ENGINE) build -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
-
-test-app: build-test ## Target to test app with tox on docker
-	@$(CONTAINER_ENGINE) run --rm $(IMAGE_TEST)
+test-app: ## Target to test app with tox on docker
+	@$(CONTAINER_ENGINE) build --progress=plain -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
 
 print-host-versions:
 	@$(CONTAINER_ENGINE) --version
@@ -87,8 +76,8 @@ dev-reconcile-loop: build-dev ## Trigger the reconcile loop inside a container f
 		-e CONFIG=/work/config.dev.toml \
 		$(IMAGE_NAME)-dev:latest
 
-clean:
-	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache venv GIT_VERSION
+clean: ## Clean up the local development environment
+	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache venv .venv GIT_VERSION
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
 
@@ -98,25 +87,21 @@ pypi-release:
 	@$(CONTAINER_ENGINE) rmi $(UUID):latest
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
-	python3.11 -m venv venv
-	@$(VENV_CMD) pip install --upgrade pip
-	@$(VENV_CMD) pip install -e .
-	@$(VENV_CMD) pip install -r requirements/requirements-dev.txt
+	uv sync --python 3.11
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
 
 format:
-	@$(VENV_CMD) ruff format
-	@$(VENV_CMD) ruff check
+	@uv run ruff format
+	@uv run ruff check
 
 gql-introspection:
 	# TODO: make url configurable
-	@$(VENV_CMD) qenerate introspection http://localhost:4000/graphql > reconcile/gql_definitions/introspection.json
+	@uv run qenerate introspection http://localhost:4000/graphql > reconcile/gql_definitions/introspection.json
 
 gql-query-classes:
-	@$(VENV_CMD) qenerate --version | grep -q $(EXPECTED_QENERATE_VERSION) || (echo "Bad qenerate version. Make sure you have version $(EXPECTED_QENERATE_VERSION) installed" && exit 1)
-	@$(VENV_CMD) qenerate code -i reconcile/gql_definitions/introspection.json reconcile/gql_definitions
+	@uv run qenerate code -i reconcile/gql_definitions/introspection.json reconcile/gql_definitions
 	find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
 
 qenerate: gql-introspection gql-query-classes
