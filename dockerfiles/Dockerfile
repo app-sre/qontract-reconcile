@@ -16,10 +16,8 @@ ENV \
     # disable uv cache. it doesn't make sense in a container
     UV_NO_CACHE=true
 
-# Test lock file is up to date
-# RUN --mount=source=.git,target=.git,type=bind uv lock --locked
 # Install dependencies and qontract-reconcile
-RUN --mount=source=.git,target=.git,type=bind uv sync --frozen --no-group dev --python /usr/bin/python3
+RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --python /usr/bin/python3
 
 
 ###############################################################################
@@ -35,12 +33,12 @@ RUN useradd --uid ${CONTAINER_UID} reconcile && \
 WORKDIR /work
 
 COPY --from=build-image --chown=reconcile:root /work/ ./
-RUN --mount=source=.git,target=.git,type=bind uv sync --frozen --no-cache --group debugger --no-group dev
+RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-cache --group debugger --no-group dev
 # Move .venv out of the workdir so it can't be overwritten by volume mount
 RUN mv .venv /venv
 
 USER reconcile
-VOLUME ["/work"]
+VOLUME ["/work", "/config"]
 # Set the PATH to include the virtualenv
 ENV PATH="/venv/bin:${PATH}"
 ENTRYPOINT ["/work/dev/run.sh"]
@@ -62,9 +60,6 @@ RUN chmod +x /tini
 # Keep the image up to date
 RUN microdnf upgrade -y && microdnf clean all
 
-# Copy prod deployment related files
-COPY dockerfiles/hack/run-integration.py /
-COPY helm /helm
 
 WORKDIR /work
 COPY --from=build-image /work ./
@@ -73,7 +68,7 @@ COPY --from=build-image /work ./
 ENV PATH="/work/.venv/bin:${PATH}"
 
 ENTRYPOINT ["/tini", "--"]
-CMD [ "/run-integration.py" ]
+CMD ["run-integration"]
 
 
 ###############################################################################
@@ -86,3 +81,26 @@ ENV OC_VERSION=4.10.15
 # versions in these environments so in this case we extract an older version of oc and kubectl
 COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.1.0 \
     /work/${OC_VERSION}/ /usr/local/bin/
+
+
+###############################################################################
+# STAGE 5 - unittest image
+###############################################################################
+FROM prod-image AS test-image
+COPY --from=ghcr.io/astral-sh/uv:0.5.6@sha256:92aa10fc236a5cbd3624c9909f855a860bd209fef17756c831ee84c478423517 /uv /bin/uv
+
+RUN microdnf install -y make
+
+# Tests need the .git directory to run
+# podman does not support --mount=type=bind
+# TODO: use --mount=source=.git,target=.git,type=bind in both RUN commands below
+COPY .git .git
+
+# Install test dependencies
+RUN uv sync --frozen --no-cache --group dev
+
+# Run tests
+COPY Makefile .
+COPY helm helm
+RUN make all-tests
+

@@ -1,14 +1,6 @@
 schemaVersion: 2.0.0
 
 fileExistenceTests:
-- name: run-integration.py
-  path: /run-integration.py
-  shouldExist: true
-  permissions: -rwxr-xr-x
-  uid: 0
-  gid: 0
-  isExecutableBy: other
-
 - name: Oc
   path: /usr/local/bin/oc
   shouldExist: true
@@ -82,6 +74,11 @@ commandTests:
   - name: Qonctract-Reconcile
     command: qontract-reconcile
     expectedOutput: ['Usage: qontract-reconcile']
+
+  - name: run-integration
+    command: run-integration
+    args: ["--help"]
+    expectedOutput: ['This entry point script expects certain env variables']
 
   - name: terraform
     command: terraform

@@ -114,6 +114,7 @@ glitchtip-access-reporter = "tools.glitchtip_access_reporter:main"
 glitchtip-access-revalidation = "tools.glitchtip_access_revalidation:main"
 template-validation = "tools.template_validation:main"
 qontract-cli = "tools.qontract_cli:root"
+run-integration = "reconcile.run_integration:main"
 
 [project.urls]
 homepage = "https://github.com/app-sre/qontract-reconcile"
@@ -150,7 +151,7 @@ bump = true
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-src = ["reconcile", "tools", "release", "dockerfiles/hack"]
+src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true
 
@@ -206,9 +207,15 @@ preview = true
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]
 
+[tool.coverage.run]
+branch = true
+omit = ["*/test/*"]
+
+[tool.coverage.report]
+fail_under = 60
 
 [tool.mypy]
-files = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
+files = ["reconcile", "tools"]
 plugins = ["pydantic.mypy"]
 # More context here: https://github.com/python/mypy/issues/9091
 # Ensure that methods without type definitions are still checked

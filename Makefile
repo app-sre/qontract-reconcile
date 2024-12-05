@@ -23,7 +23,7 @@ help: ## Prints help for targets with comments
 	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 build:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile --target $(BUILD_TARGET) . --progress=plain
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile --target prod-image . --progress=plain
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 build-dev:
@@ -38,12 +38,13 @@ rc:
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
 generate:
+	@mkdir -p openshift
 	@helm lint helm/qontract-reconcile
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager.yaml > openshift/qontract-manager.yaml
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager-fedramp.yaml > openshift/qontract-manager-fedramp.yaml
 
-test-app: ## Target to test app with tox on docker
-	@$(CONTAINER_ENGINE) build --progress=plain -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.test .
+test-app: ## Target to test app in a container
+	@$(CONTAINER_ENGINE) build --progress=plain -t $(IMAGE_TEST) -f dockerfiles/Dockerfile --target test-image .
 
 print-host-versions:
 	@$(CONTAINER_ENGINE) --version
@@ -102,7 +103,7 @@ gql-introspection:
 
 gql-query-classes:
 	@uv run qenerate code -i reconcile/gql_definitions/introspection.json reconcile/gql_definitions
-	find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
+	@find reconcile/gql_definitions -path '*/__pycache__' -prune -o -type d -exec touch "{}/__init__.py" \;
 
 qenerate: gql-introspection gql-query-classes
 
@@ -114,3 +115,23 @@ sqs:
 	AWS_SECRET_ACCESS_KEY=$(APP_INTERFACE_SQS_AWS_SECRET_ACCESS_KEY) \
 	AWS_REGION=$(APP_INTERFACE_SQS_AWS_REGION) \
 	aws sqs send-message --queue-url $(APP_INTERFACE_SQS_QUEUE_URL) --message-body "{\"pr_type\": \"promote_qontract_reconcile\", \"version\": \"$(IMAGE_TAG)\", \"commit_sha\": \"$(COMMIT_SHA)\", \"author_email\": \"$(COMMIT_AUTHOR_EMAIL)\"}"
+
+all-tests: linter-test types-test qenerate-test helm-test unittest
+
+linter-test:
+	uv run ruff check --no-fix
+	uv run ruff format --check
+
+types-test:
+	uv run mypy
+
+qenerate-test: gql-query-classes
+	git diff --exit-code reconcile/gql_definitions
+
+helm-test: generate
+	git diff --exit-code helm openshift
+
+unittest: ## Run unit tests
+	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml
+	uv run coverage html
+	uv run coverage xml
