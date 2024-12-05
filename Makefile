@@ -8,8 +8,11 @@ IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 COMMIT_AUTHOR_EMAIL := $(shell git show -s --format='%ae' HEAD)
 COMMIT_SHA := $(shell git rev-parse HEAD)
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
-BUILD_TARGET := prod-image
-UUID := $(shell python3 -c 'import uuid; print(str(uuid.uuid4()))')
+
+.EXPORT_ALL_VARIABLES:
+# TWINE_USERNAME & TWINE_PASSWORD are available in jenkins job
+UV_PUBLISH_TOKEN = $(TWINE_PASSWORD)
+
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
 	DOCKER_CONF := $(CURDIR)/.docker
@@ -83,9 +86,11 @@ clean: ## Clean up the local development environment
 	@find . -name "*.pyc" -delete
 
 pypi-release:
-	@$(CONTAINER_ENGINE) build -t $(UUID):latest -f dockerfiles/Dockerfile.publish-release .
-	@$(CONTAINER_ENGINE) run -e TWINE_USERNAME -e TWINE_PASSWORD --rm $(UUID):latest ./build_tag.sh
-	@$(CONTAINER_ENGINE) rmi $(UUID):latest
+	@$(CONTAINER_ENGINE) build --progress=plain --build-arg TWINE_USERNAME --build-arg TWINE_PASSWORD --target pypi -f dockerfiles/Dockerfile .
+
+pypi:
+	uv build --sdist --wheel
+	uv publish
 
 dev-venv: clean ## Create a local venv for your IDE and remote debugging
 	uv sync --python 3.11

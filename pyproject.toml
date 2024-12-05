@@ -131,9 +131,11 @@ source = "uv-dynamic-versioning"
 [tool.hatch.build.targets.sdist]
 # TODO: package_data={"reconcile": ["templates/*.j2", "gql_queries/*/*.gql"]},
 only-include = ["reconcile", "tools"]
+exclude = ["*.gql", "**/test/*"]
 
 [tool.hatch.build.targets.wheel]
 only-include = ["reconcile", "tools"]
+exclude = ["*.gql", "**/test/*"]
 
 [tool.uv-dynamic-versioning]
 vcs = "git"

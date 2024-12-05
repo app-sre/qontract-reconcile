@@ -1698,7 +1698,7 @@ wheels = [
 
 [[package]]
 name = "qontract-reconcile"
-version = "0.10.1.dev1202"
+version = "0.10.1.dev1206"
 source = { editable = "." }
 dependencies = [
     { name = "anymarkup" },

@@ -104,3 +104,14 @@ COPY Makefile .
 COPY helm helm
 RUN make all-tests
 
+###############################################################################
+# STAGE 6 - PyPI publish package
+###############################################################################
+FROM test-image AS pypi
+ARG TWINE_USERNAME
+ARG TWINE_PASSWORD
+
+# TODO: use --mount=source=.git,target=.git,type=bind
+# podman does not support --mount=type=bind
+# qontract-reconcile version depends on git tags!
+RUN make pypi
