@@ -122,7 +122,7 @@ class OCMap:
                     connection_parameters=connection_parameters
                 )
             try:
-                oc_client: OCCli | OCLogMsg = self._oc_cls(
+                oc_client: OCCli | OCLogMsg = self._oc_cls(  # type: ignore[assignment]
                     connection_parameters=connection_parameters,
                     init_projects=self._init_projects,
                     init_api_resources=self._init_api_resources,
@@ -133,7 +133,7 @@ class OCMap:
                     cluster,
                     OCLogMsg(
                         log_level=logging.ERROR,
-                        message=f"[{cluster}]" f" is unreachable: {e}",
+                        message=f"[{cluster}] is unreachable: {e}",
                     ),
                     privileged,
                 )

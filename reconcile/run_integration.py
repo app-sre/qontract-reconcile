@@ -33,7 +33,7 @@ SHARD_ID = int(os.environ.get("SHARD_ID", 0))
 SHARD_ID_LABEL = os.environ.get("SHARD_KEY", f"{SHARD_ID}-{SHARDS}")
 PREFIX_LOG_LEVEL = os.environ.get("PREFIX_LOG_LEVEL", "false")
 
-INTEGRATION_NAME = os.environ["INTEGRATION_NAME"]
+INTEGRATION_NAME = os.environ.get("INTEGRATION_NAME")
 COMMAND_NAME = os.environ.get("COMMAND_NAME", "qontract-reconcile")
 
 RUN_ONCE = os.environ.get("RUN_ONCE")
@@ -211,6 +211,12 @@ def main() -> None:
       $COMMAND --config $CONFIG $DRY_RUN $INTEGRATION_NAME \
         $INTEGRATION_EXTRA_ARGS
     """
+    if len(sys.argv) > 1 and sys.argv[1] == "--help":
+        print(main.__doc__)
+        sys.exit(0)
+
+    if not INTEGRATION_NAME:
+        raise ValueError("INTEGRATION_NAME env variable is required")
 
     start_http_server(int(PROMETHEUS_PORT))
 
