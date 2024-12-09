@@ -1,14 +1,36 @@
-![build](https://ci.ext.devshift.net/buildStatus/icon?job=app-sre-qontract-reconcile-gh-build-master)
-![license](https://img.shields.io/github/license/app-sre/qontract-reconcile.svg?style=flat)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![PyPI](https://img.shields.io/pypi/v/qontract-reconcile)][pypi-link]
+[![PyPI platforms][pypi-platforms]][pypi-link]
+![PyPI - License](https://img.shields.io/pypi/l/qontract-reconcile)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 
 # qontract-reconcile
 
-A tool to reconcile services with their desired state as defined in App-Interface.
+A tool to reconcile services with their desired state as defined in app-interface.
 Additional tools that use the libraries created by the reconciliations are also hosted here.
 
-## Subcommands
+## Usage
 
-### qontract-reconcile
+Use [config.toml.example](config.toml.example) as a template to create a `config.toml` file.
+
+Run a reconcile integration like this:
+
+```sh
+qontract-reconcile --config config.toml --dry-run <subcommand>
+
+# review output and run without `--dry-run` to perform actual changes
+qontract-reconcile --config config.toml <subcommand>
+```
+
+> Note: you can use the `QONTRACT_CONFIG` environment variable instead of using `--config`.
+
+### OpenShift usage
+
+OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In order to add integrations there please use the [helm](/helm/README.md) chart provided.
+
+## Available Integrations
+
+`qontract-reconcile` includes the following integrations:
 
 ```text
   acs-notifiers                   Manages RHACS notifier configurations
@@ -36,6 +58,7 @@ Additional tools that use the libraries created by the reconciliations are also 
   blackbox-exporter-endpoint-monitoring
                                   Manages Prometheus Probe resources for
                                   blackbox-exporter
+  change-log-tracking             Analyze bundle diffs by change types.
   change-owners                   Detects owners for changes in app-interface
                                   PRs and allows them to self-service merge.
   cluster-auth-rhidp              Manages the OCM subscription labels for
@@ -58,7 +81,11 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   tokens to management clusters
   email-sender                    Send email notifications to app-interface
                                   audience.
+  endpoints-discovery             Discover routes and update endpoints
   external-resources              Manages External Resources
+  external-resources-secrets-sync
+                                  Syncs External Resources Secrets from Vault
+                                  to Clusters
   gabi-authorized-users           Manages user access for GABI instances.
   gcr-mirror                      Mirrors external images into Google
                                   Container Registry.
@@ -239,74 +266,32 @@ Additional tools that use the libraries created by the reconciliations are also 
                                   between public and internal clusters.
 ```
 
-### tools
+## Tools
+
+Additionally, the following tools are available:
 
 - `app-interface-metrics-exporter`: Exports metrics from App-Interface.
 - `app-interface-reporter`: Creates service reports and submits PR to App-Interface.
+- `glitchtip-access-reporter`: Creates a report of users with access to Glitchtip.
+- `glitchtip-access-revalidation`: Requests a revalidation of Glitchtip access.
 - `qontract-cli`: A cli tool for qontract (currently very good at getting information).
-
-## Usage
-
-Use [config.toml.example](config.toml.example) as a template to create a `config.toml` file.
-
-Run a reconcile integration like this:
-
-```sh
-qontract-reconcile --config config.toml --dry-run <subcommand>
-
-# review output and run without `--dry-run` to perform actual changes
-qontract-reconcile --config config.toml <subcommand>
-```
-
-> Note: you can use the `QONTRACT_CONFIG` environment variable instead of using `--config`.
-
-## OpenShift usage
-
-OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In order to add integrations there please use the [helm](/helm/README.md) chart provided.
+- `run-integration`: A script to run qontract-reconcile in a container.
+- `saas-metrics-exporter`: This tool is responsible for exposing/exporting SaaS metrics and data.
+- `template-validation`: Run template validation.
 
 ## Installation
 
-This project targets Python version 3.11.x for best compatibility. Verify the Python3 version that your shell is using with `python3 --version`. You can optionally use a tool like [pyenv](https://github.com/pyenv/pyenv) or [asdf](https://asdf-vm.com/) to manage Python versions on your computer.
-
-Create and enter the [virtualenv](https://virtualenv.pypa.io/en/latest/) environment:
+Install the package from PyPI:
 
 ```sh
-python3 -m venv venv
-source venv/bin/activate
-
-# make sure you are running the latest setuptools
-pip install --upgrade pip setuptools
+uv tool install --python 3.11 qontract-reconcile
 ```
 
-Install build prerequisites for [psycopg2](https://www.psycopg.org/docs/install.html#build-prerequisites):
-
-- A C compiler
-- The Python header files. They are usually installed in a package such as `python-dev` or `python3-dev`.
-- `libpq` and `pg_config`
-  - The `libpq` header files. They are usually installed in a package such as `libpq-dev`.
-  - The `pg_config` program: it is usually installed by the `libpq-dev` package but sometimes it is not in a `PATH` directory.
-  - On macOS, can be installed via `brew install libpq`. Make sure the installation path is added to your PATH, otherwise `pg_config` will not be available.
-  - On Fedora, it can be installed with `dnf install libpq-devel`
-
-Note:
-In macOS with Apple silicon, `pip` will fail to install in a virtualenvironment unless LDFLAGS reference the openssl library path. It can be fixed with `export LDFLAGS="-I/opt/homebrew/opt/openssl/include -L/opt/homebrew/opt/openssl/lib"`.
-
-Install the package:
+or via `pip`:
 
 ```sh
-pip install .
-
-# or use this for development mode so rebuild/reinstall isn't necessary after
-# each change that is made during development
-pip install -e .
-
-# optionally install all test/type dependencies - useful when writing tests,
-# auto-completion in your IDE, etc.
-pip install -r ./requirements/requirements-dev.txt
+pip install qontract-reconcile
 ```
-
-If the commands above don't work maybe you need to install the `python-devel` and `gcc-c++` packages.
-You may also need to first [install a rust compiler](https://www.rust-lang.org/tools/install) ([Mac OS directions](https://sourabhbajaj.com/mac-setup/Rust/)) and then run `python3 -m pip install --upgrade pip setuptools_rust`.
 
 Install runtime requirements:
 
@@ -321,65 +306,44 @@ Versions can be found in [qontract-reconcile-base Dockerfile](https://github.com
 - skopeo
 - terraform
 
-### Requirements
+## Development
 
-Please see [setup.py](setup.py).
+This project targets Python version 3.11.x for best compatibility and leverages [uv](https://docs.astral.sh/uv/) for the dependency managment.
 
-All requirements files are gathered in [./requirements/](./requirements).
-It consists of:
+Create a local development environment with all required dependencies:
 
-- [requirements-test.txt](requirements/requirements-test.txt) for unit test and linting dependencies
-- [requirements-type.txt](requirements/requirements-type.txt) for type checking dependencies
-- [requirements-dev.txt](requirements/requirements-dev.txt) installs all above mentioned dependencies
+```sh
+uv sync --python 3.11
+```
 
 ### Image build
 
-In order to speed up frequent builds and avoid issues with dependencies, docker image makes use
-[`qontract-reconcile-build`](https://quay.io/repository/app-sre/qontract-reconcile-base?tag=latest&tab=tags)
-image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-images) repository
-if you want to make changes to the base image.
+In order to speed up frequent builds and avoid issues with dependencies, docker image
+makes use [`qontract-reconcile-build`](https://quay.io/repository/app-sre/qontract-reconcile-base?tag=latest&tab=tags)
+image. See [`app-sre/coontainer-images`](https://github.com/app-sre/container-images)
+repository if you want to make changes to the base image.
 
-This repo [`Dockerfile`](dockerfiles/Dockerfile) must only contain instructions related to the python code build.
+This repo [`Dockerfile`](dockerfiles/Dockerfile) must only contain instructions related to the Python code build.
 
 The [README](dockerfiles/README.md) contains more information about the Dockerfile and the build stages.
 
-## CI Tooling
+### Testing
 
-This project uses [tox](https://tox.readthedocs.io/en/latest/) for running
-tests, linting/static analysis, and type checkers. Some of the more common
-commands have been provided below, but see the tox docs for more complete
-documentation.
+This project uses [pytset](https://docs.pytest.org/en/stable/) as the test runner and
+these tools for static analysis and type checking:
 
-Running all checks (tests, linting, and type checkers):
+- [ruff](https://docs.astral.sh/ruff/): A fast Python linter and code formatter.
+- [mypy](https://mypy.readthedocs.io/en/stable/): A static type checker for Python.
 
-```
-tox
-```
+The [Makefile](Makefile) contains several targets to help with testing, linting,
+formatting, and type checking:
 
-To run the checks faster (run in parallel):
-
-```
-tox -p
-```
-
-Running specific checks (can be much faster):
-
-```
-# Only run unit tests using Python 3.6
-tox -e py36
-
-# Only run linters
-tox -e lint
-
-# Only run the type checker
-tox -e type
-
-# Look at tox.ini for usage of posargs, this allows us to override which
-# options are passed to the CLI where it's being used. This can be helpful
-# for type checking a specific file, or running a subset of unit tests (this
-# can be even faster).
-tox -e type -- reconcile/utils/slack_api.py
-```
+- `make all-test`: Run all available tests.
+- `make linter-test`: Run the linter and formatter tests.
+- `make types-test`: Run the type checker tests.
+- `make qenerate-test`: Run the query classes generation tests.
+- `make helm-test`: Run the helm chart tests.
+- `make unittest`: Run all Python unit tests.
 
 ## Run reconcile loop for an integration locally in a container
 
@@ -393,8 +357,10 @@ Make sure the file `./config.dev.toml` exists and contains your current configur
 Your `config.dev.toml` should point to the following qontract-server address:
 
 ```
+
 [graphql]
-server = "http://host.docker.internal:4000/graphql"
+server = "<http://host.docker.internal:4000/graphql>"
+
 ```
 
 ### Run qontract-server
@@ -402,13 +368,17 @@ server = "http://host.docker.internal:4000/graphql"
 Start the [qontract-server](https://github.com/app-sre/qontract-server) in a different window, e.g., via:
 
 ```
+
 qontract-server$ make dev
+
 ```
 
 ### Trigger integration
 
 ```
+
 make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run INTEGRATION_EXTRA_ARGS=--light SLEEP_DURATION_SECS=100
+
 ```
 
 ## Query Classes
@@ -457,3 +427,6 @@ After the PR is merged, a CI job will be triggered that will publish the package
 ## Authors
 
 These tools have been written by the [Red Hat App-SRE Team](mailto:sd-app-sre@redhat.com).
+
+[pypi-link]:                https://pypi.org/project/qontract-reconcile/
+[pypi-platforms]:           https://img.shields.io/pypi/pyversions/qontract-reconcile
