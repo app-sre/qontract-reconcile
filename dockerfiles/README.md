@@ -87,16 +87,4 @@ The relationship for the targets is as follows:
 ```
 
 The target `test-container-image` builds the image and runs structure tests to test
-the images structure:
-
-```Makefile
-test-container-image: build ## Target to test the final image
- @$(CONTAINER_ENGINE) run --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $(CURDIR):/work \
-   $(CTR_STRUCTURE_IMG) test \
-  --config /work/dockerfiles/structure-test.yaml \
-  -i $(IMAGE_NAME):$(IMAGE_TAG)
-```
-
-`test-app` builds the image for testing and runs the unit tests `all-tests`
+the images structure, `test-app` builds the image for testing and runs the unit tests `all-tests`
