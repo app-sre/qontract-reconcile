@@ -12,6 +12,7 @@ coverage.xml
 dev/localstack/volume
 dist
 venv
+.venv
 throughput
 config.toml
 config.*.toml

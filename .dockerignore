@@ -6,6 +6,7 @@ build
 .pytest_cache
 .tox
 venv
+.venv
 throughput
 
 **/__pycache__

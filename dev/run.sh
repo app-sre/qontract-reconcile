@@ -12,7 +12,7 @@ if [[ -n "$QONTRACT_CLI_COMMAND" ]]; then
         COMMAND_EXTRA_ARGS="$QONTRACT_CLI_COMMAND"
     fi
 fi
-COMMAND="${COMMAND:-dockerfiles/hack/run-integration.py}"
+COMMAND="${COMMAND:-run-integration}"
 #/ for backwards compatibility
 
 # set default options
@@ -23,11 +23,15 @@ else
 fi
 
 echo "Running command: $COMMAND $COMMAND_EXTRA_ARGS"
-# adding /work to the command so we can it from the root of the repo
-COMMAND="/work/$COMMAND"
+if [[ $COMMAND == tools* ]]; then
+    COMMAND="./$COMMAND"
+fi
 
 if [ "$DEBUGGER" == "debugpy" ]; then
     echo "Using debugpy: Waiting for remote debugger session to connect to :$DEBUGPY_PORT ..."
+    if [ "$COMMAND" == "run-integration" ] || [ "$COMMAND" == "dockerfiles/hack/run-integration.py" ]; then
+        COMMAND="reconcile/run_integration.py"
+    fi
     COMMAND="python3 -m debugpy --listen 0.0.0.0:$DEBUGPY_PORT --wait-for-client $COMMAND"
 fi
 

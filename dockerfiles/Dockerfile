@@ -2,51 +2,47 @@
 # STAGE 1 - build-image
 ###############################################################################
 FROM quay.io/app-sre/qontract-reconcile-builder:0.7.0 AS build-image
+COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
 
 WORKDIR /work
 
-COPY helm helm
-COPY reconcile reconcile
-COPY release release
+COPY pyproject.toml uv.lock README.md ./
 COPY tools tools
-COPY setup.py .
-COPY GIT_VERSION .
-COPY dockerfiles/hack/run-integration.py .
+COPY reconcile reconcile
 
-RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    python3 -m pip wheel . --wheel-dir /work/wheels
+ENV \
+    # compile bytecode for faster startup
+    UV_COMPILE_BYTECODE="true" \
+    # disable uv cache. it doesn't make sense in a container
+    UV_NO_CACHE=true
+
+# Install dependencies and qontract-reconcile
+RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --python /usr/bin/python3
 
 
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
 FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 AS dev-image
+COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
 
 ARG CONTAINER_UID=1000
-RUN useradd --uid ${CONTAINER_UID} reconcile
-
-RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
-
-# Cache mount. We don't need te wheel files in the final image.
-# This COPY will create a layer with all the wheel files to install the app.
-# This layer is not needed in the final image, so we can leverage a cache mount
-# to get rid of it. Implement the cache mount with the RUN command when we are
-# able to use the buildkit features.
-COPY --from=build-image /work/ /tmp/work/
-
-COPY . /work
-WORKDIR /work
-
-RUN python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile
-RUN python3 -m pip install -e .
-RUN python3 -m pip install -r /work/requirements/requirements-debugger.txt
-
-RUN chown -R reconcile /work && \
+RUN useradd --uid ${CONTAINER_UID} reconcile && \
     chown -R reconcile /.terraform.d
 
+WORKDIR /work
+
+COPY --from=build-image --chown=reconcile:root /work/ ./
+RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-cache --group debugger --no-group dev
+# Move .venv out of the workdir so it can't be overwritten by volume mount
+RUN mv .venv /venv
+
 USER reconcile
-VOLUME ["/work"]
+VOLUME ["/work", "/config"]
+# Set the PATH to include the virtualenv
+ENV PATH="/venv/bin:${PATH}"
 ENTRYPOINT ["/work/dev/run.sh"]
+
 
 ###############################################################################
 # STAGE 3 - prod-image
@@ -61,21 +57,19 @@ ENV TINI_VERSION v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
-# Cache mount. We don't need te wheel files in the final image.
-# This COPY will create a layer with all the wheel files to install the app.
-# This layer is not needed in the final image, so we can leverage a cache mount
-# to get rid of it. Implement the cache mount un the RUN command when we are able to
-# to use the buildkit features.
-COPY --from=build-image /work/ /tmp/work/
+# Keep the image up to date
+RUN microdnf upgrade -y && microdnf clean all
 
-RUN microdnf upgrade -y && \
-    python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    python3 -m pip install --no-cache-dir --no-index --find-links=/tmp/work/wheels qontract-reconcile && \
-    mkdir /helm && cp -r /tmp/work/helm/* /helm && \
-    cp /tmp/work/run-integration.py /run-integration.py
+
+WORKDIR /work
+COPY --from=build-image /work ./
+
+# Set the PATH to include the virtualenv
+ENV PATH="/work/.venv/bin:${PATH}"
 
 ENTRYPOINT ["/tini", "--"]
-CMD [ "/run-integration.py" ]
+CMD ["run-integration"]
+
 
 ###############################################################################
 # STAGE 4 - fips-prod-image
@@ -87,3 +81,37 @@ ENV OC_VERSION=4.10.15
 # versions in these environments so in this case we extract an older version of oc and kubectl
 COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.1.0 \
     /work/${OC_VERSION}/ /usr/local/bin/
+
+
+###############################################################################
+# STAGE 5 - unittest image
+###############################################################################
+FROM prod-image AS test-image
+COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
+
+RUN microdnf install -y make
+
+# Tests need the .git directory to run
+# podman does not support --mount=type=bind
+# TODO: use --mount=source=.git,target=.git,type=bind in both RUN commands below
+COPY .git .git
+
+# Install test dependencies
+RUN uv sync --frozen --no-cache --group dev
+
+# Run tests
+COPY Makefile .
+COPY helm helm
+RUN make all-tests
+
+###############################################################################
+# STAGE 6 - PyPI publish package
+###############################################################################
+FROM test-image AS pypi
+ARG TWINE_USERNAME
+ARG TWINE_PASSWORD
+
+# TODO: use --mount=source=.git,target=.git,type=bind
+# podman does not support --mount=type=bind
+# qontract-reconcile version depends on git tags!
+RUN make pypi
