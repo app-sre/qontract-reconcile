@@ -63,7 +63,7 @@ def run(
             results.append(item)
 
     if not dry_run:
-        vault_client = cast(_VaultClient, VaultClient())
+        vault_client = cast("_VaultClient", VaultClient())
         for item in results:
             secret = {
                 "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{item['cluster']}/{namespace_name}/{item['name']}",

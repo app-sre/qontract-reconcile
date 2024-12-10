@@ -183,7 +183,8 @@ extend-select = [
     "FA",
     # ruff special rules
     "RUF",
-
+    # flake8-type-checking
+    "TC",
 ]
 ignore = [
     "PLR0904", # Too many public methods
@@ -203,6 +204,10 @@ ignore = [
     "B017",    #`pytest.raises(Exception)` should be considered evil
     "RUF005",  # Consider "...."instead of concatenation
     "RUF012",  # Mutable class attributes should be annotated with "typing.ClassVar"
+    "TC001",   # Type-checking block
+    "TC002",   # Type-checking block
+    "TC003",   # Type-checking block
+    "TC004",   # Type-checking block
 ]
 [tool.ruff.format]
 preview = true
