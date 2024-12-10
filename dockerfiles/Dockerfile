@@ -62,6 +62,8 @@ RUN microdnf upgrade -y && microdnf clean all
 
 
 WORKDIR /work
+# the integration-manager needs the helm charts
+COPY helm helm
 COPY --from=build-image /work ./
 
 # Set the PATH to include the virtualenv
@@ -101,7 +103,6 @@ RUN uv sync --frozen --no-cache --group dev
 
 # Run tests
 COPY Makefile .
-COPY helm helm
 RUN make all-tests
 
 ###############################################################################
