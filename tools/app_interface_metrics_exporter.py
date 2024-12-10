@@ -83,10 +83,10 @@ def main(
     log_level: str,
 ) -> None:
     init_env(log_level=log_level, config_file=configfile)
-    onboarding_status = get_onboarding_status(gql.get_api())
-    publish_onboarding_status_metrics(onboarding_status)
     repos = get_tf_repo_inventory(gql.get_api())
     publish_tf_repo_inventory(repos)
+    onboarding_status = get_onboarding_status(gql.get_api())
+    publish_onboarding_status_metrics(onboarding_status)
 
 
 if __name__ == "__main__":
