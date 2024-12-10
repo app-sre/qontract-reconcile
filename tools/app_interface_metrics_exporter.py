@@ -12,6 +12,9 @@ from reconcile.cli import (
 from reconcile.typed_queries.app_interface_metrics_exporter.onboarding_status import (
     get_onboarding_status,
 )
+from reconcile.typed_queries.app_interface_metrics_exporter.terraform_repo import (
+    get_tf_repo_inventory,
+)
 from reconcile.utils import (
     gql,
     metrics,
@@ -38,6 +41,16 @@ class OverviewOnboardingStatus(OverviewBaseMetric, GaugeMetric):
         return "qontract_reconcile_onboarding_status"
 
 
+class TerraformRepoInventory(OverviewBaseMetric, GaugeMetric):
+    """Overview of deployed Terraform Repos"""
+
+    aws_account: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "qontract_reconcile_terraform_repo_inventory"
+
+
 def publish_onboarding_status_metrics(
     onboarding_status: Mapping[str, int],
 ) -> None:
@@ -48,6 +61,14 @@ def publish_onboarding_status_metrics(
                 integration=INTEGRATION,
                 status=status,
             ),
+            count,
+        )
+
+
+def publish_tf_repo_inventory(repos: Mapping[str, int]) -> None:
+    for account, count in repos.items():
+        metrics.set_gauge(
+            TerraformRepoInventory(integration=INTEGRATION, aws_account=account),
             count,
         )
 
@@ -64,6 +85,8 @@ def main(
     init_env(log_level=log_level, config_file=configfile)
     onboarding_status = get_onboarding_status(gql.get_api())
     publish_onboarding_status_metrics(onboarding_status)
+    repos = get_tf_repo_inventory(gql.get_api())
+    publish_tf_repo_inventory(repos)
 
 
 if __name__ == "__main__":
