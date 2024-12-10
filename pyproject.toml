@@ -1,9 +1,161 @@
+[project]
+name = "qontract-reconcile"
+dynamic = ["version"]
+description = "Collection of tools to reconcile services with their desired state as defined in the app-interface DB."
+authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
+license = { text = "Apache 2.0" }
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "anymarkup>=0.7.0,<0.9.0",
+    # keep in sync with boto3-stubs in dependency-groups.type
+    "boto3==1.34.94",
+    "botocore==1.34.94",
+    "Click>=7.0,<9.0",
+    "croniter>=1.0.15,<1.1.0",
+    "dateparser~=1.1.7",
+    "deepdiff==6.7.1",
+    "dnspython~=2.1",
+    "dt==1.1.61",
+    "filetype~=1.2.0",
+    "gql==3.1.0",
+    "hvac>=0.7.0,<0.8.0",
+    "jenkins-job-builder~=4.3.0",
+    "Jinja2>=2.10.1,<3.2.0",
+    "jira~=3.1",
+    "jsonpatch~=1.33",
+    "jsonpath-ng==1.5.3",
+    "jsonpath-rw>=1.4.0,<1.5.0",
+    "jsonpointer~=2.4",
+    "kubernetes~=24.0",
+    "ldap3>=2.9.1,<2.10.0",
+    "MarkupSafe==2.1.1",
+    "networkx~=2.8",
+    "parse==1.18.0",
+    "prometheus-client~=0.8",
+    "psycopg2-binary~=2.9",
+    "pydantic~=1.10.6",
+    "PyGithub>=1.58,<1.59",
+    "pyjwt~=2.7",
+    "pyOpenSSL~=23.0",
+    "pypd>=1.1.0,<1.2.0",
+    "python-gitlab~=4.6",
+    "requests-oauthlib~=1.3",
+    "requests~=2.32",
+    "rich>=13.3.0,<14.0.0",
+    "ruamel.yaml>=0.17.22,<0.18.0",
+    "semver~=3.0",
+    "sendgrid>=6.4.8,<6.5.0",
+    "sentry-sdk~=2.0",
+    "slack_sdk>=3.10,<4.0",
+    "sretoolbox~=2.6",
+    "sshtunnel>=0.4.0",
+    "tabulate>=0.8.6,<0.9.0",
+    "terrascript==0.9.0",
+    "toml>=0.10.0,<0.11.0",
+    "UnleashClient~=5.11",
+    "urllib3~=2.2",
+    "websocket-client<0.55.0,>=0.35",
+    "yamllint==1.34.0",
+]
+
+[dependency-groups]
+debugger = ["debugpy ~=1.6.0"]
+dev = [
+    "anymarkup ~=0.8.1",
+    # keep in sync project.dependencies.boto3
+    "boto3-stubs[account,ec2,s3,rds,iam,route53,organizations,service-quotas,sts,support,dynamodb]==1.34.94",
+    "kubernetes ~=24.0",
+    "kubernetes-stubs==22.6.0",
+    "MarkupSafe ~=2.1.1",
+    "moto ~=2.2",
+    "mypy ~=1.13.0",
+    "pyfakefs ~=5.1",
+    "pytest ~=7.2",
+    "pytest-cov ~=4.0.0",
+    "pytest-httpserver ~=1.0",
+    "pytest-mock ~=3.6",
+    "qenerate==0.7.0",
+    "responses ~=0.23.1",
+    "ruff ~=0.6.9",
+    "smtpdfix ~=0.3.3",
+    "testslide ~=2.7",
+    "typeguard ~=2.13.3",
+    "types-click",
+    "types-croniter",
+    "types-dateparser",
+    "types-Jinja2",
+    "types-ldap3",
+    "types-mock",
+    "types-oauthlib",
+    "types-psycopg2",
+    "types-pyOpenSSL",
+    "types-python-dateutil",
+    "types-PyYAML",
+    "types-requests-oauthlib",
+    "types-requests",
+    "types-setuptools",
+    "types-tabulate",
+    "types-toml",
+]
+
+[project.scripts]
+app-interface-metrics-exporter = "tools.app_interface_metrics_exporter:main"
+app-interface-reporter = "tools.app_interface_reporter:main"
+glitchtip-access-reporter = "tools.glitchtip_access_reporter:main"
+glitchtip-access-revalidation = "tools.glitchtip_access_revalidation:main"
+qontract-cli = "tools.qontract_cli:root"
+qontract-reconcile = "reconcile.cli:integration"
+run-integration = "reconcile.run_integration:main"
+saas-metrics-exporter = "tools.saas_metrics_exporter.main:main"
+template-validation = "tools.template_validation:main"
+
+[project.urls]
+homepage = "https://github.com/app-sre/qontract-reconcile"
+repository = "https://github.com/app-sre/qontract-reconcile"
+documentation = "https://github.com/app-sre/qontract-reconcile"
+
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.sdist]
+# TODO: package_data={"reconcile": ["templates/*.j2", "gql_queries/*/*.gql"]},
+only-include = ["reconcile", "tools"]
+exclude = ["*.gql", "**/test/*"]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["reconcile", "tools"]
+exclude = ["*.gql", "**/test/*"]
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+latest-tag = true
+# do not add commit hash to version
+metadata = false
+# do not add dirty flag to version
+dirty = false
+# version git tag doesn't have a prefix
+pattern = "default-unprefixed"
+style = "pep440"
+# X.Y.(Z+1)
+bump = true
+
 [tool.ruff]
 line-length = 88
 target-version = 'py311'
-required-version = "0.6.9"
-
-src = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
+src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true
 
@@ -59,9 +211,15 @@ preview = true
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]
 
+[tool.coverage.run]
+branch = true
+omit = ["*/test/*"]
+
+[tool.coverage.report]
+fail_under = 60
 
 [tool.mypy]
-files = ["reconcile", "tools", "release", "dockerfiles/hack", "setup.py"]
+files = ["reconcile", "tools"]
 plugins = ["pydantic.mypy"]
 # More context here: https://github.com/python/mypy/issues/9091
 # Ensure that methods without type definitions are still checked

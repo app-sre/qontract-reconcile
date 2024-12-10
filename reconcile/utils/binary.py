@@ -1,6 +1,6 @@
 import re
+import shutil
 import subprocess
-from distutils.spawn import find_executable  # pylint: disable=deprecated-module
 from functools import wraps
 
 
@@ -13,7 +13,7 @@ def binary(binaries=None):
         @wraps(f)
         def f_binary(*args, **kwargs):
             for b in binaries:
-                if not find_executable(b):
+                if not shutil.which(b):
                     raise Exception(
                         f"Aborting: Could not find binary: {b}. "
                         + f"Hint: https://command-not-found.com/{b}"
