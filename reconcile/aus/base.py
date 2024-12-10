@@ -585,20 +585,20 @@ def fetch_current_state(
             addon_upgrade_policies = addon_service.get_addon_upgrade_policies(
                 ocm_api, spec.cluster.id, addon_id=addon_spec.addon.addon.id
             )
-            for addon_upgrade_policy in addon_upgrade_policies:
-                current_state.append(
-                    AddonUpgradePolicy(
-                        id=addon_upgrade_policy.id,
-                        addon_id=addon_spec.addon.addon.id,
-                        cluster=spec.cluster,
-                        next_run=addon_upgrade_policy.next_run,
-                        schedule=addon_upgrade_policy.schedule,
-                        schedule_type=addon_upgrade_policy.schedule_type,
-                        version=addon_upgrade_policy.version,
-                        state=addon_upgrade_policy.state,
-                        addon_service=addon_service,
-                    )
+            current_state.extend(
+                AddonUpgradePolicy(
+                    id=addon_upgrade_policy.id,
+                    addon_id=addon_spec.addon.addon.id,
+                    cluster=spec.cluster,
+                    next_run=addon_upgrade_policy.next_run,
+                    schedule=addon_upgrade_policy.schedule,
+                    schedule_type=addon_upgrade_policy.schedule_type,
+                    version=addon_upgrade_policy.version,
+                    state=addon_upgrade_policy.state,
+                    addon_service=addon_service,
                 )
+                for addon_upgrade_policy in addon_upgrade_policies
+            )
         elif spec.cluster.is_rosa_hypershift():
             upgrade_policies = get_control_plane_upgrade_policies(
                 ocm_api, spec.cluster.id

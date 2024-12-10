@@ -141,7 +141,7 @@ def _get_namespace_images(ns: NamespaceV1, oc_map: OCMap) -> NamespaceImages:
 
             for c in containers:
                 if m := IMAGE_NAME_REGEX.match(c["image"]):
-                    image_names.append(m.group("name"))
+                    image_names.append(m.group("name"))  # noqa: PERF401
     except Exception as exc:
         return NamespaceImages(
             namespace_name=ns.name,

@@ -149,10 +149,10 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
                     f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
                 )
             else:
-                for grant in set(grants) - set(desired_grants[schema]):
-                    statements.append(
-                        f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
-                    )
+                statements.extend(
+                    f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
+                    for grant in set(grants) - set(desired_grants[schema])
+                )
         return "".join(statements)
 
     def _provision_script(self) -> str:

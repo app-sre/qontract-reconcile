@@ -211,10 +211,9 @@ class BundleFileChange:
         returns all the change-types that are involved in the coverage
         of all changes
         """
-        change_types = []
+        change_types: list[ChangeTypeProcessor] = []
         for dc in self.diff_coverage:
-            for ctx in dc.coverage:
-                change_types.append(ctx.change_type_processor)
+            change_types.extend(ctx.change_type_processor for ctx in dc.coverage)
         return change_types
 
 

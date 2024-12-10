@@ -220,17 +220,17 @@ def init_specs_to_fetch(
 
             # Initialize desired state specs
             openshift_resources = namespace_info.get("openshiftResources")
-            for openshift_resource in openshift_resources or []:
-                state_specs.append(
-                    DesiredStateSpec(
-                        oc=oc,
-                        cluster=cluster,
-                        namespace=namespace,
-                        resource=openshift_resource,
-                        parent=namespace_info,
-                        privileged=privileged,
-                    )
+            state_specs.extend(
+                DesiredStateSpec(
+                    oc=oc,
+                    cluster=cluster,
+                    namespace=namespace,
+                    resource=openshift_resource,
+                    parent=namespace_info,
+                    privileged=privileged,
                 )
+                for openshift_resource in openshift_resources or []
+            )
 
     elif clusters:
         # set namespace to something indicative

@@ -93,16 +93,15 @@ def fetch_current_state(
     """Fetch all current configured OIDC identity providers."""
     current_state: list[IDPState] = []
     for cluster in clusters:
-        for idp in get_identity_providers(
-            ocm_api=ocm_api, ocm_cluster=cluster.ocm_cluster
-        ):
-            current_state.append(
-                IDPState(
-                    cluster=cluster,
-                    idp=idp,
-                ),
+        current_state.extend(
+            IDPState(
+                cluster=cluster,
+                idp=idp,
             )
-
+            for idp in get_identity_providers(
+                ocm_api=ocm_api, ocm_cluster=cluster.ocm_cluster
+            )
+        )
     return current_state
 
 

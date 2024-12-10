@@ -132,7 +132,7 @@ def get_node_pool_upgrade_policies(
     for policy in ocm_api.get_paginated(
         f"{build_cluster_url(cluster_id)}/node_pools/{node_pool}/upgrade_policies"
     ):
-        results.append({
+        results.append({  # noqa: PERF401
             k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS
         })
     return results
@@ -166,12 +166,9 @@ def create_version_agreement(
 def get_version_agreement(
     ocm_api: OCMBaseClient, cluster_id: str
 ) -> list[dict[str, Any]]:
-    agreements = []
-    for item in ocm_api.get_paginated(
-        f"{build_cluster_url(cluster_id)}/gate_agreements"
-    ):
-        agreements.append(item)
-    return agreements
+    return list(
+        ocm_api.get_paginated(f"{build_cluster_url(cluster_id)}/gate_agreements")
+    )
 
 
 def get_version_gates(ocm_api: OCMBaseClient) -> list[OCMVersionGate]:

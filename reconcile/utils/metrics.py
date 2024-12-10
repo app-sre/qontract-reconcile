@@ -222,8 +222,7 @@ class MetricsContainer:
 
     def _aggregate_scopes(self) -> "MetricsContainer":
         containers = [self]
-        for sub in self._scopes.values():
-            containers.append(sub._aggregate_scopes())
+        containers.extend(sub._aggregate_scopes() for sub in self._scopes.values())
         return join_metric_containers(containers)
 
     def collect(self) -> Generator[Metric, None, None]:
