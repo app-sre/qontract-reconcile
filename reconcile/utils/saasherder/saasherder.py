@@ -1055,7 +1055,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     @staticmethod
     def _collect_images(resource: Resource) -> set[str]:
-        images = set()
+        images: set[str] = set()
         # resources with pod templates
         with suppress(KeyError):
             template = resource["spec"]["template"]
