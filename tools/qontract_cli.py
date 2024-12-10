@@ -1216,7 +1216,7 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
     for user in sorted(by_user.keys()):
         print(f"- [{user}](#{user})")
     for user in sorted(by_user.keys()):
-        print("")
+        print()
         print(f"# {user}")
         print_output(ctx.obj["options"], by_user[user], columns)
 
@@ -1814,7 +1814,7 @@ def rds_recommendations(ctx):
     accounts = [
         a for a in queries.get_aws_accounts() if a["name"] in targetted_accounts
     ]
-    accounts.sort(key=lambda a: a["name"])
+    accounts.sort(key=itemgetter("name"))
 
     columns = [
         # 'RecommendationId',
@@ -1865,7 +1865,7 @@ def rds_recommendations(ctx):
                 if not recommendations:
                     continue
                 # Sort by ResourceName
-                recommendations.sort(key=lambda r: r["ResourceName"])
+                recommendations.sort(key=itemgetter("ResourceName"))
 
                 print(f"# {account_name} - {region}")
                 print("Note: Severity informational is not shown.")
@@ -2136,7 +2136,7 @@ def sre_checkpoints(ctx):
         if (app["path"] not in parent_apps and app["onboardingStatus"] == "OnBoarded")
     ]
 
-    checkpoints_data.sort(key=lambda c: c["latest"], reverse=True)
+    checkpoints_data.sort(key=itemgetter("latest"), reverse=True)
 
     columns = ["name", "latest"]
     print_output(ctx.obj["options"], checkpoints_data, columns)

@@ -97,7 +97,7 @@ def fetch_desired_state(
         project = Project(
             name=glitchtip_project.name,
             platform=glitchtip_project.platform,
-            slug=glitchtip_project.project_id if glitchtip_project.project_id else "",
+            slug=glitchtip_project.project_id or "",
             event_throttle_rate=glitchtip_project.event_throttle_rate or 0,
         )
         # Check project is unique within an organization

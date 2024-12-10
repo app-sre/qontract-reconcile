@@ -1,3 +1,4 @@
+import string
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from typing import (
@@ -73,7 +74,7 @@ def test_cloudwatch_account() -> dict[str, Any]:
         ],
         "consoleUrl": "https://some-url.com/console",
         "name": "some-account-name",
-        "uid": "0123456789",
+        "uid": string.digits,
         "resourcesDefaultRegion": "us-east-1",
         "disable": None,
     }
@@ -410,7 +411,7 @@ def test_cloudwatch_account_with_multiple_regions() -> dict[str, Any]:
             },
         ],
         "name": "account-name-with-multiple_regions",
-        "uid": "0123456789",
+        "uid": string.digits,
         "resourcesDefaultRegion": "us-east-1",
     }
 

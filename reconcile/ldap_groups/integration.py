@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import operator
 from collections.abc import (
     Callable,
     Iterable,
@@ -241,7 +242,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             current_groups,
             desired_groups,
             key=lambda g: g.name,
-            equal=lambda g1, g2: g1 == g2,
+            equal=operator.eq,
         )
         # Internal Groups API does not support listing all managed groups, therefore
         # we need to keep track of them ourselves.

@@ -455,8 +455,9 @@ def run(
                 if not co_label.startswith("change-owner/")
             }
             for bc in changes:
-                for label in bc.change_owner_labels:
-                    labels.add(change_owner_label(label))
+                labels.update(
+                    change_owner_label(label) for label in bc.change_owner_labels
+                )
 
             if mr_management_enabled:
                 gl.set_labels_on_merge_request(merge_request, labels)

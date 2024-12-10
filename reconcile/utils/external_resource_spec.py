@@ -171,7 +171,9 @@ class ExternalResourceSpec:
 
     def _output_format(self) -> OutputFormat:
         if self.resource.get("output_format") is not None:
-            return OutputFormat(**cast("dict[str, Any]", self.resource["output_format"]))
+            return OutputFormat(
+                **cast("dict[str, Any]", self.resource["output_format"])
+            )
         return OutputFormat(provider="generic-secret")
 
 

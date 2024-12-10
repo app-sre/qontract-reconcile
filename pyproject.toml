@@ -185,6 +185,10 @@ extend-select = [
     "RUF",
     # flake8-type-checking
     "TC",
+    # Perflint
+    "PERF",
+    # refurb
+    "FURB",
 ]
 ignore = [
     "PLR0904", # Too many public methods
@@ -208,6 +212,9 @@ ignore = [
     "TC002",   # Type-checking block
     "TC003",   # Type-checking block
     "TC004",   # Type-checking block
+    # Review later
+    "FURB101", # Replace `open` with `pathlib.Path`
+    "FURB103", # Replace `open` with `pathlib.Path`
 ]
 [tool.ruff.format]
 preview = true
@@ -324,7 +331,6 @@ module = [
     "reconcile.utils.config",
     "reconcile.utils.data_structures",
     "reconcile.utils.defer",
-    "reconcile.utils.dnsutils",
     "reconcile.utils.elasticsearch_exceptions",
     "reconcile.utils.environ",
     "reconcile.utils.exceptions",

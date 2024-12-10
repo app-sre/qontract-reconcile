@@ -54,7 +54,7 @@ class Publisher:
         self.app_name = app_name
         self.namespace_name = namespace_name
         self.resource_template_name = resource_template_name
-        self.target_name = target_name if target_name else "None"
+        self.target_name = target_name or "None"
         self.cluster_name = cluster_name
         self.redeploy_on_config_change = bool(redeploy_on_config_change)
         self.has_subscriber = has_subscriber

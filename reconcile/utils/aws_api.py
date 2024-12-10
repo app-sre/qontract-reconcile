@@ -1,4 +1,5 @@
 import logging
+import operator
 import os
 import re
 import time
@@ -191,7 +192,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         service_name,
         region_name: str | None = None,
     ):
-        region = region_name if region_name else session.region_name
+        region = region_name or session.region_name
         client = session.client(
             service_name,
             region_name=region,
@@ -205,7 +206,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def _get_session_resource(
         session: Session, service_name, region_name: str | None = None
     ):
-        region = region_name if region_name else session.region_name
+        region = region_name or session.region_name
         return session.resource(service_name, region_name=region)
 
     def _account_ec2_client(
@@ -1004,8 +1005,9 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         for nat in nat_gateways.get("NatGateways") or []:
             if nat["VpcId"] != vpc_id:
                 continue
-            for address in nat["NatGatewayAddresses"]:
-                egress_ips.add(address["PublicIp"])
+            egress_ips.update(
+                address["PublicIp"] for address in nat["NatGatewayAddresses"]
+            )
 
         return egress_ips
 
@@ -1695,7 +1697,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return [
             obj["Key"]
             for obj in sorted(
-                objects, key=lambda obj: obj["LastModified"], reverse=True
+                objects, key=operator.itemgetter("LastModified"), reverse=True
             )
         ]
 

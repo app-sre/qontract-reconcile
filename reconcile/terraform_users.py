@@ -97,10 +97,13 @@ def _filter_participating_aws_accounts(
 ) -> list:
     participating_aws_account_names = set()
     for role in roles:
-        for aws_group in role["aws_groups"] or []:
-            participating_aws_account_names.add(aws_group["account"]["name"])
-        for user_policy in role["user_policies"] or []:
-            participating_aws_account_names.add(user_policy["account"]["name"])
+        participating_aws_account_names.update(
+            aws_group["account"]["name"] for aws_group in role["aws_groups"] or []
+        )
+        participating_aws_account_names.update(
+            user_policy["account"]["name"]
+            for user_policy in role["user_policies"] or []
+        )
     return [a for a in accounts if a["name"] in participating_aws_account_names]
 
 

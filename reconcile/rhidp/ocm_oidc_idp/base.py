@@ -1,4 +1,5 @@
 import logging
+import operator
 from collections.abc import (
     Iterable,
     Sequence,
@@ -174,7 +175,7 @@ def act(
             idp_state.idp.type,
             idp_state.idp.name,
         )),
-        equal=lambda idp1, idp2: idp1 == idp2,
+        equal=operator.eq,
     )
 
     for idp_state in diff_result.delete.values():

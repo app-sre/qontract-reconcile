@@ -488,7 +488,7 @@ def apply(
                 obsolete_rs["metadata"]["ownerReferences"] = owner_references
                 oc.apply(namespace=namespace, resource=OR(obsolete_rs, "", ""))
         except (MayNotChangeOnceSetError, PrimaryClusterIPCanNotBeUnsetError):
-            if resource_type not in {"Service"}:
+            if resource_type != "Service":
                 raise
 
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)

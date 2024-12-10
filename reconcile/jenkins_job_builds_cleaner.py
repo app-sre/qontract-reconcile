@@ -1,4 +1,5 @@
 import logging
+import operator
 import re
 import time
 
@@ -36,7 +37,7 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
 
 def get_last_build_ids(builds):
     builds_to_keep = []
-    sorted_builds = sorted(builds, key=lambda b: b["timestamp"], reverse=True)
+    sorted_builds = sorted(builds, key=operator.itemgetter("timestamp"), reverse=True)
     if sorted_builds:
         last_build = sorted_builds[0]
         builds_to_keep.append(last_build["id"])

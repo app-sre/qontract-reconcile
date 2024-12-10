@@ -309,8 +309,7 @@ def get_priority_for_changes(
     """
     priorities: set[ChangeTypePriority] = set()
     for bfc in bundle_file_changes:
-        for ct in bfc.involved_change_types():
-            priorities.add(ct.priority)
+        priorities.update(ct.priority for ct in bfc.involved_change_types())
     # get the lowest priority
     for p in reversed(ChangeTypePriority):
         if p in priorities:

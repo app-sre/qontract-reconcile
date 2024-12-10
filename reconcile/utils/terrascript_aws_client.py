@@ -6827,42 +6827,32 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_resources.append(scram_secret_association)
 
         # outputs
-        tf_resources.append(
+        tf_resources += [
             Output(
                 output_prefix + "__zookeeper_connect_string",
                 value="${" + msk_cluster.zookeeper_connect_string + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__zookeeper_connect_string_tls",
                 value="${" + msk_cluster.zookeeper_connect_string_tls + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers",
                 value="${" + msk_cluster.bootstrap_brokers + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers_tls",
                 value="${" + msk_cluster.bootstrap_brokers_tls + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers_sasl_iam",
                 value="${" + msk_cluster.bootstrap_brokers_sasl_iam + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers_sasl_scram",
                 value="${" + msk_cluster.bootstrap_brokers_sasl_scram + "}",
-            )
-        )
+            ),
+        ]
         self.add_resources(account, tf_resources)
 
     def populate_saml_idp(self, account_name: str, name: str, metadata: str) -> None:

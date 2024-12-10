@@ -59,8 +59,7 @@ INTEGRATION_UPSTREAM_REPOS_PARAM = "INTEGRATION_UPSTREAM_REPOS"
 
 def get_image_tag_from_ref(ref: str, upstream: str) -> str:
     gh_prefix = "https://github.com/"
-    if upstream.startswith(gh_prefix):
-        upstream = upstream[len(gh_prefix) :]
+    upstream = upstream.removeprefix(gh_prefix)
     settings = queries.get_app_interface_settings()
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)

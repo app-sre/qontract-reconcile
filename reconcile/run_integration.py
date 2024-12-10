@@ -88,7 +88,7 @@ def _parse_dry_run_flag(dry_run: str | None) -> str | None:
         )
         logging.error(msg)
         raise ValueError(msg)
-    return dry_run if dry_run else None
+    return dry_run or None
 
 
 def build_entry_point_args(
