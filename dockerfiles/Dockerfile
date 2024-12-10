@@ -7,6 +7,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e763
 WORKDIR /work
 
 COPY pyproject.toml uv.lock README.md ./
+COPY helm helm
 COPY tools tools
 COPY reconcile reconcile
 
@@ -63,7 +64,7 @@ RUN microdnf upgrade -y && microdnf clean all
 
 WORKDIR /work
 # the integration-manager needs the helm charts
-COPY helm helm
+RUN ln -s /work/helm /helm
 COPY --from=build-image /work ./
 
 # Set the PATH to include the virtualenv
