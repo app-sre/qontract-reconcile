@@ -744,7 +744,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 value = allowed_modifications.get(argument)
                 if (
                     value in pending_modified_values
-                    and cast(dict[str, str], pending_modified_values)[value]
+                    and cast("dict[str, str]", pending_modified_values)[value]
                     == after[argument]
                 ):
                     changed_values.append(argument)

@@ -154,7 +154,7 @@ class StatusMaintenance(BaseModel):
 
         statuspage_announcements = [
             StatusMaintenanceAnnouncement.init_from_announcement(
-                cast(MaintenanceStatuspageAnnouncementV1, m)
+                cast("MaintenanceStatuspageAnnouncementV1", m)
             )
             for m in maintenance.announcements or []
             if m.provider == PROVIDER_NAME

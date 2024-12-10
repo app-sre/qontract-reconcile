@@ -581,7 +581,7 @@ def fetch_current_state(
     addon_service = init_addon_service(org_upgrade_spec.org.environment)
     for spec in org_upgrade_spec.specs:
         if addons and isinstance(spec, ClusterAddonUpgradeSpec):
-            addon_spec = cast(ClusterAddonUpgradeSpec, spec)
+            addon_spec = cast("ClusterAddonUpgradeSpec", spec)
             addon_upgrade_policies = addon_service.get_addon_upgrade_policies(
                 ocm_api, spec.cluster.id, addon_id=addon_spec.addon.addon.id
             )

@@ -20,8 +20,8 @@ QONTRACT_INTEGRATION = "jenkins-worker-fleets"
 def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
     current_state = []
 
-    jenkins_config = cast(dict[str, Any], jenkins.get_jcasc_config().get("jenkins"))
-    clouds = cast(list[dict[str, Any]], jenkins_config.get("clouds", []))
+    jenkins_config = cast("dict[str, Any]", jenkins.get_jcasc_config().get("jenkins"))
+    clouds = cast("list[dict[str, Any]]", jenkins_config.get("clouds", []))
     for c in clouds:
         # eC2Fleet is defined by jcasc schema
         fleet = c.get("eC2Fleet", None)

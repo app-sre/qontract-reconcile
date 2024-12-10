@@ -313,7 +313,7 @@ def write_outputs_to_vault(
     vault_path: str, resource_specs: ExternalResourceSpecInventory
 ) -> None:
     integration_name = QONTRACT_INTEGRATION.replace("_", "-")
-    vault_client = cast(_VaultClient, VaultClient())
+    vault_client = cast("_VaultClient", VaultClient())
     for spec in resource_specs.values():
         # a secret can be empty if the terraform-integration is not enabled on the cluster
         # the resource is defined on - lets skip vault writes for those right now and

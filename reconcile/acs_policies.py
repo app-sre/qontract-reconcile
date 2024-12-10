@@ -83,7 +83,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 [
                     Scope(cluster=cluster_name_to_id[cs.name], namespace="")
                     for cs in cast(
-                        gql_acs_policies.AcsPolicyScopeClusterV1,
+                        "gql_acs_policies.AcsPolicyScopeClusterV1",
                         gql_policy.scope,
                     ).clusters
                 ],
@@ -96,7 +96,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                         cluster=cluster_name_to_id[ns.cluster.name], namespace=ns.name
                     )
                     for ns in cast(
-                        gql_acs_policies.AcsPolicyScopeNamespaceV1,
+                        "gql_acs_policies.AcsPolicyScopeNamespaceV1",
                         gql_policy.scope,
                     ).namespaces
                 ],
@@ -113,7 +113,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         match condition.policy_field:
             case "cvss":
                 cvss_condition = cast(
-                    gql_acs_policies.AcsPolicyConditionsCvssV1, condition
+                    "gql_acs_policies.AcsPolicyConditionsCvssV1", condition
                 )
                 return PolicyCondition(
                     field_name=field_name,
@@ -124,7 +124,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 )
             case "severity":
                 severity_condition = cast(
-                    gql_acs_policies.AcsPolicyConditionsSeverityV1, condition
+                    "gql_acs_policies.AcsPolicyConditionsSeverityV1", condition
                 )
                 return PolicyCondition(
                     field_name=field_name,
@@ -135,7 +135,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 )
             case "cve":
                 cve_condition = cast(
-                    gql_acs_policies.AcsPolicyConditionsCveV1, condition
+                    "gql_acs_policies.AcsPolicyConditionsCveV1", condition
                 )
                 return PolicyCondition(
                     field_name=field_name,
@@ -144,7 +144,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 )
             case "image_tag":
                 image_tag_condition = cast(
-                    gql_acs_policies.AcsPolicyConditionsImageTagV1, condition
+                    "gql_acs_policies.AcsPolicyConditionsImageTagV1", condition
                 )
                 return PolicyCondition(
                     field_name=field_name,
@@ -155,7 +155,7 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
                 )
             case "image_age":
                 image_age_condition = cast(
-                    gql_acs_policies.AcsPolicyConditionsImageAgeV1, condition
+                    "gql_acs_policies.AcsPolicyConditionsImageAgeV1", condition
                 )
                 return PolicyCondition(
                     field_name=field_name,

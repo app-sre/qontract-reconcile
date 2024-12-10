@@ -705,7 +705,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
-        vault_client = cast(_VaultClient, VaultClient())
+        vault_client = cast("_VaultClient", VaultClient())
 
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader

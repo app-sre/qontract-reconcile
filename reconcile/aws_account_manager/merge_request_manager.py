@@ -66,7 +66,7 @@ class MergeRequestManager:
         return any(
             aws_account_file_path == diff["new_path"]
             for mr in self._open_mrs
-            for diff in cast(dict, mr.changes())["changes"]
+            for diff in cast("dict", mr.changes())["changes"]
         )
 
     def fetch_open_merge_requests(self) -> None:

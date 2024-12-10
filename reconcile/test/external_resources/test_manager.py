@@ -200,7 +200,7 @@ def test_update_resource_state_does_nothing(
     state.resource_status = state_resource_status
     reconciliation_status.resource_status = reconciliation_resource_status
     manager._update_resource_state(reconciliation, state, reconciliation_status)
-    manager.state_mgr = cast(Mock, manager.state_mgr)
+    manager.state_mgr = cast("Mock", manager.state_mgr)
     manager.state_mgr.del_external_resource_state.assert_not_called()
     manager.state_mgr.set_external_resource_state.assert_not_called()
 
@@ -227,7 +227,7 @@ def test_update_resource_state_updates_state(
     state.resource_status = state_resource_status
     reconciliation_status.resource_status = reconcile_resource_status
     manager._update_resource_state(reconciliation, state, reconciliation_status)
-    manager.state_mgr = cast(Mock, manager.state_mgr)
+    manager.state_mgr = cast("Mock", manager.state_mgr)
     manager.state_mgr.del_external_resource_state.assert_not_called()
     manager.state_mgr.set_external_resource_state.assert_called_once()
 
@@ -250,6 +250,6 @@ def test_update_resource_state_deletes_state(
     state.resource_status = state_resource_status
     reconciliation_status.resource_status = reconcile_resource_status
     manager._update_resource_state(reconciliation, state, reconciliation_status)
-    manager.state_mgr = cast(Mock, manager.state_mgr)
+    manager.state_mgr = cast("Mock", manager.state_mgr)
     manager.state_mgr.del_external_resource_state.assert_called_once()
     manager.state_mgr.set_external_resource_state.assert_not_called()

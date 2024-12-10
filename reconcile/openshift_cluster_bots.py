@@ -238,7 +238,7 @@ def create_cluster_bots(
 def update_vault(
     cluster: ClusterV1, config: Config, token: str, admin_token: str | None
 ) -> None:
-    vault = cast(_VaultClient, VaultClient())
+    vault = cast("_VaultClient", VaultClient())
     vault.write(
         {
             "path": vault_secret(cluster, config, cluster_admin=False)["path"],
