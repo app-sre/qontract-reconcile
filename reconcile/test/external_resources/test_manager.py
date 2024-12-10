@@ -77,9 +77,9 @@ def test_resource_needs_reconciliation_basic(
     status: ResourceStatus,
     expected: bool,
 ) -> None:
-    _reconciliation = reconciliation.dict()
-    _reconciliation["action"] = action
-    new_reconciliation = Reconciliation.parse_obj(_reconciliation)
+    reconciliation_ = reconciliation.dict()
+    reconciliation_["action"] = action
+    new_reconciliation = Reconciliation.parse_obj(reconciliation_)
     state.resource_status = status
     result = manager._resource_needs_reconciliation(new_reconciliation, state)
     assert result is expected
@@ -150,18 +150,18 @@ def test_get_reconciliation_status(
     manager: ExternalResourcesManager,
     reconciliation: Reconciliation,
     state: ExternalResourceState,
-    _resource_status: ResourceStatus,
-    _action: Action,
-    _reconcile_status: ReconcileStatus,
-    _expected_status: ResourceStatus,
+    resource_status: ResourceStatus,
+    action: Action,
+    reconcile_status: ReconcileStatus,
+    expected_status: ResourceStatus,
 ) -> None:
-    state.resource_status = _resource_status
+    state.resource_status = resource_status
     r_dict = reconciliation.dict()
-    r_dict["action"] = _action
-    _r = Reconciliation.parse_obj(r_dict)
-    manager.reconciler.get_resource_reconcile_status.return_value = _reconcile_status  # type:ignore
-    status = manager._get_reconciliation_status(_r, state)
-    assert status.resource_status == _expected_status
+    r_dict["action"] = action
+    r = Reconciliation.parse_obj(r_dict)
+    manager.reconciler.get_resource_reconcile_status.return_value = reconcile_status  # type:ignore
+    status = manager._get_reconciliation_status(r, state)
+    assert status.resource_status == expected_status
 
 
 @pytest.mark.parametrize(
@@ -194,11 +194,11 @@ def test_update_resource_state_does_nothing(
     reconciliation: Reconciliation,
     reconciliation_status: ReconciliationStatus,
     state: ExternalResourceState,
-    _state_resource_status: ResourceStatus,
-    _reconciliation_resource_status: ResourceStatus,
+    state_resource_status: ResourceStatus,
+    reconciliation_resource_status: ResourceStatus,
 ) -> None:
-    state.resource_status = _state_resource_status
-    reconciliation_status.resource_status = _reconciliation_resource_status
+    state.resource_status = state_resource_status
+    reconciliation_status.resource_status = reconciliation_resource_status
     manager._update_resource_state(reconciliation, state, reconciliation_status)
     manager.state_mgr = cast(Mock, manager.state_mgr)
     manager.state_mgr.del_external_resource_state.assert_not_called()
@@ -221,11 +221,11 @@ def test_update_resource_state_updates_state(
     reconciliation: Reconciliation,
     reconciliation_status: ReconciliationStatus,
     state: ExternalResourceState,
-    _state_resource_status: ResourceStatus,
-    _reconcile_resource_status: ResourceStatus,
+    state_resource_status: ResourceStatus,
+    reconcile_resource_status: ResourceStatus,
 ) -> None:
-    state.resource_status = _state_resource_status
-    reconciliation_status.resource_status = _reconcile_resource_status
+    state.resource_status = state_resource_status
+    reconciliation_status.resource_status = reconcile_resource_status
     manager._update_resource_state(reconciliation, state, reconciliation_status)
     manager.state_mgr = cast(Mock, manager.state_mgr)
     manager.state_mgr.del_external_resource_state.assert_not_called()
@@ -244,11 +244,11 @@ def test_update_resource_state_deletes_state(
     reconciliation: Reconciliation,
     reconciliation_status: ReconciliationStatus,
     state: ExternalResourceState,
-    _state_resource_status: ResourceStatus,
-    _reconcile_resource_status: ResourceStatus,
+    state_resource_status: ResourceStatus,
+    reconcile_resource_status: ResourceStatus,
 ) -> None:
-    state.resource_status = _state_resource_status
-    reconciliation_status.resource_status = _reconcile_resource_status
+    state.resource_status = state_resource_status
+    reconciliation_status.resource_status = reconcile_resource_status
     manager._update_resource_state(reconciliation, state, reconciliation_status)
     manager.state_mgr = cast(Mock, manager.state_mgr)
     manager.state_mgr.del_external_resource_state.assert_called_once()

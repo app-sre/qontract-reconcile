@@ -65,9 +65,7 @@ class MergeRequestBase(ABC):
     def cancel(self, message: str) -> None:
         self.cancelled = True
         raise CancelMergeRequest(
-            f"{self.name} MR canceled for "
-            f"branch {self.branch}. "
-            f"Reason: {message}"
+            f"{self.name} MR canceled for branch {self.branch}. Reason: {message}"
         )
 
     @property
@@ -222,7 +220,7 @@ class MergeRequestBase(ABC):
                 # we are not going to let an otherwise fine MR
                 # processing fail just because of this
                 LOG.error(
-                    f"Failed to delete branch {self.branch}. " f"Reason: {gitlab_error}"
+                    f"Failed to delete branch {self.branch}. Reason: {gitlab_error}"
                 )
 
     def diffs(self, gitlab_cli: GitLabApi) -> Any:

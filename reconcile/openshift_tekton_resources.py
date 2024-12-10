@@ -108,8 +108,7 @@ def fetch_tkn_providers(saas_file_name: str | None) -> dict[str, Any]:
 
     if duplicates:
         raise OpenshiftTektonResourcesBadConfigError(
-            "There are duplicates in tekton providers names: "
-            f'{", ".join(duplicates)}'
+            f"There are duplicates in tekton providers names: {', '.join(duplicates)}"
         )
 
     # Only get the providers that are used by the saas files

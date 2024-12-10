@@ -130,7 +130,7 @@ class ProjectAlert(BaseModel):
     ) -> MutableMapping[str, Any]:
         # name is an empty string if the alert was created manually because it can't be set via UI
         # use the pk instead.
-        values["name"] = values.get("name") or f'alert-{values.get("pk")}'
+        values["name"] = values.get("name") or f"alert-{values.get('pk')}"
         return values
 
     def __eq__(self, other: object) -> bool:

@@ -602,7 +602,7 @@ def ocm_fleet_upgrade_policies(
 @click.option(
     "--ignore-sts-clusters",
     is_flag=True,
-    default=os.environ.get("IGNORE_STS_CLUSTERS", False),
+    default=bool(os.environ.get("IGNORE_STS_CLUSTERS")),
     help="Ignore STS clusters",
 )
 @click.pass_context
@@ -1102,7 +1102,7 @@ def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
             "from": str(ipaddress.ip_network(cidr)[0]),
             "to": str(ipaddress.ip_network(cidr)[-1]),
             "hosts": str(ipaddress.ip_network(cidr).num_addresses),
-            "description": f'CIDR {cidr} routed through account {connection["account"]["name"]} transit gateways',
+            "description": f"CIDR {cidr} routed through account {connection['account']['name']} transit gateways",
         }
         for c in clusters
         for connection in (c["peering"] or {}).get("connections") or []
@@ -1356,7 +1356,7 @@ def ocm_login(ctx, org_name):
     client_secret = secret_reader.read(ocm["accessTokenClientSecret"])
     access_token_command = f'curl -s -X POST {ocm["accessTokenUrl"]} -d "grant_type=client_credentials" -d "client_id={ocm["accessTokenClientId"]}" -d "client_secret={client_secret}" | jq -r .access_token'
     print(
-        f'ocm login --url {ocm["environment"]["url"]} --token $({access_token_command})'
+        f"ocm login --url {ocm['environment']['url']} --token $({access_token_command})"
     )
 
 
@@ -1607,7 +1607,7 @@ def jenkins_job_vault_secrets(ctx, instance_name: str, job_name: str) -> None:
                 secret_values = s["secret-values"]
                 for sv in secret_values:
                     print(
-                        f"export {sv['env-var']}=\"$(vault read -address={vault_url} -field={sv['vault-key']} {secret_path})\""
+                        f'export {sv["env-var"]}="$(vault read -address={vault_url} -field={sv["vault-key"]} {secret_path})"'
                     )
 
 

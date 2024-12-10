@@ -127,7 +127,7 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
 
     def _generate_db_access(self) -> str:
         statements = [
-            f"GRANT {','.join(access.grants)} ON ALL TABLES IN SCHEMA \"{access.target.dbschema}\" TO \"{self._get_user()}\";"
+            f'GRANT {",".join(access.grants)} ON ALL TABLES IN SCHEMA "{access.target.dbschema}" TO "{self._get_user()}";'
             for access in self.db_access.access or []
         ]
         return "\n".join(statements)
