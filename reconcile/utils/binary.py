@@ -39,8 +39,7 @@ def binary_version(binary, version_args, search_regex, expected_versions):
                 result = subprocess.run(cmd, capture_output=True, check=True)
             except subprocess.CalledProcessError as e:
                 msg = (
-                    f"Could not execute binary '{binary}' "
-                    f"for binary version check: {e}"
+                    f"Could not execute binary '{binary}' for binary version check: {e}"
                 )
                 raise Exception(msg) from e
 

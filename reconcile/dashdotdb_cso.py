@@ -56,7 +56,7 @@ class DashdotdbCSO(DashdotdbBase):
             return response
 
         for item in imagemanifestvuln["items"]:
-            endpoint = f"{self.dashdotdb_url}/api/v1/" f"imagemanifestvuln/{cluster}"
+            endpoint = f"{self.dashdotdb_url}/api/v1/imagemanifestvuln/{cluster}"
             response = self._do_post(endpoint, item)
             try:
                 response.raise_for_status()

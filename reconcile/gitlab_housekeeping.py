@@ -174,7 +174,7 @@ def clean_pipelines(
                 gl_piplelines.get(p["id"]).cancel()
             except gitlab.exceptions.GitlabPipelineCancelError as err:
                 logging.error(
-                    f'unable to cancel {p["web_url"]} - '
+                    f"unable to cancel {p['web_url']} - "
                     f"error message {err.error_message}"
                 )
 

@@ -1481,13 +1481,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             client.delete_hosted_zone(Id=zone_id)
         except client.exceptions.NoSuchHostedZone:
             logging.error(
-                f"[{account_name}] Error trying to delete "
-                f"unknown DNS zone {zone_id}"
+                f"[{account_name}] Error trying to delete unknown DNS zone {zone_id}"
             )
         except client.exceptions.HostedZoneNotEmpty:
             logging.error(
-                f"[{account_name}] Cannot delete DNS zone that "
-                f"is not empty {zone_id}"
+                f"[{account_name}] Cannot delete DNS zone that is not empty {zone_id}"
             )
         except Exception as e:
             logging.error(f"[{account_name}] unhandled exception: {e}")

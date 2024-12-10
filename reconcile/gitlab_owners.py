@@ -232,7 +232,7 @@ class MRApproval:
                 )
 
         for group in sorted(closest_approvers):
-            markdown_report += f'* {", ".join(group)}\n'
+            markdown_report += f"* {', '.join(group)}\n"
 
         approvers = set()
         for _, owners in report.items():
@@ -254,7 +254,7 @@ class MRApproval:
                 "\nIn case of emergency, the override approvers "
                 "(from parent directories) are:\n\n"
             )
-            markdown_report += f'* {", ".join(sorted(approvers))}\n'
+            markdown_report += f"* {', '.join(sorted(approvers))}\n"
 
         closest_reviewers = set()
         for _, owners in report.items():
@@ -274,8 +274,8 @@ class MRApproval:
                     closest_reviewers.add(closest_reviewer)
 
         if closest_reviewers:
-            markdown_report += "\nRelevant reviewers (with no " "merge rights) are:\n\n"
-            markdown_report += f'* {", ".join(sorted(closest_reviewers))}\n'
+            markdown_report += "\nRelevant reviewers (with no merge rights) are:\n\n"
+            markdown_report += f"* {', '.join(sorted(closest_reviewers))}\n"
 
         reviewers = set()
         for _, owners in report.items():
@@ -303,7 +303,7 @@ class MRApproval:
                 "merge rights) from parent "
                 "directories are:\n\n"
             )
-            markdown_report += f'* {", ".join(sorted(reviewers))}\n'
+            markdown_report += f"* {', '.join(sorted(reviewers))}\n"
 
         return markdown_report.rstrip()
 
@@ -328,9 +328,7 @@ def act(repo, dry_run, instance, settings, defer=None):
 
         if mr_approval.top_commit_created_at is None:
             _LOG.info([
-                f"Project:{gitlab_cli.project.id} "
-                f"Merge Request:{mr.iid} "
-                f"- skipping"
+                f"Project:{gitlab_cli.project.id} Merge Request:{mr.iid} - skipping"
             ])
             continue
 

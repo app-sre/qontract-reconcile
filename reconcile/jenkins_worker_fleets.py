@@ -71,7 +71,7 @@ def get_desired_state(
         if not found:
             raise ValueError(
                 f"Could not find asg identifier {identifier} "
-                f'for account {account} in namespace {namespace["name"]}'
+                f"for account {account} in namespace {namespace['name']}"
             )
     return desired_state
 

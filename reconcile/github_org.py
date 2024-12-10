@@ -120,7 +120,7 @@ def get_config(default=False):
             raise KeyError("default github org config not found")
         if len(found_defaults) > 1:
             raise KeyError(
-                "multiple default github org configs found: " f"{found_defaults}"
+                f"multiple default github org configs found: {found_defaults}"
             )
 
     return config
@@ -436,9 +436,9 @@ def run(dry_run):
     current_orgs = {item["params"]["org"] for item in current_state.dump()}
     desired_orgs = {item["params"]["org"] for item in desired_state.dump()}
 
-    assert (
-        current_orgs == desired_orgs
-    ), f"Current orgs ({current_orgs}) don't match desired orgs ({desired_orgs})"
+    assert current_orgs == desired_orgs, (
+        f"Current orgs ({current_orgs}) don't match desired orgs ({desired_orgs})"
+    )
 
     # Calculate diff
     diff = current_state.diff(desired_state)

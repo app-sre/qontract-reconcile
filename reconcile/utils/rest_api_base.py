@@ -81,8 +81,7 @@ class ApiBase:
             return response.json()
         except requests.exceptions.JSONDecodeError:
             logging.error(
-                f"Failed to decode JSON response from {url}"
-                f"Response: {response.text}"
+                f"Failed to decode JSON response from {url}Response: {response.text}"
             )
             raise
 

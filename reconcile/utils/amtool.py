@@ -52,7 +52,7 @@ def version() -> AmtoolResult:
     """Returns the version parsed from amtool --version"""
     result = _run_cmd(["amtool", "--version"])
 
-    pattern = re.compile("^amtool, version (?P<version>[^ ]+) .+")
+    pattern = re.compile(r"^amtool, version (?P<version>[^ ]+) .+")
     if m := pattern.match(result.message):
         return AmtoolResult(True, m.group("version"))
 
@@ -63,7 +63,7 @@ def _run_cmd(cmd: list[str]) -> AmtoolResult:
     try:
         result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
-        msg = f'Error running amtool command [{" ".join(cmd)}]'
+        msg = f"Error running amtool command [{' '.join(cmd)}]"
         if e.stdout:
             msg += f" {e.stdout.decode()}"
         if e.stderr:

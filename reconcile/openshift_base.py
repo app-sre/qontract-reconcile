@@ -882,10 +882,7 @@ def apply_action(
             if resource_type != "Secret"
             else f"error applying Secret {resource.name}: REDACTED"
         )
-        msg = (
-            f"[{cluster}/{namespace}] {err} "
-            f"(error details: {resource.error_details})"
-        )
+        msg = f"[{cluster}/{namespace}] {err} (error details: {resource.error_details})"
         logging.error(msg)
 
 
@@ -956,7 +953,7 @@ def _realize_resource_data_3way_diff(
     actions: list[dict] = []
 
     if ri.has_error_registered(cluster=cluster):
-        msg = f"[{cluster}] skipping realize_data for " "cluster with errors"
+        msg = f"[{cluster}] skipping realize_data for cluster with errors"
         logging.error(msg)
         return actions
 
@@ -1212,8 +1209,7 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap
                 state = status.get("state")
                 if state != "AtLatestKnown":
                     logging.info(
-                        f"Subscription {name} state is invalid. "
-                        f"Current state: {state}"
+                        f"Subscription {name} state is invalid. Current state: {state}"
                     )
                     raise ValidationError(name)
             elif kind == "Job":
@@ -1311,8 +1307,7 @@ def aggregate_shared_resources(namespace_info, shared_resources_type):
     ]
     if shared_resources_type not in supported_shared_resources_types:
         raise KeyError(
-            f"shared_resource_type must be one of "
-            f"{supported_shared_resources_types}."
+            f"shared_resource_type must be one of {supported_shared_resources_types}."
         )
     shared_resources = namespace_info.get("sharedResources")
     namespace_type_resources = namespace_info.get(shared_resources_type)

@@ -86,7 +86,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         owner = Entity(
             type=EntityType.SERVICE_ACCOUNT,
             # OIDC service accounts are named service-account-<client_id>
-            id=f'service-account-{secret["client_id"]}',
+            id=f"service-account-{secret['client_id']}",
         )
         desired_groups_for_roles = self.get_desired_groups_for_roles(
             roles,

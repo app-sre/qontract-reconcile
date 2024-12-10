@@ -383,7 +383,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
-            os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
+            os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", "600")
         )
 
         self.is_log_slow_oc_reconcile = os.environ.get(
@@ -456,7 +456,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
-            os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", 600)
+            os.environ.get("SLOW_OC_RECONCILE_THRESHOLD", "600")
         )
 
         self.is_log_slow_oc_reconcile = os.environ.get(
@@ -1180,7 +1180,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
             if not find:
                 raise StatusCodeError(
-                    f"{self.server}: {apigroup_override}" f" does not have kind {kind}"
+                    f"{self.server}: {apigroup_override} does not have kind {kind}"
                 )
         return (kind, group_version)
 
@@ -1420,7 +1420,7 @@ class OCLocal(OCCli):
 class OC:
     client_status = Counter(
         name="qontract_reconcile_native_client",
-        documentation="Cluster is using openshift " "native client",
+        documentation="Cluster is using openshift native client",
         labelnames=["cluster_name", "native_client"],
     )
 
@@ -1667,7 +1667,7 @@ class OC_Map:
                     cluster,
                     OCLogMsg(
                         log_level=logging.ERROR,
-                        message=f"[{cluster}]" f" is unreachable: {e}",
+                        message=f"[{cluster}] is unreachable: {e}",
                     ),
                     privileged,
                 )
@@ -1770,13 +1770,9 @@ def validate_labels(labels: dict[str, str]) -> Iterable[str]:
 
     for k, v in labels.items():
         if len(v) > LABEL_MAX_VALUE_LENGTH:
-            err.append(
-                f"Label value longer than " f"{LABEL_MAX_VALUE_LENGTH} chars: {v}"
-            )
+            err.append(f"Label value longer than {LABEL_MAX_VALUE_LENGTH} chars: {v}")
         if not v_pattern.match(v):
-            err.append(
-                f"Label value is invalid, it needs to match " f"'{v_pattern}': {v}"
-            )
+            err.append(f"Label value is invalid, it needs to match '{v_pattern}': {v}")
 
         prefix, name = "", k
         if "/" in k:
@@ -1792,8 +1788,7 @@ def validate_labels(labels: dict[str, str]) -> Iterable[str]:
             )
         if not k_name_pattern.match(name):
             err.append(
-                f"Label key name is invalid, it needs to mach "
-                f"'{v_pattern}'': {name}"
+                f"Label key name is invalid, it needs to mach '{v_pattern}'': {name}"
             )
 
         if prefix:

@@ -31,7 +31,7 @@ def delete_skupper_site(
     for kind in integration_managed_kinds:
         # delete everything labeled by us
         to_delete.update({
-            f'{item["kind"]}-{item["metadata"]["name"]}': item
+            f"{item['kind']}-{item['metadata']['name']}": item
             for item in oc.get_items(
                 kind=kind,
                 namespace=site.namespace.name,
@@ -40,7 +40,7 @@ def delete_skupper_site(
         })
         # delete everything else that starts with 'skupper-'
         to_delete.update({
-            f'{item["kind"]}-{item["metadata"]["name"]}': item
+            f"{item['kind']}-{item['metadata']['name']}": item
             for item in oc.get_items(kind=kind, namespace=site.namespace.name)
             if item["metadata"]["name"].startswith("skupper-")
         })
@@ -84,12 +84,12 @@ def _create_token(
     logging.info(f"{connected_site}: Creating new connection token for {site}")
     sc = get_site_controller(connected_site)
     if not dry_run:
-        _labels = copy.deepcopy(site.token_labels)
-        _labels.update(labels)
+        labels_ = copy.deepcopy(site.token_labels)
+        labels_.update(labels)
         oc.apply(
             connected_site.namespace.name,
             resource=OR(
-                body=sc.site_token(connected_site.unique_token_name(site), _labels),
+                body=sc.site_token(connected_site.unique_token_name(site), labels_),
                 integration=integration,
                 integration_version=integration_version,
             ),

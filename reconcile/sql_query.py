@@ -277,17 +277,17 @@ def collect_queries(
         tf_resource_info = get_tf_resource_info(terrascript, namespace, identifier)
         if tf_resource_info is None:
             logging.error(
-                f'[sql-query:{name} (path: {sql_query["path"]})] Could not find rds identifier {identifier} in namespace {namespace["name"]}. '
+                f"[sql-query:{name} (path: {sql_query['path']})] Could not find rds identifier {identifier} in namespace {namespace['name']}. "
                 "If this is a removed read only instance, consider updating the identifier to the source replica or remove this file."
             )
             sys.exit(ExitCodes.ERROR)
 
-        _queries = []
+        queries_ = []
         if sql_query["query"] is not None:
-            _queries.append(sql_query["query"])
+            queries_.append(sql_query["query"])
 
         if sql_query["queries"] is not None:
-            _queries.extend(sql_query["queries"])
+            queries_.extend(sql_query["queries"])
 
         # building up the final query dictionary
         item = {
@@ -296,7 +296,7 @@ def collect_queries(
             "identifier": sql_query["identifier"],
             "db_conn": db_conn,
             "output": output,
-            "queries": _queries,
+            "queries": queries_,
             **tf_resource_info,
         }
 

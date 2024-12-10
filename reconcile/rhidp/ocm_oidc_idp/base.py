@@ -38,10 +38,10 @@ class IDPState(BaseModel):
     cluster: Cluster
     idp: OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub
 
-    def __eq__(self, __value: object) -> bool:
-        if not isinstance(__value, IDPState):
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, IDPState):
             raise NotImplementedError("Cannot compare to non IDPState objects.")
-        return self.idp == __value.idp
+        return self.idp == value.idp
 
 
 def run(

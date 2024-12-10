@@ -226,7 +226,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if not allowed_secret_parameter_paths:
             self.valid = False
             logging.error(
-                f"[{saas_file_name}] " f"missing allowedSecretParameterPaths section"
+                f"[{saas_file_name}] missing allowedSecretParameterPaths section"
             )
             return
         for sp in secret_parameters:
@@ -558,8 +558,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     ) -> None:
         if target.image and target.upstream:
             logging.error(
-                f"[{saas_file_name}/{resource_template_name}] "
-                f"image used with upstream"
+                f"[{saas_file_name}/{resource_template_name}] image used with upstream"
             )
             self.valid = False
 
@@ -1872,7 +1871,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             # not have promotion_data yet
             if not config_hashes or not promotion.promotion_data:
                 logging.info(
-                    "Promotion data is missing; rely on the success " "state only"
+                    "Promotion data is missing; rely on the success state only"
                 )
                 continue
 

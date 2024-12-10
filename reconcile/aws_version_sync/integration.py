@@ -273,7 +273,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         supported_providers: Iterable[str],
     ) -> list[ExternalResource]:
         external_resources: list[ExternalResource] = []
-        _defaults_cache: dict[str, Any] = {}
+        defaults_cache: dict[str, Any] = {}
         for ns in namespaces:
             for external_resource in ns.external_resources or []:
                 if not isinstance(
@@ -297,12 +297,12 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                     values = {}
                     # get/set the defaults file values from/to cache
                     if resource.defaults:
-                        if not (values := _defaults_cache.get(resource.defaults, {})):
+                        if not (values := defaults_cache.get(resource.defaults, {})):
                             # retrieve the external resource spec values
                             values = get_values(
                                 gql_get_resource_func, resource.defaults
                             )
-                            _defaults_cache[resource.defaults] = values
+                            defaults_cache[resource.defaults] = values
                     values = override_values(values, resource.overrides)
                     if resource.provider.lower() == "elasticache" and str(
                         values["engine_version"]

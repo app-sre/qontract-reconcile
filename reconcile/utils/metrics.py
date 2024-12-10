@@ -65,8 +65,8 @@ execution_counter = Counter(
 )
 
 reconcile_time = Histogram(
-    name="qontract_reconcile_function_" "elapsed_seconds_since_bundle_commit",
-    documentation="Run time seconds for tracked " "functions",
+    name="qontract_reconcile_function_elapsed_seconds_since_bundle_commit",
+    documentation="Run time seconds for tracked functions",
     labelnames=["name", "integration"],
     buckets=(60.0, 150.0, 300.0, 600.0, 1200.0, 1800.0, 2400.0, 3000.0, float("inf")),
 )

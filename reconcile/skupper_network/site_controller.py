@@ -28,14 +28,14 @@ class SiteController:
 
     def site_token(self, name: str, labels: MutableMapping[str, str]) -> dict[str, Any]:
         """Skupper site token secret."""
-        _labels = copy.deepcopy(labels)
-        _labels["skupper.io/type"] = "connection-token-request"
+        labels_ = copy.deepcopy(labels)
+        labels_["skupper.io/type"] = "connection-token-request"
         return {
             "apiVersion": "v1",
             "kind": "Secret",
             "metadata": {
                 "name": name,
-                "labels": _labels,
+                "labels": labels_,
             },
         }
 

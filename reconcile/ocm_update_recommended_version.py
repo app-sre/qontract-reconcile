@@ -19,8 +19,8 @@ QONTRACT_INTEGRATION = "ocm-update-recommended-version"
 
 def get_highest(version_set: set[str]) -> str:
     def _compare(v1: str, v2: str) -> int:
-        _v1 = semver.VersionInfo.parse(v1)
-        return _v1.compare(v2)
+        v1_ = semver.VersionInfo.parse(v1)
+        return v1_.compare(v2)
 
     sorted_version_set = sorted(
         version_set, key=functools.cmp_to_key(_compare), reverse=True

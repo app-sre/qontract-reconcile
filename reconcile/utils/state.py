@@ -346,7 +346,7 @@ class State:
         :type key: string
         """
         if not force and self.exists(key):
-            raise KeyError(f"[state] key {key} already " f"exists in {self.state_path}")
+            raise KeyError(f"[state] key {key} already exists in {self.state_path}")
         self._set(key, value, metadata=metadata)
 
     def _set(
@@ -430,16 +430,16 @@ class State:
         This method is not thread-safe nor multi-process-safe! There is no locking mechanism in place.
         """
         try:
-            _current_value = self[key]
+            current_value = self[key]
         except KeyError:
-            _current_value = None
-        state_obj = TransactionStateObj(key, value=_current_value)
+            current_value = None
+        state_obj = TransactionStateObj(key, value=current_value)
         try:
             yield state_obj
         except AbortStateTransaction:
             return
         else:
-            if state_obj.changed and state_obj.value != _current_value:
+            if state_obj.changed and state_obj.value != current_value:
                 self[state_obj.key] = state_obj.value
             elif value is not None and state_obj.value != value:
                 self[state_obj.key] = value

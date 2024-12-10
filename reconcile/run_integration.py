@@ -28,8 +28,8 @@ from reconcile.utils.runtime.environment import (
     log_fmt,
 )
 
-SHARDS = int(os.environ.get("SHARDS", 1))
-SHARD_ID = int(os.environ.get("SHARD_ID", 0))
+SHARDS = int(os.environ.get("SHARDS", "1"))
+SHARD_ID = int(os.environ.get("SHARD_ID", "0"))
 SHARD_ID_LABEL = os.environ.get("SHARD_KEY", f"{SHARD_ID}-{SHARDS}")
 PREFIX_LOG_LEVEL = os.environ.get("PREFIX_LOG_LEVEL", "false")
 
@@ -44,14 +44,14 @@ DRY_RUN = (
 )
 INTEGRATION_EXTRA_ARGS = os.environ.get("INTEGRATION_EXTRA_ARGS")
 CONFIG = os.environ.get("CONFIG", "/config/config.toml")
-PROMETHEUS_PORT = os.environ.get("PROMETHEUS_PORT", 9090)
+PROMETHEUS_PORT = int(os.environ.get("PROMETHEUS_PORT", "9090"))
 
 LOG_FILE = os.environ.get("LOG_FILE")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-SLEEP_DURATION_SECS = os.environ.get("SLEEP_DURATION_SECS", 600)
-SLEEP_ON_ERROR = os.environ.get("SLEEP_ON_ERROR", 10)
+SLEEP_DURATION_SECS = int(os.environ.get("SLEEP_DURATION_SECS", "600"))
+SLEEP_ON_ERROR = int(os.environ.get("SLEEP_ON_ERROR", "10"))
 
-PUSHGATEWAY_ENABLED = os.environ.get("PUSHGATEWAY_ENABLED", False)
+PUSHGATEWAY_ENABLED = bool(os.environ.get("PUSHGATEWAY_ENABLED"))
 
 LOG = logging.getLogger(__name__)
 

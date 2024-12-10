@@ -477,7 +477,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             tf_resource = spec.resource
             replica_src = tf_resource.get("replica_source")
             if replica_src:
-                replica_source_name = f'{replica_src}-{tf_resource.get("provider")}'
+                replica_source_name = f"{replica_src}-{tf_resource.get('provider')}"
                 # Creating a dict that is convenient to use inside the
                 # loop processing the formatted_output
                 replicas_info[spec.provisioner_name][spec.output_prefix] = (

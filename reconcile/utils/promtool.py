@@ -68,7 +68,7 @@ def _run_yaml_spec_cmd(cmd: list[str], yaml_spec: Mapping) -> CommandExecutionRe
         try:
             result = subprocess.run(cmd, capture_output=True, check=True)
         except subprocess.CalledProcessError as e:
-            msg = f'Error running promtool command [{" ".join(cmd)}]'
+            msg = f"Error running promtool command [{' '.join(cmd)}]"
             if e.stdout:
                 msg += f" {e.stdout.decode()}"
             if e.stderr:

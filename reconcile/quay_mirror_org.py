@@ -150,7 +150,7 @@ class QuayMirrorOrg:
 
             for item in data:
                 image = Image(
-                    f'{server_url}/{org_name}/{item["name"]}',
+                    f"{server_url}/{org_name}/{item['name']}",
                     username=username,
                     password=password,
                     session=self.session,

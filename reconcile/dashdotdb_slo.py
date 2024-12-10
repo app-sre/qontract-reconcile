@@ -78,7 +78,7 @@ class DashdotdbSLO(DashdotdbBase):
 
         for item in service_slos:
             slo_name = item.name
-            endpoint = f"{self.dashdotdb_url}/api/v1/" f"serviceslometrics/{slo_name}"
+            endpoint = f"{self.dashdotdb_url}/api/v1/serviceslometrics/{slo_name}"
             payload = item.dashdot_payload()
             if self.dry_run:
                 continue
