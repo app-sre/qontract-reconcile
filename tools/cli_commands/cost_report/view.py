@@ -382,8 +382,10 @@ def render_app_cost(
     if report.items:
         cost_details_sections.append(item_cost_renderer(report=report, **kwargs))
     if report.child_apps:
-        cost_details_sections.append(render_child_apps_cost(report))
-        cost_details_sections.append(render_total_cost(report))
+        cost_details_sections += [
+            render_child_apps_cost(report),
+            render_total_cost(report),
+        ]
     cost_details = (
         "\n".join(cost_details_sections) if cost_details_sections else "No data"
     )

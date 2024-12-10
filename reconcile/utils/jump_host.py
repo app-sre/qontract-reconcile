@@ -36,7 +36,7 @@ class JumpHostBase:
     def __init__(self, parameters: JumphostParameters):
         self._hostname = parameters.hostname
         self._user = parameters.user
-        self._port = parameters.port if parameters.port else 22
+        self._port = parameters.port or 22
         self._identity = parameters.key
         self._init_identity_file()
 

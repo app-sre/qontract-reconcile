@@ -1059,31 +1059,26 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         # resources with pod templates
         with suppress(KeyError):
             template = resource["spec"]["template"]
-            for c in template["spec"]["containers"]:
-                images.add(c["image"])
+            images.update(c["image"] for c in template["spec"]["containers"])
         # init containers
         with suppress(KeyError):
             template = resource["spec"]["template"]
-            for c in template["spec"]["initContainers"]:
-                images.add(c["image"])
+            images.update(c["image"] for c in template["spec"]["initContainers"])
         # CronJob
         with suppress(KeyError):
             template = resource["spec"]["jobTemplate"]["spec"]["template"]
-            for c in template["spec"]["containers"]:
-                images.add(c["image"])
+            images.update(c["image"] for c in template["spec"]["containers"])
         # CatalogSource templates
         with suppress(KeyError):
             images.add(resource["spec"]["image"])
         # ClowdApp deployments
         with suppress(KeyError):
             deployments = resource["spec"]["deployments"]
-            for d in deployments:
-                images.add(d["podSpec"]["image"])
+            images.update(d["podSpec"]["image"] for d in deployments)
         # ClowdApp jobs
         with suppress(KeyError, TypeError):
             jobs = resource["spec"]["jobs"]
-            for j in jobs:
-                images.add(j["podSpec"]["image"])
+            images.update(j["podSpec"]["image"] for j in jobs)
 
         return images
 

@@ -1,3 +1,4 @@
+from collections import UserDict
 from unittest.mock import patch
 
 from reconcile import github_org
@@ -22,7 +23,7 @@ class RawGithubApiMock:
         return []
 
 
-class AttrDict(dict):
+class AttrDict(UserDict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__dict__ = self

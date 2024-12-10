@@ -4,6 +4,6 @@ from reconcile.utils.gql import GqlApi
 
 
 def get_aws_vpc_requests(gql_api: GqlApi | None = None) -> list[VPCRequest]:
-    api = gql_api if gql_api else gql.get_api()
+    api = gql_api or gql.get_api()
     data = query(query_func=api.query)
     return list(data.vpc_requests or [])

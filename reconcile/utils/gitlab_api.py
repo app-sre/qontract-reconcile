@@ -413,7 +413,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         items = self.get_items(mr.pipelines.list)
         return sorted(
             [i.asdict() for i in items],
-            key=lambda x: x["created_at"],
+            key=itemgetter("created_at"),
             reverse=True,
         )
 

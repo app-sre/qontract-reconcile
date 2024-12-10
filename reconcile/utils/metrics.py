@@ -133,8 +133,7 @@ class BaseMetric(ABC, BaseModel):
         class name. Removes the suffix `_metric` is present. Subclasses can override this.
         """
         metric_name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__name__).lower()
-        if metric_name.endswith("_metric"):
-            metric_name = metric_name[:-7]
+        metric_name = metric_name.removesuffix("_metric")
         return metric_name
 
 
@@ -151,8 +150,7 @@ class GaugeMetric(BaseMetric):
     @classmethod
     def name(cls) -> str:
         metric_name = super().name()
-        if metric_name.endswith("_gauge"):
-            metric_name = metric_name[:-6]
+        metric_name = metric_name.removesuffix("_gauge")
         return metric_name
 
 
@@ -175,8 +173,7 @@ class CounterMetric(BaseMetric):
     @classmethod
     def name(cls) -> str:
         metric_name = super().name()
-        if metric_name.endswith("_counter"):
-            metric_name = metric_name[:-8]
+        metric_name = metric_name.removesuffix("_counter")
         return metric_name
 
 

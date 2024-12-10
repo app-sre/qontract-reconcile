@@ -61,8 +61,9 @@ def test_content_hash_is_deterministic(
         }),
     ]
     hashes = set()
-    for _ in range(3):
-        hashes.add(Subscriber.combined_content_hash(subscribers=subscribers))
+    hashes.update(
+        Subscriber.combined_content_hash(subscribers=subscribers) for _ in range(3)
+    )
     assert len(hashes) == 1
 
 

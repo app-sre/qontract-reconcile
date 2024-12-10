@@ -484,9 +484,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
 
         if "labels" in kwargs:
             labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
-
-            cmd.append("-l")
-            cmd.append(",".join(labels_list))
+            cmd += ["-l", ",".join(labels_list)]
 
         resource_names = kwargs.get("resource_names")
         if resource_names:
@@ -766,9 +764,9 @@ class OCCli:  # pylint: disable=too-many-public-methods
         if not finished_pods:
             raise JobNotRunningError(name)
 
-        latest_pod = sorted(
+        latest_pod = max(
             finished_pods, key=lambda pod: pod["metadata"]["creationTimestamp"]
-        )[-1]
+        )
         cmd = [
             "logs",
             "--all-containers=true",
