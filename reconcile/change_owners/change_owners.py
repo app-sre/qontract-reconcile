@@ -215,8 +215,8 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                 "disabled": False,
             })
         if d.coverage:
-            for ctx in d.coverage:
-                results.append({
+            results.extend(
+                {
                     "file": d.file.path,
                     "schema": d.file.schema,
                     "changed path": d.diff.path,
@@ -228,7 +228,9 @@ def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> N
                         for ar in ctx.approver_reachability or []
                     ]),
                     "disabled": str(ctx.disabled),
-                })
+                }
+                for ctx in d.coverage
+            )
         else:
             results.append({
                 "file": d.file.path,

@@ -198,7 +198,7 @@ class MRApproval:
         markdown_report = ""
 
         closest_approvers = []
-        for _, owners in report.items():
+        for owners in report.values():
             new_group = []
 
             if "closest_approvers" not in owners:
@@ -235,7 +235,7 @@ class MRApproval:
             markdown_report += f"* {', '.join(group)}\n"
 
         approvers = set()
-        for _, owners in report.items():
+        for owners in report.values():
             if "approvers" not in owners:
                 continue
 
@@ -257,7 +257,7 @@ class MRApproval:
             markdown_report += f"* {', '.join(sorted(approvers))}\n"
 
         closest_reviewers = set()
-        for _, owners in report.items():
+        for owners in report.values():
             if "closest_reviewers" not in owners:
                 continue
 
@@ -278,7 +278,7 @@ class MRApproval:
             markdown_report += f"* {', '.join(sorted(closest_reviewers))}\n"
 
         reviewers = set()
-        for _, owners in report.items():
+        for owners in report.values():
             if "reviewers" not in owners:
                 continue
 

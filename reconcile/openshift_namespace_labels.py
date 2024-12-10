@@ -192,7 +192,7 @@ class LabelInventory:
                     changed[k] = v
 
             # remove old labels
-            for k, _ in current.items():
+            for k in current:
                 if k in managed and k not in desired:
                     changed[k] = None
 

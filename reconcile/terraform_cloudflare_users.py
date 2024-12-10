@@ -331,8 +331,8 @@ def build_external_resource_spec_from_cloudflare_users(
     """
     specs: list[ExternalResourceSpec] = []
 
-    for _, v in cloudflare_users.items():
-        for _, cf_user in v.items():
+    for v in cloudflare_users.values():
+        for cf_user in v.values():
             data_source_cloudflare_account_roles = {
                 "identifier": safe_resource_id(cf_user.account_name),
                 "account_id": "${var.account_id}",

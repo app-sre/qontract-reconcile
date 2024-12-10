@@ -40,7 +40,7 @@ class SaasPromotionState:
                         continue
                     for publish_channel in target.promotion.publish or []:
                         if publish_channel == channel:
-                            publisher_uids.append(
+                            publisher_uids.append(  # noqa: PERF401
                                 target.uid(
                                     parent_saas_file_name=saas_file.name,
                                     parent_resource_template_name=resource_template.name,

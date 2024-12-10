@@ -166,8 +166,10 @@ class OCMClusterAWSSettings(BaseModel):
             roles.append(self.sts.role_arn)
         if self.sts.support_role_arn:
             roles.append(self.sts.support_role_arn)
-        for instance_iam_role in (self.sts.instance_iam_roles or {}).values():
-            roles.append(instance_iam_role)
+        roles.extend(
+            instance_iam_role
+            for instance_iam_role in (self.sts.instance_iam_roles or {}).values()
+        )
         return roles
 
     @property

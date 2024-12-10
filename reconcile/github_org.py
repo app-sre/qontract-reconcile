@@ -206,14 +206,10 @@ def fetch_desired_state(infer_clusters=True):
         if not permissions:
             continue
 
-        members = []
-
-        for user in role["users"]:
-            members.append(user["github_username"])
-
-        for bot in role["bots"]:
-            if "github_username" in bot:
-                members.append(bot["github_username"])
+        members = [user["github_username"] for user in role["users"]]
+        members.extend(
+            bot["github_username"] for bot in role["bots"] if "github_username" in bot
+        )
         members = [m.lower() for m in members]
 
         for permission in permissions:

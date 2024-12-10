@@ -147,17 +147,17 @@ def apply_decisions_to_changes(
     state of the MR.
     """
 
-    diff_decisions = []
+    diff_decisions: list[ChangeDecision] = []
     for c in changes:
-        for d in c.diff_coverage:
-            diff_decisions.append(
-                _apply_decision_to_diff(
-                    c,
-                    d,
-                    approver_decisions,
-                    auto_approver_usernames,
-                )
+        diff_decisions.extend(
+            _apply_decision_to_diff(
+                c,
+                d,
+                approver_decisions,
+                auto_approver_usernames,
             )
+            for d in c.diff_coverage
+        )
 
     return diff_decisions
 

@@ -355,9 +355,10 @@ class Filter:
         """
         if not self.conditions:
             raise InvalidFilterError("no conditions within filter object")
-        rendered_conditions = []
-        for condition in sorted(self.conditions, key=lambda c: c.key):
-            rendered_conditions.append(condition.render())
+        rendered_conditions = [
+            condition.render()
+            for condition in sorted(self.conditions, key=lambda c: c.key)
+        ]
         if self.mode == FilterMode.OR:
             concat = " or ".join(rendered_conditions)
             if len(rendered_conditions) > 1:

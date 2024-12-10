@@ -88,14 +88,15 @@ def run(dry_run):
             continue
 
         # Process cleanup rules, pre-compile as regexes
-        cleanup_rules = []
-        for rule in instance_cleanup_rules:
-            cleanup_rules.append({
+        cleanup_rules = [
+            {
                 "name": rule["name"],
                 "name_re": re.compile(rule["name"]),
                 "keep_hours": rule["keep_hours"],
                 "keep_ms": hours_to_ms(rule["keep_hours"]),
-            })
+            }
+            for rule in instance_cleanup_rules
+        ]
 
         token = instance["token"]
         instance_name = instance["name"]

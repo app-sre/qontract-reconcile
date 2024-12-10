@@ -1809,7 +1809,7 @@ def rds_recommendations(ctx):
             continue
         for spec in get_external_resource_specs(namespace_info):
             if spec.provider == "rds":
-                targetted_accounts.append(spec.provisioner_name)
+                targetted_accounts.append(spec.provisioner_name)  # noqa: PERF401
 
     accounts = [
         a for a in queries.get_aws_accounts() if a["name"] in targetted_accounts
@@ -2370,14 +2370,15 @@ def change_types(ctx) -> None:
         for ss in r.self_service or []:
             nr_files = len(ss.datafiles or []) + len(ss.resources or [])
             usage_statistics[ss.change_type.name] += nr_files
-    data = []
-    for ct in change_types:
-        data.append({
+    data = [
+        {
             "name": ct.name,
             "description": ct.description,
             "applicable to": f"{ct.context_type.value} {ct.context_schema or ''}",
             "# usages": usage_statistics[ct.name],
-        })
+        }
+        for ct in change_types
+    ]
     columns = ["name", "description", "applicable to", "# usages"]
     print_output(ctx.obj["options"], data, columns)
 

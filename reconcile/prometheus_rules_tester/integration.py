@@ -128,18 +128,18 @@ def get_rules_and_tests(
         namespace_name=NAMESPACE_NAME,
     )
 
-    iterable = []
+    iterable: list[RuleToFetch] = []
     for namespace in namespace_with_prom_rules:
         prom_rules = [
             r for r in namespace["openshiftResources"] if r["provider"] in PROVIDERS
         ]
-        for resource in prom_rules:
-            iterable.append(
-                RuleToFetch(
-                    namespace=namespace,
-                    resource=resource,
-                )
+        iterable.extend(
+            RuleToFetch(
+                namespace=namespace,
+                resource=resource,
             )
+            for resource in prom_rules
+        )
 
     return threaded.run(
         func=fetch_rule_and_tests,

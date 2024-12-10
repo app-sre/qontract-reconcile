@@ -659,7 +659,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
     def cleanup(self):
         if self._aws_api is not None:
             self._aws_api.cleanup()
-        for _, wd in self.working_dirs.items():
+        for wd in self.working_dirs.values():
             shutil.rmtree(wd)
 
     def _can_skip_rds_modifications(
