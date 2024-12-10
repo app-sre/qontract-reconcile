@@ -106,7 +106,7 @@ def test_resource_needs_reconciliation_drift(
 
 
 @pytest.mark.parametrize(
-    "_resource_status,_action,_reconcile_status,_expected_status",
+    ("resource_status", "action", "reconcile_status", "expected_status"),
     [
         (
             ResourceStatus.IN_PROGRESS,
@@ -165,7 +165,7 @@ def test_get_reconciliation_status(
 
 
 @pytest.mark.parametrize(
-    "_state_resource_status,_reconciliation_resource_status",
+    ("state_resource_status", "reconciliation_resource_status"),
     [
         (
             ResourceStatus.IN_PROGRESS,
@@ -206,7 +206,7 @@ def test_update_resource_state_does_nothing(
 
 
 @pytest.mark.parametrize(
-    "_state_resource_status,_reconcile_resource_status",
+    ("state_resource_status", "reconcile_resource_status"),
     [
         (ResourceStatus.NOT_EXISTS, ResourceStatus.CREATED),
         (ResourceStatus.NOT_EXISTS, ResourceStatus.ERROR),
@@ -233,7 +233,7 @@ def test_update_resource_state_updates_state(
 
 
 @pytest.mark.parametrize(
-    "_state_resource_status,_reconcile_resource_status",
+    ("state_resource_status", "reconcile_resource_status"),
     [
         (ResourceStatus.IN_PROGRESS, ResourceStatus.DELETED),
         (ResourceStatus.DELETE_IN_PROGRESS, ResourceStatus.DELETED),
