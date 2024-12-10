@@ -60,7 +60,7 @@ def test_content_hash_is_deterministic(
             ],
         }),
     ]
-    hashes = set()
+    hashes: set[str] = set()
     hashes.update(
         Subscriber.combined_content_hash(subscribers=subscribers) for _ in range(3)
     )

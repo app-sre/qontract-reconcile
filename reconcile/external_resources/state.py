@@ -74,22 +74,22 @@ class DynamoDBStateAdapter:
     MODCONF_DRIFT_MINS = "drift_detection_minutes"
     MODCONF_TIMEOUT_MINS = "timeout_minutes"
 
-    def _get_value(self, item: Mapping[str, Any], key: str, type_: str = "S") -> Any:
-        return item[key][type_]
+    def _get_value(self, item: Mapping[str, Any], key: str, type: str = "S") -> Any:
+        return item[key][type]
 
     def deserialize(
         self,
         item: Mapping[str, Any],
         partial_data: bool = False,
     ) -> ExternalResourceState:
-        key_ = self._get_value(item, self.ER_KEY, _type="M")
+        key_ = self._get_value(item, self.ER_KEY, type="M")
         key = ExternalResourceKey(
             provision_provider=self._get_value(key_, self.ER_KEY_PROVISION_PROVIDER),
             provisioner_name=self._get_value(key_, self.ER_KEY_PROVISIONER_NAME),
             provider=self._get_value(key_, self.ER_KEY_PROVIDER),
             identifier=self._get_value(key_, self.ER_KEY_IDENTIFIER),
         )
-        reconciliation = self._get_value(item, self.RECONC, _type="M")
+        reconciliation = self._get_value(item, self.RECONC, type="M")
 
         if partial_data:
             r = Reconciliation(
@@ -99,7 +99,7 @@ class DynamoDBStateAdapter:
                 ),
             )
         else:
-            modconf = self._get_value(reconciliation, self.MODCONF, _type="M")
+            modconf = self._get_value(reconciliation, self.MODCONF, type="M")
             r = Reconciliation(
                 key=key,
                 resource_hash=self._get_value(
@@ -111,10 +111,10 @@ class DynamoDBStateAdapter:
                     image=self._get_value(modconf, self.MODCONF_IMAGE),
                     version=self._get_value(modconf, self.MODCONF_VERSION),
                     reconcile_drift_interval_minutes=self._get_value(
-                        modconf, self.MODCONF_DRIFT_MINS, _type="N"
+                        modconf, self.MODCONF_DRIFT_MINS, type="N"
                     ),
                     reconcile_timeout_minutes=self._get_value(
-                        modconf, self.MODCONF_TIMEOUT_MINS, _type="N"
+                        modconf, self.MODCONF_TIMEOUT_MINS, type="N"
                     ),
                 ),
             )

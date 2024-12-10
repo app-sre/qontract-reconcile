@@ -95,7 +95,7 @@ def _filter_participating_aws_accounts(
     accounts: list,
     roles: list[dict[str, Any]],
 ) -> list:
-    participating_aws_account_names = set()
+    participating_aws_account_names: set[str] = set()
     for role in roles:
         participating_aws_account_names.update(
             aws_group["account"]["name"] for aws_group in role["aws_groups"] or []

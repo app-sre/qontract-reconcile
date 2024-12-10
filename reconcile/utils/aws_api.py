@@ -1001,7 +1001,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         assumed_role_data = self._get_account_assume_data(account)
         assumed_ec2 = self._get_assumed_role_client(*assumed_role_data)
         nat_gateways = assumed_ec2.describe_nat_gateways()
-        egress_ips = set()
+        egress_ips: set[str] = set()
         for nat in nat_gateways.get("NatGateways") or []:
             if nat["VpcId"] != vpc_id:
                 continue
