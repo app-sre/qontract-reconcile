@@ -51,8 +51,7 @@ def get_selected_app_names(
     for selector in selectors:
         apps_to_remove: set[str] = set()
         results = parser.parse(selector).find(apps)
-        for match in results:
-            apps_to_remove.add(match.value["name"])
+        apps_to_remove.update(match.value["name"] for match in results)
         selected_app_names -= apps_to_remove
 
     return selected_app_names

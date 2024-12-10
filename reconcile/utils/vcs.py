@@ -70,25 +70,17 @@ class VCS:
         self._allow_opening_mrs = allow_opening_mrs
         self._secret_reader = secret_reader
         self._gh_per_repo_url: dict[str, GithubRepositoryApi] = (
-            github_api_per_repo_url if github_api_per_repo_url else {}
+            github_api_per_repo_url or {}
         )
-        self._default_gh_token = (
-            default_gh_token
-            if default_gh_token
-            else self._get_default_gh_token(github_orgs=github_orgs)
+        self._default_gh_token = default_gh_token or self._get_default_gh_token(
+            github_orgs=github_orgs
         )
-        self._gitlab_instance = (
-            gitlab_instance
-            if gitlab_instance
-            else self._gitlab_api(gitlab_instances=gitlab_instances)
+        self._gitlab_instance = gitlab_instance or self._gitlab_api(
+            gitlab_instances=gitlab_instances
         )
-        self._app_interface_api = (
-            app_interface_api
-            if app_interface_api
-            else self._init_app_interface_api(
-                gitlab_instances=gitlab_instances,
-                app_interface_repo_url=app_interface_repo_url,
-            )
+        self._app_interface_api = app_interface_api or self._init_app_interface_api(
+            gitlab_instances=gitlab_instances,
+            app_interface_repo_url=app_interface_repo_url,
         )
         self._is_commit_sha_regex = re.compile(r"^[0-9a-f]{40}$")
 

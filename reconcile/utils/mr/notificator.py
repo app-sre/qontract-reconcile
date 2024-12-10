@@ -40,7 +40,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         self._notification = notification
         self._email_base_path = email_base_path
         self._dry_run = dry_run
-        self.labels = labels if labels else [DO_NOT_MERGE_HOLD]
+        self.labels = labels or [DO_NOT_MERGE_HOLD]
 
     @property
     def title(self) -> str:

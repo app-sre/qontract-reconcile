@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import operator
 from collections.abc import (
     Callable,
     Iterable,
@@ -86,7 +87,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         owner = Entity(
             type=EntityType.SERVICE_ACCOUNT,
             # OIDC service accounts are named service-account-<client_id>
-            id=f'service-account-{secret["client_id"]}',
+            id=f"service-account-{secret['client_id']}",
         )
         desired_groups_for_roles = self.get_desired_groups_for_roles(
             roles,
@@ -241,7 +242,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
             current_groups,
             desired_groups,
             key=lambda g: g.name,
-            equal=lambda g1, g2: g1 == g2,
+            equal=operator.eq,
         )
         # Internal Groups API does not support listing all managed groups, therefore
         # we need to keep track of them ourselves.

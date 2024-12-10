@@ -1,4 +1,5 @@
 import logging
+import operator
 from collections import defaultdict
 from collections.abc import (
     Callable,
@@ -192,9 +193,7 @@ class GlitchtipProjectAlertsIntegration(
             project = Project(
                 name=glitchtip_project.name,
                 platform=None,
-                slug=glitchtip_project.project_id
-                if glitchtip_project.project_id
-                else "",
+                slug=glitchtip_project.project_id or "",
                 alerts=alerts,
             )
 
@@ -238,7 +237,7 @@ class GlitchtipProjectAlertsIntegration(
                     current_project.alerts,
                     desired_project.alerts,
                     key=lambda g: g.name,
-                    equal=lambda g1, g2: g1 == g2,
+                    equal=operator.eq,
                 )
 
                 for alert_to_add in diff_result.add.values():

@@ -864,10 +864,10 @@ def get_namespaces(
             )
         )
     ]
-    _namespaces = filter_namespaces_by_cluster_and_namespace(
+    namespaces_ = filter_namespaces_by_cluster_and_namespace(
         namespaces, cluster_names, exclude_clusters, namespace_name
     )
-    return canonicalize_namespaces(_namespaces, providers, resource_schema_filter)
+    return canonicalize_namespaces(namespaces_, providers, resource_schema_filter)
 
 
 @defer
@@ -1029,10 +1029,10 @@ class CheckClusterScopedResourceDuplicates:
         duplicates: list[tuple[str, str, str, list[str]]] = []
 
         for cluster, cluster_resources in cluster_cs_resources.items():
-            _kind_name: dict[str, dict[str, list[str]]] = {}
+            kind_name: dict[str, dict[str, list[str]]] = {}
             for ns, resources in cluster_resources.items():
                 for kind, names in resources.items():
-                    k_ref = _kind_name.setdefault(kind, {})
+                    k_ref = kind_name.setdefault(kind, {})
                     for name in names:
                         n_ref = k_ref.setdefault(name, [])
                         n_ref.append(ns)

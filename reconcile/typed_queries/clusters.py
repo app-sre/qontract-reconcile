@@ -13,6 +13,6 @@ def get_clusters(
     variables = {}
     if name:
         variables["name"] = name
-    api = gql_api if gql_api else gql.get_api()
+    api = gql_api or gql.get_api()
     data = query(query_func=api.query, variables=variables)
     return list(data.clusters or [])

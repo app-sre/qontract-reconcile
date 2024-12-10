@@ -44,7 +44,7 @@ class OCMBaseClient:
         self._access_token_client_id = access_token_client_id
         self._access_token_url = access_token_url
         self._url = url
-        self._session = session if session else Session()
+        self._session = session or Session()
         self._init_access_token()
         self._init_request_headers()
 

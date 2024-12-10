@@ -578,15 +578,15 @@ class ChangeTypeProcessor:
 
             # expand context based on change-type composition
             for ce in self._context_expansions:
-                for ec in ce.expand(change, expansion_trail_copy):
-                    # add expanded contexts (derived owned files)
-                    contexts.append(
-                        ResolvedContext(
-                            owned_file_ref=ec.owned_file_ref,
-                            context_file_ref=change.file_ref,
-                            change_type=ec.change_type,
-                        )
+                # add expanded contexts (derived owned files)
+                contexts.extend(
+                    ResolvedContext(
+                        owned_file_ref=ec.owned_file_ref,
+                        context_file_ref=change.file_ref,
+                        change_type=ec.change_type,
                     )
+                    for ec in ce.expand(change, expansion_trail_copy)
+                )
 
         # context detection
         # the context for approver extraction can be found within the changed
@@ -603,17 +603,17 @@ class ChangeTypeProcessor:
                         )
                     )
                     for ce in self._context_expansions:
-                        for ec in ce.expand_from_file_ref(
-                            ctx_file_ref, expansion_trail_copy
-                        ):
-                            # add expanded contexts (derived owned files)
-                            contexts.append(
-                                ResolvedContext(
-                                    owned_file_ref=ec.owned_file_ref,
-                                    context_file_ref=ctx_file_ref,
-                                    change_type=ec.change_type,
-                                )
+                        # add expanded contexts (derived owned files)
+                        contexts.extend(
+                            ResolvedContext(
+                                owned_file_ref=ec.owned_file_ref,
+                                context_file_ref=ctx_file_ref,
+                                change_type=ec.change_type,
                             )
+                            for ec in ce.expand_from_file_ref(
+                                ctx_file_ref, expansion_trail_copy
+                            )
+                        )
 
         return contexts
 

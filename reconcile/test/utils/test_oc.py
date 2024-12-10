@@ -350,7 +350,7 @@ class TestOCMapInit(TestCase):
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
-            oc_map.get(cluster["name"]).message, f'[{cluster["name"]}] has no serverUrl'
+            oc_map.get(cluster["name"]).message, f"[{cluster['name']}] has no serverUrl"
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
@@ -369,7 +369,7 @@ class TestOCMapInit(TestCase):
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
             oc_map.get(cluster["name"]).message,
-            f'[{cluster["name"]}] has no automation token',
+            f"[{cluster['name']}] has no automation token",
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
@@ -387,7 +387,7 @@ class TestOCMapInit(TestCase):
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
-            oc_map.get(cluster["name"]).message, f'[{cluster["name"]}] secret not found'
+            oc_map.get(cluster["name"]).message, f"[{cluster['name']}] secret not found"
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
@@ -406,7 +406,7 @@ class TestOCMapInit(TestCase):
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
             oc_map.get(cluster["name"]).message,
-            f'[{cluster["name"]}] server URL mismatch',
+            f"[{cluster['name']}] server URL mismatch",
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 

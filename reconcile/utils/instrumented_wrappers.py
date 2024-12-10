@@ -10,8 +10,8 @@ from reconcile.utils import metrics
 # TODO: move these to a shared, constants module
 
 INTEGRATION_NAME = os.environ.get("INTEGRATION_NAME", "")
-SHARDS = os.environ.get("SHARDS", 1)
-SHARD_ID = int(os.environ.get("SHARD_ID", 0))
+SHARDS = int(os.environ.get("SHARDS", "1"))
+SHARD_ID = int(os.environ.get("SHARD_ID", "0"))
 
 
 class InstrumentedImage(Image):

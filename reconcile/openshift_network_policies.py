@@ -120,7 +120,7 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         if ob.is_namespace_deleted(namespace_info):
             continue
 
-        shard_key = f"{namespace_info['cluster']['name']}/" f"{namespace_info['name']}"
+        shard_key = f"{namespace_info['cluster']['name']}/{namespace_info['name']}"
 
         if not is_in_shard(shard_key):
             continue

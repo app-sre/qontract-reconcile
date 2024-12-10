@@ -9,6 +9,6 @@ from reconcile.utils.gql import GqlApi
 def get_dynatrace_token_provider_token_specs(
     api: GqlApi | None = None,
 ) -> list[DynatraceTokenProviderTokenSpecV1]:
-    api = api if api else gql.get_api()
+    api = api or gql.get_api()
     data = query(api.query)
     return list(data.token_specs or [])

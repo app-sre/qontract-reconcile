@@ -120,8 +120,8 @@ class OutputSecretsFormatter:
     def _format_value(self, value: str) -> str:
         decoded_value = base64.b64decode(value).decode("utf-8")
         if decoded_value.startswith("__vault__:"):
-            _secret_ref = json.loads(decoded_value.replace("__vault__:", ""))
-            secret_ref = VaultSecret(**_secret_ref)
+            secret_ref_ = json.loads(decoded_value.replace("__vault__:", ""))
+            secret_ref = VaultSecret(**secret_ref_)
             return self.secret_reader.read_secret(secret_ref)
         else:
             return decoded_value

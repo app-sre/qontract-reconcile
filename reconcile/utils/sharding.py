@@ -4,8 +4,8 @@ import os
 
 LOG = logging.getLogger(__name__)
 
-SHARDS = int(os.environ.get("SHARDS", 1))
-SHARD_ID = int(os.environ.get("SHARD_ID", 0))
+SHARDS = int(os.environ.get("SHARDS", "1"))
+SHARD_ID = int(os.environ.get("SHARD_ID", "0"))
 
 
 def is_in_shard(value):

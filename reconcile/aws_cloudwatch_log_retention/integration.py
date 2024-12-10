@@ -35,7 +35,7 @@ class AWSCloudwatchCleanupOption(BaseModel):
 
 
 DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION = AWSCloudwatchCleanupOption(
-    regex=re.compile(".*"),
+    regex=re.compile(r".*"),
     retention_in_days=DEFAULT_RETENTION_IN_DAYS,
     delete_empty_log_group=False,
 )

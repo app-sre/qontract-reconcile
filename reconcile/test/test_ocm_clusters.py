@@ -530,9 +530,9 @@ def test_noop_dry_run(
     with pytest.raises(SystemExit):
         integration.run(False)
     # If get has not been called means no action has been performed
-    _post, _patch = ocm_mock
-    assert _post.call_count == 0
-    assert _patch.call_count == 0
+    post, patch_ = ocm_mock
+    assert post.call_count == 0
+    assert patch_.call_count == 0
     assert cluster_updates_mr_mock.call_count == 0
 
 
@@ -553,9 +553,9 @@ def test_changed_id(
 
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
-    _post, _patch = ocm_mock
-    assert _post.call_count == 0
-    assert _patch.call_count == 0
+    post, patch_ = ocm_mock
+    assert post.call_count == 0
+    assert patch_.call_count == 0
     assert cluster_updates_mr_mock.call_count == 1
 
 
@@ -575,13 +575,13 @@ def test_ocm_osd_create_cluster(
         integration.run(dry_run=False)
 
     assert sys_exit.value.code == 0
-    _post, _patch = ocm_mock
-    _post.assert_called_once_with(
+    post, patch_ = ocm_mock
+    post.assert_called_once_with(
         "/api/clusters_mgmt/v1/clusters",
         ocm_osd_cluster_post_spec,
         {},
     )
-    _patch.assert_not_called()
+    patch_.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 
 
@@ -602,9 +602,9 @@ def test_ocm_osd_create_cluster_without_machine_pools(
         integration.run(dry_run=False)
 
     assert sys_exit.value.code == 1
-    _post, _patch = ocm_mock
-    _post.assert_not_called()
-    _patch.assert_not_called()
+    post, patch_ = ocm_mock
+    post.assert_not_called()
+    patch_.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 
 
@@ -622,9 +622,9 @@ def test_ocm_rosa_update_cluster(
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
-    _post, _patch = ocm_mock
-    assert _post.call_count == 0
-    assert _patch.call_count == 1
+    post, patch_ = ocm_mock
+    assert post.call_count == 0
+    assert patch_.call_count == 1
     assert cluster_updates_mr_mock.call_count == 0
 
 
@@ -642,9 +642,9 @@ def test_ocm_rosa_update_cluster_dont_update_ocm_on_oidc_drift(
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
-    _post, _patch = ocm_mock
-    assert _post.call_count == 0
-    assert _patch.call_count == 0
+    post, patch_ = ocm_mock
+    assert post.call_count == 0
+    assert patch_.call_count == 0
     assert cluster_updates_mr_mock.call_count == 1
 
 
@@ -672,9 +672,9 @@ def test_ocm_rosa_update_cluster_with_machine_pools_change(
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
 
-    _post, _patch = ocm_mock
-    _post.assert_not_called()
-    _patch.assert_not_called()
+    post, patch_ = ocm_mock
+    post.assert_not_called()
+    patch_.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 
 
@@ -692,9 +692,9 @@ def test_ocm_osd_update_cluster(
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
-    _post, _patch = ocm_mock
-    assert _post.call_count == 0
-    assert _patch.call_count == 1
+    post, patch_ = ocm_mock
+    assert post.call_count == 0
+    assert patch_.call_count == 1
     assert cluster_updates_mr_mock.call_count == 0
 
 
@@ -722,9 +722,9 @@ def test_ocm_osd_update_cluster_with_machine_pools_change(
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
 
-    _post, _patch = ocm_mock
-    _post.assert_not_called()
-    _patch.assert_not_called()
+    post, patch_ = ocm_mock
+    post.assert_not_called()
+    patch_.assert_not_called()
     cluster_updates_mr_mock.assert_not_called()
 
 
@@ -744,9 +744,9 @@ def test_ocm_returns_a_rosa_cluster(
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
-    _post, _patch = ocm_mock
-    assert _post.call_count == 0
-    assert _patch.call_count == 0
+    post, patch_ = ocm_mock
+    assert post.call_count == 0
+    assert patch_.call_count == 0
     assert cluster_updates_mr_mock.call_count == 0
 
 
@@ -769,9 +769,9 @@ def test_changed_ocm_spec_disable_uwm(
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
 
-    _post, _patch = ocm_mock
-    assert _patch.call_count == 1
-    assert _post.call_count == 0
+    post, patch_ = ocm_mock
+    assert patch_.call_count == 1
+    assert post.call_count == 0
     assert cluster_updates_mr_mock.call_count == 0
 
 
@@ -792,7 +792,7 @@ def test_console_url_changes_ai(
     with pytest.raises(SystemExit):
         integration.run(dry_run=False)
 
-    _post, _patch = ocm_mock
-    assert _patch.call_count == 0
-    assert _post.call_count == 0
+    post, patch_ = ocm_mock
+    assert patch_.call_count == 0
+    assert post.call_count == 0
     assert cluster_updates_mr_mock.call_count == 1

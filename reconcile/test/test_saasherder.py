@@ -878,7 +878,7 @@ class TestPopulateDesiredState(TestCase):
 
         cnt = 0
         for cluster, namespace, resource_type, data in ri:
-            for _, d_item in data["desired"].items():
+            for d_item in data["desired"].values():
                 expected = yaml.safe_load(
                     self.fxts.get(
                         f"expected_{cluster}_{namespace}_{resource_type}.json",
