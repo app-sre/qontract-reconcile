@@ -99,12 +99,13 @@ data:
               },
               "disableTextWrap": false,
               "editorMode": "builder",
+              "exemplar": false,
               "expr": "qontract_reconcile_terraform_repo_inventory",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
-              "instant": false,
+              "instant": true,
               "legendFormat": "{{aws_account}}",
-              "range": true,
+              "range": false,
               "refId": "A",
               "useBackend": false
             }
@@ -409,6 +410,6 @@ data:
       "timezone": "browser",
       "title": "Terraform Repo",
       "uid": "de6murtyo59moa",
-      "version": 3,
+      "version": 4,
       "weekStart": ""
     }
