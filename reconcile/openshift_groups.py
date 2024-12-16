@@ -41,12 +41,11 @@ QONTRACT_INTEGRATION = "openshift-groups"
 def get_cluster_state(
     group_items: Mapping[str, str], oc_map: ClusterMap
 ) -> list[dict[str, str]]:
-    results: list[dict[str, str]] = []
     cluster = group_items["cluster"]
     oc = oc_map.get(cluster)
     if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
-        return results
+        return []
     group_name = group_items["group_name"]
     try:
         group = oc.get_group_if_exists(group_name)
@@ -55,10 +54,11 @@ def get_cluster_state(
         logging.error(msg)
         raise e
     if group is None:
-        return results
-    for user in group["users"] or []:
-        results.append({"cluster": cluster, "group": group_name, "user": user})
-    return results
+        return []
+    return [
+        {"cluster": cluster, "group": group_name, "user": user}
+        for user in group["users"] or []
+    ]
 
 
 def create_groups_list(
@@ -74,8 +74,9 @@ def create_groups_list(
         if isinstance(oc, OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
         groups = cluster_info["managedGroups"] or []
-        for group_name in groups:
-            groups_list.append({"cluster": cluster, "group_name": group_name})
+        groups_list.extend(
+            {"cluster": cluster, "group_name": group_name} for group_name in groups
+        )
     return groups_list
 
 

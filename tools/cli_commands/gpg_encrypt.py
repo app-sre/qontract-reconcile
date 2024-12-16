@@ -155,11 +155,7 @@ class GPGEncryptCommand:
         command_data: GPGEncryptCommandData,
         secret_reader: SecretReader | None = None,
     ) -> GPGEncryptCommand:
-        cls_secret_reader = (
-            secret_reader
-            if secret_reader
-            else SecretReader(settings=config.get_config())
-        )
+        cls_secret_reader = secret_reader or SecretReader(settings=config.get_config())
 
         return cls(
             command_data=command_data,

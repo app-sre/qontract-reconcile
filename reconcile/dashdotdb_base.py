@@ -57,7 +57,7 @@ class DashdotdbBase:
             return None
 
         params = {"scope": self.scope}
-        endpoint = f"{self.dashdotdb_url}/api/v1/" f"token"
+        endpoint = f"{self.dashdotdb_url}/api/v1/token"
         response = requests.get(
             url=endpoint,
             params=params,
@@ -81,7 +81,7 @@ class DashdotdbBase:
             return None
 
         params = {"scope": self.scope}
-        endpoint = f"{self.dashdotdb_url}/api/v1/" f"token/{self.dashdotdb_token}"
+        endpoint = f"{self.dashdotdb_url}/api/v1/token/{self.dashdotdb_token}"
         response = requests.delete(
             url=endpoint,
             params=params,

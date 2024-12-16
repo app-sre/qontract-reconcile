@@ -20,8 +20,8 @@ QONTRACT_INTEGRATION = "jenkins-worker-fleets"
 def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
     current_state = []
 
-    jenkins_config = cast(dict[str, Any], jenkins.get_jcasc_config().get("jenkins"))
-    clouds = cast(list[dict[str, Any]], jenkins_config.get("clouds", []))
+    jenkins_config = cast("dict[str, Any]", jenkins.get_jcasc_config().get("jenkins"))
+    clouds = cast("list[dict[str, Any]]", jenkins_config.get("clouds", []))
     for c in clouds:
         # eC2Fleet is defined by jcasc schema
         fleet = c.get("eC2Fleet", None)
@@ -71,7 +71,7 @@ def get_desired_state(
         if not found:
             raise ValueError(
                 f"Could not find asg identifier {identifier} "
-                f'for account {account} in namespace {namespace["name"]}'
+                f"for account {account} in namespace {namespace['name']}"
             )
     return desired_state
 
@@ -105,9 +105,10 @@ def act(
             logging.info(["update_jenkins_worker_fleet", instance_name, fleet.name])
 
         if not dry_run:
-            d_clouds = []
-            for d in desired_state:
-                d_clouds.append({"eC2Fleet": d.dict(by_alias=True, exclude_none=True)})
+            d_clouds = [
+                {"eC2Fleet": d.dict(by_alias=True, exclude_none=True)}
+                for d in desired_state
+            ]
             config = {"jenkins": {"clouds": d_clouds}}
             jenkins.apply_jcasc_config(config)
 

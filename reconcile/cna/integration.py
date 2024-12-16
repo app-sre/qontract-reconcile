@@ -49,8 +49,8 @@ class CNAIntegration:
     ):
         self._cna_clients = cna_clients
         self._namespaces = namespaces
-        self._desired_states = desired_states if desired_states else defaultdict(State)
-        self._current_states = current_states if current_states else defaultdict(State)
+        self._desired_states = desired_states or defaultdict(State)
+        self._current_states = current_states or defaultdict(State)
 
     def assemble_desired_states(self):
         self._desired_states = defaultdict(State)

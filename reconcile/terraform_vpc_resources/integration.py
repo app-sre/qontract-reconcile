@@ -196,7 +196,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         mr_manager._fetch_managed_open_merge_requests()
 
         # Create a MR for each vpc request if the MR don't exist yet
-        for _, outputs in handled_output.items():
+        for outputs in handled_output.values():
             template = gql_api.get_template(
                 path="/templating/templates/terraform-vpc-resources/vpc.yml"
             )["template"]

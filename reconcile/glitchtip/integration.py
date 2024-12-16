@@ -97,7 +97,7 @@ def fetch_desired_state(
         project = Project(
             name=glitchtip_project.name,
             platform=glitchtip_project.platform,
-            slug=glitchtip_project.project_id if glitchtip_project.project_id else "",
+            slug=glitchtip_project.project_id or "",
             event_throttle_rate=glitchtip_project.event_throttle_rate or 0,
         )
         # Check project is unique within an organization
@@ -108,24 +108,24 @@ def fetch_desired_state(
 
             # Get users via roles
             for role in glitchtip_team.roles:
-                for role_user in role.users:
-                    users.append(
-                        User(
-                            email=f"{role_user.org_username}@{mail_domain}",
-                            role=get_user_role(organization, role),
-                        )
+                users.extend(
+                    User(
+                        email=f"{role_user.org_username}@{mail_domain}",
+                        role=get_user_role(organization, role),
                     )
+                    for role_user in role.users
+                )
 
             # Get users via ldap
             for ldap_group in glitchtip_team.ldap_groups or []:
-                for member in internal_groups_client.group(ldap_group).members:
-                    users.append(
-                        User(
-                            email=f"{member.id}@{mail_domain}",
-                            role=glitchtip_team.members_organization_role
-                            or DEFAULT_MEMBER_ROLE,
-                        )
+                users.extend(
+                    User(
+                        email=f"{member.id}@{mail_domain}",
+                        role=glitchtip_team.members_organization_role
+                        or DEFAULT_MEMBER_ROLE,
                     )
+                    for member in internal_groups_client.group(ldap_group).members
+                )
 
             # set(users) will take the first occurrence of a user, so the users from roles will be preferred
             team = Team(name=glitchtip_team.name, users=set(users))

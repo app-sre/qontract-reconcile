@@ -163,7 +163,7 @@ class VaultSecretReader(SecretReaderBase):
             )
         except Forbidden:
             raise VaultForbidden(
-                f"permission denied reading vault secret " f"at {path}"
+                f"permission denied reading vault secret at {path}"
             ) from None
         except vault.SecretNotFound as e:
             raise SecretNotFound(*e.args) from e
@@ -315,7 +315,7 @@ class SecretReader(SecretReaderBase):
                 data = self.vault_client.read_all(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
             except Forbidden:
                 raise VaultForbidden(
-                    f"permission denied reading vault secret " f"at {path}"
+                    f"permission denied reading vault secret at {path}"
                 ) from None
             except vault.SecretNotFound as e:
                 raise SecretNotFound(*e.args) from e

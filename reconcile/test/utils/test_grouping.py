@@ -1,3 +1,4 @@
+import operator
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import (
@@ -24,7 +25,7 @@ class Fruit:
         # group simple items
         (
             ["apple", "ananas", "banana"],
-            lambda fruit: fruit[0],
+            operator.itemgetter(0),
             {"a": ["apple", "ananas"], "b": ["banana"]},
         ),
         # group objects

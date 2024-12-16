@@ -197,14 +197,7 @@ def list_invalid_paths(
 ) -> list[str]:
     """Returns a list of paths that are listed to be copied are not present in the policy
     to fail the integration if we are trying to copy secrets that are not allowed."""
-
-    invalid_paths = []
-
-    for path in path_list:
-        if not _policy_contains_path(path, policy_paths):
-            invalid_paths.append(path)
-
-    return invalid_paths
+    return [path for path in path_list if not _policy_contains_path(path, policy_paths)]
 
 
 def _policy_contains_path(path: str, policy_paths: Iterable[str]) -> bool:
@@ -296,7 +289,7 @@ def get_vault_credentials(
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}
-    vault = cast(_VaultClient, VaultClient())
+    vault = cast("_VaultClient", VaultClient())
 
     if not isinstance(
         vault_auth,

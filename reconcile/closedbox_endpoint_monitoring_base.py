@@ -84,7 +84,7 @@ def parse_prober_url(url: str) -> dict[str, str]:
     parsed_url = urlparse(url)
     if parsed_url.scheme not in {"http", "https"}:
         raise ValueError(
-            "the prober URL needs to be an http:// or https:// one " f"but is {url}"
+            f"the prober URL needs to be an http:// or https:// one but is {url}"
         )
     data = {"url": parsed_url.netloc, "scheme": parsed_url.scheme}
     if parsed_url.path:

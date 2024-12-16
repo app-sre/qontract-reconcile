@@ -92,21 +92,15 @@ class SaasFilesInventory:
                     blocked_versions.setdefault(code_component.url, set()).add(version)
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
-                    file_path = target.path if target.path else saas_file.path
+                    file_path = target.path or saas_file.path
                     if target.disable or target.delete:
                         continue
                     if not target.promotion:
                         continue
                     if not target.promotion.auto:
                         continue
-                    soak_days = (
-                        target.promotion.soak_days if target.promotion.soak_days else 0
-                    )
-                    schedule = (
-                        target.promotion.schedule
-                        if target.promotion.schedule
-                        else "* * * * *"
-                    )
+                    soak_days = target.promotion.soak_days or 0
+                    schedule = target.promotion.schedule or "* * * * *"
                     subscriber = Subscriber(
                         uid=target.uid(
                             parent_saas_file_name=saas_file.name,

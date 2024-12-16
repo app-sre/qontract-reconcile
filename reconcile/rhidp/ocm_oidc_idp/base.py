@@ -1,4 +1,5 @@
 import logging
+import operator
 from collections.abc import (
     Iterable,
     Sequence,
@@ -38,10 +39,10 @@ class IDPState(BaseModel):
     cluster: Cluster
     idp: OCMOIdentityProvider | OCMOIdentityProviderOidc | OCMOIdentityProviderGithub
 
-    def __eq__(self, __value: object) -> bool:
-        if not isinstance(__value, IDPState):
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, IDPState):
             raise NotImplementedError("Cannot compare to non IDPState objects.")
-        return self.idp == __value.idp
+        return self.idp == value.idp
 
 
 def run(
@@ -93,16 +94,15 @@ def fetch_current_state(
     """Fetch all current configured OIDC identity providers."""
     current_state: list[IDPState] = []
     for cluster in clusters:
-        for idp in get_identity_providers(
-            ocm_api=ocm_api, ocm_cluster=cluster.ocm_cluster
-        ):
-            current_state.append(
-                IDPState(
-                    cluster=cluster,
-                    idp=idp,
-                ),
+        current_state.extend(
+            IDPState(
+                cluster=cluster,
+                idp=idp,
             )
-
+            for idp in get_identity_providers(
+                ocm_api=ocm_api, ocm_cluster=cluster.ocm_cluster
+            )
+        )
     return current_state
 
 
@@ -175,7 +175,7 @@ def act(
             idp_state.idp.type,
             idp_state.idp.name,
         )),
-        equal=lambda idp1, idp2: idp1 == idp2,
+        equal=operator.eq,
     )
 
     for idp_state in diff_result.delete.values():

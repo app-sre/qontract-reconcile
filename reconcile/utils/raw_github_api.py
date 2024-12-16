@@ -44,28 +44,21 @@ class RawGithubApi:
         result = res.json()
 
         if isinstance(result, list):
-            elements = []
-
-            for element in result:
-                elements.append(element)
-
+            elements = list(result)
             while "last" in res.links and "next" in res.links:
                 if res.links["last"]["url"] == res.links["next"]["url"]:
                     req_url = res.links["next"]["url"]
                     res = requests.get(req_url, headers=h, timeout=60)
                     res.raise_for_status()
 
-                    for element in res.json():
-                        elements.append(element)
-
+                    elements.extend(element for element in res.json())
                     return elements
 
                 req_url = res.links["next"]["url"]
                 res = requests.get(req_url, headers=h, timeout=60)
                 res.raise_for_status()
 
-                for element in res.json():
-                    elements.append(element)
+                elements.extend(element for element in res.json())
 
             return elements
 

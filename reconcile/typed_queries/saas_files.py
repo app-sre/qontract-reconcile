@@ -73,7 +73,7 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     ) -> str:
         """Returns a unique identifier for a target."""
         return hashlib.blake2s(
-            f"{parent_saas_file_name}:{parent_resource_template_name}:{self.name if self.name else 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode(),
+            f"{parent_saas_file_name}:{parent_resource_template_name}:{self.name or 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode(),
             digest_size=20,
         ).hexdigest()
 

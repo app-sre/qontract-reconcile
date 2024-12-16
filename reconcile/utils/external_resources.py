@@ -52,8 +52,7 @@ def get_provision_providers(namespace_info: Mapping[str, Any]) -> set[str]:
         return providers
 
     external_resources = namespace_info.get("externalResources") or []
-    for e in external_resources:
-        providers.add(e["provider"])
+    providers.update(e["provider"] for e in external_resources)
 
     return providers
 

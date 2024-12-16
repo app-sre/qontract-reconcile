@@ -64,7 +64,7 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
 
         body = body_template.render(ACCOUNT=self.account, ACCESS_KEY=self.key)
         email_name = f"{self.account}-{self.key}"
-        ref = self.path[4:] if self.path.startswith("data") else self.path
+        ref = self.path.removeprefix("data")
         content = app_interface_email(
             name=email_name, subject=self.title, aws_accounts=[ref], body=pss(body)
         )
