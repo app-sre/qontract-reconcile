@@ -17,6 +17,7 @@ from typing import (
 
 from croniter import croniter
 from pydantic import BaseModel, Extra
+from requests.exceptions import HTTPError
 from semver import VersionInfo
 
 from reconcile.aus.cluster_version_data import (
@@ -1164,7 +1165,10 @@ def act(
             and addon_id != policy.addon_id
         ):
             continue
-        diff.act(dry_run, ocm_api)
+        try:
+            diff.act(dry_run, ocm_api)
+        except HTTPError as e:
+            logging.error(f"{policy.cluster.name}: {e}: {e.response.text}")
 
 
 def soaking_days(
