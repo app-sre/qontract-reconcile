@@ -100,8 +100,8 @@ class AppV1(ConfiguredBaseModel):
 
 
 class TerraformRepoVariablesV1(ConfiguredBaseModel):
-    inputs: VaultSecret = Field(..., alias="inputs")
-    outputs: VaultSecret = Field(..., alias="outputs")
+    inputs: Optional[VaultSecret] = Field(..., alias="inputs")
+    outputs: Optional[VaultSecret] = Field(..., alias="outputs")
 
 
 class TerraformRepoV1(ConfiguredBaseModel):
