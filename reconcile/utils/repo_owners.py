@@ -12,10 +12,11 @@ class RepoOwners:
     Abstracts the owners of a repository with per-path granularity.
     """
 
-    def __init__(self, git_cli, ref="master"):
+    def __init__(self, git_cli, ref="master", recursive=True):
         self._git_cli = git_cli
         self._ref = ref
         self._owners_map = None
+        self._recursive = recursive
 
     @property
     def owners_map(self):
@@ -116,16 +117,13 @@ class RepoOwners:
         :rtype: dict
         """
         owners_map = {}
+        aliases = self._get_aliases()
 
-        repo_tree = self._git_cli.get_repository_tree(ref=self._ref)
-
-        aliases = None
-        owner_files = []
-        for item in repo_tree:
-            if item["path"] == "OWNERS_ALIASES":
-                aliases = self._get_aliases()
-            elif item["name"] == "OWNERS":
-                owner_files.append(item)
+        if self._recursive:
+            repo_tree = self._git_cli.get_repository_tree(ref=self._ref)
+            owner_files = [item for item in repo_tree if item["name"] == "OWNERS"]
+        else:
+            owner_files = [{"path": "OWNERS"}]
 
         for owner_file in owner_files:
             raw_owners = self._git_cli.get_file(path=owner_file["path"], ref=self._ref)
