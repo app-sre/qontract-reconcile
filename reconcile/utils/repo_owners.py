@@ -133,14 +133,12 @@ class RepoOwners:
                 owners = None
             if owners is None:
                 _LOG.warning(
-                    "Non-parsable OWNERS file "
-                    f"{self._git_cli.project.web_url}:{owner_file.get('path')}"
+                    f"Non-parsable OWNERS file {self._git_cli!s}:{owner_file['path']}"
                 )
                 continue
             if not isinstance(owners, dict):
                 _LOG.warning(
-                    f"owner file {self._git_cli.project.web_url}:{owner_file.get('path')} "
-                    "content is not a dictionary"
+                    f"owner file {self._git_cli!s}:{owner_file['path']} content is not a dictionary"
                 )
                 continue
 
