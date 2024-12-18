@@ -138,5 +138,3 @@ helm-test: generate
 
 unittest: ## Run unit tests
 	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml
-	uv run coverage html
-	uv run coverage xml
