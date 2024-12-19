@@ -79,8 +79,6 @@ class GroupPermissionHandler:
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access to be shared with the group
-        if not project:
-            return False
         try:
             user = project.members_all.get(id=self.gl.user.id)
         except GitlabGetError:
@@ -92,6 +90,13 @@ class GroupPermissionHandler:
         desired_state: dict[str, GroupSpec],
         current_state: dict[str, GroupSpec],
     ) -> None:
+        # gather list of app-interface managed repos
+        managed_repos: set[str] = set()
+        instance = queries.get_gitlab_instance()
+        for project_request in instance.get("projectRequests", []):
+            for r in project_request.get("projects", []):
+                managed_repos.add(f"{instance['url']}/{project_request['group']}/{r}")
+
         # get the diff data
         diff_data = diff_mappings(
             current=current_state,
@@ -102,6 +107,11 @@ class GroupPermissionHandler:
         errors: list[Exception] = []
         for repo in diff_data.add:
             project = self.gl.get_project(repo)
+            if not project and repo in managed_repos:
+                logging.info(
+                    f"New app-interface managed repository {repo} hasn't been created yet - skipping"
+                )
+                continue
             if not self.can_share_project(project):
                 errors.append(
                     GroupAccessLevelError(
