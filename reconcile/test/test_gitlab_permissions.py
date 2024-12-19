@@ -17,13 +17,26 @@ from pytest_mock import MockerFixture
 from reconcile import gitlab_permissions
 from reconcile.utils.gitlab_api import GitLabApi
 
+GITLAB_TEST_URL = "https://test-gitlab.com/my/repo"
+
 
 @pytest.fixture()
 def mocked_queries(mocker: MockerFixture) -> MagicMock:
     queries = mocker.patch("reconcile.gitlab_permissions.queries")
     queries.get_gitlab_instance.return_value = {}
     queries.get_app_interface_settings.return_value = {}
-    queries.get_repos.return_value = ["https://test-gitlab.com"]
+    queries.get_repos.return_value = [GITLAB_TEST_URL]
+    queries.get_gitlab_instance.return_value = {
+        "url": "https://test-gitlab.com",
+        "projectRequests": [
+            {
+                "group": "my",
+                "projects": [
+                    "repo",
+                ],
+            },
+        ],
+    }
     return queries
 
 
@@ -82,6 +95,33 @@ def test_run_share_with_group(
     )
 
 
+def test_run_managed_repo_not_created_yet(
+    mocked_queries: MagicMock, mocker: MockerFixture, mocked_gl: MagicMock
+) -> None:
+    """
+    Repos that are managed in app-interface might not have been created yet by our automation.
+    We should skip those repos.
+    """
+    mocker.patch("reconcile.gitlab_permissions.GitLabApi").return_value = mocked_gl
+    mocker.patch(
+        "reconcile.gitlab_permissions.get_feature_toggle_state"
+    ).return_value = True
+    group = create_autospec(Group, id=1234)
+    group.name = "app-sre"
+    group.projects = create_autospec(GroupProjectManager)
+    group.shared_projects = create_autospec(SharedProjectManager)
+    mocked_gl.get_items.side_effect = [
+        [],
+        [],
+    ]
+    mocked_gl.get_group.return_value = group
+    mocked_gl.get_access_level.return_value = 40
+    project = None
+    mocked_gl.get_project.return_value = project
+    gitlab_permissions.run(False, thread_pool_size=1)
+    mocked_gl.share_project_with_group.assert_not_called()
+
+
 def test_run_reshare_with_group(
     mocked_queries: MagicMock, mocker: MockerFixture, mocked_gl: MagicMock
 ) -> None:
@@ -98,7 +138,7 @@ def test_run_reshare_with_group(
         [
             create_autospec(
                 SharedProject,
-                web_url="https://test-gitlab.com",
+                web_url=GITLAB_TEST_URL,
                 shared_with_groups=[
                     {
                         "group_access_level": 30,
@@ -111,7 +151,7 @@ def test_run_reshare_with_group(
     ]
     mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
-    project = create_autospec(Project, web_url="https://test-gitlab.com")
+    project = create_autospec(Project, web_url=GITLAB_TEST_URL)
     project.members_all = create_autospec(ProjectMemberAllManager)
     project.members_all.get.return_value = create_autospec(
         ProjectMember, id=mocked_gl.user.id, access_level=40
