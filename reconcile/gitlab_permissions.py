@@ -79,6 +79,8 @@ class GroupPermissionHandler:
 
     def can_share_project(self, project: Project) -> bool:
         # check if user have access greater or equal access to be shared with the group
+        if not project:
+            return False
         try:
             user = project.members_all.get(id=self.gl.user.id)
         except GitlabGetError:
