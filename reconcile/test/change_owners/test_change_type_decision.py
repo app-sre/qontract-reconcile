@@ -25,17 +25,17 @@ def test_get_approver_decisions_from_mr_comments() -> None:
     comments = [
         {
             "username": "user-1",
-            "body": ("nice\n" f"{DecisionCommand.APPROVED.value}"),
+            "body": (f"nice\n{DecisionCommand.APPROVED.value}"),
             "created_at": "2020-01-01T00:00:00Z",
         },
         {
             "username": "user-2",
-            "body": (f"{DecisionCommand.HOLD.value}\n" "oh wait... big problems"),
+            "body": (f"{DecisionCommand.HOLD.value}\noh wait... big problems"),
             "created_at": "2020-01-03T00:00:00Z",
         },
         {
             "username": "user-2",
-            "body": (f"{DecisionCommand.CANCEL_HOLD.value}\n" "never mind... all good"),
+            "body": (f"{DecisionCommand.CANCEL_HOLD.value}\nnever mind... all good"),
             "created_at": "2020-01-04T00:00:00Z",
         },
         {
@@ -56,12 +56,12 @@ def test_get_approver_decisions_from_mr_comments_unordered() -> None:
     comments = [
         {
             "username": "user-1",
-            "body": ("nice\n" f"{DecisionCommand.APPROVED.value}"),
+            "body": (f"nice\n{DecisionCommand.APPROVED.value}"),
             "created_at": "2020-01-02T00:00:00Z",  # this date is later then the next comment
         },
         {
             "username": "user-2",
-            "body": (f"{DecisionCommand.HOLD.value}\n" "oh wait... big problems"),
+            "body": (f"{DecisionCommand.HOLD.value}\noh wait... big problems"),
             "created_at": "2020-01-01T00:00:00Z",
         },
     ]
@@ -86,12 +86,12 @@ def test_approver_decision_leading_trailing_spaces() -> None:
     comments = [
         {
             "username": "user-1",
-            "body": ("nice\n" f" {DecisionCommand.APPROVED.value}"),
+            "body": (f"nice\n {DecisionCommand.APPROVED.value}"),
             "created_at": "2020-01-01T00:00:00Z",
         },
         {
             "username": "user-2",
-            "body": (f"{DecisionCommand.HOLD.value} \n" "oh wait... big problems"),
+            "body": (f"{DecisionCommand.HOLD.value} \noh wait... big problems"),
             "created_at": "2020-01-02T00:00:00Z",
         },
     ]

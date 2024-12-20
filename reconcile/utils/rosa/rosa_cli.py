@@ -141,13 +141,13 @@ class RosaJob(K8sJob, BaseModel, frozen=True, arbitrary_types_allowed=True):
         }
 
     def annotations(self) -> dict[str, str]:
-        _annotations = {
+        annotations = {
             "qontract.rosa.aws_account_id": self.aws_account_id,
             "qontract.rosa.aws_region": self.aws_region,
             "qontract.rosa.ocm_org_id": self.ocm_org_id,
         }
-        _annotations.update(self.extra_annotations)
-        return _annotations
+        annotations.update(self.extra_annotations)
+        return annotations
 
     def secret_data(self) -> dict[str, str]:
         return {"OCM_TOKEN": self.ocm_token}

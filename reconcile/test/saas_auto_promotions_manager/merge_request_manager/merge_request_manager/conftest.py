@@ -79,8 +79,7 @@ def vcs_builder(
     def builder(data: Mapping) -> tuple[VCS, list[ProjectMergeRequest]]:
         vcs = create_autospec(spec=VCS)
         open_mrs: list[ProjectMergeRequest] = []
-        for d in data.get(OPEN_MERGE_REQUESTS, []):
-            open_mrs.append(mr_builder(d))
+        open_mrs.extend(mr_builder(d) for d in data.get(OPEN_MERGE_REQUESTS, []))
         vcs.get_open_app_interface_merge_requests.side_effect = [open_mrs]
         vcs.get_gitlab_mr_check_status.side_effect = data.get(
             PIPELINE_RESULTS, [MRCheckStatus.SUCCESS] * 100

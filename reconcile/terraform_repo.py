@@ -382,12 +382,12 @@ class TerraformRepoIntegration(
 
                 # construct diff urls
                 diff_urls: list[str] = []
-                for pair in diff_result.change.values():
-                    if pair.current.ref != pair.desired.ref:
-                        # gitlab specific syntax
-                        diff_urls.append(
-                            f"{pair.current.repository}/compare/{pair.current.ref}...{pair.desired.ref}"
-                        )
+                # gitlab specific syntax
+                diff_urls.extend(
+                    f"{pair.current.repository}/compare/{pair.current.ref}...{pair.desired.ref}"
+                    for pair in diff_result.change.values()
+                    if pair.current.ref != pair.desired.ref
+                )
 
                 if len(diff_urls) > 0:
                     comment_body = "tf-repo diffs:\n" + "\n".join([

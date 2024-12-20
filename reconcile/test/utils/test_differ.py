@@ -1,3 +1,4 @@
+import operator
 import typing
 from dataclasses import dataclass
 
@@ -48,8 +49,8 @@ def test_diff_any_iterables_with_default_equal() -> None:
     result = differ.diff_any_iterables(
         current,
         desired,
-        current_key=lambda c: c["name"],
-        desired_key=lambda d: d["name"],
+        current_key=operator.itemgetter("name"),
+        desired_key=operator.itemgetter("name"),
     )
 
     assert result == differ.DiffResult(
@@ -90,8 +91,8 @@ def test_diff_any_iterables_with_custom_equal() -> None:
     result = differ.diff_any_iterables(
         current,
         desired,
-        current_key=lambda c: c["name"],
-        desired_key=lambda d: d["name"],
+        current_key=operator.itemgetter("name"),
+        desired_key=operator.itemgetter("name"),
         equal=lambda c, d: c["value"] == d["value"][0],
     )
 
@@ -192,7 +193,7 @@ def test_diff_iterables() -> None:
     result = differ.diff_iterables(
         current,
         desired,
-        key=lambda x: x["name"],
+        key=operator.itemgetter("name"),
     )
 
     assert result == differ.DiffResult(

@@ -256,7 +256,7 @@ def print_to_file(function):
 def config_name(function):
     function = click.option(
         "--config-name",
-        help="jenkins config name to print out." "must works with --print-only mode",
+        help="jenkins config name to print out.must works with --print-only mode",
         default=None,
     )(function)
 
@@ -308,7 +308,7 @@ def vault_output_path(function):
 def vault_throughput_path(function):
     function = click.option(
         "--vault-throughput-path",
-        help="path in Vault to find input resources " "and store output resources.",
+        help="path in Vault to find input resources and store output resources.",
         default="",
     )(function)
 
@@ -888,7 +888,7 @@ def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
 
 
 @integration.command(
-    short_help="Use OpenShift ServiceAccount tokens " "across namespaces/clusters."
+    short_help="Use OpenShift ServiceAccount tokens across namespaces/clusters."
 )
 @threaded()
 @binary(["oc", "ssh"])
@@ -1601,8 +1601,7 @@ def openshift_tekton_resources(
 
 
 @integration.command(
-    short_help="Guesses and adds labels to merge requests "
-    "according to changed paths."
+    short_help="Guesses and adds labels to merge requests according to changed paths."
 )
 @click.argument("gitlab-project-id")
 @click.argument("gitlab-merge-request-id")
@@ -2801,7 +2800,7 @@ def ocm_addons_upgrade_scheduler_org(
 @click.option(
     "--ignore-sts-clusters",
     is_flag=True,
-    default=os.environ.get("IGNORE_STS_CLUSTERS", False),
+    default=bool(os.environ.get("IGNORE_STS_CLUSTERS")),
     help="Ignore STS clusters",
 )
 @click.pass_context
@@ -2938,7 +2937,7 @@ def ocm_addons(ctx, thread_pool_size):
 
 
 @integration.command(
-    short_help="Grants AWS infrastructure access " "to members in AWS groups via OCM."
+    short_help="Grants AWS infrastructure access to members in AWS groups via OCM."
 )
 @click.pass_context
 def ocm_aws_infrastructure_access(ctx):
@@ -3129,7 +3128,7 @@ def email_sender(ctx):
 
 
 @integration.command(
-    short_help="Send emails to users based on " "requests submitted to app-interface."
+    short_help="Send emails to users based on requests submitted to app-interface."
 )
 @click.pass_context
 def requests_sender(ctx):
@@ -3156,8 +3155,7 @@ def sql_query(ctx, enable_deletion):
 
 
 @integration.command(
-    short_help="Manages labels on gitlab merge requests "
-    "based on OWNERS files schema."
+    short_help="Manages labels on gitlab merge requests based on OWNERS files schema."
 )
 @threaded()
 @click.pass_context
@@ -3525,7 +3523,7 @@ def integrations_manager(
 @click.option(
     "--mr-management",
     is_flag=True,
-    default=os.environ.get("MR_MANAGEMENT", False),
+    default=bool(os.environ.get("MR_MANAGEMENT")),
     help="Manage MR labels and comments (default to false)",
 )
 @click.pass_context

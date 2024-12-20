@@ -19,16 +19,16 @@ QONTRACT_INTEGRATION = "ocm-groups"
 
 
 def get_cluster_state(group_items, ocm_map):
-    results = []
     cluster = group_items["cluster"]
     ocm = ocm_map.get(cluster)
     group_name = group_items["group_name"]
     group = ocm.get_group_if_exists(cluster, group_name)
     if group is None:
-        return results
-    for user in group["users"] or []:
-        results.append({"cluster": cluster, "group": group_name, "user": user})
-    return results
+        return []
+    return [
+        {"cluster": cluster, "group": group_name, "user": user}
+        for user in group["users"] or []
+    ]
 
 
 def fetch_current_state(clusters, thread_pool_size):

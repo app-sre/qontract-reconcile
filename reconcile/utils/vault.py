@@ -222,7 +222,7 @@ class _VaultClient:
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
         if version is None:
-            msg = "version can not be null " f"for secret with path '{path}'."
+            msg = f"version can not be null for secret with path '{path}'."
             raise SecretVersionIsNone(msg)
         if version == SECRET_VERSION_LATEST:
             # https://github.com/hvac/hvac/blob/
@@ -236,7 +236,7 @@ class _VaultClient:
                 version=version,
             )
         except InvalidPath:
-            msg = f"version '{version}' not found " f"for secret with path '{path}'."
+            msg = f"version '{version}' not found for secret with path '{path}'."
             raise SecretVersionNotFound(msg) from None
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"

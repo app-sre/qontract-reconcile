@@ -253,7 +253,7 @@ def get_apps_data(date, month_delta=1, thread_pool_size=10):
 
         app_name = app["name"]
 
-        logging.info(f"collecting post-deploy jobs " f"information for {app_name}")
+        logging.info(f"collecting post-deploy jobs information for {app_name}")
         # this is now empty as it referred to post_deploy jobs via Jenkins. This section
         # should be removed when we publish a new content format or if we get promotion data
         # differently.

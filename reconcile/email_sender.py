@@ -53,8 +53,7 @@ def collect_to(to):
             if not service_owners:
                 continue
 
-            for service_owner in service_owners:
-                audience.add(service_owner["email"])
+            audience.update(service_owner["email"] for service_owner in service_owners)
 
     # TODO: implement clusters and namespaces
 
@@ -65,8 +64,7 @@ def collect_to(to):
             if not account_owners:
                 continue
 
-            for account_owner in account_owners:
-                audience.add(account_owner["email"])
+            audience.update(account_owner["email"] for account_owner in account_owners)
 
     roles = to.get("roles")
     if roles:
@@ -75,13 +73,11 @@ def collect_to(to):
             if not users:
                 continue
 
-            for user in users:
-                audience.add(user["org_username"])
+            audience.update(user["org_username"] for user in users)
 
     users = to.get("users")
     if users:
-        for user in users:
-            audience.add(user["org_username"])
+        audience.update(user["org_username"] for user in users)
 
     return audience
 

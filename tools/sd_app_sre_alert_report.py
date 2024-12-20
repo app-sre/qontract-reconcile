@@ -48,7 +48,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
     for m in messages:
         if "subtype" not in m or m["subtype"] != "bot_message":
             logging.debug(
-                f'Skipping message \'{m["text"]}\' as it does not come from a bot'
+                f"Skipping message '{m['text']}' as it does not come from a bot"
             )
             continue
 
@@ -65,7 +65,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
             alert_message = mg.group(3)
 
             if not alert_name:
-                logging.debug(f'no alert name in title {at["title"]}. Skipping')
+                logging.debug(f"no alert name in title {at['title']}. Skipping")
                 continue
 
             # If there's only one alert related to the alert_name, message will be part
@@ -104,7 +104,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                     elif "Alerts Resolved" in line:
                         alert_state = "RESOLVED"
                     elif line.startswith("-"):
-                        mg = re.match("^- (.+)$", line)
+                        mg = re.match(r"^- (.+)$", line)
                         if not mg:
                             continue
                         alert_message = mg.group(1)

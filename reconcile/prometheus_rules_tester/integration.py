@@ -124,22 +124,22 @@ def get_rules_and_tests(
     """Iterates through all namespaces and returns a list of tests to run"""
     namespace_with_prom_rules, _ = orb.get_namespaces(
         PROVIDERS,
-        cluster_names=cluster_names if cluster_names else [],
+        cluster_names=cluster_names or [],
         namespace_name=NAMESPACE_NAME,
     )
 
-    iterable = []
+    iterable: list[RuleToFetch] = []
     for namespace in namespace_with_prom_rules:
         prom_rules = [
             r for r in namespace["openshiftResources"] if r["provider"] in PROVIDERS
         ]
-        for resource in prom_rules:
-            iterable.append(
-                RuleToFetch(
-                    namespace=namespace,
-                    resource=resource,
-                )
+        iterable.extend(
+            RuleToFetch(
+                namespace=namespace,
+                resource=resource,
             )
+            for resource in prom_rules
+        )
 
     return threaded.run(
         func=fetch_rule_and_tests,

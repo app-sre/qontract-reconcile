@@ -21,7 +21,7 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
 
     @property
     def description(self) -> str:
-        return f'ocm upgrade scheduler org updates for {self.updates_info["name"]}'
+        return f"ocm upgrade scheduler org updates for {self.updates_info['name']}"
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         changes = False

@@ -67,7 +67,7 @@ def fetch_desired_state(
         expiration_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
         if (expiration_date - date.today()).days > EXPIRATION_DAYS_MAX:
             raise RunnerException(
-                f'The maximum expiration date of {g["name"]} shall not '
+                f"The maximum expiration date of {g['name']} shall not "
                 f"exceed {EXPIRATION_DAYS_MAX} days from today"
             )
         for i in g["instances"]:
@@ -92,8 +92,8 @@ def fetch_desired_state(
                     break
             if not found:
                 raise RunnerException(
-                    f'[gabi:{g["name"]} (path: {g["path"]})] Could not find RDS identifier {identifier} '
-                    f'for account {account} in namespace {namespace["name"]}. '
+                    f"[gabi:{g['name']} (path: {g['path']})] Could not find RDS identifier {identifier} "
+                    f"for account {account} in namespace {namespace['name']}. "
                     "If this is a removed read only instance, consider updating the identifier to the source replica."
                 )
             users = get_usernames(g["users"], cluster)
