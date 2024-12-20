@@ -146,6 +146,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     def __exit__(self, *exc):
         self.cleanup()
 
+    def __str__(self):
+        return self.project.web_url
+
     def cleanup(self):
         """
         Close gl session.
