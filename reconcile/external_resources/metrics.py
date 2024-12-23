@@ -23,6 +23,14 @@ class ExternalResourcesBaseMetric(BaseModel):
     job_name: str
 
 
+class ExternalResourcesReconciliationsCounter(
+    ExternalResourcesBaseMetric, CounterMetric
+):
+    @classmethod
+    def name(cls) -> str:
+        return "external_resources_reconciliations"
+
+
 class ExternalResourcesReconcileErrorsCounter(
     ExternalResourcesBaseMetric, CounterMetric
 ):
@@ -49,6 +57,7 @@ def publish_metrics(
     r: Reconciliation,
     spec: ExternalResourceSpec,
     reconciliation_status: ReconciliationStatus,
+    is_reconciled: bool,
 ) -> None:
     job_name = ReconciliationK8sJob(reconciliation=r).name()
 
@@ -84,6 +93,19 @@ def publish_metrics(
     if reconciliation_status.resource_status.has_errors:
         metrics.inc_counter(
             ExternalResourcesReconcileErrorsCounter(
+                app=spec.namespace["app"]["name"],
+                environment=spec.namespace["environment"]["name"],
+                provision_provider=r.key.provision_provider,
+                provisioner_name=r.key.provisioner_name,
+                provider=r.key.provider,
+                identifier=r.key.identifier,
+                job_name=job_name,
+            )
+        )
+
+    if is_reconciled:
+        metrics.inc_counter(
+            ExternalResourcesReconciliationsCounter(
                 app=spec.namespace["app"]["name"],
                 environment=spec.namespace["environment"]["name"],
                 provision_provider=r.key.provision_provider,
