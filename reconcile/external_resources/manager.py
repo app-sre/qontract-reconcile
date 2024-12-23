@@ -357,12 +357,14 @@ class ExternalResourcesManager:
             if reconciliation_status.resource_status.needs_secret_sync:
                 to_sync_keys.add(r.key)
 
-            if self._resource_needs_reconciliation(reconciliation=r, state=state):
+            if is_reconciled := self._resource_needs_reconciliation(
+                reconciliation=r, state=state
+            ):
                 self.reconciler.reconcile_resource(reconciliation=r)
                 self._set_resource_reconciliation_in_progress(r, state)
 
             if spec := self.er_inventory.get(r.key):
-                publish_metrics(r, spec, reconciliation_status)
+                publish_metrics(r, spec, reconciliation_status, is_reconciled)
 
         pending_sync_keys = self.state_mgr.get_keys_by_status(
             ResourceStatus.PENDING_SECRET_SYNC
