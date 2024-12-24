@@ -1615,6 +1615,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         github = self._initiate_github(saas_file)
         trigger_specs: list[TriggerSpecContainerImage] = []
+        images: list[Image] = []
         for rt in saas_file.resource_templates:
             for target in rt.targets:
                 try:
@@ -1634,9 +1635,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     image = self._get_image(
                         image_uri, saas_file.image_patterns, image_auth, error_prefix
                     )
-                    if not image:
-                        continue
-
+                    images.append(image)
                     trigger_spec = TriggerSpecContainerImage(
                         saas_file_name=saas_file.name,
                         env_name=target.namespace.environment.name,
@@ -1674,7 +1673,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         f"Skipping target {saas_file.name}:{rt.name}"
                         f" - repo: {rt.url} - ref: {target.ref}"
                     )
-
+        for image in images:
+            if not image:
+                return []
+        # trigger only if all the identified images are already build for a saas file.
         return trigger_specs
 
     def get_configs_diff(self) -> list[TriggerSpecConfig]:
