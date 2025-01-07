@@ -145,7 +145,7 @@ def test_get_aws_cost_report(env_vars, mock_queries, mock_aws_cost_report_comman
 
     assert result.exit_code == 0
     assert result.output == "some report\n"
-    mock_aws_cost_report_command.create.assert_called_once_with()
+    mock_aws_cost_report_command.create.assert_called_once_with(thread_pool_size=5)
     mock_aws_cost_report_command.create.return_value.execute.assert_called_once_with()
 
 
@@ -169,7 +169,9 @@ def test_get_openshift_cost_report(
 
     assert result.exit_code == 0
     assert result.output == "some report\n"
-    mock_openshift_cost_report_command.create.assert_called_once_with()
+    mock_openshift_cost_report_command.create.assert_called_once_with(
+        thread_pool_size=5
+    )
     mock_openshift_cost_report_command.create.return_value.execute.assert_called_once_with()
 
 
@@ -193,5 +195,7 @@ def test_get_openshift_cost_optimization_report(
 
     assert result.exit_code == 0
     assert result.output == "some report\n"
-    mock_openshift_cost_optimization_report_command.create.assert_called_once_with()
+    mock_openshift_cost_optimization_report_command.create.assert_called_once_with(
+        thread_pool_size=5
+    )
     mock_openshift_cost_optimization_report_command.create.return_value.execute.assert_called_once_with()

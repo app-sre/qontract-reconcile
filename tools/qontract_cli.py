@@ -2771,22 +2771,27 @@ def alerts(ctx, file_path):
 
 @get.command()
 @click.pass_context
-def aws_cost_report(ctx):
-    command = AwsCostReportCommand.create()
+@thread_pool_size(default=5)
+def aws_cost_report(ctx, thread_pool_size):
+    command = AwsCostReportCommand.create(thread_pool_size=thread_pool_size)
     print(command.execute())
 
 
 @get.command()
 @click.pass_context
-def openshift_cost_report(ctx):
-    command = OpenShiftCostReportCommand.create()
+@thread_pool_size(default=5)
+def openshift_cost_report(ctx, thread_pool_size):
+    command = OpenShiftCostReportCommand.create(thread_pool_size=thread_pool_size)
     print(command.execute())
 
 
 @get.command()
 @click.pass_context
-def openshift_cost_optimization_report(ctx):
-    command = OpenShiftCostOptimizationReportCommand.create()
+@thread_pool_size(default=5)
+def openshift_cost_optimization_report(ctx, thread_pool_size):
+    command = OpenShiftCostOptimizationReportCommand.create(
+        thread_pool_size=thread_pool_size
+    )
     print(command.execute())
 
 

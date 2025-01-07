@@ -176,12 +176,12 @@ class OpenShiftCostOptimizationReportCommand:
         return f"{round(response.amount)}{response.format}"
 
     @classmethod
-    def create(cls) -> Self:
+    def create(cls, thread_pool_size: int = THREAD_POOL_SIZE) -> Self:
         gql_api = gql.get_api()
         secret = fetch_cost_report_secret(gql_api)
         cost_management_api = CostManagementApi.create_from_secret(secret)
         return cls(
             gql_api=gql_api,
             cost_management_api=cost_management_api,
-            thread_pool_size=THREAD_POOL_SIZE,
+            thread_pool_size=thread_pool_size,
         )
