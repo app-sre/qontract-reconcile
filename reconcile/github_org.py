@@ -206,11 +206,11 @@ def fetch_desired_state(infer_clusters=True):
         if not permissions:
             continue
 
-        members = [user["github_username"] for user in role["users"]]
-        members.extend(
+        user_members = [user["github_username"] for user in role["users"]]
+        bot_members = [
             bot["github_username"] for bot in role["bots"] if "github_username" in bot
-        )
-        members = [m.lower() for m in members]
+        ]
+        members = [m.lower() for m in user_members + bot_members]
 
         for permission in permissions:
             if permission["service"] == "github-org":

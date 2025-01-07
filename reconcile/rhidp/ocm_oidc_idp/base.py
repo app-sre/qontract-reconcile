@@ -92,18 +92,13 @@ def fetch_current_state(
     ocm_api: OCMBaseClient, clusters: Iterable[Cluster]
 ) -> list[IDPState]:
     """Fetch all current configured OIDC identity providers."""
-    current_state: list[IDPState] = []
-    for cluster in clusters:
-        current_state.extend(
-            IDPState(
-                cluster=cluster,
-                idp=idp,
-            )
-            for idp in get_identity_providers(
-                ocm_api=ocm_api, ocm_cluster=cluster.ocm_cluster
-            )
+    return [
+        IDPState(cluster=cluster, idp=idp)
+        for cluster in clusters
+        for idp in get_identity_providers(
+            ocm_api=ocm_api, ocm_cluster=cluster.ocm_cluster
         )
-    return current_state
+    ]
 
 
 def fetch_desired_state(

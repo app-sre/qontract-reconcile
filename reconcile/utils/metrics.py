@@ -218,8 +218,7 @@ class MetricsContainer:
         self._counters[counter.__class__][label_values] = current_value + by
 
     def _aggregate_scopes(self) -> "MetricsContainer":
-        containers = [self]
-        containers.extend(sub._aggregate_scopes() for sub in self._scopes.values())
+        containers = [self] + [sub._aggregate_scopes() for sub in self._scopes.values()]
         return join_metric_containers(containers)
 
     def collect(self) -> Generator[Metric, None, None]:

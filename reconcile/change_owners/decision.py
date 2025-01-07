@@ -147,20 +147,16 @@ def apply_decisions_to_changes(
     to generate the coverage report and to reason about the approval
     state of the MR.
     """
-
-    diff_decisions: list[ChangeDecision] = []
-    for c in changes:
-        diff_decisions.extend(
-            _apply_decision_to_diff(
-                c,
-                d,
-                approver_decisions,
-                auto_approver_usernames,
-            )
-            for d in c.diff_coverage
+    return [
+        _apply_decision_to_diff(
+            c,
+            d,
+            approver_decisions,
+            auto_approver_usernames,
         )
-
-    return diff_decisions
+        for c in changes
+        for d in c.diff_coverage
+    ]
 
 
 def _apply_decision_to_diff(

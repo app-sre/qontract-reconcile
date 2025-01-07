@@ -211,10 +211,11 @@ class BundleFileChange:
         returns all the change-types that are involved in the coverage
         of all changes
         """
-        change_types: list[ChangeTypeProcessor] = []
-        for dc in self.diff_coverage:
-            change_types.extend(ctx.change_type_processor for ctx in dc.coverage)
-        return change_types
+        return [
+            ctx.change_type_processor
+            for dc in self.diff_coverage
+            for ctx in dc.coverage
+        ]
 
 
 def parse_resource_file_content(content: Any | None) -> tuple[Any, str | None]:
@@ -307,9 +308,9 @@ def get_priority_for_changes(
     """
     Finds the lowest priority of all change types involved in the provided bundle file changes.
     """
-    priorities: set[ChangeTypePriority] = set()
-    for bfc in bundle_file_changes:
-        priorities.update(ct.priority for ct in bfc.involved_change_types())
+    priorities = {
+        ct.priority for bfc in bundle_file_changes for ct in bfc.involved_change_types()
+    }
     # get the lowest priority
     for p in reversed(ChangeTypePriority):
         if p in priorities:

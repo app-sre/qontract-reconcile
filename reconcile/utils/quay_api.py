@@ -45,8 +45,7 @@ class QuayApi:
         body = r.json()
 
         # Using a set because members may be repeated
-        members = set()
-        members.update(member["name"] for member in body["members"])
+        members = {member["name"] for member in body["members"]}
 
         members_list = list(members)
         self.team_members[team] = members_list
