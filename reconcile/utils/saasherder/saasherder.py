@@ -1023,6 +1023,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 for target in tmpl.targets:
                     if not target.promotion:
                         continue
+                    if target.delete:
+                        continue
                     for publish in target.promotion.publish or []:
                         publisher_uid = target.uid(
                             parent_saas_file_name=saas_file.name,
