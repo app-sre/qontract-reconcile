@@ -212,7 +212,7 @@ ignore = [
     "TC002",   # Type-checking block
     "TC003",   # Type-checking block
     "TC004",   # Type-checking block
-    "TC006",   # User quoted type expressions in `typing.cast()`
+    "TC006",   # quoted type expressions in `typing.cast()`
     # Review later
     "FURB101", # Replace `open` with `pathlib.Path`
     "FURB103", # Replace `open` with `pathlib.Path`
