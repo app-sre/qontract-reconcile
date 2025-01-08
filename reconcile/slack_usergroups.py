@@ -314,7 +314,12 @@ def get_slack_usernames_from_owners(
             else:
                 raise TypeError(f"{type(repo_cli)} not supported")
 
-            repo_owners = repo_owner_class(git_cli=repo_cli, ref=ref)
+            repo_owners = repo_owner_class(
+                git_cli=repo_cli,
+                ref=ref,
+                # we just need the root level OWNERS file
+                recursive=False,
+            )
 
             try:
                 owners = repo_owners.get_root_owners()

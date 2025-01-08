@@ -50,6 +50,9 @@ class GithubRepositoryApi:
     ) -> None:
         self.cleanup()
 
+    def __str__(self) -> str:
+        return self._repo.html_url
+
     def cleanup(self) -> None:
         """
         Align with GitLabApi
