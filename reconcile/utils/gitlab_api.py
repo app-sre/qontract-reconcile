@@ -423,7 +423,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
     ) -> list[str]:
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         result = merge_request.changes()
-        changes = cast("dict", result)["changes"]
+        changes = cast(dict, result)["changes"]
         changed_paths = set()
         for change in changes:
             old_path = change["old_path"]
@@ -576,9 +576,9 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         manager: ProjectMergeRequestManager | ProjectIssueManager
         match item:
             case ProjectMergeRequest():
-                manager = cast("ProjectMergeRequestManager", item.manager)
+                manager = cast(ProjectMergeRequestManager, item.manager)
             case ProjectIssue():
-                manager = cast("ProjectIssueManager", item.manager)
+                manager = cast(ProjectIssueManager, item.manager)
             case _:
                 raise ValueError("item must be a ProjectMergeRequest or ProjectIssue")
         item_id = item.get_id()

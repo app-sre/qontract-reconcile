@@ -118,7 +118,7 @@ def test_list_invalid_paths():
 
 @pytest.fixture
 def vault_client_test() -> _VaultClient:
-    return cast("_VaultClient", None)
+    return cast(_VaultClient, None)
 
 
 def test_get_jenkins_secret_list_w_content(

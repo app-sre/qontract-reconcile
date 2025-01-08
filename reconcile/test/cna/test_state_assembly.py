@@ -42,7 +42,7 @@ def test_assemble_state_with_assets():
     state.add_raw_data([])
 
     assert state == State(
-        assets=cast("dict[AssetType, dict[str, Asset]]", {AssetType.NULL: assets})
+        assets=cast(dict[AssetType, dict[str, Asset]], {AssetType.NULL: assets})
     )
 
 
@@ -72,7 +72,7 @@ def test_assemble_state_raw_data():
     }
     state.add_raw_data(data)
 
-    assert state == State(assets=cast("dict[AssetType, dict[str, Asset]]", assets))
+    assert state == State(assets=cast(dict[AssetType, dict[str, Asset]], assets))
 
 
 def test_assemble_raises_duplicate_error():

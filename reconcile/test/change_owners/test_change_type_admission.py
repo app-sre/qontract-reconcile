@@ -74,7 +74,7 @@ def test_assert_restrictive_non_restrictive(
             ],
         )
     ]
-    changes = [cast("BundleFileChange", b)]  # the cast is to make mypy happy
+    changes = [cast(BundleFileChange, b)]  # the cast is to make mypy happy
 
     assert is_change_admitted(changes, "baz", {""})
 
@@ -121,7 +121,7 @@ def test_assert_restrictive_all_need_approval(
             ],
         ),
     ]
-    changes = [cast("BundleFileChange", b)]  # the cast is to make mypy happy
+    changes = [cast(BundleFileChange, b)]  # the cast is to make mypy happy
 
     assert is_change_admitted(changes, "baz", {"foo", "bar"})
     assert not is_change_admitted(changes, "baz", {"bar"})
