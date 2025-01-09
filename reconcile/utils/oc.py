@@ -213,20 +213,13 @@ class OCDecorators:
         return wrapper
 
 
+@dataclass
 class OCProcessReconcileTimeDecoratorMsg:
-    def __init__(
-        self,
-        namespace: str,
-        resource: OR,
-        server: str | None,
-        slow_oc_reconcile_threshold: float,
-        is_log_slow_oc_reconcile: bool,
-    ):
-        self.namespace = namespace
-        self.resource = resource
-        self.server = server
-        self.slow_oc_reconcile_threshold = slow_oc_reconcile_threshold
-        self.is_log_slow_oc_reconcile = is_log_slow_oc_reconcile
+    namespace: str
+    resource: OR
+    server: str | None
+    slow_oc_reconcile_threshold: float
+    is_log_slow_oc_reconcile: bool
 
 
 def oc_process(template, parameters=None):
