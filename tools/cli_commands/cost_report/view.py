@@ -127,6 +127,10 @@ TOTAL_COST = """\
 Total Cost: {total}
 """
 
+EMPTY_OPTIMIZATION = """\
+## {app_name}
+"""
+
 OPTIMIZATION = """\
 ## {app_name}
 
@@ -442,6 +446,10 @@ def render_openshift_cost_report(
 def render_optimization(
     report: OptimizationReport,
 ) -> str:
+    if not report.items:
+        return EMPTY_OPTIMIZATION.format(
+            app_name=report.app_name,
+        )
     items = [
         ViewOptimizationReportItem(
             namespace=f"{i.cluster}/{i.project}",

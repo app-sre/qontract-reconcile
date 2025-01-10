@@ -253,3 +253,20 @@ def test_openshift_cost_report_render(
     output = openshift_cost_optimization_report_command.render(reports)
 
     assert output == expected_output
+
+
+def test_openshift_cost_report_render_no_items(
+    openshift_cost_optimization_report_command: OpenShiftCostOptimizationReportCommand,
+    fx: Callable,
+) -> None:
+    expected_output = fx("openshift_cost_optimization_report_without_items.md")
+    reports = [
+        OptimizationReport(
+            app_name=APP.name,
+            items=[],
+        )
+    ]
+
+    output = openshift_cost_optimization_report_command.render(reports)
+
+    assert output == expected_output
