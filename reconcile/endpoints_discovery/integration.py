@@ -15,12 +15,13 @@ from reconcile.endpoints_discovery.merge_request_manager import (
     EndpointsToDelete,
     MergeRequestManager,
 )
-from reconcile.gql_definitions.endpoints_discovery.namespaces import (
+from reconcile.gql_definitions.endpoints_discovery.apps import (
     AppEndPointsV1,
+    AppV1,
     NamespaceV1,
 )
-from reconcile.gql_definitions.endpoints_discovery.namespaces import (
-    query as namespaces_query,
+from reconcile.gql_definitions.endpoints_discovery.apps import (
+    query as apps_query,
 )
 from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.typed_queries.github_orgs import get_github_orgs
@@ -44,7 +45,7 @@ from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "endpoints-discovery"
-QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 1)
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 
 class EndpointsDiscoveryIntegrationParams(PydanticRunParams):
@@ -52,7 +53,7 @@ class EndpointsDiscoveryIntegrationParams(PydanticRunParams):
     internal: bool | None = None
     use_jump_host: bool = True
     cluster_name: set[str] | None = None
-    namespace_name: str | None = None
+    app_name: str | None = None
     endpoint_tmpl_resource: str = "/endpoints-discovery/endpoint-template.yml"
     # extended early exit parameters
     enable_extended_early_exit: bool = False
@@ -71,14 +72,25 @@ class Route(BaseModel):
 
 
 def endpoint_prefix(namespace: NamespaceV1) -> str:
+    """Return the prefix for the endpoint name."""
     return f"{QONTRACT_INTEGRATION}/{namespace.cluster.name}/{namespace.name}/"
 
 
+def parse_endpoint_name(endpoint_name: str) -> tuple[str, str, list[str]]:
+    """Parse the endpoint name into its components."""
+    integration_name, cluster, namespace, route_names = endpoint_name.split("/")
+    if integration_name != QONTRACT_INTEGRATION:
+        raise ValueError("Invalid integration name")
+    return cluster, namespace, route_names.split("|")
+
+
 def compile_endpoint_name(endpoint_prefix: str, route: Route) -> str:
+    """Compile the endpoint name from the prefix and route."""
     return f"{endpoint_prefix}{route.name}"
 
 
 def render_template(template: str, endpoint_name: str, route: Route) -> dict:
+    """Render the endpoint yaml template used in the merge request."""
     yml = create_ruamel_instance()
     return yml.load(
         jinja2.Template(
@@ -95,7 +107,7 @@ class RunnerParams(TypedDict):
     oc_map: OCMap
     merge_request_manager: MergeRequestManager
     endpoint_template: str
-    namespaces: Iterable[NamespaceV1]
+    apps: Iterable[AppV1]
 
 
 class EndpointsDiscoveryIntegration(
@@ -113,20 +125,16 @@ class EndpointsDiscoveryIntegration(
         An application can have endpoints in multiple clusters and this may cause merge conflicts."""
         return None
 
-    def get_namespaces(
+    def get_apps(
         self,
         query_func: Callable,
-        cluster_names: Iterable[str] | None = None,
-        namespace_name: str | None = None,
-    ) -> list[NamespaceV1]:
-        """Return namespaces to consider for the integration."""
+        app_name: str | None = None,
+    ) -> list[AppV1]:
+        """Return all applications to consider for the integration."""
         return [
-            ns
-            for ns in namespaces_query(query_func).namespaces or []
-            if integration_is_enabled(self.name, ns.cluster)
-            and (not cluster_names or ns.cluster.name in cluster_names)
-            and (not namespace_name or ns.name == namespace_name)
-            and not ns.delete
+            app
+            for app in apps_query(query_func).apps or []
+            if (not app_name or app.name == app_name)
         ]
 
     def get_routes(self, oc_map: OCMap, namespace: NamespaceV1) -> list[Route]:
@@ -155,9 +163,8 @@ class EndpointsDiscoveryIntegration(
             for (host, tls), names in routes.items()
         ]
 
-    def get_endpoint_changes(
+    def get_namespace_endpoint_changes(
         self,
-        app: str,
         endpoint_prefix: str,
         endpoint_template: str,
         endpoints: Iterable[AppEndPointsV1],
@@ -186,108 +193,140 @@ class EndpointsDiscoveryIntegration(
             equal=lambda endpoint, route: endpoint.url == route.url,
         )
 
-        endpoints_to_add = []
-        endpoints_to_change = []
-        endpoints_to_delete = []
-
-        for add in diff.add.values():
-            logging.info(f"{app}: Adding endpoint for route {add.name}")
-            endpoints_to_add.append(
-                Endpoint(
-                    name=compile_endpoint_name(endpoint_prefix, add),
-                    data=render_template(
-                        endpoint_template,
-                        endpoint_name=compile_endpoint_name(endpoint_prefix, add),
-                        route=add,
-                    ),
-                )
+        endpoints_to_add = [
+            Endpoint(
+                name=compile_endpoint_name(endpoint_prefix, add),
+                data=render_template(
+                    endpoint_template,
+                    endpoint_name=compile_endpoint_name(endpoint_prefix, add),
+                    route=add,
+                ),
             )
-
-        for pair in diff.change.values():
-            logging.info(
-                f"{app}: Changing endpoint {pair.current.name} for route {pair.desired.name}"
+            for add in diff.add.values()
+        ]
+        endpoints_to_change = [
+            Endpoint(
+                name=pair.current.name,
+                data=render_template(
+                    endpoint_template,
+                    endpoint_name=compile_endpoint_name(endpoint_prefix, pair.desired),
+                    route=pair.desired,
+                ),
             )
-            endpoints_to_change.append(
-                Endpoint(
-                    name=pair.current.name,
-                    data=render_template(
-                        endpoint_template,
-                        endpoint_name=compile_endpoint_name(
-                            endpoint_prefix, pair.desired
-                        ),
-                        route=pair.desired,
-                    ),
-                )
-            )
-        for delete in diff.delete.values():
-            logging.info(f"{app}: Deleting endpoint for route {delete.name}")
-            endpoints_to_delete.append(Endpoint(name=delete.name))
+            for pair in diff.change.values()
+        ]
+        endpoints_to_delete = [
+            Endpoint(name=delete.name) for delete in diff.delete.values()
+        ]
         return endpoints_to_add, endpoints_to_change, endpoints_to_delete
 
-    def get_apps(
-        self, oc_map: OCMap, endpoint_template: str, namespaces: Iterable[NamespaceV1]
+    def process(
+        self,
+        oc_map: OCMap,
+        endpoint_template: str,
+        apps: Iterable[AppV1],
+        cluster_names: Iterable[str] | None = None,
     ) -> list[App]:
         """Compile a list of apps with their endpoints to add, change and delete."""
-        apps: dict[str, App] = {}
-        for namespace in namespaces:
-            logging.debug(
-                f"Processing namespace {namespace.cluster.name}/{namespace.name}"
-            )
-            routes = self.get_routes(oc_map, namespace)
-            endpoints_to_add, endpoints_to_change, endpoints_to_delete = (
-                self.get_endpoint_changes(
-                    app=namespace.app.name,
-                    endpoint_prefix=endpoint_prefix(namespace),
-                    endpoint_template=endpoint_template,
-                    endpoints=namespace.app.end_points or [],
-                    routes=routes,
-                )
-            )
-            # update the app with the endpoints per namespace
-            app = apps.setdefault(
-                namespace.app.path,
-                App(name=namespace.app.name, path=namespace.app.path),
-            )
-            app.endpoints_to_add += endpoints_to_add
-            app.endpoints_to_change += endpoints_to_change
-            app.endpoints_to_delete += endpoints_to_delete
+        apps_with_changes: list[App] = []
+        for app in apps:
+            app_endpoints = App(name=app.name, path=app.path)
+            for namespace in app.namespaces or []:
+                if not self.is_enabled(namespace, cluster_names=cluster_names):
+                    continue
 
-        # return only apps endpoint changes
-        return [
-            app
-            for app in apps.values()
-            if app.endpoints_to_add
-            or app.endpoints_to_change
-            or app.endpoints_to_delete
-        ]
+                logging.debug(
+                    f"Processing namespace {namespace.cluster.name}/{namespace.name}"
+                )
+                routes = self.get_routes(oc_map, namespace)
+                endpoints_to_add, endpoints_to_change, endpoints_to_delete = (
+                    self.get_namespace_endpoint_changes(
+                        endpoint_prefix=endpoint_prefix(namespace),
+                        endpoint_template=endpoint_template,
+                        endpoints=app.end_points or [],
+                        routes=routes,
+                    )
+                )
+                # update the app with the endpoints per namespace
+                app_endpoints.endpoints_to_add += endpoints_to_add
+                app_endpoints.endpoints_to_change += endpoints_to_change
+                app_endpoints.endpoints_to_delete += endpoints_to_delete
+
+            # remove endpoints from deleted namespaces
+            namspace_names = {(ns.cluster.name, ns.name) for ns in app.namespaces or []}
+            for ep in app.end_points or []:
+                try:
+                    ep_cluster, ep_namespace, _ = parse_endpoint_name(ep.name)
+                except ValueError:
+                    continue
+                if (ep_cluster, ep_namespace) not in namspace_names:
+                    app_endpoints.endpoints_to_delete.append(Endpoint(name=ep.name))
+
+            # log the changes
+            for add in app_endpoints.endpoints_to_add:
+                logging.info(f"{app.name}: Adding endpoint for route {add.name}")
+
+            for change in app_endpoints.endpoints_to_change:
+                logging.info(f"{app.name}: Changing endpoint for route {change.name}")
+
+            for delete in app_endpoints.endpoints_to_delete:
+                logging.info(f"{app.name}: Deleting endpoint for route {delete.name}")
+
+            if (
+                app_endpoints.endpoints_to_add
+                or app_endpoints.endpoints_to_change
+                or app_endpoints.endpoints_to_delete
+            ):
+                # ignore apps without changes
+                apps_with_changes.append(app_endpoints)
+
+        return apps_with_changes
 
     def runner(
         self,
         oc_map: OCMap,
         merge_request_manager: MergeRequestManager,
         endpoint_template: str,
-        namespaces: Iterable[NamespaceV1],
+        apps: Iterable[AppV1],
     ) -> ExtendedEarlyExitRunnerResult:
         """Reconcile the endpoints for all namespaces."""
-        apps = self.get_apps(oc_map, endpoint_template, namespaces)
-        merge_request_manager.create_merge_request(apps=apps)
-        return ExtendedEarlyExitRunnerResult(payload={}, applied_count=len(apps))
+        apps_with_changes = self.process(
+            oc_map,
+            endpoint_template,
+            apps,
+            cluster_names=self.params.cluster_name,
+        )
+        merge_request_manager.create_merge_request(apps=apps_with_changes)
+        return ExtendedEarlyExitRunnerResult(
+            payload={}, applied_count=len(apps_with_changes)
+        )
+
+    def is_enabled(
+        self, namespace: NamespaceV1, cluster_names: Iterable[str] | None = None
+    ) -> bool:
+        """Check if the integration is enabled for the given namespace."""
+        return (
+            integration_is_enabled(self.name, namespace.cluster)
+            and (not cluster_names or namespace.cluster.name in cluster_names)
+            and not namespace.delete
+        )
 
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:
         """Run the integration."""
         gql_api = gql.get_api()
-        namespaces = self.get_namespaces(
-            gql_api.query,
-            cluster_names=self.params.cluster_name,
-            namespace_name=self.params.namespace_name,
-        )
-        if not namespaces:
+        apps = self.get_apps(gql_api.query, app_name=self.params.app_name)
+        if not apps:
             # nothing to do
             return
 
         oc_map = init_oc_map_from_namespaces(
-            namespaces=namespaces,
+            namespaces=[
+                ns
+                for app in apps
+                for ns in app.namespaces or []
+                if self.is_enabled(ns, self.params.cluster_name)
+            ],
             secret_reader=self.secret_reader,
             integration=QONTRACT_INTEGRATION,
             use_jump_host=self.params.use_jump_host,
@@ -326,7 +365,7 @@ class EndpointsDiscoveryIntegration(
             "oc_map": oc_map,
             "merge_request_manager": merge_request_manager,
             "endpoint_template": endpoint_template,
-            "namespaces": namespaces,
+            "apps": apps,
         }
 
         if self.params.enable_extended_early_exit and get_feature_toggle_state(

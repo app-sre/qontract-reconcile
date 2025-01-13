@@ -11,10 +11,7 @@ from reconcile.endpoints_discovery.integration import (
     render_template,
 )
 from reconcile.endpoints_discovery.merge_request_manager import App, Endpoint
-from reconcile.gql_definitions.endpoints_discovery.namespaces import (
-    AppEndPointsV1,
-    NamespaceV1,
-)
+from reconcile.gql_definitions.endpoints_discovery.apps import AppEndPointsV1, AppV1
 from reconcile.utils.oc_map import OCMap
 
 TEMPLATE = """
@@ -33,10 +30,9 @@ def test_endpoints_discovery_integration_route() -> None:
     assert r.url == "example.com:80"
 
 
-def test_endpoints_discovery_integration_endpoint_prefix(
-    namespaces: Sequence[NamespaceV1],
-) -> None:
-    ns = namespaces[0]
+def test_endpoints_discovery_integration_endpoint_prefix(apps: Sequence[AppV1]) -> None:
+    assert apps and apps[0].namespaces
+    ns = apps[0].namespaces[0]
     assert endpoint_prefix(namespace=ns).endswith(ns.name + "/")
 
 
@@ -67,24 +63,37 @@ def test_endpoints_discovery_integration_get_desired_state_shard_config(
     assert intg.get_desired_state_shard_config() is None  # type: ignore
 
 
-def test_endpoints_discovery_integration_get_namespaces(
+def test_endpoints_discovery_integration_get_apps(
     query_func: Callable,
     intg: EndpointsDiscoveryIntegration,
 ) -> None:
-    namespaces = intg.get_namespaces(query_func)
-    assert len(namespaces) == 2
-    assert namespaces[0].name == "app-1-ns-1"
-    assert namespaces[0].app.end_points is None
-    assert namespaces[1].name == "app-2-ns-1"
-    assert len(namespaces[1].app.end_points) == 1  # type: ignore
+    apps = intg.get_apps(query_func)
+    assert len(apps) == 6
+
+
+def test_endpoints_discovery_integration_is_enabled(
+    intg: EndpointsDiscoveryIntegration,
+    apps: Sequence[AppV1],
+) -> None:
+    assert len(apps) == 6
+    for app in apps:
+        if app.name in {"app-deleted-ns", "app-integration-disabled"}:
+            assert app.namespaces
+            assert not intg.is_enabled(app.namespaces[0])
+
+        if app.name == "app-no-endpoints":
+            assert app.namespaces
+            assert intg.is_enabled(app.namespaces[0])
+            assert not intg.is_enabled(app.namespaces[0], "run-for-this-cluster-only")
 
 
 def test_endpoints_discovery_integration_get_routes(
     oc_map: OCMap,
     intg: EndpointsDiscoveryIntegration,
-    namespaces: Sequence[NamespaceV1],
+    apps: Sequence[AppV1],
 ) -> None:
-    routes = intg.get_routes(oc_map, namespaces[0])
+    assert apps and apps[0].namespaces
+    routes = intg.get_routes(oc_map, apps[0].namespaces[0])
     # see fake_route fixture!
     assert len(routes) == 1
     assert isinstance(routes[0], Route)
@@ -94,8 +103,7 @@ def test_endpoints_discovery_integration_get_routes(
 def test_endpoints_discovery_integration_get_endpoint_changes_no_routes_no_endpoints(
     intg: EndpointsDiscoveryIntegration,
 ) -> None:
-    assert intg.get_endpoint_changes(
-        app="app",
+    assert intg.get_namespace_endpoint_changes(
         endpoint_prefix="prefix-",
         endpoint_template=TEMPLATE,
         endpoints=[],
@@ -127,8 +135,7 @@ def test_endpoints_discovery_integration_get_endpoint_changes(
         Route(name="up2date", host="up2date.com", tls=False),
     ]
     endpoints_to_add, endpoints_to_change, endpoints_to_delete = (
-        intg.get_endpoint_changes(
-            app="app",
+        intg.get_namespace_endpoint_changes(
             endpoint_prefix="prefix-",
             endpoint_template=TEMPLATE,
             endpoints=endpoints,
@@ -146,16 +153,16 @@ def test_endpoints_discovery_integration_get_endpoint_changes(
     assert endpoints_to_delete == [Endpoint(name="prefix-delete", data={})]
 
 
-def test_endpoints_discovery_integration_get_apps(
+def test_endpoints_discovery_integration_process(
     oc_map: OCMap,
     intg: EndpointsDiscoveryIntegration,
-    namespaces: Sequence[NamespaceV1],
+    apps: Sequence[AppV1],
 ) -> None:
-    apps = intg.get_apps(oc_map, TEMPLATE, namespaces)
-    assert apps == [
+    mr_apps = intg.process(oc_map, TEMPLATE, apps)
+    assert mr_apps == [
         App(
-            name="app-1",
-            path="/path/app-1.yml",
+            name="app-no-endpoints",
+            path="/path/app-no-endpoints.yml",
             endpoints_to_add=[
                 Endpoint(
                     name="endpoints-discovery/cluster-1/app-1-ns-1/fake-route|zzz-fake-route",
@@ -169,8 +176,8 @@ def test_endpoints_discovery_integration_get_apps(
             endpoints_to_delete=[],
         ),
         App(
-            name="app-2",
-            path="/path/app-2.yml",
+            name="app-manual-endpoints",
+            path="/path/app-manual-endpoints.yml",
             endpoints_to_add=[
                 Endpoint(
                     name="endpoints-discovery/cluster-1/app-2-ns-1/fake-route|zzz-fake-route",
@@ -183,19 +190,31 @@ def test_endpoints_discovery_integration_get_apps(
             endpoints_to_change=[],
             endpoints_to_delete=[],
         ),
+        App(
+            name="app-obsolete-endpoints",
+            path="/path/app-obsolete-endpoints.yml",
+            endpoints_to_add=[],
+            endpoints_to_change=[],
+            endpoints_to_delete=[
+                Endpoint(
+                    name="endpoints-discovery/cluster-1/old-namespace/old-route-name",
+                    data={},
+                )
+            ],
+        ),
     ]
 
 
 def test_endpoints_discovery_integration_runner(
     mocker: MockerFixture,
     oc_map: OCMap,
-    namespaces: Sequence[NamespaceV1],
+    apps: Sequence[AppV1],
     intg: EndpointsDiscoveryIntegration,
 ) -> None:
     mrm_mock = mocker.patch(
         "reconcile.endpoints_discovery.integration.MergeRequestManager", autospec=True
     )
-    apps = [
+    mr_apps = [
         App(
             name="app-2",
             path="/path/app-2.yml",
@@ -212,6 +231,6 @@ def test_endpoints_discovery_integration_runner(
             endpoints_to_delete=[],
         )
     ]
-    intg.get_apps = mocker.MagicMock(return_value=apps)  # type: ignore
-    intg.runner(oc_map, mrm_mock, TEMPLATE, namespaces)
-    mrm_mock.create_merge_request.assert_called_once_with(apps)
+    intg.process = mocker.MagicMock(return_value=mr_apps)  # type: ignore
+    intg.runner(oc_map, mrm_mock, TEMPLATE, apps)
+    mrm_mock.create_merge_request.assert_called_once_with(mr_apps)

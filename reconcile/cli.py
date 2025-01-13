@@ -1833,7 +1833,7 @@ def endpoints_discovery(
         internal=internal,
         use_jump_host=use_jump_host,
         cluster_name=cluster_name,
-        namespace_name=namespace_name,
+        app_name=namespace_name,
         enable_extended_early_exit=enable_extended_early_exit,
         extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
         log_cached_log_output=log_cached_log_output,
