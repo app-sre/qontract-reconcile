@@ -9,7 +9,7 @@ from reconcile.endpoints_discovery.integration import (
     EndpointsDiscoveryIntegration,
     EndpointsDiscoveryIntegrationParams,
 )
-from reconcile.gql_definitions.endpoints_discovery.namespaces import NamespaceV1
+from reconcile.gql_definitions.endpoints_discovery.apps import AppV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import OCNative
 from reconcile.utils.oc_map import OCMap
@@ -27,30 +27,25 @@ def intg() -> EndpointsDiscoveryIntegration:
 
 @pytest.fixture
 def raw_fixture_data(fx: Fixtures) -> dict[str, Any]:
-    return fx.get_anymarkup("namespaces.yml")
+    return fx.get_anymarkup("apps.yml")
 
 
 @pytest.fixture
 def query_func(
-    data_factory: Callable[[type[NamespaceV1], Mapping[str, Any]], Mapping[str, Any]],
+    data_factory: Callable[[type[AppV1], Mapping[str, Any]], Mapping[str, Any]],
     raw_fixture_data: dict[str, Any],
 ) -> Callable:
     def q(*args: Any, **kwargs: Any) -> dict:
         return {
-            "namespaces": [
-                data_factory(NamespaceV1, item)
-                for item in raw_fixture_data["namespaces"]
-            ]
+            "apps": [data_factory(AppV1, item) for item in raw_fixture_data["apps"]]
         }
 
     return q
 
 
 @pytest.fixture
-def namespaces(
-    intg: EndpointsDiscoveryIntegration, query_func: Callable
-) -> list[NamespaceV1]:
-    return intg.get_namespaces(query_func)
+def apps(intg: EndpointsDiscoveryIntegration, query_func: Callable) -> list[AppV1]:
+    return intg.get_apps(query_func)
 
 
 @pytest.fixture

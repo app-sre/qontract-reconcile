@@ -58,20 +58,20 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query EndPointsDiscoveryNamespaces {
-  namespaces: namespaces_v1 {
+query EndPointsDiscoveryApps {
+  apps: apps_v1 {
+    path
     name
-    delete
-    clusterAdmin
-    cluster {
-      ... OcConnectionCluster
-    }
-    app {
-      path
+    endPoints {
       name
-      endPoints {
-        name
-        url
+      url
+    }
+    namespaces {
+      name
+      delete
+      clusterAdmin
+      cluster {
+        ...OcConnectionCluster
       }
     }
   }
@@ -90,25 +90,25 @@ class AppEndPointsV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
 
 
-class AppV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    name: str = Field(..., alias="name")
-    end_points: Optional[list[AppEndPointsV1]] = Field(..., alias="endPoints")
-
-
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     cluster: OcConnectionCluster = Field(..., alias="cluster")
-    app: AppV1 = Field(..., alias="app")
 
 
-class EndPointsDiscoveryNamespacesQueryData(ConfiguredBaseModel):
+class AppV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+    name: str = Field(..., alias="name")
+    end_points: Optional[list[AppEndPointsV1]] = Field(..., alias="endPoints")
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
 
-def query(query_func: Callable, **kwargs: Any) -> EndPointsDiscoveryNamespacesQueryData:
+class EndPointsDiscoveryAppsQueryData(ConfiguredBaseModel):
+    apps: Optional[list[AppV1]] = Field(..., alias="apps")
+
+
+def query(query_func: Callable, **kwargs: Any) -> EndPointsDiscoveryAppsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -121,7 +121,7 @@ def query(query_func: Callable, **kwargs: Any) -> EndPointsDiscoveryNamespacesQu
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        EndPointsDiscoveryNamespacesQueryData: queried data parsed into generated classes
+        EndPointsDiscoveryAppsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return EndPointsDiscoveryNamespacesQueryData(**raw_data)
+    return EndPointsDiscoveryAppsQueryData(**raw_data)
