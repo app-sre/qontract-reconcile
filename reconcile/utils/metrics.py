@@ -65,8 +65,8 @@ execution_counter = Counter(
 )
 
 reconcile_time = Histogram(
-    name="qontract_reconcile_function_" "elapsed_seconds_since_bundle_commit",
-    documentation="Run time seconds for tracked " "functions",
+    name="qontract_reconcile_function_elapsed_seconds_since_bundle_commit",
+    documentation="Run time seconds for tracked functions",
     labelnames=["name", "integration"],
     buckets=(60.0, 150.0, 300.0, 600.0, 1200.0, 1800.0, 2400.0, 3000.0, float("inf")),
 )
@@ -133,8 +133,7 @@ class BaseMetric(ABC, BaseModel):
         class name. Removes the suffix `_metric` is present. Subclasses can override this.
         """
         metric_name = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__name__).lower()
-        if metric_name.endswith("_metric"):
-            metric_name = metric_name[:-7]
+        metric_name = metric_name.removesuffix("_metric")
         return metric_name
 
 
@@ -151,8 +150,7 @@ class GaugeMetric(BaseMetric):
     @classmethod
     def name(cls) -> str:
         metric_name = super().name()
-        if metric_name.endswith("_gauge"):
-            metric_name = metric_name[:-6]
+        metric_name = metric_name.removesuffix("_gauge")
         return metric_name
 
 
@@ -175,8 +173,7 @@ class CounterMetric(BaseMetric):
     @classmethod
     def name(cls) -> str:
         metric_name = super().name()
-        if metric_name.endswith("_counter"):
-            metric_name = metric_name[:-8]
+        metric_name = metric_name.removesuffix("_counter")
         return metric_name
 
 
@@ -221,9 +218,7 @@ class MetricsContainer:
         self._counters[counter.__class__][label_values] = current_value + by
 
     def _aggregate_scopes(self) -> "MetricsContainer":
-        containers = [self]
-        for sub in self._scopes.values():
-            containers.append(sub._aggregate_scopes())
+        containers = [self] + [sub._aggregate_scopes() for sub in self._scopes.values()]
         return join_metric_containers(containers)
 
     def collect(self) -> Generator[Metric, None, None]:

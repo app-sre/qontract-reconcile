@@ -19,8 +19,7 @@ def filter_accounts(accounts: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         sharing = a.get("sharing")
         if sharing:
             sharing_account_names.add(a["name"])
-            for s in sharing:
-                sharing_account_names.add(s["account"]["name"])
+            sharing_account_names.update(s["account"]["name"] for s in sharing)
 
     return [a for a in accounts if a["name"] in sharing_account_names]
 

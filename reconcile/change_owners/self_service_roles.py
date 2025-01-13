@@ -139,7 +139,7 @@ def change_type_contexts_for_self_service_roles(
     resolved_approvers = resolve_role_members([r for r in roles if r.self_service])
 
     # match every BundleChange with every relevant ChangeTypeV1
-    change_type_contexts = []
+    change_type_contexts: list[tuple[BundleFileChange, ChangeTypeContext]] = []
     for bc in bundle_changes:
         for ctp in change_type_processors:
             for ownership in ctp.find_context_file_refs(
@@ -177,8 +177,8 @@ def change_type_contexts_for_self_service_roles(
                         else []
                     )
                 })
-                for role in owning_roles.values():
-                    change_type_contexts.append((
+                change_type_contexts.extend(
+                    (
                         bc,
                         ChangeTypeContext(
                             change_type_processor=ctp,
@@ -193,7 +193,9 @@ def change_type_contexts_for_self_service_roles(
                             change_owner_labels=change_type_labels_from_role(role),
                             context_file=ownership.context_file_ref,
                         ),
-                    ))
+                    )
+                    for role in owning_roles.values()
+                )
     return change_type_contexts
 
 

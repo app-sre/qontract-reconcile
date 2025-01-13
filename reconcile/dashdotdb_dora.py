@@ -110,7 +110,7 @@ class DeploymentDB:
         trigger_reason_pattern: str,
         app_env_since_list: Iterable[tuple[AppEnv, datetime]],
     ) -> list[tuple[AppEnv, Deployment]]:
-        deployments = []
+        deployments: list[tuple[AppEnv, Deployment]] = []
         with self.conn.cursor() as cur:
             subq = [
                 sql.SQL(
@@ -137,11 +137,13 @@ class DeploymentDB:
 
             cur.execute(query)
 
-            for record in cur:
-                deployments.append((
+            deployments.extend(
+                (
                     AppEnv(record[0], record[1]),
                     Deployment(record[2], record[3]),
-                ))
+                )
+                for record in cur
+            )
 
         if not deployments:
             LOG.info("No deployments found")

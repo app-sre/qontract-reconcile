@@ -127,7 +127,7 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
 
     def _generate_db_access(self) -> str:
         statements = [
-            f"GRANT {','.join(access.grants)} ON ALL TABLES IN SCHEMA \"{access.target.dbschema}\" TO \"{self._get_user()}\";"
+            f'GRANT {",".join(access.grants)} ON ALL TABLES IN SCHEMA "{access.target.dbschema}" TO "{self._get_user()}";'
             for access in self.db_access.access or []
         ]
         return "\n".join(statements)
@@ -149,10 +149,10 @@ DROP ROLE IF EXISTS "{self._get_user()}";\\gexec"""
                     f'REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
                 )
             else:
-                for grant in set(grants) - set(desired_grants[schema]):
-                    statements.append(
-                        f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
-                    )
+                statements.extend(
+                    f'REVOKE {grant} ON ALL TABLES IN SCHEMA "{schema}" FROM "{self._get_user()}";'
+                    for grant in set(grants) - set(desired_grants[schema])
+                )
         return "".join(statements)
 
     def _provision_script(self) -> str:
@@ -445,22 +445,20 @@ def _populate_resources(
         engine=engine,
     )
     script_secret_name = f"{resource_prefix}-script"
-    managed_resources.append(
+    managed_resources.extend([
         DBAMResource(
             resource=generate_script_secret_spec(
                 script_secret_name,
                 generator.generate_script(),
             ),
             clean_up=True,
-        )
-    )
-    # create user secret
-    managed_resources.append(
+        ),
+        # create user secret
         DBAMResource(
             resource=generate_user_secret_spec(resource_prefix, user_connection),
             clean_up=False,
-        )
-    )
+        ),
+    ])
     # create pull secret
     labels = pull_secret["labels"] or {}
     pull_secret_resources = orb.fetch_provider_vault_secret(
@@ -474,11 +472,9 @@ def _populate_resources(
         integration_version=QONTRACT_INTEGRATION_VERSION,
         settings=settings,
     )
-    managed_resources.append(
-        DBAMResource(resource=pull_secret_resources, clean_up=True)
-    )
-    # create job
-    managed_resources.append(
+    managed_resources.extend([
+        DBAMResource(resource=pull_secret_resources, clean_up=True),
+        # create job
         DBAMResource(
             resource=get_job_spec(
                 JobData(
@@ -493,8 +489,8 @@ def _populate_resources(
                 )
             ),
             clean_up=True,
-        )
-    )
+        ),
+    ])
 
     return managed_resources
 

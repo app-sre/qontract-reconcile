@@ -130,16 +130,14 @@ class AppInterfaceRepo:
             elif c.change_schema is None or c.change_schema == ctp.context_schema:
                 # the change happens in the self_service related files
                 for ssc in role.self_service or []:
-                    for df in ssc.datafiles or []:
-                        bundle_files.append(
-                            self.bundle_file_for_path(BundleFileType.DATAFILE, df.path)
-                        )
-                    for rf_path in ssc.resources or []:
-                        bundle_files.append(
-                            self.bundle_file_for_path(
-                                BundleFileType.RESOURCEFILE, rf_path
-                            )
-                        )
+                    bundle_files.extend(
+                        self.bundle_file_for_path(BundleFileType.DATAFILE, df.path)
+                        for df in ssc.datafiles or []
+                    )
+                    bundle_files.extend(
+                        self.bundle_file_for_path(BundleFileType.RESOURCEFILE, rf_path)
+                        for rf_path in ssc.resources or []
+                    )
         return bundle_files
 
     def bundle_files_with_schemas(self, schema: str) -> list[BundleFileChange]:

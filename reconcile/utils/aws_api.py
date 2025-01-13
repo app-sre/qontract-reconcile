@@ -1,4 +1,5 @@
 import logging
+import operator
 import os
 import re
 import time
@@ -191,7 +192,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         service_name,
         region_name: str | None = None,
     ):
-        region = region_name if region_name else session.region_name
+        region = region_name or session.region_name
         client = session.client(
             service_name,
             region_name=region,
@@ -205,7 +206,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
     def _get_session_resource(
         session: Session, service_name, region_name: str | None = None
     ):
-        region = region_name if region_name else session.region_name
+        region = region_name or session.region_name
         return session.resource(service_name, region_name=region)
 
     def _account_ec2_client(
@@ -1000,12 +1001,13 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         assumed_role_data = self._get_account_assume_data(account)
         assumed_ec2 = self._get_assumed_role_client(*assumed_role_data)
         nat_gateways = assumed_ec2.describe_nat_gateways()
-        egress_ips = set()
+        egress_ips: set[str] = set()
         for nat in nat_gateways.get("NatGateways") or []:
             if nat["VpcId"] != vpc_id:
                 continue
-            for address in nat["NatGatewayAddresses"]:
-                egress_ips.add(address["PublicIp"])
+            egress_ips.update(
+                address["PublicIp"] for address in nat["NatGatewayAddresses"]
+            )
 
         return egress_ips
 
@@ -1481,13 +1483,11 @@ class AWSApi:  # pylint: disable=too-many-public-methods
             client.delete_hosted_zone(Id=zone_id)
         except client.exceptions.NoSuchHostedZone:
             logging.error(
-                f"[{account_name}] Error trying to delete "
-                f"unknown DNS zone {zone_id}"
+                f"[{account_name}] Error trying to delete unknown DNS zone {zone_id}"
             )
         except client.exceptions.HostedZoneNotEmpty:
             logging.error(
-                f"[{account_name}] Cannot delete DNS zone that "
-                f"is not empty {zone_id}"
+                f"[{account_name}] Cannot delete DNS zone that is not empty {zone_id}"
             )
         except Exception as e:
             logging.error(f"[{account_name}] unhandled exception: {e}")
@@ -1697,7 +1697,7 @@ class AWSApi:  # pylint: disable=too-many-public-methods
         return [
             obj["Key"]
             for obj in sorted(
-                objects, key=lambda obj: obj["LastModified"], reverse=True
+                objects, key=operator.itemgetter("LastModified"), reverse=True
             )
         ]
 

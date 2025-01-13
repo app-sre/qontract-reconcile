@@ -169,7 +169,7 @@ def integ_params() -> dict[str, Any]:
     }
 
 
-class Mocks:
+class Mocks:  # noqa: B903
     def __init__(self, oc: MagicMock, vault: MagicMock, submit_mr: MagicMock) -> None:
         self.oc = oc
         self.vault = vault

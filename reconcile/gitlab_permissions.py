@@ -91,11 +91,12 @@ class GroupPermissionHandler:
         current_state: dict[str, GroupSpec],
     ) -> None:
         # gather list of app-interface managed repos
-        managed_repos: set[str] = set()
         instance = queries.get_gitlab_instance()
-        for project_request in instance.get("projectRequests", []):
-            for r in project_request.get("projects", []):
-                managed_repos.add(f"{instance['url']}/{project_request['group']}/{r}")
+        managed_repos = {
+            f"{instance['url']}/{project_request['group']}/{r}"
+            for project_request in instance.get("projectRequests", [])
+            for r in project_request.get("projects", [])
+        }
 
         # get the diff data
         diff_data = diff_mappings(

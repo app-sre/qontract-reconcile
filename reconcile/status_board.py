@@ -194,40 +194,40 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 )
             )
             # new product, so it misses also the applications
-            for app_name in desired_product_apps[product_name]:
-                return_list.append(
-                    StatusBoardHandler(
-                        action="create",
-                        status_board_object=create_app(app_name, product),
-                    )
+            return_list.extend(
+                StatusBoardHandler(
+                    action="create",
+                    status_board_object=create_app(app_name, product),
                 )
+                for app_name in desired_product_apps[product_name]
+            )
 
         # existing product, only add/remove applications
         for product_name, apps in diff_result.change.items():
             product = current_products[product_name]
-            for app_name in apps.desired - apps.current:
-                return_list.append(
-                    StatusBoardHandler(
-                        action="create",
-                        status_board_object=create_app(app_name, product),
-                    )
+            return_list.extend(
+                StatusBoardHandler(
+                    action="create",
+                    status_board_object=create_app(app_name, product),
                 )
+                for app_name in apps.desired - apps.current
+            )
             to_delete = apps.current - apps.desired
-            for application in product.applications or []:
-                if application.name in to_delete:
-                    return_list.append(
-                        StatusBoardHandler(
-                            action="delete",
-                            status_board_object=application,
-                        )
-                    )
+            return_list.extend(
+                StatusBoardHandler(
+                    action="delete",
+                    status_board_object=application,
+                )
+                for application in product.applications or []
+                if application.name in to_delete
+            )
 
         # product is deleted entirely
         for product_name in diff_result.delete:
-            for application in current_products[product_name].applications or []:
-                return_list.append(
-                    StatusBoardHandler(action="delete", status_board_object=application)
-                )
+            return_list.extend(
+                StatusBoardHandler(action="delete", status_board_object=application)
+                for application in current_products[product_name].applications or []
+            )
             return_list.append(
                 StatusBoardHandler(
                     action="delete", status_board_object=current_products[product_name]

@@ -21,13 +21,8 @@ QONTRACT_INTEGRATION = "service-dependencies"
 
 
 def get_dependency_names(dependency_map: Mapping[Any, Any], dep_type: str) -> list[str]:
-    dep_names = []
-    for dm in dependency_map:
-        if dm["type"] != dep_type:
-            continue
-        for service in dm["services"]:
-            dep_names.append(service["name"])
-    return dep_names
+    dependency_maps = (dm for dm in dependency_map if dm["type"] == dep_type)
+    return [service["name"] for service in dependency_maps]
 
 
 def get_desired_dependency_names(

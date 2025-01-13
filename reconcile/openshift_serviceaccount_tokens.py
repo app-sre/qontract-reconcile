@@ -75,7 +75,7 @@ def get_tokens_for_service_account(
             == service_account
             and token["type"] == "kubernetes.io/service-account-token"
         ):
-            result.append(token)
+            result.append(token)  # noqa: PERF401
     return result
 
 

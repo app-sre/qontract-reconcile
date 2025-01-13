@@ -51,7 +51,7 @@ CONTROLLER_MANAGED_LABELS: dict[str, set[str | re.Pattern]] = {
         "clusterID",
         "managed-by",
         "openshiftVersion",
-        re.compile("feature.open-cluster-management.io/.*"),
+        re.compile(r"feature.open-cluster-management.io/.*"),
     }
 }
 

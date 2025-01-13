@@ -7,6 +7,6 @@ from reconcile.utils.gql import GqlApi
 
 
 def get_networks(gql_api: GqlApi | None = None) -> list[NetworkV1]:
-    api = gql_api if gql_api else gql.get_api()
+    api = gql_api or gql.get_api()
     data = query(query_func=api.query)
     return list(data.networks or [])

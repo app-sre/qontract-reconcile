@@ -22,7 +22,7 @@ class RawGithubApiMock:
         return []
 
 
-class AttrDict(dict):
+class AttrDict(dict):  # noqa: FURB189
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__dict__ = self

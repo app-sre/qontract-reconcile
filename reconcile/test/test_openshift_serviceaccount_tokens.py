@@ -50,27 +50,27 @@ def namespaces(query_func: Callable) -> list[NamespaceV1]:
 
 @pytest.fixture
 def ri(namespaces: list[NamespaceV1]) -> ResourceInventory:
-    _ri = ResourceInventory()
-    _ri.initialize_resource_type(
+    ri_ = ResourceInventory()
+    ri_.initialize_resource_type(
         cluster="cluster",
         namespace="namespace",
         resource_type="Secret",
     )
-    _ri.initialize_resource_type(
+    ri_.initialize_resource_type(
         cluster="another-cluster",
         namespace="platform-changelog-stage",
         resource_type="Secret",
     )
-    _ri.initialize_resource_type(
+    ri_.initialize_resource_type(
         cluster="another-cluster",
         namespace="with-openshift-serviceaccount-tokens",
         resource_type="Secret",
     )
     for ns in namespaces:
-        _ri.initialize_resource_type(
+        ri_.initialize_resource_type(
             cluster=ns.cluster.name, namespace=ns.name, resource_type="Secret"
         )
-    return _ri
+    return ri_
 
 
 def test_openshift_serviceaccount_tokens__construct_sa_token_oc_resource() -> None:

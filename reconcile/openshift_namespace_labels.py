@@ -192,7 +192,7 @@ class LabelInventory:
                     changed[k] = v
 
             # remove old labels
-            for k, _ in current.items():
+            for k in current:
                 if k in managed and k not in desired:
                     changed[k] = None
 
@@ -261,7 +261,7 @@ def get_desired(
         # A dedicated integration or PR check will be done to ensure this
         # case does not occur (anymore)
         _LOG.debug(
-            f"Found several namespace definitions for " f"{cluster}/{ns_name}. Ignoring"
+            f"Found several namespace definitions for {cluster}/{ns_name}. Ignoring"
         )
         inventory.delete(cluster=cluster, namespace=ns_name)
 
@@ -310,8 +310,7 @@ def lookup_namespaces(cluster: str, oc_map: OCMap) -> tuple[str, dict[str, Any] 
         _LOG.error(msg)
     except ApiException as e:
         _LOG.error(
-            f"Cluster {cluster} skipped: "
-            f"APIException [{e.status}:{e.reason}] {e.body}"
+            f"Cluster {cluster} skipped: APIException [{e.status}:{e.reason}] {e.body}"
         )
 
     return cluster, None

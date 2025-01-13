@@ -87,7 +87,7 @@ def do_template(
                 ]
                 result = run(cmd, capture_output=True, check=True)
     except CalledProcessError as e:
-        msg = f'Error running helm template [{" ".join(cmd)}]'
+        msg = f"Error running helm template [{' '.join(cmd)}]"
         if e.stdout:
             msg += f" {e.stdout.decode()}"
         if e.stderr:

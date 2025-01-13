@@ -1,3 +1,4 @@
+import operator
 from collections.abc import (
     Callable,
     Iterable,
@@ -30,10 +31,6 @@ class DiffResult(Generic[Current, Desired, Key]):
     identical: dict[Key, DiffPair[Current, Desired]]
 
 
-def _default_equal(current: Current, desired: Desired) -> bool:
-    return current == desired
-
-
 def _default_key(item: Any) -> Any:
     return item
 
@@ -41,7 +38,7 @@ def _default_key(item: Any) -> Any:
 def diff_mappings(
     current: Mapping[Key, Current],
     desired: Mapping[Key, Desired],
-    equal: Callable[[Current, Desired], bool] = _default_equal,
+    equal: Callable[[Current, Desired], bool] = operator.eq,
 ) -> DiffResult[Current, Desired, Key]:
     """
     Compare two mappings and return a `DiffResult` instance containing the differences between them.
@@ -91,7 +88,7 @@ def diff_any_iterables(
     desired: Iterable[Desired],
     current_key: Callable[[Current], Key] = _default_key,
     desired_key: Callable[[Desired], Key] = _default_key,
-    equal: Callable[[Current, Desired], bool] = _default_equal,
+    equal: Callable[[Current, Desired], bool] = operator.eq,
 ) -> DiffResult[Current, Desired, Key]:
     """
     Compare two iterables and return a `DiffResult` instance containing the differences between them.
@@ -152,7 +149,7 @@ def diff_iterables(
     current: Iterable[T],
     desired: Iterable[T],
     key: Callable[[T], Key] = _default_key,
-    equal: Callable[[T, T], bool] = _default_equal,
+    equal: Callable[[T, T], bool] = operator.eq,
 ) -> DiffResult[T, T, Key]:
     """
     Compare two iterables with same type and return a `DiffResult` instance containing the differences between them.

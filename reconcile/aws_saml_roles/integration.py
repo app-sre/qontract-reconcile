@@ -295,7 +295,7 @@ class AwsSamlRolesIntegration(
                 integration_version=QONTRACT_INTEGRATION_VERSION,
                 dry_run=dry_run,
                 cache_source=ts.terraform_configurations(),
-                shard=self.params.account_name if self.params.account_name else "",
+                shard=self.params.account_name or "",
                 ttl_seconds=self.params.extended_early_exit_cache_ttl_seconds,
                 logger=logging.getLogger(),
                 runner=runner,

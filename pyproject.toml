@@ -73,19 +73,18 @@ dev = [
     "anymarkup ~=0.8.1",
     # keep in sync project.dependencies.boto3
     "boto3-stubs[account,ec2,s3,rds,iam,route53,organizations,service-quotas,sts,support,dynamodb]==1.34.94",
-    "kubernetes ~=24.0",
     "kubernetes-stubs==22.6.0",
     "MarkupSafe ~=2.1.1",
     "moto ~=2.2",
     "mypy ~=1.13.0",
     "pyfakefs ~=5.1",
-    "pytest ~=7.2",
-    "pytest-cov ~=4.0.0",
+    "pytest ~=8.3",
+    "pytest-cov ~=6.0",
     "pytest-httpserver ~=1.0",
     "pytest-mock ~=3.6",
     "qenerate==0.7.0",
-    "responses ~=0.23.1",
-    "ruff ~=0.6.9",
+    "responses ~=0.25.0",
+    "ruff ~=0.9.0",
     "smtpdfix ~=0.3.3",
     "testslide ~=2.7",
     "typeguard ~=2.13.3",
@@ -184,7 +183,12 @@ extend-select = [
     "FA",
     # ruff special rules
     "RUF",
-
+    # flake8-type-checking
+    "TC",
+    # Perflint
+    "PERF",
+    # refurb
+    "FURB",
 ]
 ignore = [
     "PLR0904", # Too many public methods
@@ -204,6 +208,14 @@ ignore = [
     "B017",    #`pytest.raises(Exception)` should be considered evil
     "RUF005",  # Consider "...."instead of concatenation
     "RUF012",  # Mutable class attributes should be annotated with "typing.ClassVar"
+    "TC001",   # Type-checking block
+    "TC002",   # Type-checking block
+    "TC003",   # Type-checking block
+    "TC004",   # Type-checking block
+    "TC006",   # quoted type expressions in `typing.cast()`
+    # Review later
+    "FURB101", # Replace `open` with `pathlib.Path`
+    "FURB103", # Replace `open` with `pathlib.Path`
 ]
 [tool.ruff.format]
 preview = true
@@ -320,7 +332,6 @@ module = [
     "reconcile.utils.config",
     "reconcile.utils.data_structures",
     "reconcile.utils.defer",
-    "reconcile.utils.dnsutils",
     "reconcile.utils.elasticsearch_exceptions",
     "reconcile.utils.environ",
     "reconcile.utils.exceptions",

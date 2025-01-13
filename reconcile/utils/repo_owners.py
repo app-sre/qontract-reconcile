@@ -92,14 +92,14 @@ class RepoOwners:
         :return: the path closest owners
         :rtype: dict
         """
-        candidates = []
+        candidates = [
+            owned_path
+            for owned_path in self.owners_map
+            if os.path.commonpath([path, owned_path]) == owned_path
+        ]
 
         if "." in self.owners_map:
             candidates.append(".")
-
-        for owned_path in self.owners_map:
-            if os.path.commonpath([path, owned_path]) == owned_path:
-                candidates.append(owned_path)
 
         if candidates:
             # The longest owned_path is the chosen

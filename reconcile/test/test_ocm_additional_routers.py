@@ -49,9 +49,7 @@ class TestOCMAdditionalRouters(TestCase):
         ocm_act = fixture["ocm_act"]
 
         router_create = ocm_act["create"]
-        expected = []
-        for c in router_create:
-            expected.append(call(c, router_create[c]))
+        expected = [call(c, router_create[c]) for c in router_create]
         calls = ocm.create_additional_router.call_args_list
         self.assertEqual(calls, expected)
 
@@ -72,9 +70,7 @@ class TestOCMAdditionalRouters(TestCase):
         fixture = fxt.get_anymarkup("state.yml")
 
         ocm_api = fixture["ocm_api"]
-        clusters = []
-        for c in ocm_api:
-            clusters.append({"name": c})
+        clusters = [{"name": c} for c in ocm_api]
         ocm = get.return_value
         ocm.get_additional_routers.side_effect = lambda x: fixture["ocm_api"][x]
 
@@ -105,11 +101,6 @@ class TestOCMAdditionalRouters(TestCase):
     @patch.object(OCMMap, "get")
     def test_act(self, get, init_ocm_client_from_cluster):
         fixture = fxt.get_anymarkup("state.yml")
-
-        ocm_api = fixture["ocm_api"]
-        clusters = []
-        for c in ocm_api:
-            clusters.append({"name": c})
         ocm = get.return_value
 
         ocm_map = OCMMap(fixture["gql_response"])
@@ -119,9 +110,7 @@ class TestOCMAdditionalRouters(TestCase):
         ocm_act = fixture["ocm_act"]
 
         router_create = ocm_act["create"]
-        expected = []
-        for c in router_create:
-            expected.append(call(c, router_create[c]))
+        expected = [call(c, router_create[c]) for c in router_create]
         calls = ocm.create_additional_router.call_args_list
         self.assertEqual(calls, expected)
 

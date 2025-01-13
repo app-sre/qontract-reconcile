@@ -11,6 +11,6 @@ def get_clusters_with_dms(
 ) -> list[ClusterV1]:
     # get the clusters containing the filed enableDeadMansSnitch
     variable = {"filter": {"enableDeadMansSnitch": {"ne": None}}}
-    api = gql_api if gql_api else gql.get_api()
+    api = gql_api or gql.get_api()
     data = query(query_func=api.query, variables=variable)
     return data.clusters or []

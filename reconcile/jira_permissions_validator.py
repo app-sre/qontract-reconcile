@@ -107,7 +107,7 @@ def board_is_valid(
                 )
                 error |= ValidationError.INVALID_COMPONENT
 
-        issue_type = board.issue_type if board.issue_type else default_issue_type
+        issue_type = board.issue_type or default_issue_type
         project_issue_types = jira.project_issue_types()
         project_issue_types_str = [i.name for i in project_issue_types]
         if issue_type not in project_issue_types_str:
@@ -128,11 +128,7 @@ def board_is_valid(
             )
             error |= ValidationError.INVALID_ISSUE_TYPE
 
-        reopen_state = (
-            board.issue_reopen_state
-            if board.issue_reopen_state
-            else default_reopen_state
-        )
+        reopen_state = board.issue_reopen_state or default_reopen_state
         if reopen_state.lower() not in [t.lower() for t in available_states]:
             logging.error(
                 f"[{board.name}] '{reopen_state}' is not a valid state in project. Valid states: {available_states}"

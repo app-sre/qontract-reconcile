@@ -236,7 +236,7 @@ class JJB:  # pylint: disable=too-many-public-methods
                 result = subprocess.run(
                     cmd, check=True, stdout=PIPE, stderr=STDOUT, encoding="utf-8"
                 )
-                if re.search("updated: [1-9]", result.stdout):
+                if re.search(r"updated: [1-9]", result.stdout):
                     logging.info(result.stdout)
             except CalledProcessError as ex:
                 logging.error(ex.stdout)

@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 from collections.abc import Callable
+from itertools import starmap
 from typing import (
     Self,
 )
@@ -151,10 +152,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                         permission_usernames[
                             Permission(**permission.dict(by_alias=True))
                         ].append(user.org_username)
-        return [
-            AcsRole.build(permission, usernames)
-            for permission, usernames in permission_usernames.items()
-        ]
+        return list(starmap(AcsRole.build, permission_usernames.items()))
 
     def get_current_state(
         self, auth_provider_id: str, rbac_api_resources: RbacResources

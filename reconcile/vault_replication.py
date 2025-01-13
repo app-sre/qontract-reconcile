@@ -197,14 +197,7 @@ def list_invalid_paths(
 ) -> list[str]:
     """Returns a list of paths that are listed to be copied are not present in the policy
     to fail the integration if we are trying to copy secrets that are not allowed."""
-
-    invalid_paths = []
-
-    for path in path_list:
-        if not _policy_contains_path(path, policy_paths):
-            invalid_paths.append(path)
-
-    return invalid_paths
+    return [path for path in path_list if not _policy_contains_path(path, policy_paths)]
 
 
 def _policy_contains_path(path: str, policy_paths: Iterable[str]) -> bool:

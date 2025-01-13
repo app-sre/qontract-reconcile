@@ -2670,8 +2670,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                         tf_resources.append(Output(output_name, value=switch_role_arn))
             else:
                 raise KeyError(
-                    f"[{account}/{identifier}] "
-                    "expected one of ocm_map or assume_role"
+                    f"[{account}/{identifier}] expected one of ocm_map or assume_role"
                 )
 
         self.add_resources(account, tf_resources)
@@ -4565,14 +4564,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
             # add arn to output
             output_name = (
-                f"{output_prefix}__cloudwatch_log_group_" f"{log_type.lower()}_arn"
+                f"{output_prefix}__cloudwatch_log_group_{log_type.lower()}_arn"
             )
             output_value = arn
             tf_resources.append(Output(output_name, value=output_value))
 
             # add name to output
             output_name = (
-                f"{output_prefix}__cloudwatch_log_group_" f"{log_type.lower()}_name"
+                f"{output_prefix}__cloudwatch_log_group_{log_type.lower()}_name"
             )
             output_value = log_type_identifier
             tf_resources.append(Output(output_name, value=output_value))
@@ -5078,7 +5077,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         secret = common_values.get("secret", None)
         if secret is None:
             raise KeyError(
-                "no secret defined for s3_cloudfront_public_key " f"{identifier}"
+                f"no secret defined for s3_cloudfront_public_key {identifier}"
             )
 
         secret_data = self.secret_reader.read_all(secret)
@@ -5429,8 +5428,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     weight_sum += a["weight"]
                 if weight_sum != 100:
                     raise ValueError(
-                        "sum of weights for a rule should be 100"
-                        f" given: {weight_sum}"
+                        f"sum of weights for a rule should be 100 given: {weight_sum}"
                     )
             elif action_type == "fixed-response":
                 fr_data = action.get("fixed_response", {})
@@ -5604,8 +5602,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         if extra_tags:
             tags.update(json.loads(extra_tags))
         # common_values is untyped, so casting is necessary
-        region = cast(str, common_values.get("region")) or cast(
-            str, self.default_regions.get(account)
+        region = cast(
+            str, common_values.get("region") or self.default_regions.get(account)
         )
 
         template_values = {
@@ -6313,7 +6311,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             http_method="${aws_api_gateway_method.gw_method_proxy_any.http_method}",
             integration_http_method="${aws_api_gateway_method.gw_method_proxy_any.http_method}",
             connection_id=f"${{{api_gateway_vpc_link_resource.id}}}",
-            uri=f'{common_values.get("api_proxy_uri")}/api/{{proxy}}',
+            uri=f"{common_values.get('api_proxy_uri')}/api/{{proxy}}",
             **integration_proxy_args,
         )
         tf_resources.append(api_gateway_integration_proxy_resource)
@@ -6829,42 +6827,32 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_resources.append(scram_secret_association)
 
         # outputs
-        tf_resources.append(
+        tf_resources += [
             Output(
                 output_prefix + "__zookeeper_connect_string",
                 value="${" + msk_cluster.zookeeper_connect_string + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__zookeeper_connect_string_tls",
                 value="${" + msk_cluster.zookeeper_connect_string_tls + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers",
                 value="${" + msk_cluster.bootstrap_brokers + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers_tls",
                 value="${" + msk_cluster.bootstrap_brokers_tls + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers_sasl_iam",
                 value="${" + msk_cluster.bootstrap_brokers_sasl_iam + "}",
-            )
-        )
-        tf_resources.append(
+            ),
             Output(
                 output_prefix + "__bootstrap_brokers_sasl_scram",
                 value="${" + msk_cluster.bootstrap_brokers_sasl_scram + "}",
-            )
-        )
+            ),
+        ]
         self.add_resources(account, tf_resources)
 
     def populate_saml_idp(self, account_name: str, name: str, metadata: str) -> None:

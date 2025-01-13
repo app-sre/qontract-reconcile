@@ -190,8 +190,7 @@ class QuayMirror:
                     )
                     if mirror_image.registry == "docker.io" and item["public"]:
                         _LOG.error(
-                            "Image %s can't be mirrored to a public "
-                            "quay repository.",
+                            "Image %s can't be mirrored to a public quay repository.",
                             mirror_image,
                         )
                         sys.exit(ExitCodes.ERROR)
@@ -250,7 +249,7 @@ class QuayMirror:
             for item in data:
                 push_creds = self.push_creds[org_key].split(":")
                 image = Image(
-                    f'{item["server_url"]}/{org}/{item["name"]}',
+                    f"{item['server_url']}/{org}/{item['name']}",
                     username=push_creds[0],
                     password=push_creds[1],
                     response_cache=self.response_cache,
@@ -409,7 +408,7 @@ class QuayMirror:
             org = org_data["name"]
             instance = org_data["instance"]["name"]
             org_key = OrgKey(instance, org)
-            creds[org_key] = f'{raw_data["user"]}:{raw_data["token"]}'
+            creds[org_key] = f"{raw_data['user']}:{raw_data['token']}"
 
         return creds
 

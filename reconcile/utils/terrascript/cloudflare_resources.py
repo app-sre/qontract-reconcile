@@ -376,18 +376,16 @@ class CloudflareLogpushOwnershipChallengeResource(TerrascriptResource):
         destination_conf = values.get("destination_conf")
         zone = values.get("zone_name")
         if zone:
-            resources.append(
+            resources += [
                 self.cloudflare_zone(
                     safe_resource_id(zone), name=zone, account_id="${var.account_id}"
-                )
-            )
-            resources.append(
+                ),
                 cloudflare_logpush_ownership_challenge(
                     self._spec.identifier,
                     zone_id=f"${{data.cloudflare_zone.{safe_resource_id(zone)}.id}}",
                     destination_conf=destination_conf,
-                )
-            )
+                ),
+            ]
         else:
             resources.append(
                 cloudflare_logpush_ownership_challenge(

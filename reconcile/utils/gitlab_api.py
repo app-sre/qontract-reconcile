@@ -413,7 +413,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         items = self.get_items(mr.pipelines.list)
         return sorted(
             [i.asdict() for i in items],
-            key=lambda x: x["created_at"],
+            key=itemgetter("created_at"),
             reverse=True,
         )
 
@@ -599,9 +599,7 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
         if label in labels:
             return
         labels.append(label)
-        note_body = (
-            f"item has been marked as {label}. " f"to remove say `/{label} cancel`"
-        )
+        note_body = f"item has been marked as {label}. to remove say `/{label} cancel`"
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.notes.create({"body": note_body})
         gitlab_request.labels(integration=INTEGRATION_NAME).inc()

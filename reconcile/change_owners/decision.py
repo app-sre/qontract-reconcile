@@ -1,3 +1,4 @@
+import operator
 from collections import defaultdict
 from collections.abc import (
     Iterable,
@@ -35,7 +36,7 @@ def get_approver_decisions_from_mr_comments(
     comments: Iterable[Mapping[str, Any]],
 ) -> list[Decision]:
     decisions: list[Decision] = []
-    for c in sorted(comments, key=lambda k: k["created_at"]):
+    for c in sorted(comments, key=operator.itemgetter("created_at")):
         commenter = c["username"]
         comment_body = c.get("body")
         for line in comment_body.split("\n") if comment_body else []:
@@ -146,20 +147,16 @@ def apply_decisions_to_changes(
     to generate the coverage report and to reason about the approval
     state of the MR.
     """
-
-    diff_decisions = []
-    for c in changes:
-        for d in c.diff_coverage:
-            diff_decisions.append(
-                _apply_decision_to_diff(
-                    c,
-                    d,
-                    approver_decisions,
-                    auto_approver_usernames,
-                )
-            )
-
-    return diff_decisions
+    return [
+        _apply_decision_to_diff(
+            c,
+            d,
+            approver_decisions,
+            auto_approver_usernames,
+        )
+        for c in changes
+        for d in c.diff_coverage
+    ]
 
 
 def _apply_decision_to_diff(

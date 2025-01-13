@@ -85,12 +85,14 @@ def get_current_state(jenkins_map):
             if role_name == "anonymous":
                 continue
 
-            for user in users:
-                current_state.append({
+            current_state.extend(
+                {
                     "instance": instance,
                     "role": role_name,
                     "user": user,
-                })
+                }
+                for user in users
+            )
 
     return current_state
 
@@ -105,12 +107,14 @@ def get_desired_state():
             if p["service"] != "jenkins-role":
                 continue
 
-            for u in r["users"]:
-                desired_state.append({
+            desired_state.extend(
+                {
                     "instance": p["instance"]["name"],
                     "role": p["role"],
                     "user": u["org_username"],
-                })
+                }
+                for u in r["users"]
+            )
             for u in r["bots"]:
                 if u["org_username"] is None:
                     continue

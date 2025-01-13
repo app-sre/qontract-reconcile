@@ -26,11 +26,11 @@ def ns() -> str:
 
 @pytest.fixture
 def ri(cluster: str, ns: str) -> ResourceInventory:
-    _ri = ResourceInventory()
-    _ri.initialize_resource_type(
+    ri_ = ResourceInventory()
+    ri_.initialize_resource_type(
         cluster=cluster, namespace=ns, resource_type="ConfigMap"
     )
-    return _ri
+    return ri_
 
 
 def or_factory(data: dict[str, Any]) -> OR:

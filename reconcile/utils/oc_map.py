@@ -54,7 +54,7 @@ class OCMap:
         self._init_api_resources = init_api_resources
         self._lock = Lock()
         self._jh_ports: dict[str, int] = {}
-        self._oc_cls = oc_cls if oc_cls else OC
+        self._oc_cls = oc_cls or OC
 
         threaded.run(
             self._init_oc_client,

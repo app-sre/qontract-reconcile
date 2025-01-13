@@ -36,7 +36,7 @@ def build_channels(saas_files: Iterable[SaasFile]) -> list[Channel]:
                 auth_code = (
                     saas_file.authentication.code if saas_file.authentication else None
                 )
-                target_name = target.name if target.name else "NoName"
+                target_name = target.name or "NoName"
                 saas_target = SaasTarget(
                     app_name=saas_file.app.name,
                     repo_url=resource_template.url,

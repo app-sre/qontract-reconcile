@@ -147,7 +147,7 @@ class QuayMirror:
         for org, data in summary.items():
             for item in data:
                 image = Image(
-                    f'{item["server_url"]}/{org}/{item["name"]}',
+                    f"{item['server_url']}/{org}/{item['name']}",
                     session=self.session,
                     timeout=REQUEST_TIMEOUT,
                 )
@@ -267,7 +267,7 @@ class QuayMirror:
             raw_data = self.secret_reader.read_all(push_secret)
             project = project_data["name"]
             token = base64.b64decode(raw_data["token"]).decode()
-            creds[project] = f'{raw_data["user"]}:{token}'
+            creds[project] = f"{raw_data['user']}:{token}"
         return creds
 
 

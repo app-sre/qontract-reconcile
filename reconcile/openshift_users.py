@@ -47,10 +47,11 @@ def get_cluster_users(
 
     # backwarts compatibiltiy for clusters w/o auth
     identity_prefixes = ["github"]
-
-    for auth in cluster_info.auth:
-        if isinstance(auth, ClusterAuthOIDCV1 | ClusterAuthRHIDPV1):
-            identity_prefixes.append(auth.name)
+    identity_prefixes.extend(
+        auth.name
+        for auth in cluster_info.auth
+        if isinstance(auth, ClusterAuthOIDCV1 | ClusterAuthRHIDPV1)
+    )
 
     for u in oc.get_users():
         if u["metadata"].get("labels", {}).get("admin", ""):
