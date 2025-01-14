@@ -37,6 +37,7 @@ from reconcile.utils.ocm.base import (
     OCMServiceLogSeverity,
 )
 from reconcile.utils.ocm.labels import subscription_label_filter
+from reconcile.utils.openshift_resource import QONTRACT_ANNOTATION_INTEGRATION
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
@@ -574,6 +575,9 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                 "metadata": {
                     "name": secret.secret_name,
                     "namespace": secret.namespace_name,
+                    "annotations": {
+                        QONTRACT_ANNOTATION_INTEGRATION: QONTRACT_INTEGRATION,
+                    },
                 },
                 "data": data,
             })

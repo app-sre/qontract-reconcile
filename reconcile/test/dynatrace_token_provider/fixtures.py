@@ -6,9 +6,11 @@ from unittest.mock import (
     create_autospec,
 )
 
+from reconcile.dynatrace_token_provider.integration import QONTRACT_INTEGRATION
 from reconcile.dynatrace_token_provider.model import K8sSecret
 from reconcile.dynatrace_token_provider.ocm import Cluster, OCMClient
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated, DynatraceClient
+from reconcile.utils.openshift_resource import QONTRACT_ANNOTATION_INTEGRATION
 
 
 def tobase64(s: str) -> str:
@@ -35,6 +37,9 @@ def _build_secret_data(
             "metadata": {
                 "name": secret.secret_name,
                 "namespace": secret.namespace_name,
+                "annotations": {
+                    QONTRACT_ANNOTATION_INTEGRATION: QONTRACT_INTEGRATION,
+                },
             },
             "data": data,
         })
