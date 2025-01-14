@@ -4359,6 +4359,47 @@ def debug_shell(ctx) -> None:
         erv2cli.enter_shell(credentials_file)
 
 
+@external_resources.command()
+@binary(["docker"])
+@click.option(
+    "--lock-id",
+    required=True,
+    help="The terraform lock ID to unlock",
+    prompt=True,
+)
+@click.pass_context
+def force_unlock(ctx, lock_id: str) -> None:
+    """Manually unlock the ERv2 terraform state."""
+    # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
+    with tempfile.TemporaryDirectory(
+        dir=Path.home(), prefix="erv2-unlock."
+    ) as _tempdir:
+        tempdir = Path(_tempdir)
+        with progress_spinner() as progress:
+            with task(progress, "Preparing environment ..."):
+                credentials_file = tempdir / "credentials"
+                credentials_file.write_text(
+                    ctx.obj["secret_reader"].read_with_parameters(
+                        path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
+                        field="credentials",
+                        format=None,
+                        version=None,
+                    )
+                )
+            os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
+
+        erv2cli = Erv2Cli(
+            provision_provider=ctx.obj["provision_provider"],
+            provisioner=ctx.obj["provisioner"],
+            provider=ctx.obj["provider"],
+            identifier=ctx.obj["identifier"],
+            secret_reader=ctx.obj["secret_reader"],
+            temp_dir=tempdir,
+            progress_spinner=progress,
+        )
+        erv2cli.force_unlock(credentials_file, lock_id)
+
+
 @get.command(help="Get all container images in app-interface defined namespaces")
 @cluster_name
 @namespace_name

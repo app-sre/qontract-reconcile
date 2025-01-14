@@ -255,6 +255,42 @@ class Erv2Cli:
                 print(e.stdout.decode("utf-8"))
             raise
 
+    def force_unlock(self, credentials: Path, lock_id: str) -> None:
+        """Run 'terraform force-unlock' in a CDKTF container."""
+        input_file = self.temp / "input.json"
+        input_file.write_text(self.input_data)
+
+        try:
+            run(["docker", "pull", self.image], check=True, capture_output=True)
+            run(
+                [
+                    "docker",
+                    "run",
+                    "--name",
+                    "erv2-unlock",
+                    "--rm",
+                    "-it",
+                    "--mount",
+                    f"type=bind,source={input_file!s},target=/inputs/input.json",
+                    "--mount",
+                    f"type=bind,source={credentials!s},target=/credentials",
+                    "-e",
+                    "AWS_SHARED_CREDENTIALS_FILE=/credentials",
+                    "--entrypoint",
+                    "/bin/bash",
+                    self.image,
+                    "-c",
+                    f"cdktf synth && cd cdktf.out/stacks/CDKTF/ && terraform init && terraform force-unlock -force '{lock_id}'",
+                ],
+                check=True,
+            )
+        except CalledProcessError as e:
+            if e.stderr:
+                print(e.stderr.decode("utf-8"))
+            if e.stdout:
+                print(e.stdout.decode("utf-8"))
+            raise
+
 
 class TfRun(Protocol):
     def __call__(self, path: Path, cmd: list[str]) -> str: ...
