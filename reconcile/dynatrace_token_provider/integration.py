@@ -37,12 +37,17 @@ from reconcile.utils.ocm.base import (
     OCMServiceLogSeverity,
 )
 from reconcile.utils.ocm.labels import subscription_label_filter
-from reconcile.utils.openshift_resource import QONTRACT_ANNOTATION_INTEGRATION
+from reconcile.utils.openshift_resource import (
+    QONTRACT_ANNOTATION_INTEGRATION,
+    QONTRACT_ANNOTATION_INTEGRATION_VERSION,
+)
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.semver_helper import make_semver
 
+QONTRACT_INTEGRATION_VERSION = make_semver(2, 0, 1)
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_AND_MANIFEST_ID = "ext-dynatrace-tokens-dtp"
 
@@ -65,10 +70,11 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
     def get_early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Return the desired state for early exit."""
         return {
+            "version": QONTRACT_INTEGRATION_VERSION,
             "specs": {
                 spec.name: spec.dict()
                 for spec in get_dynatrace_token_provider_token_specs()
-            }
+            },
         }
 
     @property
@@ -577,6 +583,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                     "namespace": secret.namespace_name,
                     "annotations": {
                         QONTRACT_ANNOTATION_INTEGRATION: QONTRACT_INTEGRATION,
+                        QONTRACT_ANNOTATION_INTEGRATION_VERSION: QONTRACT_INTEGRATION_VERSION,
                     },
                 },
                 "data": data,
