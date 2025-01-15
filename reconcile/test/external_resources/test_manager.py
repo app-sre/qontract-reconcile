@@ -7,6 +7,7 @@ from pytest import fixture
 from pytest_mock import MockerFixture
 
 from reconcile.external_resources.manager import (
+    ExternalResourceDryRunsValidator,
     ExternalResourcesManager,
     ReconcileStatus,
     ReconciliationStatus,
@@ -36,10 +37,12 @@ def manager(
     module_inventory: ModuleInventory,
 ) -> ExternalResourcesManager:
     er_inventory = ExternalResourcesInventory([])
+    state_mgr = Mock(spec=ExternalResourcesStateDynamoDB)
     secret_reader = Mock()
     reconciler = Mock(spec=ExternalResourcesReconciler)
     secrets_reconciler = Mock()
     factories = setup_factories(settings, module_inventory, er_inventory, secret_reader)
+    dry_runs_validator = ExternalResourceDryRunsValidator(state_mgr, er_inventory)
 
     return ExternalResourcesManager(
         secret_reader=secret_reader,
@@ -51,6 +54,7 @@ def manager(
         er_inventory=er_inventory,
         secrets_reconciler=secrets_reconciler,
         thread_pool_size=1,
+        dry_runs_validator=dry_runs_validator,
     )
 
 

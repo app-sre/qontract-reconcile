@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 from collections.abc import Iterable
 from datetime import UTC, datetime
 
@@ -19,6 +20,7 @@ from reconcile.external_resources.model import (
     ExternalResourceKey,
     ExternalResourceModuleConfiguration,
     ExternalResourceOrphanedResourcesError,
+    ExternalResourceOutputResourceNameDuplications,
     ExternalResourcesInventory,
     ExternalResourceValidationError,
     ModuleInventory,
@@ -73,6 +75,41 @@ def setup_factories(
     return of
 
 
+class ExternalResourceDryRunsValidator:
+    def __init__(
+        self,
+        state_manager: ExternalResourcesStateDynamoDB,
+        er_inventory: ExternalResourcesInventory,
+    ):
+        self.state_mgr = state_manager
+        self.er_inventory = er_inventory
+
+    def _check_output_resource_name_duplications(
+        self,
+    ) -> None:
+        specs = Counter(
+            (
+                spec.cluster_name,
+                spec.namespace_name,
+                spec.output_resource_name,
+            )
+            for spec in self.er_inventory.values()
+        )
+        if duplicates := [key for key, count in specs.items() if count > 1]:
+            raise ExternalResourceOutputResourceNameDuplications(duplicates)
+
+    def _check_orphaned_objects(self) -> None:
+        state_keys = self.state_mgr.get_all_resource_keys()
+        inventory_keys = set(self.er_inventory.keys())
+        orphans = state_keys - inventory_keys
+        if len(orphans) > 0:
+            raise ExternalResourceOrphanedResourcesError(orphans)
+
+    def validate(self) -> None:
+        self._check_orphaned_objects()
+        self._check_output_resource_name_duplications()
+
+
 class ExternalResourcesManager:
     def __init__(
         self,
@@ -84,6 +121,7 @@ class ExternalResourcesManager:
         er_inventory: ExternalResourcesInventory,
         factories: ObjectFactory[ExternalResourceFactory],
         secrets_reconciler: InClusterSecretsReconciler,
+        dry_runs_validator: ExternalResourceDryRunsValidator,
         thread_pool_size: int,
     ) -> None:
         self.state_mgr = state_manager
@@ -96,6 +134,7 @@ class ExternalResourcesManager:
         self.secrets_reconciler = secrets_reconciler
         self.errors: dict[ExternalResourceKey, ExternalResourceValidationError] = {}
         self.thread_pool_size = thread_pool_size
+        self.dry_runs_validator = dry_runs_validator
 
     def _get_reconcile_action(
         self, reconciliation: Reconciliation, state: ExternalResourceState
@@ -198,13 +237,6 @@ class ExternalResourcesManager:
             )
             to_reconcile.add(r)
         return to_reconcile
-
-    def _check_orphaned_objects(self) -> None:
-        state_keys = self.state_mgr.get_all_resource_keys()
-        inventory_keys = set(self.er_inventory.keys())
-        orphans = state_keys - inventory_keys
-        if len(orphans) > 0:
-            raise ExternalResourceOrphanedResourcesError(orphans)
 
     def _get_reconciliation_status(
         self,
@@ -374,7 +406,7 @@ class ExternalResourcesManager:
             self._sync_secrets(to_sync_keys=to_sync_keys | pending_sync_keys)
 
     def handle_dry_run_resources(self) -> None:
-        self._check_orphaned_objects()
+        self.dry_runs_validator.validate()
         desired_r = self._get_desired_objects_reconciliations()
         deleted_r = self._get_deleted_objects_reconciliations()
         reconciliations = desired_r.union(deleted_r)

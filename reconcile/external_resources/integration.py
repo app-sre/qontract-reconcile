@@ -3,6 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 from reconcile.external_resources.manager import (
+    ExternalResourceDryRunsValidator,
     ExternalResourcesInventory,
     ExternalResourcesManager,
     setup_factories,
@@ -89,6 +90,10 @@ def create_er_manager(
     m_inventory = load_module_inventory(get_modules())
     namespaces = [ns for ns in get_namespaces() if ns.external_resources]
     er_inventory = ExternalResourcesInventory(namespaces)
+    state_manager = ExternalResourcesStateDynamoDB(
+        aws_api=aws_api,
+        table_name=er_settings.state_dynamodb_table,
+    )
 
     if not workers_cluster:
         workers_cluster = er_settings.workers_cluster.name
@@ -104,10 +109,7 @@ def create_er_manager(
         ),
         er_inventory=er_inventory,
         module_inventory=m_inventory,
-        state_manager=ExternalResourcesStateDynamoDB(
-            aws_api=aws_api,
-            table_name=er_settings.state_dynamodb_table,
-        ),
+        state_manager=state_manager,
         reconciler=K8sExternalResourcesReconciler(
             controller=build_job_controller(
                 integration=QONTRACT_INTEGRATION,
@@ -127,6 +129,9 @@ def create_er_manager(
             vault_path=er_settings.vault_secrets_path,
             thread_pool_size=thread_pool_size,
             dry_run=dry_run,
+        ),
+        dry_runs_validator=ExternalResourceDryRunsValidator(
+            state_manager, er_inventory
         ),
     )
 
