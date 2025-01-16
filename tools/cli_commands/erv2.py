@@ -269,7 +269,6 @@ class Erv2Cli:
                     "--name",
                     "erv2-unlock",
                     "--rm",
-                    "-it",
                     "--mount",
                     f"type=bind,source={input_file!s},target=/inputs/input.json",
                     "--mount",
