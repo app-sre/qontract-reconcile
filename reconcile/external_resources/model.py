@@ -45,6 +45,17 @@ class ExternalResourceOrphanedResourcesError(Exception):
         super().__init__("".join(msg))
 
 
+class ExternalResourceOutputResourceNameDuplications(Exception):
+    def __init__(self, duplicates: Iterable[tuple[str, str, str]]) -> None:
+        msg = [
+            "There are output_resource_name attribute duplications. ",
+            "output_resource_name must be unique within a cluster/namespace.\n"
+            "Duplications:\n",
+            "\n".join(map(str, duplicates)),
+        ]
+        super().__init__("".join(msg))
+
+
 class ExternalResourceValidationError(Exception):
     errors: list[str] = []
 
