@@ -31,7 +31,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "jira-permissions-validator"
-QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 NameToIdMap = dict[str, str]
 
@@ -256,11 +256,14 @@ def validate_boards(
     return error
 
 
-def get_jira_boards(query_func: Callable) -> list[JiraBoardV1]:
+def get_jira_boards(
+    query_func: Callable, jira_board_name: str | None = None
+) -> list[JiraBoardV1]:
     return [
         board
         for board in query_jira_boards(query_func=query_func).jira_boards or []
         if integration_is_enabled(QONTRACT_INTEGRATION, board)
+        and (not jira_board_name or board.name.lower() == jira_board_name.lower())
     ]
 
 
@@ -270,12 +273,13 @@ def export_boards(boards: list[JiraBoardV1]) -> list[dict]:
 
 def run(
     dry_run: bool,
+    jira_board_name: str | None = None,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,
     log_cached_log_output: bool = False,
 ) -> None:
     gql_api = gql.get_api()
-    boards = get_jira_boards(query_func=gql_api.query)
+    boards = get_jira_boards(query_func=gql_api.query, jira_board_name=jira_board_name)
     runner_params: RunnerParams = {
         "boards": boards,
         "dry_run": dry_run,
@@ -296,7 +300,7 @@ def run(
             # don't use `dry_run` in the cache key because this is a read-only integration
             dry_run=False,
             cache_source=cache_source,
-            shard="",
+            shard=jira_board_name or "",
             ttl_seconds=extended_early_exit_cache_ttl_seconds,
             logger=logging.getLogger(),
             runner=runner,

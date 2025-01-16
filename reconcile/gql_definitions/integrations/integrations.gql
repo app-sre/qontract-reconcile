@@ -133,6 +133,22 @@ query Integrations {
             }
           }
         }
+
+        ... on JiraBoardSharding_v1 {
+            shardSpecOverrides {
+              shard {
+                name
+                disable {
+                  integrations
+                }
+              }
+              imageRef
+              disabled
+              resources {
+                ... DeployResourcesFields
+              }
+            }
+        }
       }
     }
   }
