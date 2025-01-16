@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query JiraBoardSharding {
+  jira_boards: jira_boards_v1 {
+    name
+  }
+}
