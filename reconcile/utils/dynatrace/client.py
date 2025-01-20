@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
+from unittest.mock import patch
 
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenUpdate
@@ -33,11 +35,32 @@ class DynatraceAPIToken(BaseModel):
     scopes: list[str]
 
 
+# TODO: Remove once APPSRE-11428 is resolved #######
+ISO_8601 = "%Y-%m-%dT%H:%M:%S.%fZ"
+FIXED_ISO_8601 = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def custom_iso8601_to_datetime(timestamp: str | None) -> datetime | None:
+    if isinstance(timestamp, str):
+        try:
+            return datetime.strptime(timestamp, ISO_8601)
+        except ValueError:
+            return datetime.strptime(timestamp, FIXED_ISO_8601)
+    return timestamp
+
+
+################################################
+
+
 class DynatraceClient:
     def __init__(self, environment_url: str, api: Dynatrace) -> None:
         self._environment_url = environment_url
         self._api = api
 
+    @patch(
+        "dynatrace.environment_v2.tokens_api.iso8601_to_datetime",
+        custom_iso8601_to_datetime,
+    )
     def create_api_token(
         self, name: str, scopes: Iterable[str]
     ) -> DynatraceAPITokenCreated:
@@ -49,6 +72,10 @@ class DynatraceClient:
             ) from e
         return DynatraceAPITokenCreated(token=token.token, id=token.id)
 
+    @patch(
+        "dynatrace.environment_v2.tokens_api.iso8601_to_datetime",
+        custom_iso8601_to_datetime,
+    )
     def get_token_ids_map_for_name_prefix(self, prefix: str) -> dict[str, str]:
         try:
             dt_tokens = self._api.tokens.list()
@@ -60,6 +87,10 @@ class DynatraceClient:
             token.id: token.name for token in dt_tokens if token.name.startswith(prefix)
         }
 
+    @patch(
+        "dynatrace.environment_v2.tokens_api.iso8601_to_datetime",
+        custom_iso8601_to_datetime,
+    )
     def get_token_by_id(self, token_id: str) -> DynatraceAPIToken:
         try:
             token = self._api.tokens.get(token_id=token_id)
