@@ -336,5 +336,14 @@ def runner(boards: list[JiraBoardV1], dry_run: bool) -> ExtendedEarlyExitRunnerR
     return ExtendedEarlyExitRunnerResult(payload=export_boards(boards), applied_count=0)
 
 
-def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return {"boards": export_boards(get_jira_boards(query_func=gql.get_api().query))}
+def early_exit_desired_state(
+    *args: Any, jira_board_name: str | None = None, **kwargs: Any
+) -> dict[str, Any]:
+    return {
+        "boards": export_boards(
+            get_jira_boards(
+                query_func=gql.get_api().query,
+                jira_board_name=jira_board_name,
+            )
+        )
+    }
