@@ -191,6 +191,22 @@ query Integrations {
             }
           }
         }
+
+        ... on JiraBoardSharding_v1 {
+            shardSpecOverrides {
+              shard {
+                name
+                disable {
+                  integrations
+                }
+              }
+              imageRef
+              disabled
+              resources {
+                ... DeployResourcesFields
+              }
+            }
+        }
       }
     }
   }
@@ -342,10 +358,30 @@ class CloudflareDNSZoneShardingV1(IntegrationShardingV1):
     shard_spec_overrides: Optional[list[CloudflareDNSZoneShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
 
 
+class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
+class JiraBoardV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
+
+
+class JiraBoardShardSpecOverrideV1(ConfiguredBaseModel):
+    shard: JiraBoardV1 = Field(..., alias="shard")
+    image_ref: Optional[str] = Field(..., alias="imageRef")
+    disabled: Optional[bool] = Field(..., alias="disabled")
+    resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
+
+
+class JiraBoardShardingV1(IntegrationShardingV1):
+    shard_spec_overrides: Optional[list[JiraBoardShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
+
+
 class IntegrationManagedV1(ConfiguredBaseModel):
     namespace: NamespaceV1 = Field(..., alias="namespace")
     spec: IntegrationSpecV1 = Field(..., alias="spec")
-    sharding: Optional[Union[StaticShardingV1, OpenshiftClusterShardingV1, OCMOrganizationShardingV1, AWSAccountShardingV1, CloudflareDNSZoneShardingV1, IntegrationShardingV1]] = Field(..., alias="sharding")
+    sharding: Optional[Union[StaticShardingV1, OpenshiftClusterShardingV1, OCMOrganizationShardingV1, AWSAccountShardingV1, CloudflareDNSZoneShardingV1, JiraBoardShardingV1, IntegrationShardingV1]] = Field(..., alias="sharding")
 
 
 class IntegrationV1(ConfiguredBaseModel):
