@@ -220,6 +220,16 @@ class EndpointsDiscoveryIntegration(
         ]
         return endpoints_to_add, endpoints_to_change, endpoints_to_delete
 
+    def filter_ignored_routes(
+        self, routes: list[Route], labels: dict[str, str]
+    ) -> list[Route]:
+        """Filter out the ignored routes."""
+        return [
+            route
+            for route in routes
+            if f"{QONTRACT_INTEGRATION}-{route.name}" not in labels
+        ]
+
     def process(
         self,
         oc_map: OCMap,
@@ -231,6 +241,7 @@ class EndpointsDiscoveryIntegration(
         apps_with_changes: list[App] = []
         for app in apps:
             app_endpoints = App(name=app.name, path=app.path)
+
             for namespace in app.namespaces or []:
                 if not self.is_enabled(namespace, cluster_names=cluster_names):
                     continue
@@ -238,7 +249,11 @@ class EndpointsDiscoveryIntegration(
                 logging.debug(
                     f"Processing namespace {namespace.cluster.name}/{namespace.name}"
                 )
-                routes = self.get_routes(oc_map, namespace)
+
+                routes = self.filter_ignored_routes(
+                    self.get_routes(oc_map, namespace),
+                    (app.labels or {}) | (namespace.labels or {}),
+                )
                 endpoints_to_add, endpoints_to_change, endpoints_to_delete = (
                     self.get_namespace_endpoint_changes(
                         endpoint_prefix=endpoint_prefix(namespace),

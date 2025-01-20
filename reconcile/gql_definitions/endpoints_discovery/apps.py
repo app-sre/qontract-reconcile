@@ -62,12 +62,14 @@ query EndPointsDiscoveryApps {
   apps: apps_v1 {
     path
     name
+    labels
     endPoints {
       name
       url
     }
     namespaces {
       name
+      labels
       delete
       clusterAdmin
       cluster {
@@ -92,6 +94,7 @@ class AppEndPointsV1(ConfiguredBaseModel):
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     delete: Optional[bool] = Field(..., alias="delete")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     cluster: OcConnectionCluster = Field(..., alias="cluster")
@@ -100,6 +103,7 @@ class NamespaceV1(ConfiguredBaseModel):
 class AppV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     end_points: Optional[list[AppEndPointsV1]] = Field(..., alias="endPoints")
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 
