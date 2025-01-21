@@ -44,6 +44,43 @@ apps:
     url: https://foobar.com
   namespaces: null
 
+# ignore routes on app level
+- path: /path/app-ignore-routes-on-app-level.yml
+  name: app-ignore-routes-on-app-level
+  labels: '{"endpoints-discovery-fake-route|zzz-fake-route": "just a test"}'
+  endPoints: []
+  namespaces:
+  - name: app-2-ns-1
+    cluster:
+      name: cluster-1
+      serverUrl: 'https://cluster-1'
+      internal: false
+      automationToken:
+        path: token-path
+        field: token
+      clusterAdminAutomationToken:
+        path: token-path
+        field: token
+
+# ignore routes on ns level
+- path: /path/app-ignore-routes-on-ns-level.yml
+  name: app-ignore-routes-on-ns-level
+  endPoints: []
+  namespaces:
+  - name: app-2-ns-1
+    labels: '{"endpoints-discovery-fake-route|zzz-fake-route": "just a test"}'
+    cluster:
+      name: cluster-1
+      serverUrl: 'https://cluster-1'
+      internal: false
+      automationToken:
+        path: token-path
+        field: token
+      clusterAdminAutomationToken:
+        path: token-path
+        field: token
+
+
 # everything below must be ignored
 - path: /path/app-no-namespaces-no-endpoints.yml
   name: app-no-namespaces-no-endpoints

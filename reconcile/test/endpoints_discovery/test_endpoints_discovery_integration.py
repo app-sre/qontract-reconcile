@@ -68,14 +68,13 @@ def test_endpoints_discovery_integration_get_apps(
     intg: EndpointsDiscoveryIntegration,
 ) -> None:
     apps = intg.get_apps(query_func)
-    assert len(apps) == 6
+    assert len(apps) == 8
 
 
 def test_endpoints_discovery_integration_is_enabled(
     intg: EndpointsDiscoveryIntegration,
     apps: Sequence[AppV1],
 ) -> None:
-    assert len(apps) == 6
     for app in apps:
         if app.name in {"app-deleted-ns", "app-integration-disabled"}:
             assert app.namespaces

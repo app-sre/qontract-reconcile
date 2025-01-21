@@ -4,12 +4,14 @@ query EndPointsDiscoveryApps {
   apps: apps_v1 {
     path
     name
+    labels
     endPoints {
       name
       url
     }
     namespaces {
       name
+      labels
       delete
       clusterAdmin
       cluster {
