@@ -19,6 +19,8 @@ from reconcile.gql_definitions.integrations.integrations import (
     IntegrationManagedV1,
     IntegrationShardingV1,
     IntegrationSpecV1,
+    JiraBoardShardingV1,
+    JiraBoardShardSpecOverrideV1,
     OCMOrganizationShardingV1,
     OCMOrganizationShardSpecOverrideV1,
     OpenshiftClusterShardingV1,
@@ -28,6 +30,7 @@ from reconcile.gql_definitions.integrations.integrations import (
     SubShardingV1,
 )
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
+from reconcile.gql_definitions.sharding import jira_boards as sharding_jira_boards
 from reconcile.gql_definitions.sharding import (
     ocm_organization as sharding_ocm_organization,
 )
@@ -430,6 +433,67 @@ class CloudflareDnsZoneShardingStrategy:
         for zone in self.cloudflare_zones or []:
             spo = spos.get(self._get_shard_key(zone))
             base_shard = self.build_shard_spec(zone, integration_managed.spec, spo)
+            shards.append(base_shard)
+        return shards
+
+
+class JiraBoardShardingStrategy:
+    IDENTIFIER = "per-jira-board"
+
+    def __init__(
+        self,
+        jira_boards: Iterable[sharding_jira_boards.JiraBoardV1] | None = None,
+    ):
+        if not jira_boards:
+            self.jira_boards = (
+                sharding_jira_boards.query(query_func=gql.get_api().query).jira_boards
+                or []
+            )
+        else:
+            self.jira_boards = list(jira_boards)
+
+    def get_shard_spec_overrides(
+        self, sharding: IntegrationShardingV1 | None
+    ) -> dict[str, JiraBoardShardSpecOverrideV1]:
+        spos: dict[str, JiraBoardShardSpecOverrideV1] = {}
+
+        if isinstance(sharding, JiraBoardShardingV1) and sharding.shard_spec_overrides:
+            for sp in sharding.shard_spec_overrides or []:
+                spos[sp.shard.name] = sp
+        return spos
+
+    def check_integration_sharding_params(self, meta: IntegrationMeta) -> None:
+        if "--jira-board-name" not in meta.args:
+            raise ValueError(
+                f"the integration {meta.name} does not support the required argument "
+                " --jira-board-name for the 'per-jira-board' sharding strategy."
+            )
+
+    def build_shard_spec(
+        self,
+        jira_board: sharding_jira_boards.JiraBoardV1,
+        integration_spec: IntegrationSpecV1,
+        spo: JiraBoardShardSpecOverrideV1 | None,
+    ) -> ShardSpec:
+        return ShardSpec(
+            shard_key=jira_board.name,
+            shard_name_suffix=f"-{jira_board.name.lower()}",
+            extra_args=(integration_spec.extra_args or "")
+            + f" --jira-board-name {jira_board.name}",
+            shard_spec_overrides=spo,
+        )
+
+    def build_integration_shards(
+        self,
+        integration_meta: IntegrationMeta,
+        integration_managed: IntegrationManagedV1,
+    ) -> list[ShardSpec]:
+        self.check_integration_sharding_params(integration_meta)
+        spos = self.get_shard_spec_overrides(integration_managed.sharding)
+        shards = []
+        for board in self.jira_boards:
+            spo = spos.get(board.name)
+            base_shard = self.build_shard_spec(board, integration_managed.spec, spo)
             shards.append(base_shard)
         return shards
 

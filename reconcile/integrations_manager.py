@@ -41,6 +41,7 @@ from reconcile.utils.runtime.sharding import (
     AWSAccountShardingStrategy,
     CloudflareDnsZoneShardingStrategy,
     IntegrationShardManager,
+    JiraBoardShardingStrategy,
     OCMOrganizationShardingStrategy,
     OpenshiftClusterShardingStrategy,
     ShardSpec,
@@ -257,6 +258,7 @@ def run(
             OpenshiftClusterShardingStrategy.IDENTIFIER: OpenshiftClusterShardingStrategy(),
             CloudflareDnsZoneShardingStrategy.IDENTIFIER: CloudflareDnsZoneShardingStrategy(),
             OCMOrganizationShardingStrategy.IDENTIFIER: OCMOrganizationShardingStrategy(),
+            JiraBoardShardingStrategy.IDENTIFIER: JiraBoardShardingStrategy(),
         },
         integration_runtime_meta=integration_runtime_meta,
     )
