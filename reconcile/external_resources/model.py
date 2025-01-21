@@ -21,6 +21,7 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     ExternalResourcesModuleOverridesV1,
     NamespaceTerraformProviderResourceAWSV1,
     NamespaceTerraformResourceElastiCacheV1,
+    NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
     NamespaceTerraformResourceRDSV1,
     NamespaceV1,
@@ -93,6 +94,7 @@ SUPPORTED_RESOURCE_TYPES = (
     NamespaceTerraformResourceRDSV1
     | NamespaceTerraformResourceMskV1
     | NamespaceTerraformResourceElastiCacheV1
+    | NamespaceTerraformResourceKMSV1
 )
 
 

@@ -41,13 +41,15 @@ AWS_DEFAULT_TAGS = [
 
 
 class ObjectFactory(Generic[T]):
-    def __init__(self) -> None:
-        self._factories: dict[str, T] = {}
-
-    def register_factory(self, id: str, t: T) -> None:
-        self._factories[id] = t
+    def __init__(
+        self, factories: dict[str, T], default_factory: T | None = None
+    ) -> None:
+        self._factories = factories
+        self._default_factory = default_factory
 
     def get_factory(self, id: str) -> T:
+        if id not in self._factories and self._default_factory:
+            return self._default_factory
         return self._factories[id]
 
 
@@ -94,16 +96,14 @@ class TerraformModuleProvisionDataFactory(ModuleProvisionDataFactory):
 def setup_aws_resource_factories(
     er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
 ) -> ObjectFactory[AWSResourceFactory]:
-    f = ObjectFactory[AWSResourceFactory]()
-    f.register_factory(
-        "elasticache", AWSElasticacheFactory(er_inventory, secret_reader)
+    return ObjectFactory[AWSResourceFactory](
+        factories={
+            "elasticache": AWSElasticacheFactory(er_inventory, secret_reader),
+            "rds": AWSRdsFactory(er_inventory, secret_reader),
+            "msk": AWSMskFactory(er_inventory, secret_reader),
+        },
+        default_factory=AWSDefaultResourceFactory(er_inventory, secret_reader),
     )
-    f.register_factory("rds", AWSRdsFactory(er_inventory, secret_reader))
-    f.register_factory("msk", AWSMskFactory(er_inventory, secret_reader))
-    f.register_factory(
-        "default", AWSDefaultResourceFactory(er_inventory, secret_reader)
-    )
-    return f
 
 
 class AWSExternalResourceFactory(ExternalResourceFactory):
