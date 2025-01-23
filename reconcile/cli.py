@@ -1158,7 +1158,10 @@ def jenkins_webhooks_cleaner(ctx):
 
 
 @integration.command(short_help="Validate permissions in Jira.")
-@click.option("--jira-board-name", help="The Jira board to act on.", default=None)
+@click.option(
+    "--jira-board-name", help="The Jira board to act on.", default=None, multiple=True
+)
+@click.option("--board-check-interval", help="Check interval in minutes", default=120)
 @enable_extended_early_exit
 @extended_early_exit_cache_ttl_seconds
 @log_cached_log_output
@@ -1166,6 +1169,7 @@ def jenkins_webhooks_cleaner(ctx):
 def jira_permissions_validator(
     ctx,
     jira_board_name,
+    board_check_interval,
     enable_extended_early_exit,
     extended_early_exit_cache_ttl_seconds,
     log_cached_log_output,
@@ -1176,6 +1180,7 @@ def jira_permissions_validator(
         reconcile.jira_permissions_validator,
         ctx.obj,
         jira_board_name=jira_board_name,
+        board_check_interval=board_check_interval,
         enable_extended_early_exit=enable_extended_early_exit,
         extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
         log_cached_log_output=log_cached_log_output,

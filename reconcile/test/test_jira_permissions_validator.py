@@ -128,6 +128,7 @@ def test_jira_permissions_validator_validate_boards(
     mocker: MockerFixture,
     boards: list[JiraBoardV1],
     secret_reader: Mock,
+    s3_state_builder: Callable,
     board_is_valid: ValidationError,
     dry_run: bool,
     error_returned: bool,
@@ -139,6 +140,7 @@ def test_jira_permissions_validator_validate_boards(
     board_is_valid_mock.return_value = board_is_valid
     metrics_container_mock = mocker.create_autospec(spec=metrics.MetricsContainer)
     jira_client_class = mocker.create_autospec(spec=JiraClient)
+    state = s3_state_builder({})
     assert (
         validate_boards(
             metrics_container=metrics_container_mock,
@@ -147,7 +149,9 @@ def test_jira_permissions_validator_validate_boards(
             jira_boards=boards,
             default_issue_type="task",
             default_reopen_state="new",
+            board_check_interval=60,
             dry_run=dry_run,
+            state=state,
             jira_client_class=jira_client_class,
         )
         == error_returned
