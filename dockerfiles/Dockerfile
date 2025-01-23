@@ -78,11 +78,11 @@ CMD ["run-integration"]
 # STAGE 4 - fips-prod-image
 ###############################################################################
 FROM prod-image AS fips-prod-image
-ENV OC_VERSION=4.10.15
+ENV OC_VERSION=4.15.43
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
 # versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.1.0 \
+COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.0 \
     /work/${OC_VERSION}/ /usr/local/bin/
 
 
