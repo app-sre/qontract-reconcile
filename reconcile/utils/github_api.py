@@ -3,11 +3,7 @@ from pathlib import Path
 from types import TracebackType
 from urllib.parse import urlparse
 
-from github import (
-    Commit,
-    Github,
-    UnknownObjectException,
-)
+from github import Commit, Github, GithubException, UnknownObjectException
 from sretoolbox.utils import retry
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
@@ -75,6 +71,13 @@ class GithubRepositoryApi:
                 # -> for now staying backwards compatible
                 return None
             return content.decoded_content
+        except GithubException as e:
+            # handling a bug in the upstream GH library
+            # https://github.com/PyGithub/PyGithub/issues/3179
+            if e.status == 404:
+                return None
+            else:
+                raise e
         except UnknownObjectException:
             return None
 
