@@ -1,4 +1,5 @@
 import logging
+import random
 import sys
 import time
 from collections.abc import Callable, Iterable
@@ -23,16 +24,11 @@ from reconcile.typed_queries.jiralert_settings import get_jiralert_settings
 from reconcile.utils import gql, metrics
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.extended_early_exit import (
-    ExtendedEarlyExitRunnerResult,
-    extended_early_exit_run,
-)
 from reconcile.utils.jira_client import JiraClient, JiraWatcherSettings
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.state import State, init_state
-from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "jira-permissions-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 2, 0)
@@ -70,7 +66,7 @@ class ValidationError(IntFlag):
 
 class RunnerParams(TypedDict):
     boards: list[JiraBoardV1]
-    board_check_interval: int
+    board_check_interval_sec: int
     dry_run: bool
 
 
@@ -206,7 +202,7 @@ def validate_boards(
     jira_boards: Iterable[JiraBoardV1],
     default_issue_type: str,
     default_reopen_state: str,
-    board_check_interval: int,
+    board_check_interval_sec: int,
     dry_run: bool,
     state: State,
     jira_client_class: type[JiraClient] = JiraClient,
@@ -214,8 +210,8 @@ def validate_boards(
     error = False
     jira_clients: dict[str, JiraClient] = {}
     for board in jira_boards:
-        last_successful_run = state.get(board.name, 0)
-        if not dry_run and time.time() <= last_successful_run + board_check_interval:
+        next_run_time = state.get(board.name, 0)
+        if not dry_run and time.time() <= next_run_time:
             logging.debug(f"[{board.name}] Skipping board")
             continue
 
@@ -243,8 +239,13 @@ def validate_boards(
                     # no errors
                     logging.debug(f"[{board.name}] is valid")
                     if not dry_run:
-                        # remember time of the last successful run
-                        state[board.name] = time.time()
+                        # set the run time for the next check
+                        state[board.name] = (
+                            time.time()
+                            + board_check_interval_sec
+                            # add some randomness to avoid all boards checking at the same time
+                            + random.randint(0, 3600)
+                        )
                 case ValidationError.PERMISSION_ERROR:
                     # we don't have all the permissions, but we can create jira tickets
                     metrics_container.set_gauge(
@@ -290,57 +291,15 @@ def export_boards(boards: list[JiraBoardV1]) -> list[dict]:
     return [board.dict() for board in boards]
 
 
+@defer
 def run(
     dry_run: bool,
     jira_board_name: list[str] | None = None,
-    board_check_interval: int = 3600,
-    enable_extended_early_exit: bool = False,
-    extended_early_exit_cache_ttl_seconds: int = 3600,
-    log_cached_log_output: bool = False,
+    board_check_interval_sec: int = 3600,
+    defer: Callable | None = None,
 ) -> None:
     gql_api = gql.get_api()
     boards = get_jira_boards(query_func=gql_api.query, jira_board_names=jira_board_name)
-    runner_params: RunnerParams = {
-        "boards": boards,
-        "dry_run": dry_run,
-        "board_check_interval": board_check_interval,
-    }
-    if enable_extended_early_exit and get_feature_toggle_state(
-        "jira-permissions-validator-extended-early-exit",
-        default=True,
-    ):
-        vault_settings = get_app_interface_vault_settings()
-        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-
-        cache_source = CacheSource(
-            boards=export_boards(boards),
-        )
-        extended_early_exit_run(
-            integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION,
-            # don't use `dry_run` in the cache key because this is a read-only integration
-            dry_run=False,
-            cache_source=cache_source,
-            shard="_".join(set(jira_board_name)) if jira_board_name else "",
-            ttl_seconds=extended_early_exit_cache_ttl_seconds,
-            logger=logging.getLogger(),
-            runner=runner,
-            runner_params=runner_params,
-            secret_reader=secret_reader,
-            log_cached_log_output=log_cached_log_output,
-        )
-    else:
-        runner(**runner_params)
-
-
-@defer
-def runner(
-    boards: list[JiraBoardV1],
-    dry_run: bool,
-    board_check_interval: int,
-    defer: Callable | None = None,
-) -> ExtendedEarlyExitRunnerResult:
-    gql_api = gql.get_api()
     settings = get_jira_settings(gql_api=gql_api)
     jiralert_settings = get_jiralert_settings(query_func=gql_api.query)
     vault_settings = get_app_interface_vault_settings()
@@ -357,15 +316,13 @@ def runner(
             jira_boards=boards,
             default_issue_type=jiralert_settings.default_issue_type,
             default_reopen_state=jiralert_settings.default_reopen_state,
-            board_check_interval=board_check_interval,
+            board_check_interval_sec=board_check_interval_sec,
             dry_run=dry_run,
             state=state,
         )
 
     if error:
         sys.exit(ExitCodes.ERROR)
-
-    return ExtendedEarlyExitRunnerResult(payload=export_boards(boards), applied_count=0)
 
 
 def early_exit_desired_state(

@@ -149,7 +149,7 @@ def test_jira_permissions_validator_validate_boards(
             jira_boards=boards,
             default_issue_type="task",
             default_reopen_state="new",
-            board_check_interval=60,
+            board_check_interval_sec=60,
             dry_run=dry_run,
             state=state,
             jira_client_class=jira_client_class,
