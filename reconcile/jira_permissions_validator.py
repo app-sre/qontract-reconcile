@@ -210,15 +210,12 @@ def validate_boards(
     error = False
     jira_clients: dict[str, JiraClient] = {}
     for board in jira_boards:
-        last_successful_run = state.get(board.name, 0)
-        if (
-            not dry_run
-            and time.time() <= last_successful_run + board_check_interval_sec
-        ):
-            logging.debug(f"[{board.name}] Skipping board")
+        next_run_time = state.get(board.name, 0)
+        if not dry_run and time.time() <= next_run_time:
+            logging.info(f"[{board.name}] Skipping board")
             continue
 
-        logging.debug(f"[{board.name}] checking ...")
+        logging.info(f"[{board.name}] checking ...")
         if board.server.server_url not in jira_clients:
             jira_clients[board.server.server_url] = jira_client_class.create(
                 project_name=board.name,
@@ -242,9 +239,13 @@ def validate_boards(
                     # no errors
                     logging.debug(f"[{board.name}] is valid")
                     if not dry_run:
-                        # remember time of the last successful run and add a random offset
-                        # to avoid all boards being checked at the same time
-                        state[board.name] = time.time() + random.randint(0, 3600)
+                        # set the run time for the next check
+                        state[board.name] = (
+                            time.time()
+                            + board_check_interval_sec
+                            # add some randomness to avoid all boards checking at the same time
+                            + random.randint(0, 3600)
+                        )
                 case ValidationError.PERMISSION_ERROR:
                     # we don't have all the permissions, but we can create jira tickets
                     metrics_container.set_gauge(
