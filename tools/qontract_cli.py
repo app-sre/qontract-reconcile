@@ -75,6 +75,9 @@ from reconcile.cli import (
 from reconcile.gql_definitions.advanced_upgrade_service.aus_clusters import (
     query as aus_clusters_query,
 )
+from reconcile.gql_definitions.app_sre_tekton_access_revalidation.roles import (
+    query as app_sre_tekton_access_revalidation_roles_query,
+)
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
@@ -96,6 +99,9 @@ from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import get_status_board
+from reconcile.typed_queries.tekton_pipeline_providers import (
+    get_tekton_pipeline_providers,
+)
 from reconcile.utils import (
     amtool,
     config,
@@ -4458,6 +4464,50 @@ You can view the source of this Markdown to extract the JSON data.
         ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
+
+
+@get.command(help="Get all app tekton pipelines providers roles and users")
+@click.argument("app-name")
+@click.pass_context
+def tekton_roles_and_users(ctx, app_name):
+    pp_namespaces = {
+        p.namespace.path
+        for p in get_tekton_pipeline_providers()
+        if p.namespace.app.name == app_name
+    }
+
+    roles = (
+        app_sre_tekton_access_revalidation_roles_query(
+            query_func=gql.get_api().query
+        ).roles
+        or []
+    )
+    columns = ["namespace_path", "role_path", "users"]
+    results = []
+    for r in roles:
+        if r.access is None:
+            continue
+
+        seen = False  # to avoid printing a namespace more than once
+        for a in r.access:
+            if a.namespace is None:
+                continue
+            if a.namespace.path in pp_namespaces:
+                if not seen:
+                    seen = True
+
+                    if ctx.obj["options"]["output"] == "table":
+                        users = ", ".join([u.org_username for u in r.users])
+                    else:
+                        users = [u.path for u in r.users]
+
+                    results.append({
+                        "namespace_path": a.namespace.path,
+                        "role_path": r.path,
+                        "users": users,
+                    })
+
+    print_output(ctx.obj["options"], results, columns)
 
 
 if __name__ == "__main__":

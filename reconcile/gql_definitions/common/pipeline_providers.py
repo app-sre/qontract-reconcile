@@ -95,7 +95,12 @@ query PipelineProviders {
       }
       namespace {
         name
+        path
         clusterAdmin
+        app {
+          name
+          path
+        }
         cluster {
           name
           serverUrl
@@ -193,6 +198,11 @@ class PipelinesProviderTektonProviderDefaultsV1(ConfiguredBaseModel):
     deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
 
 
+class AppV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    path: str = Field(..., alias="path")
+
+
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -210,7 +220,9 @@ class ClusterV1(ConfiguredBaseModel):
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    path: str = Field(..., alias="path")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
+    app: AppV1 = Field(..., alias="app")
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 

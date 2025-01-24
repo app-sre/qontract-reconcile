@@ -36,7 +36,12 @@ query PipelineProviders {
       }
       namespace {
         name
+        path
         clusterAdmin
+        app {
+          name
+          path
+        }
         cluster {
           name
           serverUrl

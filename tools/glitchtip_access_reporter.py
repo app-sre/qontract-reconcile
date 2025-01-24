@@ -77,9 +77,7 @@ def main(
 
     mr = UpdateGlitchtipAccessReport(
         users=list(users.values()),
-        glitchtip_access_revalidation_workbook=Path(
-            glitchtip_access_revalidation_workbook_path
-        ),
+        workbook_path=Path(glitchtip_access_revalidation_workbook_path),
         dry_run=dry_run,
     )
     with mr_client_gateway.init(
