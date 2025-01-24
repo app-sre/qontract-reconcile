@@ -58,6 +58,8 @@ class AWSElasticacheFactory(AWSDefaultResourceFactory):
         if "replication_group_id" not in data:
             data["replication_group_id"] = spec.identifier
 
+        data["environment"] = spec.environment_type
+
         if cluster_mode := data.pop("cluster_mode", {}):
             for k, v in cluster_mode.items():
                 data[k] = v
