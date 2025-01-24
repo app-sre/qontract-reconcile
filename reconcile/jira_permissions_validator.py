@@ -212,10 +212,10 @@ def validate_boards(
     for board in jira_boards:
         next_run_time = state.get(board.name, 0)
         if not dry_run and time.time() <= next_run_time:
-            logging.info(f"[{board.name}] Skipping board")
+            logging.debug(f"[{board.name}] Skipping board")
             continue
 
-        logging.info(f"[{board.name}] checking ...")
+        logging.debug(f"[{board.name}] checking ...")
         if board.server.server_url not in jira_clients:
             jira_clients[board.server.server_url] = jira_client_class.create(
                 project_name=board.name,
