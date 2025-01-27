@@ -102,6 +102,10 @@ Resource = dict[str, Any]
 Resources = list[Resource]
 
 
+class TriggerSpecContainerImageError(Exception):
+    pass
+
+
 class SaasHerder:  # pylint: disable=too-many-public-methods
     """Wrapper around SaaS deployment actions."""
 
@@ -1618,6 +1622,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 try:
                     if not (target.image or target.images):
                         continue
+                    if target.image and target.images:
+                        raise TriggerSpecContainerImageError(
+                            '"image" and and "images" are mutually exclusive. Do not set both in the same saas target.'
+                        )
                     commit_sha = self._get_commit_sha(
                         url=rt.url,
                         ref=target.ref,
