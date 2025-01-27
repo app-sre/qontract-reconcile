@@ -55,24 +55,21 @@ def setup_factories(
 ) -> ObjectFactory[ExternalResourceFactory]:
     tf_factory = TerraformModuleProvisionDataFactory(settings=settings)
 
-    aws_provision_factories = ObjectFactory[ModuleProvisionDataFactory]()
-    aws_provision_factories.register_factory("terraform", tf_factory)
-    aws_provision_factories.register_factory("cdktf", tf_factory)
-
-    of = ObjectFactory[ExternalResourceFactory]()
-    of.register_factory(
-        "aws",
-        AWSExternalResourceFactory(
-            module_inventory=module_inventory,
-            er_inventory=er_inventory,
-            secret_reader=secret_reader,
-            provision_factories=aws_provision_factories,
-            resource_factories=setup_aws_resource_factories(
-                er_inventory, secret_reader
-            ),
-        ),
+    return ObjectFactory[ExternalResourceFactory](
+        factories={
+            "aws": AWSExternalResourceFactory(
+                module_inventory=module_inventory,
+                er_inventory=er_inventory,
+                secret_reader=secret_reader,
+                provision_factories=ObjectFactory[ModuleProvisionDataFactory](
+                    factories={"terraform": tf_factory, "cdktf": tf_factory}
+                ),
+                resource_factories=setup_aws_resource_factories(
+                    er_inventory, secret_reader
+                ),
+            )
+        }
     )
-    return of
 
 
 class ExternalResourceDryRunsValidator:
