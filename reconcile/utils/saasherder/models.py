@@ -113,14 +113,15 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
 
 @dataclass
 class TriggerSpecContainerImage(TriggerSpecBase):
-    image: str
+    images: Sequence[str]
     reason: str | None = None
 
     @property
     def state_key(self) -> str:
+        image_key = ",".join(self.images)
         key = (
             f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
-            f"{self.namespace_name}/{self.env_name}/{self.image}"
+            f"{self.namespace_name}/{self.env_name}/{image_key}"
         )
         return key
 

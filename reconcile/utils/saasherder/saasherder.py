@@ -1616,7 +1616,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         for rt in saas_file.resource_templates:
             for target in rt.targets:
                 try:
-                    if not target.image:
+                    if not (target.image or target.images):
                         continue
                     commit_sha = self._get_commit_sha(
                         url=rt.url,
@@ -1624,17 +1624,34 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         github=github,
                     )
                     desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
-                    # don't trigger if image doesn't exist
-                    image_registry = f"{target.image.org.instance.url}/{target.image.org.name}/{target.image.name}"
-                    image_uri = f"{image_registry}:{desired_image_tag}"
-                    image_auth = self._initiate_image_auth(saas_file)
-                    error_prefix = f"[{saas_file.name}/{rt.name}] {target.ref}:"
-                    image = self._get_image(
-                        image_uri, saas_file.image_patterns, image_auth, error_prefix
-                    )
-                    if not image:
-                        continue
 
+                    image_registries = []
+                    image_uris = []
+                    all_exist = True
+                    wait_for_images = (
+                        [target.image] if target.image else target.images or []
+                    )
+
+                    for cur_image in wait_for_images:
+                        # don't trigger if image doesn't exist
+                        image_registry = f"{cur_image.org.instance.url}/{cur_image.org.name}/{cur_image.name}"
+                        image_uri = f"{image_registry}:{desired_image_tag}"
+                        image_auth = self._initiate_image_auth(saas_file)
+                        error_prefix = f"[{saas_file.name}/{rt.name}] {target.ref}:"
+                        image = self._get_image(
+                            image_uri,
+                            saas_file.image_patterns,
+                            image_auth,
+                            error_prefix,
+                        )
+                        if not image:
+                            all_exist = False
+                            break
+                        image_registries.append(image_registry)
+                        image_uris.append(image_uri)
+
+                    if not all_exist:
+                        continue
                     trigger_spec = TriggerSpecContainerImage(
                         saas_file_name=saas_file.name,
                         env_name=target.namespace.environment.name,
@@ -1643,13 +1660,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         resource_template_name=rt.name,
                         cluster_name=target.namespace.cluster.name,
                         namespace_name=target.namespace.name,
-                        image=image_registry,
+                        images=image_registries,
                         state_content=desired_image_tag,
                     )
                     if self.include_trigger_trace:
-                        trigger_spec.reason = (
-                            f"{rt.url}/commit/{commit_sha} build {image_uri}"
-                        )
+                        trigger_spec.reason = f"{rt.url}/commit/{commit_sha} build {', '.join(image_uris)}"
                     if not self.state:
                         raise Exception("state is not initialized")
                     current_image_tag = self.state.get(trigger_spec.state_key, None)

@@ -177,6 +177,15 @@ query SaasFiles {
           }
           name
         }
+        images {
+          org {
+            name
+            instance {
+              url
+            }
+          }
+          name
+        }
         disable
         delete
       }
