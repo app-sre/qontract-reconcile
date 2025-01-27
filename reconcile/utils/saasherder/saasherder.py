@@ -1624,7 +1624,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         continue
                     if target.image and target.images:
                         raise TriggerSpecContainerImageError(
-                            '"image" and and "images" are mutually exclusive. Do not set both in the same saas target.'
+                            '"image" and "images" are mutually exclusive. Do not set both in the same saas target.'
                         )
                     commit_sha = self._get_commit_sha(
                         url=rt.url,
