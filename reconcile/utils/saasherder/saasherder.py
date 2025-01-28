@@ -1361,8 +1361,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             except ResourceKeyExistsError:
                 ri.register_error()
                 msg = (
-                    f"[{spec.cluster}/{spec.namespace}] desired item "
-                    + f"already exists: {resource['kind']}/{resource['metadata']['name']}. "
+                    f"[{spec.cluster}/{spec.namespace}] Duplicate resources in your deployment template detected. "
+                    + "The following is defined multiple times in your deployment template: "
+                    + f"{resource['kind']}/{resource['metadata']['name']}. "
                     + f"saas file name: {spec.saas_file_name}, "
                     + "resource template name: "
                     + f"{spec.resource_template_name}."
