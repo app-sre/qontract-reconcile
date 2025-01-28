@@ -112,6 +112,12 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                     name="ACTION",
                     value=self.reconciliation.action.value,
                 ),
+                V1EnvVar(
+                    name="RECONCILE_TIMEOUT_MINUTES",
+                    value=str(
+                        self.reconciliation.module_configuration.reconcile_timeout_minutes
+                    ),
+                ),
             ],
             volume_mounts=[
                 V1VolumeMount(
