@@ -147,6 +147,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         self.state = state
         self._promotion_state = PromotionState(state=state) if state else None
         self._channel_map = self._assemble_channels(saas_files=all_saas_files)
+        self._image_auth_cache: dict[str, ImageAuth] = {}
         self.images: set[str] = set()
         self.blocked_versions = self._collect_blocked_versions()
         self.hotfix_versions = self._collect_hotfix_versions()
@@ -1212,8 +1213,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         'token' --> 'password'
         'url' --> 'auth_server' (optional)
         """
+        if saas_file.name in self._image_auth_cache:
+            return self._image_auth_cache[saas_file.name]
+
         if not saas_file.authentication or not saas_file.authentication.image:
-            return ImageAuth()
+            self._image_auth_cache[saas_file.name] = ImageAuth()
+            return self._image_auth_cache[saas_file.name]
 
         creds = self.secret_reader.read_all_secret(saas_file.authentication.image)
         required_docker_config_keys = [".dockerconfigjson"]
@@ -1227,14 +1232,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 + f"found in path {saas_file.authentication.image.path} "
                 + f"does not contain all required keys: {required_docker_config_keys} or {required_keys_basic_auth}"
             )
-            return ImageAuth()
-
-        return ImageAuth(
-            username=creds.get("user"),
-            password=creds.get("token"),
-            auth_server=creds.get("url"),
-            docker_config=json.loads(creds.get(".dockerconfigjson") or "{}"),
-        )
+            self._image_auth_cache[saas_file.name] = ImageAuth()
+        else:
+            self._image_auth_cache[saas_file.name] = ImageAuth(
+                username=creds.get("user"),
+                password=creds.get("token"),
+                auth_server=creds.get("url"),
+                docker_config=json.loads(creds.get(".dockerconfigjson") or "{}"),
+            )
+        return self._image_auth_cache[saas_file.name]
 
     def populate_desired_state(self, ri: ResourceInventory) -> None:
         results = threaded.run(
