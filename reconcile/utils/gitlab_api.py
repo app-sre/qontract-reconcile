@@ -394,6 +394,10 @@ class GitLabApi:  # pylint: disable=too-many-public-methods
             project = None
         return project
 
+    def get_project_by_id(self, project_id: int) -> Project:
+        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        return self.gl.projects.get(project_id)
+
     def get_issues(self, state):
         return self.get_items(self.project.issues.list, state=state)
 
