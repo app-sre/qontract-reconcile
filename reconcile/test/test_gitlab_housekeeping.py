@@ -24,6 +24,7 @@ import reconcile.gitlab_housekeeping as gl_h
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.state import State
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -83,13 +84,17 @@ class TestGitLabHousekeeping:
                 "updated_at": ten_minutes_ago.strftime(DATE_FORMAT),
             },
         ]
-        instance = {"url": "http://localhost", "sslVerify": False, "token": "token"}
+        gl = GitLabApi({
+            "url": "http://localhost",
+            "sslVerify": False,
+            "token": "token",
+        })
 
         dry_run = False
         timeout = 60
 
         timeout_pipelines = gl_h.get_timed_out_pipelines(pipelines, timeout)
-        gl_h.clean_pipelines(dry_run, instance, "1", "", timeout_pipelines)
+        gl_h.clean_pipelines(dry_run, gl, "1", timeout_pipelines)
 
         # Test if mock have this exact calls
         http_post.assert_called_once_with("/projects/1/pipelines/47/cancel")
@@ -157,6 +162,7 @@ def test_dry_run(
     mocked_gitlab_api = mocker.patch(
         "reconcile.gitlab_housekeeping.GitLabApi", autospec=True
     ).return_value.__enter__.return_value
+    mocker.patch("reconcile.gitlab_housekeeping.init_state", autospec=True)
 
     gl_h.run(True, False)
 
@@ -231,8 +237,6 @@ def test_merge_merge_requests(
         pipeline_timeout=None,
         insist=True,
         wait_for_pipeline=False,
-        gl_instance=None,
-        gl_settings=None,
         users_allowed_to_label=None,
     )
 
@@ -276,8 +280,6 @@ def test_merge_merge_requests_with_retry(
             pipeline_timeout=None,
             insist=True,
             wait_for_pipeline=True,
-            gl_instance=None,
-            gl_settings=None,
             users_allowed_to_label=None,
         )
 
@@ -331,3 +333,122 @@ def test_close_item_without_enable_closing(
         1,
     ])
     mocked_logging.info.assert_not_called()
+
+
+@pytest.fixture
+def merge_request() -> Mock:
+    mr = create_autospec(ProjectMergeRequest)
+    commit = create_autospec(ProjectCommit)
+    commit.id = "abc"
+    commit.web_url = "a.b"
+    mr.commits.return_value = iter([commit])
+    mr.iid = 1
+    mr.source_project_id = 4
+    return mr
+
+
+@pytest.fixture
+def gitlab_api() -> Mock:
+    gl = create_autospec(GitLabApi)
+    project = create_autospec(Project)
+    project.name = "b"
+    project.path_with_namespace = "a/b"
+    gl.project = project
+    return gl
+
+
+@pytest.fixture
+def state() -> Mock:
+    state = create_autospec(State)
+    return state
+
+
+class StatusMock:
+    def __init__(self, name, status):
+        self.name = name
+        self.status = status
+
+
+def test_verify_ondemend_tests_running(
+    merge_request: Mock,
+    gitlab_api: Mock,
+    state: Mock,
+) -> None:
+    must_pass = ["pr-check", "e2e"]
+    state.get.return_value = {"pr-check": "success"}
+    gitlab_api.get_merge_request_pipelines.return_value = [{"status": "running"}]
+
+    assert not gl_h.verify_on_demand_tests(
+        False, merge_request, must_pass, gitlab_api, state
+    )
+    state.get.assert_not_called()
+
+
+def test_verify_ondemend_tests_state_fail(
+    merge_request: Mock,
+    gitlab_api: Mock,
+    state: Mock,
+) -> None:
+    must_pass = ["pr-check", "e2e"]
+    state.get.return_value = ["e2e"]
+    gitlab_api.get_project_by_id.return_value.commits.get.return_value.statuses.list.return_value = [
+        StatusMock("pr-check", "success")
+    ]
+
+    assert not gl_h.verify_on_demand_tests(
+        False, merge_request, must_pass, gitlab_api, state
+    )
+    state.add.assert_not_called()
+
+
+def test_verify_ondemend_tests_state_pass(
+    merge_request: Mock,
+    gitlab_api: Mock,
+    state: Mock,
+) -> None:
+    must_pass = ["pr-check", "e2e"]
+    state.get.return_value = []
+    gitlab_api.get_project_by_id.return_value.commits.get.return_value.statuses.list.return_value = [
+        StatusMock("pr-check", "success"),
+        StatusMock("e2e", "success"),
+    ]
+
+    assert gl_h.verify_on_demand_tests(
+        False, merge_request, must_pass, gitlab_api, state
+    )
+    state.add.assert_not_called()
+
+
+def test_verify_ondemend_tests_fail(
+    merge_request: Mock,
+    gitlab_api: Mock,
+    state: Mock,
+) -> None:
+    must_pass = ["pr-check", "e2e"]
+    state.get.return_value = None
+    gitlab_api.get_project_by_id.return_value.commits.get.return_value.statuses.list.return_value = [
+        StatusMock("pr-check", "success")
+    ]
+
+    assert not gl_h.verify_on_demand_tests(
+        False, merge_request, must_pass, gitlab_api, state
+    )
+    state.add.assert_called_once_with("a/b/1/abc", ["e2e"], force=True)
+
+
+def test_verify_ondemend_tests_pass(
+    merge_request: Mock,
+    gitlab_api: Mock,
+    state: Mock,
+) -> None:
+    must_pass = ["pr-check", "e2e"]
+    state.get.return_value = ["e2e"]
+    gitlab_api.get_project_by_id.return_value.commits.get.return_value.statuses.list.return_value = [
+        StatusMock("pr-check", "success"),
+        StatusMock("e2e", "success"),
+    ]
+
+    assert gl_h.verify_on_demand_tests(
+        False, merge_request, must_pass, gitlab_api, state
+    )
+    state.add.assert_called_once_with("a/b/1/abc", [], force=True)
