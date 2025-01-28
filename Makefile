@@ -8,6 +8,7 @@ IMAGE_NAME := quay.io/app-sre/qontract-reconcile
 COMMIT_AUTHOR_EMAIL := $(shell git show -s --format='%ae' HEAD)
 COMMIT_SHA := $(shell git rev-parse HEAD)
 IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
+BUILD_TARGET := prod-image
 
 .EXPORT_ALL_VARIABLES:
 # TWINE_USERNAME & TWINE_PASSWORD are available in jenkins job
@@ -26,7 +27,7 @@ help: ## Prints help for targets with comments
 	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 build:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile --target prod-image . --progress=plain
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile --target $(BUILD_TARGET) . --progress=plain
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 build-dev:
