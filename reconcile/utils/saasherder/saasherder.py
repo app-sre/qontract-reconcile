@@ -1634,9 +1634,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     )
                     desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
 
+                    all_images = [target.image] if target.image else target.images or []
                     image_registries = [
                         f"{image.org.instance.url}/{image.org.name}/{image.name}"
-                        for image in target.images or [target.image]
+                        for image in all_images
                     ]
                     error_prefix = f"[{saas_file.name}/{rt.name}] {target.ref}:"
                     if not all(

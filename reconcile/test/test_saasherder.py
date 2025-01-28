@@ -722,7 +722,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 resource_template_name="test-saas-deployments",
                 cluster_name="appsres03ue1",
                 namespace_name="test-image-trigger-v2",
-                images=["quay.io/fedora/fedora", "quay.io/centos/centos"],
+                images=["quay.io/centos/centos", "quay.io/fedora/fedora"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424, quay.io/fedora/fedora:abcd424",
             ),

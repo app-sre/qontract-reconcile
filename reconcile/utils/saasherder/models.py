@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -113,22 +113,12 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
 
 @dataclass
 class TriggerSpecContainerImage(TriggerSpecBase):
-    _images: Sequence[str] = field(init=False)
     images: Sequence[str]
     reason: str | None = None
 
     @property
-    def images(self) -> Sequence[str]:
-        return self._images
-
-    @images.setter
-    def images(self, images: Sequence[str]) -> None:
-        # Ensure consistent state key
-        self._images = sorted(images)
-
-    @property
     def state_key(self) -> str:
-        image_key = "/".join(self._images)
+        image_key = "/".join(sorted(self.images))
         key = (
             f"{self.saas_file_name}/{self.resource_template_name}/{self.cluster_name}/"
             f"{self.namespace_name}/{self.env_name}/{image_key}"
