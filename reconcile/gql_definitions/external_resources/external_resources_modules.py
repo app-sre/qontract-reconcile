@@ -17,8 +17,21 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+
 
 DEFINITION = """
+fragment DeployResourcesFields on DeployResources_v1 {
+  requests {
+    cpu
+    memory
+  }
+  limits {
+    cpu
+    memory
+  }
+}
+
 query ExternalResourcesModules {
     modules: external_resources_modules_v1 {
         provision_provider
@@ -31,6 +44,9 @@ query ExternalResourcesModules {
         outputs_secret_sync
         outputs_secret_image
         outputs_secret_version
+        resources {
+          ... DeployResourcesFields
+        }
     }
 }
 """
@@ -53,6 +69,7 @@ class ExternalResourcesModuleV1(ConfiguredBaseModel):
     outputs_secret_sync: bool = Field(..., alias="outputs_secret_sync")
     outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
     outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
+    resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
 
 
 class ExternalResourcesModulesQueryData(ConfiguredBaseModel):
