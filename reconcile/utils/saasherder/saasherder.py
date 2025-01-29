@@ -571,7 +571,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if target.image and is_commit_sha(target.ref):
             logging.error(
                 f"[{saas_file_name}/{resource_template_name}] "
-                f"image used with commit sha: {target.ref}"
+                f'Attempt to use the "image" directive with commit sha: {target.ref}. '
+                'You cannot use a non-branch ref together with "image" option in saas.'
             )
             self.valid = False
 
