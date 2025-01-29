@@ -118,10 +118,8 @@ class ExternalResourceSpec:
 
     @property
     def environment_type(self) -> str:
-        try:
-            return json.loads(self.namespace["environment"]["labels"])["type"]
-        except KeyError:
-            return "production"
+        labels = json.loads(self.namespace["environment"]["labels"])
+        return labels.get("type", "production")
 
     @property
     def output_prefix(self) -> str:
