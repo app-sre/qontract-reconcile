@@ -77,8 +77,6 @@ from terrascript.resource import (
     aws_ec2_transit_gateway_vpc_attachment,
     aws_ec2_transit_gateway_vpc_attachment_accepter,
     aws_ecr_repository,
-    aws_elasticache_parameter_group,
-    aws_elasticache_replication_group,
     aws_elasticsearch_domain,
     aws_iam_access_key,
     aws_iam_group,
@@ -106,8 +104,6 @@ from terrascript.resource import (
     aws_lb_listener_rule,
     aws_lb_target_group,
     aws_lb_target_group_attachment,
-    aws_msk_cluster,
-    aws_msk_configuration,
     aws_ram_principal_association,
     aws_ram_resource_association,
     aws_ram_resource_share,
@@ -1645,8 +1641,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_rds(spec)
         elif provider == "s3":
             self.populate_tf_resource_s3(spec)
-        elif provider == "elasticache":
-            self.populate_tf_resource_elasticache(spec)
         elif provider == "aws-iam-service-account":
             self.populate_tf_resource_service_account(spec, ocm_map=ocm_map)
         elif provider == "secrets-manager-service-account":
@@ -1689,8 +1683,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             self.populate_tf_resource_rosa_authenticator(spec)
         elif provider == "rosa-authenticator-vpce":
             self.populate_tf_resource_rosa_authenticator_vpce(spec)
-        elif provider == "msk":
-            self.populate_tf_resource_msk(spec)
         else:
             raise UnknownProviderError(provider)
 
@@ -2490,94 +2482,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.add_resources(account, tf_resources)
 
         return bucket_tf_resource
-
-    def populate_tf_resource_elasticache(self, spec):
-        account = spec.provisioner_name
-        identifier = spec.identifier
-        values = self.init_values(spec)
-        output_prefix = spec.output_prefix
-        values.setdefault("replication_group_id", values["identifier"])
-        values.pop("identifier", None)
-
-        tf_resources = []
-        self.init_common_outputs(tf_resources, spec)
-
-        default_region = self.default_regions.get(account)
-        desired_region = values.pop("region", default_region)
-
-        provider = ""
-        if desired_region is not None and self._multiregion_account(account):
-            provider = "aws." + desired_region
-            values["provider"] = provider
-
-        if not values.get("apply_immediately"):
-            values["apply_immediately"] = False
-
-        parameter_group = values.get("parameter_group")
-        # Assume that cluster enabled is false if parameter group unset
-        pg_cluster_enabled = False
-
-        if parameter_group:
-            pg_values = self.get_values(parameter_group)
-            pg_name = pg_values["name"]
-            pg_identifier = pg_name
-
-            # If the desired region is not the same as the default region
-            # we append the region to the identifier to make it unique
-            # in the terraform config
-            if desired_region is not None and desired_region != default_region:
-                pg_identifier = f"{pg_name}-{desired_region}"
-
-            pg_values["parameter"] = pg_values.pop("parameters")
-            for param in pg_values["parameter"]:
-                if param["name"] == "cluster-enabled" and param["value"] == "yes":
-                    pg_cluster_enabled = True
-
-            if self._multiregion_account(account) and len(provider) > 0:
-                pg_values["provider"] = provider
-            pg_tf_resource = aws_elasticache_parameter_group(pg_identifier, **pg_values)
-            tf_resources.append(pg_tf_resource)
-            values["depends_on"] = [
-                f"aws_elasticache_parameter_group.{pg_identifier}",
-            ]
-            values["parameter_group_name"] = pg_name
-            values.pop("parameter_group", None)
-
-        auth_token = spec.get_secret_field("db.auth_token")
-        if not auth_token:
-            auth_token = self.generate_random_password()
-
-        if values.get("transit_encryption_enabled", False):
-            values["auth_token"] = auth_token
-
-        # elasticache replication group
-        # Ref: https://www.terraform.io/docs/providers/aws/r/
-        # elasticache_replication_group.html
-        tf_resource = aws_elasticache_replication_group(identifier, **values)
-        tf_resources.append(tf_resource)
-        # elasticache outputs
-        # we want the outputs to be formed into an OpenShift Secret
-        # with the following fields
-        # db.endpoint
-        output_name = output_prefix + "__db_endpoint"
-        # https://docs.aws.amazon.com/AmazonElastiCache/
-        # latest/red-ug/Endpoints.html
-        if pg_cluster_enabled:
-            output_value = "${" + tf_resource.configuration_endpoint_address + "}"
-        else:
-            output_value = "${" + tf_resource.primary_endpoint_address + "}"
-        tf_resources.append(Output(output_name, value=output_value))
-        # db.port
-        output_name = output_prefix + "__db_port"
-        output_value = "${" + str(tf_resource.port) + "}"
-        tf_resources.append(Output(output_name, value=output_value))
-        # db.auth_token
-        if values.get("transit_encryption_enabled", False):
-            output_name = output_prefix + "__db_auth_token"
-            output_value = values["auth_token"]
-            tf_resources.append(Output(output_name, value=output_value, sensitive=True))
-
-        self.add_resources(account, tf_resources)
 
     def populate_tf_resource_service_account(self, spec, ocm_map=None):
         account = spec.provisioner_name
@@ -4287,24 +4191,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     values["db_name"] = db_name
                 if values.get("replica_source"):
                     values.pop("db_name", None)
-            elif spec.provider == "elasticache":
-                if description := values.pop("replication_group_description", None):
-                    values["description"] = description
-                if num_cache_clusters := values.pop("number_cache_clusters", None):
-                    values["num_cache_clusters"] = num_cache_clusters
-                if cluster_mode := values.pop("cluster_mode", {}):
-                    for k, v in cluster_mode.items():
-                        values[k] = v
-                values.pop("availability_zones", None)
-            elif spec.provider == "msk":
-                if ebs_volume_size := values.get("broker_node_group_info", {}).pop(
-                    "ebs_volume_size", None
-                ):
-                    values["broker_node_group_info"].setdefault(
-                        "storage_info", {}
-                    ).setdefault("ebs_storage_info", {})[
-                        "volume_size"
-                    ] = ebs_volume_size
 
         return values
 
@@ -6654,205 +6540,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(aws_vpc_endpoint_subnet_association_resource)
 
-        self.add_resources(account, tf_resources)
-
-    def populate_tf_resource_msk(self, spec):
-        account = spec.provisioner_name
-        values = self.init_values(spec)
-        output_prefix = spec.output_prefix
-        tf_resources = []
-        resource_id = spec.identifier
-
-        del values["identifier"]
-        values.setdefault("cluster_name", spec.identifier)
-
-        # common
-        self.init_common_outputs(tf_resources, spec)
-
-        # validations
-        if (
-            values["number_of_broker_nodes"]
-            % len(values["broker_node_group_info"]["client_subnets"])
-            != 0
-        ):
-            raise ValueError(
-                "number_of_broker_nodes must be a multiple of the number of specified client subnets."
-            )
-
-        scram_enabled = (
-            values.get("client_authentication", {}).get("sasl", {}).get("scram", False)
-        )
-        scram_users = {}
-        if scram_enabled:
-            if not spec.resource.get("users", []):
-                raise ValueError(
-                    "users attribute must be given when client_authentication.sasl.scram is enabled."
-                )
-            scram_users = {
-                user["name"]: self.secret_reader.read_all(user["secret"])
-                for user in spec.resource["users"]
-            }
-            # validate user objects
-            for user, secret in scram_users.items():
-                if secret.keys() != {"password", "username"}:
-                    raise ValueError(
-                        f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
-                    )
-
-        # resource - msk config
-        # unique msk config resource name enables "create_before_destroy" lifecycle
-        # which is required when changing version which requires a resource replacement
-        msk_version_str = values["kafka_version"].replace(".", "-")
-        msk_config_name = f"{resource_id}-{msk_version_str}"
-        msk_config = aws_msk_configuration(
-            msk_config_name,
-            name=msk_config_name,
-            kafka_versions=[values["kafka_version"]],
-            server_properties=values["server_properties"],
-            # lifecycle create_before_destroy is required to ensure that the config is created
-            # before it is assigned to the cluster
-            lifecycle={
-                "create_before_destroy": True,
-            },
-        )
-        tf_resources.append(msk_config)
-        values.pop("server_properties", None)
-
-        # resource - cluster
-        values["configuration_info"] = {
-            "arn": "${" + msk_config.arn + "}",
-            "revision": "${" + msk_config.latest_revision + "}",
-        }
-        msk_cluster = aws_msk_cluster(resource_id, **values)
-        tf_resources.append(msk_cluster)
-
-        # resource - cloudwatch
-        if (
-            values.get("logging_info", {})
-            .get("broker_logs", {})
-            .get("cloudwatch_logs", {})
-            .get("enabled", False)
-        ):
-            log_group_values = {
-                "name": f"{resource_id}-msk-broker-logs",
-                "tags": values["tags"],
-                "retention_in_days": values["logging_info"]["broker_logs"][
-                    "cloudwatch_logs"
-                ]["retention_in_days"],
-            }
-            log_group_tf_resource = aws_cloudwatch_log_group(
-                resource_id, **log_group_values
-            )
-            tf_resources.append(log_group_tf_resource)
-            del values["logging_info"]["broker_logs"]["cloudwatch_logs"][
-                "retention_in_days"
-            ]
-            values["logging_info"]["broker_logs"]["cloudwatch_logs"]["log_group"] = (
-                log_group_tf_resource.name
-            )
-
-        # resource - secret manager for SCRAM client credentials
-        if scram_enabled and scram_users:
-            scram_secrets: list[
-                tuple[aws_secretsmanager_secret, aws_secretsmanager_secret_version]
-            ] = []
-
-            # kms
-            kms_values = {
-                "description": "KMS key for MSK SCRAM credentials",
-                "tags": values["tags"],
-            }
-            kms_key = aws_kms_key(resource_id, **kms_values)
-            tf_resources.append(kms_key)
-
-            kms_key_alias = aws_kms_alias(
-                resource_id,
-                name=f"alias/{resource_id}-msk-scram",
-                target_key_id="${" + kms_key.arn + "}",
-            )
-            tf_resources.append(kms_key_alias)
-
-            for user, secret in scram_users.items():
-                secret_identifier = f"AmazonMSK_{resource_id}-{user}"
-
-                secret_values = {
-                    "name": secret_identifier,
-                    "tags": values["tags"],
-                    "kms_key_id": "${" + kms_key.arn + "}",
-                }
-                secret_resource = aws_secretsmanager_secret(
-                    secret_identifier, **secret_values
-                )
-                tf_resources.append(secret_resource)
-
-                version_values = {
-                    "secret_id": "${" + secret_resource.arn + "}",
-                    "secret_string": json.dumps(secret, sort_keys=True),
-                }
-                version_resource = aws_secretsmanager_secret_version(
-                    secret_identifier, **version_values
-                )
-                tf_resources.append(version_resource)
-
-                secret_policy_values = {
-                    "secret_arn": "${" + secret_resource.arn + "}",
-                    "policy": json.dumps({
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            {
-                                "Sid": "AWSKafkaResourcePolicy",
-                                "Effect": "Allow",
-                                "Principal": {"Service": "kafka.amazonaws.com"},
-                                "Action": "secretsmanager:getSecretValue",
-                                "Resource": "${" + secret_resource.arn + "}",
-                            }
-                        ],
-                    }),
-                }
-                secret_policy = aws_secretsmanager_secret_policy(
-                    secret_identifier, **secret_policy_values
-                )
-                tf_resources.append(secret_policy)
-                scram_secrets.append((secret_resource, version_resource))
-
-            # create ONE scram secret association for each secret created above
-            scram_secret_association_values = {
-                "cluster_arn": "${" + msk_cluster.arn + "}",
-                "secret_arn_list": ["${" + s.arn + "}" for s, _ in scram_secrets],
-                "depends_on": self.get_dependencies([v for _, v in scram_secrets]),
-            }
-            scram_secret_association = aws_msk_scram_secret_association(
-                resource_id, **scram_secret_association_values
-            )
-            tf_resources.append(scram_secret_association)
-
-        # outputs
-        tf_resources += [
-            Output(
-                output_prefix + "__zookeeper_connect_string",
-                value="${" + msk_cluster.zookeeper_connect_string + "}",
-            ),
-            Output(
-                output_prefix + "__zookeeper_connect_string_tls",
-                value="${" + msk_cluster.zookeeper_connect_string_tls + "}",
-            ),
-            Output(
-                output_prefix + "__bootstrap_brokers",
-                value="${" + msk_cluster.bootstrap_brokers + "}",
-            ),
-            Output(
-                output_prefix + "__bootstrap_brokers_tls",
-                value="${" + msk_cluster.bootstrap_brokers_tls + "}",
-            ),
-            Output(
-                output_prefix + "__bootstrap_brokers_sasl_iam",
-                value="${" + msk_cluster.bootstrap_brokers_sasl_iam + "}",
-            ),
-            Output(
-                output_prefix + "__bootstrap_brokers_sasl_scram",
-                value="${" + msk_cluster.bootstrap_brokers_sasl_scram + "}",
-            ),
-        ]
         self.add_resources(account, tf_resources)
 
     def populate_saml_idp(self, account_name: str, name: str, metadata: str) -> None:
