@@ -10,7 +10,7 @@ class UpdateAppSRETektonAccessReport(UpdateAccessReportBase):
 | Username | Name | Apps with pipeline namespace access |
 | -------- | ---- | ----------------------------------- |
 {% for user in users|sort -%}
-| {{ user.org_username }} | {{ user.name }} |{% for app in user.apps %} {{app}}{% if not loop.last%},{% endif %}{% endfor %} |
+| {{ user.org_username }} | {{ user.name }} |{% for app in user.apps|sort %} {{app}}{% if not loop.last%},{% endif %}{% endfor %} |
 {% endfor %}
 """.strip()
 
