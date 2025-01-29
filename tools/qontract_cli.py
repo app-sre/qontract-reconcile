@@ -2156,7 +2156,7 @@ def app_interface_merge_queue(ctx):
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    merge_requests = glhk.get_merge_requests(True, gl)
+    merge_requests = glhk.get_merge_requests(True, gl, state=None)
 
     columns = [
         "id",
