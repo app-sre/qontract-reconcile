@@ -1617,7 +1617,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         """
         github = self._initiate_github(saas_file)
         trigger_specs: list[TriggerSpecContainerImage] = []
-        image_auth = self._initiate_image_auth(saas_file)
         for rt in saas_file.resource_templates:
             for target in rt.targets:
                 try:
@@ -1632,6 +1631,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         ref=target.ref,
                         github=github,
                     )
+                    image_auth = self._initiate_image_auth(saas_file)
                     desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
 
                     all_images = [target.image] if target.image else target.images or []
