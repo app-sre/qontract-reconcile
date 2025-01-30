@@ -197,8 +197,11 @@ class ExternalResourcesManager:
             if spec.marked_to_delete:
                 continue
             module = self.module_inventory.get_from_spec(spec)
+            module_conf = ExternalResourceModuleConfiguration.resolve_configuration(
+                module, spec, self.settings
+            )
             try:
-                resource = self._build_external_resource(spec)
+                resource = self._build_external_resource(spec, module_conf)
             except ExternalResourceValidationError as e:
                 self.errors[key] = e
                 continue
@@ -208,9 +211,7 @@ class ExternalResourcesManager:
                 resource_hash=resource.hash(),
                 input=resource.json(),
                 action=Action.APPLY,
-                module_configuration=ExternalResourceModuleConfiguration.resolve_configuration(
-                    module, spec, self.settings
-                ),
+                module_configuration=module_conf,
                 linked_resources=self._find_linked_resources(spec),
             )
             r.add(reconciliation)
@@ -362,10 +363,14 @@ class ExternalResourcesManager:
                 )
                 self.state_mgr.update_resource_status(key, ResourceStatus.CREATED)
 
-    def _build_external_resource(self, spec: ExternalResourceSpec) -> ExternalResource:
+    def _build_external_resource(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> ExternalResource:
         f = self.factories.get_factory(spec.provision_provider)
-        resource = f.create_external_resource(spec)
-        f.validate_external_resource(resource)
+        resource = f.create_external_resource(spec, module_conf)
+        f.validate_external_resource(resource, module_conf)
         return resource
 
     def _find_linked_resources(

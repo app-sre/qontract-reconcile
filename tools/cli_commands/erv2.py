@@ -118,13 +118,13 @@ class Erv2Cli:
             self._er_settings, m_inventory, er_inventory, self._secret_reader
         )
         f = factories.get_factory(spec.provision_provider)
-        self._resource = f.create_external_resource(spec)
-        f.validate_external_resource(self._resource)
         self._module_configuration = (
             ExternalResourceModuleConfiguration.resolve_configuration(
                 m_inventory.get_from_spec(spec), spec, self._er_settings
             )
         )
+        self._resource = f.create_external_resource(spec, self._module_configuration)
+        f.validate_external_resource(self._resource, self._module_configuration)
 
     @property
     def input_data(self) -> str:
