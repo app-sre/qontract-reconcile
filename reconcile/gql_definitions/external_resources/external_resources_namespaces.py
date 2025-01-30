@@ -505,6 +505,7 @@ query ExternalResourcesNamespaces {
     }
     environment {
       name
+      labels
     }
     app {
       path
@@ -1071,6 +1072,7 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
 
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: str = Field(..., alias="labels")
 
 
 class AppV1(ConfiguredBaseModel):

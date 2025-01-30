@@ -448,6 +448,7 @@ query ExternalResourcesNamespaces {
     }
     environment {
       name
+      labels
     }
     app {
       path
