@@ -11,8 +11,6 @@ from reconcile.external_resources.model import (
     ExternalResourceModuleKey,
     ModuleInventory,
     Reconciliation,
-    Resources,
-    ResourcesSpec,
 )
 from reconcile.external_resources.state import (
     ExternalResourceState,
@@ -25,11 +23,6 @@ from reconcile.gql_definitions.external_resources.external_resources_settings im
     ClusterV1,
     ExternalResourcesSettingsV1,
     NamespaceV1,
-)
-from reconcile.gql_definitions.fragments.deplopy_resources import (
-    DeployResourcesFields,
-    ResourceLimitsRequirementsV1,
-    ResourceRequestsRequirementsV1,
 )
 
 
@@ -47,10 +40,6 @@ def settings() -> ExternalResourcesSettingsV1:
         vault_secrets_path="app-sre/integration-outputs/external-resources",
         outputs_secret_image="path/to/er-output-secret-image",
         outputs_secret_version="er-output-secret-version",
-        module_default_resources=DeployResourcesFields(
-            requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
-            limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
-        ),
     )
 
 
@@ -78,10 +67,6 @@ def reconciliation(key: ExternalResourceKey) -> Reconciliation:
             reconcile_timeout_minutes=30,
             outputs_secret_image="path/to/er-output-secret-image",
             outputs_secret_version="er-output-secret-version",
-            resources=Resources(
-                requests=ResourcesSpec(cpu="100m", memory="128Mi"),
-                limits=ResourcesSpec(memory="4Gi"),
-            ),
         ),
     )
 
@@ -119,7 +104,6 @@ def module() -> ExternalResourcesModuleV1:
         outputs_secret_sync=True,
         outputs_secret_image=None,
         outputs_secret_version=None,
-        resources=None,
     )
 
 
