@@ -217,7 +217,7 @@ def validate_boards(
                 continue
             # dry-run mode
             elif len(jira_boards) > 1:
-                # skip for MR checks if there are more than one board to test
+                logging.info(f"[{board.name}] Use cache results. Skipping ...")
                 continue
 
         logging.debug(f"[{board.name}] checking ...")
