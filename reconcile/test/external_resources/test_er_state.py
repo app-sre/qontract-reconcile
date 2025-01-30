@@ -34,6 +34,30 @@ def dynamodb_serialized_values() -> dict[str, Any]:
                         DynamoDBStateAdapter.MODCONF_VERSION: {"S": "0.0.1"},
                         DynamoDBStateAdapter.MODCONF_DRIFT_MINS: {"N": "120"},
                         DynamoDBStateAdapter.MODCONF_TIMEOUT_MINS: {"N": "30"},
+                        DynamoDBStateAdapter.MODCONF_RESOURCES: {
+                            "M": {
+                                DynamoDBStateAdapter.MODCONF_RESOURCES_REQUESTS: {
+                                    "M": {
+                                        DynamoDBStateAdapter.MODCONF_RESOURCES_REQUESTS_CPU: {
+                                            "S": "100m"
+                                        },
+                                        DynamoDBStateAdapter.MODCONF_RESOURCES_REQUESTS_MEMORY: {
+                                            "S": "128Mi"
+                                        },
+                                    }
+                                },
+                                DynamoDBStateAdapter.MODCONF_RESOURCES_LIMITS: {
+                                    "M": {
+                                        DynamoDBStateAdapter.MODCONF_RESOURCES_REQUESTS_CPU: {
+                                            "S": "None",
+                                        },
+                                        DynamoDBStateAdapter.MODCONF_RESOURCES_LIMITS_MEMORY: {
+                                            "S": "4Gi"
+                                        },
+                                    }
+                                },
+                            },
+                        },
                     }
                 },
             }
