@@ -17,21 +17,8 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
-
 
 DEFINITION = """
-fragment DeployResourcesFields on DeployResources_v1 {
-  requests {
-    cpu
-    memory
-  }
-  limits {
-    cpu
-    memory
-  }
-}
-
 query ExternalResourcesSettings {
     settings: external_resources_settings_v1 {
         state_dynamodb_account {
@@ -51,9 +38,6 @@ query ExternalResourcesSettings {
         vault_secrets_path
         outputs_secret_image
         outputs_secret_version
-        module_default_resources {
-          ... DeployResourcesFields
-        }
     }
 }
 """
@@ -89,7 +73,6 @@ class ExternalResourcesSettingsV1(ConfiguredBaseModel):
     vault_secrets_path: str = Field(..., alias="vault_secrets_path")
     outputs_secret_image: str = Field(..., alias="outputs_secret_image")
     outputs_secret_version: str = Field(..., alias="outputs_secret_version")
-    module_default_resources: DeployResourcesFields = Field(..., alias="module_default_resources")
 
 
 class ExternalResourcesSettingsQueryData(ConfiguredBaseModel):
