@@ -326,6 +326,9 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
     @property
     def image(self) -> SaasResourceTemplateTargetImage | None: ...
 
+    @property
+    def images(self) -> Sequence[SaasResourceTemplateTargetImage] | None: ...
+
     def uid(
         self, parent_saas_file_name: str, parent_resource_template_name: str
     ) -> str: ...
