@@ -379,7 +379,6 @@ module = [
     "reconcile.utils.vault",
     "reconcile.utils.vaultsecretref",
     "reconcile.vpc_peerings_validator",
-    "tools.qontract_cli",
     "tools.sre_checkpoints.util",
     # untyped tests
     "reconcile.test.cna.test_integration",
