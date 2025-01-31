@@ -379,7 +379,6 @@ module = [
     "reconcile.utils.vault",
     "reconcile.utils.vaultsecretref",
     "reconcile.vpc_peerings_validator",
-    "tools.app_interface_reporter",
     "tools.cli_commands.gpg_encrypt",
     "tools.cli_commands.test.test_gpg_encrypt",
     "tools.qontract_cli",
