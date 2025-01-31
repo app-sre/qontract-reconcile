@@ -18,7 +18,9 @@ from tools.cli_commands.gpg_encrypt import (
 )
 
 
-def craft_command(command_data: GPGEncryptCommandData, secret: Mapping[str, str]):
+def craft_command(
+    command_data: GPGEncryptCommandData, secret: Mapping[str, str]
+) -> GPGEncryptCommand:
     secret_reader = MagicMock(spec=SecretReader)
     secret_reader.read_all = MagicMock()
     secret_reader.read_all.side_effect = [secret]
@@ -31,7 +33,9 @@ def craft_command(command_data: GPGEncryptCommandData, secret: Mapping[str, str]
 
 @patch("reconcile.utils.gpg.gpg_encrypt")
 @patch("reconcile.queries.get_users_by")
-def test_gpg_encrypt_from_vault(get_users_by_mock, gpg_encrypt_mock):
+def test_gpg_encrypt_from_vault(
+    get_users_by_mock: MagicMock, gpg_encrypt_mock: MagicMock
+) -> None:
     vault_secret_path = "app-sre/test"
     target_user = "testuser"
     gpg_key = "xyz"
@@ -53,7 +57,7 @@ def test_gpg_encrypt_from_vault(get_users_by_mock, gpg_encrypt_mock):
 
     command.execute()
 
-    secret_reader_mock.assert_called_once_with({"path": vault_secret_path})
+    secret_reader_mock.assert_called_once_with({"path": vault_secret_path})  # type: ignore[attr-defined]
     get_users_by_mock.assert_called_once_with(
         refs=False,
         filter=UserFilter(
@@ -68,7 +72,9 @@ def test_gpg_encrypt_from_vault(get_users_by_mock, gpg_encrypt_mock):
 
 @patch("reconcile.utils.gpg.gpg_encrypt")
 @patch("reconcile.queries.get_users_by")
-def test_gpg_encrypt_from_vault_with_version(get_users_by_mock, gpg_encrypt_mock):
+def test_gpg_encrypt_from_vault_with_version(
+    get_users_by_mock: MagicMock, gpg_encrypt_mock: MagicMock
+) -> None:
     vault_secret_path = "app-sre/test"
     target_user = "testuser"
     gpg_key = "xyz"
@@ -92,7 +98,7 @@ def test_gpg_encrypt_from_vault_with_version(get_users_by_mock, gpg_encrypt_mock
 
     command.execute()
 
-    secret_reader_mock.assert_called_once_with({
+    secret_reader_mock.assert_called_once_with({  # type: ignore[attr-defined]
         "path": vault_secret_path,
         "version": str(version),
     })
@@ -110,7 +116,9 @@ def test_gpg_encrypt_from_vault_with_version(get_users_by_mock, gpg_encrypt_mock
 
 @patch("reconcile.queries.get_users_by")
 @patch("reconcile.queries.get_clusters")
-def test_gpg_encrypt_oc_bad_path(get_clusters_mock, get_users_by_mock):
+def test_gpg_encrypt_oc_bad_path(
+    get_clusters_mock: MagicMock, get_users_by_mock: MagicMock
+) -> None:
     target_user = "testuser"
     user_query = {
         "org_username": target_user,
@@ -134,7 +142,9 @@ def test_gpg_encrypt_oc_bad_path(get_clusters_mock, get_users_by_mock):
 
 @patch("reconcile.queries.get_users_by")
 @patch("reconcile.queries.get_clusters_by")
-def test_gpg_encrypt_oc_cluster_not_exists(get_clusters_mock, get_users_by_mock):
+def test_gpg_encrypt_oc_cluster_not_exists(
+    get_clusters_mock: MagicMock, get_users_by_mock: MagicMock
+) -> None:
     target_user = "testuser"
     user_query = {
         "org_username": target_user,
@@ -160,8 +170,11 @@ def test_gpg_encrypt_oc_cluster_not_exists(get_clusters_mock, get_users_by_mock)
 @patch("reconcile.utils.gpg.gpg_encrypt")
 @patch("reconcile.queries.get_users_by")
 def test_gpg_encrypt_from_local_file(
-    get_users_by_mock, gpg_encrypt_mock, mock_file, capsys
-):
+    get_users_by_mock: MagicMock,
+    gpg_encrypt_mock: MagicMock,
+    mock_file: MagicMock,
+    capsys: pytest.CaptureFixture,
+) -> None:
     target_user = "testuser"
     file_path = "/tmp/tmp"
     encrypted_content = "encrypted_content"
@@ -185,11 +198,11 @@ def test_gpg_encrypt_from_local_file(
     captured = capsys.readouterr()
     assert captured.out == f"{encrypted_content}\n"
     mock_file.assert_called_once_with(file_path, encoding="locale")
-    secret_reader_mock.read_all.assert_not_called()
+    secret_reader_mock.read_all.assert_not_called()  # type: ignore[attr-defined]
 
 
 @patch("reconcile.queries.get_users_by")
-def test_gpg_encrypt_user_not_found(get_users_by_mock):
+def test_gpg_encrypt_user_not_found(get_users_by_mock: MagicMock) -> None:
     target_user = "testuser"
     command = craft_command(
         command_data=GPGEncryptCommandData(
@@ -206,7 +219,7 @@ def test_gpg_encrypt_user_not_found(get_users_by_mock):
 
 
 @patch("reconcile.queries.get_users_by")
-def test_gpg_encrypt_user_no_gpg_key(get_users_by_mock):
+def test_gpg_encrypt_user_no_gpg_key(get_users_by_mock: MagicMock) -> None:
     target_user = "testuser"
     command = craft_command(
         command_data=GPGEncryptCommandData(
@@ -222,7 +235,7 @@ def test_gpg_encrypt_user_no_gpg_key(get_users_by_mock):
     assert "associated GPG key" in str(exc.value)
 
 
-def test_gpg_encrypt_no_secret_specified():
+def test_gpg_encrypt_no_secret_specified() -> None:
     command = craft_command(
         command_data=GPGEncryptCommandData(
             target_user="one_user",

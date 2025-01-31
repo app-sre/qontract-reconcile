@@ -379,8 +379,6 @@ module = [
     "reconcile.utils.vault",
     "reconcile.utils.vaultsecretref",
     "reconcile.vpc_peerings_validator",
-    "tools.cli_commands.gpg_encrypt",
-    "tools.cli_commands.test.test_gpg_encrypt",
     "tools.qontract_cli",
     "tools.sre_checkpoints.util",
     # untyped tests
