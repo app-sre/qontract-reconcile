@@ -14,6 +14,7 @@ from kubernetes.client import (
     V1ObjectMeta,
     V1PodSpec,
     V1PodTemplateSpec,
+    V1ResourceRequirements,
     V1SecretVolumeSource,
     V1Volume,
     V1VolumeMount,
@@ -89,10 +90,19 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
         }
 
     def job_spec(self) -> V1JobSpec:
+        assert self.reconciliation.module_configuration.resources is not None
         job_container = V1Container(
             name="job",
             image=self.reconciliation.module_configuration.image_version,
             image_pull_policy="Always",
+            resources=V1ResourceRequirements(
+                requests=self.reconciliation.module_configuration.resources.requests.dict(
+                    exclude_none=True
+                ),
+                limits=self.reconciliation.module_configuration.resources.limits.dict(
+                    exclude_none=True
+                ),
+            ),
             env=[
                 V1EnvVar(
                     name="DRY_RUN",
@@ -101,6 +111,12 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                 V1EnvVar(
                     name="ACTION",
                     value=self.reconciliation.action.value,
+                ),
+                V1EnvVar(
+                    name="RECONCILE_TIMEOUT_MINUTES",
+                    value=str(
+                        self.reconciliation.module_configuration.reconcile_timeout_minutes
+                    ),
                 ),
             ],
             volume_mounts=[
