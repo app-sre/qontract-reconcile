@@ -2263,7 +2263,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             }:
                 continue
 
-            labels = mr.attributes.get("labels")
+            labels = mr.attributes.get("labels") or []
             if glhk.is_good_to_merge(labels):
                 continue
             if "stale" in labels:
