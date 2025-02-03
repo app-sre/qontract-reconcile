@@ -1,0 +1,35 @@
+# qenerate: plugin=pydantic_v1
+
+query FleetLabels {
+    fleet_labels: fleet_labels_v1 {
+        name
+        managedSubscriptionLabelPrefix
+        ocms {
+            environment {
+                url
+            }
+            accessTokenClientId
+            accessTokenClientSecret {
+                ... VaultSecret
+            }
+            accessTokenUrl
+        }
+        labelDefaults {
+            name
+            matchSubscriptionLabels
+            subscriptionLabelTemplate {
+                path {
+                    content
+                }
+                type
+                variables
+            }
+        }
+        clusters {
+            name
+            serverUrl
+            clusterId
+            subscriptionLabels
+        }
+    }
+}

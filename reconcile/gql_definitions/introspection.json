@@ -3757,7 +3757,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "managed_dynatrace_token_provider_labels_v1",
+                            "name": "fleet_labels_v1",
                             "description": null,
                             "args": [
                                 {
@@ -3799,7 +3799,7 @@
                                     "name": null,
                                     "ofType": {
                                         "kind": "OBJECT",
-                                        "name": "ManagedDynatraceTokenProviderLabels_v1",
+                                        "name": "FleetLabels_v1",
                                         "ofType": null
                                     }
                                 }
@@ -5621,7 +5621,7 @@
                         },
                         {
                             "kind": "OBJECT",
-                            "name": "ManagedDynatraceTokenProviderLabels_v1",
+                            "name": "FleetLabels_v1",
                             "ofType": null
                         },
                         {
@@ -33895,6 +33895,22 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "module_default_resources",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "DeployResources_v1",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -34092,6 +34108,18 @@
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "resources",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "DeployResources_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -34310,7 +34338,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "ManagedDynatraceTokenProviderLabels_v1",
+                    "name": "FleetLabels_v1",
                     "description": null,
                     "fields": [
                         {
@@ -34374,15 +34402,39 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "ocm",
+                            "name": "ocms",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "OpenShiftClusterManager_v1",
+                                    "kind": "LIST",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "NON_NULL",
+                                        "name": null,
+                                        "ofType": {
+                                            "kind": "OBJECT",
+                                            "name": "OpenShiftClusterManager_v1",
+                                            "ofType": null
+                                        }
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "managedSubscriptionLabelPrefix",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
                                     "ofType": null
                                 }
                             },
@@ -34404,7 +34456,7 @@
                                         "name": null,
                                         "ofType": {
                                             "kind": "OBJECT",
-                                            "name": "DynatraceTokenProviderLabelDefault_v1",
+                                            "name": "FleetLabelDefault_v1",
                                             "ofType": null
                                         }
                                     }
@@ -34428,7 +34480,7 @@
                                         "name": null,
                                         "ofType": {
                                             "kind": "OBJECT",
-                                            "name": "OpenShiftClusterManagerUpgradePolicyCluster_v1",
+                                            "name": "FleetCluster_v1",
                                             "ofType": null
                                         }
                                     }
@@ -34451,7 +34503,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "DynatraceTokenProviderLabelDefault_v1",
+                    "name": "FleetLabelDefault_v1",
                     "description": null,
                     "fields": [
                         {
@@ -34471,7 +34523,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "matchLabels",
+                            "name": "matchSubscriptionLabels",
                             "description": null,
                             "args": [],
                             "type": {
@@ -34487,13 +34539,17 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "labelTemplate",
+                            "name": "subscriptionLabelTemplate",
                             "description": null,
                             "args": [],
                             "type": {
-                                "kind": "OBJECT",
-                                "name": "DynatraceTokenProviderLabelTemplate_v1",
-                                "ofType": null
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "OBJECT",
+                                    "name": "FleetSubscriptionLabelTemplate_v1",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -34506,7 +34562,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "DynatraceTokenProviderLabelTemplate_v1",
+                    "name": "FleetSubscriptionLabelTemplate_v1",
                     "description": null,
                     "fields": [
                         {
@@ -34541,6 +34597,81 @@
                                 "kind": "SCALAR",
                                 "name": "JSON",
                                 "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        }
+                    ],
+                    "inputFields": null,
+                    "interfaces": [],
+                    "enumValues": null,
+                    "possibleTypes": null
+                },
+                {
+                    "kind": "OBJECT",
+                    "name": "FleetCluster_v1",
+                    "description": null,
+                    "fields": [
+                        {
+                            "name": "name",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "serverUrl",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "clusterId",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "subscriptionLabels",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "JSON",
+                                    "ofType": null
+                                }
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
@@ -38873,81 +39004,6 @@
                             "ofType": null
                         }
                     ],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "DynatraceTokenProviderCluster_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "serverUrl",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "serverId",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "labels",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "JSON",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -43345,6 +43401,18 @@
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "String",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "resources",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "DeployResources_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
