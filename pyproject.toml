@@ -327,7 +327,6 @@ module = [
     "reconcile.terraform_aws_route53",
     "reconcile.terraform_cloudflare_resources",
     "reconcile.terraform_users",
-    "reconcile.utils.binary",
     "reconcile.utils.config",
     "reconcile.utils.data_structures",
     "reconcile.utils.defer",
