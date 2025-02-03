@@ -122,7 +122,8 @@ class AWSElasticacheFactory(AWSDefaultResourceFactory):
 
 
 class AWSRdsFactory(AWSDefaultResourceFactory):
-    TIMEOUT_RE = re.compile(r"^\d+m$")
+    TIMEOUT_RE = re.compile(r"^(?:(\d+)h)?\s*(?:(\d+)m)?$")
+    TIMEOUT_UNITS = units = {"h": "hours", "m": "minutes"}
 
     def _get_source_db_spec(
         self, provisioner: str, identifier: str
@@ -188,11 +189,14 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
         self,
         timeout: str,
     ) -> int:
-        if not re.match(AWSRdsFactory.TIMEOUT_RE, timeout):
+        if not (match := re.fullmatch(AWSRdsFactory.TIMEOUT_RE, timeout)):
             raise ValueError(
-                f"Invalid RDS instance timeout format: {timeout}. Specify timeout in minutes(m)."
+                f"Invalid RDS instance timeout format: {timeout}. Specify a duration using 'h' and 'm' only. E.g. 2h30m"
             )
-        return int(timeout[:-1])
+
+        hours = int(match.group(1)) if match.group(1) else 0
+        minutes = int(match.group(2)) if match.group(2) else 0
+        return hours * 60 + minutes
 
     def _validate_timeouts(
         self,
@@ -218,7 +222,7 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
             timeout_minutes = self._get_timeout_minutes(timeout)
             if timeout_minutes >= module_conf.reconcile_timeout_minutes:
                 raise ValueError(
-                    f"RDS instance {option} timeout value {timeout_minutes} must be lower than the module reconcile_timeout_minutes value {module_conf.reconcile_timeout_minutes}."
+                    f"RDS instance {option} timeout value {timeout_minutes} (minutes) must be lower than the module reconcile_timeout_minutes value {module_conf.reconcile_timeout_minutes}."
                 )
 
     def validate(

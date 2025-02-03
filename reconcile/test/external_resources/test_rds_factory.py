@@ -60,16 +60,24 @@ def test_validate_timeouts_ok(
     ("timeouts", "expected_value_error"),
     [
         (
-            {"create": "60m", "update": "60m", "delete": "60m"},
-            "RDS instance create timeout value 60 must be lower than the module reconcile_timeout_minutes value 60.",
+            {
+                "create": "125m",
+            },
+            r"RDS instance create timeout value 125 \(minutes\) must be lower than the module reconcile_timeout_minutes value 120.",
         ),
         (
-            {"create": "55m", "update": "60m", "delete": "60m"},
-            "RDS instance update timeout value 60 must be lower than the module reconcile_timeout_minutes value 60.",
+            {
+                "create": "2h",
+            },
+            r"RDS instance create timeout value 120 \(minutes\) must be lower than the module reconcile_timeout_minutes value 120.",
         ),
         (
-            {"create": "1h", "update": "1h", "delete": "1h"},
-            r"Invalid RDS instance timeout format: 1h. Specify timeout in minutes\(m\).",
+            {"create": "2h30m", "update": "2h30m", "delete": "2h30m"},
+            r"RDS instance create timeout value 150 \(minutes\) must be lower than the module reconcile_timeout_minutes value 120.",
+        ),
+        (
+            {"create": "1h500s"},
+            "Invalid RDS instance timeout format: 1h500s. Specify a duration using 'h' and 'm' only. E.g. 2h30m",
         ),
         (
             {"unknown_key": "55m"},
@@ -87,7 +95,7 @@ def test_validate_timeouts_nok(timeouts: Any, expected_value_error: str) -> None
         data={"timeouts": timeouts}, provision=Mock(spec=ExternalResourceProvision)
     )
 
-    module_conf = ExternalResourceModuleConfiguration(reconcile_timeout_minutes=60)
+    module_conf = ExternalResourceModuleConfiguration(reconcile_timeout_minutes=120)
     with pytest.raises(
         ValueError,
         match=rf".*{expected_value_error}.*",
