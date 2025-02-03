@@ -12,5 +12,8 @@ query ExternalResourcesModules {
         outputs_secret_sync
         outputs_secret_image
         outputs_secret_version
+        resources {
+          ... DeployResourcesFields
+        }
     }
 }

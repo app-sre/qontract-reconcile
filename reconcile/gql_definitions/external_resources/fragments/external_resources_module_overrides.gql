@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v1
+
+fragment ExternalResourcesModuleOverrides on ExternalResourcesModuleOverrides_v1 {
+  module_type
+  image
+  version
+  reconcile_timeout_minutes
+  outputs_secret_image
+  outputs_secret_version
+  resources {
+    ... DeployResourcesFields
+  }
+}

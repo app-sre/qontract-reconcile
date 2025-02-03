@@ -18,7 +18,6 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
     ExternalResourcesModuleV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
-    ExternalResourcesModuleOverridesV1,
     NamespaceTerraformProviderResourceAWSV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
@@ -29,6 +28,10 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
     ExternalResourcesSettingsV1,
 )
+from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
+    ExternalResourcesModuleOverrides,
+)
+from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
@@ -220,6 +223,38 @@ def load_module_inventory(
     })
 
 
+class ResourcesSpec(BaseModel, frozen=True):
+    cpu: str | None = None
+    memory: str | None = None
+
+
+class Resources(BaseModel, frozen=True):
+    """Hashable class to store module resources in reconciliations.
+    Default values are used as a fallback for existent objects that were
+    created without container resources, hence they don't have mem/cpu resources
+    in the ERv2 State. Eventually, all resources will have resources assignments
+    from the module spec, module_overrides, or app-interface settings.
+    """
+
+    requests: ResourcesSpec = ResourcesSpec()
+    limits: ResourcesSpec = ResourcesSpec()
+
+    @staticmethod
+    def from_deploy_resources_fields(fields: DeployResourcesFields) -> "Resources":
+        """Create Resource obect from GQL DeployResourcesFields.
+
+        DeployResourceFields can not be used directly as it not hashable."""
+        return Resources(
+            requests=ResourcesSpec(
+                cpu=fields.requests.cpu, memory=fields.requests.memory
+            ),
+            limits=ResourcesSpec(
+                cpu=fields.limits.cpu,
+                memory=fields.limits.memory,
+            ),
+        )
+
+
 class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     image: str = ""
     version: str = ""
@@ -227,6 +262,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     reconcile_timeout_minutes: int = -1000
     outputs_secret_image: str = ""
     outputs_secret_version: str = ""
+    resources: Resources = Resources()
 
     @property
     def image_version(self) -> str:
@@ -244,13 +280,14 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     ) -> "ExternalResourceModuleConfiguration":
         module_overrides = spec.metadata.get(
             "module_overrides"
-        ) or ExternalResourcesModuleOverridesV1(
+        ) or ExternalResourcesModuleOverrides(
             module_type=None,
             image=None,
             version=None,
             reconcile_timeout_minutes=None,
             outputs_secret_image=None,
             outputs_secret_version=None,
+            resources=None,
         )
 
         return ExternalResourceModuleConfiguration(
@@ -265,6 +302,11 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
             outputs_secret_version=module_overrides.outputs_secret_version
             or module.outputs_secret_version
             or settings.outputs_secret_version,
+            resources=Resources.from_deploy_resources_fields(
+                module_overrides.resources
+                or module.resources
+                or settings.module_default_resources
+            ),
         )
 
 
