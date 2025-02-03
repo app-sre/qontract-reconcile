@@ -72,7 +72,7 @@ debugger = ["debugpy ~=1.6.0"]
 dev = [
     "anymarkup ~=0.8.1",
     # keep in sync project.dependencies.boto3
-    "boto3-stubs[account,ec2,s3,rds,iam,route53,organizations,service-quotas,sts,support,dynamodb]==1.34.94",
+    "boto3-stubs[account,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.34.94",
     "kubernetes-stubs==22.6.0",
     "MarkupSafe ~=2.1.1",
     "moto ~=2.2",
@@ -327,7 +327,6 @@ module = [
     "reconcile.terraform_aws_route53",
     "reconcile.terraform_cloudflare_resources",
     "reconcile.terraform_users",
-    "reconcile.utils.aws_api",
     "reconcile.utils.aws_helper",
     "reconcile.utils.binary",
     "reconcile.utils.config",
@@ -479,7 +478,6 @@ module = [
     "reconcile.test.test_vpc_peerings_validator",
     "reconcile.test.test_wrong_region",
     "reconcile.test.utils.internal_groups.test_internal_groups_client",
-    "reconcile.test.utils.test_aws_api",
     "reconcile.test.utils.test_aws_helper",
     "reconcile.test.utils.test_aws_rds",
     "reconcile.test.utils.test_data_structures",
