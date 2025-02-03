@@ -15,6 +15,7 @@ from reconcile.external_resources.meta import QONTRACT_INTEGRATION
 from reconcile.external_resources.model import (
     ExternalResource,
     ExternalResourceKey,
+    ExternalResourceModuleConfiguration,
     ExternalResourceProvision,
     ExternalResourcesInventory,
     ModuleInventory,
@@ -55,11 +56,19 @@ class ObjectFactory(Generic[T]):
 
 class ExternalResourceFactory(ABC):
     @abstractmethod
-    def create_external_resource(self, spec: ExternalResourceSpec) -> ExternalResource:
+    def create_external_resource(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> ExternalResource:
         pass
 
     @abstractmethod
-    def validate_external_resource(self, resource: ExternalResource) -> None:
+    def validate_external_resource(
+        self,
+        resource: ExternalResource,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> None:
         pass
 
     def find_linked_resources(
@@ -121,9 +130,13 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
         self.er_inventory = er_inventory
         self.secret_reader = secret_reader
 
-    def create_external_resource(self, spec: ExternalResourceSpec) -> ExternalResource:
+    def create_external_resource(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> ExternalResource:
         f = self.resource_factories.get_factory(spec.provider)
-        data = f.resolve(spec)
+        data = f.resolve(spec, module_conf)
         data["tags"] = spec.tags(integration=QONTRACT_INTEGRATION)
         data["default_tags"] = AWS_DEFAULT_TAGS
 
@@ -152,9 +165,13 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
 
         return ExternalResource(data=data, provision=provision)
 
-    def validate_external_resource(self, resource: ExternalResource) -> None:
+    def validate_external_resource(
+        self,
+        resource: ExternalResource,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> None:
         f = self.resource_factories.get_factory(resource.provision.provider)
-        f.validate(resource)
+        f.validate(resource, module_conf)
 
     def find_linked_resources(
         self, spec: ExternalResourceSpec
