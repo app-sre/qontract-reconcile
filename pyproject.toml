@@ -518,9 +518,6 @@ module = [
     "reconcile.test.utils.test_terrascript_aws_client",
     "reconcile.test.utils.test_terrascript_cloudflare_client",
     "reconcile.test.utils.test_terrascript_cloudflare_resources",
-    "tools.test.test_qontract_cli",
-    "tools.test.test_sd_app_sre_alert_report",
-    "tools.test.test_sre_checkpoints",
 ]
 check_untyped_defs = false
 disallow_untyped_defs = false
