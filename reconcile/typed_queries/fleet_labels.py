@@ -11,4 +11,4 @@ def get_fleet_labels(
 ) -> list[FleetLabelsV1]:
     api = api or gql.get_api()
     data = query(api.query)
-    return list(data.fleet_labels or [])
+    return data.fleet_labels or []
