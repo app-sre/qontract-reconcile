@@ -17,15 +17,14 @@ from tools.cli_commands.gpg_encrypt import (
     UserException,
 )
 
+SECRET = {"x": "y"}
+
 
 @pytest.fixture
 def secret_reader(mocker: MockerFixture) -> MagicMock:
-    mock_secretreader = mocker.patch(
-        "reconcile.utils.secret_reader.SecretReader", autospec=True
-    )
-    mock_secretreader.read.return_value = "secret"
-    mock_secretreader.read_secret.return_value = "secret"
-    return mock_secretreader
+    mock = mocker.create_autospec(SecretReader)
+    mock.read_all.return_value = SECRET
+    return mock
 
 
 def craft_command(
@@ -65,7 +64,7 @@ def test_gpg_encrypt_from_vault(
 
     command.execute()
 
-    secret_reader.assert_called_once_with({"path": vault_secret_path})
+    secret_reader.read_all.assert_called_once_with({"path": vault_secret_path})
     get_users_by_mock.assert_called_once_with(
         refs=False,
         filter=UserFilter(
@@ -105,7 +104,7 @@ def test_gpg_encrypt_from_vault_with_version(
 
     command.execute()
 
-    secret_reader.assert_called_once_with({
+    secret_reader.read_all.assert_called_once_with({
         "path": vault_secret_path,
         "version": str(version),
     })
