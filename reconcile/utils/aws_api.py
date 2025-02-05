@@ -898,6 +898,10 @@ class AWSApi:
                 if not user_and_user_keys:
                     continue
 
+                if len(user_and_user_keys) > 1:
+                    raise RuntimeError(
+                        f"key {key} returned multiple users: {user_and_user_keys}"
+                    )
                 user = user_and_user_keys[0][0]
                 user_keys = user_and_user_keys[0][1]
                 key_type = self.determine_key_type(iam, user)
