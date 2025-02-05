@@ -84,6 +84,18 @@ def patch_jjb(mocker, github_job_fixture, gitlab_job_fixture):
     )
 
 
+@pytest.fixture
+def patch_logging(mocker):
+    return mocker.patch("reconcile.utils.jjb_client.logging")
+
+
+@pytest.fixture
+def patch_et_parse(mocker):
+    et = mocker.patch("reconcile.utils.jjb_client.et")
+    et.parse.return_value.getroot.return_value.tag = "job"
+    return et
+
+
 def test_get_job_by_repo_url(patch_jjb, gitlab_job_fixture):
     jjb = JJB(None)
     job = jjb.get_job_by_repo_url(
@@ -115,3 +127,29 @@ def test_get_gitlab_webhook_trigger_build(patch_jjb, gitlab_build_job_fixture):
 def test_get_gitlab_webhook_trigger_test(patch_jjb, gitlab_test_job_fixture):
     jjb = JJB(None)
     assert jjb.get_gitlab_webhook_trigger(gitlab_test_job_fixture) == ["note"]
+
+
+def test_print_diff(patch_jjb, patch_logging, patch_et_parse):
+    jjb = JJB(None)
+    jjb.print_diff(
+        ["throughput/jjb/desired/ci-int/group-project/config.xml"],
+        "throughput/jjb/desired",
+        "create",
+    )
+    patch_logging.info.assert_called_once_with([
+        "create",
+        "job",
+        "ci-int",
+        "group-project",
+    ])
+
+
+def test_print_diff_with_invalid_job_name(patch_jjb, patch_logging, patch_et_parse):
+    jjb = JJB(None)
+    with pytest.raises(ValueError) as e_info:
+        jjb.print_diff(
+            ["throughput/jjb/desired/ci-int/group/project/config.xml"],
+            "throughput/jjb/desired",
+            "create",
+        )
+    assert str(e_info.value) == "Invalid job name contains '/' in ci-int: group/project"
