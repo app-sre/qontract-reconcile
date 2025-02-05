@@ -24,6 +24,7 @@ from reconcile.utils.ocm.status_board import (
     create_product,
     delete_application,
     delete_product,
+    get_application_services,
     get_managed_products,
     get_product_applications,
 )
@@ -88,6 +89,7 @@ class Product(AbstractStatusBoard):
 
 class Application(AbstractStatusBoard):
     product: Optional["Product"]
+    services: list["Service"] | None
 
     def create(self, ocm: OCMBaseClient) -> None:
         spec = self.dict(by_alias=True)
@@ -112,6 +114,36 @@ class Application(AbstractStatusBoard):
     @staticmethod
     def get_priority() -> int:
         return 1
+
+
+class Service(AbstractStatusBoard):
+    application: Application | None
+
+    def create(self, ocm: OCMBaseClient) -> None:
+        spec = self.dict(by_alias=True)
+        spec.pop("id")
+        application = spec.pop("application")
+        application_id = application.get("id")
+        if application_id:
+            spec["application"] = {"id": application_id}
+            # TODO: Implement create_service
+            # self.id = create_application(ocm, spec)
+        else:
+            logging.warning("Missing product id for application")
+
+    def delete(self, ocm: OCMBaseClient) -> None:
+        if not self.id:
+            logging.error(f'Trying to delete Application "{self.name}" without id')
+            return
+        # TODO: Implement delete_service
+        # delete_application(ocm, self.id)
+
+    def summarize(self) -> str:
+        return f'Service: "{self.name}" "{self.fullname}"'
+
+    @staticmethod
+    def get_priority() -> int:
+        return 2
 
 
 class StatusBoardHandler(BaseModel):
@@ -148,7 +180,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         }
 
     @staticmethod
-    def get_current_products_applications(ocm_api: OCMBaseClient) -> list[Product]:
+    def get_current_products_applications_services(
+        ocm_api: OCMBaseClient,
+    ) -> list[Product]:
         products_raw = get_managed_products(ocm_api)
         products = [Product(**p) for p in products_raw]
 
@@ -159,6 +193,13 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             p.applications = [
                 Application(**a) for a in get_product_applications(ocm_api, p.id)
             ]
+            for a in p.applications:
+                if not a.id:
+                    logging.error(f'Application "{a.name}" has no id')
+                    continue
+                a.services = [
+                    Service(**s) for s in get_application_services(ocm_api, a.id)
+                ]
 
         return products
 
