@@ -1,0 +1,2 @@
+tenant: {{ tenants['ext-hypershift.openshift.io/cluster-type'] | default(tenants['default']) }}
+tokenSpec: {{ tokenSpecs[labels['ext-hypershift.openshift.io/cluster-sector']] | default(tokenSpecs['default']) }}
