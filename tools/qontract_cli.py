@@ -4510,5 +4510,39 @@ def tekton_roles_and_users(ctx, app_name):
     print_output(ctx.obj["options"], results, columns)
 
 
+@get.command(
+    help="Get log group storage information from CloudWatch. This is an API-intensive operation so use wisely"
+)
+@click.argument("aws-account")
+@click.pass_context
+def log_group_usage(ctx, aws_account):
+    accounts = queries.get_aws_accounts(name=aws_account)
+    if not accounts:
+        print("no aws account found with that name")
+        sys.exit(1)
+    account = accounts[0]
+
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
+    columns = ["log_group", "stored_bytes", "retention_days"]
+    results = []
+
+    with AWSApi(1, [account], settings, secret_reader) as aws:
+        session = aws.get_session(account["name"])
+        cloudwatch_client = aws.get_session_client(session, "logs")
+        paginator = cloudwatch_client.get_paginator("describe_log_groups")
+        for page in paginator.paginate(PaginationConfig={}):
+            results.extend(
+                {
+                    "log_group": group["logGroupName"],
+                    "stored_bytes": group["storedBytes"],
+                    "retention_days": group["retentionInDays"],
+                }
+                for group in page["logGroups"]
+                if group["storedBytes"] != 0
+            )
+    print_output(ctx.obj["options"], results, columns)
+
+
 if __name__ == "__main__":
     root()  # pylint: disable=no-value-for-parameter
