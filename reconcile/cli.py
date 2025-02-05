@@ -3106,6 +3106,19 @@ def dynatrace_token_provider(ctx):
     )
 
 
+@integration.command(short_help="Manage labels across cluster fleets in OCM")
+@click.pass_context
+def fleet_labeler(ctx):
+    from reconcile.fleet_labeler.integration import (
+        FleetLabelerIntegration,
+    )
+
+    run_class_integration(
+        integration=FleetLabelerIntegration(),
+        ctx=ctx.obj,
+    )
+
+
 @integration.command(short_help="Manage additional routers in OCM.")
 @click.pass_context
 def ocm_additional_routers(ctx):
