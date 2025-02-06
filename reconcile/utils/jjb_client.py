@@ -186,7 +186,11 @@ class JJB:  # pylint: disable=too-many-public-methods
                 if equal:
                     continue
 
-            instance, item, _ = f.replace(replace_path + "/", "").split("/")
+            instance, *items, _ = f.replace(replace_path + "/", "").split("/")
+            if len(items) != 1:
+                name = "/".join(items)
+                raise ValueError(f"Invalid job name contains '/' in {instance}: {name}")
+            item = items[0]
             item_type = et.parse(f).getroot().tag
             item_type = item_type.replace("hudson.model.ListView", "view")
             item_type = item_type.replace("project", "job")

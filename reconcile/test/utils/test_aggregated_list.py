@@ -1,14 +1,18 @@
+from collections.abc import Callable
+
 import pytest
 
 from reconcile.utils.aggregated_list import (
+    Action,
     AggregatedDiffRunner,
     AggregatedList,
+    Cond,
 )
 
 
 class TestAggregatedList:
     @staticmethod
-    def test_add_item():
+    def test_add_item() -> None:
         alist = AggregatedList()
 
         params = {"a": 1, "b": 2}
@@ -21,7 +25,7 @@ class TestAggregatedList:
         assert alist.dump()[0]["params"] == params
 
     @staticmethod
-    def test_add_repeated_item():
+    def test_add_repeated_item() -> None:
         alist = AggregatedList()
 
         params = {"a": 1, "b": 2}
@@ -35,7 +39,7 @@ class TestAggregatedList:
         assert alist.dump()[0]["params"] == params
 
     @staticmethod
-    def test_add_different_params():
+    def test_add_different_params() -> None:
         alist = AggregatedList()
 
         params1 = {"b": 1, "a": 2}
@@ -56,7 +60,7 @@ class TestAggregatedList:
         assert alist.get_by_params_hash(hp2)["items"] == items2
 
     @staticmethod
-    def test_get_py_params_hash():
+    def test_get_py_params_hash() -> None:
         alist = AggregatedList()
 
         params1 = {"a": 1, "b": 2, "c": 3}
@@ -90,7 +94,7 @@ class TestAggregatedList:
         assert alist.get_by_params_hash(hp5)["items"] == items2
 
     @staticmethod
-    def test_diff_insert():
+    def test_diff_insert() -> None:
         left = AggregatedList()
         right = AggregatedList()
 
@@ -105,7 +109,7 @@ class TestAggregatedList:
         assert diff["insert"] == [{"params": {"a": 1}, "items": ["qwerty"]}]
 
     @staticmethod
-    def test_diff_delete():
+    def test_diff_delete() -> None:
         left = AggregatedList()
         right = AggregatedList()
 
@@ -120,7 +124,7 @@ class TestAggregatedList:
         assert diff["delete"] == [{"params": {"a": 1}, "items": ["qwerty"]}]
 
     @staticmethod
-    def test_diff_update_insert():
+    def test_diff_update_insert() -> None:
         left = AggregatedList()
         right = AggregatedList()
 
@@ -136,7 +140,7 @@ class TestAggregatedList:
         assert diff["update-insert"] == [{"items": ["qwerty2"], "params": {"a": 1}}]
 
     @staticmethod
-    def test_diff_update_delete():
+    def test_diff_update_delete() -> None:
         left = AggregatedList()
         right = AggregatedList()
 
@@ -154,7 +158,7 @@ class TestAggregatedList:
 
 class TestAggregatedDiffRunner:
     @staticmethod
-    def test_run():
+    def test_run() -> None:
         left = AggregatedList()
         right = AggregatedList()
 
@@ -172,12 +176,12 @@ class TestAggregatedDiffRunner:
         left.add({"on": "update-delete"}, ["ud1", "ud2"])
         right.add({"on": "update-delete"}, ["ud1"])
 
-        on_insert = []
-        on_delete = []
-        on_update_insert = []
-        on_update_delete = []
+        on_insert: list[tuple[Action, Cond]] = []
+        on_delete: list[tuple[Action, Cond]] = []
+        on_update_insert: list[tuple[Action, Cond]] = []
+        on_update_delete: list[tuple[Action, Cond]] = []
 
-        def recorder(ls):
+        def recorder(ls: list) -> Callable:
             return lambda p, i: ls.append([p, i])
 
         runner = AggregatedDiffRunner(left.diff(right))
@@ -195,7 +199,7 @@ class TestAggregatedDiffRunner:
         assert on_update_delete == [[{"on": "update-delete"}, ["ud2"]]]
 
     @staticmethod
-    def test_run_cond_true():
+    def test_run_cond_true() -> None:
         left = AggregatedList()
         right = AggregatedList()
 
@@ -204,14 +208,14 @@ class TestAggregatedDiffRunner:
         runner = AggregatedDiffRunner(left.diff(right))
 
         recorder = []
-        runner.register("insert", lambda p, i: recorder.append("True"), lambda p: True)
+        runner.register("insert", lambda p, i: recorder.append("True"), lambda p: True)  # type: ignore
 
         runner.run()
 
         assert recorder == ["True"]
 
     @staticmethod
-    def test_run_cond_false():
+    def test_run_cond_false() -> None:
         left = AggregatedList()
         right = AggregatedList()
 
@@ -220,14 +224,14 @@ class TestAggregatedDiffRunner:
         runner = AggregatedDiffRunner(left.diff(right))
 
         recorder = []
-        runner.register("insert", lambda p, i: recorder.append("True"), lambda p: False)
+        runner.register("insert", lambda p, i: recorder.append("True"), lambda p: False)  # type: ignore
 
         runner.run()
 
         assert not recorder
 
     @staticmethod
-    def test_unknown_diff_on():
+    def test_unknown_diff_on() -> None:
         left = AggregatedList()
         right = AggregatedList()
 

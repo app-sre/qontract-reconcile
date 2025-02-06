@@ -5,7 +5,7 @@ from abc import (
     abstractmethod,
 )
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from gitlab.exceptions import GitlabError
@@ -224,8 +224,11 @@ class MergeRequestBase(ABC):
                 )
 
     def diffs(self, gitlab_cli: GitLabApi) -> Any:
-        return gitlab_cli.project.repository_compare(
-            from_=gitlab_cli.main_branch, to=self.branch
+        return cast(
+            dict,
+            gitlab_cli.project.repository_compare(
+                from_=gitlab_cli.main_branch, to=self.branch
+            ),
         )["diffs"]
 
     def submit(self, cli: MRClient) -> Any | None:

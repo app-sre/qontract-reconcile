@@ -1,9 +1,6 @@
 import json
 import re
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
+from collections.abc import Iterable, Mapping
 
 import yaml
 from tabulate import tabulate
@@ -11,11 +8,11 @@ from tabulate import tabulate
 
 def print_output(
     options: Mapping[str, str | bool],
-    content: list[dict],
+    content: Iterable[dict],
     columns: Iterable[str] = (),
 ) -> str | None:
     if options["sort"]:
-        content.sort(key=lambda c: tuple(c.values()))
+        content = sorted(content, key=lambda c: tuple(c.values()))
     if options.get("to_string"):
         for c in content:
             for k, v in c.items():
