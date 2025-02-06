@@ -166,6 +166,9 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
         if "old_parameter_group" in data:
             old_pg_data = rvr._get_values(data["old_parameter_group"])
             data["old_parameter_group"] = old_pg_data
+        if "new_parameter_group" in data:
+            new_pg_data = rvr._get_values(data["new_parameter_group"])
+            data["new_parameter_group"] = new_pg_data
         if "replica_source" in data:
             sourcedb_spec = self._get_source_db_spec(
                 spec.provisioner_name, data["replica_source"]
