@@ -4577,7 +4577,7 @@ def tekton_roles_and_users(ctx: click.Context, app_name: str) -> None:
 )
 @click.argument("aws-account")
 @click.pass_context
-def log_group_usage(ctx, aws_account):
+def log_group_usage(ctx: click.Context, aws_account: str) -> None:
     accounts = queries.get_aws_accounts(name=aws_account)
     if not accounts:
         print("no aws account found with that name")
@@ -4587,7 +4587,7 @@ def log_group_usage(ctx, aws_account):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     columns = ["log_group", "stored_bytes", "retention_days"]
-    results = []
+    results: list[dict[str, str]] = []
 
     with AWSApi(1, [account], settings, secret_reader) as aws:
         session = aws.get_session(account["name"])
