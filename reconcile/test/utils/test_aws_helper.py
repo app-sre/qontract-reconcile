@@ -2,47 +2,48 @@ from collections.abc import Iterable, Sequence
 
 import pytest
 from pydantic import BaseModel
+from pytest_mock import MockerFixture
 
 import reconcile.utils.aws_helper as awsh
 from reconcile.utils.secret_reader import SecretReader
 
 
-def test_get_id_from_arn():
+def test_get_id_from_arn() -> None:
     user_id = "id"
     arn = f"arn:aws:iam::12345:user/{user_id}"
     result = awsh.get_id_from_arn(arn)
     assert result == user_id
 
 
-def test_get_account_uid_from_arn():
+def test_get_account_uid_from_arn() -> None:
     uid = "12345"
     arn = f"arn:aws:iam::{uid}:role/role-1"
     result = awsh.get_account_uid_from_arn(arn)
     assert result == uid
 
 
-def test_get_details_from_role_link():
+def test_get_details_from_role_link() -> None:
     role_link = "https://signin.aws.amazon.com/switchrole?account=12345&roleName=role-1"
     expected = ("12345", "role-1")
     result = awsh.get_details_from_role_link(role_link)
     assert result == expected
 
 
-def test_get_role_arn_from_role_link():
+def test_get_role_arn_from_role_link() -> None:
     role_link = "https://signin.aws.amazon.com/switchrole?account=12345&roleName=role-1"
     expected = "arn:aws:iam::12345:role/role-1"
     result = awsh.get_role_arn_from_role_link(role_link)
     assert result == expected
 
 
-def test_get_account_uid_from_role_link():
+def test_get_account_uid_from_role_link() -> None:
     role_link = "https://signin.aws.amazon.com/switchrole?account=12345&roleName=role-1"
     expected = "12345"
     result = awsh.get_account_uid_from_role_link(role_link)
     assert result == expected
 
 
-def test_get_tf_secrets(mocker):
+def test_get_tf_secrets(mocker: MockerFixture) -> None:
     account_name = "a"
     automation_token = "at"
     account = {"name": account_name, "automationToken": automation_token}
@@ -55,7 +56,7 @@ def test_get_tf_secrets(mocker):
     assert result == (account_name, automation_token)
 
 
-def test_get_account_found():
+def test_get_account_found() -> None:
     account_name = "a'"
     acc_a = {"name": account_name}
     accounts = [
@@ -66,7 +67,7 @@ def test_get_account_found():
     assert result == acc_a
 
 
-def test_get_account_not_found():
+def test_get_account_not_found() -> None:
     with pytest.raises(awsh.AccountNotFoundError):
         awsh.get_account([], "a")
 
@@ -79,7 +80,7 @@ def test_get_account_not_found():
         ("us-west-2b", "us-west-2"),
     ],
 )
-def test_get_region_from_availability_zone(az, region):
+def test_get_region_from_availability_zone(az: str, region: str) -> None:
     assert awsh.get_region_from_availability_zone(az) == region
 
 
