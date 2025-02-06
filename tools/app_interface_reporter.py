@@ -2,7 +2,6 @@ import contextlib
 import logging
 import os
 import textwrap
-from collections.abc import Mapping, MutableMapping
 from datetime import (
     UTC,
     datetime,
@@ -39,14 +38,50 @@ DASHDOTDB_SECRET = os.environ.get(
 )
 
 
+def promql(url, query, auth=None):
+    """
+    Run an instant-query on the prometheus instance.
+
+    The returned structure is documented here:
+    https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
+
+    :param url: base prometheus url (not the API endpoint).
+    :type url: string
+    :param query: this is a second value
+    :type query: string
+    :param auth: auth object
+    :type auth: requests.auth
+    :return: structure with the metrics
+    :rtype: dictionary
+    """
+
+    url = os.path.join(url, "api/v1/query")
+
+    if auth is None:
+        auth = {}
+
+    params = {"query": query}
+
+    response = requests.get(url, params=params, auth=auth, timeout=60)
+
+    response.raise_for_status()
+    response = response.json()
+
+    # TODO ensure len response == 1
+    return response["data"]["result"]
+
+
 class Report:
-    def __init__(self, app: Mapping, date: datetime) -> None:
+    def __init__(self, app, date):
         settings = queries.get_app_interface_settings()
         self.secret_reader = SecretReader(settings=settings)
-        self.app = app
         # standard date format
-        self.date = date.strftime("%Y-%m-%d")
-        self.report_sections: dict = {}
+        if hasattr(date, "strftime"):
+            date = date.strftime("%Y-%m-%d")
+
+        self.app = app
+        self.date = date
+        self.report_sections = {}
 
         # promotions
         self.add_report_section("promotions", self.app.get("promotions"))
@@ -73,10 +108,10 @@ class Report:
         )
 
     @property
-    def path(self) -> str:
-        return f"data/reports/{self.app['name']}/{self.date}.yml"
+    def path(self):
+        return "data/reports/{}/{}.yml".format(self.app["name"], self.date)
 
-    def content(self) -> dict:
+    def content(self):
         return {
             "$schema": "/app-sre/report-1.yml",
             "labels": {"app": self.app["name"]},
@@ -87,20 +122,21 @@ class Report:
             "content": yaml.safe_dump(self.report_sections, sort_keys=False),
         }
 
-    def to_yaml(self) -> str:
+    def to_yaml(self):
         return yaml.safe_dump(self.content(), sort_keys=False)
 
-    def to_message(self) -> dict:
+    def to_message(self):
         return {"file_path": self.path, "content": self.to_yaml()}
 
-    def add_report_section(self, header: str, content: list[dict] | None) -> None:
-        self.report_sections[header] = content or None
+    def add_report_section(self, header, content):
+        if not content:
+            content = None
+
+        self.report_sections[header] = content
 
     @staticmethod
-    def get_vulnerability_content(
-        container_vulnerabilities: Mapping | None,
-    ) -> list[dict]:
-        parsed_metrics: list[dict] = []
+    def get_vulnerability_content(container_vulnerabilities):
+        parsed_metrics = []
         if not container_vulnerabilities:
             return parsed_metrics
 
@@ -114,8 +150,8 @@ class Report:
         return parsed_metrics
 
     @staticmethod
-    def get_post_deploy_jobs_content(post_deploy_jobs: Mapping | None) -> list[dict]:
-        results: list[dict] = []
+    def get_post_deploy_jobs_content(post_deploy_jobs):
+        results = []
         if not post_deploy_jobs:
             return results
 
@@ -129,8 +165,8 @@ class Report:
         return results
 
     @staticmethod
-    def get_validations_content(deployment_validations: Mapping | None) -> list[dict]:
-        parsed_metrics: list[dict] = []
+    def get_validations_content(deployment_validations):
+        parsed_metrics = []
         if not deployment_validations:
             return parsed_metrics
 
@@ -144,8 +180,8 @@ class Report:
         return parsed_metrics
 
     @staticmethod
-    def get_slo_content(service_slo: Mapping | None) -> list[dict]:
-        parsed_metrics: list[dict] = []
+    def get_slo_content(service_slo):
+        parsed_metrics = []
         if not service_slo:
             return parsed_metrics
 
@@ -164,7 +200,7 @@ class Report:
         return parsed_metrics
 
     @staticmethod
-    def get_activity_content(activity: Mapping) -> list[dict]:
+    def get_activity_content(activity):
         if not activity:
             return []
 
@@ -178,9 +214,7 @@ class Report:
         ]
 
 
-def get_apps_data(
-    date: datetime, month_delta: int = 1, thread_pool_size: int = 10
-) -> list[dict]:
+def get_apps_data(date, month_delta=1, thread_pool_size=10):
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings)
 
@@ -263,9 +297,9 @@ def get_apps_data(
             if namespace["app"]["name"] != app["name"]:
                 continue
             app_namespaces.append(namespace)
-        vuln_mx: dict = {}
-        validt_mx: dict = {}
-        slo_mx: dict = {}
+        vuln_mx = {}
+        validt_mx = {}
+        slo_mx = {}
         for family in text_string_to_metric_families(vuln_metrics):
             for sample in family.samples:
                 if sample.name == "imagemanifestvuln_total":
@@ -341,7 +375,7 @@ def get_apps_data(
     return apps
 
 
-def get_build_history(job: MutableMapping) -> MutableMapping:
+def get_build_history(job):
     try:
         logging.info(f"getting build history for {job['name']}")
         job["build_history"] = job["jenkins"].get_build_history(
@@ -352,9 +386,7 @@ def get_build_history(job: MutableMapping) -> MutableMapping:
     return job
 
 
-def get_build_history_pool(
-    jenkins_map: Mapping, jobs: Mapping, timestamp_limit: int, thread_pool_size: int
-) -> dict:
+def get_build_history_pool(jenkins_map, jobs, timestamp_limit, thread_pool_size):
     history_to_get = []
     for instance, _jobs in jobs.items():
         jenkins = jenkins_map[instance]
@@ -379,7 +411,7 @@ def get_build_history_pool(
     return history
 
 
-def get_repo_url(job: Mapping) -> str:
+def get_repo_url(job):
     repo_url_raw = job["properties"][0]["github"]["url"]
     return repo_url_raw.strip("/").replace(".git", "")
 
@@ -392,13 +424,8 @@ def get_repo_url(job: Mapping) -> str:
 @gitlab_project_id
 @click.option("--reports-path", help="path to write reports")
 def main(
-    configfile: str,
-    dry_run: bool,
-    log_level: str,
-    gitlab_project_id: str,
-    reports_path: str,
-    thread_pool_size: int,
-) -> None:
+    configfile, dry_run, log_level, gitlab_project_id, reports_path, thread_pool_size
+):
     init_env(log_level=log_level, config_file=configfile)
 
     now = datetime.now()
@@ -449,9 +476,8 @@ def main(
             gitlab_project_id=gitlab_project_id, sqs_or_gitlab="gitlab"
         ) as mr_cli:
             result = mr.submit(cli=mr_cli)
-        if result:
-            logging.info(["created_mr", result.web_url])
+        logging.info(["created_mr", result.web_url])
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
