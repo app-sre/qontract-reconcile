@@ -16,6 +16,7 @@ from reconcile.external_resources.meta import QONTRACT_INTEGRATION
 from reconcile.external_resources.model import (
     ExternalResource,
     ExternalResourceKey,
+    ExternalResourceModuleConfiguration,
     ExternalResourceProvision,
     ExternalResourcesInventory,
     ModuleInventory,
@@ -42,23 +43,33 @@ AWS_DEFAULT_TAGS = [
 
 
 class ObjectFactory(Generic[T]):
-    def __init__(self) -> None:
-        self._factories: dict[str, T] = {}
-
-    def register_factory(self, id: str, t: T) -> None:
-        self._factories[id] = t
+    def __init__(
+        self, factories: dict[str, T], default_factory: T | None = None
+    ) -> None:
+        self._factories = factories
+        self._default_factory = default_factory
 
     def get_factory(self, id: str) -> T:
+        if id not in self._factories and self._default_factory:
+            return self._default_factory
         return self._factories[id]
 
 
 class ExternalResourceFactory(ABC):
     @abstractmethod
-    def create_external_resource(self, spec: ExternalResourceSpec) -> ExternalResource:
+    def create_external_resource(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> ExternalResource:
         pass
 
     @abstractmethod
-    def validate_external_resource(self, resource: ExternalResource) -> None:
+    def validate_external_resource(
+        self,
+        resource: ExternalResource,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> None:
         pass
 
     def find_linked_resources(
@@ -95,17 +106,15 @@ class TerraformModuleProvisionDataFactory(ModuleProvisionDataFactory):
 def setup_aws_resource_factories(
     er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
 ) -> ObjectFactory[AWSResourceFactory]:
-    f = ObjectFactory[AWSResourceFactory]()
-    f.register_factory(
-        "elasticache", AWSElasticacheFactory(er_inventory, secret_reader)
+    return ObjectFactory[AWSResourceFactory](
+        factories={
+            "elasticache": AWSElasticacheFactory(er_inventory, secret_reader),
+            "rds": AWSRdsFactory(er_inventory, secret_reader),
+            "msk": AWSMskFactory(er_inventory, secret_reader),
+            "dynamodb": AWSDynamodbFactory(er_inventory, secret_reader),
+        },
+        default_factory=AWSDefaultResourceFactory(er_inventory, secret_reader),
     )
-    f.register_factory("rds", AWSRdsFactory(er_inventory, secret_reader))
-    f.register_factory("msk", AWSMskFactory(er_inventory, secret_reader))
-    f.register_factory("dynamodb", AWSDynamodbFactory(er_inventory, secret_reader))
-    f.register_factory(
-        "default", AWSDefaultResourceFactory(er_inventory, secret_reader)
-    )
-    return f
 
 
 class AWSExternalResourceFactory(ExternalResourceFactory):
@@ -123,9 +132,13 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
         self.er_inventory = er_inventory
         self.secret_reader = secret_reader
 
-    def create_external_resource(self, spec: ExternalResourceSpec) -> ExternalResource:
+    def create_external_resource(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> ExternalResource:
         f = self.resource_factories.get_factory(spec.provider)
-        data = f.resolve(spec)
+        data = f.resolve(spec, module_conf)
         data["tags"] = spec.tags(integration=QONTRACT_INTEGRATION)
         data["default_tags"] = AWS_DEFAULT_TAGS
 
@@ -153,9 +166,13 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
 
         return ExternalResource(data=data, provision=provision)
 
-    def validate_external_resource(self, resource: ExternalResource) -> None:
+    def validate_external_resource(
+        self,
+        resource: ExternalResource,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> None:
         f = self.resource_factories.get_factory(resource.provision.provider)
-        f.validate(resource)
+        f.validate(resource, module_conf)
 
     def find_linked_resources(
         self, spec: ExternalResourceSpec

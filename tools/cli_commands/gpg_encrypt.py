@@ -132,7 +132,7 @@ class GPGEncryptCommand:
 
         return user["public_gpg_key"]
 
-    def _output(self, content: str):
+    def _output(self, content: str) -> None:
         output = self._command_data.output
         if not output:
             print(content)
@@ -140,7 +140,7 @@ class GPGEncryptCommand:
         with open(output, "w", encoding="locale") as f:
             f.write(content)
 
-    def execute(self):
+    def execute(self) -> None:
         secret = self._fetch_secret()
         gpg_key = self._get_gpg_key()
         encrypted_content = gpg.gpg_encrypt(

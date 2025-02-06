@@ -119,7 +119,7 @@ class NamespaceV1(ConfiguredBaseModel):
 
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    labels: Optional[Json] = Field(..., alias="labels")
+    labels: Json = Field(..., alias="labels")
     product: ProductV1 = Field(..., alias="product")
     namespaces: Optional[list[NamespaceV1]] = Field(..., alias="namespaces")
 

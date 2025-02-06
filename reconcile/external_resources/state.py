@@ -11,6 +11,8 @@ from reconcile.external_resources.model import (
     ExternalResourceModuleConfiguration,
     Reconciliation,
     ReconciliationStatus,
+    Resources,
+    ResourcesSpec,
     ResourceStatus,
 )
 from reconcile.utils.aws_api_typed.api import AWSApi
@@ -73,9 +75,47 @@ class DynamoDBStateAdapter:
     MODCONF_VERSION = "version"
     MODCONF_DRIFT_MINS = "drift_detection_minutes"
     MODCONF_TIMEOUT_MINS = "timeout_minutes"
+    MODCONF_RESOURCES = "resources"
+    MODCONF_RESOURCES_REQUESTS = "requests"
+    MODCONF_RESOURCES_REQUESTS_CPU = "cpu"
+    MODCONF_RESOURCES_REQUESTS_MEMORY = "memory"
+    MODCONF_RESOURCES_LIMITS = "limits"
+    MODCONF_RESOURCES_LIMITS_CPU = "cpu"
+    MODCONF_RESOURCES_LIMITS_MEMORY = "memory"
 
     def _get_value(self, item: Mapping[str, Any], key: str, type: str = "S") -> Any:
+        if item[key][type] == "None":
+            return None
         return item[key][type]
+
+    def _build_resources(self, modconf: Mapping[str, Any]) -> Resources | None:
+        if self.MODCONF_RESOURCES not in modconf:
+            return Resources()
+        mc_resources = self._get_value(modconf, self.MODCONF_RESOURCES, type="M")
+        mc_resources_requests = self._get_value(
+            mc_resources, self.MODCONF_RESOURCES_REQUESTS, type="M"
+        )
+        mc_resources_limits = self._get_value(
+            mc_resources, self.MODCONF_RESOURCES_LIMITS, type="M"
+        )
+        return Resources(
+            requests=ResourcesSpec(
+                cpu=self._get_value(
+                    mc_resources_requests, self.MODCONF_RESOURCES_REQUESTS_CPU
+                ),
+                memory=self._get_value(
+                    mc_resources_requests, self.MODCONF_RESOURCES_REQUESTS_MEMORY
+                ),
+            ),
+            limits=ResourcesSpec(
+                cpu=self._get_value(
+                    mc_resources_limits, self.MODCONF_RESOURCES_LIMITS_CPU
+                ),
+                memory=self._get_value(
+                    mc_resources_limits, self.MODCONF_RESOURCES_LIMITS_MEMORY
+                ),
+            ),
+        )
 
     def deserialize(
         self,
@@ -116,6 +156,7 @@ class DynamoDBStateAdapter:
                     reconcile_timeout_minutes=self._get_value(
                         modconf, self.MODCONF_TIMEOUT_MINS, type="N"
                     ),
+                    resources=self._build_resources(modconf),
                 ),
             )
 
@@ -164,7 +205,39 @@ class DynamoDBStateAdapter:
                                     state.reconciliation.module_configuration.reconcile_timeout_minutes
                                 )
                             },
-                        }
+                            self.MODCONF_RESOURCES: {
+                                "M": {
+                                    self.MODCONF_RESOURCES_REQUESTS: {
+                                        "M": {
+                                            self.MODCONF_RESOURCES_REQUESTS_CPU: {
+                                                "S": str(
+                                                    state.reconciliation.module_configuration.resources.requests.cpu
+                                                )
+                                            },
+                                            self.MODCONF_RESOURCES_REQUESTS_MEMORY: {
+                                                "S": str(
+                                                    state.reconciliation.module_configuration.resources.requests.memory
+                                                )
+                                            },
+                                        }
+                                    },
+                                    self.MODCONF_RESOURCES_LIMITS: {
+                                        "M": {
+                                            self.MODCONF_RESOURCES_LIMITS_CPU: {
+                                                "S": str(
+                                                    state.reconciliation.module_configuration.resources.limits.cpu
+                                                )
+                                            },
+                                            self.MODCONF_RESOURCES_LIMITS_MEMORY: {
+                                                "S": str(
+                                                    state.reconciliation.module_configuration.resources.limits.memory
+                                                )
+                                            },
+                                        }
+                                    },
+                                }
+                            },
+                        },
                     },
                 }
             },

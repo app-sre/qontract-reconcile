@@ -102,6 +102,10 @@ Resource = dict[str, Any]
 Resources = list[Resource]
 
 
+class TriggerSpecContainerImageError(Exception):
+    pass
+
+
 class SaasHerder:  # pylint: disable=too-many-public-methods
     """Wrapper around SaaS deployment actions."""
 
@@ -571,7 +575,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         if target.image and is_commit_sha(target.ref):
             logging.error(
                 f"[{saas_file_name}/{resource_template_name}] "
-                f"image used with commit sha: {target.ref}"
+                f'Attempt to use the "image" directive with commit sha: {target.ref}. '
+                'You cannot use a non-branch ref together with "image" option in saas.'
             )
             self.valid = False
 
@@ -1361,8 +1366,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             except ResourceKeyExistsError:
                 ri.register_error()
                 msg = (
-                    f"[{spec.cluster}/{spec.namespace}] desired item "
-                    + f"already exists: {resource['kind']}/{resource['metadata']['name']}. "
+                    f"[{spec.cluster}/{spec.namespace}] Duplicate resources in your deployment template detected. "
+                    + "The following is defined multiple times in your deployment template: "
+                    + f"{resource['kind']}/{resource['metadata']['name']}. "
                     + f"saas file name: {spec.saas_file_name}, "
                     + "resource template name: "
                     + f"{spec.resource_template_name}."
@@ -1614,25 +1620,36 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         for rt in saas_file.resource_templates:
             for target in rt.targets:
                 try:
-                    if not target.image:
+                    if not (target.image or target.images):
                         continue
+                    if target.image and target.images:
+                        raise TriggerSpecContainerImageError(
+                            '"image" and "images" are mutually exclusive. Do not set both in the same saas target.'
+                        )
                     commit_sha = self._get_commit_sha(
                         url=rt.url,
                         ref=target.ref,
                         github=github,
                     )
-                    desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
-                    # don't trigger if image doesn't exist
-                    image_registry = f"{target.image.org.instance.url}/{target.image.org.name}/{target.image.name}"
-                    image_uri = f"{image_registry}:{desired_image_tag}"
                     image_auth = self._initiate_image_auth(saas_file)
-                    error_prefix = f"[{saas_file.name}/{rt.name}] {target.ref}:"
-                    image = self._get_image(
-                        image_uri, saas_file.image_patterns, image_auth, error_prefix
-                    )
-                    if not image:
-                        continue
+                    desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
 
+                    all_images = [target.image] if target.image else target.images or []
+                    image_registries = [
+                        f"{image.org.instance.url}/{image.org.name}/{image.name}"
+                        for image in all_images
+                    ]
+                    error_prefix = f"[{saas_file.name}/{rt.name}] {target.ref}:"
+                    if not all(
+                        self._get_image(
+                            image=f"{image}:{desired_image_tag}",
+                            image_patterns=saas_file.image_patterns,
+                            image_auth=image_auth,
+                            error_prefix=error_prefix,
+                        )
+                        for image in image_registries
+                    ):
+                        continue
                     trigger_spec = TriggerSpecContainerImage(
                         saas_file_name=saas_file.name,
                         env_name=target.namespace.environment.name,
@@ -1641,12 +1658,16 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         resource_template_name=rt.name,
                         cluster_name=target.namespace.cluster.name,
                         namespace_name=target.namespace.name,
-                        image=image_registry,
+                        images=image_registries,
                         state_content=desired_image_tag,
                     )
                     if self.include_trigger_trace:
+                        image_uris = ", ".join(
+                            f"{image}:{desired_image_tag}"
+                            for image in sorted(image_registries)
+                        )
                         trigger_spec.reason = (
-                            f"{rt.url}/commit/{commit_sha} build {image_uri}"
+                            f"{rt.url}/commit/{commit_sha} build {image_uris}"
                         )
                     if not self.state:
                         raise Exception("state is not initialized")

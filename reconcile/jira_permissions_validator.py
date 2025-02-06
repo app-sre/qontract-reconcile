@@ -2,7 +2,7 @@ import logging
 import random
 import sys
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from enum import IntFlag, auto
 from typing import Any, TypedDict
 
@@ -199,7 +199,7 @@ def validate_boards(
     metrics_container: metrics.MetricsContainer,
     secret_reader: SecretReaderBase,
     jira_client_settings: JiraWatcherSettings | None,
-    jira_boards: Iterable[JiraBoardV1],
+    jira_boards: Sequence[JiraBoardV1],
     default_issue_type: str,
     default_reopen_state: str,
     board_check_interval_sec: int,
@@ -211,9 +211,14 @@ def validate_boards(
     jira_clients: dict[str, JiraClient] = {}
     for board in jira_boards:
         next_run_time = state.get(board.name, 0)
-        if not dry_run and time.time() <= next_run_time:
-            logging.debug(f"[{board.name}] Skipping board")
-            continue
+        if time.time() <= next_run_time:
+            if not dry_run:
+                # always skip for non-dry-run mode
+                continue
+            # dry-run mode
+            elif len(jira_boards) > 1:
+                logging.info(f"[{board.name}] Use cache results. Skipping ...")
+                continue
 
         logging.debug(f"[{board.name}] checking ...")
         if board.server.server_url not in jira_clients:

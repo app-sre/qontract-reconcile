@@ -1648,6 +1648,7 @@ APPS_QUERY = """
             }
           }
         }
+        must_pass
       }
       jira {
         serverUrl

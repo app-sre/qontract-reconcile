@@ -1,0 +1,19 @@
+# qenerate: plugin=pydantic_v1
+
+query AppSRETektonAccessRevalidationUsers {
+  users: users_v1 {
+    name
+    org_username
+    roles {
+      access {
+        role
+        namespace {
+          name
+          cluster {
+            name
+          }
+        }
+      }
+    }
+  }
+}

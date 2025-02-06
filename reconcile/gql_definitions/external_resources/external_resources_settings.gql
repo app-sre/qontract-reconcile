@@ -19,5 +19,8 @@ query ExternalResourcesSettings {
         vault_secrets_path
         outputs_secret_image
         outputs_secret_version
+        module_default_resources {
+          ... DeployResourcesFields
+        }
     }
 }

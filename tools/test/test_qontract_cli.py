@@ -1,32 +1,37 @@
+from unittest.mock import Mock
+
 import pytest
 from click.testing import CliRunner
+from pytest_mock import MockerFixture
 
 from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheStatus
 from tools import qontract_cli
 
 
 @pytest.fixture
-def env_vars(monkeypatch):
+def env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", "some-bucket")
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", "some-account")
 
 
 @pytest.fixture
-def mock_queries(mocker):
+def mock_queries(mocker: MockerFixture) -> None:
     mocker.patch("tools.qontract_cli.queries", autospec=True)
 
 
 @pytest.fixture
-def mock_state(mocker):
+def mock_state(mocker: MockerFixture) -> Mock:
     return mocker.patch("tools.qontract_cli.init_state", autospec=True)
 
 
 @pytest.fixture
-def mock_early_exit_cache(mocker):
+def mock_early_exit_cache(mocker: MockerFixture) -> Mock:
     return mocker.patch("tools.qontract_cli.EarlyExitCache", autospec=True)
 
 
-def test_state_ls_with_integration(env_vars, mock_queries, mock_state):
+def test_state_ls_with_integration(
+    env_vars: None, mock_queries: None, mock_state: Mock
+) -> None:
     runner = CliRunner()
 
     mock_state.return_value.ls.return_value = [
@@ -46,7 +51,9 @@ integration    nested/key2
     )
 
 
-def test_state_ls_without_integration(env_vars, mock_queries, mock_state):
+def test_state_ls_without_integration(
+    env_vars: None, mock_queries: None, mock_state: Mock
+) -> None:
     runner = CliRunner()
 
     mock_state.return_value.ls.return_value = [
@@ -66,7 +73,9 @@ integration2   nested/key2
     )
 
 
-def test_early_exit_cache_get(env_vars, mock_queries, mock_early_exit_cache):
+def test_early_exit_cache_get(
+    env_vars: None, mock_queries: None, mock_early_exit_cache: Mock
+) -> None:
     runner = CliRunner()
     mock_early_exit_cache.build.return_value.__enter__.return_value.get.return_value = (
         "some value"
@@ -79,7 +88,9 @@ def test_early_exit_cache_get(env_vars, mock_queries, mock_early_exit_cache):
     assert result.output == "some value\n"
 
 
-def test_early_exit_cache_set(env_vars, mock_queries, mock_early_exit_cache):
+def test_early_exit_cache_set(
+    env_vars: None, mock_queries: None, mock_early_exit_cache: Mock
+) -> None:
     runner = CliRunner()
 
     result = runner.invoke(
@@ -90,7 +101,9 @@ def test_early_exit_cache_set(env_vars, mock_queries, mock_early_exit_cache):
     mock_early_exit_cache.build.return_value.__enter__.return_value.set.assert_called()
 
 
-def test_early_exit_cache_head(env_vars, mock_queries, mock_early_exit_cache):
+def test_early_exit_cache_head(
+    env_vars: None, mock_queries: None, mock_early_exit_cache: Mock
+) -> None:
     runner = CliRunner()
 
     cache_head_result = CacheHeadResult(
@@ -116,7 +129,9 @@ def test_early_exit_cache_head(env_vars, mock_queries, mock_early_exit_cache):
     )
 
 
-def test_early_exit_cache_delete(env_vars, mock_queries, mock_early_exit_cache):
+def test_early_exit_cache_delete(
+    env_vars: None, mock_queries: None, mock_early_exit_cache: Mock
+) -> None:
     runner = CliRunner()
 
     result = runner.invoke(
@@ -128,11 +143,13 @@ def test_early_exit_cache_delete(env_vars, mock_queries, mock_early_exit_cache):
 
 
 @pytest.fixture
-def mock_aws_cost_report_command(mocker):
+def mock_aws_cost_report_command(mocker: MockerFixture) -> Mock:
     return mocker.patch("tools.qontract_cli.AwsCostReportCommand", autospec=True)
 
 
-def test_get_aws_cost_report(env_vars, mock_queries, mock_aws_cost_report_command):
+def test_get_aws_cost_report(
+    env_vars: None, mock_queries: None, mock_aws_cost_report_command: Mock
+) -> None:
     mock_aws_cost_report_command.create.return_value.execute.return_value = (
         "some report"
     )
@@ -150,13 +167,13 @@ def test_get_aws_cost_report(env_vars, mock_queries, mock_aws_cost_report_comman
 
 
 @pytest.fixture
-def mock_openshift_cost_report_command(mocker):
+def mock_openshift_cost_report_command(mocker: MockerFixture) -> Mock:
     return mocker.patch("tools.qontract_cli.OpenShiftCostReportCommand", autospec=True)
 
 
 def test_get_openshift_cost_report(
-    env_vars, mock_queries, mock_openshift_cost_report_command
-):
+    env_vars: None, mock_queries: None, mock_openshift_cost_report_command: Mock
+) -> None:
     mock_openshift_cost_report_command.create.return_value.execute.return_value = (
         "some report"
     )
@@ -176,15 +193,17 @@ def test_get_openshift_cost_report(
 
 
 @pytest.fixture
-def mock_openshift_cost_optimization_report_command(mocker):
+def mock_openshift_cost_optimization_report_command(mocker: MockerFixture) -> Mock:
     return mocker.patch(
         "tools.qontract_cli.OpenShiftCostOptimizationReportCommand", autospec=True
     )
 
 
 def test_get_openshift_cost_optimization_report(
-    env_vars, mock_queries, mock_openshift_cost_optimization_report_command
-):
+    env_vars: None,
+    mock_queries: None,
+    mock_openshift_cost_optimization_report_command: Mock,
+) -> None:
     mock_openshift_cost_optimization_report_command.create.return_value.execute.return_value = "some report"
     runner = CliRunner()
     result = runner.invoke(

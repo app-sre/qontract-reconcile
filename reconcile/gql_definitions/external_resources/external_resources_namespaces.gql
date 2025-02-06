@@ -54,12 +54,7 @@ query ExternalResourcesNamespaces {
                 managed_by_erv2
                 delete
                 module_overrides {
-                    module_type
-                    image
-                    version
-                    reconcile_timeout_minutes
-                    outputs_secret_image
-                    outputs_secret_version
+                   ... ExternalResourcesModuleOverrides
                 }
             }
             ... on NamespaceTerraformResourceS3_v1 {
@@ -92,12 +87,7 @@ query ExternalResourcesNamespaces {
                 managed_by_erv2
                 delete
                 module_overrides {
-                  module_type
-                  image
-                  version
-                  reconcile_timeout_minutes
-                  outputs_secret_image
-                  outputs_secret_version
+                   ... ExternalResourcesModuleOverrides
                 }
             }
             ... on NamespaceTerraformResourceServiceAccount_v1 {
@@ -225,6 +215,11 @@ query ExternalResourcesNamespaces {
                 overrides
                 output_resource_name
                 annotations
+                managed_by_erv2
+                delete
+                module_overrides {
+                   ... ExternalResourcesModuleOverrides
+                }
             }
             ... on NamespaceTerraformResourceElasticSearch_v1 {
                 region
@@ -435,12 +430,7 @@ query ExternalResourcesNamespaces {
                 managed_by_erv2
                 delete
                 module_overrides {
-                  module_type
-                  image
-                  version
-                  reconcile_timeout_minutes
-                  outputs_secret_image
-                  outputs_secret_version
+                   ... ExternalResourcesModuleOverrides
                 }
             }
         }
@@ -448,6 +438,7 @@ query ExternalResourcesNamespaces {
     }
     environment {
       name
+      labels
     }
     app {
       path

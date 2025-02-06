@@ -34,7 +34,7 @@ class SaasSecretParametersV1(ConfiguredBaseModel):
 
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    labels: Optional[Json] = Field(..., alias="labels")
+    labels: Json = Field(..., alias="labels")
     parameters: Optional[Json] = Field(..., alias="parameters")
     secret_parameters: Optional[list[SaasSecretParametersV1]] = Field(..., alias="secretParameters")
 
