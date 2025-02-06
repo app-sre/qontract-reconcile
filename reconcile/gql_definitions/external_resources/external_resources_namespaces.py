@@ -114,6 +114,12 @@ query ExternalResourcesNamespaces {
                 availability_zone
                 parameter_group
                 old_parameter_group
+                new_parameter_group
+                blue_green_deployment {
+                    enabled
+                    switchover
+                    delete
+                }
                 overrides
                 output_resource_name
                 enhanced_monitoring
@@ -571,6 +577,12 @@ class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
+class RDSBlueGreenDeploymentV1(ConfiguredBaseModel):
+    enabled: Optional[bool] = Field(..., alias="enabled")
+    switchover: Optional[bool] = Field(..., alias="switchover")
+    delete: Optional[bool] = Field(..., alias="delete")
+
+
 class AWSRDSEventNotificationV1(ConfiguredBaseModel):
     destination: str = Field(..., alias="destination")
     source_type: Optional[str] = Field(..., alias="source_type")
@@ -588,6 +600,8 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     availability_zone: Optional[str] = Field(..., alias="availability_zone")
     parameter_group: Optional[str] = Field(..., alias="parameter_group")
     old_parameter_group: Optional[str] = Field(..., alias="old_parameter_group")
+    new_parameter_group: Optional[str] = Field(..., alias="new_parameter_group")
+    blue_green_deployment: Optional[RDSBlueGreenDeploymentV1] = Field(..., alias="blue_green_deployment")
     overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     enhanced_monitoring: Optional[bool] = Field(..., alias="enhanced_monitoring")
