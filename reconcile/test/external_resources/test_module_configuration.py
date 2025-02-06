@@ -1,8 +1,15 @@
 from reconcile.external_resources.model import (
     ExternalResourceModuleConfiguration,
-    ExternalResourcesModuleOverridesV1,
     ExternalResourcesModuleV1,
     ExternalResourcesSettingsV1,
+)
+from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
+    ExternalResourcesModuleOverrides,
+)
+from reconcile.gql_definitions.fragments.deplopy_resources import (
+    DeployResourcesFields,
+    ResourceLimitsRequirementsV1,
+    ResourceRequestsRequirementsV1,
 )
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
@@ -10,13 +17,17 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
 def test_module_conf_overrides(
     module: ExternalResourcesModuleV1, settings: ExternalResourcesSettingsV1
 ) -> None:
-    module_overrides = ExternalResourcesModuleOverridesV1(
+    module_overrides = ExternalResourcesModuleOverrides(
         image="i_override",
         version="v_override",
         module_type=None,
         reconcile_timeout_minutes=None,
         outputs_secret_image="whatever-image",
         outputs_secret_version="whatever-version",
+        resources=DeployResourcesFields(
+            requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+            limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+        ),
     )
     spec = ExternalResourceSpec(
         provision_provider="aws",

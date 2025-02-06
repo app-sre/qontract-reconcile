@@ -10,6 +10,7 @@ import sys
 import tempfile
 import textwrap
 from collections import defaultdict
+from collections.abc import Callable, Mapping
 from datetime import (
     UTC,
     datetime,
@@ -19,7 +20,7 @@ from operator import itemgetter
 from pathlib import Path
 from statistics import median
 from textwrap import dedent
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import boto3
 import click
@@ -54,7 +55,6 @@ from reconcile.change_owners.bundle import NoOpFileDiffResolver
 from reconcile.change_owners.change_log_tracking import (
     BUNDLE_DIFFS_OBJ,
     ChangeLog,
-    ChangeLogItem,
 )
 from reconcile.change_owners.change_owners import (
     fetch_change_type_processors,
@@ -81,6 +81,7 @@ from reconcile.gql_definitions.app_sre_tekton_access_revalidation.roles import (
 from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
+from reconcile.gql_definitions.common.clusters import ClusterSpecROSAV1
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.integrations import integrations as integrations_gql
 from reconcile.gql_definitions.maintenance import maintenances as maintenances_gql
@@ -152,6 +153,7 @@ from reconcile.utils.oc_map import (
     init_oc_map_from_clusters,
 )
 from reconcile.utils.ocm import OCM_PRODUCT_ROSA, OCMMap
+from reconcile.utils.ocm.upgrades import get_upgrade_policies
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.output import print_output
 from reconcile.utils.saasherder.models import TargetSpec
@@ -184,8 +186,13 @@ from tools.sre_checkpoints import (
     get_latest_sre_checkpoints,
 )
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3.type_defs import CopySourceTypeDef
+else:
+    CopySourceTypeDef = object
 
-def output(function):
+
+def output(function: Callable) -> Callable:
     function = click.option(
         "--output",
         "-o",
@@ -196,14 +203,14 @@ def output(function):
     return function
 
 
-def sort(function):
+def sort(function: Callable) -> Callable:
     function = click.option(
         "--sort", "-s", help="sort output", default=True, type=bool
     )(function)
     return function
 
 
-def to_string(function):
+def to_string(function: Callable) -> Callable:
     function = click.option(
         "--to-string", help="stringify output", default=False, type=bool
     )(function)
@@ -213,14 +220,14 @@ def to_string(function):
 @click.group()
 @config_file
 @click.pass_context
-def root(ctx, configfile):
+def root(ctx: click.Context, configfile: str) -> None:
     ctx.ensure_object(dict)
     config.init_from_toml(configfile)
     gql.init_from_config()
 
 
 @root.result_callback()
-def exit_cli(ctx, configfile):
+def exit_cli(ctx: click.Context, configfile: str) -> None:
     GqlApiSingleton.close()
 
 
@@ -229,7 +236,7 @@ def exit_cli(ctx, configfile):
 @sort
 @to_string
 @click.pass_context
-def get(ctx, output, sort, to_string):
+def get(ctx: click.Context, output: str, sort: bool, to_string: bool) -> None:
     ctx.obj["options"] = {
         "output": output,
         "sort": sort,
@@ -240,7 +247,7 @@ def get(ctx, output, sort, to_string):
 @root.group()
 @output
 @click.pass_context
-def describe(ctx, output):
+def describe(ctx: click.Context, output: str) -> None:
     ctx.obj["options"] = {
         "output": output,
     }
@@ -248,7 +255,7 @@ def describe(ctx, output):
 
 @get.command()
 @click.pass_context
-def settings(ctx):
+def settings(ctx: click.Context) -> None:
     settings = queries.get_app_interface_settings()
     columns = ["vault", "kubeBinary", "mergeRequestGateway"]
     print_output(ctx.obj["options"], [settings], columns)
@@ -257,7 +264,7 @@ def settings(ctx):
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
-def aws_accounts(ctx, name):
+def aws_accounts(ctx: click.Context, name: str) -> None:
     accounts = queries.get_aws_accounts(name=name)
     if not accounts:
         print("no aws accounts found")
@@ -269,7 +276,7 @@ def aws_accounts(ctx, name):
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
-def clusters(ctx, name):
+def clusters(ctx: click.Context, name: str) -> None:
     clusters = queries.get_clusters()
     if name:
         clusters = [c for c in clusters if c["name"] == name]
@@ -286,7 +293,7 @@ def clusters(ctx, name):
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
-def cluster_upgrades(ctx, name):
+def cluster_upgrades(ctx: click.Context, name: str) -> None:
     settings = queries.get_app_interface_settings()
 
     clusters = queries.get_clusters()
@@ -317,12 +324,11 @@ def cluster_upgrades(ctx, name):
         if data.get("upgradePolicy") == "automatic":
             data["schedule"] = c["upgradePolicy"]["schedule"]
             ocm = ocm_map.get(c["name"])
-            if ocm:
-                upgrade_policy = ocm.get_upgrade_policies(c["name"])
-                if upgrade_policy and len(upgrade_policy) > 0:
-                    next_run = upgrade_policy[0].get("next_run")
-                    if next_run:
-                        data["next_run"] = next_run
+            upgrade_policy = get_upgrade_policies(ocm.ocm_api, c["spec"]["id"])
+            if upgrade_policy and len(upgrade_policy) > 0:
+                next_run = upgrade_policy[0].get("next_run")
+                if next_run:
+                    data["next_run"] = next_run
         else:
             data["upgradePolicy"] = "manual"
 
@@ -336,7 +342,7 @@ def cluster_upgrades(ctx, name):
 @get.command()
 @environ(["APP_INTERFACE_STATE_BUCKET", "APP_INTERFACE_STATE_BUCKET_ACCOUNT"])
 @click.pass_context
-def version_history(ctx):
+def version_history(ctx: click.Context) -> None:
     import reconcile.aus.ocm_upgrade_scheduler as ous
 
     clusters = aus_clusters_query(query_func=gql.get_api().query).clusters or []
@@ -372,11 +378,11 @@ def version_history(ctx):
 
 def get_upgrade_policies_data(
     org_upgrade_specs: list[OrganizationUpgradeSpec],
-    md_output,
-    integration,
-    workload=None,
-    show_only_soaking_upgrades=False,
-    by_workload=False,
+    md_output: bool,
+    integration: str,
+    workload: str | None = None,
+    show_only_soaking_upgrades: bool = False,
+    by_workload: bool = False,
 ) -> list:
     if not org_upgrade_specs:
         return []
@@ -557,12 +563,12 @@ more than 6 hours will be highlighted.
 )
 @click.pass_context
 def cluster_upgrade_policies(
-    ctx,
-    cluster=None,
-    workload=None,
-    show_only_soaking_upgrades=False,
-    by_workload=False,
-):
+    ctx: click.Context,
+    cluster: str | None = None,
+    workload: str | None = None,
+    show_only_soaking_upgrades: bool = False,
+    by_workload: bool = False,
+) -> None:
     print(
         "https://grafana.app-sre.devshift.net/d/ukLXCSwVz/aus-cluster-upgrade-overview"
     )
@@ -577,9 +583,7 @@ def inherit_version_data_text(org: AUSOCMOrganization) -> str:
 
 @get.command()
 @click.pass_context
-def ocm_fleet_upgrade_policies(
-    ctx,
-):
+def ocm_fleet_upgrade_policies(ctx: click.Context) -> None:
     from reconcile.aus.ocm_upgrade_scheduler_org import (
         OCMClusterUpgradeSchedulerOrgIntegration,
     )
@@ -612,7 +616,12 @@ def ocm_fleet_upgrade_policies(
     help="Ignore STS clusters",
 )
 @click.pass_context
-def aus_fleet_upgrade_policies(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
+def aus_fleet_upgrade_policies(
+    ctx: click.Context,
+    ocm_env: str | None,
+    ocm_org_ids: str | None,
+    ignore_sts_clusters: bool,
+) -> None:
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
 
     parsed_ocm_org_ids = set(ocm_org_ids.split(",")) if ocm_org_ids else None
@@ -629,8 +638,8 @@ def aus_fleet_upgrade_policies(ctx, ocm_env, ocm_org_ids, ignore_sts_clusters):
 
 
 def generate_fleet_upgrade_policices_report(
-    ctx, aus_integration: AdvancedUpgradeSchedulerBaseIntegration
-):
+    ctx: click.Context, aus_integration: AdvancedUpgradeSchedulerBaseIntegration
+) -> None:
     md_output = ctx.obj["options"]["output"] == "md"
 
     org_upgrade_specs: dict[str, OrganizationUpgradeSpec] = {}
@@ -948,7 +957,7 @@ def upgrade_cluster_addon(
         )
 
 
-def has_cluster_account_access(cluster: dict[str, Any]):
+def has_cluster_account_access(cluster: dict[str, Any]) -> bool:
     spec = cluster.get("spec") or {}
     account = spec.get("account")
     return account or cluster.get("awsInfrastructureManagementAccounts") is not None
@@ -957,7 +966,7 @@ def has_cluster_account_access(cluster: dict[str, Any]):
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
-def clusters_network(ctx, name):
+def clusters_network(ctx: click.Context, name: str) -> None:
     settings = queries.get_app_interface_settings()
     clusters = [
         c
@@ -1007,6 +1016,7 @@ def clusters_network(ctx, name):
             ]
         with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
             vpc_id, _, _, _ = aws_api.get_cluster_vpc_details(account)
+            assert vpc_id
             cluster["vpc_id"] = vpc_id
             egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account, vpc_id)
             cluster["egress_ips"] = ", ".join(sorted(egress_ips))
@@ -1019,7 +1029,7 @@ def clusters_network(ctx, name):
 
 @get.command()
 @click.pass_context
-def network_reservations(ctx) -> None:
+def network_reservations(ctx: click.Context) -> None:
     from reconcile.typed_queries.reserved_networks import get_networks
 
     columns = [
@@ -1032,11 +1042,10 @@ def network_reservations(ctx) -> None:
     ]
     network_table = []
 
-    def md_link(url) -> str:
+    def md_link(url: str) -> str:
         if ctx.obj["options"]["output"] == "md":
             return f"[{url}]({url})"
-        else:
-            return url
+        return url
 
     for network in get_networks():
         parentAddress = "none"
@@ -1077,7 +1086,7 @@ def network_reservations(ctx) -> None:
     default=24,
 )
 @click.pass_context
-def cidr_blocks(ctx, for_cluster: int, mask: int) -> None:
+def cidr_blocks(ctx: click.Context, for_cluster: int, mask: int) -> None:
     import ipaddress
 
     from reconcile.typed_queries.aws_vpcs import get_aws_vpcs
@@ -1203,7 +1212,7 @@ def ocm_aws_infrastructure_access_switch_role_links_data() -> list[dict]:
 
 @get.command()
 @click.pass_context
-def ocm_aws_infrastructure_access_switch_role_links_flat(ctx):
+def ocm_aws_infrastructure_access_switch_role_links_flat(ctx: click.Context) -> None:
     results = ocm_aws_infrastructure_access_switch_role_links_data()
     columns = ["cluster", "user_arn", "access_level", "switch_role_link"]
     print_output(ctx.obj["options"], results, columns)
@@ -1211,11 +1220,11 @@ def ocm_aws_infrastructure_access_switch_role_links_flat(ctx):
 
 @get.command()
 @click.pass_context
-def ocm_aws_infrastructure_access_switch_role_links(ctx):
+def ocm_aws_infrastructure_access_switch_role_links(ctx: click.Context) -> None:
     if ctx.obj["options"]["output"] != "md":
         raise Exception(f"Unupported output: {ctx.obj['options']['output']}")
     results = ocm_aws_infrastructure_access_switch_role_links_data()
-    by_user = {}
+    by_user: dict = {}
     for r in results:
         by_user.setdefault(r["user"], []).append(r)
     columns = ["cluster", "source_login", "access_level", "switch_role_link"]
@@ -1229,7 +1238,7 @@ def ocm_aws_infrastructure_access_switch_role_links(ctx):
 
 @get.command()
 @click.pass_context
-def clusters_aws_account_ids(ctx):
+def clusters_aws_account_ids(ctx: click.Context) -> None:
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters() if c.get("ocm") is not None]
     ocm_map = OCMMap(clusters=clusters, settings=settings)
@@ -1259,7 +1268,7 @@ def clusters_aws_account_ids(ctx):
 @root.command()
 @click.argument("account_name")
 @click.pass_context
-def user_credentials_migrate_output(ctx, account_name) -> None:
+def user_credentials_migrate_output(ctx: click.Context, account_name: str) -> None:
     accounts = queries.get_state_aws_accounts()
     state = init_state(integration="account-notifier")
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
@@ -1301,7 +1310,7 @@ def user_credentials_migrate_output(ctx, account_name) -> None:
 
 @get.command()
 @click.pass_context
-def aws_route53_zones(ctx):
+def aws_route53_zones(ctx: click.Context) -> None:
     zones = queries.get_dns_zones()
 
     results = []
@@ -1324,7 +1333,7 @@ def aws_route53_zones(ctx):
 @click.argument("cluster_name")
 @click.option("--cluster-admin/--no-cluster-admin", default=False)
 @click.pass_context
-def bot_login(ctx, cluster_name, cluster_admin):
+def bot_login(ctx: click.Context, cluster_name: str, cluster_admin: bool) -> None:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     clusters = queries.get_clusters()
@@ -1347,7 +1356,7 @@ def bot_login(ctx, cluster_name, cluster_admin):
 )
 @click.argument("org_name")
 @click.pass_context
-def ocm_login(ctx, org_name):
+def ocm_login(ctx: click.Context, org_name: str) -> None:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     ocms = [
@@ -1374,7 +1383,7 @@ def ocm_login(ctx, org_name):
 )
 @click.argument("account_name")
 @click.pass_context
-def aws_creds(ctx, account_name):
+def aws_creds(ctx: click.Context, account_name: str) -> None:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     accounts = queries.get_aws_accounts(name=account_name)
@@ -1417,8 +1426,14 @@ def aws_creds(ctx, account_name):
 )
 @click.pass_context
 def copy_tfstate(
-    ctx, source_bucket, source_object_path, account_uid, rename, region, force
-):
+    ctx: click.Context,
+    source_bucket: str,
+    source_object_path: str,
+    account_uid: str,
+    rename: str | None,
+    region: str | None,
+    force: bool,
+) -> None:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     accounts = queries.get_aws_accounts(uid=account_uid, terraform_state=True)
@@ -1439,7 +1454,6 @@ def copy_tfstate(
         )
         return
 
-    dest_filename = ""
     if rename:
         dest_filename = rename.removesuffix(".tfstate")
     else:
@@ -1451,10 +1465,13 @@ def copy_tfstate(
     with AWSApi(1, accounts, settings, secret_reader) as aws:
         session = aws.get_session(account["name"])
         s3_client = aws.get_session_client(session, "s3", region)
-        copy_source = {
-            "Bucket": source_bucket,
-            "Key": source_object_path,
-        }
+        copy_source = cast(
+            CopySourceTypeDef,
+            {
+                "Bucket": source_bucket,
+                "Key": source_object_path,
+            },
+        )
 
         dest_pretty_path = f"s3://{dest_bucket}/{dest_key}"
         # check if dest already exists
@@ -1497,20 +1514,26 @@ def copy_tfstate(
 @get.command(short_help='obtain "rosa create cluster" command by cluster name')
 @click.argument("cluster_name")
 @click.pass_context
-def rosa_create_cluster_command(ctx, cluster_name):
+def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
     clusters = [c for c in get_clusters() if c.name == cluster_name]
-    try:
-        cluster = clusters[0]
-    except IndexError:
+    if not clusters:
         print(f"{cluster_name} not found.")
         sys.exit(1)
+    cluster = clusters[0]
 
-    if cluster.spec.product != OCM_PRODUCT_ROSA:
+    if (
+        not cluster.spec
+        or cluster.spec.product != OCM_PRODUCT_ROSA
+        or not isinstance(cluster.spec, ClusterSpecROSAV1)
+    ):
         print("must be a rosa cluster.")
         sys.exit(1)
 
     settings = queries.get_app_interface_settings()
     account = cluster.spec.account
+    if not account:
+        print("account not found.")
+        sys.exit(1)
 
     if account.billing_account:
         billing_account = account.billing_account.uid
@@ -1519,6 +1542,19 @@ def rosa_create_cluster_command(ctx, cluster_name):
             1, [account.dict(by_alias=True)], settings=settings, init_users=False
         ) as aws_api:
             billing_account = aws_api.get_organization_billing_account(account.name)
+
+    if not cluster.spec.oidc_endpoint_url:
+        print("oidc_endpoint_url not set.")
+        sys.exit(1)
+    if not cluster.spec.subnet_ids:
+        print("subnet_ids not set.")
+        sys.exit(1)
+    if not cluster.network:
+        print("network not set.")
+        sys.exit(1)
+    if not cluster.machine_pools:
+        print("machine_pools not set.")
+        sys.exit(1)
 
     print(
         " ".join([
@@ -1573,7 +1609,9 @@ def rosa_create_cluster_command(ctx, cluster_name):
 @click.argument("jumphost_hostname", required=False)
 @click.argument("cluster_name", required=False)
 @click.pass_context
-def sshuttle_command(ctx, jumphost_hostname: str | None, cluster_name: str | None):
+def sshuttle_command(
+    ctx: click.Context, jumphost_hostname: str | None, cluster_name: str | None
+) -> None:
     jumphosts_query_data = queries.get_jumphosts(hostname=jumphost_hostname)
     jumphosts = jumphosts_query_data.jumphosts or []
     for jh in jumphosts:
@@ -1595,7 +1633,9 @@ def sshuttle_command(ctx, jumphost_hostname: str | None, cluster_name: str | Non
 @click.argument("instance_name")
 @click.argument("job_name")
 @click.pass_context
-def jenkins_job_vault_secrets(ctx, instance_name: str, job_name: str) -> None:
+def jenkins_job_vault_secrets(
+    ctx: click.Context, instance_name: str, job_name: str
+) -> None:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     jjb: JJB = init_jjb(secret_reader, instance_name, config_name=None, print_only=True)
     jobs = jjb.get_all_jobs([job_name], instance_name)[instance_name]
@@ -1620,7 +1660,7 @@ def jenkins_job_vault_secrets(ctx, instance_name: str, job_name: str) -> None:
 @get.command()
 @click.argument("name", default="")
 @click.pass_context
-def namespaces(ctx, name):
+def namespaces(ctx: click.Context, name: str) -> None:
     namespaces = queries.get_namespaces()
     if name:
         namespaces = [ns for ns in namespaces if ns["name"] == name]
@@ -1632,7 +1672,7 @@ def namespaces(ctx, name):
     print_output(ctx.obj["options"], namespaces, columns)
 
 
-def add_resource(item, resource, columns):
+def add_resource(item: dict, resource: Mapping, columns: list[str]) -> None:
     provider = resource["provider"]
     if provider not in columns:
         columns.append(provider)
@@ -1643,11 +1683,11 @@ def add_resource(item, resource, columns):
 
 @get.command
 @click.pass_context
-def cluster_openshift_resources(ctx):
+def cluster_openshift_resources(ctx: click.Context) -> None:
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
     columns = ["name", "total"]
-    results = {}
+    results: dict = {}
     for ns_info in namespaces:
         cluster_name = ns_info["cluster"]["name"]
         item = {"name": cluster_name, "total": 0}
@@ -1668,10 +1708,10 @@ def cluster_openshift_resources(ctx):
 
 @get.command
 @click.pass_context
-def aws_terraform_resources(ctx):
+def aws_terraform_resources(ctx: click.Context) -> None:
     namespaces = tfr.get_namespaces()
     columns = ["name", "total"]
-    results = {}
+    results: dict = {}
     for ns_info in namespaces:
         specs = (
             get_external_resource_specs(
@@ -1723,7 +1763,7 @@ def rds_region(
 
 @get.command
 @click.pass_context
-def rds(ctx):
+def rds(ctx: click.Context) -> None:
     namespaces = tfr.get_namespaces()
     accounts = {a["name"]: a for a in queries.get_aws_accounts()}
     results = []
@@ -1801,7 +1841,7 @@ You can view the source of this Markdown to extract the JSON data.
 
 @get.command
 @click.pass_context
-def rds_recommendations(ctx):
+def rds_recommendations(ctx: click.Context) -> None:
     IGNORED_STATUSES = ("resolved",)
     IGNORED_SEVERITIES = ("informational",)
 
@@ -1850,22 +1890,22 @@ def rds_recommendations(ctx):
             with AWSApi(1, [account], settings=settings, init_users=False) as aws:
                 try:
                     data = aws.describe_rds_recommendations(account_name, region)
-                    recommendations = data.get("DBRecommendations", [])
+                    db_recommendations = data.get("DBRecommendations", [])
                 except Exception as e:
                     logging.error(f"Error describing RDS recommendations: {e}")
                     continue
 
                 # Add field ResourceName infered from ResourceArn
                 recommendations = [
-                    {**rec, "ResourceName": rec["ResourceArn"].split(":")[-1]}
-                    for rec in recommendations
+                    {
+                        **rec,
+                        "ResourceName": rec["ResourceArn"].split(":")[-1],
+                        # The Description field has \n that are causing issues with the markdown table
+                        "Description": rec["Description"].replace("\n", " "),
+                    }
+                    for rec in db_recommendations
                     if rec.get("Status") not in IGNORED_STATUSES
                     and rec.get("Severity") not in IGNORED_SEVERITIES
-                ]
-                # The Description field has \n that are causing issues with the markdown table
-                recommendations = [
-                    {**rec, "Description": rec["Description"].replace("\n", " ")}
-                    for rec in recommendations
                 ]
                 # If we have no recommendations to show, skip
                 if not recommendations:
@@ -1880,7 +1920,7 @@ def rds_recommendations(ctx):
 
 @get.command()
 @click.pass_context
-def products(ctx):
+def products(ctx: click.Context) -> None:
     products = queries.get_products()
     columns = ["name", "description"]
     print_output(ctx.obj["options"], products, columns)
@@ -1889,7 +1929,7 @@ def products(ctx):
 @describe.command()
 @click.argument("name")
 @click.pass_context
-def product(ctx, name):
+def product(ctx: click.Context, name: str) -> None:
     products = queries.get_products()
     products = [p for p in products if p["name"].lower() == name.lower()]
     if len(products) != 1:
@@ -1904,7 +1944,7 @@ def product(ctx, name):
 
 @get.command()
 @click.pass_context
-def environments(ctx):
+def environments(ctx: click.Context) -> None:
     environments = queries.get_environments()
     columns = ["name", "description", "product.name"]
     # TODO(mafriedm): fix this
@@ -1916,7 +1956,7 @@ def environments(ctx):
 @describe.command()
 @click.argument("name")
 @click.pass_context
-def environment(ctx, name):
+def environment(ctx: click.Context, name: str) -> None:
     environments = queries.get_environments()
     environments = [e for e in environments if e["name"].lower() == name.lower()]
     if len(environments) != 1:
@@ -1934,7 +1974,7 @@ def environment(ctx, name):
 
 @get.command()
 @click.pass_context
-def services(ctx):
+def services(ctx: click.Context) -> None:
     apps = queries.get_apps()
     columns = ["name", "path", "onboardingStatus"]
     print_output(ctx.obj["options"], apps, columns)
@@ -1942,17 +1982,15 @@ def services(ctx):
 
 @get.command()
 @click.pass_context
-def repos(ctx):
+def repos(ctx: click.Context) -> None:
     repos = queries.get_repos()
-    repos = [{"url": r} for r in repos]
-    columns = ["url"]
-    print_output(ctx.obj["options"], repos, columns)
+    print_output(ctx.obj["options"], [{"url": r} for r in repos], ["url"])
 
 
 @get.command()
 @click.argument("org_username")
 @click.pass_context
-def roles(ctx, org_username):
+def roles(ctx: click.Context, org_username: str) -> None:
     users = queries.get_roles()
     users = [u for u in users if u["org_username"] == org_username]
 
@@ -1963,7 +2001,7 @@ def roles(ctx, org_username):
     user = users[0]
 
     # type, name, resource, [ref]
-    roles: dict[(str, str, str), set] = defaultdict(set)
+    roles: dict[tuple[str, str, str], set[str]] = defaultdict(set)
 
     for role in user["roles"]:
         role_name = role["path"]
@@ -2017,7 +2055,7 @@ def roles(ctx, org_username):
 @get.command()
 @click.argument("org_username", default="")
 @click.pass_context
-def users(ctx, org_username):
+def users(ctx: click.Context, org_username: str) -> None:
     users = queries.get_users()
     if org_username:
         users = [u for u in users if u["org_username"] == org_username]
@@ -2028,7 +2066,7 @@ def users(ctx, org_username):
 
 @get.command()
 @click.pass_context
-def integrations(ctx):
+def integrations(ctx: click.Context) -> None:
     environments = queries.get_integrations()
     columns = ["name", "description"]
     print_output(ctx.obj["options"], environments, columns)
@@ -2036,7 +2074,7 @@ def integrations(ctx):
 
 @get.command()
 @click.pass_context
-def quay_mirrors(ctx):
+def quay_mirrors(ctx: click.Context) -> None:
     apps = queries.get_quay_repos()
 
     mirrors = []
@@ -2074,7 +2112,9 @@ def quay_mirrors(ctx):
 @click.argument("kind")
 @click.argument("name")
 @click.pass_context
-def root_owner(ctx, cluster, namespace, kind, name):
+def root_owner(
+    ctx: click.Context, cluster: str, namespace: str, kind: str, name: str
+) -> None:
     settings = queries.get_app_interface_settings()
     clusters = [c for c in queries.get_clusters(minimal=True) if c["name"] == cluster]
     oc_map = OC_Map(
@@ -2104,7 +2144,9 @@ def root_owner(ctx, cluster, namespace, kind, name):
 @click.argument("aws_account")
 @click.argument("identifier")
 @click.pass_context
-def service_owners_for_rds_instance(ctx, aws_account, identifier):
+def service_owners_for_rds_instance(
+    ctx: click.Context, aws_account: str, identifier: str
+) -> None:
     namespaces = queries.get_namespaces()
     service_owners = []
     for namespace_info in namespaces:
@@ -2126,7 +2168,7 @@ def service_owners_for_rds_instance(ctx, aws_account, identifier):
 
 @get.command()
 @click.pass_context
-def sre_checkpoints(ctx):
+def sre_checkpoints(ctx: click.Context) -> None:
     apps = queries.get_apps()
 
     parent_apps = {app["parentApp"]["path"] for app in apps if app.get("parentApp")}
@@ -2150,13 +2192,14 @@ def sre_checkpoints(ctx):
 
 @get.command()
 @click.pass_context
-def app_interface_merge_queue(ctx):
+def app_interface_merge_queue(ctx: click.Context) -> None:
     import reconcile.gitlab_housekeeping as glhk
 
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
-    merge_requests = glhk.get_merge_requests(True, gl)
+    state = init_state(integration=glhk.QONTRACT_INTEGRATION)
+    merge_requests = glhk.get_merge_requests(True, gl, state=state)
 
     columns = [
         "id",
@@ -2191,7 +2234,7 @@ def app_interface_merge_queue(ctx):
 
 @get.command()
 @click.pass_context
-def app_interface_review_queue(ctx) -> None:
+def app_interface_review_queue(ctx: click.Context) -> None:
     import reconcile.gitlab_housekeeping as glhk
 
     settings = queries.get_app_interface_settings()
@@ -2208,7 +2251,7 @@ def app_interface_review_queue(ctx) -> None:
         "labels",
     ]
 
-    def get_mrs(repo, url) -> list[dict[str, str]]:
+    def get_mrs(repo: str, url: str) -> list[dict[str, str]]:
         gl = GitLabApi(instance, project_url=url, settings=settings)
         merge_requests = gl.get_merge_requests(state=MRState.OPENED)
         try:
@@ -2229,7 +2272,7 @@ def app_interface_review_queue(ctx) -> None:
             }:
                 continue
 
-            labels = mr.attributes.get("labels")
+            labels = mr.attributes.get("labels") or []
             if glhk.is_good_to_merge(labels):
                 continue
             if "stale" in labels:
@@ -2303,7 +2346,7 @@ def app_interface_review_queue(ctx) -> None:
 
 @get.command()
 @click.pass_context
-def app_interface_open_selfserviceable_mr_queue(ctx):
+def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
@@ -2324,7 +2367,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
             continue
 
         # skip stale or non self serviceable MRs
-        labels = mr.attributes.get("labels")
+        labels = mr.attributes.get("labels", [])
         if "stale" in labels:
             continue
         if SELF_SERVICEABLE not in labels and SAAS_FILE_UPDATE not in labels:
@@ -2366,7 +2409,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx):
 
 @get.command()
 @click.pass_context
-def change_types(ctx) -> None:
+def change_types(ctx: click.Context) -> None:
     """List all change types."""
     change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
 
@@ -2391,7 +2434,7 @@ def change_types(ctx) -> None:
 
 @get.command()
 @click.pass_context
-def app_interface_merge_history(ctx):
+def app_interface_merge_history(ctx: click.Context) -> None:
     settings = queries.get_app_interface_settings()
     instance = queries.get_gitlab_instance()
     gl = GitLabApi(instance, project_url=settings["repoUrl"], settings=settings)
@@ -2413,7 +2456,7 @@ def app_interface_merge_history(ctx):
             "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
             "merged_at": mr.merged_at,
-            "labels": ", ".join(mr.attributes.get("labels")),
+            "labels": ", ".join(mr.attributes.get("labels", [])),
         }
         merge_queue_data.append(item)
 
@@ -2428,7 +2471,7 @@ def app_interface_merge_history(ctx):
 )
 @use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_resources(ctx, use_jump_host):
+def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -2486,7 +2529,9 @@ def selectorsyncset_managed_resources(ctx, use_jump_host):
 )
 @use_jump_host()
 @click.pass_context
-def selectorsyncset_managed_hypershift_resources(ctx, use_jump_host):
+def selectorsyncset_managed_hypershift_resources(
+    ctx: click.Context, use_jump_host: bool
+) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     clusters = get_clusters()
@@ -2564,7 +2609,12 @@ def selectorsyncset_managed_hypershift_resources(ctx, use_jump_host):
     default=os.environ.get("QONTRACT_CLI_EC2_JENKINS_WORKER_AWS_REGION", "us-east-1"),
 )
 @click.pass_context
-def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_region):
+def ec2_jenkins_workers(
+    ctx: click.Context,
+    aws_access_key_id: str,
+    aws_secret_access_key: str,
+    aws_region: str,
+) -> None:
     """Prints a list of jenkins workers and their status."""
     if not aws_access_key_id or not aws_secret_access_key:
         raise click.ClickException(
@@ -2611,9 +2661,9 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
             url = ""
             for t in instance.tags:
                 if t.get("Key") == "os":
-                    os = t.get("Value")
+                    os = t["Value"]
                 if t.get("Key") == "jenkins_controller":
-                    url = f"https://{t.get('Value').replace('-', '.')}.devshift.net/computer/{instance.id}"
+                    url = f"https://{t['Value'].replace('-', '.')}.devshift.net/computer/{instance.id}"
             image = ec2.Image(instance.image_id)
             commit_url = ""
             for t in image.tags:
@@ -2640,7 +2690,7 @@ def ec2_jenkins_workers(ctx, aws_access_key_id, aws_secret_access_key, aws_regio
 @get.command()
 @click.argument("status-board-instance")
 @click.pass_context
-def slo_document_services(ctx, status_board_instance):
+def slo_document_services(ctx: click.Context, status_board_instance: str) -> None:
     """Print SLO Documents Services"""
     columns = [
         "slo_doc_name",
@@ -2669,7 +2719,7 @@ def slo_document_services(ctx, status_board_instance):
     slodocs = []
     for slodoc in get_slo_documents():
         products = [ns.namespace.environment.product.name for ns in slodoc.namespaces]
-        for slo in slodoc.slos:
+        for slo in slodoc.slos or []:
             for product in products:
                 if slodoc.app.parent_app:
                     app = f"{slodoc.app.parent_app.name}-{slodoc.app.name}"
@@ -2695,7 +2745,7 @@ def slo_document_services(ctx, status_board_instance):
                     "target_unit": slo.slo_target_unit,
                     "window": slo.slo_parameters.window,
                     "statusBoardService": f"{product}/{slodoc.app.name}/{slo.name}",
-                    "statusBoardEnabled": "statusBoard" in slodoc.labels,
+                    "statusBoardEnabled": "statusBoard" in (slodoc.labels or {}),
                 }
                 slodocs.append(item)
 
@@ -2705,7 +2755,7 @@ def slo_document_services(ctx, status_board_instance):
 @get.command()
 @click.argument("file_path")
 @click.pass_context
-def alerts(ctx, file_path):
+def alerts(ctx: click.Context, file_path: str) -> None:
     BIG_NUMBER = 10
 
     def sort_by_threshold(item: dict[str, str]) -> int:
@@ -2779,7 +2829,7 @@ def alerts(ctx, file_path):
 @get.command()
 @click.pass_context
 @thread_pool_size(default=5)
-def aws_cost_report(ctx, thread_pool_size):
+def aws_cost_report(ctx: click.Context, thread_pool_size: int) -> None:
     command = AwsCostReportCommand.create(thread_pool_size=thread_pool_size)
     print(command.execute())
 
@@ -2787,7 +2837,7 @@ def aws_cost_report(ctx, thread_pool_size):
 @get.command()
 @click.pass_context
 @thread_pool_size(default=5)
-def openshift_cost_report(ctx, thread_pool_size):
+def openshift_cost_report(ctx: click.Context, thread_pool_size: int) -> None:
     command = OpenShiftCostReportCommand.create(thread_pool_size=thread_pool_size)
     print(command.execute())
 
@@ -2795,7 +2845,9 @@ def openshift_cost_report(ctx, thread_pool_size):
 @get.command()
 @click.pass_context
 @thread_pool_size(default=5)
-def openshift_cost_optimization_report(ctx, thread_pool_size):
+def openshift_cost_optimization_report(
+    ctx: click.Context, thread_pool_size: int
+) -> None:
     command = OpenShiftCostOptimizationReportCommand.create(
         thread_pool_size=thread_pool_size
     )
@@ -2804,7 +2856,7 @@ def openshift_cost_optimization_report(ctx, thread_pool_size):
 
 @get.command()
 @click.pass_context
-def osd_component_versions(ctx):
+def osd_component_versions(ctx: click.Context) -> None:
     osd_environments = [
         e["name"] for e in queries.get_environments() if e["product"]["name"] == "OSDv4"
     ]
@@ -2840,7 +2892,7 @@ def osd_component_versions(ctx):
 
 @get.command()
 @click.pass_context
-def maintenances(ctx):
+def maintenances(ctx: click.Context) -> None:
     now = datetime.now(UTC)
     maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
     data = [
@@ -2903,7 +2955,7 @@ class MigrationStatusCount:
 
 @get.command()
 @click.pass_context
-def hcp_migration_status(ctx):
+def hcp_migration_status(ctx: click.Context) -> None:
     counts: dict[str, MigrationStatusCount] = {}
     total_count = MigrationStatusCount("total")
     saas_files = get_saas_files()
@@ -2924,6 +2976,7 @@ def hcp_migration_status(ctx):
                     continue
                 if t.delete:
                     continue
+                assert t.namespace.cluster.labels
                 if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
                     app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
                     counts.setdefault(app, MigrationStatusCount(app))
@@ -2940,7 +2993,7 @@ def hcp_migration_status(ctx):
 
 @get.command()
 @click.pass_context
-def systems_and_tools(ctx):
+def systems_and_tools(ctx: click.Context) -> None:
     print(
         f"This report is obtained from app-interface Graphql endpoint available at: {config.get_config()['graphql']['server']}"
     )
@@ -2954,7 +3007,7 @@ def systems_and_tools(ctx):
     "--environment_name", default="production", help="environment to get logs from"
 )
 @click.pass_context
-def logs(ctx, integration_name: str, environment_name: str):
+def logs(ctx: click.Context, integration_name: str, environment_name: str) -> None:
     integrations = [
         i
         for i in integrations_gql.query(query_func=gql.get_api().query).integrations
@@ -2993,7 +3046,7 @@ def logs(ctx, integration_name: str, environment_name: str):
 
 @get.command
 @click.pass_context
-def jenkins_jobs(ctx):
+def jenkins_jobs(ctx: click.Context) -> None:
     jenkins_configs = queries.get_jenkins_configs()
 
     # stats dicts
@@ -3063,9 +3116,9 @@ You can view the source of this Markdown to extract the JSON data.
 
 @get.command
 @click.pass_context
-def container_image_details(ctx):
+def container_image_details(ctx: click.Context) -> None:
     apps = get_apps_quay_repos_escalation_policies()
-    data: list[dict[str, str]] = []
+    data: list[dict[str, str | list[str]]] = []
     for app in apps:
         app_name = f"{app.parent_app.name}/{app.name}" if app.parent_app else app.name
         ep_channels = app.escalation_policy.channels
@@ -3077,7 +3130,7 @@ def container_image_details(ctx):
                 if repo.mirror:
                     continue
                 repository = f"quay.io/{org_name}/{repo.name}"
-                item = {
+                item: dict[str, str | list[str]] = {
                     "app": app_name,
                     "repository": repository,
                     "email": email,
@@ -3090,27 +3143,25 @@ def container_image_details(ctx):
 
 @get.command
 @click.pass_context
-def change_log_tracking(ctx):
+def change_log_tracking(ctx: click.Context) -> None:
     repo_url = get_app_interface_repo_url()
     change_types = fetch_change_type_processors(gql.get_api(), NoOpFileDiffResolver())
     state = init_state(integration=cl.QONTRACT_INTEGRATION)
     change_log = ChangeLog(**state.get(BUNDLE_DIFFS_OBJ))
     data: list[dict[str, str]] = []
-    for item in change_log.items:
-        change_log_item = ChangeLogItem(**item)
+    for change_log_item in change_log.items:
         commit = change_log_item.commit
         covered_change_types_descriptions = [
             ct.description
             for ct in change_types
             if ct.name in change_log_item.change_types
         ]
-        item = {
+        data.append({
             "commit": f"[{commit[:7]}]({repo_url}/commit/{commit})",
             "merged_at": change_log_item.merged_at,
             "apps": ", ".join(change_log_item.apps),
             "changes": ", ".join(covered_change_types_descriptions),
-        }
-        data.append(item)
+        })
 
     # TODO(mafriedm): Fix this
     ctx.obj["options"]["sort"] = False
@@ -3121,7 +3172,7 @@ def change_log_tracking(ctx):
 @root.group(name="set")
 @output
 @click.pass_context
-def set_command(ctx, output):
+def set_command(ctx: click.Context, output: str) -> None:
     ctx.obj["output"] = output
 
 
@@ -3130,7 +3181,9 @@ def set_command(ctx, output):
 @click.argument("usergroup")
 @click.argument("username")
 @click.pass_context
-def slack_usergroup(ctx, workspace, usergroup, username):
+def slack_usergroup(
+    ctx: click.Context, workspace: str, usergroup: str, username: str
+) -> None:
     """Update users in a slack usergroup.
     Use an org_username as the username.
     To empty a slack usergroup, pass '' (empty string) as the username.
@@ -3138,6 +3191,8 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     settings = queries.get_app_interface_settings()
     slack = slackapi_from_queries("qontract-cli")
     ugid = slack.get_usergroup_id(usergroup)
+    if not ugid:
+        raise click.ClickException(f"Usergroup {usergroup} not found.")
     if username:
         mail_address = settings["smtp"]["mailAddress"]
         users = [slack.get_user_id_by_name(username, mail_address)]
@@ -3146,33 +3201,17 @@ def slack_usergroup(ctx, workspace, usergroup, username):
     slack.update_usergroup_users(ugid, users)
 
 
-@set_command.command()
-@click.argument("org_name")
-@click.argument("cluster_name")
-@click.pass_context
-def cluster_admin(ctx, org_name, cluster_name):
-    settings = queries.get_app_interface_settings()
-    ocms = [
-        o for o in queries.get_openshift_cluster_managers() if o["name"] == org_name
-    ]
-    ocm_map = OCMMap(ocms=ocms, settings=settings)
-    ocm = ocm_map[org_name]
-    enabled = ocm.is_cluster_admin_enabled(cluster_name)
-    if not enabled:
-        ocm.enable_cluster_admin(cluster_name)
-
-
 @root.group()
 @environ(["APP_INTERFACE_STATE_BUCKET"])
 @click.pass_context
-def state(ctx):
+def state(ctx: click.Context) -> None:
     pass
 
 
 @state.command()
 @click.argument("integration", default="")
 @click.pass_context
-def ls(ctx, integration):
+def ls(ctx: click.Context, integration: str) -> None:
     state = init_state(integration=integration)
     keys = state.ls()
     # if integration in not defined the 2th token will be the integration name
@@ -3193,7 +3232,7 @@ def ls(ctx, integration):
 @click.argument("integration")
 @click.argument("key")
 @click.pass_context
-def state_get(ctx, integration, key):
+def state_get(ctx: click.Context, integration: str, key: str) -> None:
     state = init_state(integration=integration)
     value = state.get(key)
     print(value)
@@ -3203,7 +3242,7 @@ def state_get(ctx, integration, key):
 @click.argument("integration")
 @click.argument("key")
 @click.pass_context
-def add(ctx, integration, key):
+def add(ctx: click.Context, integration: str, key: str) -> None:
     state = init_state(integration=integration)
     state.add(key)
 
@@ -3213,7 +3252,7 @@ def add(ctx, integration, key):
 @click.argument("key")
 @click.argument("value")
 @click.pass_context
-def state_set(ctx, integration, key, value):
+def state_set(ctx: click.Context, integration: str, key: str, value: str) -> None:
     state = init_state(integration=integration)
     state.add(key, value=value, force=True)
 
@@ -3222,7 +3261,7 @@ def state_set(ctx, integration, key, value):
 @click.argument("integration")
 @click.argument("key")
 @click.pass_context
-def rm(ctx, integration, key):
+def rm(ctx: click.Context, integration: str, key: str) -> None:
     state = init_state(integration=integration)
     state.rm(key)
 
@@ -3230,7 +3269,7 @@ def rm(ctx, integration, key):
 @root.group()
 @environ(["APP_INTERFACE_STATE_BUCKET"])
 @click.pass_context
-def early_exit_cache(ctx):
+def early_exit_cache(ctx: click.Context) -> None:
     pass
 
 
@@ -3266,13 +3305,13 @@ def early_exit_cache(ctx):
 )
 @click.pass_context
 def early_exit_cache_head(
-    ctx,
-    integration,
-    integration_version,
-    dry_run,
-    cache_source,
-    shard,
-):
+    ctx: click.Context,
+    integration: str,
+    integration_version: str,
+    dry_run: bool,
+    cache_source: str,
+    shard: str,
+) -> None:
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
             integration=integration,
@@ -3318,13 +3357,13 @@ def early_exit_cache_head(
 )
 @click.pass_context
 def early_exit_cache_get(
-    ctx,
-    integration,
-    integration_version,
-    dry_run,
-    cache_source,
-    shard,
-):
+    ctx: click.Context,
+    integration: str,
+    integration_version: str,
+    dry_run: bool,
+    cache_source: str,
+    shard: str,
+) -> None:
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
             integration=integration,
@@ -3401,18 +3440,18 @@ def early_exit_cache_get(
 )
 @click.pass_context
 def early_exit_cache_set(
-    ctx,
-    integration,
-    integration_version,
-    dry_run,
-    cache_source,
-    shard,
-    payload,
-    log_output,
-    applied_count,
-    ttl,
-    latest_cache_source_digest,
-):
+    ctx: click.Context,
+    integration: str,
+    integration_version: str,
+    dry_run: bool,
+    cache_source: str,
+    shard: str,
+    payload: str,
+    log_output: str,
+    applied_count: int,
+    ttl: int,
+    latest_cache_source_digest: str,
+) -> None:
     with EarlyExitCache.build() as cache:
         cache_key = CacheKey(
             integration=integration,
@@ -3461,13 +3500,13 @@ def early_exit_cache_set(
 )
 @click.pass_context
 def early_exit_cache_delete(
-    ctx,
-    integration,
-    integration_version,
-    dry_run,
-    cache_source_digest,
-    shard,
-):
+    ctx: click.Context,
+    integration: str,
+    integration_version: str,
+    dry_run: bool,
+    cache_source_digest: str,
+    shard: str,
+) -> None:
     with EarlyExitCache.build() as cache:
         cache_key_with_digest = CacheKeyWithDigest(
             integration=integration,
@@ -3498,25 +3537,33 @@ def early_exit_cache_delete(
     type=click.Choice(["config", "vault"]),
 )
 @click.pass_context
-def template(ctx, cluster, namespace, kind, name, path, secret_reader):
+def template(
+    ctx: click.Context,
+    cluster: str,
+    namespace: str,
+    kind: str,
+    name: str,
+    path: str,
+    secret_reader: str,
+) -> None:
     gqlapi = gql.get_api()
     namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
-    namespace_info = [
+    namespaces_info = [
         n
         for n in namespaces
         if n["cluster"]["name"] == cluster and n["name"] == namespace
     ]
-    if len(namespace_info) != 1:
+    if len(namespaces_info) != 1:
         print(f"{cluster}/{namespace} error")
         sys.exit(1)
 
+    namespace_info = namespaces_info[0]
     settings = queries.get_app_interface_settings()
     settings["vault"] = secret_reader == "vault"
 
     if path and path.startswith("resources"):
         path = path.replace("resources", "", 1)
 
-    [namespace_info] = namespace_info
     ob.aggregate_shared_resources(namespace_info, "openshiftResources")
     openshift_resources = namespace_info.get("openshiftResources")
     for r in openshift_resources:
@@ -3557,7 +3604,9 @@ def template(ctx, cluster, namespace, kind, name, path, secret_reader):
     type=click.Choice(["config", "vault"]),
 )
 @click.pass_context
-def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
+def run_prometheus_test(
+    ctx: click.Context, path: str, cluster: str, namespace: str, secret_reader: str
+) -> None:
     """Run prometheus tests for the rule associated with the test in the PATH from given
     CLUSTER/NAMESPACE"""
 
@@ -3643,17 +3692,17 @@ def run_prometheus_test(ctx, path, cluster, namespace, secret_reader):
 )
 @click.pass_context
 def alert_to_receiver(
-    ctx,
-    cluster,
-    namespace,
-    rules_path,
-    alert_name,
-    alertmanager_secret_path,
-    alertmanager_namespace,
-    alertmanager_secret_key,
-    secret_reader,
-    additional_label,
-):
+    ctx: click.Context,
+    cluster: str,
+    namespace: str,
+    rules_path: str,
+    alert_name: str,
+    alertmanager_secret_path: str,
+    alertmanager_namespace: str,
+    alertmanager_secret_key: str,
+    secret_reader: str,
+    additional_label: list[str],
+) -> None:
     additional_labels = {}
     for al in additional_label:
         try:
@@ -3745,12 +3794,12 @@ def alert_to_receiver(
             print(f"Cannot find alert {alert_name} in rules {rules_path}")
             sys.exit(1)
 
-    for al in alert_labels:
-        result = amtool.config_routes_test(am_config, al)
+    for label in alert_labels:
+        result = amtool.config_routes_test(am_config, label)
         if not result:
             print(f"Error running amtool: {result}")
             sys.exit(1)
-        print("|".join([al["alertname"], str(result)]))
+        print("|".join([label["alertname"], str(result)]))
 
 
 @root.command()
@@ -3758,7 +3807,12 @@ def alert_to_receiver(
 @click.option("--saas-file-name", default=None, help="saas-file to act on.")
 @click.option("--env-name", default=None, help="environment to use for parameters.")
 @click.pass_context
-def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
+def saas_dev(
+    ctx: click.Context,
+    app_name: str | None = None,
+    saas_file_name: str | None = None,
+    env_name: str | None = None,
+) -> None:
     if not env_name:
         print("env-name must be defined")
         return
@@ -3806,7 +3860,7 @@ def saas_dev(ctx, app_name=None, saas_file_name=None, env_name=None) -> None:
 @click.option("--app-name", default=None, help="app to act on.")
 @click.pass_context
 def saas_targets(
-    ctx, saas_file_name: str | None = None, app_name: str | None = None
+    ctx: click.Context, saas_file_name: str | None = None, app_name: str | None = None
 ) -> None:
     """Resolve namespaceSelectors and print all resulting targets of a saas file."""
     console = Console()
@@ -3870,7 +3924,7 @@ def saas_targets(
     default="json",
     type=click.Choice(["json", "yaml"]),
 )
-def query(output, query):
+def query(output: str, query: str) -> None:
     """Run a raw GraphQL query"""
     gqlapi = gql.get_api()
     result = gqlapi.query(query)
@@ -3884,7 +3938,7 @@ def query(output, query):
 @root.command()
 @click.argument("cluster")
 @click.argument("query")
-def promquery(cluster, query):
+def promquery(cluster: str, query: str) -> None:
     """Run a PromQL query"""
     config_data = config.get_config()
     auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
@@ -3935,8 +3989,13 @@ def promquery(cluster, query):
     default=False,
 )
 def sre_checkpoint_metadata(
-    app_path, parent_ticket, jiraboard, jiradef, create_parent_ticket, dry_run
-):
+    app_path: str,
+    parent_ticket: str,
+    jiraboard: str,
+    jiradef: str,
+    create_parent_ticket: bool,
+    dry_run: bool,
+) -> None:
     """Check an app path for checkpoint-related metadata."""
     data = queries.get_app_metadata(app_path)
     settings = queries.get_app_interface_settings()
@@ -3975,8 +4034,13 @@ def sre_checkpoint_metadata(
     required=True,
 )
 def gpg_encrypt(
-    vault_path, vault_secret_version, file_path, openshift_path, output, for_user
-):
+    vault_path: str,
+    vault_secret_version: str,
+    file_path: str,
+    openshift_path: str,
+    output: str,
+    for_user: str,
+) -> None:
     """
     Encrypt the specified secret (local file, vault or openshift) with a
     given users gpg key. This is intended for easily sharing secrets with
@@ -3999,7 +4063,7 @@ def gpg_encrypt(
 @click.option("--channel", help="the channel that state is part of")
 @click.option("--sha", help="the commit sha we want state for")
 @environ(["APP_INTERFACE_STATE_BUCKET"])
-def get_promotion_state(channel: str, sha: str):
+def get_promotion_state(channel: str, sha: str) -> None:
     from tools.saas_promotion_state.saas_promotion_state import (
         SaasPromotionState,
     )
@@ -4024,7 +4088,7 @@ def get_promotion_state(channel: str, sha: str):
 @click.option("--sha", help="the commit sha we want state for")
 @click.option("--publisher-id", help="the publisher id we want state for")
 @environ(["APP_INTERFACE_STATE_BUCKET"])
-def mark_promotion_state_successful(channel: str, sha: str, publisher_id: str):
+def mark_promotion_state_successful(channel: str, sha: str, publisher_id: str) -> None:
     from tools.saas_promotion_state.saas_promotion_state import (
         SaasPromotionState,
     )
@@ -4048,7 +4112,9 @@ def mark_promotion_state_successful(channel: str, sha: str, publisher_id: str):
     help="filesystem path to a local app-interface repo",
     default=os.environ.get("APP_INTERFACE_PATH", None),
 )
-def test_change_type(change_type_name: str, role_name: str, app_interface_path: str):
+def test_change_type(
+    change_type_name: str, role_name: str, app_interface_path: str
+) -> None:
     from reconcile.change_owners import tester
 
     # tester.test_change_type(change_type_name, datafile_path)
@@ -4057,7 +4123,7 @@ def test_change_type(change_type_name: str, role_name: str, app_interface_path: 
 
 @root.group()
 @click.pass_context
-def sso_client(ctx):
+def sso_client(ctx: click.Context) -> None:
     """SSO client commands"""
 
 
@@ -4093,7 +4159,7 @@ def sso_client(ctx):
 )
 @click.pass_context
 def create(
-    ctx,
+    ctx: click.Context,
     client_name: str,
     contact_email: str,
     keycloak_instance_vault_path: str,
@@ -4127,7 +4193,7 @@ def create(
 @sso_client.command()
 @click.argument("sso-client-vault-secret-path", required=True)
 @click.pass_context
-def remove(ctx, sso_client_vault_secret_path: str):
+def remove(ctx: click.Context, sso_client_vault_secret_path: str) -> None:
     """Remove an existing SSO client"""
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -4174,8 +4240,12 @@ def remove(ctx, sso_client_vault_secret_path: str):
 )
 @click.pass_context
 def external_resources(
-    ctx, provision_provider: str, provisioner: str, provider: str, identifier: str
-):
+    ctx: click.Context,
+    provision_provider: str,
+    provisioner: str,
+    provider: str,
+    identifier: str,
+) -> None:
     """External resources commands"""
     ctx.obj["provision_provider"] = provision_provider
     ctx.obj["provisioner"] = provisioner
@@ -4187,7 +4257,7 @@ def external_resources(
 
 @external_resources.command()
 @click.pass_context
-def get_input(ctx):
+def get_input(ctx: click.Context) -> None:
     """Gets the input data for an external resource asset. Input data is what is used
     in the Reconciliation Job to manage the resource."""
     erv2cli = Erv2Cli(
@@ -4202,7 +4272,7 @@ def get_input(ctx):
 
 @external_resources.command()
 @click.pass_context
-def request_reconciliation(ctx):
+def request_reconciliation(ctx: click.Context) -> None:
     """Marks a resource as it needs to get reconciled. The itegration will reconcile the resource at
     its next iteration."""
     erv2cli = Erv2Cli(
@@ -4229,7 +4299,7 @@ def request_reconciliation(ctx):
     default=False,
 )
 @click.pass_context
-def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
+def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
     """Migrate an existing external resource managed by terraform-resources to ERv2.
 
 
@@ -4335,7 +4405,7 @@ def migrate(ctx, dry_run: bool, skip_build: bool) -> None:
 @external_resources.command()
 @binary(["docker"])
 @click.pass_context
-def debug_shell(ctx) -> None:
+def debug_shell(ctx: click.Context) -> None:
     """Enter an ERv2 debug shell to manually migrate resources."""
     # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
     with tempfile.TemporaryDirectory(dir=Path.home(), prefix="erv2-debug.") as _tempdir:
@@ -4374,7 +4444,7 @@ def debug_shell(ctx) -> None:
     prompt=True,
 )
 @click.pass_context
-def force_unlock(ctx, lock_id: str) -> None:
+def force_unlock(ctx: click.Context, lock_id: str) -> None:
     """Manually unlock the ERv2 terraform state."""
     # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
     with tempfile.TemporaryDirectory(
@@ -4415,14 +4485,14 @@ def force_unlock(ctx, lock_id: str) -> None:
 @click.option("--include-pattern", help="Only include images that match this pattern")
 @click.pass_context
 def container_images(
-    ctx,
-    cluster_name,
-    namespace_name,
-    thread_pool_size,
-    use_jump_host,
-    exclude_pattern,
-    include_pattern,
-):
+    ctx: click.Context,
+    cluster_name: str,
+    namespace_name: str,
+    thread_pool_size: int,
+    use_jump_host: bool,
+    exclude_pattern: str,
+    include_pattern: str,
+) -> None:
     from tools.cli_commands.container_images_report import get_all_pods_images
 
     results = get_all_pods_images(
@@ -4469,7 +4539,7 @@ You can view the source of this Markdown to extract the JSON data.
 @get.command(help="Get all app tekton pipelines providers roles and users")
 @click.argument("app-name")
 @click.pass_context
-def tekton_roles_and_users(ctx, app_name):
+def tekton_roles_and_users(ctx: click.Context, app_name: str) -> None:
     pp_namespaces = {
         p.namespace.path
         for p in get_tekton_pipeline_providers()
@@ -4496,6 +4566,7 @@ def tekton_roles_and_users(ctx, app_name):
                 if not seen:
                     seen = True
 
+                    users: str | list[str]
                     if ctx.obj["options"]["output"] == "table":
                         users = ", ".join([u.org_username for u in r.users])
                     else:
@@ -4507,6 +4578,40 @@ def tekton_roles_and_users(ctx, app_name):
                         "users": users,
                     })
 
+    print_output(ctx.obj["options"], results, columns)
+
+
+@get.command(
+    help="Get log group storage information from CloudWatch. This is an API-intensive operation so use wisely"
+)
+@click.argument("aws-account")
+@click.pass_context
+def log_group_usage(ctx: click.Context, aws_account: str) -> None:
+    accounts = queries.get_aws_accounts(name=aws_account)
+    if not accounts:
+        print("no aws account found with that name")
+        sys.exit(1)
+    account = accounts[0]
+
+    settings = queries.get_app_interface_settings()
+    secret_reader = SecretReader(settings=settings)
+    columns = ["log_group", "stored_bytes", "retention_days"]
+    results: list[dict[str, str | int]] = []
+
+    with AWSApi(1, [account], settings, secret_reader) as aws:
+        session = aws.get_session(account["name"])
+        cloudwatch_client = aws.get_session_client(session, "logs")
+        paginator = cloudwatch_client.get_paginator("describe_log_groups")
+        for page in paginator.paginate(PaginationConfig={}):
+            results.extend(
+                {
+                    "log_group": group["logGroupName"],
+                    "stored_bytes": group["storedBytes"],
+                    "retention_days": group["retentionInDays"],
+                }
+                for group in page["logGroups"]
+                if group["storedBytes"] != 0
+            )
     print_output(ctx.obj["options"], results, columns)
 
 

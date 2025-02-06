@@ -655,7 +655,10 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
 class TestGetContainerImagesDiffSaasFile(TestCase):
     def setUp(self) -> None:
         self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
-            SaasFile, Fixtures("saasherder").get_anymarkup("saas-trigger.gql.yml")
+            SaasFile,
+            Fixtures("saasherder").get_anymarkup(
+                "saas-container-image-trigger.gql.yml"
+            ),
         )
 
         self.initiate_gh_patcher = patch.object(
@@ -678,6 +681,11 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
         ):
             p.stop()
 
+    def sort_triggers(
+        self, triggers: list[TriggerSpecContainerImage]
+    ) -> list[TriggerSpecContainerImage]:
+        return sorted(triggers, key=lambda x: x.namespace_name)
+
     def test_get_container_images_diff_saas_file_all_fine(self) -> None:
         saasherder = SaasHerder(
             [self.saas_file],
@@ -687,12 +695,13 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
             integration_version="",
             hash_length=7,
             repo_url="https://repo-url.com",
+            include_trigger_trace=True,
         )
         saasherder.state = MagicMock()
         saasherder.state.get.return_value = "asha"
         self.get_commit_sha.return_value = "abcd4242"
         self.get_image.return_value = MagicMock()
-        expected = [
+        expected = self.sort_triggers([
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
                 env_name="App-SRE-stage",
@@ -701,15 +710,73 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 resource_template_name="test-saas-deployments",
                 cluster_name="appsres03ue1",
                 namespace_name="test-image-trigger",
-                image="quay.io/centos/centos",
+                images=["quay.io/centos/centos"],
                 state_content="abcd424",
-                reason=None,
-            )
-        ]
+                reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424",
+            ),
+            TriggerSpecContainerImage(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE-stage",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-image-trigger-v2",
+                images=["quay.io/centos/centos", "quay.io/fedora/fedora"],
+                state_content="abcd424",
+                reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424, quay.io/fedora/fedora:abcd424",
+            ),
+        ])
+
+        actual = self.sort_triggers(
+            saasherder.get_container_images_diff_saas_file(self.saas_file, True)
+        )
 
         self.assertEqual(
-            saasherder.get_container_images_diff_saas_file(self.saas_file, True),
+            actual,
             expected,
+        )
+
+    def test_state_key_consistency(
+        self,
+    ) -> None:
+        """
+        Ensure state key is consistent with lists of different order
+        """
+        images = ["quay.io/centos/centos", "quay.io/fedora/fedora"]
+        a = TriggerSpecContainerImage(
+            saas_file_name=self.saas_file.name,
+            env_name="App-SRE-stage",
+            timeout=None,
+            pipelines_provider=self.saas_file.pipelines_provider,
+            resource_template_name="test-saas-deployments",
+            cluster_name="appsres03ue1",
+            namespace_name="test-image-trigger-v2",
+            images=images,
+            state_content="abcd424",
+            reason=None,
+        )
+        b = TriggerSpecContainerImage(
+            saas_file_name=self.saas_file.name,
+            env_name="App-SRE-stage",
+            timeout=None,
+            pipelines_provider=self.saas_file.pipelines_provider,
+            resource_template_name="test-saas-deployments",
+            cluster_name="appsres03ue1",
+            namespace_name="test-image-trigger-v2",
+            images=images[::-1],
+            state_content="abcd424",
+            reason=None,
+        )
+        expected_key = "test-saas-deployments-deploy/test-saas-deployments/appsres03ue1/test-image-trigger-v2/App-SRE-stage/quay.io/centos/centos/quay.io/fedora/fedora"
+
+        self.assertEqual(
+            a.state_key,
+            expected_key,
+        )
+        self.assertEqual(
+            b.state_key,
+            expected_key,
         )
 
     def test_get_container_images_diff_saas_file_all_fine_include_trigger_trace(
@@ -729,7 +796,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
         saasherder.state.get.return_value = "asha"
         self.get_commit_sha.return_value = "abcd4242"
         self.get_image.return_value = MagicMock()
-        expected = [
+        expected = self.sort_triggers([
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
                 env_name="App-SRE-stage",
@@ -738,14 +805,30 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 resource_template_name="test-saas-deployments",
                 cluster_name="appsres03ue1",
                 namespace_name="test-image-trigger",
-                image="quay.io/centos/centos",
+                images=["quay.io/centos/centos"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424",
-            )
-        ]
+            ),
+            TriggerSpecContainerImage(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE-stage",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-image-trigger-v2",
+                images=["quay.io/centos/centos", "quay.io/fedora/fedora"],
+                state_content="abcd424",
+                reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424, quay.io/fedora/fedora:abcd424",
+            ),
+        ])
+
+        actual = self.sort_triggers(
+            saasherder.get_container_images_diff_saas_file(self.saas_file, True)
+        )
 
         self.assertEqual(
-            saasherder.get_container_images_diff_saas_file(self.saas_file, True),
+            actual,
             expected,
         )
 

@@ -9,7 +9,7 @@ from tools.sd_app_sre_alert_report import (
 messages = Fixtures("slack_api").get_anymarkup("conversations_history_messages.yaml")
 
 
-def test_group_alerts():
+def test_group_alerts() -> None:
     alerts = group_alerts(messages)
 
     ptf = alerts["PrometheusTargetFlapping"]
@@ -45,7 +45,7 @@ def test_group_alerts():
     assert len(messages) == 14
 
 
-def test_alert_stats():
+def test_alert_stats() -> None:
     alert_stats = gen_alert_stats(group_alerts(messages))
 
     ptf = alert_stats["PrometheusTargetFlapping"]

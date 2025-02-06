@@ -26,6 +26,7 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetPromotionV1,
     SaasResourceTemplateTargetUpstreamV1,
     SaasResourceTemplateTargetV2,
+    SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1,
     SaasResourceTemplateTargetV2_SaasSecretParametersV1,
     SaasResourceTemplateV2_SaasSecretParametersV1,
     SaasSecretParametersV1,
@@ -65,6 +66,9 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     ) = Field(..., alias="secretParameters")
     upstream: SaasResourceTemplateTargetUpstreamV1 | None = Field(..., alias="upstream")
     image: SaasResourceTemplateTargetImageV1 | None = Field(..., alias="image")
+    images: (
+        list[SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1] | None
+    ) = Field(..., alias="images")
     disable: bool | None = Field(..., alias="disable")
     delete: bool | None = Field(..., alias="delete")
 

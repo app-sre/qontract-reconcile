@@ -117,6 +117,11 @@ class ExternalResourceSpec:
         return self.namespace["cluster"]["name"]
 
     @property
+    def environment_type(self) -> str:
+        labels = json.loads(self.namespace["environment"]["labels"])
+        return labels.get("type", "production")
+
+    @property
     def output_prefix(self) -> str:
         # Adhere to DNS-1123 subdomain names spec. It's reasonable to have provider
         # names that have underscores, but without replacing them with hyphens we run

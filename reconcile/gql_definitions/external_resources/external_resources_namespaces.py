@@ -19,6 +19,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 from reconcile.gql_definitions.fragments.aws_vpc import AWSVPC
 from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
+from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import ExternalResourcesModuleOverrides
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
@@ -50,6 +51,29 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   remotePort
   identity {
     ... VaultSecret
+  }
+}
+
+fragment DeployResourcesFields on DeployResources_v1 {
+  requests {
+    cpu
+    memory
+  }
+  limits {
+    cpu
+    memory
+  }
+}
+
+fragment ExternalResourcesModuleOverrides on ExternalResourcesModuleOverrides_v1 {
+  module_type
+  image
+  version
+  reconcile_timeout_minutes
+  outputs_secret_image
+  outputs_secret_version
+  resources {
+    ... DeployResourcesFields
   }
 }
 
@@ -111,12 +135,7 @@ query ExternalResourcesNamespaces {
                 managed_by_erv2
                 delete
                 module_overrides {
-                    module_type
-                    image
-                    version
-                    reconcile_timeout_minutes
-                    outputs_secret_image
-                    outputs_secret_version
+                   ... ExternalResourcesModuleOverrides
                 }
             }
             ... on NamespaceTerraformResourceS3_v1 {
@@ -149,12 +168,7 @@ query ExternalResourcesNamespaces {
                 managed_by_erv2
                 delete
                 module_overrides {
-                  module_type
-                  image
-                  version
-                  reconcile_timeout_minutes
-                  outputs_secret_image
-                  outputs_secret_version
+                   ... ExternalResourcesModuleOverrides
                 }
             }
             ... on NamespaceTerraformResourceServiceAccount_v1 {
@@ -275,12 +289,7 @@ query ExternalResourcesNamespaces {
                 managed_by_erv2
                 delete
                 module_overrides {
-                  module_type
-                  image
-                  version
-                  reconcile_timeout_minutes
-                  outputs_secret_image
-                  outputs_secret_version
+                   ... ExternalResourcesModuleOverrides
                 }
             }
             ... on NamespaceTerraformResourceElasticSearch_v1 {
@@ -492,12 +501,7 @@ query ExternalResourcesNamespaces {
                 managed_by_erv2
                 delete
                 module_overrides {
-                  module_type
-                  image
-                  version
-                  reconcile_timeout_minutes
-                  outputs_secret_image
-                  outputs_secret_version
+                   ... ExternalResourcesModuleOverrides
                 }
             }
         }
@@ -505,6 +509,7 @@ query ExternalResourcesNamespaces {
     }
     environment {
       name
+      labels
     }
     app {
       path
@@ -575,15 +580,6 @@ class AWSRDSDataClassificationV1(ConfiguredBaseModel):
     loss_impact: Optional[str] = Field(..., alias="loss_impact")
 
 
-class ExternalResourcesModuleOverridesV1(ConfiguredBaseModel):
-    module_type: Optional[str] = Field(..., alias="module_type")
-    image: Optional[str] = Field(..., alias="image")
-    version: Optional[str] = Field(..., alias="version")
-    reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
-    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
-    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
-
-
 class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -603,7 +599,7 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     data_classification: Optional[AWSRDSDataClassificationV1] = Field(..., alias="data_classification")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
-    module_overrides: Optional[ExternalResourcesModuleOverridesV1] = Field(..., alias="module_overrides")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
 class AWSS3EventNotificationV1(ConfiguredBaseModel):
@@ -628,15 +624,6 @@ class NamespaceTerraformResourceS3V1(NamespaceTerraformResourceAWSV1):
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
-class NamespaceTerraformResourceElastiCacheV1_ExternalResourcesModuleOverridesV1(ConfiguredBaseModel):
-    module_type: Optional[str] = Field(..., alias="module_type")
-    image: Optional[str] = Field(..., alias="image")
-    version: Optional[str] = Field(..., alias="version")
-    reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
-    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
-    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
-
-
 class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     defaults: str = Field(..., alias="defaults")
@@ -647,7 +634,7 @@ class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
     annotations: Optional[str] = Field(..., alias="annotations")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
-    module_overrides: Optional[NamespaceTerraformResourceElastiCacheV1_ExternalResourcesModuleOverridesV1] = Field(..., alias="module_overrides")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
 class ClusterV1(ConfiguredBaseModel):
@@ -783,15 +770,6 @@ class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
-class NamespaceTerraformResourceKMSV1_ExternalResourcesModuleOverridesV1(ConfiguredBaseModel):
-    module_type: Optional[str] = Field(..., alias="module_type")
-    image: Optional[str] = Field(..., alias="image")
-    version: Optional[str] = Field(..., alias="version")
-    reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
-    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
-    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
-
-
 class NamespaceTerraformResourceKMSV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -801,7 +779,7 @@ class NamespaceTerraformResourceKMSV1(NamespaceTerraformResourceAWSV1):
     annotations: Optional[str] = Field(..., alias="annotations")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
-    module_overrides: Optional[NamespaceTerraformResourceKMSV1_ExternalResourcesModuleOverridesV1] = Field(..., alias="module_overrides")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
 class NamespaceTerraformResourceElasticSearchV1(NamespaceTerraformResourceAWSV1):
@@ -1043,15 +1021,6 @@ class MskSecretParametersV1(ConfiguredBaseModel):
     secret: VaultSecret = Field(..., alias="secret")
 
 
-class NamespaceTerraformResourceMskV1_ExternalResourcesModuleOverridesV1(ConfiguredBaseModel):
-    module_type: Optional[str] = Field(..., alias="module_type")
-    image: Optional[str] = Field(..., alias="image")
-    version: Optional[str] = Field(..., alias="version")
-    reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
-    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
-    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
-
-
 class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
@@ -1061,7 +1030,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
     users: Optional[list[MskSecretParametersV1]] = Field(..., alias="users")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
-    module_overrides: Optional[NamespaceTerraformResourceMskV1_ExternalResourcesModuleOverridesV1] = Field(..., alias="module_overrides")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
@@ -1071,6 +1040,7 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
 
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    labels: str = Field(..., alias="labels")
 
 
 class AppV1(ConfiguredBaseModel):
