@@ -222,9 +222,11 @@ class VCS:
             if not file_path.startswith("data")
             else file_path
         )
-        return self._app_interface_api.project.files.get(
-            file_path=file_path, ref="master"
-        ).decode()
+        return (
+            self._app_interface_api.project.files.get(file_path=file_path, ref="master")
+            .decode()
+            .decode("utf-8")
+        )
 
     def get_open_app_interface_merge_requests(self) -> list[ProjectMergeRequest]:
         return self._app_interface_api.get_merge_requests(state=MRState.OPENED)

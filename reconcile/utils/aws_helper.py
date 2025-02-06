@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any, Protocol
 
 from reconcile.utils.disabled_integrations import (
@@ -12,15 +12,15 @@ class AccountNotFoundError(Exception):
     pass
 
 
-Account = dict[str, Any]
+Account = Mapping[str, Any]
 
 
-def get_id_from_arn(arn):
+def get_id_from_arn(arn: str) -> str:
     # arn:aws:iam::12345:<arntype>/id --> id
     return arn.split("/")[1]
 
 
-def get_account_uid_from_arn(arn):
+def get_account_uid_from_arn(arn: str) -> str:
     # arn:aws:iam::12345:role/role-1 --> 12345
     return arn.split(":")[4]
 
@@ -36,7 +36,7 @@ def is_aws_managed_resource(arn: str) -> bool:
     return get_account_uid_from_arn(arn) == "aws"
 
 
-def get_details_from_role_link(role_link):
+def get_details_from_role_link(role_link: str) -> tuple[str, str]:
     # https://signin.aws.amazon.com/switchrole?
     # account=<uid>&roleName=<role_name> -->
     # 12345, role-1
@@ -46,7 +46,7 @@ def get_details_from_role_link(role_link):
     return uid, role_name
 
 
-def get_role_arn_from_role_link(role_link):
+def get_role_arn_from_role_link(role_link: str) -> str:
     # https://signin.aws.amazon.com/switchrole?
     # account=<uid>&roleName=<role_name> -->
     # arn:aws:iam::12345:role/role-1
@@ -54,7 +54,7 @@ def get_role_arn_from_role_link(role_link):
     return f"arn:aws:iam::{uid}:role/{role_name}"
 
 
-def get_account_uid_from_role_link(role_link):
+def get_account_uid_from_role_link(role_link: str) -> str:
     uid, _ = get_details_from_role_link(role_link)
     return uid
 

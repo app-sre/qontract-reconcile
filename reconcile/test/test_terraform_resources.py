@@ -362,7 +362,7 @@ def test_run_with_extended_early_exit_run_enabled(
         defer=defer,
     )
 
-    integ.run.__wrapped__(
+    integ.run.__wrapped__(  # type: ignore
         True,
         account_name="a",
         enable_extended_early_exit=True,
