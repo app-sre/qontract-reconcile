@@ -6,6 +6,7 @@ from typing import Generic, TypeVar
 
 from reconcile.external_resources.aws import (
     AWSDefaultResourceFactory,
+    AWSDynamodbFactory,
     AWSElasticacheFactory,
     AWSMskFactory,
     AWSRdsFactory,
@@ -100,6 +101,7 @@ def setup_aws_resource_factories(
     )
     f.register_factory("rds", AWSRdsFactory(er_inventory, secret_reader))
     f.register_factory("msk", AWSMskFactory(er_inventory, secret_reader))
+    f.register_factory("dynamodb", AWSDynamodbFactory(er_inventory, secret_reader))
     f.register_factory(
         "default", AWSDefaultResourceFactory(er_inventory, secret_reader)
     )
@@ -134,7 +136,6 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
         else:
             region = spec.provisioner["resources_default_region"]
         data["region"] = region
-
         module_type = self.module_inventory.get_from_spec(spec).module_type
         provision_factory = self.provision_factories.get_factory(module_type)
         module_provision_data = provision_factory.create_provision_data(spec)

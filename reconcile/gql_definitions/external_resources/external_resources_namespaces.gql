@@ -167,6 +167,16 @@ query ExternalResourcesNamespaces {
                 identifier
                 output_resource_name
                 annotations
+                managed_by_erv2
+                delete
+                module_overrides {
+                    module_type
+                    image
+                    version
+                    reconcile_timeout_minutes
+                    outputs_secret_image
+                    outputs_secret_version
+                }
                 specs {
                     defaults
                     tables {

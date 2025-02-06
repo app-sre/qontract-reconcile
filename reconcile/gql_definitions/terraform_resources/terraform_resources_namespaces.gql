@@ -153,6 +153,7 @@ query TerraformResourcesNamespaces {
                 identifier
                 output_resource_name
                 annotations
+                managed_by_erv2
                 specs {
                     defaults
                     tables {

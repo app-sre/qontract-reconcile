@@ -202,3 +202,22 @@ class AWSMskFactory(AWSDefaultResourceFactory):
                 raise ValueError(
                     f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
                 )
+
+
+class AWSDynamodbFactory(AWSDefaultResourceFactory):
+    def validate(self, resource: ExternalResource) -> None:...
+
+    def resolve(self, spec) -> dict[str, Any]:
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+        data["output_prefix"] = spec.output_prefix
+        if not data.get("specs"):
+            raise ValueError("specs cannot be empty")
+        # flatten dynamodb table specs
+        data["specs"] = [
+            {**table, **rvr._get_values(sp.get("defaults"))}
+            for sp in data.get("specs")
+            for table in sp.get("tables")
+        ]
+
+        return data
