@@ -2976,7 +2976,8 @@ def hcp_migration_status(ctx: click.Context) -> None:
                     continue
                 if t.delete:
                     continue
-                assert t.namespace.cluster.labels
+                if not t.namespace.cluster.labels:
+                    continue
                 if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
                     app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
                     counts.setdefault(app, MigrationStatusCount(app))
