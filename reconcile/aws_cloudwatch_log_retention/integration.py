@@ -3,7 +3,10 @@ import re
 import typing
 from collections import defaultdict
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import (
+    datetime,
+    timedelta,
+)
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -15,9 +18,9 @@ from reconcile.queries import get_aws_accounts
 from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
-    from mypy_boto3_logs.type_defs import LogGroupTypeDef
+    from mypy_boto3_logs import CloudWatchLogsClient  # type: ignore
 else:
-    LogGroupTypeDef = object
+    CloudWatchLogsClient = object
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
 MANAGED_BY_INTEGRATION_KEY = "managed_by_integration"
@@ -66,17 +69,21 @@ def create_awsapi_client(accounts: list, thread_pool_size: int) -> AWSApi:
     return AWSApi(thread_pool_size, accounts, settings=settings, init_users=False)
 
 
-def is_empty(log_group: LogGroupTypeDef) -> bool:
+def is_empty(
+    log_group: dict,
+) -> bool:
     return log_group["storedBytes"] == 0
 
 
 def is_longer_than_retention(
-    log_group: LogGroupTypeDef,
+    log_group: dict,
     desired_retention_days: int,
 ) -> bool:
-    return datetime.fromtimestamp(log_group["creationTime"] / 1000, tz=UTC) + timedelta(
-        days=desired_retention_days
-    ) < datetime.now(tz=UTC)
+    return (
+        datetime.fromtimestamp(log_group["creationTime"] / 1000)
+        + timedelta(days=desired_retention_days)
+        < datetime.utcnow()
+    )
 
 
 class TagStatus(Enum):
@@ -86,7 +93,7 @@ class TagStatus(Enum):
 
 
 def get_tag_status(
-    log_group: LogGroupTypeDef,
+    log_group: dict,
     account_name: str,
     region: str,
     aws_api: AWSApi,
@@ -106,7 +113,7 @@ def get_tag_status(
 
 def _reconcile_log_group(
     dry_run: bool,
-    aws_log_group: LogGroupTypeDef,
+    aws_log_group: dict,
     desired_cleanup_options: Iterable[AWSCloudwatchCleanupOption],
     account_name: str,
     region: str,

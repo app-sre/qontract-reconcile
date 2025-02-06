@@ -16,24 +16,19 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
-    Self,
-    cast,
-    overload,
 )
 
 import botocore
 from boto3 import Session
-from botocore.client import BaseClient
 from botocore.config import Config
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
 import reconcile.utils.aws_helper as awsh
 import reconcile.utils.lean_terraform_client as terraform
-from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
+from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
-    from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import (
         EC2Client,
         EC2ServiceResource,
@@ -50,17 +45,12 @@ if TYPE_CHECKING:
         VpcEndpointTypeDef,
         VpcTypeDef,
     )
-    from mypy_boto3_ecr import ECRClient
-    from mypy_boto3_elb import ElasticLoadBalancingClient
-    from mypy_boto3_iam import IAMClient, IAMServiceResource
+    from mypy_boto3_iam import IAMClient
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
-    from mypy_boto3_logs import CloudWatchLogsClient
-    from mypy_boto3_logs.type_defs import LogGroupTypeDef
     from mypy_boto3_organizations import OrganizationsClient
     from mypy_boto3_rds import RDSClient
     from mypy_boto3_rds.type_defs import (
         DBInstanceMessageTypeDef,
-        DBRecommendationsMessageTypeDef,
         UpgradeTargetTypeDef,
     )
     from mypy_boto3_route53 import Route53Client
@@ -69,30 +59,19 @@ if TYPE_CHECKING:
         ResourceRecordSetTypeDef,
         ResourceRecordTypeDef,
     )
-    from mypy_boto3_s3 import S3Client, S3ServiceResource
-    from mypy_boto3_sqs import SQSClient, SQSServiceResource
-    from mypy_boto3_sts import STSClient
-    from mypy_boto3_support import SupportClient
-    from mypy_boto3_support.type_defs import CaseDetailsTypeDef
-
+    from mypy_boto3_s3 import S3Client
 else:
-    AccessKeyMetadataTypeDef = CaseDetailsTypeDef = CloudWatchLogsClient = (
-        DBInstanceMessageTypeDef
-    ) = DBRecommendationsMessageTypeDef = DynamoDBClient = DynamoDBServiceResource = (
-        EC2Client
-    ) = EC2ServiceResource = ECRClient = ElasticLoadBalancingClient = FilterTypeDef = (
-        HostedZoneTypeDef
-    ) = IAMClient = IAMServiceResource = ImageTypeDef = (
-        LaunchPermissionModificationsTypeDef
-    ) = LogGroupTypeDef = OrganizationsClient = RDSClient = ResourceRecordSetTypeDef = (
-        ResourceRecordTypeDef
-    ) = Route53Client = RouteTableTypeDef = S3Client = S3ServiceResource = SQSClient = (
-        SQSServiceResource
-    ) = STSClient = SubnetTypeDef = SupportClient = TagTypeDef = (
+    EC2Client = EC2ServiceResource = RouteTableTypeDef = SubnetTypeDef = (
         TransitGatewayTypeDef
-    ) = TransitGatewayVpcAttachmentTypeDef = UpgradeTargetTypeDef = (
-        VpcEndpointTypeDef
-    ) = VpcTypeDef = object
+    ) = TransitGatewayVpcAttachmentTypeDef = VpcTypeDef = IAMClient = (
+        AccessKeyMetadataTypeDef
+    ) = ImageTypeDef = TagTypeDef = LaunchPermissionModificationsTypeDef = (
+        FilterTypeDef
+    ) = Route53Client = ResourceRecordSetTypeDef = ResourceRecordTypeDef = (
+        HostedZoneTypeDef
+    ) = RDSClient = DBInstanceMessageTypeDef = UpgradeTargetTypeDef = (
+        OrganizationsClient
+    ) = S3Client = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -103,7 +82,7 @@ class MissingARNError(Exception):
     pass
 
 
-KeyStatus = Literal["Active", "Inactive"]
+KeyStatus = Literal["Active"] | Literal["Inactive"]
 
 GOVCLOUD_PARTITION = "aws-us-gov"
 
@@ -113,50 +92,19 @@ class AmiTag(BaseModel):
     value: str
 
 
-SERVICE_NAME = Literal[
-    "dynamodb",
-    "ec2",
-    "ecr",
-    "elb",
-    "iam",
-    "logs",
-    "organizations",
-    "rds",
-    "route53",
-    "s3",
-    "sqs",
-    "sts",
-    "support",
-]
-RESOURCE_NAME = Literal[
-    "dynamodb",
-    "ec2",
-    "iam",
-    "s3",
-    "sqs",
-]
-RESOURCE_TYPE = Literal[
-    "dynamodb",
-    "rds",
-    "rds_snapshots",
-    "s3",
-    "sqs",
-]
-
-
-class AWSApi:
+class AWSApi:  # pylint: disable=too-many-public-methods
     """Wrapper around AWS SDK"""
 
     def __init__(
         self,
-        thread_pool_size: int,
-        accounts: Iterable[awsh.Account],
-        settings: Mapping | None = None,
-        secret_reader: SecretReaderBase | None = None,
-        init_ecr_auth_tokens: bool = False,
-        init_users: bool = True,
-    ) -> None:
-        self._session_clients: list[BaseClient] = []
+        thread_pool_size,
+        accounts,
+        settings=None,
+        secret_reader=None,
+        init_ecr_auth_tokens=False,
+        init_users=True,
+    ):
+        self._session_clients = []
         self.thread_pool_size = thread_pool_size
         if secret_reader:
             self.secret_reader = secret_reader
@@ -166,13 +114,7 @@ class AWSApi:
         if init_ecr_auth_tokens:
             self.init_ecr_auth_tokens(accounts)
         self._lock = Lock()
-        self.resource_types: list[RESOURCE_TYPE] = [
-            "s3",
-            "sqs",
-            "dynamodb",
-            "rds",
-            "rds_snapshots",
-        ]
+        self.resource_types = ["s3", "sqs", "dynamodb", "rds", "rds_snapshots"]
 
         # store the app-interface accounts in a dictionary indexed by name
         self.accounts = {acc["name"]: acc for acc in accounts}
@@ -181,19 +123,19 @@ class AWSApi:
         # https://stackoverflow.com/questions/33672412/python-functools-lru-cache-with-class-methods-release-object
         # using @lru_cache decorators on methods would lek AWSApi instances
         # since the cache keeps a reference to self.
-        self._get_assume_role_session = lru_cache()(self._get_assume_role_session)  # type: ignore[method-assign]
-        self._get_session_resource = lru_cache()(self._get_session_resource)  # type: ignore[method-assign, assignment]
-        self.get_account_amis = lru_cache()(self.get_account_amis)  # type: ignore[method-assign]
-        self.get_account_vpcs = lru_cache()(self.get_account_vpcs)  # type: ignore[method-assign]
-        self.get_session_client = lru_cache()(self.get_session_client)  # type: ignore[method-assign, assignment]
-        self.get_transit_gateway_vpc_attachments = lru_cache()(  # type: ignore[method-assign]
+        self._get_assume_role_session = lru_cache()(self._get_assume_role_session)
+        self._get_session_resource = lru_cache()(self._get_session_resource)
+        self.get_account_amis = lru_cache()(self.get_account_amis)
+        self.get_account_vpcs = lru_cache()(self.get_account_vpcs)
+        self.get_session_client = lru_cache()(self.get_session_client)
+        self.get_transit_gateway_vpc_attachments = lru_cache()(
             self.get_transit_gateway_vpc_attachments
         )
-        self.get_transit_gateways = lru_cache()(self.get_transit_gateways)  # type: ignore[method-assign]
-        self.get_vpc_default_sg_id = lru_cache()(self.get_vpc_default_sg_id)  # type: ignore[method-assign]
-        self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)  # type: ignore[method-assign]
-        self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)  # type: ignore[method-assign]
-        self._get_vpc_endpoints = lru_cache()(self._get_vpc_endpoints)  # type: ignore[method-assign]
+        self.get_transit_gateways = lru_cache()(self.get_transit_gateways)
+        self.get_vpc_default_sg_id = lru_cache()(self.get_vpc_default_sg_id)
+        self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)
+        self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)
+        self._get_vpc_endpoints = lru_cache()(self._get_vpc_endpoints)
 
         if init_users:
             self.init_users()
@@ -227,13 +169,13 @@ class AWSApi:
             self.sessions[account_name] = session
             self.resources[account_name] = {}
 
-    def __enter__(self) -> Self:
+    def __enter__(self):
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc):
         self.cleanup()
 
-    def cleanup(self) -> None:
+    def cleanup(self):
         """
         Close all session clients
         :return:
@@ -244,129 +186,12 @@ class AWSApi:
     def get_session(self, account: str) -> Session:
         return self.sessions[account]
 
-    @overload
+    # pylint: disable=method-hidden
     def get_session_client(
         self,
         session: Session,
-        service_name: Literal["ec2"],
+        service_name,
         region_name: str | None = None,
-    ) -> EC2Client: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["elb"],
-        region_name: str | None = None,
-    ) -> ElasticLoadBalancingClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["route53"],
-        region_name: str | None = None,
-    ) -> Route53Client: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["rds"],
-        region_name: str | None = None,
-    ) -> RDSClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["logs"],
-        region_name: str | None = None,
-    ) -> CloudWatchLogsClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["organizations"],
-        region_name: str | None = None,
-    ) -> OrganizationsClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["s3"],
-        region_name: str | None = None,
-    ) -> S3Client: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["iam"],
-        region_name: str | None = None,
-    ) -> IAMClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["sqs"],
-        region_name: str | None = None,
-    ) -> SQSClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["dynamodb"],
-        region_name: str | None = None,
-    ) -> DynamoDBClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["ecr"],
-        region_name: str | None = None,
-    ) -> ECRClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["support"],
-        region_name: str | None = None,
-    ) -> SupportClient: ...
-
-    @overload
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: Literal["sts"],
-        region_name: str | None = None,
-    ) -> STSClient: ...
-
-    def get_session_client(
-        self,
-        session: Session,
-        service_name: SERVICE_NAME,
-        region_name: str | None = None,
-    ) -> (
-        CloudWatchLogsClient
-        | DynamoDBClient
-        | EC2Client
-        | ECRClient
-        | ElasticLoadBalancingClient
-        | IAMClient
-        | OrganizationsClient
-        | RDSClient
-        | Route53Client
-        | S3Client
-        | SQSClient
-        | STSClient
-        | SupportClient
     ):
         region = region_name or session.region_name
         client = session.client(
@@ -377,55 +202,10 @@ class AWSApi:
         self._session_clients.append(client)
         return client
 
-    @overload
     @staticmethod
+    # pylint: disable=method-hidden
     def _get_session_resource(
-        session: Session,
-        service_name: Literal["dynamodb"],
-        region_name: str | None = None,
-    ) -> DynamoDBServiceResource: ...
-
-    @overload
-    @staticmethod
-    def _get_session_resource(
-        session: Session,
-        service_name: Literal["ec2"],
-        region_name: str | None = None,
-    ) -> EC2ServiceResource: ...
-
-    @overload
-    @staticmethod
-    def _get_session_resource(
-        session: Session,
-        service_name: Literal["iam"],
-        region_name: str | None = None,
-    ) -> IAMServiceResource: ...
-
-    @overload
-    @staticmethod
-    def _get_session_resource(
-        session: Session,
-        service_name: Literal["s3"],
-        region_name: str | None = None,
-    ) -> S3ServiceResource: ...
-
-    @overload
-    @staticmethod
-    def _get_session_resource(
-        session: Session,
-        service_name: Literal["sqs"],
-        region_name: str | None = None,
-    ) -> SQSServiceResource: ...
-
-    @staticmethod
-    def _get_session_resource(
-        session: Session, service_name: RESOURCE_NAME, region_name: str | None = None
-    ) -> (
-        DynamoDBServiceResource
-        | EC2ServiceResource
-        | IAMServiceResource
-        | S3ServiceResource
-        | SQSServiceResource
+        session: Session, service_name, region_name: str | None = None
     ):
         region = region_name or session.region_name
         return session.resource(service_name, region_name=region)
@@ -456,7 +236,7 @@ class AWSApi:
 
     def _account_cloudwatch_client(
         self, account_name: str, region_name: str | None = None
-    ) -> CloudWatchLogsClient:
+    ):
         session = self.get_session(account_name)
         return self.get_session_client(session, "logs", region_name)
 
@@ -470,9 +250,9 @@ class AWSApi:
         self, account_name: str, region_name: str | None = None
     ) -> S3Client:
         session = self.get_session(account_name)
-        return cast(S3Client, self.get_session_client(session, "s3", region_name))
+        return self.get_session_client(session, "s3", region_name)
 
-    def init_users(self) -> None:
+    def init_users(self):
         self.users = {}
         for account, s in self.sessions.items():
             iam = self.get_session_client(s, "iam")
@@ -480,29 +260,26 @@ class AWSApi:
             users = [u["UserName"] for u in users]
             self.users[account] = users
 
-    def map_resources(self) -> None:
+    def map_resources(self):
         threaded.run(self.map_resource, self.resource_types, self.thread_pool_size)
 
-    def map_resource(self, resource_type: str) -> None:
-        match resource_type:
-            case "s3":
-                self.map_s3_resources()
-            case "sqs":
-                self.map_sqs_resources()
-            case "dynamodb":
-                self.map_dynamodb_resources()
-            case "rds":
-                self.map_rds_resources()
-            case "rds_snapshots":
-                self.map_rds_snapshots()
-            case "route53":
-                self.map_route53_resources()
-            case "ecr":
-                self.map_ecr_resources()
-            case _:
-                raise InvalidResourceTypeError(resource_type)
+    def map_resource(self, resource_type):
+        if resource_type == "s3":
+            self.map_s3_resources()
+        elif resource_type == "sqs":
+            self.map_sqs_resources()
+        elif resource_type == "dynamodb":
+            self.map_dynamodb_resources()
+        elif resource_type == "rds":
+            self.map_rds_resources()
+        elif resource_type == "rds_snapshots":
+            self.map_rds_snapshots()
+        elif resource_type == "route53":
+            self.map_route53_resources()
+        else:
+            raise InvalidResourceTypeError(resource_type)
 
-    def map_s3_resources(self) -> None:
+    def map_s3_resources(self):
         for account, s in self.sessions.items():
             s3 = self.get_session_client(s, "s3")
             buckets_list = s3.list_buckets()
@@ -516,7 +293,7 @@ class AWSApi:
             )
             self.set_resouces(account, "s3_no_owner", unfiltered_buckets)
 
-    def map_sqs_resources(self) -> None:
+    def map_sqs_resources(self):
         for account, s in self.sessions.items():
             sqs = self.get_session_client(s, "sqs")
             queues_list = sqs.list_queues()
@@ -530,7 +307,7 @@ class AWSApi:
             )
             self.set_resouces(account, "sqs_no_owner", unfiltered_queues)
 
-    def map_dynamodb_resources(self) -> None:
+    def map_dynamodb_resources(self):
         for account, s in self.sessions.items():
             dynamodb = self.get_session_client(s, "dynamodb")
             tables = self.paginate(dynamodb, "list_tables", "TableNames")
@@ -541,7 +318,7 @@ class AWSApi:
             )
             self.set_resouces(account, "dynamodb_no_owner", unfiltered_tables)
 
-    def map_rds_resources(self) -> None:
+    def map_rds_resources(self):
         for account, s in self.sessions.items():
             rds = self.get_session_client(s, "rds")
             results = self.paginate(rds, "describe_db_instances", "DBInstances")
@@ -555,7 +332,7 @@ class AWSApi:
             )
             self.set_resouces(account, "rds_no_owner", unfiltered_instances)
 
-    def map_rds_snapshots(self) -> None:
+    def map_rds_snapshots(self):
         self.wait_for_resource("rds")
         for account, s in self.sessions.items():
             rds = self.get_session_client(s, "rds")
@@ -572,7 +349,7 @@ class AWSApi:
             )
             self.set_resouces(account, "rds_snapshots_no_owner", unfiltered_snapshots)
 
-    def map_route53_resources(self) -> None:
+    def map_route53_resources(self):
         for account, s in self.sessions.items():
             client = self.get_session_client(s, "route53")
             results = self.paginate(client, "list_hosted_zones", "HostedZones")
@@ -587,7 +364,7 @@ class AWSApi:
                 zone["records"] = results
             self.set_resouces(account, "route53", zones)
 
-    def map_ecr_resources(self) -> None:
+    def map_ecr_resources(self):
         for account, s in self.sessions.items():
             client = self.get_session_client(s, "ecr")
             repositories = self.paginate(
@@ -596,9 +373,7 @@ class AWSApi:
             self.set_resouces(account, "ecr", repositories)
 
     @staticmethod
-    def paginate(
-        client: BaseClient, method: str, key: str, params: Mapping | None = None
-    ) -> Iterable:
+    def paginate(client, method, key, params=None):
         """paginate returns an aggregated list of the specified key
         from all pages returned by executing the client's specified method."""
         if params is None:
@@ -610,7 +385,7 @@ class AWSApi:
             for values in page.get(key, [])
         ]
 
-    def wait_for_resource(self, resource: str) -> None:
+    def wait_for_resource(self, resource):
         """wait_for_resource waits until the specified resource type
         is ready for all accounts.
         When we have more resource types then threads,
@@ -624,16 +399,14 @@ class AWSApi:
             if wait:
                 time.sleep(2)
 
-    def set_resouces(self, account: str, key: str, value: Any) -> None:
+    def set_resouces(self, account, key, value):
         with self._lock:
             self.resources[account][key] = value
 
-    def get_resources_without_owner(
-        self, account: str, resources: Iterable[str]
-    ) -> list[str]:
+    def get_resources_without_owner(self, account, resources):
         return [r for r in resources if not self.has_owner(account, r)]
 
-    def has_owner(self, account: str, resource: str) -> bool:
+    def has_owner(self, account, resource):
         has_owner = False
         for u in self.users[account]:
             if resource.lower().startswith(u.lower()):
@@ -645,24 +418,20 @@ class AWSApi:
                     break
         return has_owner
 
-    def custom_s3_filter(
-        self, account: str, s3: S3Client, buckets: Iterable[str]
-    ) -> list[str]:
+    def custom_s3_filter(self, account, s3, buckets):
         type = "s3 bucket"
         unfiltered_buckets = []
         for b in buckets:
             try:
                 tags = s3.get_bucket_tagging(Bucket=b)
             except botocore.exceptions.ClientError:
-                tags = {}  # type: ignore
+                tags = {}
             if not self.should_filter(account, type, b, tags, "TagSet"):
                 unfiltered_buckets.append(b)
 
         return unfiltered_buckets
 
-    def custom_sqs_filter(
-        self, account: str, sqs: SQSClient, queues: Iterable[str]
-    ) -> list[str]:
+    def custom_sqs_filter(self, account, sqs, queues):
         type = "sqs queue"
         unfiltered_queues = []
         for q in queues:
@@ -672,13 +441,7 @@ class AWSApi:
 
         return unfiltered_queues
 
-    def custom_dynamodb_filter(
-        self,
-        account: str,
-        session: Session,
-        dynamodb: DynamoDBClient,
-        tables: Iterable[str],
-    ) -> list[str]:
+    def custom_dynamodb_filter(self, account, session, dynamodb, tables):
         type = "dynamodb table"
         dynamodb_resource = self._get_session_resource(session, "dynamodb")
         unfiltered_tables = []
@@ -690,9 +453,7 @@ class AWSApi:
 
         return unfiltered_tables
 
-    def custom_rds_filter(
-        self, account: str, rds: RDSClient, instances: Iterable[str]
-    ) -> list[str]:
+    def custom_rds_filter(self, account, rds, instances):
         type = "rds instance"
         unfiltered_instances = []
         for i in instances:
@@ -704,9 +465,7 @@ class AWSApi:
 
         return unfiltered_instances
 
-    def custom_rds_snapshot_filter(
-        self, account: str, rds: RDSClient, snapshots: Iterable[str]
-    ) -> list[str]:
+    def custom_rds_snapshot_filter(self, account, rds, snapshots):
         type = "rds snapshots"
         unfiltered_snapshots = []
         for s in snapshots:
@@ -719,13 +478,8 @@ class AWSApi:
         return unfiltered_snapshots
 
     def should_filter(
-        self,
-        account: str,
-        resource_type: str,
-        resource_name: str,
-        resource_tags: Mapping,
-        tags_key: str,
-    ) -> bool:
+        self, account, resource_type, resource_name, resource_tags, tags_key
+    ):
         if self.resource_has_special_name(account, resource_type, resource_name):
             return True
         if tags_key in resource_tags:
@@ -738,7 +492,7 @@ class AWSApi:
         return False
 
     @staticmethod
-    def resource_has_special_name(account: str, type: str, resource: str) -> bool:
+    def resource_has_special_name(account, type, resource):
         skip_msg = f"[{account}] skipping {type} " + "({} related) {}"
 
         ignore_names = {
@@ -755,9 +509,7 @@ class AWSApi:
 
         return False
 
-    def resource_has_special_tags(
-        self, account: str, type: str, resource: str, tags: Mapping | list[Mapping]
-    ) -> bool:
+    def resource_has_special_tags(self, account, type, resource, tags):
         skip_msg = f"[{account}] skipping {type} " + "({}={}) {}"
 
         ignore_tags = {
@@ -778,7 +530,7 @@ class AWSApi:
         return False
 
     @staticmethod
-    def get_tag_value(tags: Mapping | list[Mapping], tag: str) -> str:
+    def get_tag_value(tags, tag):
         if isinstance(tags, dict):
             return tags.get(tag, "")
         if isinstance(tags, list):
@@ -788,7 +540,7 @@ class AWSApi:
 
         return ""
 
-    def delete_resources_without_owner(self, dry_run: bool) -> None:
+    def delete_resources_without_owner(self, dry_run):
         for account, s in self.sessions.items():
             for rt in self.resource_types:
                 for r in self.resources[account].get(rt + "_no_owner", []):
@@ -796,50 +548,42 @@ class AWSApi:
                     if not dry_run:
                         self.delete_resource(s, rt, r)
 
-    def delete_resource(
-        self, session: Session, resource_type: RESOURCE_TYPE, resource_name: str
-    ) -> None:
-        match resource_type:
-            case "s3":
-                self.delete_bucket(
-                    self._get_session_resource(session, resource_type), resource_name
-                )
-            case "sqs":
-                self.delete_queue(
-                    self.get_session_client(session, resource_type), resource_name
-                )
-            case "dynamodb":
-                self.delete_table(
-                    self._get_session_resource(session, resource_type), resource_name
-                )
-            case "rds":
-                self.delete_instance(
-                    self.get_session_client(session, resource_type), resource_name
-                )
-            case "rds_snapshots":
-                self.delete_snapshot(
-                    self.get_session_client(session, "rds"), resource_name
-                )
-            case _:
-                raise InvalidResourceTypeError(resource_type)
+    def delete_resource(self, session, resource_type, resource_name):
+        if resource_type == "s3":
+            resource = self._get_session_resource(session, resource_type)
+            self.delete_bucket(resource, resource_name)
+        elif resource_type == "sqs":
+            client = self.get_session_client(session, resource_type)
+            self.delete_queue(client, resource_name)
+        elif resource_type == "dynamodb":
+            resource = self._get_session_resource(session, resource_type)
+            self.delete_table(resource, resource_name)
+        elif resource_type == "rds":
+            client = self.get_session_client(session, resource_type)
+            self.delete_instance(client, resource_name)
+        elif resource_type == "rds_snapshots":
+            client = self.get_session_client(session, resource_type)
+            self.delete_snapshot(client, resource_name)
+        else:
+            raise InvalidResourceTypeError(resource_type)
 
     @staticmethod
-    def delete_bucket(s3: S3ServiceResource, bucket_name: str) -> None:
+    def delete_bucket(s3, bucket_name):
         bucket = s3.Bucket(bucket_name)
         bucket.object_versions.delete()
         bucket.delete()
 
     @staticmethod
-    def delete_queue(sqs: SQSClient, queue_url: str) -> None:
+    def delete_queue(sqs, queue_url):
         sqs.delete_queue(QueueUrl=queue_url)
 
     @staticmethod
-    def delete_table(dynamodb: DynamoDBServiceResource, table_name: str) -> None:
+    def delete_table(dynamodb, table_name):
         table = dynamodb.Table(table_name)
         table.delete()
 
     @staticmethod
-    def delete_instance(rds: RDSClient, instance_name: str) -> None:
+    def delete_instance(rds, instance_name):
         rds.delete_db_instance(
             DBInstanceIdentifier=instance_name,
             SkipFinalSnapshot=True,
@@ -847,11 +591,11 @@ class AWSApi:
         )
 
     @staticmethod
-    def delete_snapshot(rds: RDSClient, snapshot_identifier: str) -> None:
+    def delete_snapshot(rds, snapshot_identifier):
         rds.delete_db_snapshot(DBSnapshotIdentifier=snapshot_identifier)
 
     @staticmethod
-    def determine_key_type(iam: IAMClient, user: str) -> str:
+    def determine_key_type(iam, user):
         tags = iam.list_user_tags(UserName=user)["Tags"]
         managed_by_integration_tag = [
             t["Value"] for t in tags if t["Key"] == "managed_by_integration"
@@ -878,12 +622,8 @@ class AWSApi:
         raise InvalidResourceTypeError(huh)
 
     def delete_keys(
-        self,
-        dry_run: bool,
-        keys_to_delete: Mapping,
-        working_dirs: Mapping[str, str],
-        disable_service_account_keys: bool,
-    ) -> tuple[bool, bool]:
+        self, dry_run, keys_to_delete, working_dirs, disable_service_account_keys
+    ):
         error = False
         service_account_recycle_complete = True
         users_keys = self.get_users_keys()
@@ -898,13 +638,11 @@ class AWSApi:
                 ]
                 if not user_and_user_keys:
                     continue
-
-                if len(user_and_user_keys) > 1:
-                    raise RuntimeError(
-                        f"key {key} returned multiple users: {user_and_user_keys}"
-                    )
-                user = user_and_user_keys[0][0]
-                user_keys = user_and_user_keys[0][1]
+                # unpack single item from sequence
+                # since only a single user can have a given key
+                [user_and_user_keys] = user_and_user_keys
+                user = user_and_user_keys[0]
+                user_keys = user_and_user_keys[1]
                 key_type = self.determine_key_type(iam, user)
                 key_status = self.get_user_key_status(iam, user, key)
                 if key_type == "unmanaged" and key_status == "Active":
@@ -965,7 +703,7 @@ class AWSApi:
 
         return error, service_account_recycle_complete
 
-    def get_users_keys(self) -> dict:
+    def get_users_keys(self):
         users_keys = {}
         for account, s in self.sessions.items():
             iam = self.get_session_client(s, "iam")
@@ -975,12 +713,12 @@ class AWSApi:
 
         return users_keys
 
-    def reset_password(self, account: str, user_name: str) -> None:
+    def reset_password(self, account, user_name):
         s = self.sessions[account]
         iam = self.get_session_client(s, "iam")
         iam.delete_login_profile(UserName=user_name)
 
-    def reset_mfa(self, account: str, user_name: str) -> None:
+    def reset_mfa(self, account, user_name):
         s = self.sessions[account]
         iam = self.get_session_client(s, "iam")
         mfa_devices = iam.list_mfa_devices(UserName=user_name)["MFADevices"]
@@ -1004,7 +742,7 @@ class AWSApi:
         key_list = self._get_user_key_list(iam, user)
         return next(k["Status"] for k in key_list if k["AccessKeyId"] == key)
 
-    def get_support_cases(self) -> dict[str, list[CaseDetailsTypeDef]]:
+    def get_support_cases(self):
         all_support_cases = {}
         for account, s in self.sessions.items():
             if not self.accounts[account].get("premiumSupport"):
@@ -1089,8 +827,9 @@ class AWSApi:
         return (account["name"], account.get("assume_role"), account["assume_region"])
 
     @staticmethod
+    # pylint: disable=method-hidden
     def _get_assume_role_session(
-        sts: STSClient, account_name: str, assume_role: str, assume_region: str
+        sts, account_name: str, assume_role: str, assume_region: str
     ) -> Session:
         """
         Returns a session for a supplied role to assume:
@@ -1121,144 +860,13 @@ class AWSApi:
 
         return assumed_session
 
-    @overload
     def _get_assumed_role_client(
         self,
         account_name: str,
         assume_role: str | None,
         assume_region: str,
-        client_type: Literal["logs"],
-    ) -> CloudWatchLogsClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["dynamodb"],
-    ) -> DynamoDBClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["ec2"],
-    ) -> EC2Client: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["ecr"],
-    ) -> ECRClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["elb"],
-    ) -> ElasticLoadBalancingClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["iam"],
-    ) -> IAMClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["organizations"],
-    ) -> OrganizationsClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["rds"],
-    ) -> RDSClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["route53"],
-    ) -> Route53Client: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["s3"],
-    ) -> S3Client: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["sqs"],
-    ) -> SQSClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["sts"],
-    ) -> STSClient: ...
-
-    @overload
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: Literal["support"],
-    ) -> SupportClient: ...
-
-    def _get_assumed_role_client(
-        self,
-        account_name: str,
-        assume_role: str | None,
-        assume_region: str,
-        client_type: SERVICE_NAME = "ec2",
-    ) -> (
-        CloudWatchLogsClient
-        | DynamoDBClient
-        | EC2Client
-        | ECRClient
-        | ElasticLoadBalancingClient
-        | IAMClient
-        | OrganizationsClient
-        | RDSClient
-        | Route53Client
-        | S3Client
-        | SQSClient
-        | STSClient
-        | SupportClient
-    ):
+        client_type="ec2",
+    ) -> EC2Client:
         session = self.get_session(account_name)
         if not assume_role:
             return self.get_session_client(
@@ -1271,11 +879,13 @@ class AWSApi:
         return self.get_session_client(assumed_session, client_type)
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_account_vpcs(ec2: EC2Client) -> list[VpcTypeDef]:
         vpcs = ec2.describe_vpcs()
         return vpcs.get("Vpcs", [])
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_account_amis(ec2: EC2Client, owner: str) -> list[ImageTypeDef]:
         amis = ec2.describe_images(Owners=[owner])
         return amis.get("Images", [])
@@ -1295,6 +905,7 @@ class AWSApi:
         return res
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_vpc_route_tables(vpc_id: str, ec2: EC2Client) -> list[RouteTableTypeDef]:
         rts = ec2.describe_route_tables(
             Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
@@ -1302,17 +913,14 @@ class AWSApi:
         return rts.get("RouteTables", [])
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_vpc_subnets(vpc_id: str, ec2: EC2Client) -> list[SubnetTypeDef]:
         subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
         return subnets.get("Subnets", [])
 
     def get_cluster_vpc_details(
-        self,
-        account: awsh.Account,
-        route_tables: bool = False,
-        subnets: bool = False,
-        hcp_vpc_endpoint_sg: bool = False,
-    ) -> tuple[str | None, list[str] | None, list[dict[str, str]] | None, str | None]:
+        self, account, route_tables=False, subnets=False, hcp_vpc_endpoint_sg=False
+    ):
         """
         Returns a cluster VPC details:
             - VPC ID
@@ -1328,12 +936,7 @@ class AWSApi:
                                         use to find the matching VPC
         """
         assume_role_data = self._get_account_assume_data(account)
-        assumed_ec2 = self._get_assumed_role_client(
-            account_name=assume_role_data[0],
-            assume_role=assume_role_data[1],
-            assume_region=assume_role_data[2],
-            client_type="ec2",
-        )
+        assumed_ec2 = self._get_assumed_role_client(*assume_role_data)
         vpcs = self.get_account_vpcs(assumed_ec2)
         vpc_id = None
         for vpc in vpcs:
@@ -1361,9 +964,7 @@ class AWSApi:
 
         return vpc_id, route_table_ids, subnets_id_az, api_security_group_id
 
-    def _get_api_security_group_id(
-        self, assumed_ec2: EC2Client, vpc_id: str
-    ) -> str | None:
+    def _get_api_security_group_id(self, assumed_ec2, vpc_id):
         endpoints = AWSApi._get_vpc_endpoints(
             [
                 {"Name": "vpc-id", "Values": [vpc_id]},
@@ -1397,16 +998,9 @@ class AWSApi:
             )
         return security_groups[0]["GroupId"]
 
-    def get_cluster_nat_gateways_egress_ips(
-        self, account: dict[str, Any], vpc_id: str
-    ) -> set[str]:
-        assume_role_data = self._get_account_assume_data(account)
-        assumed_ec2 = self._get_assumed_role_client(
-            account_name=assume_role_data[0],
-            assume_role=assume_role_data[1],
-            assume_region=assume_role_data[2],
-            client_type="ec2",
-        )
+    def get_cluster_nat_gateways_egress_ips(self, account: dict[str, Any], vpc_id: str):
+        assumed_role_data = self._get_account_assume_data(account)
+        assumed_ec2 = self._get_assumed_role_client(*assumed_role_data)
         nat_gateways = assumed_ec2.describe_nat_gateways()
         egress_ips: set[str] = set()
         for nat in nat_gateways.get("NatGateways") or []:
@@ -1418,12 +1012,7 @@ class AWSApi:
 
         return egress_ips
 
-    def get_vpcs_details(
-        self,
-        account: awsh.Account,
-        tags: Mapping[str, str] | None = None,
-        route_tables: bool = False,
-    ) -> list[dict[str, Any]]:
+    def get_vpcs_details(self, account, tags=None, route_tables=False):
         results = []
         ec2 = self._account_ec2_client(account["name"])
         regions = [r["RegionName"] for r in ec2.describe_regions()["Regions"]]
@@ -1488,7 +1077,7 @@ class AWSApi:
         share_account_uid: str,
         image_id: str,
         region: str | None = None,
-    ) -> None:
+    ):
         ec2 = self._account_ec2_resource(account["name"], region)
         image = ec2.Image(image_id)
         launch_permission: LaunchPermissionModificationsTypeDef = {
@@ -1518,7 +1107,7 @@ class AWSApi:
         self,
         account_name: str,
         region_name: str | None = None,
-    ) -> Iterator[LogGroupTypeDef]:
+    ) -> Iterator[dict]:
         client = self._account_cloudwatch_client(account_name, region_name=region_name)
         paginator = client.get_paginator("describe_log_groups")
         for page in paginator.paginate():
@@ -1542,7 +1131,7 @@ class AWSApi:
         group_name: str,
         retention_days: int,
         region_name: str | None = None,
-    ) -> None:
+    ):
         client = self._account_cloudwatch_client(account_name, region_name=region_name)
         client.put_retention_policy(
             logGroupName=group_name, retentionInDays=retention_days
@@ -1553,33 +1142,21 @@ class AWSApi:
         account_name: str,
         group_name: str,
         region_name: str | None = None,
-    ) -> None:
+    ):
         client = self._account_cloudwatch_client(account_name, region_name=region_name)
         client.delete_log_group(logGroupName=group_name)
 
     def create_tag(
         self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]
-    ) -> None:
+    ):
         ec2 = self._account_ec2_client(account["name"])
         tag_type_def: TagTypeDef = {"Key": tag["Key"], "Value": tag["Value"]}
         ec2.create_tags(Resources=[resource_id], Tags=[tag_type_def])
 
-    def get_alb_network_interface_ips(
-        self, account: awsh.Account, service_name: str
-    ) -> set[str]:
+    def get_alb_network_interface_ips(self, account, service_name):
         assumed_role_data = self._get_account_assume_data(account)
-        ec2_client = self._get_assumed_role_client(
-            account_name=assumed_role_data[0],
-            assume_role=assumed_role_data[1],
-            assume_region=assumed_role_data[2],
-            client_type="ec2",
-        )
-        elb_client = self._get_assumed_role_client(
-            account_name=assumed_role_data[0],
-            assume_role=assumed_role_data[1],
-            assume_region=assumed_role_data[2],
-            client_type="elb",
-        )
+        ec2_client = self._get_assumed_role_client(*assumed_role_data, "ec2")
+        elb_client = self._get_assumed_role_client(*assumed_role_data, "elb")
         service_tag = {"Key": "kubernetes.io/service-name", "Value": service_name}
         nis = ec2_client.describe_network_interfaces()["NetworkInterfaces"]
         lbs = elb_client.describe_load_balancers()["LoadBalancerDescriptions"]
@@ -1607,6 +1184,7 @@ class AWSApi:
         return result_ips
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> str | None:
         vpc_security_groups = ec2.describe_security_groups(
             Filters=[
@@ -1621,6 +1199,7 @@ class AWSApi:
         return None
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_transit_gateways(ec2: EC2Client) -> list[TransitGatewayTypeDef]:
         tgws = ec2.describe_transit_gateways()
         return tgws.get("TransitGateways", [])
@@ -1643,6 +1222,7 @@ class AWSApi:
         return None
 
     @staticmethod
+    # pylint: disable=method-hidden
     def get_transit_gateway_vpc_attachments(
         tgw_id: str, ec2: EC2Client
     ) -> list[TransitGatewayVpcAttachmentTypeDef]:
@@ -1653,23 +1233,23 @@ class AWSApi:
 
     def get_tgws_details(
         self,
-        account: awsh.Account,
-        region_name: str,
-        routes_cidr_block: str,
-        tags: Mapping,
-        route_tables: bool = False,
-        security_groups: bool = False,
-        route53_associations: bool = False,
-    ) -> list[dict[str, Any]]:
+        account,
+        region_name,
+        routes_cidr_block,
+        tags=None,
+        route_tables=False,
+        security_groups=False,
+        route53_associations=False,
+    ):
         results = []
         ec2 = self._account_ec2_client(account["name"], region_name)
         tgws = ec2.describe_transit_gateways(
             Filters=[{"Name": f"tag:{k}", "Values": [v]} for k, v in tags.items()]
         )
-        for tgw in tgws.get("TransitGateways") or []:
+        for tgw in tgws.get("TransitGateways"):
             tgw_id = tgw["TransitGatewayId"]
             tgw_arn = tgw["TransitGatewayArn"]
-            item: dict[str, str | list[str] | list[dict]] = {
+            item = {
                 "tgw_id": tgw_id,
                 "tgw_arn": tgw_arn,
                 "region": region_name,
@@ -1701,7 +1281,7 @@ class AWSApi:
                 attachments = ec2.describe_transit_gateway_peering_attachments(
                     Filters=[{"Name": "transit-gateway-id", "Values": [tgw_id]}]
                 )
-                for a in attachments.get("TransitGatewayPeeringAttachments") or []:
+                for a in attachments.get("TransitGatewayPeeringAttachments"):
                     tgw_attachment_id = a["TransitGatewayAttachmentId"]
                     tgw_attachment_state = a["State"]
                     if tgw_attachment_state != "available":
@@ -1798,6 +1378,7 @@ class AWSApi:
         return results
 
     @staticmethod
+    # pylint: disable=method-hidden
     def _get_vpc_endpoints(
         filters: Sequence[FilterTypeDef], ec2: EC2Client
     ) -> list["VpcEndpointTypeDef"]:
@@ -1831,15 +1412,11 @@ class AWSApi:
         ]
 
     @staticmethod
-    def _extract_records(
-        resource_records: Iterable[ResourceRecordTypeDef],
-    ) -> list[str]:
+    def _extract_records(resource_records: list[ResourceRecordTypeDef]) -> list[str]:
         # [{'Value': 'ns.example.com.'}, ...]
         return [r["Value"].rstrip(".") for r in resource_records]
 
-    def get_route53_zone_ns_records(
-        self, account_name: str, zone_name: str, region: str
-    ) -> list[str]:
+    def get_route53_zone_ns_records(self, account_name, zone_name, region):
         route53 = self._account_route53_client(account_name, region)
         record_sets = self._get_hosted_zone_record_sets(route53, zone_name)
         filtered_record_sets = self._filter_record_sets(record_sets, zone_name, "NS")
@@ -1849,7 +1426,7 @@ class AWSApi:
         ns_records = self._extract_records(resource_records)
         return ns_records
 
-    def get_route53_zones(self) -> dict[str, list[dict[str, str]]]:
+    def get_route53_zones(self):
         """
         Return a list of (str, dict) representing Route53 DNS zones per account
 
@@ -1861,7 +1438,7 @@ class AWSApi:
             for account, _ in self.sessions.items()
         }
 
-    def create_route53_zone(self, account_name: str, zone_name: str) -> None:
+    def create_route53_zone(self, account_name, zone_name):
         """
         Create a Route53 DNS zone
 
@@ -1891,7 +1468,7 @@ class AWSApi:
         except Exception as e:
             logging.error(f"[{account_name}] unhandled exception: {e}")
 
-    def delete_route53_zone(self, account_name: str, zone_id: str) -> None:
+    def delete_route53_zone(self, account_name, zone_id):
         """
         Delete a Route53 DNS zone
 
@@ -1916,9 +1493,7 @@ class AWSApi:
         except Exception as e:
             logging.error(f"[{account_name}] unhandled exception: {e}")
 
-    def delete_route53_record(
-        self, account_name: str, zone_id: str, awsdata: ResourceRecordSetTypeDef
-    ) -> None:
+    def delete_route53_record(self, account_name, zone_id, awsdata):
         """
         Delete a Route53 DNS zone record
 
@@ -1952,9 +1527,7 @@ class AWSApi:
         except Exception as e:
             logging.error(f"[{account_name}] unhandled exception: {e}")
 
-    def upsert_route53_record(
-        self, account_name: str, zone_id: str, recordset: ResourceRecordSetTypeDef
-    ) -> None:
+    def upsert_route53_record(self, account_name, zone_id, recordset):
         """
         Upsert a Route53 DNS zone record
 
@@ -2040,7 +1613,7 @@ class AWSApi:
         self,
         account_name: str,
         region_name: str | None = None,
-    ) -> DBRecommendationsMessageTypeDef:
+    ):
         rds = self._account_rds_client(account_name, region_name)
         return rds.describe_db_recommendations()
 

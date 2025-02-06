@@ -1,27 +1,17 @@
 import json
 import logging
-from collections.abc import Callable, KeysView
-from typing import Any, TypedDict
-
-Action = Callable[[Any, list[Any]], bool]
-Cond = Callable[[Any], bool]
 
 
 class RunnerException(Exception):
     pass
 
 
-class AggregatedItem(TypedDict):
-    params: Any
-    items: list[Any]
-
-
 class AggregatedList:
-    def __init__(self) -> None:
-        self._dict: dict[int, AggregatedItem] = {}
+    def __init__(self):
+        self._dict = {}
 
-    def add(self, params: Any, new_items: Any | list[Any]) -> None:
-        params_hash: int = self.hash_params(params)
+    def add(self, params, new_items):
+        params_hash = self.hash_params(params)
 
         if self._dict.get(params_hash) is None:
             self._dict[params_hash] = {"params": params, "items": []}
@@ -33,20 +23,20 @@ class AggregatedList:
             if item not in self._dict[params_hash]["items"]:
                 self._dict[params_hash]["items"].append(item)
 
-    def get(self, params: Any) -> AggregatedItem:
+    def get(self, params):
         return self._dict[self.hash_params(params)]
 
-    def get_all_params_hash(self) -> KeysView[int]:
+    def get_all_params_hash(self):
         return self._dict.keys()
 
-    def get_by_params_hash(self, params_hash: int) -> AggregatedItem:
+    def get_by_params_hash(self, params_hash):
         return self._dict[params_hash]
 
-    def diff(self, right_state: "AggregatedList") -> dict[str, list[AggregatedItem]]:
+    def diff(self, right_state):
         left_params = self.get_all_params_hash()
         right_params = right_state.get_all_params_hash()
 
-        diff: dict[str, list[AggregatedItem]] = {
+        diff = {
             "insert": [
                 right_state.get_by_params_hash(p)
                 for p in right_params
@@ -62,11 +52,11 @@ class AggregatedList:
         union = [p for p in left_params if p in right_params]
 
         for p in union:
-            left: AggregatedItem = self.get_by_params_hash(p)
-            right: AggregatedItem = right_state.get_by_params_hash(p)
+            left = self.get_by_params_hash(p)
+            right = right_state.get_by_params_hash(p)
 
-            l_items: list[Any] = left["items"]
-            r_items: list[Any] = right["items"]
+            l_items = left["items"]
+            r_items = right["items"]
 
             update_insert = [i for i in r_items if i not in l_items]
             update_delete = [i for i in l_items if i not in r_items]
@@ -85,28 +75,28 @@ class AggregatedList:
 
         return diff
 
-    def dump(self) -> list[AggregatedItem]:
+    def dump(self):
         return list(self._dict.values())
 
-    def toJSON(self) -> str:
+    def toJSON(self):
         return json.dumps(self.dump(), indent=4)
 
     @staticmethod
-    def hash_params(params: Any) -> int:
+    def hash_params(params):
         return hash(json.dumps(params, sort_keys=True))
 
 
 class AggregatedDiffRunner:
-    def __init__(self, diff: dict[str, list[AggregatedItem]]) -> None:
+    def __init__(self, diff):
         self.diff = diff
-        self.actions: list[tuple[str, Action, Cond | None]] = []
+        self.actions = []
 
-    def register(self, on: str, action: Action, cond: Cond | None = None) -> None:
+    def register(self, on, action, cond=None):
         if on not in self.diff:
             raise Exception(f"Unknown diff key for 'on': {on}")
         self.actions.append((on, action, cond))
 
-    def run(self) -> bool:
+    def run(self):
         status = True
 
         for on, action, cond in self.actions:

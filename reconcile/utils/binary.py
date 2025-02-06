@@ -1,19 +1,17 @@
 import re
 import shutil
 import subprocess
-from collections.abc import Callable, Iterable
 from functools import wraps
-from typing import Any
 
 
-def binary(binaries: Iterable[str] | None = None) -> Callable:
+def binary(binaries=None):
     """Check that a binary exists before execution."""
     if binaries is None:
         binaries = []
 
-    def deco_binary(f: Callable) -> Callable:
+    def deco_binary(f):
         @wraps(f)
-        def f_binary(*args: Any, **kwargs: Any) -> None:
+        def f_binary(*args, **kwargs):
             for b in binaries:
                 if not shutil.which(b):
                     raise Exception(
@@ -27,17 +25,12 @@ def binary(binaries: Iterable[str] | None = None) -> Callable:
     return deco_binary
 
 
-def binary_version(
-    binary: str,
-    version_args: Iterable[str],
-    search_regex: str,
-    expected_versions: Iterable[str],
-) -> Callable:
+def binary_version(binary, version_args, search_regex, expected_versions):
     """Check that a binary exists and is a desired version"""
 
-    def deco_binary_version(f: Callable) -> Callable:
+    def deco_binary_version(f):
         @wraps(f)
-        def f_binary_version(*args: Any, **kwargs: Any) -> None:
+        def f_binary_version(*args, **kwargs):
             regex = re.compile(search_regex)
 
             cmd = [binary]
@@ -58,7 +51,7 @@ def binary_version(
                     found = True
                     break
 
-            if not found or not match:
+            if not found:
                 raise Exception(
                     f"Could not find version for binary '{binary}' via regex "
                     f"for binary version check: "

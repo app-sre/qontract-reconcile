@@ -6,9 +6,7 @@ class GitError(Exception):
     pass
 
 
-def clone(
-    repo_url: str, wd: str, depth: int | None = None, verify: bool | None = True
-) -> None:
+def clone(repo_url, wd, depth=None, verify=True):
     cmd = ["git"]
     if not verify:
         cmd += ["-c", "http.sslVerify=false"]
@@ -37,7 +35,7 @@ def fetch(
     remote: str = "origin",
     depth: int | None = None,
     verify: bool = True,
-) -> None:
+):
     cmd = ["git"]
     if not verify:
         cmd += ["-c", "http.sslVerify=false"]
@@ -53,7 +51,7 @@ def checkout(
     ref: str,
     wd: str,
     verify: bool = True,
-) -> None:
+):
     if not is_current_ref(ref, wd):
         fetch(ref, wd, depth=1, verify=verify)
     cmd = ["git", "checkout", ref]
@@ -62,7 +60,7 @@ def checkout(
         raise GitError(f"git checkout failed for {ref}: {result.stderr}")
 
 
-def is_file_in_git_repo(file_path: str) -> bool:
+def is_file_in_git_repo(file_path):
     real_path = os.path.realpath(file_path)
     dir_path = os.path.dirname(real_path)
     cmd = ["git", "rev-parse", "--is-inside-work-tree"]

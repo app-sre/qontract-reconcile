@@ -20,7 +20,7 @@ from operator import itemgetter
 from pathlib import Path
 from statistics import median
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any
 
 import boto3
 import click
@@ -185,11 +185,6 @@ from tools.sre_checkpoints import (
     full_name,
     get_latest_sre_checkpoints,
 )
-
-if TYPE_CHECKING:
-    from mypy_boto3_s3.type_defs import CopySourceTypeDef
-else:
-    CopySourceTypeDef = object
 
 
 def output(function: Callable) -> Callable:
@@ -1016,7 +1011,6 @@ def clusters_network(ctx: click.Context, name: str) -> None:
             ]
         with AWSApi(1, [account], settings=settings, init_users=False) as aws_api:
             vpc_id, _, _, _ = aws_api.get_cluster_vpc_details(account)
-            assert vpc_id
             cluster["vpc_id"] = vpc_id
             egress_ips = aws_api.get_cluster_nat_gateways_egress_ips(account, vpc_id)
             cluster["egress_ips"] = ", ".join(sorted(egress_ips))
@@ -1465,13 +1459,10 @@ def copy_tfstate(
     with AWSApi(1, accounts, settings, secret_reader) as aws:
         session = aws.get_session(account["name"])
         s3_client = aws.get_session_client(session, "s3", region)
-        copy_source = cast(
-            CopySourceTypeDef,
-            {
-                "Bucket": source_bucket,
-                "Key": source_object_path,
-            },
-        )
+        copy_source = {
+            "Bucket": source_bucket,
+            "Key": source_object_path,
+        }
 
         dest_pretty_path = f"s3://{dest_bucket}/{dest_key}"
         # check if dest already exists
@@ -1890,22 +1881,22 @@ def rds_recommendations(ctx: click.Context) -> None:
             with AWSApi(1, [account], settings=settings, init_users=False) as aws:
                 try:
                     data = aws.describe_rds_recommendations(account_name, region)
-                    db_recommendations = data.get("DBRecommendations", [])
+                    recommendations = data.get("DBRecommendations", [])
                 except Exception as e:
                     logging.error(f"Error describing RDS recommendations: {e}")
                     continue
 
                 # Add field ResourceName infered from ResourceArn
                 recommendations = [
-                    {
-                        **rec,
-                        "ResourceName": rec["ResourceArn"].split(":")[-1],
-                        # The Description field has \n that are causing issues with the markdown table
-                        "Description": rec["Description"].replace("\n", " "),
-                    }
-                    for rec in db_recommendations
+                    {**rec, "ResourceName": rec["ResourceArn"].split(":")[-1]}
+                    for rec in recommendations
                     if rec.get("Status") not in IGNORED_STATUSES
                     and rec.get("Severity") not in IGNORED_SEVERITIES
+                ]
+                # The Description field has \n that are causing issues with the markdown table
+                recommendations = [
+                    {**rec, "Description": rec["Description"].replace("\n", " ")}
+                    for rec in recommendations
                 ]
                 # If we have no recommendations to show, skip
                 if not recommendations:
@@ -2272,7 +2263,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             }:
                 continue
 
-            labels = mr.attributes.get("labels") or []
+            labels = mr.attributes.get("labels")
             if glhk.is_good_to_merge(labels):
                 continue
             if "stale" in labels:
@@ -2367,7 +2358,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
             continue
 
         # skip stale or non self serviceable MRs
-        labels = mr.attributes.get("labels", [])
+        labels = mr.attributes.get("labels")
         if "stale" in labels:
             continue
         if SELF_SERVICEABLE not in labels and SAAS_FILE_UPDATE not in labels:
@@ -2456,7 +2447,7 @@ def app_interface_merge_history(ctx: click.Context) -> None:
             "id": f"[{mr.iid}]({mr.web_url})",
             "title": mr.title,
             "merged_at": mr.merged_at,
-            "labels": ", ".join(mr.attributes.get("labels", [])),
+            "labels": ", ".join(mr.attributes.get("labels")),
         }
         merge_queue_data.append(item)
 
@@ -4597,7 +4588,7 @@ def log_group_usage(ctx: click.Context, aws_account: str) -> None:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
     columns = ["log_group", "stored_bytes", "retention_days"]
-    results: list[dict[str, str | int]] = []
+    results: list[dict[str, str]] = []
 
     with AWSApi(1, [account], settings, secret_reader) as aws:
         session = aws.get_session(account["name"])
