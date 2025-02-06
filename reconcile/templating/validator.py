@@ -137,10 +137,11 @@ class TemplateValidatorIntegration(QontractReconcileIntegration):
                         template, test, ruaml_instance, self.secret_reader
                     )
                 )
+                pass
 
         if diffs:
             for diff in diffs:
-                logging.error(f"template: {diff.template}, test: {diff.test}")
+                logging.error(f"{diff.template=}, {diff.test=}: {diff.diff}")
                 # This log should never be added except for local debugging.
                 # Credentials could be leaked, i.e. creating an MR with a diff,
                 # using a template, that uses the vault function.
