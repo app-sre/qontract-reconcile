@@ -6078,7 +6078,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 {
                     "scope_name": "OSDFleetManagerService",
                     "scope_description": "Fleet Manager service account",
-                }
+                },
             ],
             **cognito_resource_server_args,
         )
