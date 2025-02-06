@@ -8,6 +8,8 @@ from typing import (
 from reconcile import queries
 from reconcile.gql_definitions.vpc_peerings_validator import vpc_peerings_validator
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator import (
+    ClusterPeeringConnectionAccountV1,
+    ClusterPeeringConnectionAccountVPCMeshV1,
     ClusterPeeringConnectionClusterAccepterV1,
     ClusterPeeringConnectionClusterRequesterV1,
     ClusterV1,
@@ -27,21 +29,23 @@ def validate_no_cidr_overlap(
 
     for cluster in clusters:
         if cluster.peering:
+            assert cluster.network
             peerings_entries = [
                 {
                     "provider": "cluster-self-vpc",
                     "vpc_name": cluster.name,
-                    "cidr_block": cluster.network.vpc,  # type: ignore[union-attr]
+                    "cidr_block": cluster.network.vpc,
                 },
             ]
             for peering in cluster.peering.connections:
-                if peering.provider == "account-vpc-mesh":
-                    aws_account_uid = peering.account.uid  # type: ignore[union-attr]
+                if isinstance(peering, ClusterPeeringConnectionAccountVPCMeshV1):
+                    aws_account_uid = peering.account.uid
                     settings = queries.get_secret_reader_settings()
                     accounts = queries.get_aws_accounts(uid=aws_account_uid)
                     awsapi = AWSApi(1, accounts, settings=settings, init_users=False)
-                    tags = peering.tags or "{}"  # type: ignore[union-attr]
-                    mesh_results = awsapi.get_vpcs_details(accounts[0], tags)
+                    mesh_results = awsapi.get_vpcs_details(
+                        accounts[0], peering.tags or {}
+                    )
                     for mesh_result in mesh_results:
                         vpc_peering_info = {
                             "provider": peering.provider,
@@ -49,22 +53,24 @@ def validate_no_cidr_overlap(
                             "cidr_block": mesh_result["cidr_block"],
                         }
                         peerings_entries.append(vpc_peering_info)
-                if peering.provider == "account-vpc":
-                    cidr_block = str(peering.vpc.cidr_block)  # type: ignore[union-attr]
+                if isinstance(peering, ClusterPeeringConnectionAccountV1):
+                    cidr_block = str(peering.vpc.cidr_block)
                     vpc_peering_info = {
                         "provider": peering.provider,
-                        "vpc_name": peering.vpc.name,  # type: ignore[union-attr]
+                        "vpc_name": peering.vpc.name,
                         "cidr_block": cidr_block,
                     }
                     peerings_entries.append(vpc_peering_info)
-                if peering.provider in {
-                    "cluster-vpc-requester",
-                    "cluster-vpc-accepter",
-                }:
+                if isinstance(
+                    peering,
+                    ClusterPeeringConnectionClusterRequesterV1
+                    | ClusterPeeringConnectionClusterAccepterV1,
+                ):
+                    assert peering.cluster.network
                     vpc_peering_info = {
                         "provider": peering.provider,
-                        "vpc_name": peering.cluster.name,  # type: ignore[union-attr]
-                        "cidr_block": peering.cluster.network.vpc,  # type: ignore[union-attr]
+                        "vpc_name": peering.cluster.name,
+                        "cidr_block": peering.cluster.network.vpc,
                     }
                     peerings_entries.append(vpc_peering_info)
             find_overlap = find_cidr_overlap(cluster.name, peerings_entries)
@@ -74,7 +80,7 @@ def validate_no_cidr_overlap(
 
 
 def find_cidr_overlap(cluster_name: str, input_list: list):
-    for i in range(len(input_list)):  # pylint: disable=consider-using-enumerate
+    for i in range(len(input_list)):
         compared_vpc = input_list[i]
         for j in range(i + 1, len(input_list)):
             comparing_vpc = input_list[j]

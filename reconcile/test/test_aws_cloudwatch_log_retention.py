@@ -18,10 +18,10 @@ from reconcile.aws_cloudwatch_log_retention.integration import (
 )
 
 if TYPE_CHECKING:
-    from mypy_boto3_logs import CloudWatchLogsClient  # type: ignore
+    from mypy_boto3_logs import CloudWatchLogsClient
+    from mypy_boto3_logs.type_defs import LogGroupTypeDef
 else:
-    CloudWatchLogsClient = object
-    CreateImageResultTypeDef = dict
+    LogGroupTypeDef = CloudWatchLogsClient = object
 
 
 @pytest.fixture
@@ -31,7 +31,9 @@ def cloudwatchlogs_client() -> Generator[CloudWatchLogsClient, None, None]:
 
 
 @pytest.fixture(autouse=True)
-def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient) -> list:
+def log_group_tf_tag(
+    cloudwatchlogs_client: CloudWatchLogsClient,
+) -> list[LogGroupTypeDef]:
     log_group_name1 = "some-group"
     tags1 = {"key": "value", "managed_by_integration": "terraform_resources"}
 
@@ -49,7 +51,7 @@ def log_group_tf_tag(cloudwatchlogs_client: CloudWatchLogsClient) -> list:
     )
     log_output_list = describe_log_output.get("logGroups")
 
-    return log_output_list
+    return log_output_list or []
 
 
 @pytest.fixture
@@ -109,7 +111,7 @@ def setup_mocks(
         "reconcile.aws_cloudwatch_log_retention.integration.datetime",
         wraps=datetime,
     )
-    mocked_datetime.utcnow.return_value = utcnow
+    mocked_datetime.now.return_value = utcnow
     aws_api = mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.AWSApi",
         autospec=True,
@@ -310,7 +312,7 @@ def test_run_with_empty_log_group_after_retention_in_days(
         log_groups=[log_group_with_empty_stored_bytes],
         tags=managed_by_aws_cloudwatch_log_retention_tags,
         utcnow=datetime.fromtimestamp(
-            log_group_with_empty_stored_bytes["creationTime"] / 1000
+            log_group_with_empty_stored_bytes["creationTime"] / 1000, tz=UTC
         )
         + timedelta(days=61),
     )
@@ -343,7 +345,7 @@ def test_run_with_empty_log_group_before_retention_in_days(
         log_groups=[log_group_with_empty_stored_bytes],
         tags=managed_by_aws_cloudwatch_log_retention_tags,
         utcnow=datetime.fromtimestamp(
-            log_group_with_empty_stored_bytes["creationTime"] / 1000
+            log_group_with_empty_stored_bytes["creationTime"] / 1000, tz=UTC
         )
         + timedelta(days=59),
     )

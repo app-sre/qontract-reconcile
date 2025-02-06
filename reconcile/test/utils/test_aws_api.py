@@ -1,3 +1,6 @@
+from collections.abc import Generator
+from typing import TYPE_CHECKING, cast
+
 import boto3
 import pytest
 from moto import (
@@ -7,14 +10,28 @@ from moto import (
 )
 from pytest_mock import MockerFixture
 
-from reconcile.utils.aws_api import (
-    AmiTag,
-    AWSApi,
-)
+from reconcile.utils.aws_api import AmiTag, AWSApi
+
+if TYPE_CHECKING:
+    from mypy_boto3_ec2 import EC2Client
+    from mypy_boto3_ec2.type_defs import ImageTypeDef
+    from mypy_boto3_iam import IAMClient
+    from mypy_boto3_route53 import Route53Client
+    from mypy_boto3_route53.type_defs import (
+        ChangeBatchTypeDef,
+        HostedZoneTypeDef,
+        ResourceRecordSetTypeDef,
+        ResourceRecordTypeDef,
+    )
+
+else:
+    EC2Client = IAMClient = ImageTypeDef = Route53Client = ResourceRecordTypeDef = (
+        HostedZoneTypeDef
+    ) = ChangeBatchTypeDef = ResourceRecordSetTypeDef = object
 
 
 @pytest.fixture
-def accounts():
+def accounts() -> list[dict]:
     return [
         {
             "name": "some-account",
@@ -27,7 +44,7 @@ def accounts():
 
 
 @pytest.fixture
-def aws_api(accounts, mocker):
+def aws_api(accounts: list[dict], mocker: MockerFixture) -> AWSApi:
     mock_secret_reader = mocker.patch(
         "reconcile.utils.aws_api.SecretReader", autospec=True
     )
@@ -40,45 +57,45 @@ def aws_api(accounts, mocker):
 
 
 @pytest.fixture
-def iam_client():
+def iam_client() -> Generator[IAMClient]:
     with mock_iam():
         iam_client = boto3.client("iam")
         yield iam_client
 
 
-def test_get_user_key_list(aws_api, iam_client):
+def test_get_user_key_list(aws_api: AWSApi, iam_client: IAMClient) -> None:
     iam_client.create_user(UserName="user")
     iam_client.create_access_key(UserName="user")
     key_list = aws_api._get_user_key_list(iam_client, "user")
     assert key_list != []
 
 
-def test_get_user_key_list_empty(aws_api, iam_client):
+def test_get_user_key_list_empty(aws_api: AWSApi, iam_client: IAMClient) -> None:
     iam_client.create_user(UserName="user")
     key_list = aws_api._get_user_key_list(iam_client, "user")
     assert key_list == []
 
 
-def test_get_user_key_list_missing_user(aws_api, iam_client):
+def test_get_user_key_list_missing_user(aws_api: AWSApi, iam_client: IAMClient) -> None:
     iam_client.create_user(UserName="user1")
     key_list = aws_api._get_user_key_list(iam_client, "user2")
     assert key_list == []
 
 
-def test_get_user_keys(aws_api, iam_client):
+def test_get_user_keys(aws_api: AWSApi, iam_client: IAMClient) -> None:
     iam_client.create_user(UserName="user")
     iam_client.create_access_key(UserName="user")
     keys = aws_api.get_user_keys(iam_client, "user")
     assert keys != []
 
 
-def test_get_user_keys_empty(aws_api, iam_client):
+def test_get_user_keys_empty(aws_api: AWSApi, iam_client: IAMClient) -> None:
     iam_client.create_user(UserName="user")
     keys = aws_api.get_user_keys(iam_client, "user")
     assert keys == []
 
 
-def test_get_user_key_status(aws_api, iam_client):
+def test_get_user_key_status(aws_api: AWSApi, iam_client: IAMClient) -> None:
     iam_client.create_user(UserName="user")
     iam_client.create_access_key(UserName="user")
     key = aws_api.get_user_keys(iam_client, "user")[0]
@@ -86,27 +103,54 @@ def test_get_user_key_status(aws_api, iam_client):
     assert status == "Active"
 
 
-def test_default_region(aws_api, accounts):
+def test_default_region(aws_api: AWSApi, accounts: list[dict]) -> None:
     for a in accounts:
         assert aws_api.sessions[a["name"]].region_name == a["resourcesDefaultRegion"]
 
 
-def test_filter_amis_regex(aws_api):
+def test_filter_amis_regex(aws_api: AWSApi) -> None:
     regex = "^match.*$"
     images = [
-        {"Name": "match-regex", "ImageId": "id1", "State": "available", "Tags": []},
-        {"Name": "no-match-regex", "ImageId": "id2", "State": "available", "Tags": []},
+        cast(
+            ImageTypeDef,
+            {"Name": "match-regex", "ImageId": "id1", "State": "available", "Tags": []},
+        ),
+        cast(
+            ImageTypeDef,
+            {
+                "Name": "no-match-regex",
+                "ImageId": "id2",
+                "State": "available",
+                "Tags": [],
+            },
+        ),
     ]
     results = aws_api._filter_amis(images, regex)
     expected = {"image_id": "id1", "tags": []}
     assert results == [expected]
 
 
-def test_filter_amis_state(aws_api):
+def test_filter_amis_state(aws_api: AWSApi) -> None:
     regex = "^match.*$"
     images = [
-        {"Name": "match-regex-1", "ImageId": "id1", "State": "available", "Tags": []},
-        {"Name": "match-regex-2", "ImageId": "id2", "State": "pending", "Tags": []},
+        cast(
+            ImageTypeDef,
+            {
+                "Name": "match-regex-1",
+                "ImageId": "id1",
+                "State": "available",
+                "Tags": [],
+            },
+        ),
+        cast(
+            ImageTypeDef,
+            {
+                "Name": "match-regex-2",
+                "ImageId": "id2",
+                "State": "pending",
+                "Tags": [],
+            },
+        ),
     ]
     results = aws_api._filter_amis(images, regex)
     expected = {"image_id": "id1", "tags": []}
@@ -114,32 +158,53 @@ def test_filter_amis_state(aws_api):
 
 
 @pytest.fixture
-def route53_client():
+def route53_client() -> Generator[Route53Client]:
     with mock_route53():
         route53_client = boto3.client("route53")
         yield route53_client
 
 
-def test_get_hosted_zone_id(aws_api):
+def test_get_hosted_zone_id(aws_api: AWSApi) -> None:
     zone_id = "THISISTHEZONEID"
-    zone = {"Id": f"/hostedzone/{zone_id}"}
+    zone = cast(
+        HostedZoneTypeDef,
+        {
+            "Name": "test",
+            "Id": f"/hostedzone/{zone_id}",
+            "CallerReference": "test",
+        },
+    )
     result = aws_api._get_hosted_zone_id(zone)
     assert result == zone_id
 
 
-def test_get_hosted_zone_record_sets_empty(aws_api, route53_client):
+def test_get_hosted_zone_record_sets_empty(
+    aws_api: AWSApi, route53_client: Route53Client
+) -> None:
     zone_name = "test.example.com."
     results = aws_api._get_hosted_zone_record_sets(route53_client, zone_name)
     assert results == []
 
 
-def test_get_hosted_zone_record_sets_exists(aws_api, route53_client):
+def test_get_hosted_zone_record_sets_exists(
+    aws_api: AWSApi, route53_client: Route53Client
+) -> None:
     zone_name = "test.example.com."
     route53_client.create_hosted_zone(Name=zone_name, CallerReference="test")
     zones = route53_client.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
     zone_id = aws_api._get_hosted_zone_id(zones[0])
-    record_set = {"Name": zone_name, "Type": "NS", "ResourceRecords": [{"Value": "ns"}]}
-    change_batch = {"Changes": [{"Action": "CREATE", "ResourceRecordSet": record_set}]}
+    record_set = cast(
+        ResourceRecordSetTypeDef,
+        {
+            "Name": zone_name,
+            "Type": "NS",
+            "ResourceRecords": [{"Value": "ns"}],
+        },
+    )
+    change_batch = cast(
+        ChangeBatchTypeDef,
+        {"Changes": [{"Action": "CREATE", "ResourceRecordSet": record_set}]},
+    )
     route53_client.change_resource_record_sets(
         HostedZoneId=zone_id, ChangeBatch=change_batch
     )
@@ -147,35 +212,34 @@ def test_get_hosted_zone_record_sets_exists(aws_api, route53_client):
     assert results == [record_set]
 
 
-def test_filter_record_sets(aws_api):
+def test_filter_record_sets(aws_api: AWSApi) -> None:
     zone_name = "a"
-    record_type = "NS"
-    expected = {"Name": f"{zone_name}.", "Type": record_type}
+    expected = cast(ResourceRecordSetTypeDef, {"Name": f"{zone_name}.", "Type": "NS"})
     record_sets = [
         expected,
-        {"Name": f"{zone_name}.", "Type": "SOA"},
-        {"Name": f"not-{zone_name}.", "Type": record_type},
+        cast(ResourceRecordSetTypeDef, {"Name": f"{zone_name}.", "Type": "SOA"}),
+        cast(ResourceRecordSetTypeDef, {"Name": f"not-{zone_name}.", "Type": "NS"}),
     ]
     results = aws_api._filter_record_sets(record_sets, zone_name, "NS")
     assert results == [expected]
 
 
-def test_extract_records(aws_api):
+def test_extract_records(aws_api: AWSApi) -> None:
     record = "ns.example.com"
     resource_records = [
-        {"Value": f"{record}."},
+        cast(ResourceRecordTypeDef, {"Value": f"{record}."}),
     ]
     results = aws_api._extract_records(resource_records)
     assert results == [record]
 
 
 @pytest.fixture
-def ec2_client():
+def ec2_client() -> Generator[EC2Client]:
     with mock_ec2():
         yield boto3.client("ec2", region_name="us-east-1")
 
 
-def test_get_image_id(ec2_client, aws_api: AWSApi):
+def test_get_image_id(ec2_client: EC2Client, aws_api: AWSApi) -> None:
     # RHEL7 ami from moto/ec2/resources/amis.json
     reservation = ec2_client.run_instances(
         ImageId="ami-bb9a6bc2", MinCount=1, MaxCount=1
