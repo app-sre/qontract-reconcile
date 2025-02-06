@@ -5261,6 +5261,31 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             tf_resources.append(lb_access_logs_s3_bucket_tf_resource)
 
+            policy_identifier = f"{identifier}-s3-bucket-policy"
+            # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html#access-log-create-bucket
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "AWS": f"arn:aws:iam::{self.accounts[account]['uid']}:root"
+                        },
+                        "Action": "s3:PutObject",
+                        "Resource": f"{{{lb_access_logs_s3_bucket_tf_resource.arn}}}/*",
+                    }
+                ],
+            }
+            lb_access_logs_s3_bucket_policy_values = {
+                "provider": provider,
+                "bucket": f"${{{lb_access_logs_s3_bucket_tf_resource.id}}}",
+                "policy": json.dumps(policy, sort_keys=True),
+            }
+            lb_access_logs_s3_bucket_policy_tf_resource = aws_s3_bucket_policy(
+                policy_identifier, **lb_access_logs_s3_bucket_policy_values
+            )
+            tf_resources.append(lb_access_logs_s3_bucket_policy_tf_resource)
+
             lb_values["access_logs"] = {
                 "enabled": True,
                 "bucket": f"${{{lb_access_logs_s3_bucket_tf_resource.id}}}",
