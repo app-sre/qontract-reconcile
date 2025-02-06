@@ -397,11 +397,10 @@ class DashdotdbDORA(DashdotdbBase):
         self, saastarget: SaasTarget, sha: str
     ) -> tuple[str | None, str | None]:
         try:
-            saas_file_yaml = self.gl_app_interface_get_file(saastarget.path, ref=sha)
-            if not saas_file_yaml:
-                LOG.info(f"failed to fetch saas file {saastarget.path} at {sha}")
-                return (None, None)
-            saas_file = yaml.safe_load(saas_file_yaml.decode())
+            saas_file_yaml = self.gl_app_interface_get_file(
+                saastarget.path, ref=sha
+            ).decode()
+            saas_file = yaml.safe_load(saas_file_yaml)
         except Exception as e:
             LOG.info(f"failed to decode saas file {saastarget.path} with error: {e}")
             return (None, None)

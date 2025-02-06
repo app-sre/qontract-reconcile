@@ -198,7 +198,7 @@ def build_desired_state_single_cluster(
                 f"{peer_connection_name}"
             )
 
-        accepter_manage_routes = peer_info.get("manageRoutes", False)
+        accepter_manage_routes = peer_info.get("manageRoutes")
 
         infra_account_name, req_aws, acc_aws = aws_assume_roles_for_cluster_vpc_peering(
             peer_connection, cluster_info, peer_info, peer_cluster, ocm

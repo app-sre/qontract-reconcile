@@ -1,9 +1,6 @@
-from collections.abc import Mapping
-from typing import Any
-
 import toml
 
-_config: dict = {}
+_config = None
 
 
 class ConfigNotFound(Exception):
@@ -14,21 +11,21 @@ class SecretNotFound(Exception):
     pass
 
 
-def get_config() -> dict:
+def get_config():
     return _config
 
 
-def init(config: dict) -> dict:
+def init(config):
     global _config  # noqa: PLW0603
     _config = config
     return _config
 
 
-def init_from_toml(configfile: str) -> dict:
+def init_from_toml(configfile):
     return init(toml.load(configfile))
 
 
-def read(secret: Mapping[str, Any]) -> str:
+def read(secret):
     path = secret["path"]
     field = secret["field"]
     try:
@@ -41,7 +38,7 @@ def read(secret: Mapping[str, Any]) -> str:
         raise SecretNotFound(f"key not found in config file {path}: {e!s}") from None
 
 
-def read_all(secret: Mapping[str, Any]) -> dict:
+def read_all(secret):
     path = secret["path"]
     try:
         path_tokens = path.split("/")

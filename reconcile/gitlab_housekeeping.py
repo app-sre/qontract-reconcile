@@ -11,11 +11,10 @@ from datetime import (
     timedelta,
 )
 from operator import itemgetter
-from typing import Any, cast
+from typing import Any
 
 import gitlab
 from gitlab.v4.objects import (
-    ProjectCommit,
     ProjectIssue,
     ProjectMergeRequest,
 )
@@ -336,15 +335,12 @@ def is_good_to_merge(labels):
 
 def is_rebased(mr, gl: GitLabApi) -> bool:
     target_branch = mr.target_branch
-    head = cast(
-        list[ProjectCommit],
-        gl.project.commits.list(
-            ref_name=target_branch,
-            per_page=1,
-            page=1,
-        ),
+    head = gl.project.commits.list(
+        ref_name=target_branch,
+        per_page=1,
+        page=1,
     )[0].id
-    result = cast(dict, gl.project.repository_compare(mr.sha, head))
+    result = gl.project.repository_compare(mr.sha, head)
     return len(result["commits"]) == 0
 
 

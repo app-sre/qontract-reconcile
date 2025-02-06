@@ -195,9 +195,9 @@ def _build_desired_state_tgw_connection(
         cluster_region,
         cluster_cidr_block,
         tags=peer_connection.tags or {},
-        route_tables=bool(peer_connection.manage_routes),
-        security_groups=bool(peer_connection.manage_security_groups),
-        route53_associations=bool(peer_connection.manage_route53_associations),
+        route_tables=peer_connection.manage_routes,
+        security_groups=peer_connection.manage_security_groups,
+        route53_associations=peer_connection.manage_route53_associations,
     )
     for tgw in account_tgws:
         connection_name = (
@@ -268,13 +268,13 @@ def _build_accepter(
     awsapi: AWSApi,
     private_hcp: bool = False,
 ) -> Accepter:
-    allow_hcp_private_api_access = bool(
+    allow_hcp_private_api_access = (
         private_hcp and peer_connection.allow_private_hcp_api_access
     )
     (vpc_id, route_table_ids, subnets_id_az, api_security_group_id) = (
         awsapi.get_cluster_vpc_details(
             account.dict(by_alias=True),
-            route_tables=bool(peer_connection.manage_routes),
+            route_tables=peer_connection.manage_routes,
             subnets=True,
             hcp_vpc_endpoint_sg=allow_hcp_private_api_access,
         )

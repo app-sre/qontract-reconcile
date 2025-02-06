@@ -1,17 +1,15 @@
 import os
-from collections.abc import Callable, Iterable
 from functools import wraps
-from typing import Any
 
 
-def environ(variables: Iterable[str] | None = None) -> Callable:
+def environ(variables=None):
     """Check that environment variables are set before execution."""
     if variables is None:
         variables = []
 
-    def deco_environ(f: Callable) -> Callable:
+    def deco_environ(f):
         @wraps(f)
-        def f_environ(*args: Any, **kwargs: Any) -> None:
+        def f_environ(*args, **kwargs):
             for e in variables:
                 if not os.environ.get(e):
                     raise KeyError(f"Could not find environment variable: {e}")
