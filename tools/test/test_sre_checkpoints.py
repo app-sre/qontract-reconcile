@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from tools.qontract_cli import sre_checkpoints
 
@@ -11,7 +11,7 @@ from tools.sre_checkpoints import (
 
 class TestFullName:
     @staticmethod
-    def test_with_parent() -> None:
+    def test_with_parent():
         app = {
             "parentApp": {"name": "app1"},
             "name": "app2",
@@ -19,7 +19,7 @@ class TestFullName:
         assert full_name(app) == "app1/app2"
 
     @staticmethod
-    def test_without_parent() -> None:
+    def test_without_parent():
         app = {
             "name": "app2",
         }
@@ -29,7 +29,7 @@ class TestFullName:
 class TestLatestSRECheckpoints:
     @staticmethod
     @patch("reconcile.queries.get_sre_checkpoints")
-    def test_latest(get_sre_checkpoints: Mock) -> None:
+    def test_latest(get_sre_checkpoints):
         get_sre_checkpoints.return_value = [
             {"date": "2020-01-01", "app": {"name": "app_single"}},
             {"date": "2021-01-01", "app": {"name": "app_single"}},
@@ -50,9 +50,7 @@ class TestGetSRECheckpoints:
     @patch("tools.qontract_cli.print_output")
     @patch("reconcile.queries.get_sre_checkpoints")
     @patch("reconcile.queries.get_apps")
-    def test_sre_checkpoints(
-        get_apps: Mock, get_sre_checkpoints: Mock, print_output: Mock
-    ) -> None:
+    def test_sre_checkpoints(get_apps, get_sre_checkpoints, print_output):
         get_apps.return_value = [
             {"name": "app1", "path": "/app1", "onboardingStatus": "OnBoarded"},
             {"name": "app2", "path": "/app2", "onboardingStatus": "OnBoarded"},
@@ -71,7 +69,7 @@ class TestGetSRECheckpoints:
             {"name": "app3", "latest": ""},
         ]
 
-        with sre_checkpoints.make_context(info_name="info", args=[]) as ctx:  # type: ignore
+        with sre_checkpoints.make_context(info_name="info", args=[]) as ctx:
             ctx.obj = {"options": {"output": "json"}}
             sre_checkpoints.invoke(ctx)
 

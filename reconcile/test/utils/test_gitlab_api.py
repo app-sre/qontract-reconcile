@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 from unittest.mock import create_autospec
 
@@ -28,7 +29,7 @@ from requests.exceptions import ConnectTimeout
 from reconcile.utils.gitlab_api import GitLabApi
 
 
-def test_gitlab_client_timeout(mocker, patch_sleep):
+def test_gitlab_client_timeout(mocker: MockerFixture, patch_sleep: None) -> None:
     secret_reader_mock = mocker.patch(
         "reconcile.utils.gitlab_api.SecretReader", autospec=True
     )
@@ -68,7 +69,7 @@ def mocked_gl(mocker: MockerFixture) -> Any:
 
 @pytest.fixture
 def mocked_gitlab_api(
-    instance, mocked_gl: Any, mocked_gitlab_request: Any
+    instance: Mapping, mocked_gl: Any, mocked_gitlab_request: Any
 ) -> GitLabApi:
     """creates a gitlab api instance where the internal gitlab client
     is replaced with a mock"""
@@ -452,7 +453,7 @@ def test_get_group_members(
     mocked_gitlab_request: Any,
     mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
-):
+) -> None:
     user = create_autospec(
         GroupMember,
         username="small",
@@ -480,7 +481,7 @@ def test_get_group_members(
 def test_share_project_with_group_positive(
     mocked_gitlab_api: GitLabApi,
     mocked_gl: Any,
-):
+) -> None:
     projects = create_autospec(ProjectManager)
     project = create_autospec(Project)
     project.members_all = create_autospec(ProjectMemberAllManager)

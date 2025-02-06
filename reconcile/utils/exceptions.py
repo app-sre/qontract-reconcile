@@ -1,10 +1,13 @@
+from typing import Any
+
+
 class FetchResourceError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: Any) -> None:
         super().__init__("error fetching resource: " + str(msg))
 
 
 class PrintToFileInGitRepositoryError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: Any) -> None:
         super().__init__("can not print to a git repository: " + str(msg))
 
 
