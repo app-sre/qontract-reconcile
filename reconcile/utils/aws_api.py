@@ -165,8 +165,6 @@ class AWSApi:
         self.init_sessions_and_resources(accounts)
         if init_ecr_auth_tokens:
             self.init_ecr_auth_tokens(accounts)
-        if init_users:
-            self.init_users()
         self._lock = Lock()
         self.resource_types: list[RESOURCE_TYPE] = [
             "s3",
@@ -196,6 +194,9 @@ class AWSApi:
         self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)  # type: ignore[method-assign]
         self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)  # type: ignore[method-assign]
         self._get_vpc_endpoints = lru_cache()(self._get_vpc_endpoints)  # type: ignore[method-assign]
+
+        if init_users:
+            self.init_users()
 
     def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]) -> None:
         results = threaded.run(
