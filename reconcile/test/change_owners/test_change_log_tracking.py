@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from dataclasses import asdict
 from typing import Any
 from unittest.mock import create_autospec
 
@@ -135,6 +134,6 @@ def test_change_log_tracking_with_deleted_app(
 
     mocks["state"].add.assert_called_once_with(
         "bundle-diffs.json",
-        asdict(expected_change_log),
+        expected_change_log.dict(),
         force=True,
     )
