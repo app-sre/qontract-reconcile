@@ -366,10 +366,6 @@ module = [
     "reconcile.utils.vault",
     "reconcile.utils.vaultsecretref",
     "reconcile.vpc_peerings_validator",
-    "tools.app_interface_reporter",
-    "tools.cli_commands.gpg_encrypt",
-    "tools.cli_commands.test.test_gpg_encrypt",
-    "tools.qontract_cli",
     "tools.sre_checkpoints.util",
     # untyped tests
     "reconcile.test.cna.test_integration",
@@ -504,9 +500,6 @@ module = [
     "reconcile.test.utils.test_terrascript_aws_client",
     "reconcile.test.utils.test_terrascript_cloudflare_client",
     "reconcile.test.utils.test_terrascript_cloudflare_resources",
-    "tools.test.test_qontract_cli",
-    "tools.test.test_sd_app_sre_alert_report",
-    "tools.test.test_sre_checkpoints",
 ]
 check_untyped_defs = false
 disallow_untyped_defs = false

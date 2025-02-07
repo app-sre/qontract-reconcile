@@ -1,7 +1,8 @@
 import logging
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+
+from pydantic import BaseModel
 
 from reconcile.change_owners.bundle import (
     NoOpFileDiffResolver,
@@ -33,19 +34,17 @@ QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
 
 
-@dataclass
-class ChangeLogItem:
+class ChangeLogItem(BaseModel):
     commit: str
     merged_at: str
-    change_types: list[str] = field(default_factory=list)
+    change_types: list[str] = []
     error: bool = False
-    apps: list[str] = field(default_factory=list)
+    apps: list[str] = []
     description: str = ""
 
 
-@dataclass
-class ChangeLog:
-    items: list[ChangeLogItem] = field(default_factory=list)
+class ChangeLog(BaseModel):
+    items: list[ChangeLogItem] = []
 
     @property
     def apps(self) -> set[str]:
@@ -89,28 +88,19 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             app = ns.app.name
             app_names_by_cluster_name[cluster].add(app)
         jenkins_configs = get_jenkins_configs()
+        integration_state = init_state(integration=self.name)
+        gl = init_gitlab(self.params.gitlab_project_id)
+        diff_state = init_state(integration=self.name)
+        diff_state.state_path = "bundle-archive/diff"
 
-        integration_state = init_state(
-            integration=self.name,
-        )
         if defer:
             defer(integration_state.cleanup)
-        diff_state = init_state(
-            integration=self.name,
-        )
-        if defer:
             defer(diff_state.cleanup)
-        diff_state.state_path = "bundle-archive/diff"
+            defer(gl.cleanup)
 
         if not self.params.process_existing:
             existing_change_log = ChangeLog(**integration_state.get(BUNDLE_DIFFS_OBJ))
-            existing_change_log_items = [
-                ChangeLogItem(**i)  # type: ignore[arg-type]
-                for i in existing_change_log.items
-            ]
-        gl = init_gitlab(self.params.gitlab_project_id)
-        if defer:
-            defer(gl.cleanup)
+
         change_log = ChangeLog()
         for item in diff_state.ls():
             key = item.lstrip("/")
@@ -119,7 +109,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 continue
             if not self.params.process_existing:
                 existing_change_log_item = next(
-                    (i for i in existing_change_log_items if i.commit == commit), None
+                    (i for i in existing_change_log.items if i.commit == commit), None
                 )
                 if existing_change_log_item:
                     logging.debug(f"Found existing commit {commit}")
@@ -233,4 +223,4 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             change_log.items, key=lambda i: i.merged_at, reverse=True
         )
         if not dry_run:
-            integration_state.add(BUNDLE_DIFFS_OBJ, asdict(change_log), force=True)
+            integration_state.add(BUNDLE_DIFFS_OBJ, change_log.dict(), force=True)
