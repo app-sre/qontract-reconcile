@@ -423,7 +423,7 @@ data:
                 "uid": "P1A97A9592CB7F392"
               },
               "dimensions": {},
-              "expression": "fields @timestamp, message | filter kubernetes.pod_name like /$jobname/ ",
+              "expression": "fields @timestamp, message | filter kubernetes.pod_name like /$jobname/ | sort @timestamp asc",
               "id": "",
               "label": "",
               "logGroups": [
