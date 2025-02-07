@@ -5272,7 +5272,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                             "AWS": f"arn:aws:iam::{self.accounts[account]['uid']}:root"
                         },
                         "Action": "s3:PutObject",
-                        "Resource": f"{{{lb_access_logs_s3_bucket_tf_resource.arn}}}/*",
+                        "Resource": f"${{{lb_access_logs_s3_bucket_tf_resource.arn}}}/*",
                     }
                 ],
             }
