@@ -22,6 +22,7 @@ from reconcile.utils.ocm.labels import (
     build_container_for_prefix,
     build_label_from_dict,
     delete_ocm_label,
+    get_cluster_labels_for_cluster_id,
     get_organization_labels,
     get_subscription_labels,
     update_ocm_label,
@@ -370,3 +371,40 @@ def test_delete_ocm_labels(
 
     ocm_calls = find_all_ocm_http_requests("DELETE")
     assert len(ocm_calls) == 1
+
+
+def test_utils_get_cluster_labels(
+    ocm_api: OCMBaseClient,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+) -> None:
+    cluster_id = "some_id"
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/labels",
+        ).add_list_response([{"key": "key", "value": "value"}])
+    ])
+
+    cluster_labels = get_cluster_labels_for_cluster_id(ocm_api, cluster_id)
+
+    # make sure we got the label we expected
+    assert len(cluster_labels) == 1
+    assert cluster_labels["key"] == "value"
+
+
+def test_utils_get_cluster_labels_no_data(
+    ocm_api: OCMBaseClient,
+    register_ocm_url_responses: Callable[[list[OcmUrl]], int],
+) -> None:
+    cluster_id = "some_id"
+    register_ocm_url_responses([
+        OcmUrl(
+            method="GET",
+            uri=f"/api/clusters_mgmt/v1/clusters/{cluster_id}/external_configuration/labels",
+        ).add_list_response([{}])
+    ])
+
+    cluster_labels = get_cluster_labels_for_cluster_id(ocm_api, cluster_id)
+
+    # make sure we got the label we expected
+    assert len(cluster_labels) == 0
