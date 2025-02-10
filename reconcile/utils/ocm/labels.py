@@ -202,3 +202,15 @@ def get_org_labels(
 
 def build_organization_labels_href(org_id: str) -> str:
     return f"/api/accounts_mgmt/v1/organizations/{org_id}/labels"
+
+
+def get_cluster_labels_for_cluster_id(
+    ocm_api: OCMBaseClient,
+    id: str,
+) -> dict[str, str]:
+    data = ocm_api.get(
+        api_path=f"/api/clusters_mgmt/v1/clusters/{id}/external_configuration/labels"
+    )
+    return {
+        key: d.get("value") for d in data.get("items") or [] if (key := d.get("key"))
+    }
