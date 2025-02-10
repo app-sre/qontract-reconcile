@@ -3757,7 +3757,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "fleet_labels_v1",
+                            "name": "fleet_labels_specs_v1",
                             "description": null,
                             "args": [
                                 {
@@ -3799,7 +3799,7 @@
                                     "name": null,
                                     "ofType": {
                                         "kind": "OBJECT",
-                                        "name": "FleetLabels_v1",
+                                        "name": "FleetLabelsSpec_v1",
                                         "ofType": null
                                     }
                                 }
@@ -5621,7 +5621,7 @@
                         },
                         {
                             "kind": "OBJECT",
-                            "name": "FleetLabels_v1",
+                            "name": "FleetLabelsSpec_v1",
                             "ofType": null
                         },
                         {
@@ -10420,6 +10420,26 @@
                                     "ofType": {
                                         "kind": "OBJECT",
                                         "name": "AWSUserPolicy_v1",
+                                        "ofType": null
+                                    }
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "namespaces",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "LIST",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "NON_NULL",
+                                    "name": null,
+                                    "ofType": {
+                                        "kind": "OBJECT",
+                                        "name": "Namespace_v1",
                                         "ofType": null
                                     }
                                 }
@@ -33895,22 +33915,6 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
-                        },
-                        {
-                            "name": "module_default_resources",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "DeployResources_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
@@ -34108,18 +34112,6 @@
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "resources",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "DeployResources_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
@@ -34338,7 +34330,7 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "FleetLabels_v1",
+                    "name": "FleetLabelsSpec_v1",
                     "description": null,
                     "fields": [
                         {
@@ -34402,24 +34394,16 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "ocms",
+                            "name": "ocm",
                             "description": null,
                             "args": [],
                             "type": {
                                 "kind": "NON_NULL",
                                 "name": null,
                                 "ofType": {
-                                    "kind": "LIST",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "NON_NULL",
-                                        "name": null,
-                                        "ofType": {
-                                            "kind": "OBJECT",
-                                            "name": "OpenShiftClusterManager_v1",
-                                            "ofType": null
-                                        }
-                                    }
+                                    "kind": "OBJECT",
+                                    "name": "OpenShiftClusterManager_v1",
+                                    "ofType": null
                                 }
                             },
                             "isDeprecated": false,
@@ -43401,18 +43385,6 @@
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "resources",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "DeployResources_v1",
                                 "ofType": null
                             },
                             "isDeprecated": false,
