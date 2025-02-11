@@ -270,36 +270,6 @@ DEFAULT_TAGS = {
     },
 }
 
-AWS_ELB_ACCOUNT_IDS = {
-    "us-east-1": "127311923021",
-    "us-east-2": "033677994240",
-    "us-west-1": "027434742980",
-    "us-west-2": "797873946194",
-    "af-south-1": "098369216593",
-    "ap-east-1": "754344448648",
-    "ap-southeast-3": "589379963580",
-    "ap-south-1": "718504428378",
-    "ap-northeast-3": "383597477331",
-    "ap-northeast-2": "600734575887",
-    "ap-southeast-1": "114774131450",
-    "ap-southeast-2": "783225319266",
-    "ap-northeast-1": "582318560864",
-    "ca-central-1": "985666609251",
-    "eu-central-1": "054676820928",
-    "eu-west-1": "156460612806",
-    "eu-west-2": "652711504416",
-    "eu-south-1": "635631232127",
-    "eu-west-3": "009996457667",
-    "eu-north-1": "897822967062",
-    "me-south-1": "076674570225",
-    "sa-east-1": "507241528517",
-}
-
-AWS_US_GOV_ELB_ACCOUNT_IDS = {
-    "us-gov-west-1": "048591011584",
-    "us-gov-east-1": "190560391635",
-}
-
 
 class OutputResourceNameNotUniqueException(Exception):
     def __init__(self, namespace, duplicates):
@@ -5178,16 +5148,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             raise KeyError(f"unknown alb rule condition type {condition_type}")
         return {condition_type_key: {"values": condition[condition_type_key]}}
 
-    @staticmethod
-    def _get_principal_for_s3_bucket_policy(
-        region: str, elb_account_id: str | None
-    ) -> Mapping[str, str]:
-        if region in AWS_ELB_ACCOUNT_IDS:
-            return {"AWS": f"arn:aws:iam::{elb_account_id}:root"}
-        if region in AWS_US_GOV_ELB_ACCOUNT_IDS:
-            return {"AWS": f"arn:aws-us-gov:iam::{elb_account_id}:root"}
-        return {"Service": "logdelivery.elasticloadbalancing.amazonaws.com"}
-
     def populate_tf_resource_alb(self, spec, ocm_map=None):
         account = spec.provisioner_name
         identifier = spec.identifier
@@ -5302,18 +5262,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tf_resources.append(lb_access_logs_s3_bucket_tf_resource)
 
             policy_identifier = f"{identifier}-s3-bucket-policy"
-            region = str(
-                common_values.get("region") or self.default_regions.get(account)
-            )
-            elb_account_id = self._get_elb_account_id(region)
-            principal = self._get_principal_for_s3_bucket_policy(region, elb_account_id)
-
+            # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html#access-log-create-bucket
             policy = {
                 "Version": "2012-10-17",
                 "Statement": [
                     {
                         "Effect": "Allow",
-                        "Principal": principal,
+                        "Principal": {
+                            "AWS": f"arn:aws:iam::{self.accounts[account]['uid']}:root"
+                        },
                         "Action": "s3:PutObject",
                         "Resource": f"${{{lb_access_logs_s3_bucket_tf_resource.arn}}}/*",
                     }
