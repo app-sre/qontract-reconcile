@@ -4271,6 +4271,29 @@ def get_input(ctx: click.Context) -> None:
     print(erv2cli.input_data)
 
 
+def _get_external_resources_credentials(
+    secret_reader: SecretReader,
+    provisioner: str,
+) -> str:
+    return secret_reader.read_with_parameters(
+        path=f"app-sre/external-resources/{provisioner}",
+        field="credentials",
+        format=None,
+        version=None,
+    )
+
+
+@external_resources.command()
+@click.pass_context
+def get_credentials(ctx: click.Context) -> None:
+    """Gets credentials file used in external-resources as AWS_SHARED_CREDENTIALS_FILE"""
+    credentials = _get_external_resources_credentials(
+        secret_reader=ctx.obj["secret_reader"],
+        provisioner=ctx.obj["provisioner"],
+    )
+    print(credentials)
+
+
 @external_resources.command()
 @click.pass_context
 def request_reconciliation(ctx: click.Context) -> None:
@@ -4333,11 +4356,9 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
             # prepare AWS credentials for CDKTF and local terraform
             credentials_file = tempdir / "credentials"
             credentials_file.write_text(
-                ctx.obj["secret_reader"].read_with_parameters(
-                    path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
-                    field="credentials",
-                    format=None,
-                    version=None,
+                _get_external_resources_credentials(
+                    secret_reader=ctx.obj["secret_reader"],
+                    provisioner=ctx.obj["provisioner"],
                 )
             )
         os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
@@ -4415,11 +4436,9 @@ def debug_shell(ctx: click.Context) -> None:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"
                 credentials_file.write_text(
-                    ctx.obj["secret_reader"].read_with_parameters(
-                        path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
-                        field="credentials",
-                        format=None,
-                        version=None,
+                    _get_external_resources_credentials(
+                        secret_reader=ctx.obj["secret_reader"],
+                        provisioner=ctx.obj["provisioner"],
                     )
                 )
             os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
@@ -4456,11 +4475,9 @@ def force_unlock(ctx: click.Context, lock_id: str) -> None:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"
                 credentials_file.write_text(
-                    ctx.obj["secret_reader"].read_with_parameters(
-                        path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
-                        field="credentials",
-                        format=None,
-                        version=None,
+                    _get_external_resources_credentials(
+                        secret_reader=ctx.obj["secret_reader"],
+                        provisioner=ctx.obj["provisioner"],
                     )
                 )
             os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
