@@ -5179,13 +5179,13 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return {condition_type_key: {"values": condition[condition_type_key]}}
 
     @staticmethod
-    def _get_principal_for_s3_bucket_policy(
-        region: str, elb_account_id: str | None
-    ) -> Mapping[str, str]:
+    def _get_principal_for_s3_bucket_policy(region: str) -> Mapping[str, str]:
         if region in AWS_ELB_ACCOUNT_IDS:
-            return {"AWS": f"arn:aws:iam::{elb_account_id}:root"}
+            return {"AWS": f"arn:aws:iam::{AWS_ELB_ACCOUNT_IDS[region]}:root"}
         if region in AWS_US_GOV_ELB_ACCOUNT_IDS:
-            return {"AWS": f"arn:aws-us-gov:iam::{elb_account_id}:root"}
+            return {
+                "AWS": f"arn:aws-us-gov:iam::{AWS_US_GOV_ELB_ACCOUNT_IDS[region]}:root"
+            }
         return {"Service": "logdelivery.elasticloadbalancing.amazonaws.com"}
 
     def populate_tf_resource_alb(self, spec, ocm_map=None):
@@ -5305,8 +5305,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             region = str(
                 common_values.get("region") or self.default_regions.get(account)
             )
-            elb_account_id = self._get_elb_account_id(region)
-            principal = self._get_principal_for_s3_bucket_policy(region, elb_account_id)
+            principal = self._get_principal_for_s3_bucket_policy(region)
 
             policy = {
                 "Version": "2012-10-17",
