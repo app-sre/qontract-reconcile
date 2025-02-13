@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import timedelta
 from typing import Any
 
 from pydantic import BaseModel
+from requests.exceptions import HTTPError
 
 from reconcile.utils.ocm.base import (
     OCMClusterServiceLogCreateModel,
@@ -37,6 +38,27 @@ Thin abstractions of reconcile.ocm module to reduce coupling.
 DTP_TENANT_LABEL = sre_capability_label_key("dtp", "tenant")
 DTP_SPEC_LABEL = sre_capability_label_key("dtp", "token-spec")
 DTP_LABEL_SEARCH = sre_capability_label_key("dtp", "%")
+
+
+class OCMAPIError(Exception):
+    def __init__(self, message: str, status_code: int, endpoint: str):
+        super().__init__(message)
+        self.status_code = status_code
+        self.endpoint = endpoint
+
+
+def throws_ocm_api_error(func: Callable) -> Callable:
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except HTTPError as e:
+            raise OCMAPIError(
+                message=e.response.text,
+                status_code=e.response.status_code,
+                endpoint=args[0]._url,
+            ) from e
+
+    return wrapper
 
 
 class Cluster(BaseModel):
@@ -75,19 +97,23 @@ class OCMClient:
     Thin OOP wrapper around OCMBaseClient to avoid function mocking in tests
     """
 
-    def __init__(self, ocm_client: OCMBaseClient):
+    def __init__(self, ocm_client: OCMBaseClient, url: str):
         self._ocm_client = ocm_client
+        self._url = url
 
+    @throws_ocm_api_error
     def create_syncset(self, cluster_id: str, syncset_map: Mapping) -> None:
         create_syncset(
             ocm_client=self._ocm_client, cluster_id=cluster_id, syncset_map=syncset_map
         )
 
+    @throws_ocm_api_error
     def get_syncset(self, cluster_id: str, syncset_id: str) -> Any:
         return get_syncset(
             ocm_client=self._ocm_client, cluster_id=cluster_id, syncset_id=syncset_id
         )
 
+    @throws_ocm_api_error
     def patch_syncset(
         self, cluster_id: str, syncset_id: str, syncset_map: Mapping
     ) -> None:
@@ -98,6 +124,7 @@ class OCMClient:
             syncset_map=syncset_map,
         )
 
+    @throws_ocm_api_error
     def create_manifest(self, cluster_id: str, manifest_map: Mapping) -> None:
         create_manifest(
             ocm_client=self._ocm_client,
@@ -105,11 +132,13 @@ class OCMClient:
             manifest_map=manifest_map,
         )
 
+    @throws_ocm_api_error
     def get_manifest(self, cluster_id: str, manifest_id: str) -> Any:
         return get_manifest(
             ocm_client=self._ocm_client, cluster_id=cluster_id, manifest_id=manifest_id
         )
 
+    @throws_ocm_api_error
     def patch_manifest(
         self, cluster_id: str, manifest_id: str, manifest_map: Mapping
     ) -> None:
@@ -120,6 +149,7 @@ class OCMClient:
             manifest_map=manifest_map,
         )
 
+    @throws_ocm_api_error
     def discover_clusters_by_labels(self, label_filter: Filter) -> list[Cluster]:
         return [
             Cluster.from_cluster_details(cluster)
@@ -128,6 +158,7 @@ class OCMClient:
             )
         ]
 
+    @throws_ocm_api_error
     def create_service_log(
         self,
         service_log: OCMClusterServiceLogCreateModel,
