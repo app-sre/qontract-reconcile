@@ -83,7 +83,7 @@ class MergeRequestManager(MergeRequestManagerBase[Info]):
             return None
 
         try:
-            self._vcs.get_file_content_from_app_interface_master(file_path=data.path)
+            self._vcs.get_file_content_from_app_interface_ref(file_path=data.path)
             # the file exists, nothing to do
             return None
         except GitlabGetError as e:

@@ -201,7 +201,7 @@ def test_endpoints_discovery_merge_request_manager_create_merge_request_app_file
 ) -> None:
     mrm, vcs_mock, _ = mrm_builder()
     # file does not exist in the repo
-    vcs_mock.get_file_content_from_app_interface_master.side_effect = GitlabGetError(
+    vcs_mock.get_file_content_from_app_interface_ref.side_effect = GitlabGetError(
         response_code=404
     )
 
@@ -222,7 +222,7 @@ def test_endpoints_discovery_merge_request_manager_create_merge_request_open_mr(
     render_mock.render_title.return_value = "title"
     render_mock.render_description.return_value = "description"
     render_mock.render_merge_request_content.return_value = "content"
-    vcs_mock.get_file_content_from_app_interface_master.return_value = "content"
+    vcs_mock.get_file_content_from_app_interface_ref.return_value = "content"
 
     mrm.create_merge_request(apps=[app])
     vcs_mock.open_app_interface_merge_request.assert_called_once_with(ANY)
