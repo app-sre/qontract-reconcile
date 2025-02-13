@@ -19,6 +19,7 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformResourceDynamoDBV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
@@ -97,6 +98,7 @@ SUPPORTED_RESOURCE_TYPES = (
     NamespaceTerraformResourceRDSV1
     | NamespaceTerraformResourceMskV1
     | NamespaceTerraformResourceElastiCacheV1
+    | NamespaceTerraformResourceDynamoDBV1
     | NamespaceTerraformResourceKMSV1
 )
 
