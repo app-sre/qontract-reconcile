@@ -216,14 +216,17 @@ class VCS:
             self._app_interface_api.close(mr)
             self._app_interface_api.delete_branch(source_branch)
 
-    def get_file_content_from_app_interface_master(self, file_path: str) -> str:
-        file_path = (
-            f"data/{file_path.lstrip('/')}"
-            if not file_path.startswith("data")
-            else file_path
-        )
+    def get_file_content_from_app_interface_ref(
+        self, file_path: str, ref: str = "master", is_data: bool = True
+    ) -> str:
+        if is_data:
+            file_path = (
+                f"data/{file_path.lstrip('/')}"
+                if not file_path.startswith("data")
+                else file_path
+            )
         return (
-            self._app_interface_api.project.files.get(file_path=file_path, ref="master")
+            self._app_interface_api.project.files.get(file_path=file_path, ref=ref)
             .decode()
             .decode("utf-8")
         )

@@ -402,7 +402,7 @@ def test_crg_file_persistence_read_found(
 def test_crg_file_persistence_read_miss(
     vcs: MagicMock, mr_manager: MagicMock, tmp_path: Path
 ) -> None:
-    vcs.get_file_content_from_app_interface_master.side_effect = GitlabGetError()
+    vcs.get_file_content_from_app_interface_ref.side_effect = GitlabGetError()
     crg = ClonedRepoGitlabPersistence(False, str(tmp_path), vcs, mr_manager)
     assert crg.read("foo") is None
 

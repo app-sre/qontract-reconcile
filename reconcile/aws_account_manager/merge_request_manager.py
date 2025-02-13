@@ -85,7 +85,7 @@ class MergeRequestManager:
             return None
 
         try:
-            self._vcs.get_file_content_from_app_interface_master(
+            self._vcs.get_file_content_from_app_interface_ref(
                 file_path=account_tmpl_file_path
             )
             # File already exists. nothing to do.

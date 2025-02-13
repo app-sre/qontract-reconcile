@@ -7,6 +7,7 @@ from unittest.mock import create_autospec
 
 import pytest
 from github import Commit
+from gitlab.v4.objects import Project, ProjectFileManager
 
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
@@ -27,6 +28,9 @@ def gitlab_api_builder() -> Callable[[Mapping], GitLabApi]:
             for sha in data.get("COMMITS", [])
         ]
         gitlab_api.repository_compare.side_effect = [commits]
+        gitlab_api.project = create_autospec(spec=Project)
+        gitlab_api.project.files = create_autospec(spec=ProjectFileManager)
+
         return gitlab_api
 
     return builder

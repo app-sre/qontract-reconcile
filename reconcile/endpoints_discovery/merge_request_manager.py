@@ -149,7 +149,7 @@ class MergeRequestManager(MergeRequestManagerBase[EPDInfo]):
         )
         for app in apps:
             try:
-                content = self._vcs.get_file_content_from_app_interface_master(
+                content = self._vcs.get_file_content_from_app_interface_ref(
                     file_path=app.path
                 )
             except GitlabGetError as e:

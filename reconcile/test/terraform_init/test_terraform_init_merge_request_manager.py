@@ -89,7 +89,7 @@ def test_merge_request_manager_create_avs_merge_request_renderer_called(
 ) -> None:
     mrm, vcs_mock, renderer_mock, _ = mrm_builder()
     # file does not exist in the repo
-    vcs_mock.get_file_content_from_app_interface_master.side_effect = GitlabGetError(
+    vcs_mock.get_file_content_from_app_interface_ref.side_effect = GitlabGetError(
         response_code=404
     )
 
@@ -108,7 +108,7 @@ def test_merge_request_manager_create_avs_merge_request_renderer_called_template
 ) -> None:
     mrm, vcs_mock, _, _ = mrm_builder()
     # file does not exist in the repo
-    vcs_mock.get_file_content_from_app_interface_master.return_value = "content"
+    vcs_mock.get_file_content_from_app_interface_ref.return_value = "content"
 
     mrm.create_merge_request(MrData(account="account", content="content", path="/path"))
     vcs_mock.open_app_interface_merge_request.assert_not_called()

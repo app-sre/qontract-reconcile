@@ -109,3 +109,29 @@ def test_close_mr_error(vcs_builder: Callable[[Mapping], VCS]) -> None:
         vcs.close_app_interface_mr(mr=mr, comment="test")
     vcs._app_interface_api.close.assert_not_called()  # type: ignore[attr-defined]
     vcs._app_interface_api.delete_branch.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_get_file_content_from_app_interface_ref_defaults(
+    vcs_builder: Callable[[Mapping], VCS],
+) -> None:
+    vcs = vcs_builder({})
+    vcs.get_file_content_from_app_interface_ref(file_path="/file.yaml")
+
+    vcs._app_interface_api.project.files.get.assert_called_once_with(  # type: ignore[attr-defined]
+        file_path="data/file.yaml",
+        ref="master",
+    )
+
+
+def test_get_file_content_from_app_interface_ref_overrides(
+    vcs_builder: Callable[[Mapping], VCS],
+) -> None:
+    vcs = vcs_builder({})
+    vcs.get_file_content_from_app_interface_ref(
+        file_path="/file.yaml", is_data=False, ref="ref"
+    )
+
+    vcs._app_interface_api.project.files.get.assert_called_once_with(  # type: ignore[attr-defined]
+        file_path="/file.yaml",
+        ref="ref",
+    )
