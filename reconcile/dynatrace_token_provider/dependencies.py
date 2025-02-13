@@ -63,7 +63,8 @@ class Dependencies:
         ocm_environments = get_ocm_environments()
         self.ocm_client_by_env_name = {
             env.name: OCMClient(
-                ocm_client=init_ocm_base_client(env, self.secret_reader)
+                ocm_client=init_ocm_base_client(env, self.secret_reader),
+                url=env.url,
             )
             for env in ocm_environments
         }
