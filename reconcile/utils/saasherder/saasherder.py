@@ -1113,7 +1113,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 username, password = (
                     base64.b64decode(auth["auth"]).decode("utf-8").split(":")
                 )
-                img = SaasHerder._get_and_validate_image(
+                return SaasHerder._get_and_validate_image(
                     full_image_path=image,
                     username=username,
                     password=password,
@@ -1121,15 +1121,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     timeout=REQUEST_TIMEOUT,
                     error_prefix=error_prefix,
                 )
-                if img:
-                    return img
-                else:
-                    logging.error(
-                        f"{error_prefix} Failed to authenticate to the repository for image: {image}. "
-                    )
 
         # basic auth fallback for backwards compatibility
-        img = SaasHerder._get_and_validate_image(
+        return SaasHerder._get_and_validate_image(
             full_image_path=image,
             username=image_auth.username,
             password=image_auth.password,
@@ -1137,14 +1131,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             timeout=REQUEST_TIMEOUT,
             error_prefix=error_prefix,
         )
-        # Provide a more appropriate error message if the image is not found due to authentication
-        if img:
-            return img
-        else:
-            logging.error(
-                f"{error_prefix} Failed to authenticate to the repository for image: {image}. "
-            )
-        return None
 
     @staticmethod
     def _get_and_validate_image(
