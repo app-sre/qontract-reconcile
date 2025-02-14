@@ -114,11 +114,19 @@ query ExternalResourcesNamespaces {
                 availability_zone
                 parameter_group
                 old_parameter_group
-                new_parameter_group
                 blue_green_deployment {
                     enabled
                     switchover
                     delete
+                    target {
+                        allocated_storage
+                        engine_version
+                        instance_class
+                        iops
+                        parameter_group
+                        storage_throughput
+                        storage_type
+                    }
                 }
                 overrides
                 output_resource_name
@@ -577,10 +585,21 @@ class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
+class RDSBlueGreenDeploymentTargetV1(ConfiguredBaseModel):
+    allocated_storage: Optional[int] = Field(..., alias="allocated_storage")
+    engine_version: Optional[str] = Field(..., alias="engine_version")
+    instance_class: Optional[str] = Field(..., alias="instance_class")
+    iops: Optional[int] = Field(..., alias="iops")
+    parameter_group: Optional[str] = Field(..., alias="parameter_group")
+    storage_throughput: Optional[str] = Field(..., alias="storage_throughput")
+    storage_type: Optional[str] = Field(..., alias="storage_type")
+
+
 class RDSBlueGreenDeploymentV1(ConfiguredBaseModel):
     enabled: Optional[bool] = Field(..., alias="enabled")
     switchover: Optional[bool] = Field(..., alias="switchover")
     delete: Optional[bool] = Field(..., alias="delete")
+    target: Optional[RDSBlueGreenDeploymentTargetV1] = Field(..., alias="target")
 
 
 class AWSRDSEventNotificationV1(ConfiguredBaseModel):
@@ -600,7 +619,6 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     availability_zone: Optional[str] = Field(..., alias="availability_zone")
     parameter_group: Optional[str] = Field(..., alias="parameter_group")
     old_parameter_group: Optional[str] = Field(..., alias="old_parameter_group")
-    new_parameter_group: Optional[str] = Field(..., alias="new_parameter_group")
     blue_green_deployment: Optional[RDSBlueGreenDeploymentV1] = Field(..., alias="blue_green_deployment")
     overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
