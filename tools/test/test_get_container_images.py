@@ -99,9 +99,25 @@ def oc_map(mocker: MockerFixture, oc: OCNative) -> OCMap:
     return oc_map
 
 
-def test_fetch_no_filter(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
+@pytest.fixture
+def app_images() -> dict[str, set[str]]:
+    return {
+        "quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main": {
+            "app-sre-observability"
+        },
+        "quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master": {
+            "app-sre",
+            "app-interface",
+        },
+    }
+
+
+def test_fetch_no_filter(
+    namespaces: list[NamespaceV1], oc_map: OCMap, app_images: dict[str, set[str]]
+) -> None:
     images = fetch_pods_images_from_namespaces(
         namespaces=namespaces,
+        app_images=app_images,
         oc_map=oc_map,
         thread_pool_size=2,
     )
@@ -110,49 +126,60 @@ def test_fetch_no_filter(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
         {
             "name": "quay.io/app-sre/clamav",
             "namespaces": "app-sre-pipelines",
+            "apps": "",
             "count": 1,
-        },
-        {
-            "name": "quay.io/app-sre/internal-redhat-ca",
-            "namespaces": "app-sre-observability-stage,app-sre-pipelines",
-            "count": 3,
         },
         {
             "name": "quay.io/app-sre/prom-cloudwatch-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "",
             "count": 1,
         },
         {
             "name": "quay.io/prometheus/blackbox-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "",
             "count": 1,
         },
         {
             "name": "quay.io/redhat-appstudio/clamav-db",
             "namespaces": "app-sre-pipelines",
+            "apps": "",
             "count": 1,
+        },
+        {
+            "name": "quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master",
+            "namespaces": "app-sre-observability-stage,app-sre-pipelines",
+            "apps": "app-interface,app-sre",
+            "count": 3,
         },
         {
             "name": "quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "quay.io/redhatproductsecurity/rapidast",
             "namespaces": "app-sre-pipelines",
+            "apps": "",
             "count": 1,
         },
         {
             "name": "registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8",
             "namespaces": "app-sre-pipelines",
+            "apps": "",
             "count": 3,
         },
     ]
 
 
-def test_fetch_exclude_pattern(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
+def test_fetch_exclude_pattern(
+    namespaces: list[NamespaceV1], oc_map: OCMap, app_images: dict[str, set[str]]
+) -> None:
     images = fetch_pods_images_from_namespaces(
         namespaces=namespaces,
+        app_images=app_images,
         oc_map=oc_map,
         thread_pool_size=2,
         exclude_pattern="quay.io/redhat|quay.io/app-sre",
@@ -161,19 +188,24 @@ def test_fetch_exclude_pattern(namespaces: list[NamespaceV1], oc_map: OCMap) -> 
         {
             "name": "quay.io/prometheus/blackbox-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "",
             "count": 1,
         },
         {
             "name": "registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8",
             "namespaces": "app-sre-pipelines",
+            "apps": "",
             "count": 3,
         },
     ]
 
 
-def test_fetch_include_pattern(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
+def test_fetch_include_pattern(
+    namespaces: list[NamespaceV1], oc_map: OCMap, app_images: dict[str, set[str]]
+) -> None:
     images = fetch_pods_images_from_namespaces(
         namespaces=namespaces,
+        app_images=app_images,
         oc_map=oc_map,
         thread_pool_size=2,
         include_pattern="^registry.redhat.io",
@@ -182,13 +214,17 @@ def test_fetch_include_pattern(namespaces: list[NamespaceV1], oc_map: OCMap) -> 
         {
             "name": "registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8",
             "namespaces": "app-sre-pipelines",
+            "apps": "",
             "count": 3,
         },
     ]
 
 
 def test_fetch_exception(
-    namespaces: list[NamespaceV1], mocker: MockerFixture, observability_pods: list[dict]
+    namespaces: list[NamespaceV1],
+    mocker: MockerFixture,
+    observability_pods: list[dict],
+    app_images: dict[str, set[str]],
 ) -> None:
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get_items.side_effect = [observability_pods, Exception("generic error")]
@@ -197,34 +233,40 @@ def test_fetch_exception(
 
     images = fetch_pods_images_from_namespaces(
         namespaces=namespaces,
+        app_images=app_images,
         oc_map=oc_map,
         thread_pool_size=2,
     )
 
     assert images == [
         {
-            "name": "quay.io/app-sre/internal-redhat-ca",
-            "namespaces": "app-sre-observability-stage",
-            "count": 2,
-        },
-        {
             "name": "quay.io/app-sre/prom-cloudwatch-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "",
             "count": 1,
         },
         {
             "name": "quay.io/prometheus/blackbox-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "",
             "count": 1,
+        },
+        {
+            "name": "quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master",
+            "namespaces": "app-sre-observability-stage",
+            "apps": "app-interface,app-sre",
+            "count": 2,
         },
         {
             "name": "quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "error",
             "namespaces": "app-sre-pipelines/generic error",
+            "apps": "",
             "count": 1,
         },
     ]

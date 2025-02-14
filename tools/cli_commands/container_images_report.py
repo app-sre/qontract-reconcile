@@ -11,6 +11,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.namespaces_minimal import get_namespaces_minimal
+from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_namespaces
 from reconcile.utils.secret_reader import create_secret_reader
@@ -59,6 +60,7 @@ def get_all_pods_images(
 
     return fetch_pods_images_from_namespaces(
         namespaces=namespaces,
+        app_images=_get_app_images(),
         oc_map=oc_map,
         exclude_pattern=exclude_pattern,
         include_pattern=include_pattern,
@@ -66,8 +68,25 @@ def get_all_pods_images(
     )
 
 
+def _get_app_images() -> dict[str, set[str]]:
+    app_images = defaultdict(set)
+    for saas_file in get_saas_files() or []:
+        for resource_template in saas_file.resource_templates:
+            for target in resource_template.targets:
+                if target.images is not None:
+                    for image in target.images:
+                        image_name = "/".join([
+                            image.org.instance.url,
+                            image.org.name,
+                            image.name,
+                        ])
+                        app_images[image_name].add(saas_file.app.name)
+    return app_images
+
+
 def fetch_pods_images_from_namespaces(
     namespaces: list[NamespaceV1],
+    app_images: dict[str, set[str]],
     oc_map: OCMap,
     include_pattern: str | None = None,
     exclude_pattern: str | None = None,
@@ -109,6 +128,7 @@ def fetch_pods_images_from_namespaces(
         result_filtered_flattened.append({
             "name": name,
             "namespaces": ",".join(sorted(value["namespaces"])),
+            "apps": ",".join(sorted(app_images[name])) if name in app_images else "",
             "count": value["count"],
         })
 
@@ -120,6 +140,7 @@ def fetch_pods_images_from_namespaces(
                 "name": "error",
                 "namespaces": message,
                 "count": count,
+                "apps": "",
             })
 
     return result_filtered_flattened
