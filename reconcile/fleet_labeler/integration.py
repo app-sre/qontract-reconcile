@@ -14,7 +14,6 @@ from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
     FleetLabelsSpecV1,
     FleetSubscriptionLabelTemplateV1,
 )
-from reconcile.utils.differ import DiffResult, diff_iterables
 from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
@@ -32,17 +31,14 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-        dependencies = Dependencies(
+        dependencies = Dependencies.create(
             secret_reader=self.secret_reader,
             dry_run=dry_run,
         )
-        dependencies.populate_all()
         self.reconcile(dependencies=dependencies)
 
     def reconcile(self, dependencies: Dependencies) -> None:
         validate_label_specs(specs=dependencies.label_specs_by_name)
-        if not dependencies.vcs:
-            raise ValueError("VCS is not initialized")
         for spec_name, ocm in dependencies.ocm_clients_by_label_spec_name.items():
             self._sync_cluster_inventory(
                 ocm, dependencies.label_specs_by_name[spec_name], dependencies.vcs
@@ -105,18 +101,18 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         for label_default in spec.label_defaults:
             discovered_clusters_by_id = {
                 cluster.cluster_id: cluster
-                for cluster in ocm.discover_clusters_by_label_keys(
-                    keys=list(dict(label_default.match_subscription_labels).keys())
+                for cluster in ocm.discover_clusters_by_labels(
+                    labels=dict(label_default.match_subscription_labels)
                 )
+                # TODO: ideally we filter on server side - see TODO in ocm.py
                 if dict(label_default.match_subscription_labels).items()
                 <= cluster.subscription_labels.items()
             }
-            diff: DiffResult[str, str, str] = diff_iterables(
-                current=all_current_cluster_ids,
-                desired=discovered_clusters_by_id.keys(),
-            )
             all_desired_cluster_ids.extend(discovered_clusters_by_id.keys())
-            for cluster_id in diff.add:
+            clusters_ids_to_add = (
+                discovered_clusters_by_id.keys() - all_current_cluster_ids
+            )
+            for cluster_id in clusters_ids_to_add:
                 # We want to query actual cluster labels only for clusters that need to be added
                 cluster = discovered_clusters_by_id[cluster_id]
                 clusters_to_add.append(
@@ -132,11 +128,10 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                         ),
                     )
                 )
-        diff = diff_iterables(
-            current=all_current_cluster_ids,
-            desired=all_desired_cluster_ids,
+
+        cluster_ids_to_delete = set(all_current_cluster_ids) - set(
+            all_desired_cluster_ids
         )
-        cluster_ids_to_delete = diff.delete.values()
 
         if not (cluster_ids_to_delete or clusters_to_add):
             return

@@ -2,6 +2,7 @@ import json
 from collections.abc import Iterable
 from typing import Any
 from unittest.mock import (
+    Mock,
     create_autospec,
 )
 
@@ -12,11 +13,9 @@ from reconcile.test.fixtures import Fixtures
 
 def build_ocm_client(
     discover_clusters_by_labels: Iterable[Cluster],
-) -> OCMClient:
+) -> Mock:
     ocm_client = create_autospec(spec=OCMClient)
-    ocm_client.discover_clusters_by_label_keys.return_value = (
-        discover_clusters_by_labels
-    )
+    ocm_client.discover_clusters_by_labels.return_value = discover_clusters_by_labels
     return ocm_client
 
 
@@ -34,7 +33,7 @@ def build_cluster(
     )
 
 
-def build_vcs(content: str = "") -> VCS:
+def build_vcs(content: str = "") -> Mock:
     vcs = create_autospec(spec=VCS)
     vcs.get_file_content_from_main.return_value = content
     return vcs
