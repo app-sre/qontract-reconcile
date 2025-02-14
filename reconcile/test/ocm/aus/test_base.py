@@ -258,6 +258,54 @@ def test_upgradeable_version_no_block(cluster_1: OCMCluster) -> None:
     assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "4.12.19"
 
 
+def test_addon_upgradable_version_cluster_level_blocked() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+        blocked_versions=["addon-1/1.2.5"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "1.2.4"
+
+
+def test_addon_upgradable_version_org_level_blocked() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        org=build_organization(blocked_versions=["addon-1/1.2.5"]),
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "1.2.4"
+
+
+def test_addon_upgradable_version_cluster_and_org_level_blocked() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        org=build_organization(blocked_versions=["addon-1/1.2.5"]),
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+        blocked_versions=["addon-1/1.2.4"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) is None
+
+
+def test_addon_upgradable_version_no_block() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "1.2.5"
+
+
 #
 # upgrade priority
 #

@@ -233,6 +233,7 @@ def build_addon_upgrade_spec(
     available_cluster_upgrades: list[str] | None = None,
     available_addon_upgrades: list[str] | None = None,
     cluster_health: bool = True,
+    blocked_versions: list[str] | None = None,
 ) -> ClusterAddonUpgradeSpec:
     return ClusterAddonUpgradeSpec(
         org=org or build_organization(),
@@ -241,7 +242,11 @@ def build_addon_upgrade_spec(
             version=current_cluster_version,
             available_upgrades=available_cluster_upgrades,
         ),
-        upgradePolicy=build_upgrade_policy(workloads=workloads, soak_days=soak_days),
+        upgradePolicy=build_upgrade_policy(
+            workloads=workloads,
+            soak_days=soak_days,
+            blocked_versions=blocked_versions,
+        ),
         addon=OCMAddonInstallation(
             id=addon_id,
             addon=OCMModelLink(
