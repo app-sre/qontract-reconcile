@@ -191,7 +191,7 @@ data:
                 "uid": "P1A97A9592CB7F392"
               },
               "dimensions": {},
-              "expression": "fields @timestamp, message, kubernetes.labels.tekton_dev_pipelineRun |\nfilter kubernetes.pod_name like /tf-repo-push-deploy-pipelinerun.+/ |\nfilter kubernetes.container_name not like /place-scripts|prepare|working-dir-initializer/ |\nfilter kubernetes.labels.tekton_dev_pipelineRun like /$pipelinerun/ |\nfilter message not like \"using gql endpoint\" | \nfilter message not like \"No changes need to be made\" |\n sort @timestamp desc | limit 400",
+              "expression": "fields @timestamp, message, kubernetes.labels.tekton_dev_pipelineRun |\nfilter kubernetes.pod_name like /tf-repo-push-deploy-pipelinerun.+/ |\nfilter kubernetes.container_name not like /place-scripts|prepare|working-dir-initializer/ |\nfilter kubernetes.labels.tekton_dev_pipelineRun like /$pipelinerun/ |\nfilter message not like \"using gql endpoint\" |\n sort @timestamp asc",
               "id": "",
               "label": "",
               "logGroups": [
