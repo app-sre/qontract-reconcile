@@ -28,11 +28,13 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query FleetLabels {
-    fleet_labels: fleet_labels_v1 {
+query FleetLabelSpecs {
+    fleet_labels_specs: fleet_labels_specs_v1 {
         name
+        path
         managedSubscriptionLabelPrefix
-        ocms {
+        ocm {
+            name
             environment {
                 url
             }
@@ -75,6 +77,7 @@ class OpenShiftClusterManagerEnvironmentV1(ConfiguredBaseModel):
 
 
 class OpenShiftClusterManagerV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
     environment: OpenShiftClusterManagerEnvironmentV1 = Field(..., alias="environment")
     access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
     access_token_client_secret: Optional[VaultSecret] = Field(..., alias="accessTokenClientSecret")
@@ -104,19 +107,20 @@ class FleetClusterV1(ConfiguredBaseModel):
     subscription_labels: Json = Field(..., alias="subscriptionLabels")
 
 
-class FleetLabelsV1(ConfiguredBaseModel):
+class FleetLabelsSpecV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    path: str = Field(..., alias="path")
     managed_subscription_label_prefix: str = Field(..., alias="managedSubscriptionLabelPrefix")
-    ocms: list[OpenShiftClusterManagerV1] = Field(..., alias="ocms")
+    ocm: OpenShiftClusterManagerV1 = Field(..., alias="ocm")
     label_defaults: list[FleetLabelDefaultV1] = Field(..., alias="labelDefaults")
     clusters: list[FleetClusterV1] = Field(..., alias="clusters")
 
 
-class FleetLabelsQueryData(ConfiguredBaseModel):
-    fleet_labels: Optional[list[FleetLabelsV1]] = Field(..., alias="fleet_labels")
+class FleetLabelSpecsQueryData(ConfiguredBaseModel):
+    fleet_labels_specs: Optional[list[FleetLabelsSpecV1]] = Field(..., alias="fleet_labels_specs")
 
 
-def query(query_func: Callable, **kwargs: Any) -> FleetLabelsQueryData:
+def query(query_func: Callable, **kwargs: Any) -> FleetLabelSpecsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -129,7 +133,7 @@ def query(query_func: Callable, **kwargs: Any) -> FleetLabelsQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        FleetLabelsQueryData: queried data parsed into generated classes
+        FleetLabelSpecsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return FleetLabelsQueryData(**raw_data)
+    return FleetLabelSpecsQueryData(**raw_data)
