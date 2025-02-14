@@ -32,17 +32,14 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-        dependencies = Dependencies(
+        dependencies = Dependencies.create(
             secret_reader=self.secret_reader,
             dry_run=dry_run,
         )
-        dependencies.populate_all()
         self.reconcile(dependencies=dependencies)
 
     def reconcile(self, dependencies: Dependencies) -> None:
         validate_label_specs(specs=dependencies.label_specs_by_name)
-        if not dependencies.vcs:
-            raise ValueError("VCS is not initialized")
         for spec_name, ocm in dependencies.ocm_clients_by_label_spec_name.items():
             self._sync_cluster_inventory(
                 ocm, dependencies.label_specs_by_name[spec_name], dependencies.vcs
@@ -105,9 +102,10 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         for label_default in spec.label_defaults:
             discovered_clusters_by_id = {
                 cluster.cluster_id: cluster
-                for cluster in ocm.discover_clusters_by_label_keys(
-                    keys=list(dict(label_default.match_subscription_labels).keys())
+                for cluster in ocm.discover_clusters_by_labels(
+                    labels=dict(label_default.match_subscription_labels)
                 )
+                # TODO: ideally we filter on server side - see TODO in ocm.py
                 if dict(label_default.match_subscription_labels).items()
                 <= cluster.subscription_labels.items()
             }

@@ -31,8 +31,8 @@ def test_subscription_label_filter(
 
     integration.reconcile(dependencies=dependencies)
 
-    ocm_client.discover_clusters_by_label_keys.assert_called_once_with(  # type: ignore[attr-defined]
-        keys=["test"],
+    ocm_client.discover_clusters_by_labels.assert_called_once_with(
+        labels={"test": "true"},
     )
 
 
@@ -74,7 +74,7 @@ def test_default_label_filter(
 
     integration.reconcile(dependencies=dependencies)
 
-    dependencies.vcs.open_merge_request.assert_called_once_with(  # type: ignore[attr-defined]
+    dependencies.vcs.open_merge_request.assert_called_once_with(
         path="test.yaml",
         content=f"{get_fixture_content('1_cluster.yaml')}\n",
     )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Mapping
 
 from pydantic import BaseModel
 
@@ -11,8 +11,8 @@ from reconcile.utils.ocm.clusters import (
 )
 from reconcile.utils.ocm.labels import (
     get_cluster_labels_for_cluster_id,
-    subscription_label_filter,
 )
+from reconcile.utils.ocm.search_filters import Filter, FilterMode
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
 )
@@ -65,10 +65,13 @@ class OCMClient:
     def __init__(self, ocm_client: OCMBaseClient):
         self._ocm_client = ocm_client
 
-    def discover_clusters_by_label_keys(self, keys: Iterable[str]) -> list[Cluster]:
-        label_filter = subscription_label_filter()
-        for k in keys:
-            label_filter = label_filter.like("key", k)
+    def discover_clusters_by_labels(self, labels: Mapping[str, str]) -> list[Cluster]:
+        label_filter = Filter(mode=FilterMode.AND).eq("type", "Subscription")
+        for key in labels:
+            label_filter = label_filter.eq("Key", key)
+        # TODO: This throws 400 bad request
+        # for k, v in labels.items():
+        #     label_filter = label_filter.eq(k, v)
         return [
             Cluster.from_cluster_details(cluster)
             for cluster in discover_clusters_by_labels(

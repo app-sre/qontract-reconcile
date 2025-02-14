@@ -1,3 +1,4 @@
+from collections import Counter
 from collections.abc import Mapping
 
 from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
@@ -35,17 +36,17 @@ def _validate_match_labels(spec: FleetLabelsSpecV1) -> None:
     """
     Match labels should be unique within the same spec.
     """
-
-    seen: set[str] = set()
+    cnt: Counter[str] = Counter()
     for label_default in spec.label_defaults:
-        key = ""
-        for k, v in sorted(dict(label_default.match_subscription_labels).items()):
-            key += f"{k}:{v},"
-        if key in seen:
+        key = ",".join(
+            f"{k}:{v}"
+            for k, v in sorted(dict(label_default.match_subscription_labels).items())
+        )
+        cnt[key] += 1
+        if cnt[key] > 1:
             raise MatchLabelsNotUniqueError(
                 f"The 'matchSubscriptionLabels' combinations must be unique within a spec. Found duplicate: {label_default.match_subscription_labels}"
             )
-        seen.add(key)
 
 
 def _validate_ocm_token_spec(ocm: OpenShiftClusterManagerV1) -> None:
