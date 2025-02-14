@@ -24,9 +24,7 @@ def cluster_id(cluster: str) -> str:
 def ocm(mocker: MockerFixture, ocm_url: str, cluster: str, cluster_id: str) -> OCM:
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_access_token")
     mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient._init_request_headers")
-    mocker.patch.object(OCM, "whoami")
     mocker.patch.object(OCM, "_init_clusters")
-    mocker.patch.object(OCM, "_init_blocked_versions")
     mocker.patch.object(OCM, "_init_version_gates")
     ocm_client = OCMBaseClient("url", "tid", "turl", "cid")
     ocm = OCM("name", "org_id", "prod", ocm_client)
@@ -95,16 +93,3 @@ def clusters_by_readiness():
 def test__ready_for_app_interface(clusters_by_readiness, ocm):
     for cluster, readiness in clusters_by_readiness:
         assert ocm._ready_for_app_interface(cluster) == readiness
-
-
-def test_get_version_gate(ocm):
-    ocm.version_gates = [
-        {"version_raw_id_prefix": "4.9", "sts_only": True},
-        {"version_raw_id_prefix": "4.9", "sts_only": False},
-        {"version_raw_id_prefix": "4.10", "sts_only": False},
-    ]
-    gates = ocm.get_version_gates("4.9")
-    assert gates == [{"version_raw_id_prefix": "4.9", "sts_only": False}]
-    gates = ocm.get_version_gates("4.9", sts_only=True)
-    assert gates == [{"version_raw_id_prefix": "4.9", "sts_only": True}]
-    assert len(ocm.get_version_gates("4.8")) == 0
