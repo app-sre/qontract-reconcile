@@ -344,15 +344,14 @@ def ocmmap_mock(ocm_osd_cluster_spec, ocm_mock):
 
 @pytest.fixture
 def ocm_mock(mocker: MockerFixture):
-    with patch.object(OCM, "whoami", autospec=True):
-        with patch.object(ocm, "init_ocm_base_client") as ioc:
-            ocm_api_mock = mocker.Mock(OCMBaseClient)
-            ioc.return_value = ocm_api_mock
-            yield ocm_api_mock.post, ocm_api_mock.patch
-            # todo check if we need this realy!!!
-            # with patch.object(OCM, "get_product_impl", autospec=True) as gpi:
-            #    gpi.return_value = osd_product
-            #    yield _post, _patch
+    with patch.object(ocm, "init_ocm_base_client") as ioc:
+        ocm_api_mock = mocker.Mock(OCMBaseClient)
+        ioc.return_value = ocm_api_mock
+        yield ocm_api_mock.post, ocm_api_mock.patch
+        # todo check if we need this realy!!!
+        # with patch.object(OCM, "get_product_impl", autospec=True) as gpi:
+        #    gpi.return_value = osd_product
+        #    yield _post, _patch
 
 
 @pytest.fixture
