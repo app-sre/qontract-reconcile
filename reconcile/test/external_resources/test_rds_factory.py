@@ -104,7 +104,7 @@ def test_validate_timeouts_nok(timeouts: Any, expected_value_error: str) -> None
         factory.validate(resource, module_conf)
 
 
-def test_resolve_new_parameter_group(
+def test_resolve_blue_green_deployment_parameter_group(
     factory: AWSRdsFactory,
     mocker: MockerFixture,
 ) -> None:
@@ -113,7 +113,11 @@ def test_resolve_new_parameter_group(
     )
     rvr.return_value.resolve.return_value = {
         "identifier": "test-rds",
-        "new_parameter_group": "/path/to/new_parameter_group",
+        "blue_green_deployment": {
+            "target": {
+                "parameter_group": "/path/to/new_parameter_group",
+            }
+        },
     }
     rvr.return_value._get_values.return_value = {"k": "v"}
     spec = ExternalResourceSpec(
@@ -122,7 +126,11 @@ def test_resolve_new_parameter_group(
         resource={
             "identifier": "test-rds",
             "provider": "rds",
-            "new_parameter_group": "/path/to/new_parameter_group",
+            "blue_green_deployment": {
+                "target": {
+                    "parameter_group": "/path/to/new_parameter_group",
+                }
+            },
         },
         namespace={},
     )
@@ -132,7 +140,11 @@ def test_resolve_new_parameter_group(
 
     assert result == {
         "identifier": "test-rds",
-        "new_parameter_group": {"k": "v"},
+        "blue_green_deployment": {
+            "target": {
+                "parameter_group": {"k": "v"},
+            },
+        },
         "output_prefix": "test-rds-rds",
         "timeouts": {"create": "-1005m", "delete": "-1005m", "update": "-1005m"},
     }
