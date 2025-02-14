@@ -77,8 +77,18 @@ class ClusterUpgradeSpec(BaseModel):
         return mutexes
 
 
+# TODO: Addon not is-a Cluster, extract a common base to inherit
 class ClusterAddonUpgradeSpec(ClusterUpgradeSpec):
     addon: OCMAddonInstallation
+
+    def version_blocked(self, version: str) -> bool:
+        addon_id = self.addon.id
+        v = f"{addon_id}/{version}"
+        return any(
+            re.search(b, v)
+            for b in self.blocked_versions
+            if b.startswith(f"{addon_id}/") or b.startswith(f"^{addon_id}/")
+        )
 
     def get_available_upgrades(self) -> list[str]:
         return self.addon.addon_version.available_upgrades
