@@ -4,6 +4,7 @@ from abc import (
     abstractmethod,
 )
 from collections.abc import Iterable, Mapping
+from enum import Enum
 from typing import (
     Any,
     Optional,
@@ -35,6 +36,12 @@ from reconcile.utils.ocm_base_client import (
 from reconcile.utils.runtime.integration import QontractReconcileIntegration
 
 QONTRACT_INTEGRATION = "status-board-exporter"
+
+
+class Action(Enum):
+    create = "create"
+    update = "update"
+    delete = "delete"
 
 
 class AbstractStatusBoard(ABC, BaseModel):
@@ -117,7 +124,7 @@ class Application(AbstractStatusBoard):
 
 
 class Service(AbstractStatusBoard):
-    application: Application | None
+    application: Optional["Application"]
 
     def create(self, ocm: OCMBaseClient) -> None:
         spec = self.dict(by_alias=True)
@@ -147,7 +154,7 @@ class Service(AbstractStatusBoard):
 
 
 class StatusBoardHandler(BaseModel):
-    action: str
+    action: Action
     status_board_object: AbstractStatusBoard
 
     def act(self, dry_run: bool, ocm: OCMBaseClient) -> None:
@@ -156,9 +163,9 @@ class StatusBoardHandler(BaseModel):
             return
 
         match self.action:
-            case "delete":
+            case Action.delete:
                 self.status_board_object.delete(ocm)
-            case "create":
+            case Action.create:
                 self.status_board_object.create(ocm)
 
 
@@ -206,15 +213,17 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     @staticmethod
     def desired_abstract_status_board_map(
         desired_product_apps: Mapping[str, set[str]], slodocs: list[SLODocumentV1]
-    ) -> Mapping[str, Mapping[str, Any]]:
+    ) -> Mapping[str, dict[str, Any]]:
         desired_abstract_status_board_map: dict[str, dict[str, Any]] = {}
         for product, apps in desired_product_apps.items():
             desired_abstract_status_board_map[product] = {
+                "type": "product",
                 "product": product,
                 "app": "",
             }
             for a in apps:
                 desired_abstract_status_board_map[f"{product}/{a}"] = {
+                    "type": "app",
                     "product": product,
                     "app": a,
                 }
@@ -246,25 +255,63 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         continue
 
                     desired_abstract_status_board_map[f"{product}/{app}/{slo.name}"] = {
+                        "type": "service",
                         "product": product,
                         "app": app,
                         "service": slo.name,
-                        "sli_type": slo.sli_type,
-                        "sli_specification": slo.sli_specification,
-                        "slo_details": slo.slo_details,
-                        "target": slo.slo_target,
-                        "target_unit": slo.slo_target_unit,
-                        "window": slo.slo_parameters.window,
+                        "metadata": {
+                            "sli_type": slo.sli_type,
+                            "sli_specification": slo.sli_specification,
+                            "slo_details": slo.slo_details,
+                            "target": slo.slo_target,
+                            "target_unit": slo.slo_target_unit,
+                            "window": slo.slo_parameters.window,
+                        },
                     }
 
         return desired_abstract_status_board_map
 
     @staticmethod
+    def current_abstract_status_board_map(
+        current_products_applications_services: Iterable[Product],
+    ) -> Mapping[str, dict[str, Any]]:
+        return_value: dict[str, dict[str, Any]] = {}
+        for product in current_products_applications_services:
+            pass
+            return_value[product.name] = {
+                "type": "product",
+                "product": product.name,
+                "app": "",
+            }
+            for app in product.applications or []:
+                return_value[f"{product.name}/{app.name}"] = {
+                    "type": "app",
+                    "product": product.name,
+                    "app": app.name,
+                }
+                for service in app.services or []:
+                    key = f"{product.name}/{app.name}/{service.name}"
+                    return_value[key] = {
+                        "type": "service",
+                        "product": product.name,
+                        "app": app.name,
+                        "service": service.name,
+                        "metadata": service.metadata,
+                    }
+                    # return_value[key].update(service.metadata or {})
+
+        return return_value
+
+    @staticmethod
     def get_diff(
-        desired_product_apps: Mapping[str, set[str]],
-        current_products_applications: Iterable[Product],
+        desired_abstract_status_board_map: Mapping[str, dict[str, Any]],
+        current_abstract_status_board_map: Mapping[str, dict[str, Any]],
+        current_products: Mapping[str, Product],
     ) -> list[StatusBoardHandler]:
-        def create_app(app_name: str, product: Product) -> Application:
+        def create_app(
+            app_name: str,
+            product: Product,
+        ) -> Application:
             return Application(
                 name=app_name,
                 fullname=f"{product.name}/{app_name}",
@@ -272,66 +319,172 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             )
 
         return_list: list[StatusBoardHandler] = []
-        current_products = {p.name: p for p in current_products_applications}
-
-        current_as_mapping: Mapping[str, set[str]] = {
-            c.name: {a.name for a in c.applications or []}
-            for c in current_products_applications
-        }
 
         diff_result = diff_mappings(
-            current_as_mapping,
-            desired_product_apps,
+            current_abstract_status_board_map,
+            desired_abstract_status_board_map,
         )
 
-        for product_name in diff_result.add:
-            product = Product(name=product_name, fullname=product_name, applications=[])
+        products_to_create = [
+            p for _, p in diff_result.add.items() if p["type"] == "product"
+        ]
+        apps_to_create = [a for _, a in diff_result.add.items() if a["type"] == "app"]
+        services_to_create = [
+            s for _, s in diff_result.add.items() if s["type"] == "service"
+        ]
+
+        # Create apps for products that already exists
+        if apps_to_create:
+            for name, p in current_products.items():
+                this_product_apps = [a for a in apps_to_create if a["product"] == name]
+                for a in this_product_apps or []:
+                    appplication = create_app(app_name=a["app"], product=p)
+                    return_list.append(
+                        StatusBoardHandler(
+                            action=Action.create, status_board_object=appplication
+                        )
+                    )
+                    this_app_services = [
+                        s for s in services_to_create if s["app"] == appplication.name
+                    ]
+                    for s in this_app_services:
+                        name = s["service"]
+                        fullname = f"{p.name}/{appplication.name}/{name}"
+                        metadata = s["metadata"]
+
+                        return_list.append(
+                            StatusBoardHandler(
+                                action=Action.create,
+                                status_board_object=Service(
+                                    name=name,
+                                    fullname=fullname,
+                                    metadata=metadata,
+                                    application=appplication,
+                                ),
+                            )
+                        )
+
+        # Create products, apps, and their services
+        for p in products_to_create or []:
+            product = Product(name=p["product"], fullname=p["product"])
             return_list.append(
                 StatusBoardHandler(
-                    action="create",
+                    action=Action.create,
                     status_board_object=product,
                 )
             )
-            # new product, so it misses also the applications
-            return_list.extend(
-                StatusBoardHandler(
-                    action="create",
-                    status_board_object=create_app(app_name, product),
+            this_product_apps = [
+                a for a in apps_to_create if a["product"] == product.name
+            ]
+            for a in this_product_apps or []:
+                appplication = create_app(app_name=a["app"], product=product)
+                return_list.append(
+                    StatusBoardHandler(
+                        action=Action.create, status_board_object=appplication
+                    )
                 )
-                for app_name in desired_product_apps[product_name]
+                this_app_services = [
+                    s for s in services_to_create if s["app"] == appplication.name
+                ]
+                for s in this_app_services:
+                    name = s["service"]
+                    fullname = f"{product.name}/{appplication.name}/{name}"
+                    metadata = s["metadata"]
+
+                    return_list.append(
+                        StatusBoardHandler(
+                            action=Action.create,
+                            status_board_object=Service(
+                                name=name,
+                                fullname=fullname,
+                                metadata=metadata,
+                                application=appplication,
+                            ),
+                        )
+                    )
+
+        # Creating services for existing apps and products
+        if services_to_create:
+            for p in current_products.values():
+                for a in p.applications or []:
+                    this_app_services = [
+                        s for s in services_to_create if s["app"] == a.name
+                    ]
+                    for s in this_app_services or []:
+                        name = s["service"]
+                        fullname = f"{p.name}/{a.name}/{name}"
+                        metadata = s["metadata"]
+
+                        return_list.append(
+                            StatusBoardHandler(
+                                action=Action.create,
+                                status_board_object=Service(
+                                    name=name,
+                                    fullname=fullname,
+                                    metadata=metadata,
+                                    application=a,
+                                ),
+                            )
+                        )
+
+        services_to_delete = [
+            s for _, s in diff_result.delete.items() if s["type"] == "service"
+        ]
+        apps_to_delete = [
+            a for _, a in diff_result.delete.items() if a["type"] == "app"
+        ]
+        products_to_delete = [
+            p for _, p in diff_result.delete.items() if p["type"] == "product"
+        ]
+
+        for s in services_to_delete:
+            apps = current_products[s["product"]].applications
+            [app] = [a for a in apps or [] if a.name == s["app"]]
+            [service] = [svr for svr in app.services or [] if svr.name == s["service"]]
+
+            return_list.append(
+                StatusBoardHandler(action=Action.delete, status_board_object=service)
             )
 
-        # existing product, only add/remove applications
-        for product_name, apps in diff_result.change.items():
-            product = current_products[product_name]
-            return_list.extend(
-                StatusBoardHandler(
-                    action="create",
-                    status_board_object=create_app(app_name, product),
-                )
-                for app_name in apps.desired - apps.current
-            )
-            to_delete = apps.current - apps.desired
-            return_list.extend(
-                StatusBoardHandler(
-                    action="delete",
-                    status_board_object=application,
-                )
-                for application in product.applications or []
-                if application.name in to_delete
-            )
+        for a in apps_to_delete:
+            apps = current_products[a["product"]].applications
+            [application] = [app for app in apps or [] if app.name == a["app"]]
 
-        # product is deleted entirely
-        for product_name in diff_result.delete:
-            return_list.extend(
-                StatusBoardHandler(action="delete", status_board_object=application)
-                for application in current_products[product_name].applications or []
-            )
             return_list.append(
                 StatusBoardHandler(
-                    action="delete", status_board_object=current_products[product_name]
+                    action=Action.delete, status_board_object=application
                 )
             )
+
+        for p in products_to_delete:
+            product = current_products[p["product"]]
+
+            return_list.append(
+                StatusBoardHandler(action=Action.delete, status_board_object=product)
+            )
+
+        services_to_update = [
+            s.desired
+            for _, s in diff_result.change.items()
+            if s.current["type"] == "service"
+        ]
+        for s in services_to_update:
+            product = current_products[s["product"]]
+            [application] = [
+                a for a in product.applications or [] if a.name == s["app"]
+            ]
+            [service_id] = [
+                svr.id for svr in application.services or [] if svr.name == s["service"]
+            ]
+            name = s["service"]
+            fullname = f"{product.name}/{application.name}/{name}"
+            metadata = s["metadata"]
+            service = Service(id=service_id, name=name, fullname=fullname, metadata=metadata)
+
+            return_list.append(
+                StatusBoardHandler(action=Action.update, status_board_object=service)
+            )
+
         return return_list
 
     @staticmethod
@@ -343,9 +496,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
         for o in diff:
             match o.action:
-                case "create":
+                case Action.create:
                     creations.append(o)
-                case "delete":
+                case Action.delete:
                     deletions.append(o)
 
         # Products need to be created before Applications
@@ -364,16 +517,28 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         slodocs = get_slo_documents()
         for sb in get_status_board():
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
+
+            # Desired state
             desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
-
-            current_products_applications = self.get_current_products_applications(
-                ocm_api
-            )
-
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
                 desired_product_apps, slodocs
             )
 
-            diff = self.get_diff(desired_product_apps, current_products_applications)
+            # Current state
+            current_products_applications_services = (
+                self.get_current_products_applications_services(ocm_api)
+            )
+            current_abstract_status_board_map = self.current_abstract_status_board_map(
+                current_products_applications_services
+            )
+
+            current_products = {
+                p.name: p for p in current_products_applications_services
+            }
+            diff = self.get_diff(
+                desired_abstract_status_board_map,
+                current_abstract_status_board_map,
+                current_products,
+            )
 
             self.apply_diff(dry_run, ocm_api, diff)
