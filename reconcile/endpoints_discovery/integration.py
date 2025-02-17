@@ -268,7 +268,11 @@ class EndpointsDiscoveryIntegration(
                 app_endpoints.endpoints_to_delete += endpoints_to_delete
 
             # remove endpoints from deleted namespaces
-            namspace_names = {(ns.cluster.name, ns.name) for ns in app.namespaces or []}
+            namspace_names = {
+                (ns.cluster.name, ns.name)
+                for ns in app.namespaces or []
+                if not ns.delete
+            }
             for ep in app.end_points or []:
                 try:
                     ep_cluster, ep_namespace, _ = parse_endpoint_name(ep.name)
