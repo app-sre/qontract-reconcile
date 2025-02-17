@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -58,7 +57,6 @@ ADDON_UPGRADE_POLICY_DESIRED_KEYS = {
     "version",
 }
 ROUTER_DESIRED_KEYS = {"id", "listening", "dns_name", "route_selectors"}
-AUTOSCALE_DESIRED_KEYS = {"min_replicas", "max_replicas"}
 CLUSTER_ADDON_DESIRED_KEYS = {"id", "parameters"}
 
 DISABLE_UWM_ATTR = "disable_user_workload_monitoring"
@@ -71,16 +69,15 @@ class OCM:  # pylint: disable=too-many-public-methods
     OCM is an instance of OpenShift Cluster Manager.
 
     :param name: OCM instance name
-    :param url: OCM instance URL
     :param org_id: OCM org ID
+    :param ocm_env: OCM env
     :param ocm_client: the OCM API client to talk to OCM
     :param init_provision_shards: should initiate provision shards
     :param init_addons: should initiate addons
-    :param blocked_versions: versions to block upgrades for
+    :param init_version_gates: should initiate version gates
     :type init_provision_shards: bool
     :type init_addons: bool
     :type init_version_gates: bool
-    :type blocked_version: list
     """
 
     def __init__(
@@ -92,8 +89,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         init_provision_shards=False,
         init_addons=False,
         init_version_gates=False,
-        blocked_versions=None,
-        inheritVersionData: list[dict[str, Any]] | None = None,
         product_portfolio: OCMProductPortfolio | None = None,
     ):
         """Initiates access token and gets clusters information."""
@@ -109,8 +104,6 @@ class OCM:  # pylint: disable=too-many-public-methods
 
         if init_addons:
             self._init_addons()
-
-        self._init_blocked_versions(blocked_versions)
 
         self.init_version_gates = init_version_gates
         self.version_gates: list[Any] = []
@@ -159,16 +152,6 @@ class OCM:  # pylint: disable=too-many-public-methods
                 ).get("available_upgrades")
             else:
                 self.not_ready_clusters.add(cluster_name)
-
-    @property
-    def non_blocked_cluster_upgrades(self) -> dict[str, list[str]]:
-        return {
-            cluster: [v for v in versions or [] if not self.version_blocked(v)]
-            for cluster, versions in self.available_cluster_upgrades.items()
-        }
-
-    def is_ready(self, cluster):
-        return cluster in self.clusters
 
     def get_product_impl(
         self, product: str, hypershift: bool | None = False
@@ -615,45 +598,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._patch(api, spec)
 
-    def addon_version_blocked(self, version: str, addon_id: str) -> bool:
-        """Check if an addon version is blocked
-
-        Args:
-            version (string): version to check
-            addon_id (string): addon_id to check
-
-        Returns:
-            bool: is version blocked
-        """
-        v = f"{addon_id}/{version}"
-        return any(
-            re.search(b, v)
-            for b in self.blocked_versions
-            if b.startswith(f"{addon_id}/") or b.startswith(f"^{addon_id}/")
-        )
-
-    def version_blocked(self, version: str) -> bool:
-        """Check if a version is blocked
-
-        Args:
-            version (string): version to check
-
-        Returns:
-            bool: is version blocked
-        """
-        return any(re.search(b, version) for b in self.blocked_versions)
-
-    def get_available_upgrades(self, cluster_name: str) -> list[str]:
-        """Get available versions to upgrade for a specific cluster.
-
-        Args:
-            cluster_name (string): cluster display name to get available upgrades for
-
-        Returns:
-            list: a non-null but potentially empty list of available versions to upgrade to
-        """
-        return self.available_cluster_upgrades.get(cluster_name) or []
-
     def get_additional_routers(self, cluster):
         """Returns a list of Additional Application Routers
 
@@ -706,23 +650,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"ingresses/{router_id}"
         self._delete(api)
 
-    @staticmethod
-    def _get_autoscale(cluster):
-        autoscale = cluster["nodes"].get("autoscale_compute", None)
-        if autoscale is None:
-            return None
-        return {k: v for k, v in autoscale.items() if k in AUTOSCALE_DESIRED_KEYS}
-
-    def whoami(self):
-        api = f"{AMS_API_BASE}/v1/current_account"
-        return self._get_json(api)
-
-    def get_pull_secrets(
-        self,
-    ):
-        api = f"{AMS_API_BASE}/v1/access_token"
-        return self._post(api)
-
     def _init_addons(self):
         """Returns a list of Addons"""
         api = f"{CS_API_BASE}/v1/addons"
@@ -741,25 +668,6 @@ class OCM:  # pylint: disable=too-many-public-methods
             if id == addon_id:
                 return addon
         return None
-
-    def get_addon_version(self, id):
-        for addon in self.addons:
-            addon_id = addon["id"]
-            if id == addon_id:
-                return addon["version"]["id"]
-        return None
-
-    def get_version_gates(
-        self, version_prefix: str, sts_only: bool = False
-    ) -> list[dict[str, Any]]:
-        if not self.init_version_gates:
-            self._init_version_gates()
-        return [
-            g
-            for g in self.version_gates
-            if g["version_raw_id_prefix"] == version_prefix
-            and g["sts_only"] == sts_only
-        ]
 
     def get_cluster_addons(
         self,
@@ -817,20 +725,6 @@ class OCM:  # pylint: disable=too-many-public-methods
             data["parameters"] = {}
             data["parameters"]["items"] = parameters
         self._post(api, data)
-
-    def _init_blocked_versions(self, blocked_versions):
-        try:
-            self.blocked_versions = set(blocked_versions)
-        except TypeError:
-            self.blocked_versions = set()
-
-        for b in self.blocked_versions:
-            try:
-                re.compile(b)
-            except re.error:
-                raise TypeError(
-                    f"blocked version is not a valid regex expression: {b}"
-                ) from None
 
     @retry(max_attempts=10)
     def _do_get_request(self, api: str, params: Mapping[str, str]) -> dict[str, Any]:
@@ -1055,9 +949,7 @@ class OCMMap:  # pylint: disable=too-many-public-methods
             ocm_client,
             init_provision_shards=init_provision_shards,
             init_addons=init_addons,
-            blocked_versions=ocm_info.get("blockedVersions"),
             init_version_gates=init_version_gates,
-            inheritVersionData=ocm_info.get("inheritVersionData"),
             product_portfolio=product_portfolio,
         )
 
