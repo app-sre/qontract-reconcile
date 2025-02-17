@@ -28,7 +28,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 961626,
+      "id": 995575,
       "links": [],
       "panels": [
         {
@@ -119,10 +119,59 @@ data:
             "uid": "P1A97A9592CB7F392"
           },
           "gridPos": {
-            "h": 30,
+            "h": 4,
             "w": 13,
             "x": 11,
             "y": 0
+          },
+          "id": 5,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "1. Find the name of your `PipelineRun` in [Slack](https://redhat.enterprise.slack.com/archives/C07F3A80H51)\n2. Select the matching name in the `pipelinerun` variable dropdown.\n3. Logs for that PLR will be displayed.",
+            "mode": "markdown"
+          },
+          "pluginVersion": "10.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "cloudwatch",
+                "uid": "P1A97A9592CB7F392"
+              },
+              "dimensions": {},
+              "expression": "",
+              "id": "",
+              "label": "",
+              "logGroups": [],
+              "matchExact": true,
+              "metricEditorMode": 0,
+              "metricName": "",
+              "metricQueryType": 0,
+              "namespace": "",
+              "period": "",
+              "queryMode": "Metrics",
+              "refId": "A",
+              "region": "default",
+              "sqlExpression": "",
+              "statistic": "Average"
+            }
+          ],
+          "title": "How to use",
+          "type": "text"
+        },
+        {
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "P1A97A9592CB7F392"
+          },
+          "gridPos": {
+            "h": 26,
+            "w": 13,
+            "x": 11,
+            "y": 4
           },
           "id": 2,
           "options": {
@@ -133,7 +182,7 @@ data:
             "showLabels": false,
             "showTime": true,
             "sortOrder": "Descending",
-            "wrapLogMessage": false
+            "wrapLogMessage": true
           },
           "targets": [
             {
@@ -142,7 +191,7 @@ data:
                 "uid": "P1A97A9592CB7F392"
               },
               "dimensions": {},
-              "expression": "fields @timestamp, message |\nfilter kubernetes.pod_name like /tf-repo-push-deploy-pipelinerun.+/ |\nfilter kubernetes.container_name not like /place-scripts|prepare|working-dir-initializer/ |\nfilter message not like \"using gql endpoint\" | \nfilter message not like \"No changes need to be made\" |\n sort @timestamp desc | limit 400",
+              "expression": "fields @timestamp, message, kubernetes.labels.tekton_dev_pipelineRun |\nfilter kubernetes.pod_name like /tf-repo-push-deploy-pipelinerun.+/ |\nfilter kubernetes.container_name not like /place-scripts|prepare|working-dir-initializer/ |\nfilter kubernetes.labels.tekton_dev_pipelineRun like /$pipelinerun/ |\nfilter message not like \"using gql endpoint\" |\n sort @timestamp asc",
               "id": "",
               "label": "",
               "logGroups": [
@@ -166,7 +215,7 @@ data:
               "statsGroups": []
             }
           ],
-          "title": "Recent Logs",
+          "title": "PipelineRun Logs",
           "type": "logs"
         },
         {
@@ -384,7 +433,7 @@ data:
         "list": [
           {
             "current": {
-              "selected": false,
+              "selected": true,
               "text": "appsrep09ue1-prometheus",
               "value": "P7B77307D2CE073BC"
             },
@@ -399,6 +448,34 @@ data:
             "regex": "appsrep09ue1-prometheus|appsres09ue1-prometheus",
             "skipUrlSync": false,
             "type": "datasource"
+          },
+          {
+            "allValue": ".+",
+            "current": {
+              "selected": true,
+              "text": "tf-repo-push-deploy-pipelinerungn2k9",
+              "value": "tf-repo-push-deploy-pipelinerungn2k9"
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "definition": "label_values(kube_pod_info{namespace=\"terraform-repo-production\", pod=~\"tf-repo.+\"},pod)",
+            "hide": 0,
+            "includeAll": true,
+            "multi": false,
+            "name": "pipelinerun",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(kube_pod_info{namespace=\"terraform-repo-production\", pod=~\"tf-repo.+\"},pod)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 1,
+            "regex": "/(tf-repo-push-deploy-pipelinerun.+)-tf-executor/",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
           }
         ]
       },
@@ -410,6 +487,6 @@ data:
       "timezone": "browser",
       "title": "Terraform Repo",
       "uid": "de6murtyo59moa",
-      "version": 4,
+      "version": 1,
       "weekStart": ""
     }
