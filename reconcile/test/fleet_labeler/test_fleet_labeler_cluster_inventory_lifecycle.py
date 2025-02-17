@@ -195,3 +195,67 @@ def test_no_reconcile_on_label_change(
     integration.reconcile(dependencies=dependencies)
 
     dependencies.vcs.open_merge_request.assert_not_called()
+
+
+def test_competing_label_matchers(
+    integration: FleetLabelerIntegration,
+    dependencies: Dependencies,
+    gql_class_factory: Callable[..., FleetLabelsSpecV1],
+) -> None:
+    """
+    We have 1 cluster in the current inventory.
+    OCM API returns 4 completely different clusters for 2 different default labels.
+    2 of the returned clusters matches 2 subscription label matchers, which means
+    that defaultLabels will compete. This must not happen -> we want to neglect these
+    clusters and print an error / increase error counter metric.
+
+    We expect an MR that deletes the current cluster and adds the 2 new clusters.
+    We expect the 3rd and 4th cluster to be neglected.
+    """
+    dependencies.vcs = build_vcs(content=get_fixture_content("1_cluster.yaml"))
+    spec = gql_class_factory(
+        FleetLabelsSpecV1, label_spec_data_from_fixture("1_cluster.yaml")
+    )
+    dependencies.label_specs_by_name = {spec.name: spec}
+    dependencies.ocm_clients_by_label_spec_name = {
+        spec.name: build_ocm_client(
+            discover_clusters_by_labels=[
+                build_cluster(
+                    name="cluster_name_1",
+                    cluster_id="cluster_id_1",
+                    subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
+                ),
+                build_cluster(
+                    name="cluster_name_2",
+                    cluster_id="cluster_id_2",
+                    # Note, this is the filter for the 2nd default label
+                    subscription_labels={"sre-capabilities.dtp.other-label": "true"},
+                ),
+                build_cluster(
+                    name="cluster_name_3",
+                    cluster_id="cluster_id_3",
+                    # Note, this cluster fits both label matchers
+                    subscription_labels={
+                        "sre-capabilities.dtp.managed-labels": "true",
+                        "sre-capabilities.dtp.other-label": "true",
+                    },
+                ),
+                build_cluster(
+                    name="cluster_name_4",
+                    cluster_id="cluster_id_4",
+                    # Note, this cluster fits both label matchers
+                    subscription_labels={
+                        "sre-capabilities.dtp.managed-labels": "true",
+                        "sre-capabilities.dtp.other-label": "true",
+                    },
+                ),
+            ],
+        )
+    }
+
+    integration.reconcile(dependencies=dependencies)
+
+    dependencies.vcs.open_merge_request.assert_called_once_with(
+        path="test.yaml",
+        content=f"{get_fixture_content('2_clusters.yaml')}\n",
+    )

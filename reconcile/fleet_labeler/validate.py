@@ -30,6 +30,18 @@ def validate_label_specs(specs: Mapping[str, FleetLabelsSpecV1]) -> None:
     for spec in specs.values():
         _validate_ocm_token_spec(spec.ocm)
         _validate_match_labels(spec)
+        _validate_unique_ocm_managed_label_combo(spec)
+
+
+def _validate_unique_ocm_managed_label_combo(spec: FleetLabelsSpecV1) -> None:
+    """
+    Every fleet labeler spec is pinned to one OCM client and manages a single
+    label prefix. We must be sure, that the label prefixes are not overlapping
+    for the same OCM client, as that would mean to default label specs will be
+    competing.
+    """
+    # TODO: implement
+    pass
 
 
 def _validate_match_labels(spec: FleetLabelsSpecV1) -> None:

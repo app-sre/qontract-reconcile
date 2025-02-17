@@ -24,18 +24,13 @@ class Dependencies:
 
     def __init__(
         self,
-        secret_reader: SecretReaderBase,
         label_specs_by_name: Mapping[str, FleetLabelsSpecV1],
         ocm_clients_by_label_spec_name: Mapping[str, OCMClient],
         vcs: VCS,
-        dry_run: bool = True,
     ):
         self.label_specs_by_name = label_specs_by_name
         self.ocm_clients_by_label_spec_name = ocm_clients_by_label_spec_name
         self.vcs = vcs
-        # TOOD: check if needed
-        self.secret_reader = secret_reader
-        self.dry_run = dry_run
 
     @classmethod
     def create(
@@ -44,11 +39,9 @@ class Dependencies:
         dry_run: bool = True,
     ) -> Dependencies:
         return Dependencies(
-            secret_reader=secret_reader,
             label_specs_by_name=_label_specs(),
             ocm_clients_by_label_spec_name=_ocm_clients(secret_reader=secret_reader),
             vcs=_vcs(secret_reader=secret_reader, dry_run=dry_run),
-            dry_run=dry_run,
         )
 
 

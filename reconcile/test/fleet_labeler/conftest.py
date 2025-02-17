@@ -59,9 +59,7 @@ def integration() -> FleetLabelerIntegration:
 @pytest.fixture
 def dependencies(secret_reader: SecretReaderBase) -> Dependencies:
     return Dependencies(
-        secret_reader=secret_reader,
         label_specs_by_name={},
         ocm_clients_by_label_spec_name={},
         vcs=create_autospec(spec=VCS),
-        dry_run=False,
     )

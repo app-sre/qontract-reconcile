@@ -6,6 +6,8 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 
+FLEET_LABELER_LABEL = "FleetLabeler"
+
 
 class YamlCluster(BaseModel):
     name: str
@@ -26,7 +28,7 @@ class FleetLabelerUpdates(MergeRequestBase):
 
         super().__init__()
 
-        self.labels = [AUTO_MERGE]
+        self.labels = [AUTO_MERGE, FLEET_LABELER_LABEL]
 
     @property
     def title(self) -> str:
