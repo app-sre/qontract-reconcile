@@ -75,11 +75,16 @@ class VersionFormat(StrEnum):
     MAJOR_MINOR_PATCH = "major_minor_patch"
 
 
+class SupportedResourceProvider(StrEnum):
+    RDS = "rds"
+    ELASTICACHE = "elasticache"
+
+
 class ExternalResource(BaseModel):
     namespace_file: str | None = None
     provider: str = "aws"
     provisioner: ExternalResourceProvisioner
-    resource_provider: str
+    resource_provider: SupportedResourceProvider
     resource_identifier: str
     resource_engine: str
     resource_engine_version: semver.VersionInfo
@@ -133,6 +138,15 @@ class ExternalResource(BaseModel):
                     raise ValueError(
                         f"Invalid version format: {resource_engine_version}"
                     )
+        if values.get("resource_provider") == SupportedResourceProvider.ELASTICACHE:
+            if resource_engine_version.startswith("5"):
+                # AWS ElastiCache Redis 5 uses MAJOR_MINOR_PATCH format
+                values["resource_engine_version_format"] = (
+                    VersionFormat.MAJOR_MINOR_PATCH
+                )
+            else:
+                # AWS ElastiCache Redis 6+ uses MAJOR_MINOR format
+                values["resource_engine_version_format"] = VersionFormat.MAJOR_MINOR
         return values
 
     @property
@@ -222,7 +236,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                         provisioner=ExternalResourceProvisioner(
                             uid=m["aws_account_id"]
                         ),
-                        resource_provider="rds",
+                        resource_provider=SupportedResourceProvider.RDS,
                         resource_identifier=m["dbinstance_identifier"],
                         resource_engine=m["engine"],
                         resource_engine_version=m["engine_version"],
@@ -241,7 +255,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                         provisioner=ExternalResourceProvisioner(
                             uid=m["aws_account_id"]
                         ),
-                        resource_provider="elasticache",
+                        resource_provider=SupportedResourceProvider.ELASTICACHE,
                         # replication_group_id != resource_identifier!
                         resource_identifier=elasticache_replication_group_id_to_identifier.get(
                             (
@@ -304,11 +318,11 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                             )
                             defaults_cache[resource.defaults] = values
                     values = override_values(values, resource.overrides)
-                    if resource.provider.lower() == "elasticache" and str(
-                        values["engine_version"]
-                    ).lower().endswith("x"):
-                        # see https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/app-sre/sop/upgrade-redis-minor-version.md
-                        # minor version not managed by app-interface anymore. skip it
+                    if (
+                        resource.provider == SupportedResourceProvider.ELASTICACHE
+                        and str(values["engine_version"]).lower().endswith("x")
+                    ):
+                        # AWS ElastiCache Redis 6 could use a version like 6.x. Then, we don't need to manage it
                         continue
 
                     external_resources.append(
