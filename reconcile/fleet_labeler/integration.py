@@ -1,8 +1,10 @@
 import logging
+from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
 
 import yaml
+from pydantic import BaseModel
 from ruamel.yaml.compat import StringIO
 
 from reconcile.fleet_labeler.dependencies import Dependencies
@@ -109,88 +111,72 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             yml.dump(content, stream)
             return stream.getvalue()
 
-    def _process_default_label(
-        self,
-        ocm: OCMClient,
-        spec_name: str,
-        label_default: FleetLabelDefaultV1,
-        all_current_cluster_ids: set[str],
-        cluster_ids_with_duplicate_matches: set[str],
-        all_desired_cluster_ids: set[str],
-        clusters_to_add: list[YamlCluster],
-    ) -> None:
-        discovered_clusters_by_id = {
-            cluster.cluster_id: cluster
-            for cluster in ocm.discover_clusters_by_labels(
-                labels=dict(label_default.match_subscription_labels)
-            )
-            # TODO: ideally we filter on server side - see TODO in ocm.py
-            if dict(label_default.match_subscription_labels).items()
-            <= cluster.subscription_labels.items()
-        }
-        for discovered_id in discovered_clusters_by_id:
-            if discovered_id in cluster_ids_with_duplicate_matches:
-                # We already identified this cluster id as a duplicate match
-                continue
-            if discovered_id in all_desired_cluster_ids:
-                logging.error(
-                    f"Spec '{spec_name}': Cluster ID {discovered_id} is matched multiple times by different label matchers."
-                )
-                cluster_ids_with_duplicate_matches.add(discovered_id)
-                all_desired_cluster_ids.remove(discovered_id)
-                continue
-            all_desired_cluster_ids.add(discovered_id)
-        cluster_ids_to_add = discovered_clusters_by_id.keys() - all_current_cluster_ids
-        for cluster_id in cluster_ids_to_add:
-            # We want to query actual cluster labels only for clusters that need to be added
-            if cluster_id in cluster_ids_with_duplicate_matches:
-                continue
-            cluster = discovered_clusters_by_id[cluster_id]
-            clusters_to_add.append(
-                YamlCluster(
-                    cluster_id=cluster.cluster_id,
-                    name=cluster.name,
-                    server_url=cluster.server_url,
-                    subscription_labels_content=self._render_default_labels(
-                        template=label_default.subscription_label_template,
-                        labels=ocm.get_cluster_labels(cluster_id=cluster.cluster_id),
-                    ),
-                )
-            )
-
     def _sync_cluster_inventory(
         self, ocm: OCMClient, spec: FleetLabelsSpecV1, vcs: VCS
     ) -> None:
+        class ClusterData(BaseModel):
+            """
+            Helper structure for synching process
+            """
+
+            name: str
+            server_url: str
+            label_default: FleetLabelDefaultV1
+
         all_current_cluster_ids = {cluster.cluster_id for cluster in spec.clusters}
-        all_desired_cluster_ids: set[str] = set()
-        clusters_to_add: list[YamlCluster] = []
-        cluster_ids_with_duplicate_matches: set[str] = set()
+        clusters: dict[str, list[ClusterData]] = defaultdict(list)
         for label_default in spec.label_defaults:
-            self._process_default_label(
-                ocm=ocm,
-                spec_name=spec.name,
-                label_default=label_default,
-                all_current_cluster_ids=all_current_cluster_ids,
-                cluster_ids_with_duplicate_matches=cluster_ids_with_duplicate_matches,
-                all_desired_cluster_ids=all_desired_cluster_ids,
-                clusters_to_add=clusters_to_add,
+            match_subscription_labels = dict(label_default.match_subscription_labels)
+            for cluster in ocm.discover_clusters_by_labels(
+                labels=match_subscription_labels
+            ):
+                # TODO: ideally we filter on server side - see TODO in ocm.py
+                if (
+                    match_subscription_labels.items()
+                    <= cluster.subscription_labels.items()
+                ):
+                    clusters[cluster.cluster_id].append(
+                        ClusterData(
+                            label_default=label_default,
+                            name=cluster.name,
+                            server_url=cluster.server_url,
+                        )
+                    )
+
+        cluster_with_duplicate_matches = {
+            k: v for k, v in clusters.items() if len(v) > 1
+        }
+        for cluster_id, matches in cluster_with_duplicate_matches.items():
+            label_matches = "\n".join(
+                str(m.label_default.match_subscription_labels) for m in matches
             )
-
-        all_desired_cluster_ids -= cluster_ids_with_duplicate_matches
-        cluster_ids_to_delete = all_current_cluster_ids - all_desired_cluster_ids
-        clusters_to_add = [
-            cluster
-            for cluster in clusters_to_add
-            if cluster.cluster_id not in cluster_ids_with_duplicate_matches
-        ]
-
+            logging.error(
+                f"Spec '{spec.name}': Cluster ID {cluster_id} is matched multiple times by different label matchers:\n{label_matches}"
+            )
         metrics.set_gauge(
             FleetLabelerDuplicateClusterMatchesGauge(
                 integration=self.name,
                 ocm_name=spec.ocm.name,
             ),
-            len(cluster_ids_with_duplicate_matches),
+            len(cluster_with_duplicate_matches),
         )
+
+        all_desired_clusters = {k: v[0] for k, v in clusters.items() if len(v) == 1}
+        clusters_to_add = [
+            YamlCluster(
+                cluster_id=cluster_id,
+                name=cluster_info.name,
+                server_url=cluster_info.server_url,
+                subscription_labels_content=self._render_default_labels(
+                    template=cluster_info.label_default.subscription_label_template,
+                    labels=ocm.get_cluster_labels(cluster_id=cluster_id),
+                ),
+            )
+            for cluster_id, cluster_info in all_desired_clusters.items()
+            if cluster_id not in all_current_cluster_ids
+        ]
+        cluster_ids_to_delete = all_current_cluster_ids - all_desired_clusters.keys()
+
         if not (cluster_ids_to_delete or clusters_to_add):
             return
 
