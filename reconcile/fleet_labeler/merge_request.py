@@ -17,6 +17,9 @@ class YamlCluster(BaseModel):
 
 
 class FleetLabelerUpdates(MergeRequestBase):
+    # Note, this name is used for the branch name that is being created.
+    name = "fleet_labeler_updates"
+
     def __init__(
         self,
         path: str,
@@ -24,7 +27,6 @@ class FleetLabelerUpdates(MergeRequestBase):
     ):
         self._path = path
         self._content = content
-        self._title = f"[Fleet Labeler] Update cluster inventory for {path}"
 
         super().__init__()
 
@@ -32,11 +34,17 @@ class FleetLabelerUpdates(MergeRequestBase):
 
     @property
     def title(self) -> str:
-        return self._title
+        return f"[Fleet Labeler] Update cluster inventory for {self._path}"
 
     @property
     def description(self) -> str:
-        return self._title
+        return f"""
+This is an automatically generated MR by the [fleet-labeler](https://github.com/app-sre/qontract-reconcile/tree/master/reconcile/fleet_labeler) integration.
+
+This MR updates the cluster inventory for the fleet label spec defined at {self._path}.
+
+Please do not manually change anything in this MR.
+"""
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         msg = "update cluster inventory"
