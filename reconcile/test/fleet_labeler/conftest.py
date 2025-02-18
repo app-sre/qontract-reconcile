@@ -23,7 +23,7 @@ def default_label_spec(
     return gql_class_factory(
         FleetLabelsSpecV1,
         {
-            "path": "test.yaml",
+            "path": "/test.yaml",
             "name": "default-spec",
             "ocm": {
                 "environment": {

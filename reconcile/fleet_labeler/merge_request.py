@@ -24,7 +24,7 @@ class FleetLabelerUpdates(MergeRequestBase):
     ):
         self._path = path
         self._content = content
-        self.name = f"[Fleet Labeler] Update cluster inventory for {path}"
+        self._title = f"[Fleet Labeler] Update cluster inventory for {path}"
 
         super().__init__()
 
@@ -32,11 +32,11 @@ class FleetLabelerUpdates(MergeRequestBase):
 
     @property
     def title(self) -> str:
-        return self.name
+        return self._title
 
     @property
     def description(self) -> str:
-        return self.name
+        return self._title
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         msg = "update cluster inventory"

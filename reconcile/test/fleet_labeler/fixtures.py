@@ -52,7 +52,7 @@ def label_spec_data_from_fixture(file_name: str) -> dict[str, Any]:
     fxt = Fixtures("fleet_labeler")
     data = fxt.get_anymarkup(file_name)
     del data["$schema"]
-    data["path"] = "test.yaml"
+    data["path"] = "/test.yaml"
     data["ocm"] = {
         "environment": {
             "url": "https://api.test.com",
