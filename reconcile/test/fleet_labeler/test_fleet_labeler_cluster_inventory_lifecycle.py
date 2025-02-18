@@ -47,7 +47,7 @@ def test_add_new_cluster(
     integration.reconcile(dependencies=dependencies)
 
     dependencies.vcs.open_merge_request.assert_called_once_with(
-        path="test.yaml",
+        path="data/test.yaml",
         content=f"{get_fixture_content('1_cluster.yaml')}\n",
     )
 
@@ -77,7 +77,7 @@ def test_delete_cluster(
     integration.reconcile(dependencies=dependencies)
 
     dependencies.vcs.open_merge_request.assert_called_once_with(
-        path="test.yaml",
+        path="data/test.yaml",
         content=f"{get_fixture_content('0_clusters.yaml')}\n",
     )
 
@@ -119,7 +119,7 @@ def test_delete_and_add_cluster_multi_default_labels(
     integration.reconcile(dependencies=dependencies)
 
     dependencies.vcs.open_merge_request.assert_called_once_with(
-        path="test.yaml",
+        path="data/test.yaml",
         content=f"{get_fixture_content('2_clusters.yaml')}\n",
     )
 
@@ -256,6 +256,6 @@ def test_competing_label_matchers(
     integration.reconcile(dependencies=dependencies)
 
     dependencies.vcs.open_merge_request.assert_called_once_with(
-        path="test.yaml",
+        path="data/test.yaml",
         content=f"{get_fixture_content('2_clusters.yaml')}\n",
     )

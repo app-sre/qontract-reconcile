@@ -75,6 +75,6 @@ def test_default_label_filter(
     integration.reconcile(dependencies=dependencies)
 
     dependencies.vcs.open_merge_request.assert_called_once_with(
-        path="test.yaml",
+        path="data/test.yaml",
         content=f"{get_fixture_content('1_cluster.yaml')}\n",
     )

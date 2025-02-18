@@ -187,4 +187,4 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         desired_content = self._render_yaml_file(
             current_content, cluster_ids_to_delete, sorted_clusters_to_add
         )
-        vcs.open_merge_request(path=spec.path, content=desired_content)
+        vcs.open_merge_request(path=f"data{spec.path}", content=desired_content)
