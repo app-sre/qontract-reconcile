@@ -259,7 +259,7 @@ class TestSaasFileValid(TestCase):
     def test_check_saas_file_upstream_used_with_image(self) -> None:
         self.saas_file.resource_templates[0].targets[
             0
-        ].image = SaasResourceTemplateTargetImageV1(**{
+        ].images = SaasResourceTemplateTargetImageV1(**{
             "name": "image",
             "org": {"name": "org", "instance": {"url": "url"}},
         })
@@ -282,7 +282,7 @@ class TestSaasFileValid(TestCase):
         ].ref = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
         self.saas_file.resource_templates[0].targets[
             0
-        ].image = SaasResourceTemplateTargetImageV1(**{
+        ].images = SaasResourceTemplateTargetImageV1(**{
             "name": "image",
             "org": {"name": "org", "instance": {"url": "url"}},
         })
@@ -530,9 +530,10 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242",
             ),
         ]
+        actual = saasherder.get_moving_commits_diff_saas_file(self.saas_file, True)
 
         self.assertEqual(
-            saasherder.get_moving_commits_diff_saas_file(self.saas_file, True),
+            actual,
             expected,
         )
 

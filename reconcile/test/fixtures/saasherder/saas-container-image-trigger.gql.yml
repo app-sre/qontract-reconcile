@@ -78,8 +78,8 @@ resourceTemplates:
         internal: true
     ref: main
     path: openshift/deploy-template.yml
-    image:
-      org:
+    images:
+    - org:
         instance:
           url: quay.io
         name: centos

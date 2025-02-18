@@ -22392,18 +22392,6 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "image",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "SaasResourceTemplateTargetImage_v1",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "disable",
                             "description": null,
                             "args": [],

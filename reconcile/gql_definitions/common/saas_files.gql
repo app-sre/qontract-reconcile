@@ -168,15 +168,6 @@ query SaasFiles {
           }
           name
         }
-        image {
-          org {
-            name
-            instance {
-              url
-            }
-          }
-          name
-        }
         images {
           org {
             name
