@@ -324,9 +324,6 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
     def upstream(self) -> SaasResourceTemplateTargetUpstream | None: ...
 
     @property
-    def image(self) -> SaasResourceTemplateTargetImage | None: ...
-
-    @property
     def images(self) -> Sequence[SaasResourceTemplateTargetImage] | None: ...
 
     def uid(

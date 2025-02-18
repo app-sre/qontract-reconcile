@@ -293,15 +293,6 @@ query SaasFiles {
           }
           name
         }
-        image {
-          org {
-            name
-            instance {
-              url
-            }
-          }
-          name
-        }
         images {
           org {
             name
@@ -517,20 +508,6 @@ class SaasResourceTemplateTargetImageV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1_QuayInstanceV1(ConfiguredBaseModel):
-    url: str = Field(..., alias="url")
-
-
-class SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    instance: SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1_QuayInstanceV1 = Field(..., alias="instance")
-
-
-class SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1(ConfiguredBaseModel):
-    org: SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1 = Field(..., alias="org")
-    name: str = Field(..., alias="name")
-
-
 class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     path: Optional[str] = Field(..., alias="path")
     name: Optional[str] = Field(..., alias="name")
@@ -542,8 +519,7 @@ class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     parameters: Optional[Json] = Field(..., alias="parameters")
     secret_parameters: Optional[list[SaasResourceTemplateTargetV2_SaasSecretParametersV1]] = Field(..., alias="secretParameters")
     upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(..., alias="upstream")
-    image: Optional[SaasResourceTemplateTargetImageV1] = Field(..., alias="image")
-    images: Optional[list[SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1]] = Field(..., alias="images")
+    images: Optional[list[SaasResourceTemplateTargetImageV1]] = Field(..., alias="images")
     disable: Optional[bool] = Field(..., alias="disable")
     delete: Optional[bool] = Field(..., alias="delete")
 

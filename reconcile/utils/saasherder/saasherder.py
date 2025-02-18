@@ -560,7 +560,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         resource_template_name: str,
         target: SaasResourceTemplateTarget,
     ) -> None:
-        if target.image and target.upstream:
+        if target.images and target.upstream:
             logging.error(
                 f"[{saas_file_name}/{resource_template_name}] image used with upstream"
             )
@@ -572,7 +572,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         resource_template_name: str,
         target: SaasResourceTemplateTarget,
     ) -> None:
-        if target.image and is_commit_sha(target.ref):
+        if target.images and is_commit_sha(target.ref):
             logging.error(
                 f"[{saas_file_name}/{resource_template_name}] "
                 f'Attempt to use the "image" directive with commit sha: {target.ref}. '
@@ -1440,7 +1440,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             for target in rt.targets:
                 try:
                     # don't trigger if there is a linked upstream job or container image
-                    if target.upstream or target.image:
+                    if target.upstream or target.images:
                         continue
 
                     desired_commit_sha = self._get_commit_sha(
@@ -1620,12 +1620,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         for rt in saas_file.resource_templates:
             for target in rt.targets:
                 try:
-                    if not (target.image or target.images):
+                    if not target.images:
                         continue
-                    if target.image and target.images:
-                        raise TriggerSpecContainerImageError(
-                            '"image" and "images" are mutually exclusive. Do not set both in the same saas target.'
-                        )
                     commit_sha = self._get_commit_sha(
                         url=rt.url,
                         ref=target.ref,
@@ -1634,7 +1630,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     image_auth = self._initiate_image_auth(saas_file)
                     desired_image_tag = commit_sha[: rt.hash_length or self.hash_length]
 
-                    all_images = [target.image] if target.image else target.images or []
+                    all_images = target.images or []
                     image_registries = [
                         f"{image.org.instance.url}/{image.org.name}/{image.name}"
                         for image in all_images
