@@ -1,10 +1,12 @@
 # qenerate: plugin=pydantic_v1
 
-query FleetLabels {
-    fleet_labels: fleet_labels_v1 {
+query FleetLabelSpecs {
+    fleet_labels_specs: fleet_labels_specs_v1 {
         name
+        path
         managedSubscriptionLabelPrefix
-        ocms {
+        ocm {
+            name
             environment {
                 url
             }
