@@ -11,12 +11,13 @@ def test_outputs(mocker: MockerFixture) -> None:
     secret_data = {
         "test-01__arn": base64.b64encode(b"an_arn").decode(),
         "test-01__resource_name": base64.b64encode(b"a_resource_name").decode(),
-        "debug_output": "Zm9vCg==",  # Should not land into the secret as it not contains "__"
+        "debug_output": "Zm9vCg==",
     }
 
     expected_data = {
         "arn": "an_arn",
         "resource_name": "a_resource_name",
+        "debug_output": "foo\n",
     }
 
     formatter = OutputSecretsFormatter(secret_reader=mocker.Mock())
