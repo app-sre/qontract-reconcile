@@ -181,7 +181,7 @@ data:
             "showCommonLabels": false,
             "showLabels": false,
             "showTime": true,
-            "sortOrder": "Descending",
+            "sortOrder": "Ascending",
             "wrapLogMessage": true
           },
           "targets": [
@@ -433,7 +433,7 @@ data:
         "list": [
           {
             "current": {
-              "selected": true,
+              "selected": false,
               "text": "appsrep09ue1-prometheus",
               "value": "P7B77307D2CE073BC"
             },
@@ -452,9 +452,9 @@ data:
           {
             "allValue": ".+",
             "current": {
-              "selected": true,
-              "text": "tf-repo-push-deploy-pipelinerungn2k9",
-              "value": "tf-repo-push-deploy-pipelinerungn2k9"
+              "selected": false,
+              "text": "All",
+              "value": "$__all"
             },
             "datasource": {
               "type": "prometheus",
@@ -471,7 +471,7 @@ data:
               "query": "label_values(kube_pod_info{namespace=\"terraform-repo-production\", pod=~\"tf-repo.+\"},pod)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
-            "refresh": 1,
+            "refresh": 2,
             "regex": "/(tf-repo-push-deploy-pipelinerun.+)-tf-executor/",
             "skipUrlSync": false,
             "sort": 1,
