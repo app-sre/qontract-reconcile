@@ -180,6 +180,15 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         if not (cluster_ids_to_delete or clusters_to_add):
             return
 
+        for yaml_cluster in clusters_to_add:
+            logging.info(
+                f"[{spec.name}] Adding cluster '{yaml_cluster.name}' with id '{yaml_cluster.cluster_id}' to inventory with default labels {yaml_cluster.subscription_labels_content}."
+            )
+        for cluster_id in cluster_ids_to_delete:
+            logging.info(
+                f"[{spec.name}] Deleting cluster {cluster_id=} from inventory."
+            )
+
         current_content = vcs.get_file_content_from_main(path=spec.path)
         # Lets make sure we are deterministic when adding new clusters
         # The overhead is neglectable and it makes testing easier
