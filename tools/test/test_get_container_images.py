@@ -1,8 +1,7 @@
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.gql_definitions.common.namespaces_minimal import ClusterV1, NamespaceV1
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.common.namespaces import NamespaceV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import OCNative
 from reconcile.utils.oc_map import OCMap
@@ -25,60 +24,9 @@ def pipeline_pods() -> list[dict]:
 
 @pytest.fixture
 def namespaces() -> list[NamespaceV1]:
-    return [
-        NamespaceV1(
-            name="app-sre-observability-stage",
-            delete=None,
-            labels="{}",
-            clusterAdmin=None,
-            cluster=ClusterV1(
-                name="appsres09ue1",
-                serverUrl="https://api.appsres09ue1.24ep.p3.openshiftapps.com:443",
-                insecureSkipTLSVerify=None,
-                jumpHost=None,
-                automationToken=VaultSecret(
-                    path="app-sre/integrations-output/openshift-cluster-bots/appsres09ue1",
-                    field="token",
-                    version=None,
-                    format=None,
-                ),
-                clusterAdminAutomationToken=VaultSecret(
-                    path="app-sre/integrations-output/openshift-cluster-bots/appsres09ue1-cluster-admin",
-                    field="token",
-                    version=None,
-                    format=None,
-                ),
-                internal=True,
-                disable=None,
-            ),
-        ),
-        NamespaceV1(
-            name="app-sre-pipelines",
-            delete=None,
-            labels='{"provider": "tekton"}',
-            clusterAdmin=None,
-            cluster=ClusterV1(
-                name="appsres09ue1",
-                serverUrl="https://api.appsres09ue1.24ep.p3.openshiftapps.com:443",
-                insecureSkipTLSVerify=None,
-                jumpHost=None,
-                automationToken=VaultSecret(
-                    path="app-sre/integrations-output/openshift-cluster-bots/appsres09ue1",
-                    field="token",
-                    version=None,
-                    format=None,
-                ),
-                clusterAdminAutomationToken=VaultSecret(
-                    path="app-sre/integrations-output/openshift-cluster-bots/appsres09ue1-cluster-admin",
-                    field="token",
-                    version=None,
-                    format=None,
-                ),
-                internal=True,
-                disable=None,
-            ),
-        ),
-    ]
+    pipelines_ns = fxt.get_anymarkup("app-sre-pipelines-namespace.yaml")
+    observability_ns = fxt.get_anymarkup("app-sre-observability-stage-namespace.yaml")
+    return [NamespaceV1(**observability_ns), NamespaceV1(**pipelines_ns)]
 
 
 @pytest.fixture
@@ -110,41 +58,49 @@ def test_fetch_no_filter(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
         {
             "name": "quay.io/app-sre/clamav",
             "namespaces": "app-sre-pipelines",
+            "apps": "app-sre",
             "count": 1,
         },
         {
             "name": "quay.io/app-sre/internal-redhat-ca",
             "namespaces": "app-sre-observability-stage,app-sre-pipelines",
+            "apps": "app-sre,app-sre-observability",
             "count": 3,
         },
         {
             "name": "quay.io/app-sre/prom-cloudwatch-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "quay.io/prometheus/blackbox-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "quay.io/redhat-appstudio/clamav-db",
             "namespaces": "app-sre-pipelines",
+            "apps": "app-sre",
             "count": 1,
         },
         {
             "name": "quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "quay.io/redhatproductsecurity/rapidast",
             "namespaces": "app-sre-pipelines",
+            "apps": "app-sre",
             "count": 1,
         },
         {
             "name": "registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8",
             "namespaces": "app-sre-pipelines",
+            "apps": "app-sre",
             "count": 3,
         },
     ]
@@ -161,11 +117,13 @@ def test_fetch_exclude_pattern(namespaces: list[NamespaceV1], oc_map: OCMap) -> 
         {
             "name": "quay.io/prometheus/blackbox-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8",
             "namespaces": "app-sre-pipelines",
+            "apps": "app-sre",
             "count": 3,
         },
     ]
@@ -182,6 +140,7 @@ def test_fetch_include_pattern(namespaces: list[NamespaceV1], oc_map: OCMap) -> 
         {
             "name": "registry.redhat.io/openshift-pipelines/pipelines-entrypoint-rhel8",
             "namespaces": "app-sre-pipelines",
+            "apps": "app-sre",
             "count": 3,
         },
     ]
@@ -205,26 +164,31 @@ def test_fetch_exception(
         {
             "name": "quay.io/app-sre/internal-redhat-ca",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 2,
         },
         {
             "name": "quay.io/app-sre/prom-cloudwatch-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "quay.io/prometheus/blackbox-exporter",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main",
             "namespaces": "app-sre-observability-stage",
+            "apps": "app-sre-observability",
             "count": 1,
         },
         {
             "name": "error",
             "namespaces": "app-sre-pipelines/generic error",
+            "apps": "",
             "count": 1,
         },
     ]
