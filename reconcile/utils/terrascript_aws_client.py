@@ -5295,6 +5295,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             lb_access_logs_s3_bucket_values = {
                 "provider": provider,
                 "bucket": bucket_identifier,
+                "force_destroy": True,
             }
             lb_access_logs_s3_bucket_tf_resource = aws_s3_bucket(
                 bucket_identifier, **lb_access_logs_s3_bucket_values
