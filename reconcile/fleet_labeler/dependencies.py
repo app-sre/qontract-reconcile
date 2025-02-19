@@ -27,10 +27,12 @@ class Dependencies:
         label_specs_by_name: Mapping[str, FleetLabelsSpecV1],
         ocm_clients_by_label_spec_name: Mapping[str, OCMClient],
         vcs: VCS,
+        dry_run: bool,
     ):
         self.label_specs_by_name = label_specs_by_name
         self.ocm_clients_by_label_spec_name = ocm_clients_by_label_spec_name
         self.vcs = vcs
+        self.dry_run = dry_run
 
     @classmethod
     def create(
@@ -42,6 +44,7 @@ class Dependencies:
             label_specs_by_name=_label_specs(),
             ocm_clients_by_label_spec_name=_ocm_clients(secret_reader=secret_reader),
             vcs=_vcs(secret_reader=secret_reader, dry_run=dry_run),
+            dry_run=dry_run,
         )
 
 
