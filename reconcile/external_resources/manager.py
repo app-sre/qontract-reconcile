@@ -133,6 +133,40 @@ class ExternalResourcesManager:
         self.thread_pool_size = thread_pool_size
         self.dry_runs_validator = dry_runs_validator
 
+    def _resource_spec_changed(
+        self, reconciliation: Reconciliation, state: ExternalResourceState
+    ) -> bool:
+        return reconciliation.resource_hash != state.reconciliation.resource_hash
+
+    def _resource_drift_detection_ttl_expired(
+        self, reconciliation: Reconciliation, state: ExternalResourceState
+    ) -> bool:
+        return (datetime.now(state.ts.tzinfo) - state.ts).total_seconds() > (
+            reconciliation.module_configuration.reconcile_drift_interval_minutes * 60
+        )
+
+    def _reconciliation_module_config_overriden(
+        self, reconciliation: Reconciliation, state: ExternalResourceState
+    ) -> bool:
+        return reconciliation.module_configuration.overriden and (
+            reconciliation.module_configuration.image_version
+            != state.reconciliation.module_configuration.image_version
+        )
+
+    def _reconciliation_needs_dry_run_run(
+        self, reconciliation: Reconciliation, state: ExternalResourceState
+    ) -> bool:
+        return (
+            reconciliation.action == Action.APPLY
+            and (
+                self._resource_spec_changed(reconciliation, state)
+                or self._reconciliation_module_config_overriden(reconciliation, state)
+            )
+        ) or (
+            reconciliation.action == Action.DESTROY
+            and not state.resource_status.is_in_progress
+        )
+
     def _get_reconcile_action(
         self, reconciliation: Reconciliation, state: ExternalResourceState
     ) -> ReconcileAction:
@@ -145,17 +179,16 @@ class ExternalResourcesManager:
                 case ResourceStatus.ERROR:
                     return ReconcileAction.APPLY_ERROR
                 case ResourceStatus.CREATED | ResourceStatus.PENDING_SECRET_SYNC:
-                    if (
-                        reconciliation.resource_hash
-                        != state.reconciliation.resource_hash
-                    ):
+                    if self._resource_spec_changed(reconciliation, state):
                         return ReconcileAction.APPLY_SPEC_CHANGED
-                    elif (
-                        (datetime.now(state.ts.tzinfo) - state.ts).total_seconds()
-                        > reconciliation.module_configuration.reconcile_drift_interval_minutes
-                        * 60
+                    elif self._resource_drift_detection_ttl_expired(
+                        reconciliation, state
                     ):
                         return ReconcileAction.APPLY_DRIFT_DETECTION
+                    elif self._reconciliation_module_config_overriden(
+                        reconciliation, state
+                    ):
+                        return ReconcileAction.APPLY_MODULE_CONFIG_OVERRIDEN
         elif reconciliation.action == Action.DESTROY:
             match state.resource_status:
                 case ResourceStatus.CREATED:
@@ -411,18 +444,13 @@ class ExternalResourcesManager:
         self.dry_runs_validator.validate()
         desired_r = self._get_desired_objects_reconciliations()
         deleted_r = self._get_deleted_objects_reconciliations()
-        reconciliations = desired_r.union(deleted_r)
-        triggered: set[Reconciliation] = set()
-
-        for r in reconciliations:
-            state = self.state_mgr.get_external_resource_state(key=r.key)
-            if (
-                r.action == Action.APPLY
-                and state.reconciliation.resource_hash != r.resource_hash
-            ) or (
-                r.action == Action.DESTROY and not state.resource_status.is_in_progress
-            ):
-                triggered.add(r)
+        triggered = {
+            r
+            for r in desired_r.union(deleted_r)
+            if self._reconciliation_needs_dry_run_run(
+                r, self.state_mgr.get_external_resource_state(key=r.key)
+            )
+        }
 
         threaded.run(
             self.reconciler.reconcile_resource,
