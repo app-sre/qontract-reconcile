@@ -23,7 +23,7 @@ class VCS:
             )
         except GitlabGetError as e:
             if e.response_code != 404:
-                raise e
+                raise
             raise Gitlab404Error(
                 f"File at ${path} does not exist yet in main branch. Maybe it is just being created with this MR?"
             ) from e

@@ -203,7 +203,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         # If the content exists in main, then it doesnt harm to also run the rendering procedure.
         try:
             current_content = vcs.get_file_content_from_main(path=spec.path)
-        except Gitlab404Error as e:
+        except Gitlab404Error:
             if dry_run:
                 logging.info(
                     f"The file data{spec.path} does not exist in main branch yet. This is likely because it is being created with this MR. We are skipping rendering steps."
@@ -211,7 +211,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 return
             # 404 must never happen on non-dry-run, as the file must have already passed
             # MR check and must have been merged to main
-            raise e
+            raise
 
         # Lets make sure we are deterministic when adding new clusters
         # The overhead is neglectable and it makes testing easier
