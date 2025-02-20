@@ -7,7 +7,7 @@ from collections.abc import ItemsView, Iterable, Iterator, MutableMapping
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from reconcile.external_resources.meta import (
     FLAG_DELETE_RESOURCE,
@@ -263,6 +263,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     outputs_secret_image: str = ""
     outputs_secret_version: str = ""
     resources: Resources = Resources()
+    overridden: bool = Field(default=False, exclude=True)
 
     @property
     def image_version(self) -> str:
@@ -278,17 +279,19 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
         spec: ExternalResourceSpec,
         settings: ExternalResourcesSettingsV1,
     ) -> "ExternalResourceModuleConfiguration":
-        module_overrides = spec.metadata.get(
-            "module_overrides"
-        ) or ExternalResourcesModuleOverrides(
-            module_type=None,
-            image=None,
-            version=None,
-            reconcile_timeout_minutes=None,
-            outputs_secret_image=None,
-            outputs_secret_version=None,
-            resources=None,
-        )
+        module_overrides = spec.metadata.get("module_overrides")
+        overridden = module_overrides is not None
+
+        if module_overrides is None:
+            module_overrides = ExternalResourcesModuleOverrides(
+                module_type=None,
+                image=None,
+                version=None,
+                reconcile_timeout_minutes=None,
+                outputs_secret_image=None,
+                outputs_secret_version=None,
+                resources=None,
+            )
 
         return ExternalResourceModuleConfiguration(
             image=module_overrides.image or module.image,
@@ -307,6 +310,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
                 or module.resources
                 or settings.module_default_resources
             ),
+            overridden=overridden,
         )
 
 
@@ -358,6 +362,7 @@ class ReconcileAction(StrEnum):
     APPLY_SPEC_CHANGED = "Resource spec has changed"
     APPLY_DRIFT_DETECTION = "Resource drift detection run"
     APPLY_USER_REQUESTED = "Resource reconciliation requested"
+    APPLY_MODULE_CONFIG_OVERRIDDEN = "Module configuration overridden"
     DESTROY_CREATED = "Resource no longer exists in the configuration"
     DESTROY_ERROR = "Resource status in ERROR state"
 
