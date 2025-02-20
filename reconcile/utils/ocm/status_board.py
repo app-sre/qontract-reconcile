@@ -2,6 +2,7 @@ from typing import Any
 
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
+SERVICE_DESIRED_KEYS = {"id", "name", "fullname", "metadata"}
 APPLICATION_DESIRED_KEYS = {"id", "name", "fullname", "metadata"}
 PRODUCTS_DESIRED_KEYS = {"id", "name", "fullname", "metadata"}
 
@@ -24,6 +25,25 @@ def get_product_applications(
         ):
             results.append({  # noqa: PERF401
                 k: v for k, v in application.items() if k in APPLICATION_DESIRED_KEYS
+            })
+
+    return results
+
+
+def get_application_services(
+    ocm_api: OCMBaseClient, app_id: str
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+
+    for service in ocm_api.get_paginated(
+        f"/api/status-board/v1/applications/{app_id}/services"
+    ):
+        if (
+            service.get("metadata", {}).get(METADATA_MANAGED_BY_KEY, "")
+            == METADATA_MANAGED_BY_VALUE
+        ):
+            results.append({  # noqa: PERF401
+                k: v for k, v in service.items() if k in SERVICE_DESIRED_KEYS
             })
 
     return results
