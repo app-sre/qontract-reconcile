@@ -139,12 +139,19 @@ def test_get_diff_create_app() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"foo", "bar"}},
-        [Product(name="foo", fullname="foo", applications=[])],
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+            "foo/foo": {"product": "foo", "type": "app", "app": "foo"},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""}
+        },
+        current_products={"foo": Product(name="foo", fullname="foo", applications=[])},
     )
 
     assert len(h) == 2
-    assert h[0].action == h[1].action == "create"
+    assert h[0].action == h[1].action == Action.create
     assert isinstance(h[0].status_board_object, Application)
     assert isinstance(h[1].status_board_object, Application)
     assert sorted([x.status_board_object.name for x in h]) == ["bar", "foo"]
@@ -153,20 +160,28 @@ def test_get_diff_create_app() -> None:
 
 def test_get_diff_create_one_app() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"foo", "bar"}},
-        [
-            Product(
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+            "foo/foo": {"product": "foo", "type": "app", "app": "foo"},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
-
     assert len(h) == 1
-    assert h[0].action == "create"
+    assert h[0].action == Action.create
     assert isinstance(h[0].status_board_object, Application)
     assert h[0].status_board_object.name == "foo"
     assert h[0].status_board_object.fullname == "foo/foo"
@@ -176,12 +191,17 @@ def test_get_diff_create_product_and_apps() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"foo", "bar"}},
-        [],
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+            "foo/foo": {"product": "foo", "type": "app", "app": "foo"},
+        },
+        current_abstract_status_board_map={},
+        current_products={},
     )
 
     assert len(h) == 3
-    assert h[0].action == "create"
+    assert h[0].action == Action.create
     assert isinstance(h[0].status_board_object, Product)
     assert isinstance(h[1].status_board_object, Application)
     assert isinstance(h[2].status_board_object, Application)
@@ -189,57 +209,75 @@ def test_get_diff_create_product_and_apps() -> None:
 
 def test_get_diff_noop() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"bar"}},
-        [
-            Product(
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
-
     assert len(h) == 0
 
 
 def test_get_diff_delete_app() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": set()},
-        [
-            Product(
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
 
     assert len(h) == 1
-    assert h[0].action == "delete"
+    assert h[0].action == Action.delete
     assert isinstance(h[0].status_board_object, Application)
     assert h[0].status_board_object.name == "bar"
 
 
 def test_get_diff_delete_apps_and_product() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {},
-        [
-            Product(
+        desired_abstract_status_board_map={},
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
-
     assert len(h) == 2
-    assert h[0].action == h[1].action == "delete"
+    assert h[0].action == h[1].action == Action.delete
     assert isinstance(h[0].status_board_object, Application)
     assert isinstance(h[1].status_board_object, Product)
 
