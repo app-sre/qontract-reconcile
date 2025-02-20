@@ -16,7 +16,7 @@ from reconcile.fleet_labeler.meta import (
 from reconcile.fleet_labeler.metrics import FleetLabelerDuplicateClusterMatchesGauge
 from reconcile.fleet_labeler.ocm import OCMClient
 from reconcile.fleet_labeler.validate import validate_label_specs
-from reconcile.fleet_labeler.vcs import VCS
+from reconcile.fleet_labeler.vcs import VCS, Gitlab404Error
 from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
     FleetLabelDefaultV1,
     FleetLabelsSpecV1,
@@ -60,7 +60,10 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         validate_label_specs(specs=dependencies.label_specs_by_name)
         for spec_name, ocm in dependencies.ocm_clients_by_label_spec_name.items():
             self._sync_cluster_inventory(
-                ocm, dependencies.label_specs_by_name[spec_name], dependencies.vcs
+                ocm=ocm,
+                spec=dependencies.label_specs_by_name[spec_name],
+                vcs=dependencies.vcs,
+                dry_run=dependencies.dry_run,
             )
 
     def _render_default_labels(
@@ -112,7 +115,11 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             return stream.getvalue()
 
     def _sync_cluster_inventory(
-        self, ocm: OCMClient, spec: FleetLabelsSpecV1, vcs: VCS
+        self,
+        ocm: OCMClient,
+        spec: FleetLabelsSpecV1,
+        vcs: VCS,
+        dry_run: bool,
     ) -> None:
         class ClusterData(BaseModel):
             """
@@ -189,7 +196,23 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 f"[{spec.name}] Deleting cluster {cluster_id=} from inventory."
             )
 
-        current_content = vcs.get_file_content_from_main(path=spec.path)
+        # When adding a new label spec file, then we dont have any existing content in main yet.
+        # This is a chicken-egg problem, but if we are in dry-run we can skip these steps on 404s.
+        # Note, that the diff is already printed above, so we can make a good decision if desired
+        # content fits.
+        # If the content exists in main, then it doesnt harm to also run the rendering procedure.
+        try:
+            current_content = vcs.get_file_content_from_main(path=spec.path)
+        except Gitlab404Error:
+            if dry_run:
+                logging.info(
+                    f"The file data{spec.path} does not exist in main branch yet. This is likely because it is being created with this MR. We are skipping rendering steps."
+                )
+                return
+            # 404 must never happen on non-dry-run, as the file must have already passed
+            # MR check and must have been merged to main
+            raise
+
         # Lets make sure we are deterministic when adding new clusters
         # The overhead is neglectable and it makes testing easier
         sorted_clusters_to_add = sorted(clusters_to_add, key=lambda c: c.name)

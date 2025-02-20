@@ -33,9 +33,12 @@ def build_cluster(
     )
 
 
-def build_vcs(content: str = "") -> Mock:
+def build_vcs(content: str = "", error: Exception | None = None) -> Mock:
     vcs = create_autospec(spec=VCS)
-    vcs.get_file_content_from_main.return_value = content
+    if error:
+        vcs.get_file_content_from_main.side_effect = error
+    else:
+        vcs.get_file_content_from_main.return_value = content
     return vcs
 
 
