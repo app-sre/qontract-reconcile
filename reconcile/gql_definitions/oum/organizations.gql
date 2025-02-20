@@ -1,0 +1,14 @@
+# qenerate: plugin=pydantic_v1
+
+query OUMOrganizations {
+  organizations: ocm_instances_v1 {
+    name
+    environment {
+      ...OCMEnvironment
+    }
+    orgId
+    disable {
+      ...DisableAutomations
+    }
+  }
+}
