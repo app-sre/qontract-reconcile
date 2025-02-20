@@ -140,10 +140,17 @@ class Service(AbstractStatusBoard):
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
-            logging.error(f'Trying to delete Application "{self.name}" without id')
+            logging.error(f'Trying to delete Service "{self.name}" without id')
             return
         # TODO: Implement delete_service
-        # delete_application(ocm, self.id)
+        # delete_service(ocm, self.id)
+
+    def update(self, ocm: OCMBaseClient) -> None:
+        if not self.id:
+            logging.error(f'Trying to update Service "{self.name}" without id')
+            return
+        # TODO: Implement update_service logic
+        # update_service(ocm, self.id)
 
     def summarize(self) -> str:
         return f'Service: "{self.name}" "{self.fullname}"'
@@ -151,6 +158,10 @@ class Service(AbstractStatusBoard):
     @staticmethod
     def get_priority() -> int:
         return 2
+
+
+class UpdateNotSupported(Exception):
+    pass
 
 
 class StatusBoardHandler(BaseModel):
@@ -167,6 +178,14 @@ class StatusBoardHandler(BaseModel):
                 self.status_board_object.delete(ocm)
             case Action.create:
                 self.status_board_object.create(ocm)
+            case Action.update:
+                if isinstance(self.status_board_object, Service):
+                    self.status_board_object.update(ocm)
+                err_msg = (
+                    "Called update on StatusBoadHandler that doesn't have update method"
+                )
+                logging.error(err_msg)
+                raise UpdateNotSupported(err_msg)
 
 
 class StatusBoardExporterIntegration(QontractReconcileIntegration):
@@ -316,6 +335,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 name=app_name,
                 fullname=f"{product.name}/{app_name}",
                 product=product,
+                services=[],
             )
 
         return_list: list[StatusBoardHandler] = []
@@ -479,7 +499,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             name = s["service"]
             fullname = f"{product.name}/{application.name}/{name}"
             metadata = s["metadata"]
-            service = Service(id=service_id, name=name, fullname=fullname, metadata=metadata)
+            service = Service(
+                id=service_id, name=name, fullname=fullname, metadata=metadata
+            )
 
             return_list.append(
                 StatusBoardHandler(action=Action.update, status_board_object=service)
