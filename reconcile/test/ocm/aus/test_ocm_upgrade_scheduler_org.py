@@ -9,6 +9,9 @@ from reconcile.aus.models import (
     NodePoolSpec,
     OrganizationUpgradeSpec,
 )
+from reconcile.aus.ocm_addons_upgrade_scheduler_org import (
+    OCMAddonsUpgradeSchedulerOrgIntegration,
+)
 from reconcile.aus.ocm_upgrade_scheduler_org import (
     OCMClusterUpgradeSchedulerOrgIntegration,
 )
@@ -18,6 +21,7 @@ from reconcile.gql_definitions.fragments.aus_organization import (
 )
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.test.ocm.aus.fixtures import (
+    build_addon_upgrade_spec,
     build_organization,
     build_upgrade_policy_cluster,
 )
@@ -42,6 +46,12 @@ def setup_mocks(
         ),
         "init_ocm_base_client": mocker.patch(
             "reconcile.aus.ocm_upgrade_scheduler_org.init_ocm_base_client",
+        ),
+        "init_ocm_base_client_for_org": mocker.patch(
+            "reconcile.aus.ocm_addons_upgrade_scheduler_org.init_ocm_base_client_for_org",
+        ),
+        "get_version_data_map": mocker.patch(
+            "reconcile.aus.base.get_version_data_map",
         ),
         "discover_clusters_for_organizations": mocker.patch(
             "reconcile.aus.ocm_upgrade_scheduler_org.discover_clusters_for_organizations",
@@ -151,3 +161,56 @@ def test_get_ocm_env_upgrade_specs_for_org_without_clusters(
     upgrade_specs = integration.get_ocm_env_upgrade_specs(ocm_env)
 
     assert upgrade_specs == expected_upgrade_specs
+
+
+def test_addons_upgrade_scheduler_process_upgrade_policies_in_org(
+    mocker: MockerFixture,
+    ocm_env: OCMEnvironment,
+) -> None:
+    org = build_organization(org_id=ORG_ID)
+    addon1 = build_addon_upgrade_spec(cluster_name="cluster-1", addon_id="addon-1")
+    addon2 = build_addon_upgrade_spec(cluster_name="cluster-1", addon_id="addon-2")
+    org_upgrade_spec = OrganizationUpgradeSpec(
+        org=org,
+        specs=[
+            addon1,
+            addon2,
+        ],
+    )
+    setup_mocks(
+        mocker,
+        orgs=[org],
+        clusters=[],
+    )
+    integration = OCMAddonsUpgradeSchedulerOrgIntegration(
+        params=AdvancedUpgradeSchedulerBaseIntegrationParams(
+            ocm_organization_ids={ORG_ID},
+            excluded_ocm_organization_ids=set(),
+        ),
+    )
+    expose_remaining_soak_day_metrics = mocker.patch.object(
+        integration, "expose_remaining_soak_day_metrics"
+    )
+
+    integration.process_upgrade_policies_in_org(
+        dry_run=True,
+        org_upgrade_spec=org_upgrade_spec,
+    )
+
+    assert expose_remaining_soak_day_metrics.call_count == 2
+    assert (
+        len(
+            expose_remaining_soak_day_metrics.call_args_list[0]
+            .kwargs["org_upgrade_spec"]
+            .specs
+        )
+        == 1
+    )
+    assert (
+        len(
+            expose_remaining_soak_day_metrics.call_args_list[1]
+            .kwargs["org_upgrade_spec"]
+            .specs
+        )
+        == 1
+    )
