@@ -7,6 +7,7 @@ from pytest_mock import MockerFixture
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.status_board import (
     AbstractStatusBoard,
+    Action,
     Application,
     Product,
     StatusBoardExporterIntegration,
@@ -18,6 +19,7 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 class StatusBoardStub(AbstractStatusBoard):
     created: bool | None = False
     deleted: bool | None = False
+    updated: bool | None = False
     summarized: bool | None = False
 
     def create(self, ocm: OCMBaseClient) -> None:
@@ -25,6 +27,9 @@ class StatusBoardStub(AbstractStatusBoard):
 
     def delete(self, ocm: OCMBaseClient) -> None:
         self.deleted = True
+
+    def update(self, ocm: OCMBaseClient) -> None:
+        self.updated = True
 
     def summarize(self) -> str:
         self.summarized = True
@@ -95,7 +100,7 @@ def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoard
 def test_status_board_handler(mocker: MockerFixture) -> None:
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
-        action="create",
+        action=Action.create,
         status_board_object=StatusBoardStub(name="foo", fullname="foo"),
     )
 
@@ -105,13 +110,23 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     assert h.status_board_object.summarized
 
     h = StatusBoardHandler(
-        action="delete",
+        action=Action.delete,
         status_board_object=StatusBoardStub(name="foo", fullname="foo"),
     )
 
     h.act(dry_run=False, ocm=ocm)
     assert isinstance(h.status_board_object, StatusBoardStub)
     assert h.status_board_object.deleted
+    assert h.status_board_object.summarized
+
+    h = StatusBoardHandler(
+        action=Action.update,
+        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
+    )
+
+    h.act(dry_run=False, ocm=ocm)
+    assert isinstance(h.status_board_object, StatusBoardStub)
+    assert h.status_board_object.updated
     assert h.status_board_object.summarized
 
 
