@@ -88,7 +88,8 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                     addon_id=addon_id,
                     integration=self.name,
                 ).get(
-                    org_upgrade_spec.org.environment.name, org_upgrade_spec.org.org_id
+                    addon_org_upgrade_spec.org.environment.name,
+                    addon_org_upgrade_spec.org.org_id,
                 )
 
                 addon_current_state: list[AddonUpgradePolicy] = [
@@ -98,13 +99,13 @@ class OCMAddonsUpgradeSchedulerOrgIntegration(
                 ]
 
                 self.expose_remaining_soak_day_metrics(
-                    org_upgrade_spec=org_upgrade_spec,
+                    org_upgrade_spec=addon_org_upgrade_spec,
                     version_data=version_data,
                     current_state=addon_current_state,
                     metrics_builder=functools.partial(
                         AUSAddonVersionRemainingSoakDaysGauge,
                         integration=self.name,
-                        ocm_env=org_upgrade_spec.org.environment.name,
+                        ocm_env=addon_org_upgrade_spec.org.environment.name,
                         addon=addon_id,
                     ),
                 )
