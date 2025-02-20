@@ -145,10 +145,10 @@ class ExternalResourcesManager:
             reconciliation.module_configuration.reconcile_drift_interval_minutes * 60
         )
 
-    def _reconciliation_module_config_overriden(
+    def _reconciliation_module_config_overridden(
         self, reconciliation: Reconciliation, state: ExternalResourceState
     ) -> bool:
-        return reconciliation.module_configuration.overriden and (
+        return reconciliation.module_configuration.overridden and (
             reconciliation.module_configuration.image_version
             != state.reconciliation.module_configuration.image_version
         )
@@ -160,7 +160,7 @@ class ExternalResourcesManager:
             reconciliation.action == Action.APPLY
             and (
                 self._resource_spec_changed(reconciliation, state)
-                or self._reconciliation_module_config_overriden(reconciliation, state)
+                or self._reconciliation_module_config_overridden(reconciliation, state)
             )
         ) or (
             reconciliation.action == Action.DESTROY
@@ -185,10 +185,10 @@ class ExternalResourcesManager:
                         reconciliation, state
                     ):
                         return ReconcileAction.APPLY_DRIFT_DETECTION
-                    elif self._reconciliation_module_config_overriden(
+                    elif self._reconciliation_module_config_overridden(
                         reconciliation, state
                     ):
-                        return ReconcileAction.APPLY_MODULE_CONFIG_OVERRIDEN
+                        return ReconcileAction.APPLY_MODULE_CONFIG_OVERRIDDEN
         elif reconciliation.action == Action.DESTROY:
             match state.resource_status:
                 case ResourceStatus.CREATED:

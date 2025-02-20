@@ -263,7 +263,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     outputs_secret_image: str = ""
     outputs_secret_version: str = ""
     resources: Resources = Resources()
-    overriden: bool = Field(default=False, exclude=True)
+    overridden: bool = Field(default=False, exclude=True)
 
     @property
     def image_version(self) -> str:
@@ -280,7 +280,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
         settings: ExternalResourcesSettingsV1,
     ) -> "ExternalResourceModuleConfiguration":
         module_overrides = spec.metadata.get("module_overrides")
-        overriden = module_overrides is not None
+        overridden = module_overrides is not None
 
         if module_overrides is None:
             module_overrides = ExternalResourcesModuleOverrides(
@@ -310,7 +310,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
                 or module.resources
                 or settings.module_default_resources
             ),
-            overriden=overriden,
+            overridden=overridden,
         )
 
 
@@ -362,7 +362,7 @@ class ReconcileAction(StrEnum):
     APPLY_SPEC_CHANGED = "Resource spec has changed"
     APPLY_DRIFT_DETECTION = "Resource drift detection run"
     APPLY_USER_REQUESTED = "Resource reconciliation requested"
-    APPLY_MODULE_CONFIG_OVERRIDEN = "Module configuration overriden"
+    APPLY_MODULE_CONFIG_OVERRIDDEN = "Module configuration overridden"
     DESTROY_CREATED = "Resource no longer exists in the configuration"
     DESTROY_ERROR = "Resource status in ERROR state"
 
