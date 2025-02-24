@@ -18,6 +18,7 @@ from reconcile.dynatrace_token_provider.ocm import (
     DTP_LABEL_SEARCH,
     DTP_TENANT_LABEL,
     Cluster,
+    OCMAPIError,
     OCMClient,
 )
 from reconcile.dynatrace_token_provider.validate import validate_token_specs
@@ -133,7 +134,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         validate_token_specs(specs=token_specs)
 
         with metrics.transactional_metrics(self.name):
-            unhandled_exceptions = []
+            unhandled_exceptions: list[tuple[Exception, str]] = []
             for ocm_env_name, ocm_client in dependencies.ocm_client_by_env_name.items():
                 clusters: list[Cluster] = []
                 try:
@@ -143,7 +144,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                         ),
                     )
                 except Exception as e:
-                    unhandled_exceptions.append(f"{ocm_env_name}: {e}")
+                    unhandled_exceptions.append((e, f"{ocm_env_name}: {e}"))
                 if not clusters:
                     continue
                 filtered_clusters = self._filter_clusters(
@@ -231,13 +232,34 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                                 ocm_env_name=ocm_env_name,
                             )
                     except Exception as e:
-                        unhandled_exceptions.append(
-                            f"{ocm_env_name}/{cluster.organization_id}/{cluster.external_id}: {e}"
-                        )
+                        unhandled_exceptions.append((
+                            e,
+                            f"{ocm_env_name}/{cluster.organization_id}/{cluster.external_id}: {e}",
+                        ))
                 self._expose_token_metrics()
 
-        if unhandled_exceptions:
-            raise ReconcileErrorSummary(unhandled_exceptions)
+        unexpected_errors_cnt = 0
+        for err, _ in unhandled_exceptions:
+            if (
+                isinstance(err, OCMAPIError)
+                and err.status_code >= 500
+                and (
+                    "api.integration.openshift.com" in err.endpoint
+                    or "api.stage.openshift.com" in err.endpoint
+                )
+            ):
+                # OCMAPI in int/stage can fail. Lets for now ignore those
+                continue
+            unexpected_errors_cnt += 1
+
+        # Lets only fail integration on unexpected errors
+        error_messages = [msg for _, msg in unhandled_exceptions]
+        if unexpected_errors_cnt:
+            raise ReconcileErrorSummary(error_messages)
+        else:
+            # Lets at least always print errors to logs
+            for msg in error_messages:
+                logging.error(msg)
 
     def process_cluster(
         self,
