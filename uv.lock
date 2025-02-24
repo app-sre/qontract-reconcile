@@ -267,7 +267,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -1255,17 +1255,19 @@ wheels = [
 
 [[package]]
 name = "pygithub"
-version = "1.58.2"
+version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "deprecated" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "pynacl" },
     { name = "requests" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/9e/7dcb97cb7c4e4656b704ae78ea9c0846d2d8f471a66a495214da586bb593/PyGithub-1.58.2.tar.gz", hash = "sha256:1e6b1b7afe31f75151fb81f7ab6b984a7188a852bdb123dbb9ae90023c3ce60f", size = 3171156 }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/88/e08ab18dc74b2916f48703ed1a797d57cb64eca0e23b0a9254e13cfe3911/pygithub-2.6.1.tar.gz", hash = "sha256:b5c035392991cca63959e9453286b41b54d83bf2de2daa7d7ff7e4312cebf3bf", size = 3659473 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/64/a39f7b0d0860490b43707f01f84cecce661039968d9cfc082414a29e5b1d/PyGithub-1.58.2-py3-none-any.whl", hash = "sha256:f435884af617c6debaa76cbc355372d1027445a56fbc39972a3b9ed4968badc8", size = 312470 },
+    { url = "https://files.pythonhosted.org/packages/ac/fc/a444cd19ccc8c4946a512f3827ed0b3565c88488719d800d54a75d541c0b/PyGithub-2.6.1-py3-none-any.whl", hash = "sha256:6f2fa6d076ccae475f9fc392cc6cdbd54db985d4f69b8833a28397de75ed6ca3", size = 410451 },
 ]
 
 [[package]]
@@ -1493,7 +1495,7 @@ wheels = [
 
 [[package]]
 name = "qontract-reconcile"
-version = "0.10.2.dev69"
+version = "0.10.2.dev87"
 source = { editable = "." }
 dependencies = [
     { name = "anymarkup" },
@@ -1616,7 +1618,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = "~=0.8" },
     { name = "psycopg2-binary", specifier = "~=2.9" },
     { name = "pydantic", specifier = "~=1.10.6" },
-    { name = "pygithub", specifier = ">=1.58,<1.59" },
+    { name = "pygithub", specifier = "~=2.6.1" },
     { name = "pyjwt", specifier = "~=2.7" },
     { name = "pyopenssl", specifier = "~=23.0" },
     { name = "pypd", specifier = ">=1.1.0,<1.2.0" },
@@ -2265,7 +2267,7 @@ name = "tzlocal"
 version = "5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
+    { name = "tzdata", marker = "platform_system == 'Windows'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/d3/c19d65ae67636fe63953b20c2e4a8ced4497ea232c43ff8d01db16de8dc0/tzlocal-5.2.tar.gz", hash = "sha256:8d399205578f1a9342816409cc1e46a93ebd5755e39ea2d85334bea911bf0e6e", size = 30201 }
 wheels = [
