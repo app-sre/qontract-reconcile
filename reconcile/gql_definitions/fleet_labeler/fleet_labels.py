@@ -58,6 +58,7 @@ query FleetLabelSpecs {
         clusters {
             name
             serverUrl
+            subscriptionId
             clusterId
             subscriptionLabels
         }
@@ -103,6 +104,7 @@ class FleetLabelDefaultV1(ConfiguredBaseModel):
 class FleetClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     server_url: str = Field(..., alias="serverUrl")
+    subscription_id: str = Field(..., alias="subscriptionId")
     cluster_id: str = Field(..., alias="clusterId")
     subscription_labels: Json = Field(..., alias="subscriptionLabels")
 

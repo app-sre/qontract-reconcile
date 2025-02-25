@@ -37,7 +37,7 @@ def test_add_new_cluster(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name",
-                    cluster_id="cluster_id",
+                    uid="123",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
             ],
@@ -103,12 +103,12 @@ def test_delete_and_add_cluster_multi_default_labels(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name_1",
-                    cluster_id="cluster_id_1",
+                    uid="456",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
                 build_cluster(
                     name="cluster_name_2",
-                    cluster_id="cluster_id_2",
+                    uid="789",
                     # Note, this is the filter for the 2nd default label
                     subscription_labels={"sre-capabilities.dtp.other-label": "true"},
                 ),
@@ -145,12 +145,12 @@ def test_no_change(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name_1",
-                    cluster_id="cluster_id_1",
+                    uid="456",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
                 build_cluster(
                     name="cluster_name_2",
-                    cluster_id="cluster_id_2",
+                    uid="789",
                     subscription_labels={"sre-capabilities.dtp.other-label": "true"},
                 ),
             ],
@@ -185,7 +185,7 @@ def test_no_reconcile_on_label_change(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name",
-                    cluster_id="cluster_id",
+                    uid="123",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
             ],
@@ -222,18 +222,18 @@ def test_competing_label_matchers(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name_1",
-                    cluster_id="cluster_id_1",
+                    uid="456",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
                 build_cluster(
                     name="cluster_name_2",
-                    cluster_id="cluster_id_2",
+                    uid="789",
                     # Note, this is the filter for the 2nd default label
                     subscription_labels={"sre-capabilities.dtp.other-label": "true"},
                 ),
                 build_cluster(
                     name="cluster_name_3",
-                    cluster_id="cluster_id_3",
+                    uid="1011",
                     # Note, this cluster fits both label matchers
                     subscription_labels={
                         "sre-capabilities.dtp.managed-labels": "true",
@@ -242,7 +242,7 @@ def test_competing_label_matchers(
                 ),
                 build_cluster(
                     name="cluster_name_4",
-                    cluster_id="cluster_id_4",
+                    uid="1213",
                     # Note, this cluster fits both label matchers
                     subscription_labels={
                         "sre-capabilities.dtp.managed-labels": "true",

@@ -36,7 +36,8 @@ labelDefaults:
 
 clusters:
 - name: cluster_name
-  clusterId: cluster_id
+  clusterId: '123'
+  subscriptionId: '123'
   serverUrl: https://api.test.com
   subscriptionLabels:
     tenant: tenantabc

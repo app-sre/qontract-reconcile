@@ -30,6 +30,7 @@ query FleetLabelSpecs {
         clusters {
             name
             serverUrl
+            subscriptionId
             clusterId
             subscriptionLabels
         }

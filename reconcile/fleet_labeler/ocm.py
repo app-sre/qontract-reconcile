@@ -26,16 +26,16 @@ class Cluster(BaseModel):
     cluster_id: str
     server_url: str
     name: str
+    subscription_id: str
     subscription_labels: dict[str, str]
 
     @staticmethod
     def from_cluster_details(cluster: ClusterDetails) -> Cluster:
-        server_url = (
-            cluster.ocm_cluster.console.url if cluster.ocm_cluster.console else ""
-        )
+        server_url = cluster.ocm_cluster.api_url or ""
 
         return Cluster(
             cluster_id=cluster.ocm_cluster.id,
+            subscription_id=cluster.ocm_cluster.subscription.id,
             server_url=server_url,
             name=cluster.ocm_cluster.name,
             subscription_labels={

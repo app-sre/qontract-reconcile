@@ -57,12 +57,12 @@ def test_default_label_filter(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name",
-                    cluster_id="cluster_id",
+                    uid="123",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
                 build_cluster(
                     name="cluster_name_2",
-                    cluster_id="cluster_id_2",
+                    uid="456",
                     # Note, the label doesnt match the filter
                     subscription_labels={
                         "sre-capabilities.dtp.managed-labels": "false"
