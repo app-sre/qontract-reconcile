@@ -31,7 +31,11 @@ class Cluster(BaseModel):
 
     @staticmethod
     def from_cluster_details(cluster: ClusterDetails) -> Cluster:
-        server_url = cluster.ocm_cluster.api_url or ""
+        console_url = (
+            cluster.ocm_cluster.console.url if cluster.ocm_cluster.console else ""
+        )
+        api_url = cluster.ocm_cluster.api_url or ""
+        server_url = api_url or console_url or ""
 
         return Cluster(
             cluster_id=cluster.ocm_cluster.id,
