@@ -246,6 +246,7 @@ VARIABLE_KEYS = [
     "records",
     "extra_tags",
     "lifecycle",
+    "max_session_duration",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -2785,6 +2786,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
 
         if lifecycle := self.get_resource_lifecycle(common_values):
             values["lifecycle"] = lifecycle
+
+        if max_session_duration := common_values.get("max_session_duration"):
+            values["max_session_duration"] = max_session_duration
 
         role_tf_resource = aws_iam_role(identifier, **values)
         tf_resources.append(role_tf_resource)

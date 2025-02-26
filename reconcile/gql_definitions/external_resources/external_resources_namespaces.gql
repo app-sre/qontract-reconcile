@@ -124,6 +124,7 @@ query ExternalResourcesNamespaces {
                 output_resource_name
                 annotations
                 managed_by_erv2
+                max_session_duration
             }
             ... on NamespaceTerraformResourceSQS_v1 {
                 region

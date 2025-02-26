@@ -120,6 +120,7 @@ query TerraformResourcesNamespaces {
                   ignore_changes
                 }
                 managed_by_erv2
+                max_session_duration
             }
             ... on NamespaceTerraformResourceSQS_v1 {
                 region
