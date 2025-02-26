@@ -188,8 +188,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         whats written in the rendered spec yet.
         """
         for cluster in spec.clusters:
-            desired_cluster = desired_clusters.get(cluster.cluster_id)
-            if not desired_cluster:
+            if not desired_clusters.get(cluster.cluster_id):
                 # The cluster is not part of the desired inventory (will be updated with MR soon)
                 continue
             # Ensure we only handle labels for our managed prefix
@@ -208,29 +207,25 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 current=current_subscription_labels,
                 desired=desired_subscription_labels,
             )
-            # Lets run in sorted order for tests
-            for key in sorted(diff.add):
+            for key in diff.add:
                 value = desired_subscription_labels[key]
                 logging.info(
-                    f"[{spec.name}] Adding label '{key}={value}' for cluster '{cluster.cluster_id}' in subscription '{desired_cluster.subscription_id}'."
+                    f"[{spec.name}] Adding label '{key}={value}' for cluster '{cluster.cluster_id}' in subscription '{cluster.subscription_id}'."
                 )
                 if not dry_run:
                     ocm.add_subscription_label(
-                        # TODO: add subscription_id to cluster yaml
-                        subscription_id=desired_cluster.subscription_id,
+                        subscription_id=cluster.subscription_id,
                         key=key,
                         value=value,
                     )
-            # Lets run in sorted order for tests
-            for key in sorted(diff.change):
+            for key in diff.change:
                 value = desired_subscription_labels[key]
                 logging.info(
-                    f"[{spec.name}] Updating label '{key}={value}' for cluster '{cluster.cluster_id}' in subscription '{desired_cluster.subscription_id}'."
+                    f"[{spec.name}] Updating label '{key}={value}' for cluster '{cluster.cluster_id}' in subscription '{cluster.subscription_id}'."
                 )
                 if not dry_run:
                     ocm.update_subscription_label(
-                        # TODO: add subscription_id to cluster yaml
-                        subscription_id=desired_cluster.subscription_id,
+                        subscription_id=cluster.subscription_id,
                         key=key,
                         value=value,
                     )
@@ -313,4 +308,5 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         desired_content = self._render_yaml_file(
             current_content, cluster_ids_to_delete, sorted_clusters_to_add
         )
-        vcs.open_merge_request(path=f"data{spec.path}", content=desired_content)
+        if not dry_run:
+            vcs.open_merge_request(path=f"data{spec.path}", content=desired_content)

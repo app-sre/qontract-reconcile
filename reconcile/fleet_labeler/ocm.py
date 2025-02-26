@@ -29,7 +29,6 @@ class Cluster(BaseModel):
     subscription_id: str
     server_url: str
     name: str
-    subscription_id: str
     subscription_labels: dict[str, str]
 
     @staticmethod
@@ -92,6 +91,7 @@ class OCMClient:
     def add_subscription_label(
         self, subscription_id: str, key: str, value: str
     ) -> None:
+        # TODO: move href into a utils function
         add_label(
             ocm_api=self._ocm_client,
             label_container_href=f"/api/accounts_mgmt/v1/subscriptions/{subscription_id}/labels",
@@ -102,6 +102,7 @@ class OCMClient:
     def update_subscription_label(
         self, subscription_id: str, key: str, value: str
     ) -> None:
+        # TODO: move href into a utils function
         update_label(
             ocm_api=self._ocm_client,
             label_container_href=f"/api/accounts_mgmt/v1/subscriptions/{subscription_id}/labels",
