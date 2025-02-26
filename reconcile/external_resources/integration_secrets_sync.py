@@ -27,7 +27,10 @@ def run(dry_run: bool, thread_pool_size: int) -> None:
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     er_settings = get_settings()
 
-    namespaces = [ns for ns in get_namespaces() if ns.external_resources]
+    namespaces = [
+        ns for ns in get_namespaces() if not ns.delete and ns.external_resources
+    ]
+
     er_inventory = ExternalResourcesInventory(namespaces)
     m_inventory = load_module_inventory(get_modules())
 
