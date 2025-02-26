@@ -205,3 +205,44 @@ def test_update_and_add_labels_on_multiple_clusters(
         expected_update_label_calls, any_order=True
     )
     assert ocm_client.update_subscription_label.call_count == 2
+
+
+def test_no_diff(
+    integration: FleetLabelerIntegration,
+    dependencies: Dependencies,
+    gql_class_factory: Callable[..., FleetLabelsSpecV1],
+) -> None:
+    """
+    Our cluster inventory has 1 cluster and is in synch.
+    The desired clusters labels exist and are in synch.
+
+    We do not expect any calls.
+    """
+    dependencies.vcs = build_vcs(content=get_fixture_content("1_cluster.yaml"))
+    spec = gql_class_factory(
+        FleetLabelsSpecV1, label_spec_data_from_fixture("1_cluster.yaml")
+    )
+    dependencies.label_specs_by_name = {spec.name: spec}
+    ocm_client = build_ocm_client(
+        discover_clusters_by_labels=[
+            build_cluster(
+                name="cluster_name",
+                uid="123",
+                subscription_labels={
+                    "sre-capabilities.dtp.managed-labels": "true",
+                    "sre-capabilities.dtp.spec.tenant": "tenantabc",
+                    "sre-capabilities.dtp.spec.tokenSpec": "hypershift-management-cluster-v1",
+                },
+            ),
+        ],
+    )
+    dependencies.ocm_clients_by_label_spec_name = {
+        spec.name: ocm_client,
+    }
+
+    integration.reconcile(dependencies=dependencies)
+
+    dependencies.vcs.open_merge_request.assert_not_called()
+
+    ocm_client.add_subscription_label.assert_not_called()
+    ocm_client.update_subscription_label.assert_not_called()
