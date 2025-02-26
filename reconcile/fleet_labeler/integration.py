@@ -104,6 +104,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             {
                 "name": cluster.name,
                 "clusterId": cluster.cluster_id,
+                "subscriptionId": cluster.subscription_id,
                 "serverUrl": cluster.server_url,
                 "subscriptionLabels": cluster.subscription_labels_content,
             }
@@ -128,6 +129,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
 
             name: str
             server_url: str
+            subscription_id: str
             label_default: FleetLabelDefaultV1
 
         all_current_cluster_ids = {cluster.cluster_id for cluster in spec.clusters}
@@ -145,6 +147,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                     clusters[cluster.cluster_id].append(
                         ClusterData(
                             label_default=label_default,
+                            subscription_id=cluster.subscription_id,
                             name=cluster.name,
                             server_url=cluster.server_url,
                         )
@@ -172,6 +175,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         clusters_to_add = [
             YamlCluster(
                 cluster_id=cluster_id,
+                subscription_id=cluster_info.subscription_id,
                 name=cluster_info.name,
                 server_url=cluster_info.server_url,
                 subscription_labels_content=self._render_default_labels(

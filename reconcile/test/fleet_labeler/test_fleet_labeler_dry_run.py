@@ -41,7 +41,7 @@ def test_fleet_labeler_dry_run_new_file_spec(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name",
-                    cluster_id="cluster_id",
+                    uid="cluster_id",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
             ],
@@ -76,7 +76,7 @@ def test_fleet_labeler_no_dry_run_new_spec(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name",
-                    cluster_id="cluster_id",
+                    uid="cluster_id",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
             ],
@@ -110,7 +110,7 @@ def test_fleet_labeler_dry_run_other_error(
             discover_clusters_by_labels=[
                 build_cluster(
                     name="cluster_name",
-                    cluster_id="cluster_id",
+                    uid="cluster_id",
                     subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
                 ),
             ],

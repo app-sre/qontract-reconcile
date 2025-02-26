@@ -21,12 +21,13 @@ def build_ocm_client(
 
 def build_cluster(
     subscription_labels: dict[str, str],
-    cluster_id: str,
+    uid: str,
     name: str,
     server_url: str = "https://api.test.com",
 ) -> Cluster:
     return Cluster(
-        cluster_id=cluster_id,
+        cluster_id=uid,
+        subscription_id=uid,
         name=name,
         server_url=server_url,
         subscription_labels=subscription_labels,

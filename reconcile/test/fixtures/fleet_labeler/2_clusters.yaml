@@ -36,13 +36,15 @@ labelDefaults:
 
 clusters:
 - name: cluster_name_1
-  clusterId: cluster_id_1
+  clusterId: '456'
+  subscriptionId: '456'
   serverUrl: https://api.test.com
   subscriptionLabels:
     tenant: tenantabc
     tokenSpec: hypershift-management-cluster-v1
 - name: cluster_name_2
-  clusterId: cluster_id_2
+  clusterId: '789'
+  subscriptionId: '789'
   serverUrl: https://api.test.com
   subscriptionLabels:
     tenant: tenantother1

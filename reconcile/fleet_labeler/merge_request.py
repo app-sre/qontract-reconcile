@@ -13,6 +13,7 @@ class YamlCluster(BaseModel):
     name: str
     server_url: str
     cluster_id: str
+    subscription_id: str
     subscription_labels_content: Any
 
 
