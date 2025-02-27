@@ -10,7 +10,9 @@ from reconcile.utils.ocm.clusters import (
     discover_clusters_by_labels,
 )
 from reconcile.utils.ocm.labels import (
+    add_label,
     get_cluster_labels_for_cluster_id,
+    update_label,
 )
 from reconcile.utils.ocm.search_filters import Filter, FilterMode
 from reconcile.utils.ocm_base_client import (
@@ -24,9 +26,9 @@ Thin abstractions of reconcile.ocm module to reduce coupling.
 
 class Cluster(BaseModel):
     cluster_id: str
+    subscription_id: str
     server_url: str
     name: str
-    subscription_id: str
     subscription_labels: dict[str, str]
 
     @staticmethod
@@ -85,3 +87,25 @@ class OCMClient:
 
     def get_cluster_labels(self, cluster_id: str) -> dict[str, str]:
         return get_cluster_labels_for_cluster_id(self._ocm_client, cluster_id)
+
+    def add_subscription_label(
+        self, subscription_id: str, key: str, value: str
+    ) -> None:
+        # TODO: move href into a utils function
+        add_label(
+            ocm_api=self._ocm_client,
+            label_container_href=f"/api/accounts_mgmt/v1/subscriptions/{subscription_id}/labels",
+            label=key,
+            value=value,
+        )
+
+    def update_subscription_label(
+        self, subscription_id: str, key: str, value: str
+    ) -> None:
+        # TODO: move href into a utils function
+        update_label(
+            ocm_api=self._ocm_client,
+            label_container_href=f"/api/accounts_mgmt/v1/subscriptions/{subscription_id}/labels",
+            label=key,
+            value=value,
+        )

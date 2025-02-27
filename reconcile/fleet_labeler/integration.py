@@ -26,12 +26,25 @@ from reconcile.typed_queries.fleet_labels import get_fleet_label_specs
 from reconcile.utils import (
     metrics,
 )
+from reconcile.utils.differ import diff_mappings
 from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
+
+
+class ClusterData(BaseModel):
+    """
+    Helper structure for synching process
+    """
+
+    name: str
+    server_url: str
+    subscription_id: str
+    desired_label_default: FleetLabelDefaultV1
+    current_subscription_labels: dict[str, str]
 
 
 class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
@@ -59,12 +72,56 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
     def reconcile(self, dependencies: Dependencies) -> None:
         validate_label_specs(specs=dependencies.label_specs_by_name)
         for spec_name, ocm in dependencies.ocm_clients_by_label_spec_name.items():
+            spec = dependencies.label_specs_by_name[spec_name]
+            discovered_clusters = self._discover_desired_clusters(
+                spec=spec,
+                ocm=ocm,
+            )
+            all_desired_clusters = {
+                k: v[0] for k, v in discovered_clusters.items() if len(v) == 1
+            }
+            clusters_with_duplicate_matches = {
+                k: v for k, v in discovered_clusters.items() if len(v) > 1
+            }
             self._sync_cluster_inventory(
                 ocm=ocm,
                 spec=dependencies.label_specs_by_name[spec_name],
                 vcs=dependencies.vcs,
+                all_desired_clusters=all_desired_clusters,
+                clusters_with_duplicate_matches=clusters_with_duplicate_matches,
                 dry_run=dependencies.dry_run,
             )
+            self._sync_subscription_labels(
+                spec=spec,
+                desired_clusters=all_desired_clusters,
+                ocm=ocm,
+                dry_run=dependencies.dry_run,
+            )
+
+    def _discover_desired_clusters(
+        self, spec: FleetLabelsSpecV1, ocm: OCMClient
+    ) -> dict[str, list[ClusterData]]:
+        clusters: dict[str, list[ClusterData]] = defaultdict(list)
+        for label_default in spec.label_defaults:
+            match_subscription_labels = dict(label_default.match_subscription_labels)
+            for cluster in ocm.discover_clusters_by_labels(
+                labels=match_subscription_labels
+            ):
+                # TODO: ideally we filter on server side - see TODO in ocm.py
+                if (
+                    match_subscription_labels.items()
+                    <= cluster.subscription_labels.items()
+                ):
+                    clusters[cluster.cluster_id].append(
+                        ClusterData(
+                            subscription_id=cluster.subscription_id,
+                            desired_label_default=label_default,
+                            name=cluster.name,
+                            server_url=cluster.server_url,
+                            current_subscription_labels=cluster.subscription_labels,
+                        )
+                    )
+        return clusters
 
     def _render_default_labels(
         self,
@@ -115,63 +172,91 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             yml.dump(content, stream)
             return stream.getvalue()
 
+    def _sync_subscription_labels(
+        self,
+        spec: FleetLabelsSpecV1,
+        desired_clusters: dict[str, ClusterData],
+        ocm: OCMClient,
+        dry_run: bool,
+    ) -> None:
+        """
+        Synchronize subscription labels for clusters in the spec's inventory.
+        Note, that we only update labels for clusters which are also part of the
+        discovered desired state.
+        I.e., we only operate on clusters that are in both, current state and desired state.
+        That way we ensure we do not work on deleted clusters and still synch only on
+        whats written in the rendered spec yet.
+        """
+        for cluster in spec.clusters:
+            if not desired_clusters.get(cluster.cluster_id):
+                # The cluster is not part of the desired inventory (will be updated with MR soon)
+                continue
+            # Ensure we only handle labels for our managed prefix
+            current_subscription_labels = {
+                k: v
+                for k, v in desired_clusters[
+                    cluster.cluster_id
+                ].current_subscription_labels.items()
+                if k.startswith(spec.managed_subscription_label_prefix)
+            }
+            desired_subscription_labels = {
+                f"{spec.managed_subscription_label_prefix}.{k}": v
+                for k, v in dict(cluster.subscription_labels).items()
+            }
+            diff = diff_mappings(
+                current=current_subscription_labels,
+                desired=desired_subscription_labels,
+            )
+            for key in diff.add:
+                value = desired_subscription_labels[key]
+                logging.info(
+                    f"[{spec.name}] Adding label '{key}={value}' for cluster '{cluster.cluster_id}' in subscription '{cluster.subscription_id}'."
+                )
+                if not dry_run:
+                    ocm.add_subscription_label(
+                        subscription_id=cluster.subscription_id,
+                        key=key,
+                        value=value,
+                    )
+            for key in diff.change:
+                value = desired_subscription_labels[key]
+                logging.info(
+                    f"[{spec.name}] Updating label '{key}={value}' for cluster '{cluster.cluster_id}' in subscription '{cluster.subscription_id}'."
+                )
+                if not dry_run:
+                    ocm.update_subscription_label(
+                        subscription_id=cluster.subscription_id,
+                        key=key,
+                        value=value,
+                    )
+            # Note, we dont want to enable removal for now - its too dangerous on a broad managed prefix
+            # However, if it is needed in the future, we could easily add it here.
+
     def _sync_cluster_inventory(
         self,
         ocm: OCMClient,
         spec: FleetLabelsSpecV1,
         vcs: VCS,
+        clusters_with_duplicate_matches: dict[str, list[ClusterData]],
+        all_desired_clusters: dict[str, ClusterData],
         dry_run: bool,
     ) -> None:
-        class ClusterData(BaseModel):
-            """
-            Helper structure for synching process
-            """
-
-            name: str
-            server_url: str
-            subscription_id: str
-            label_default: FleetLabelDefaultV1
-
         all_current_cluster_ids = {cluster.cluster_id for cluster in spec.clusters}
-        clusters: dict[str, list[ClusterData]] = defaultdict(list)
-        for label_default in spec.label_defaults:
-            match_subscription_labels = dict(label_default.match_subscription_labels)
-            for cluster in ocm.discover_clusters_by_labels(
-                labels=match_subscription_labels
-            ):
-                # TODO: ideally we filter on server side - see TODO in ocm.py
-                if (
-                    match_subscription_labels.items()
-                    <= cluster.subscription_labels.items()
-                ):
-                    clusters[cluster.cluster_id].append(
-                        ClusterData(
-                            label_default=label_default,
-                            subscription_id=cluster.subscription_id,
-                            name=cluster.name,
-                            server_url=cluster.server_url,
-                        )
-                    )
-
-        cluster_with_duplicate_matches = {
-            k: v for k, v in clusters.items() if len(v) > 1
-        }
-        for cluster_id, matches in cluster_with_duplicate_matches.items():
+        for cluster_id, matches in clusters_with_duplicate_matches.items():
             label_matches = "\n".join(
-                str(m.label_default.match_subscription_labels) for m in matches
+                str(m.desired_label_default.match_subscription_labels) for m in matches
             )
             logging.error(
-                f"Spec '{spec.name}': Cluster ID {cluster_id} is matched multiple times by different label matchers:\n{label_matches}"
+                f"[{spec.name}] Cluster ID {cluster_id} is matched multiple times by different label matchers:\n{label_matches}"
             )
         metrics.set_gauge(
             FleetLabelerDuplicateClusterMatchesGauge(
                 integration=self.name,
                 ocm_name=spec.ocm.name,
             ),
-            len(cluster_with_duplicate_matches),
+            len(clusters_with_duplicate_matches),
         )
 
-        all_desired_clusters = {k: v[0] for k, v in clusters.items() if len(v) == 1}
         clusters_to_add = [
             YamlCluster(
                 cluster_id=cluster_id,
@@ -179,7 +264,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 name=cluster_info.name,
                 server_url=cluster_info.server_url,
                 subscription_labels_content=self._render_default_labels(
-                    template=cluster_info.label_default.subscription_label_template,
+                    template=cluster_info.desired_label_default.subscription_label_template,
                     labels=ocm.get_cluster_labels(cluster_id=cluster_id),
                 ),
             )
@@ -223,4 +308,5 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         desired_content = self._render_yaml_file(
             current_content, cluster_ids_to_delete, sorted_clusters_to_add
         )
-        vcs.open_merge_request(path=f"data{spec.path}", content=desired_content)
+        if not dry_run:
+            vcs.open_merge_request(path=f"data{spec.path}", content=desired_content)
