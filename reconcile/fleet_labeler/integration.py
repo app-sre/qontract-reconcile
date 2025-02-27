@@ -105,9 +105,13 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         for label_default in spec.label_defaults:
             match_subscription_labels = dict(label_default.match_subscription_labels)
             for cluster in ocm.discover_clusters_by_labels(
-                labels=match_subscription_labels
+                labels=match_subscription_labels,
+                managed_prefix=spec.managed_subscription_label_prefix,
             ):
-                # TODO: ideally we filter on server side - see TODO in ocm.py
+                # Note, due to the nature of how our label filtering works (see ocm.py), we
+                # also fetch clusters that do not match the filter label.
+                # Here, we filter the clusters on client side.
+                # TODO: move this into utils.ocm module
                 if (
                     match_subscription_labels.items()
                     <= cluster.subscription_labels.items()

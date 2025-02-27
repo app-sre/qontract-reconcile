@@ -22,6 +22,7 @@ def test_subscription_label_filter(
     default_label_spec: FleetLabelsSpecV1,
 ) -> None:
     default_label_spec.name = "spec"
+    default_label_spec.managed_subscription_label_prefix = "test.prefix"
     dependencies.label_specs_by_name = {"spec": default_label_spec}
 
     ocm_client = build_ocm_client(
@@ -33,6 +34,7 @@ def test_subscription_label_filter(
 
     ocm_client.discover_clusters_by_labels.assert_called_once_with(
         labels={"test": "true"},
+        managed_prefix="test.prefix",
     )
 
 
