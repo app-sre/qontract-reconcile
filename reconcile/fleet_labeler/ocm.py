@@ -71,17 +71,32 @@ class OCMClient:
     def __init__(self, ocm_client: OCMBaseClient):
         self._ocm_client = ocm_client
 
-    def discover_clusters_by_labels(self, labels: Mapping[str, str]) -> list[Cluster]:
+    def discover_clusters_by_labels(
+        self, labels: Mapping[str, str], managed_prefix: str
+    ) -> list[Cluster]:
         label_filter = Filter(mode=FilterMode.AND).eq("type", "Subscription")
         for key in labels:
             label_filter = label_filter.eq("Key", key)
-        # TODO: This throws 400 bad request
-        # for k, v in labels.items():
-        #     label_filter = label_filter.eq(k, v)
+        desired_labels_filter = (
+            Filter(mode=FilterMode.AND)
+            .eq("type", "Subscription")
+            .like(
+                "key",
+                f"{managed_prefix}.%",
+            )
+        )
+        # Note, that discover_clusters_by_labels() only fetches labels that are matching the filter!
+        # However, to understand current state, we also want to know the labels under managed_prefix.
+        # I.e., we need a fetch condition such as:
+        # ("{managed_prefix}.%") OR ("{key1_filter}" AND "{key2_filter}" ....)
+        # The above returns also clusters that do not fit the match label.
+        # I.e., we must filter the result on client side.
+        # TODO: do this in utils.ocm module
+        desired_filter = label_filter | desired_labels_filter
         return [
             Cluster.from_cluster_details(cluster)
             for cluster in discover_clusters_by_labels(
-                ocm_api=self._ocm_client, label_filter=label_filter
+                ocm_api=self._ocm_client, label_filter=desired_filter
             )
         ]
 
