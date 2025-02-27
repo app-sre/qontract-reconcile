@@ -38,6 +38,9 @@ DTP_TENANT_LABEL = sre_capability_label_key("dtp", "tenant")
 DTP_SPEC_LABEL = sre_capability_label_key("dtp", "token-spec")
 DTP_LABEL_SEARCH = sre_capability_label_key("dtp", "%")
 
+DTP_TENANT_V2_LABEL = sre_capability_label_key("dtp.v2", "tenant")
+DTP_SPEC_V2_LABEL = sre_capability_label_key("dtp.v2", "token-spec")
+
 
 class Cluster(BaseModel):
     id: str
@@ -49,8 +52,14 @@ class Cluster(BaseModel):
 
     @staticmethod
     def from_cluster_details(cluster: ClusterDetails) -> Cluster:
-        dt_tenant = cluster.labels.get_label_value(DTP_TENANT_LABEL)
-        token_spec_name = cluster.labels.get_label_value(DTP_SPEC_LABEL)
+        dt_tenant = cluster.labels.get_label_value(DTP_TENANT_V2_LABEL)
+        token_spec_name = cluster.labels.get_label_value(DTP_SPEC_V2_LABEL)
+
+        # TODO: remove these fallbacks APPSRE-11584
+        if not dt_tenant:
+            dt_tenant = cluster.labels.get_label_value(DTP_TENANT_LABEL)
+        if not token_spec_name:
+            token_spec_name = cluster.labels.get_label_value(DTP_SPEC_LABEL)
         if not token_spec_name:
             """
             We want to stay backwards compatible.
