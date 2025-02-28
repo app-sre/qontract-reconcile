@@ -202,6 +202,7 @@ query TerraformResourcesNamespaces {
                 overrides
                 output_resource_name
                 annotations
+                managed_by_erv2
             }
             ... on NamespaceTerraformResourceElasticSearch_v1 {
                 region
