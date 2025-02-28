@@ -716,22 +716,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 response = self._aws_api.describe_rds_db_instance(
                     account_name, resource_name, region_name=region_name
                 )
-                replica_identifiers = response["DBInstances"][0].get(
-                    "ReadReplicaDBInstanceIdentifiers"
-                )
-                if replica_identifiers is not None:
-                    if len(replica_identifiers) > 0:
-                        replica_db = replica_identifiers[0]
-                        replica_db_response = self._aws_api.describe_rds_db_instance(
-                            account_name, replica_db, region_name=region_name
-                        )
-                        replica_version = replica_db_response["DBInstances"][0].get(
-                            "EngineVersion"
-                        )
-                        if after.get("engine_version") > replica_version:
-                            raise RdsUpgradeValidationError(
-                                "The replica database is running a previous version from the primary and needs to have an upgrade first."
-                            )
             except ClientError as e:
                 # The RDS database might have been already removed, or there was
                 # a resource name change, and we no longer use valid references.
@@ -838,6 +822,26 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     region_name,
                     changed_fields=changed_fields,
                 )
+
+            response = self._aws_api.describe_rds_db_instance(
+                account_name, resource_name, region_name=region_name
+            )
+            replica_identifiers = response["DBInstances"][0].get(
+                "ReadReplicaDBInstanceIdentifiers"
+            )
+            if replica_identifiers is not None:
+                if len(replica_identifiers) > 0:
+                    replica_db = replica_identifiers[0]
+                    replica_db_response = self._aws_api.describe_rds_db_instance(
+                        account_name, replica_db, region_name=region_name
+                    )
+                    replica_version = replica_db_response["DBInstances"][0].get(
+                        "EngineVersion"
+                    )
+                    if after.get("engine_version") > replica_version:
+                        raise RdsUpgradeValidationError(
+                            "The replica database is running a previous version from the primary and needs to have an upgrade first."
+                        )
 
     def validate_blue_green_update_requirements(
         self,
