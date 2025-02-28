@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from reconcile.fleet_labeler.metrics import FleetLabelerMetrics
 from reconcile.fleet_labeler.ocm import OCMClient, OCMClientConfig
 from reconcile.fleet_labeler.vcs import VCS
 from reconcile.gql_definitions.fleet_labeler.fleet_labels import FleetLabelsSpecV1
@@ -26,12 +27,14 @@ class Dependencies:
         self,
         label_specs_by_name: Mapping[str, FleetLabelsSpecV1],
         ocm_clients_by_label_spec_name: Mapping[str, OCMClient],
+        metrics: FleetLabelerMetrics,
         vcs: VCS,
         dry_run: bool,
     ):
         self.label_specs_by_name = label_specs_by_name
         self.ocm_clients_by_label_spec_name = ocm_clients_by_label_spec_name
         self.vcs = vcs
+        self.metrics = metrics
         self.dry_run = dry_run
 
     @classmethod
@@ -45,6 +48,7 @@ class Dependencies:
             ocm_clients_by_label_spec_name=_ocm_clients(secret_reader=secret_reader),
             vcs=_vcs(secret_reader=secret_reader, dry_run=dry_run),
             dry_run=dry_run,
+            metrics=FleetLabelerMetrics(),
         )
 
 
