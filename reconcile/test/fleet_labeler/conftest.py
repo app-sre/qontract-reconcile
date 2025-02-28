@@ -9,6 +9,7 @@ from reconcile.fleet_labeler.dependencies import Dependencies
 from reconcile.fleet_labeler.integration import (
     FleetLabelerIntegration,
 )
+from reconcile.fleet_labeler.metrics import FleetLabelerMetrics
 from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
     FleetLabelsSpecV1,
 )
@@ -26,6 +27,7 @@ def default_label_spec(
             "path": "/test.yaml",
             "name": "default-spec",
             "ocm": {
+                "name": "ocm_test",
                 "environment": {
                     "url": "https://api.test.com",
                 },
@@ -62,5 +64,6 @@ def dependencies(secret_reader: SecretReaderBase) -> Dependencies:
         label_specs_by_name={},
         ocm_clients_by_label_spec_name={},
         vcs=create_autospec(spec=VCS),
+        metrics=create_autospec(spec=FleetLabelerMetrics),
         dry_run=False,
     )
