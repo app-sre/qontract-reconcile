@@ -261,20 +261,29 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             len(clusters_with_duplicate_matches),
         )
 
-        clusters_to_add = [
-            YamlCluster(
-                cluster_id=cluster_id,
-                subscription_id=cluster_info.subscription_id,
-                name=cluster_info.name,
-                server_url=cluster_info.server_url,
-                subscription_labels_content=self._render_default_labels(
-                    template=cluster_info.desired_label_default.subscription_label_template,
-                    labels=ocm.get_cluster_labels(cluster_id=cluster_id),
-                ),
-            )
-            for cluster_id, cluster_info in all_desired_clusters.items()
-            if cluster_id not in all_current_cluster_ids
-        ]
+        clusters_to_add: list[YamlCluster] = []
+        for cluster_id, cluster_info in all_desired_clusters.items():
+            if cluster_id in all_current_cluster_ids:
+                continue
+            try:
+                clusters_to_add.append(
+                    YamlCluster(
+                        cluster_id=cluster_id,
+                        subscription_id=cluster_info.subscription_id,
+                        name=cluster_info.name,
+                        server_url=cluster_info.server_url,
+                        subscription_labels_content=self._render_default_labels(
+                            template=cluster_info.desired_label_default.subscription_label_template,
+                            labels=ocm.get_cluster_labels(cluster_id=cluster_id),
+                        ),
+                    )
+                )
+            except Exception as e:
+                logging.error(
+                    f"[{spec.name}] Error while rendering default labels for {cluster_id=} {cluster_info.subscription_id=}: {e}"
+                )
+                raise
+
         cluster_ids_to_delete = all_current_cluster_ids - all_desired_clusters.keys()
 
         if not (cluster_ids_to_delete or clusters_to_add):
@@ -282,7 +291,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
 
         for yaml_cluster in clusters_to_add:
             logging.info(
-                f"[{spec.name}] Adding cluster '{yaml_cluster.name}' with id '{yaml_cluster.cluster_id}' to inventory with default labels {yaml_cluster.subscription_labels_content}."
+                f"[{spec.name}] Adding cluster '{yaml_cluster.name}' with id '{yaml_cluster.cluster_id}' and subscription id '{yaml_cluster.subscription_id}' to inventory with default labels {yaml_cluster.subscription_labels_content}."
             )
         for cluster_id in cluster_ids_to_delete:
             logging.info(
