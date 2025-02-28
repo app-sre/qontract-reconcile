@@ -6,6 +6,7 @@ from unittest.mock import (
     create_autospec,
 )
 
+from reconcile.fleet_labeler.metrics import FleetLabelerMetrics
 from reconcile.fleet_labeler.ocm import Cluster, OCMClient
 from reconcile.fleet_labeler.vcs import VCS
 from reconcile.test.fixtures import Fixtures
@@ -13,9 +14,17 @@ from reconcile.test.fixtures import Fixtures
 
 def build_ocm_client(
     discover_clusters_by_labels: Iterable[Cluster],
+    cluster_labels: dict[str, dict[str, str]] | None = None,
 ) -> Mock:
+    def cluster_labels_by_cluster_id(cluster_id: str) -> dict[str, str]:
+        if not cluster_labels:
+            return {}
+        return cluster_labels[cluster_id]
+
     ocm_client = create_autospec(spec=OCMClient)
     ocm_client.discover_clusters_by_labels.return_value = discover_clusters_by_labels
+    if cluster_labels:
+        ocm_client.get_cluster_labels.side_effect = cluster_labels_by_cluster_id
     return ocm_client
 
 
@@ -43,6 +52,10 @@ def build_vcs(content: str = "", error: Exception | None = None) -> Mock:
     return vcs
 
 
+def build_metrics() -> Mock:
+    return create_autospec(spec=FleetLabelerMetrics)
+
+
 def get_fixture_content(file_name: str) -> str:
     fxt = Fixtures("fleet_labeler")
     return fxt.get(file_name)
@@ -58,6 +71,7 @@ def label_spec_data_from_fixture(file_name: str) -> dict[str, Any]:
     del data["$schema"]
     data["path"] = "/test.yaml"
     data["ocm"] = {
+        "name": "ocm_test",
         "environment": {
             "url": "https://api.test.com",
         },

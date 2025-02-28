@@ -13,7 +13,9 @@ from reconcile.fleet_labeler.meta import (
     QONTRACT_INTEGRATION,
     QONTRACT_INTEGRATION_VERSION,
 )
-from reconcile.fleet_labeler.metrics import FleetLabelerDuplicateClusterMatchesGauge
+from reconcile.fleet_labeler.metrics import (
+    FleetLabelerMetrics,
+)
 from reconcile.fleet_labeler.ocm import OCMClient
 from reconcile.fleet_labeler.validate import validate_label_specs
 from reconcile.fleet_labeler.vcs import VCS, Gitlab404Error
@@ -23,9 +25,6 @@ from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
     FleetSubscriptionLabelTemplateV1,
 )
 from reconcile.typed_queries.fleet_labels import get_fleet_label_specs
-from reconcile.utils import (
-    metrics,
-)
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
@@ -67,6 +66,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             secret_reader=self.secret_reader,
             dry_run=dry_run,
         )
+        self._metrics = dependencies.metrics
         self.reconcile(dependencies=dependencies)
 
     def reconcile(self, dependencies: Dependencies) -> None:
@@ -89,6 +89,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 vcs=dependencies.vcs,
                 all_desired_clusters=all_desired_clusters,
                 clusters_with_duplicate_matches=clusters_with_duplicate_matches,
+                metrics=dependencies.metrics,
                 dry_run=dependencies.dry_run,
             )
             self._sync_subscription_labels(
@@ -243,6 +244,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         vcs: VCS,
         clusters_with_duplicate_matches: dict[str, list[ClusterData]],
         all_desired_clusters: dict[str, ClusterData],
+        metrics: FleetLabelerMetrics,
         dry_run: bool,
     ) -> None:
         all_current_cluster_ids = {cluster.cluster_id for cluster in spec.clusters}
@@ -253,36 +255,45 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             logging.error(
                 f"[{spec.name}] Cluster ID {cluster_id} is matched multiple times by different label matchers:\n{label_matches}"
             )
-        metrics.set_gauge(
-            FleetLabelerDuplicateClusterMatchesGauge(
-                integration=self.name,
-                ocm_name=spec.ocm.name,
-            ),
-            len(clusters_with_duplicate_matches),
+        metrics.set_duplicate_cluster_matches_gauge(
+            ocm_name=spec.ocm.name,
+            spec_name=spec.name,
+            value=len(clusters_with_duplicate_matches),
         )
 
         clusters_to_add: list[YamlCluster] = []
+        label_rendering_errors_cnt = 0
         for cluster_id, cluster_info in all_desired_clusters.items():
             if cluster_id in all_current_cluster_ids:
                 continue
             try:
+                default_labels = self._render_default_labels(
+                    template=cluster_info.desired_label_default.subscription_label_template,
+                    labels=ocm.get_cluster_labels(cluster_id=cluster_id),
+                )
+            except Exception as e:
+                logging.error(
+                    f"[{spec.name}] Error while rendering default labels for {cluster_id=} {cluster_info.subscription_id=} - skipping cluster: {e}"
+                )
+                default_labels = None
+                label_rendering_errors_cnt += 1
+
+            if default_labels:
+                # Note, we are skipping this cluster if there are no default_labels rendered
                 clusters_to_add.append(
                     YamlCluster(
                         cluster_id=cluster_id,
                         subscription_id=cluster_info.subscription_id,
                         name=cluster_info.name,
                         server_url=cluster_info.server_url,
-                        subscription_labels_content=self._render_default_labels(
-                            template=cluster_info.desired_label_default.subscription_label_template,
-                            labels=ocm.get_cluster_labels(cluster_id=cluster_id),
-                        ),
+                        subscription_labels_content=default_labels,
                     )
                 )
-            except Exception as e:
-                logging.error(
-                    f"[{spec.name}] Error while rendering default labels for {cluster_id=} {cluster_info.subscription_id=}: {e}"
-                )
-                raise
+        metrics.set_label_rendering_error_gauge(
+            ocm_name=spec.ocm.name,
+            spec_name=spec.name,
+            value=label_rendering_errors_cnt,
+        )
 
         cluster_ids_to_delete = all_current_cluster_ids - all_desired_clusters.keys()
 
