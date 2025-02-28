@@ -117,14 +117,14 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
             token_spec = token_spec_by_name.get(cluster.token_spec_name)
             if not token_spec:
                 logging.debug(
-                    f"[{cluster.external_id=}] Skipping cluster. {cluster.token_spec_name=} does not exist."
+                    f"[{cluster.id=}] Skipping cluster. {cluster.token_spec_name=} does not exist."
                 )
                 continue
             if cluster.organization_id in token_spec.ocm_org_ids:
                 filtered_clusters.append(cluster)
             else:
                 logging.debug(
-                    f"[{cluster.external_id=}] Skipping cluster for {token_spec.name=}. {cluster.organization_id=} is not defined in {token_spec.ocm_org_ids=}."
+                    f"[{cluster.id=}] Skipping cluster for {token_spec.name=}. {cluster.organization_id=} is not defined in {token_spec.ocm_org_ids=}."
                 )
         return filtered_clusters
 
@@ -175,7 +175,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                                     error=f"Missing label {DTP_TENANT_LABEL}",
                                 )
                                 logging.warn(
-                                    f"[{cluster.external_id=}] Missing value for label {DTP_TENANT_LABEL}"
+                                    f"[{cluster.id=}] Missing value for label {DTP_TENANT_LABEL}"
                                 )
                                 continue
                             if (
@@ -188,7 +188,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                                     error=f"Dynatrace tenant {tenant_id} does not exist",
                                 )
                                 logging.warn(
-                                    f"[{cluster.external_id=}] Dynatrace {tenant_id=} does not exist"
+                                    f"[{cluster.id=}] Dynatrace {tenant_id=} does not exist"
                                 )
                                 continue
                             dt_client = dependencies.dynatrace_client_by_tenant_id[
@@ -205,7 +205,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                                     error=f"Token spec {cluster.token_spec_name} does not exist",
                                 )
                                 logging.warn(
-                                    f"[{cluster.external_id=}] Token spec '{cluster.token_spec_name}' does not exist"
+                                    f"[{cluster.id=}] Token spec '{cluster.token_spec_name}' does not exist"
                                 )
                                 continue
                             if tenant_id not in existing_dtp_tokens:
@@ -232,7 +232,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                             )
                     except Exception as e:
                         unhandled_exceptions.append(
-                            f"{ocm_env_name}/{cluster.organization_id}/{cluster.external_id}: {e}"
+                            f"{ocm_env_name}/{cluster.organization_id}/{cluster.id}: {e}"
                         )
                 self._expose_token_metrics()
 
@@ -289,11 +289,9 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                         f"DTP can't create {token_spec.name=} {e.args!s}",
                     )
             logging.info(
-                f"{token_spec.name=} created in {dt_api_url} for {cluster.external_id=}."
+                f"{token_spec.name=} created in {dt_api_url} for {cluster.id=}."
             )
-            logging.info(
-                f"{SYNCSET_AND_MANIFEST_ID} created for {cluster.external_id=}."
-            )
+            logging.info(f"{SYNCSET_AND_MANIFEST_ID} created for {cluster.id=}.")
         else:
             current_k8s_secrets: list[K8sSecret] = []
             if cluster.is_hcp:
@@ -344,7 +342,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                             f"DTP can't patch {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} due to {e.args!s}",
                         )
                 logging.info(
-                    f"Patched {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} in {cluster.external_id=}."
+                    f"Patched {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} in {cluster.id=}."
                 )
 
     def scopes_hash(self, scopes: Iterable[str], length: int) -> str:
@@ -425,7 +423,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                             dt_client, cluster_uuid, desired_token
                         )
                         existing_dtp_tokens[cur_token.id] = cur_token.name
-                if cur_token:
+                if cur_token and cur_token.id in existing_dtp_tokens:
                     self.sync_token_in_dynatrace(
                         token_id=cur_token.id,
                         spec=desired_token,
