@@ -107,6 +107,60 @@ def test_fleet_labeler_dry_run_existing_file_spec(
     ocm_client.update_subscription_label.assert_not_called()
 
 
+def test_fleet_labeler_disable_label_synch(
+    integration: FleetLabelerIntegration,
+    dependencies: Dependencies,
+    gql_class_factory: Callable[..., FleetLabelsSpecV1],
+) -> None:
+    """
+    We are in non-dry-run mode.
+    We have a spec that disables label synchronization.
+    Cluster inventory is not in synch.
+    Labels are not in synch.
+
+    We expect that there are no calls to update/add labels since
+    the spec disables label synch.
+    We expect calls to update the inventory, since we are not in dry-run.
+    """
+    dependencies.vcs = build_vcs(content=get_fixture_content("2_clusters.yaml"))
+    spec = gql_class_factory(
+        FleetLabelsSpecV1, label_spec_data_from_fixture("2_clusters.yaml")
+    )
+    spec.dry_run_label_synchronization = True
+    dependencies.dry_run = False
+    dependencies.label_specs_by_name = {spec.name: spec}
+    ocm_client = build_ocm_client(
+        discover_clusters_by_labels=[
+            build_cluster(
+                name="cluster_name_1",
+                uid="456",
+                subscription_labels={
+                    "sre-capabilities.dtp.managed-labels": "true",
+                },
+            ),
+            build_cluster(
+                name="cluster_name_3",
+                uid="123",
+                subscription_labels={
+                    "sre-capabilities.dtp.other-label": "true",
+                },
+            ),
+        ],
+    )
+    dependencies.ocm_clients_by_label_spec_name = {
+        spec.name: ocm_client,
+    }
+
+    integration.reconcile(dependencies=dependencies)
+
+    dependencies.vcs.open_merge_request.assert_called_once_with(
+        path="data/test.yaml",
+        content=f"{get_fixture_content('2_clusters-alternative.yaml')}\n",
+    )
+    ocm_client.add_subscription_label.assert_not_called()
+    ocm_client.update_subscription_label.assert_not_called()
+
+
 def test_fleet_labeler_no_dry_run_new_spec(
     integration: FleetLabelerIntegration,
     dependencies: Dependencies,

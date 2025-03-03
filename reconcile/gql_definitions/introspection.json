@@ -34398,6 +34398,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "dryRunLabelSynchronization",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "managedSubscriptionLabelPrefix",
                             "description": null,
                             "args": [],

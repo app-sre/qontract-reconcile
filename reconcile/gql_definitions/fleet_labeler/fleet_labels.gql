@@ -5,6 +5,7 @@ query FleetLabelSpecs {
         name
         path
         managedSubscriptionLabelPrefix
+        dryRunLabelSynchronization
         ocm {
             name
             environment {
