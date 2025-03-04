@@ -92,11 +92,12 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 metrics=dependencies.metrics,
                 dry_run=dependencies.dry_run,
             )
+            synch_labels = spec.dry_run_label_synchronization or dependencies.dry_run
             self._sync_subscription_labels(
                 spec=spec,
                 desired_clusters=all_desired_clusters,
                 ocm=ocm,
-                dry_run=dependencies.dry_run,
+                dry_run=synch_labels,
             )
 
     def _discover_desired_clusters(

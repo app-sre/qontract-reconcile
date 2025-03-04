@@ -33,6 +33,7 @@ query FleetLabelSpecs {
         name
         path
         managedSubscriptionLabelPrefix
+        dryRunLabelSynchronization
         ocm {
             name
             environment {
@@ -113,6 +114,7 @@ class FleetLabelsSpecV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     path: str = Field(..., alias="path")
     managed_subscription_label_prefix: str = Field(..., alias="managedSubscriptionLabelPrefix")
+    dry_run_label_synchronization: Optional[bool] = Field(..., alias="dryRunLabelSynchronization")
     ocm: OpenShiftClusterManagerV1 = Field(..., alias="ocm")
     label_defaults: list[FleetLabelDefaultV1] = Field(..., alias="labelDefaults")
     clusters: list[FleetClusterV1] = Field(..., alias="clusters")
