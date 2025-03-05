@@ -139,6 +139,17 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
             "aws", provisioner, "kms", identifier
         )
 
+    def _get_region_from_az(self, az: str) -> str:
+        if not az or len(az) < 2:
+            raise ValueError(
+                f"Invalid availability zone: '{az}'. Availability zone must have at least 2 characters."
+            )
+        if not az[-1].isalpha():
+            raise ValueError(
+                f"Invalid availability zone: '{az}'. The AZ should end with a letter (e.g., 'us-east-1a')."
+            )
+        return az[:-1]
+
     def resolve(
         self,
         spec: ExternalResourceSpec,
@@ -168,6 +179,9 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
                 "identifier": sourcedb["identifier"],
                 "region": sourcedb_region,
             }
+        # If AZ is set, but not the region, the region is got from the AZ
+        if "availability_zone" in data and "region" not in data:
+            data["region"] = self._get_region_from_az(data["availability_zone"])
 
         kms_key_id: str = data.get("kms_key_id", None)
         if kms_key_id and not kms_key_id.startswith("arn:"):
