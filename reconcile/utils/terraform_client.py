@@ -832,8 +832,6 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             db_identifier = db_response["DBInstances"][0].get("DBInstanceIdentifier")
             if replica_identifiers is not None:
                 if len(replica_identifiers) > 0:
-                    logging.debug("db_response var in the loop")
-                    logging.debug(db_response)
                     raise RdsUpgradeValidationError(
                         f"The primary database, {db_identifier}, has a read replica associated with it. Please remove the replica before upgrading the primary database"
                     )
