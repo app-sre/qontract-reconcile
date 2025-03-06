@@ -16,7 +16,7 @@ from reconcile.dynatrace_token_provider.metrics import (
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
 from reconcile.dynatrace_token_provider.ocm import (
     DTP_LABEL_SEARCH,
-    DTP_TENANT_LABEL,
+    DTP_TENANT_V2_LABEL,
     Cluster,
     OCMClient,
 )
@@ -172,10 +172,10 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                                 _expose_errors_as_service_log(
                                     ocm_client,
                                     cluster_uuid=cluster.external_id,
-                                    error=f"Missing label {DTP_TENANT_LABEL}",
+                                    error=f"Missing label {DTP_TENANT_V2_LABEL}",
                                 )
                                 logging.warn(
-                                    f"[{cluster.id=}] Missing value for label {DTP_TENANT_LABEL}"
+                                    f"[{cluster.id=}] Missing value for label {DTP_TENANT_V2_LABEL}"
                                 )
                                 continue
                             if (
