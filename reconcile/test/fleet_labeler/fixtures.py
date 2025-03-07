@@ -70,11 +70,9 @@ def label_spec_data_from_fixture(file_name: str) -> dict[str, Any]:
     data = fxt.get_anymarkup(file_name)
     del data["$schema"]
     data["path"] = "/test.yaml"
-    data["ocm"] = {
+    data["ocmEnv"] = {
         "name": "ocm_test",
-        "environment": {
-            "url": "https://api.test.com",
-        },
+        "url": "https://api.test.com",
         "accessTokenClientId": "client_id",
         "accessTokenUrl": "https://test.com",
         "accessTokenClientSecret": {},

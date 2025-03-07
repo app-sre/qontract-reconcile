@@ -34,11 +34,9 @@ query FleetLabelSpecs {
         path
         managedSubscriptionLabelPrefix
         dryRunLabelSynchronization
-        ocm {
+        ocmEnv {
             name
-            environment {
-                url
-            }
+            url
             accessTokenClientId
             accessTokenClientSecret {
                 ... VaultSecret
@@ -75,15 +73,11 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class OpenShiftClusterManagerEnvironmentV1(ConfiguredBaseModel):
-    url: str = Field(..., alias="url")
-
-
-class OpenShiftClusterManagerV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    environment: OpenShiftClusterManagerEnvironmentV1 = Field(..., alias="environment")
-    access_token_client_id: Optional[str] = Field(..., alias="accessTokenClientId")
-    access_token_client_secret: Optional[VaultSecret] = Field(..., alias="accessTokenClientSecret")
-    access_token_url: Optional[str] = Field(..., alias="accessTokenUrl")
+    url: str = Field(..., alias="url")
+    access_token_client_id: str = Field(..., alias="accessTokenClientId")
+    access_token_client_secret: VaultSecret = Field(..., alias="accessTokenClientSecret")
+    access_token_url: str = Field(..., alias="accessTokenUrl")
 
 
 class ResourceV1(ConfiguredBaseModel):
@@ -115,7 +109,7 @@ class FleetLabelsSpecV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     managed_subscription_label_prefix: str = Field(..., alias="managedSubscriptionLabelPrefix")
     dry_run_label_synchronization: Optional[bool] = Field(..., alias="dryRunLabelSynchronization")
-    ocm: OpenShiftClusterManagerV1 = Field(..., alias="ocm")
+    ocm_env: OpenShiftClusterManagerEnvironmentV1 = Field(..., alias="ocmEnv")
     label_defaults: list[FleetLabelDefaultV1] = Field(..., alias="labelDefaults")
     clusters: list[FleetClusterV1] = Field(..., alias="clusters")
 

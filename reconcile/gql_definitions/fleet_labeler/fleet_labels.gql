@@ -6,11 +6,9 @@ query FleetLabelSpecs {
         path
         managedSubscriptionLabelPrefix
         dryRunLabelSynchronization
-        ocm {
+        ocmEnv {
             name
-            environment {
-                url
-            }
+            url
             accessTokenClientId
             accessTokenClientSecret {
                 ... VaultSecret

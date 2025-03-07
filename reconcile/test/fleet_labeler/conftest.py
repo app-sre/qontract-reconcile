@@ -26,11 +26,9 @@ def default_label_spec(
         {
             "path": "/test.yaml",
             "name": "default-spec",
-            "ocm": {
+            "ocmEnv": {
                 "name": "ocm_test",
-                "environment": {
-                    "url": "https://api.test.com",
-                },
+                "url": "https://api.test.com",
                 "accessTokenClientId": "client_id",
                 "accessTokenUrl": "https://test.com",
                 "accessTokenClientSecret": {},
