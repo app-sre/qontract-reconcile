@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from datetime import timedelta
 from typing import Any
@@ -34,10 +35,7 @@ from reconcile.utils.ocm_base_client import (
 Thin abstractions of reconcile.ocm module to reduce coupling.
 """
 
-DTP_TENANT_LABEL = sre_capability_label_key("dtp", "tenant")
-DTP_SPEC_LABEL = sre_capability_label_key("dtp", "token-spec")
 DTP_LABEL_SEARCH = sre_capability_label_key("dtp", "%")
-
 DTP_TENANT_V2_LABEL = sre_capability_label_key("dtp.v2", "tenant")
 DTP_SPEC_V2_LABEL = sre_capability_label_key("dtp.v2", "token-spec")
 
@@ -51,24 +49,14 @@ class Cluster(BaseModel):
     is_hcp: bool
 
     @staticmethod
-    def from_cluster_details(cluster: ClusterDetails) -> Cluster:
+    def from_cluster_details(cluster: ClusterDetails) -> Cluster | None:
         dt_tenant = cluster.labels.get_label_value(DTP_TENANT_V2_LABEL)
         token_spec_name = cluster.labels.get_label_value(DTP_SPEC_V2_LABEL)
-
-        # TODO: remove these fallbacks APPSRE-11584
-        if not dt_tenant:
-            dt_tenant = cluster.labels.get_label_value(DTP_TENANT_LABEL)
-        if not token_spec_name:
-            token_spec_name = cluster.labels.get_label_value(DTP_SPEC_LABEL)
-        if not token_spec_name:
-            """
-            We want to stay backwards compatible.
-            Earlier version of DTP did not set a value for the label.
-            We fall back to a default token in that case.
-
-            Long-term, we want to remove this behavior.
-            """
-            token_spec_name = "hypershift-management-cluster-v1"
+        if not dt_tenant or not token_spec_name:
+            logging.warning(
+                f"[Missing DTP labels] {cluster.ocm_cluster.id=} {cluster.ocm_cluster.subscription.id=} {dt_tenant=} {token_spec_name=}"
+            )
+            return None
         return Cluster(
             id=cluster.ocm_cluster.id,
             external_id=cluster.ocm_cluster.external_id,
@@ -131,10 +119,11 @@ class OCMClient:
 
     def discover_clusters_by_labels(self, label_filter: Filter) -> list[Cluster]:
         return [
-            Cluster.from_cluster_details(cluster)
-            for cluster in discover_clusters_by_labels(
+            cluster
+            for ocm_cluster in discover_clusters_by_labels(
                 ocm_api=self._ocm_client, label_filter=label_filter
             )
+            if (cluster := Cluster.from_cluster_details(ocm_cluster))
         ]
 
     def create_service_log(
