@@ -61,10 +61,10 @@ def _ocm_clients(secret_reader: SecretReaderBase) -> dict[str, OCMClient]:
     for spec in get_fleet_label_specs():
         ocm_base_client = init_ocm_base_client(
             cfg=OCMClientConfig(
-                url=spec.ocm.environment.url,
-                access_token_client_id=spec.ocm.access_token_client_id,
-                access_token_url=spec.ocm.access_token_url,
-                access_token_client_secret=spec.ocm.access_token_client_secret,
+                url=spec.ocm_env.url,
+                access_token_client_id=spec.ocm_env.access_token_client_id,
+                access_token_url=spec.ocm_env.access_token_url,
+                access_token_client_secret=spec.ocm_env.access_token_client_secret,
             ),
             secret_reader=secret_reader,
         )

@@ -34382,7 +34382,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "ocm",
+                            "name": "ocmEnv",
                             "description": null,
                             "args": [],
                             "type": {
@@ -34390,7 +34390,7 @@
                                 "name": null,
                                 "ofType": {
                                     "kind": "OBJECT",
-                                    "name": "OpenShiftClusterManager_v1",
+                                    "name": "OpenShiftClusterManagerEnvironment_v1",
                                     "ofType": null
                                 }
                             },

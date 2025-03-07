@@ -1,8 +1,8 @@
 $schema: /openshift/fleet-labels-spec-1.yml
 
 name: hypershift-cluster-subscription-labels-integration
-ocm:
-  $ref: /dependencies/ocm/orgs/osd-fleet-manager/integration.yml
+ocmEnv:
+  $ref: /dependencies/ocm/environments/integration.yml
 
 managedSubscriptionLabelPrefix: sre-capabilities.dtp.spec
 

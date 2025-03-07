@@ -257,7 +257,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 f"[{spec.name}] Cluster ID {cluster_id} is matched multiple times by different label matchers:\n{label_matches}"
             )
         metrics.set_duplicate_cluster_matches_gauge(
-            ocm_name=spec.ocm.name,
+            ocm_name=spec.ocm_env.name,
             spec_name=spec.name,
             value=len(clusters_with_duplicate_matches),
         )
@@ -291,7 +291,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                     )
                 )
         metrics.set_label_rendering_error_gauge(
-            ocm_name=spec.ocm.name,
+            ocm_name=spec.ocm_env.name,
             spec_name=spec.name,
             value=label_rendering_errors_cnt,
         )
