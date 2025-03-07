@@ -82,13 +82,9 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-        dependencies = Dependencies(
+        dependencies = Dependencies.create(
             secret_reader=self.secret_reader,
-            dynatrace_client_by_tenant_id={},
-            ocm_client_by_env_name={},
-            token_spec_by_name={},
         )
-        dependencies.populate_all()
         self.reconcile(dry_run=dry_run, dependencies=dependencies)
 
     def _token_cnt(self, dt_tenant_id: str, ocm_env_name: str) -> None:
