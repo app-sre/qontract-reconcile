@@ -3815,6 +3815,29 @@ def external_resources_secrets_sync(
     )
 
 
+@integration.command(short_help="Deploy the Automated Actions Config")
+@threaded()
+@internal()
+@use_jump_host()
+@click.pass_context
+def automated_actions_config(ctx, thread_pool_size, internal, use_jump_host):
+    from reconcile.automated_actions.config.integration import (
+        AutomatedActionsConfigIntegration,
+        AutomatedActionsConfigIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AutomatedActionsConfigIntegration(
+            AutomatedActionsConfigIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                use_jump_host=use_jump_host,
+                internal=internal,
+            )
+        ),
+        ctx=ctx.obj,
+    )
+
+
 def get_integration_cli_meta() -> dict[str, IntegrationMeta]:
     """
     returns all integrations known to cli.py via click introspection
