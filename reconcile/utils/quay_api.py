@@ -68,12 +68,9 @@ class QuayApi:
         if not r.ok:
             message = r.json().get("message", "")
 
-            expected_messages = [
-                f"User {user} does not belong to team {team}",
-                "User cannot remove themselves from their only admin team.",
-            ]
+            expected_message = f"User {user} does not belong to team {team}"
 
-            if message not in expected_messages:
+            if message != expected_message:
                 r.raise_for_status()
 
         url_org = f"{self.api_url}/organization/{self.organization}/members/{user}"
