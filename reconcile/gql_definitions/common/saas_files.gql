@@ -128,6 +128,9 @@ query SaasFiles {
         namespace {
           ...SaasTargetNamespace
         }
+        slos {
+         ...SaasSLODocument 
+        }
         namespaceSelector {
           jsonPathSelectors {
             include
