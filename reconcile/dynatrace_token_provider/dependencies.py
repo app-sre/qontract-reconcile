@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 from collections.abc import Mapping
+from typing import Self
 
 from reconcile.dynatrace_token_provider.ocm import OCMClient
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
@@ -39,8 +38,8 @@ class Dependencies:
         self.token_spec_by_name = dict(token_spec_by_name)
 
     @classmethod
-    def create(cls, secret_reader: SecretReaderBase) -> Dependencies:
-        return Dependencies(
+    def create(cls, secret_reader: SecretReaderBase) -> Self:
+        return cls(
             secret_reader=secret_reader,
             dynatrace_client_by_tenant_id=_dynatrace_client_map(
                 secret_reader=secret_reader
