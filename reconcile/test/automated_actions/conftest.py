@@ -11,6 +11,9 @@ from reconcile.automated_actions.config.integration import (
     AutomatedActionsRole,
 )
 from reconcile.gql_definitions.automated_actions.instance import (
+    AutomatedActionArgumentOpenshiftV1,
+    AutomatedActionArgumentOpenshiftV1_NamespaceV1,
+    AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1,
     AutomatedActionsInstanceV1,
     AutomatedActionV1,
     BotV1,
@@ -81,19 +84,32 @@ def permissions() -> list[PermissionAutomatedActionsV1]:
                 )
             ],
             arguments=None,
-            action=AutomatedActionV1(operationId="action", retries=None, maxOps=None),
+            action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
         ),
         PermissionAutomatedActionsV1(
             roles=[
                 RoleV1(
-                    name="another-role",
+                    name="another-role-with-args",
                     users=[UserV1(org_username="user1")],
                     bots=[BotV1(org_username="bot1")],
                     expirationDate=None,
                 )
             ],
-            arguments=None,
-            action=AutomatedActionV1(operationId="action", retries=None, maxOps=None),
+            arguments=[
+                AutomatedActionArgumentOpenshiftV1(
+                    type="openshift",
+                    kind_pattern="Deployment|Pod",
+                    name_pattern="shaver.*",
+                    namespace=AutomatedActionArgumentOpenshiftV1_NamespaceV1(
+                        name="namespace",
+                        delete=False,
+                        cluster=AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1(
+                            name="cluster", disable=None
+                        ),
+                    ),
+                )
+            ],
+            action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
         ),
     ]
 
@@ -103,8 +119,8 @@ def automated_actions_roles() -> list[AutomatedActionsRole]:
     return [
         AutomatedActionsRole(user="user1", role="role"),
         AutomatedActionsRole(user="bot1", role="role"),
-        AutomatedActionsRole(user="user1", role="another-role"),
-        AutomatedActionsRole(user="bot1", role="another-role"),
+        AutomatedActionsRole(user="user1", role="another-role-with-args"),
+        AutomatedActionsRole(user="bot1", role="another-role-with-args"),
     ]
 
 
@@ -112,7 +128,16 @@ def automated_actions_roles() -> list[AutomatedActionsRole]:
 def automated_actions_policies() -> list[AutomatedActionsPolicy]:
     return [
         AutomatedActionsPolicy(sub="role", obj="action", params={}),
-        AutomatedActionsPolicy(sub="another-role", obj="action", params={}),
+        AutomatedActionsPolicy(
+            sub="another-role-with-args",
+            obj="action",
+            params={
+                "cluster": "cluster",
+                "namespace": "namespace",
+                "kind": "Deployment|Pod",
+                "name": "shaver.*",
+            },
+        ),
     ]
 
 
@@ -129,11 +154,11 @@ def policy_file() -> str:
                 "user": "bot1",
             },
             {
-                "role": "another-role",
+                "role": "another-role-with-args",
                 "user": "user1",
             },
             {
-                "role": "another-role",
+                "role": "another-role-with-args",
                 "user": "bot1",
             },
         ],
@@ -145,8 +170,13 @@ def policy_file() -> str:
             },
             {
                 "obj": "action",
-                "params": {},
-                "sub": "another-role",
+                "params": {
+                    "cluster": "cluster",
+                    "namespace": "namespace",
+                    "kind": "Deployment|Pod",
+                    "name": "shaver.*",
+                },
+                "sub": "another-role-with-args",
             },
         ],
     })
