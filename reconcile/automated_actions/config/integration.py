@@ -86,11 +86,11 @@ class AutomatedActionsConfigIntegration(
             if instance.deployment.delete:
                 continue
             instance.permissions = list(
-                self._filter_permissions(instance.permissions or [])
+                self.filter_permissions(instance.permissions or [])
             )
             yield instance
 
-    def _is_enabled(self, argument: AutomatedActionArgumentV1) -> bool:
+    def is_enabled(self, argument: AutomatedActionArgumentV1) -> bool:
         """Check if the integration is enabled for the given argument namespace."""
         if isinstance(argument, AutomatedActionArgumentOpenshiftV1):
             return (
@@ -99,14 +99,14 @@ class AutomatedActionsConfigIntegration(
             )
         return True
 
-    def _filter_permissions(
+    def filter_permissions(
         self, permissions: Iterable[PermissionAutomatedActionsV1]
     ) -> Generator[PermissionAutomatedActionsV1, None, None]:
         """Filter out expired roles and arguments (cluster.namespace) with disabled integrations."""
         for permission in permissions:
             # automated actions disabled for the cluster?
             permission.arguments = [
-                arg for arg in permission.arguments or [] if self._is_enabled(arg)
+                arg for arg in permission.arguments or [] if self.is_enabled(arg)
             ]
             # remove expired roles
             permission.roles = expiration.filter(permission.roles)
@@ -114,7 +114,7 @@ class AutomatedActionsConfigIntegration(
                 continue
             yield permission
 
-    def _compile_roles(
+    def compile_roles(
         self, permissions: Iterable[PermissionAutomatedActionsV1]
     ) -> list[AutomatedActionsRole]:
         """Compile all automated actions roles."""
@@ -127,7 +127,7 @@ class AutomatedActionsConfigIntegration(
                 )
         return roles
 
-    def _compile_policies(
+    def compile_policies(
         self, permissions: Iterable[PermissionAutomatedActionsV1]
     ) -> list[AutomatedActionsPolicy]:
         """Compile all automated actions policies."""
@@ -156,7 +156,7 @@ class AutomatedActionsConfigIntegration(
                 )
         return policies
 
-    def _build_policy_file(
+    def build_policy_file(
         self,
         roles: Iterable[AutomatedActionsRole],
         policies: Iterable[AutomatedActionsPolicy],
@@ -167,7 +167,7 @@ class AutomatedActionsConfigIntegration(
             "p": [p.dict() for p in policies],
         })
 
-    def _build_desired_configmap(
+    def build_desired_configmap(
         self,
         ri: ResourceInventory,
         instance: AutomatedActionsInstanceV1,
@@ -198,7 +198,7 @@ class AutomatedActionsConfigIntegration(
             resource=osr,
         )
 
-    def _fetch_current_configmap(
+    def fetch_current_configmap(
         self,
         ri: ResourceInventory,
         instance: AutomatedActionsInstanceV1,
@@ -249,8 +249,8 @@ class AutomatedActionsConfigIntegration(
         ri = ResourceInventory()
 
         for instance in instances:
-            automated_actions_roles = self._compile_roles(instance.permissions or [])
-            automated_actions_policies = self._compile_policies(
+            automated_actions_roles = self.compile_roles(instance.permissions or [])
+            automated_actions_policies = self.compile_policies(
                 instance.permissions or []
             )
             if not automated_actions_roles and not automated_actions_policies:
@@ -259,11 +259,11 @@ class AutomatedActionsConfigIntegration(
                 )
                 continue
 
-            self._build_desired_configmap(
+            self.build_desired_configmap(
                 ri=ri,
                 instance=instance,
                 name=self.params.configmap_name,
-                data=self._build_policy_file(
+                data=self.build_policy_file(
                     automated_actions_roles, automated_actions_policies
                 ),
             )
@@ -275,7 +275,7 @@ class AutomatedActionsConfigIntegration(
                 )
                 continue
 
-            self._fetch_current_configmap(
+            self.fetch_current_configmap(
                 ri=ri,
                 instance=instance,
                 oc=oc,
