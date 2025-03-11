@@ -159,7 +159,7 @@ def test_automated_actions_config_is_enabled(
     argument: AutomatedActionArgumentV1,
     expected: bool,
 ) -> None:
-    assert intg._is_enabled(argument) == expected
+    assert intg.is_enabled(argument) == expected
 
 
 @pytest.mark.parametrize(
@@ -207,7 +207,7 @@ def test_automated_actions_config_filter_permissions(
     permission: PermissionAutomatedActionsV1,
     expected: bool,
 ) -> None:
-    assert bool(list(intg._filter_permissions([permission]))) == expected
+    assert bool(list(intg.filter_permissions([permission]))) == expected
 
 
 def test_automated_actions_config_compile_roles(
@@ -215,7 +215,7 @@ def test_automated_actions_config_compile_roles(
     permissions: list[PermissionAutomatedActionsV1],
     automated_actions_roles: list[AutomatedActionsRole],
 ) -> None:
-    assert intg._compile_roles(permissions) == automated_actions_roles
+    assert intg.compile_roles(permissions) == automated_actions_roles
 
 
 def test_automated_actions_config_compile_policies(
@@ -223,7 +223,7 @@ def test_automated_actions_config_compile_policies(
     permissions: list[PermissionAutomatedActionsV1],
     automated_actions_policies: list[AutomatedActionsPolicy],
 ) -> None:
-    assert intg._compile_policies(permissions) == automated_actions_policies
+    assert intg.compile_policies(permissions) == automated_actions_policies
 
 
 def test_automated_actions_config_build_policy_file(
@@ -233,7 +233,7 @@ def test_automated_actions_config_build_policy_file(
     policy_file: str,
 ) -> None:
     assert (
-        intg._build_policy_file(automated_actions_roles, automated_actions_policies)
+        intg.build_policy_file(automated_actions_roles, automated_actions_policies)
         == policy_file
     )
 
@@ -242,7 +242,7 @@ def test_automated_actions_config_build_desired_configmap(
     intg: AutomatedActionsConfigIntegration, instance: AutomatedActionsInstanceV1
 ) -> None:
     ri = ResourceInventory()
-    intg._build_desired_configmap(ri, instance, name="aa-cm", data="data")
+    intg.build_desired_configmap(ri, instance, name="aa-cm", data="data")
     for cluster_name, namespace_name, resource_type, resource in ri:
         assert cluster_name == instance.deployment.cluster.name
         assert namespace_name == instance.deployment.name
@@ -268,7 +268,7 @@ def test_automated_actions_config_fetch_current_configmap(
         "metadata": {"name": "aa-cm"},
         "data": {"policy.yml": "data"},
     }
-    intg._fetch_current_configmap(ri, instance, oc, name="aa-cm")
+    intg.fetch_current_configmap(ri, instance, oc, name="aa-cm")
     for cluster_name, namespace_name, resource_type, resource in ri:
         assert cluster_name == instance.deployment.cluster.name
         assert namespace_name == instance.deployment.name
