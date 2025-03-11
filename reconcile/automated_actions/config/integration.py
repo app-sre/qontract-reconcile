@@ -142,7 +142,7 @@ class AutomatedActionsConfigIntegration(
                         parameters.append({
                             "cluster": arg.namespace.cluster.name,
                             "namespace": arg.namespace.name,
-                            "kind": arg.kind_pattern or "Deployment|Pod",
+                            "kind": arg.kind_pattern,
                             "name": arg.name_pattern,
                         })
                     case _:
