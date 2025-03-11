@@ -140,8 +140,8 @@ class RoleV1(ConfiguredBaseModel):
 
 class AutomatedActionV1(ConfiguredBaseModel):
     operation_id: str = Field(..., alias="operationId")
-    retries: Optional[int] = Field(..., alias="retries")
-    max_ops: Optional[int] = Field(..., alias="maxOps")
+    retries: int = Field(..., alias="retries")
+    max_ops: int = Field(..., alias="maxOps")
 
 
 class AutomatedActionArgumentV1(ConfiguredBaseModel):
@@ -165,7 +165,7 @@ class AutomatedActionArgumentOpenshiftV1_NamespaceV1(ConfiguredBaseModel):
 
 class AutomatedActionArgumentOpenshiftV1(AutomatedActionArgumentV1):
     namespace: AutomatedActionArgumentOpenshiftV1_NamespaceV1 = Field(..., alias="namespace")
-    kind_pattern: Optional[str] = Field(..., alias="kind_pattern")
+    kind_pattern: str = Field(..., alias="kind_pattern")
     name_pattern: str = Field(..., alias="name_pattern")
 
 
