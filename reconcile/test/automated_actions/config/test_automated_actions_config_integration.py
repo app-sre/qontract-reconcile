@@ -170,9 +170,7 @@ def test_automated_actions_config_is_enabled(
             PermissionAutomatedActionsV1(
                 roles=None,
                 arguments=None,
-                action=AutomatedActionV1(
-                    operationId="action", retries=None, maxOps=None
-                ),
+                action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
             ),
             False,
         ),
@@ -183,9 +181,7 @@ def test_automated_actions_config_is_enabled(
                     RoleV1(name="role", users=[], bots=[], expirationDate="1970-01-01")
                 ],
                 arguments=None,
-                action=AutomatedActionV1(
-                    operationId="action", retries=None, maxOps=None
-                ),
+                action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
             ),
             False,
         ),
@@ -194,9 +190,7 @@ def test_automated_actions_config_is_enabled(
             PermissionAutomatedActionsV1(
                 roles=[RoleV1(name="role", users=[], bots=[], expirationDate=None)],
                 arguments=None,
-                action=AutomatedActionV1(
-                    operationId="action", retries=None, maxOps=None
-                ),
+                action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
             ),
             True,
         ),
