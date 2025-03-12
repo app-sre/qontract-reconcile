@@ -94,6 +94,13 @@ class MRApproval:
             lgtms.append(comment["username"])
         return lgtms
 
+    def expand_groups(self, owners: list[str]) -> list[str]:
+        members: set[str] = set()
+        for name in owners:
+            if group := self.gitlab.get_group_if_exists(name):
+                members.update(m.username for m in self.gitlab.get_group_members(group))
+        return list(members.union(owners))
+
     def get_approval_status(self):
         approval_status = {"approved": False, "report": None}
 
@@ -116,6 +123,11 @@ class MRApproval:
             for approver in change_owners["approvers"]:
                 if approver in lgtms:
                     change_approved = True
+
+            if not change_approved:
+                for approver in self.expand_groups(change_owners["approvers"]):
+                    if approver in lgtms:
+                        change_approved = True
 
             # Each change that was not yet approved will generate
             # a report message
