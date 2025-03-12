@@ -124,9 +124,12 @@ class MRApproval:
                 if approver in lgtms:
                     change_approved = True
 
-            if lgtms and not change_approved:
-                if self.expand_groups(change_owners["approvers"]).intersection(lgtms):
-                    change_approved = True
+            if (
+                not change_approved
+                and lgtms
+                and self.expand_groups(change_owners["approvers"]).intersection(lgtms)
+            ):
+                change_approved = True
 
             # Each change that was not yet approved will generate
             # a report message
