@@ -124,7 +124,7 @@ class MRApproval:
                 if approver in lgtms:
                     change_approved = True
 
-            if not change_approved:
+            if lgtms and not change_approved:
                 for approver in self.expand_groups(change_owners["approvers"]):
                     if approver in lgtms:
                         change_approved = True
