@@ -42,7 +42,7 @@ class AutomatedActionsConfigIntegrationParams(PydanticRunParams):
     thread_pool_size: int
     use_jump_host: bool
     internal: bool | None = None
-    configmap_name: str = "automated-actions-config"
+    configmap_name: str = "automated-actions-policy"
 
 
 class AutomatedActionsRole(BaseModel):
