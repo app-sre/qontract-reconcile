@@ -823,6 +823,19 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     changed_fields=changed_fields,
                 )
 
+            db_response = self._aws_api.describe_rds_db_instance(
+                account_name, resource_name, region_name=region_name
+            )
+            replica_identifiers = db_response["DBInstances"][0].get(
+                "ReadReplicaDBInstanceIdentifiers"
+            )
+            db_identifier = db_response["DBInstances"][0].get("DBInstanceIdentifier")
+            if replica_identifiers is not None:
+                if len(replica_identifiers) > 0:
+                    raise RdsUpgradeValidationError(
+                        f"The primary database, {db_identifier}, has a read replica associated with it. Please remove the replica before upgrading the primary database"
+                    )
+
     def validate_blue_green_update_requirements(
         self,
         account_name: str,
