@@ -145,3 +145,50 @@ def test_competing_label_matchers(
         spec_name="hypershift-cluster-subscription-labels-integration",
         value=2,
     )
+
+
+def test_managed_resources_metrics(
+    integration: FleetLabelerIntegration,
+    dependencies: Dependencies,
+    gql_class_factory: Callable[..., FleetLabelsSpecV1],
+) -> None:
+    """
+    We have 2 clusters in the current inventory.
+    OCM API returns the same 2 clustes, so the inventory is in synch.
+
+    We expect a metric that shows 2 clusters are under management.
+    We expect a metric that shows 4 labels are under management.
+    """
+    dependencies.vcs = build_vcs(content=get_fixture_content("2_clusters.yaml"))
+    dependencies.metrics = build_metrics()
+    spec = gql_class_factory(
+        FleetLabelsSpecV1, label_spec_data_from_fixture("2_clusters.yaml")
+    )
+    dependencies.label_specs_by_name = {spec.name: spec}
+    dependencies.ocm_clients_by_label_spec_name = {
+        spec.name: build_ocm_client(
+            discover_clusters_by_labels=[
+                build_cluster(
+                    name="cluster_name_1",
+                    uid="123",
+                    subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
+                ),
+                build_cluster(
+                    name="cluster_name_2",
+                    uid="456",
+                    subscription_labels={"sre-capabilities.dtp.managed-labels": "true"},
+                ),
+            ],
+        )
+    }
+
+    integration.reconcile(dependencies=dependencies)
+
+    dependencies.metrics.set_managed_labels_gauge.assert_called_once_with(
+        ocm_name="ocm_test",
+        spec_name="hypershift-cluster-subscription-labels-integration",
+        value=4,
+    )
+    dependencies.metrics.set_managed_clusters_gauge.assert_called_once_with(
+        value=2,
+    )
