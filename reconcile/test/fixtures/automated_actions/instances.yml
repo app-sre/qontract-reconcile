@@ -1,0 +1,89 @@
+---
+automated_actions_instances_v1:
+- name: automated-actions-prod
+  deployment:
+    name: automated-actions
+    cluster:
+      name: cluster
+      serverUrl: 'https://cluster.example.com:6443'
+      internal: false
+      automationToken:
+        path: vault_path
+        field: token
+  permissions:
+  - roles:
+    - name: app-sre
+      users:
+      - org_username: user1
+      - org_username: user2
+      bots:
+      - org_username: bot1
+    action:
+      operationId: noop
+    arguments: null
+  - roles:
+    - name: tenant
+      users:
+      - org_username: tenant1
+      - org_username: tenant2
+      bots:
+      - org_username: bot1
+    action:
+      operationId: openshift-workload-restart
+      retries: 2
+      maxOps: 2
+    arguments:
+    - type: openshift
+      kind_pattern: Deployment|Pod
+      name_pattern: 'shaver.*'
+      namespace:
+        name: namespace
+        cluster:
+          name: cluster
+
+    # deleted namespace
+    - type: openshift
+      kind_pattern: Deployment|Pod
+      name_pattern: 'shaver.*'
+      namespace:
+        name: namespace
+        delete: true
+        cluster:
+          name: cluster
+
+    # integration disabled on the cluster
+    - type: openshift
+      kind_pattern: Deployment|Pod
+      name_pattern: 'shaver.*'
+      namespace:
+        name: another-namespace
+        delete: null
+        cluster:
+          name: disabled
+          disable:
+            integrations:
+            - automated-actions
+
+  # expired role
+  - roles:
+    - name: app-sre
+      users:
+      - org_username: user1
+      bots: []
+      expirationDate: "1970-01-01"
+    action:
+      operationId: noop
+
+# deleted instance
+- name: automated-actions-deleted
+  deployment:
+    name: automated-actions
+    delete: true
+    cluster:
+      name: cluster
+      serverUrl: 'https://cluster.example.com:6443'
+      internal: false
+      automationToken:
+        path: vault_path
+        field: token
+  permissions: []
