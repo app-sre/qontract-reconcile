@@ -33,6 +33,20 @@ query ExternalResourcesNamespaces {
                 availability_zone
                 parameter_group
                 old_parameter_group
+                blue_green_deployment {
+                    enabled
+                    switchover
+                    delete
+                    target {
+                        allocated_storage
+                        engine_version
+                        instance_class
+                        iops
+                        parameter_group
+                        storage_throughput
+                        storage_type
+                    }
+                }
                 overrides
                 output_resource_name
                 enhanced_monitoring
