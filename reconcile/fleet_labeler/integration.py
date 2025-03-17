@@ -66,11 +66,11 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             secret_reader=self.secret_reader,
             dry_run=dry_run,
         )
-        self._metrics = dependencies.metrics
         self.reconcile(dependencies=dependencies)
 
     def reconcile(self, dependencies: Dependencies) -> None:
         validate_label_specs(specs=dependencies.label_specs_by_name)
+        all_cluster_ids: set[str] = set()
         for spec_name, ocm in dependencies.ocm_clients_by_label_spec_name.items():
             spec = dependencies.label_specs_by_name[spec_name]
             discovered_clusters = self._discover_desired_clusters(
@@ -99,6 +99,16 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
                 ocm=ocm,
                 dry_run=synch_labels,
             )
+            num_labels = 0
+            for cluster in spec.clusters:
+                all_cluster_ids.add(cluster.cluster_id)
+                num_labels += len(cluster.subscription_labels)
+            dependencies.metrics.set_managed_labels_gauge(
+                ocm_name=spec.ocm_env.name,
+                spec_name=spec_name,
+                value=num_labels,
+            )
+        dependencies.metrics.set_managed_clusters_gauge(value=len(all_cluster_ids))
 
     def _discover_desired_clusters(
         self, spec: FleetLabelsSpecV1, ocm: OCMClient
