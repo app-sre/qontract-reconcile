@@ -266,6 +266,12 @@ class Erv2Cli:
                 [
                     "docker",
                     "run",
+                    "-e",
+                    "TERRAFORM_MODULE_WORK_DIR=/tmp/migration",
+                    "-e",
+                    "BACKEND_TF_FILE=/tmp/migration/backend.tf",
+                    "-e",
+                    "TF_VARS_FILE=/tmp/migration/terraform.tfvars.json",
                     "--name",
                     "erv2-unlock",
                     "--rm",
@@ -279,7 +285,11 @@ class Erv2Cli:
                     "/bin/bash",
                     self.image,
                     "-c",
-                    f"cdktf synth && cd cdktf.out/stacks/CDKTF/ && terraform init && terraform force-unlock -force '{lock_id}'",
+                    "mkdir -p $TERRAFORM_MODULE_WORK_DIR;"
+                    "cp -rf module/* $TERRAFORM_MODULE_WORK_DIR;"
+                    "generate-tf-config && "
+                    "terraform -chdir=$TERRAFORM_MODULE_WORK_DIR init && "
+                    f"terraform -chdir=$TERRAFORM_MODULE_WORK_DIR force-unlock -force '{lock_id}'",
                 ],
                 check=True,
             )
