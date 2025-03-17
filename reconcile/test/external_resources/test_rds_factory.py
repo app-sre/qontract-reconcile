@@ -3,6 +3,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.external_resources.aws import AWSRdsFactory
 from reconcile.external_resources.model import (
@@ -101,3 +102,49 @@ def test_validate_timeouts_nok(timeouts: Any, expected_value_error: str) -> None
         match=rf".*{expected_value_error}.*",
     ):
         factory.validate(resource, module_conf)
+
+
+def test_resolve_blue_green_deployment_parameter_group(
+    factory: AWSRdsFactory,
+    mocker: MockerFixture,
+) -> None:
+    rvr = mocker.patch(
+        "reconcile.external_resources.aws.ResourceValueResolver", autospec=True
+    )
+    rvr.return_value.resolve.return_value = {
+        "identifier": "test-rds",
+        "blue_green_deployment": {
+            "target": {
+                "parameter_group": "/path/to/new_parameter_group",
+            }
+        },
+    }
+    rvr.return_value._get_values.return_value = {"k": "v"}
+    spec = ExternalResourceSpec(
+        provision_provider="aws",
+        provisioner={"name": "test"},
+        resource={
+            "identifier": "test-rds",
+            "provider": "rds",
+            "blue_green_deployment": {
+                "target": {
+                    "parameter_group": "/path/to/new_parameter_group",
+                }
+            },
+        },
+        namespace={},
+    )
+    module_conf = ExternalResourceModuleConfiguration()
+
+    result = factory.resolve(spec, module_conf)
+
+    assert result == {
+        "identifier": "test-rds",
+        "blue_green_deployment": {
+            "target": {
+                "parameter_group": {"k": "v"},
+            },
+        },
+        "output_prefix": "test-rds-rds",
+        "timeouts": {"create": "-1005m", "delete": "-1005m", "update": "-1005m"},
+    }
