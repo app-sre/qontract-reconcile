@@ -102,7 +102,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
             num_labels = 0
             for cluster in spec.clusters:
                 all_cluster_ids.add(cluster.cluster_id)
-                num_labels += sum(1 for _ in cluster.subscription_labels)
+                num_labels += len(cluster.subscription_labels)
             dependencies.metrics.set_managed_labels_gauge(
                 ocm_name=spec.ocm_env.name,
                 spec_name=spec_name,
