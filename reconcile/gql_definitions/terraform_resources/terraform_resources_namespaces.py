@@ -319,6 +319,12 @@ query TerraformResourcesNamespaces {
                     openshift_service
                     protocol
                     protocol_version
+                    health_check {
+                        unhealthy_threshold
+                        timeout
+                        interval
+                        healthy_threshold
+                    }
                 }
                 rules {
                     condition {
@@ -799,6 +805,13 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
+class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
+    unhealthy_threshold: Optional[int] = Field(..., alias="unhealthy_threshold")
+    timeout: Optional[int] = Field(..., alias="timeout")
+    interval: Optional[int] = Field(..., alias="interval")
+    healthy_threshold: Optional[int] = Field(..., alias="healthy_threshold")
+
+
 class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     default: bool = Field(..., alias="default")
@@ -806,6 +819,7 @@ class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     openshift_service: Optional[str] = Field(..., alias="openshift_service")
     protocol: Optional[str] = Field(..., alias="protocol")
     protocol_version: Optional[str] = Field(..., alias="protocol_version")
+    health_check: Optional[NamespaceTerraformResourceALBTargetHealthcheckV1] = Field(..., alias="health_check")
 
 
 class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
