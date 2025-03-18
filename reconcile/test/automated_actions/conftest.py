@@ -2,13 +2,13 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 import pytest
-import yaml
 
 from reconcile.automated_actions.config.integration import (
+    AutomatedActionRoles,
     AutomatedActionsConfigIntegration,
     AutomatedActionsConfigIntegrationParams,
     AutomatedActionsPolicy,
-    AutomatedActionsRole,
+    AutomatedActionsUser,
 )
 from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionArgumentOpenshiftV1,
@@ -91,7 +91,7 @@ def permissions() -> list[PermissionAutomatedActionsV1]:
                 RoleV1(
                     name="another-role-with-args",
                     users=[UserV1(org_username="user1")],
-                    bots=[BotV1(org_username="bot1")],
+                    bots=[],
                     expirationDate=None,
                 )
             ],
@@ -115,71 +115,58 @@ def permissions() -> list[PermissionAutomatedActionsV1]:
 
 
 @pytest.fixture
-def automated_actions_roles() -> list[AutomatedActionsRole]:
+def automated_actions_users() -> list[AutomatedActionsUser]:
     return [
-        AutomatedActionsRole(user="user1", role="role"),
-        AutomatedActionsRole(user="bot1", role="role"),
-        AutomatedActionsRole(user="user1", role="another-role-with-args"),
-        AutomatedActionsRole(user="bot1", role="another-role-with-args"),
+        AutomatedActionsUser(
+            username="user1", roles={"another-role-with-args", "role"}
+        ),
+        AutomatedActionsUser(username="bot1", roles={"role"}),
     ]
 
 
 @pytest.fixture
-def automated_actions_policies() -> list[AutomatedActionsPolicy]:
-    return [
-        AutomatedActionsPolicy(sub="role", obj="action", params={}),
-        AutomatedActionsPolicy(
-            sub="another-role-with-args",
-            obj="action",
-            params={
-                "cluster": "cluster",
-                "namespace": "namespace",
-                "kind": "Deployment|Pod",
-                "name": "shaver.*",
-            },
-        ),
-    ]
+def automated_actions_roles() -> AutomatedActionRoles:
+    return {
+        "role": [
+            AutomatedActionsPolicy(sub="role", obj="action", params={}),
+        ],
+        "another-role-with-args": [
+            AutomatedActionsPolicy(
+                sub="another-role-with-args",
+                obj="action",
+                params={
+                    "cluster": "^cluster$",
+                    "namespace": "^namespace$",
+                    "kind": "Deployment|Pod",
+                    "name": "shaver.*",
+                },
+            ),
+        ],
+    }
 
 
 @pytest.fixture
 def policy_file() -> str:
-    return yaml.dump({
-        "g": [
-            {
-                "role": "role",
-                "user": "user1",
-            },
-            {
-                "role": "role",
-                "user": "bot1",
-            },
-            {
-                "role": "another-role-with-args",
-                "user": "user1",
-            },
-            {
-                "role": "another-role-with-args",
-                "user": "bot1",
-            },
-        ],
-        "p": [
-            {
-                "obj": "action",
-                "params": {},
-                "sub": "role",
-            },
-            {
-                "obj": "action",
-                "params": {
-                    "cluster": "cluster",
-                    "namespace": "namespace",
-                    "kind": "Deployment|Pod",
-                    "name": "shaver.*",
-                },
-                "sub": "another-role-with-args",
-            },
-        ],
-    })
+    return """roles:
+  another-role-with-args:
+  - obj: action
+    params:
+      cluster: ^cluster$
+      kind: Deployment|Pod
+      name: shaver.*
+      namespace: ^namespace$
+    sub: another-role-with-args
+  role:
+  - obj: action
+    params: {}
+    sub: role
+users:
+  bot1:
+  - role
+  user1:
+  - another-role-with-args
+  - role
+"""
 
 
 @pytest.fixture

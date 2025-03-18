@@ -4,9 +4,9 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.automated_actions.config.integration import (
+    AutomatedActionRoles,
     AutomatedActionsConfigIntegration,
-    AutomatedActionsPolicy,
-    AutomatedActionsRole,
+    AutomatedActionsUser,
 )
 from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionArgumentOpenshiftV1,
@@ -204,30 +204,30 @@ def test_automated_actions_config_filter_permissions(
     assert bool(list(intg.filter_permissions([permission]))) == expected
 
 
+def test_automated_actions_config_compile_users(
+    intg: AutomatedActionsConfigIntegration,
+    permissions: list[PermissionAutomatedActionsV1],
+    automated_actions_users: list[AutomatedActionsUser],
+) -> None:
+    assert intg.compile_users(permissions) == automated_actions_users
+
+
 def test_automated_actions_config_compile_roles(
     intg: AutomatedActionsConfigIntegration,
     permissions: list[PermissionAutomatedActionsV1],
-    automated_actions_roles: list[AutomatedActionsRole],
+    automated_actions_roles: AutomatedActionRoles,
 ) -> None:
     assert intg.compile_roles(permissions) == automated_actions_roles
 
 
-def test_automated_actions_config_compile_policies(
-    intg: AutomatedActionsConfigIntegration,
-    permissions: list[PermissionAutomatedActionsV1],
-    automated_actions_policies: list[AutomatedActionsPolicy],
-) -> None:
-    assert intg.compile_policies(permissions) == automated_actions_policies
-
-
 def test_automated_actions_config_build_policy_file(
     intg: AutomatedActionsConfigIntegration,
-    automated_actions_roles: list[AutomatedActionsRole],
-    automated_actions_policies: list[AutomatedActionsPolicy],
+    automated_actions_users: list[AutomatedActionsUser],
+    automated_actions_roles: AutomatedActionRoles,
     policy_file: str,
 ) -> None:
     assert (
-        intg.build_policy_file(automated_actions_roles, automated_actions_policies)
+        intg.build_policy_file(automated_actions_users, automated_actions_roles)
         == policy_file
     )
 
@@ -241,7 +241,7 @@ def test_automated_actions_config_build_desired_configmap(
         assert cluster_name == instance.deployment.cluster.name
         assert namespace_name == instance.deployment.name
         assert resource_type == "ConfigMap"
-        assert resource["desired"]["aa-cm"].body["data"] == {"policy.yml": "data"}
+        assert resource["desired"]["aa-cm"].body["data"] == {"roles.yml": "data"}
 
 
 def test_automated_actions_config_fetch_current_configmap(
@@ -260,11 +260,11 @@ def test_automated_actions_config_fetch_current_configmap(
         "apiVersion": "v1",
         "kind": "ConfigMap",
         "metadata": {"name": "aa-cm"},
-        "data": {"policy.yml": "data"},
+        "data": {"roles.yml": "data"},
     }
     intg.fetch_current_configmap(ri, instance, oc, name="aa-cm")
     for cluster_name, namespace_name, resource_type, resource in ri:
         assert cluster_name == instance.deployment.cluster.name
         assert namespace_name == instance.deployment.name
         assert resource_type == "ConfigMap"
-        assert resource["current"]["aa-cm"].body["data"] == {"policy.yml": "data"}
+        assert resource["current"]["aa-cm"].body["data"] == {"roles.yml": "data"}

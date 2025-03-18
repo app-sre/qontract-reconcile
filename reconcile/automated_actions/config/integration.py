@@ -45,15 +45,18 @@ class AutomatedActionsConfigIntegrationParams(PydanticRunParams):
     configmap_name: str = "automated-actions-policy"
 
 
-class AutomatedActionsRole(BaseModel):
-    user: str
-    role: str
+class AutomatedActionsUser(BaseModel):
+    username: str
+    roles: set[str]
 
 
 class AutomatedActionsPolicy(BaseModel):
     sub: str
     obj: str
     params: dict[str, str] = {}
+
+
+AutomatedActionRoles = dict[str, list[AutomatedActionsPolicy]]
 
 
 class AutomatedActionsConfigIntegration(
@@ -114,24 +117,30 @@ class AutomatedActionsConfigIntegration(
                 continue
             yield permission
 
-    def compile_roles(
+    def compile_users(
         self, permissions: Iterable[PermissionAutomatedActionsV1]
-    ) -> list[AutomatedActionsRole]:
+    ) -> list[AutomatedActionsUser]:
         """Compile all automated actions roles."""
-        roles: list[AutomatedActionsRole] = []
+        users: dict[str, AutomatedActionsUser] = {}
         for permission in permissions:
             for role in permission.roles or []:
-                roles.extend(
-                    AutomatedActionsRole(user=user.org_username, role=role.name)
-                    for user in (role.users or []) + (role.bots or [])
-                )
-        return roles
+                for user in (role.users or []) + (role.bots or []):
+                    if not user.org_username:
+                        continue
+                    aa_user = users.setdefault(
+                        user.org_username,
+                        AutomatedActionsUser(username=user.org_username, roles=[]),
+                    )
+                    aa_user.roles.add(role.name)
 
-    def compile_policies(
+        return list(users.values())
+
+    def compile_roles(
         self, permissions: Iterable[PermissionAutomatedActionsV1]
-    ) -> list[AutomatedActionsPolicy]:
+    ) -> AutomatedActionRoles:
         """Compile all automated actions policies."""
-        policies: list[AutomatedActionsPolicy] = []
+        roles: AutomatedActionRoles = {}
+
         for permission in permissions or []:
             obj = permission.action.operation_id
 
@@ -140,8 +149,10 @@ class AutomatedActionsConfigIntegration(
                 match arg:
                     case AutomatedActionArgumentOpenshiftV1():
                         parameters.append({
-                            "cluster": arg.namespace.cluster.name,
-                            "namespace": arg.namespace.name,
+                            # all parameter values are regexes in the OPA policy
+                            # therefore, cluster and namespace must be fixed to the current strings
+                            "cluster": f"^{arg.namespace.cluster.name}$",
+                            "namespace": f"^{arg.namespace.name}$",
                             "kind": arg.kind_pattern,
                             "name": arg.name_pattern,
                         })
@@ -150,22 +161,29 @@ class AutomatedActionsConfigIntegration(
                             f"Unsupported argument type: {arg.q_type}"
                         )
             for role in permission.roles or []:
-                policies.extend(
+                aa_role = roles.setdefault(role.name, [])
+                aa_role.extend(
                     AutomatedActionsPolicy(sub=role.name, obj=obj, params=params)
                     for params in parameters
                 )
-        return policies
+        return roles
 
     def build_policy_file(
         self,
-        roles: Iterable[AutomatedActionsRole],
-        policies: Iterable[AutomatedActionsPolicy],
+        users: Iterable[AutomatedActionsUser],
+        roles: AutomatedActionRoles,
     ) -> str:
         """Build the automated actions casbin policy file."""
-        return yaml.dump({
-            "g": [r.dict() for r in roles],
-            "p": [p.dict() for p in policies],
-        })
+        return yaml.dump(
+            {
+                "users": {user.username: sorted(user.roles) for user in users},
+                "roles": {
+                    role: [policy.dict() for policy in policies]
+                    for role, policies in roles.items()
+                },
+            },
+            sort_keys=True,
+        )
 
     def build_desired_configmap(
         self,
@@ -181,7 +199,7 @@ class AutomatedActionsConfigIntegration(
                     api_version="v1",
                     kind="ConfigMap",
                     metadata=V1ObjectMeta(name=name),
-                    data={"policy.yml": data},
+                    data={"roles.yml": data},
                 )
             ),
             integration=QONTRACT_INTEGRATION,
@@ -249,11 +267,9 @@ class AutomatedActionsConfigIntegration(
         ri = ResourceInventory()
 
         for instance in instances:
-            automated_actions_roles = self.compile_roles(instance.permissions or [])
-            automated_actions_policies = self.compile_policies(
-                instance.permissions or []
-            )
-            if not automated_actions_roles and not automated_actions_policies:
+            users = self.compile_users(instance.permissions or [])
+            policies = self.compile_roles(instance.permissions or [])
+            if not users and not policies:
                 logging.info(
                     f"{instance.deployment.cluster.name}/{instance.deployment.name}: No enabled automated actions found. Skipping this instance!"
                 )
@@ -263,9 +279,7 @@ class AutomatedActionsConfigIntegration(
                 ri=ri,
                 instance=instance,
                 name=self.params.configmap_name,
-                data=self.build_policy_file(
-                    automated_actions_roles, automated_actions_policies
-                ),
+                data=self.build_policy_file(users, policies),
             )
 
             oc = oc_map.get_cluster(instance.deployment.cluster.name)
