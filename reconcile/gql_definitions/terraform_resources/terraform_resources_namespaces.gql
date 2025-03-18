@@ -262,6 +262,12 @@ query TerraformResourcesNamespaces {
                     openshift_service
                     protocol
                     protocol_version
+                    health_check {
+                        unhealthy_threshold
+                        timeout
+                        interval
+                        healthy_threshold
+                    }
                 }
                 rules {
                     condition {

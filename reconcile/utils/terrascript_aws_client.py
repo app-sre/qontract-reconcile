@@ -5376,6 +5376,25 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 f"{identifier}-{target_name}", **lbt_random_id_values
             )
             tf_resources.append(lbt_random_id)
+            health_check_interval = 10
+            health_check_timeout = 5
+            health_check_unhealthy_threshold = 3
+            health_check_healthy_threshold = 3
+            if health_check := t.get("health_check"):
+                health_check_interval = (
+                    health_check.get("interval") or health_check_interval
+                )
+                health_check_timeout = (
+                    health_check.get("timeout") or health_check_timeout
+                )
+                health_check_unhealthy_threshold = (
+                    health_check.get("unhealthy_threshold")
+                    or health_check_unhealthy_threshold
+                )
+                health_check_healthy_threshold = (
+                    health_check.get("healthy_threshold")
+                    or health_check_healthy_threshold
+                )
 
             # https://www.terraform.io/docs/providers/aws/r/
             # lb_target_group.html
@@ -5388,7 +5407,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "target_type": "ip",
                 "vpc_id": vpc_id,
                 "health_check": {
-                    "interval": 10,
+                    "interval": health_check_interval,
+                    "timeout": health_check_timeout,
+                    "unhealthy_threshold": health_check_unhealthy_threshold,
+                    "healthy_threshold": health_check_healthy_threshold,
                     "path": "/",
                     "protocol": "HTTPS",
                     "port": 443,
