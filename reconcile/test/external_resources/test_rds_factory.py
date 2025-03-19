@@ -22,15 +22,27 @@ def factory() -> AWSRdsFactory:
     return AWSRdsFactory(er_inventory=Mock(), secret_reader=Mock())
 
 
+DEFAULT_TIMEOUT_MINUTES = 1440
+DEFAULT_EXPECTED_TIMEOUTS = {
+    "create": "1435m",
+    "delete": "1435m",
+    "update": "1435m",
+}
+
+
 @pytest.mark.parametrize(
     ("reconcile_timeout_minutes", "timeouts", "expected_timeouts"),
     [
         (
-            120,
+            DEFAULT_TIMEOUT_MINUTES,
             {"create": "60m", "update": "60m", "delete": "60m"},
             {"create": "60m", "update": "60m", "delete": "60m"},
         ),
-        (120, None, {"create": "115m", "update": "115m", "delete": "115m"}),
+        (
+            DEFAULT_TIMEOUT_MINUTES,
+            None,
+            DEFAULT_EXPECTED_TIMEOUTS,
+        ),
     ],
 )
 def test_validate_timeouts_ok(
@@ -147,7 +159,7 @@ def test_resolve_blue_green_deployment_parameter_group(
             },
         },
         "output_prefix": "test-rds-rds",
-        "timeouts": {"create": "-1005m", "delete": "-1005m", "update": "-1005m"},
+        "timeouts": DEFAULT_EXPECTED_TIMEOUTS,
     }
 
 
@@ -196,5 +208,5 @@ def test_resolve_replica_source(
             "blue_green_deployment_enabled": True,
         },
         "output_prefix": "test-rds-read-replica-rds",
-        "timeouts": {"create": "-1005m", "delete": "-1005m", "update": "-1005m"},
+        "timeouts": DEFAULT_EXPECTED_TIMEOUTS,
     }
