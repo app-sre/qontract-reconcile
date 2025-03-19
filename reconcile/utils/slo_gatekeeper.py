@@ -1,23 +1,25 @@
-from base64 import b64encode
 import logging
+from base64 import b64encode
 from math import isnan
 from typing import Any
 from urllib.parse import urljoin
 
 import jinja2
 import requests
+from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SaasSLODocument,
     SLODocumentSLOV1,
     SLONamespacesV1,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 
 PROM_QUERY_URL = "api/v1/query"
 PROM_TIMEOUT = (5, 300)
 
 
-class SLODetails:
+class SLODetails(BaseModel):
     def __init__(
         self,
         namespace_name: str,
@@ -25,7 +27,7 @@ class SLODetails:
         cluster_name: str,
         prom_url: str,
         is_basic_auth: bool,
-        prom_token: str | None,
+        prom_token: str,
         slo: SLODocumentSLOV1,
     ):
         self.namespace_name = namespace_name
@@ -69,9 +71,9 @@ class SLODetails:
 
 
 class SLOGateKeeper:
-    def __init__(self, slos, secret_reader):
+    def __init__(self, slo_documents: list[SaasSLODocument], secret_reader: SecretReaderBase):
         self.secret_reader = secret_reader
-        self.slos = self._create_SLO_details_list(slos)
+        self.slo_details_list = self._create_SLO_details_list(slo_documents)
 
     def _create_SLO_details_list(
         self, slo_documents: list[SaasSLODocument]
@@ -80,7 +82,7 @@ class SLOGateKeeper:
             SLODetails(
                 namespace_name=namespace.namespace.name,
                 cluster_name=namespace.namespace.cluster.name,
-                slo_document_name = slo_document.name,
+                slo_document_name=slo_document.name,
                 prom_token=prom_token,
                 prom_url=prom_url,
                 is_basic_auth=is_basic_auth,
@@ -92,7 +94,7 @@ class SLOGateKeeper:
             for prom_url, prom_token, is_basic_auth in [
                 self._get_credentials_from_slo_namespace(namespace)
             ]
-            for slo in slo_document.slos
+            for slo in slo_document.slos or []
         ]
         return slo_details_list
 
@@ -130,7 +132,7 @@ class SLOGateKeeper:
         return (prom_url, prom_token, is_basic_auth)
 
     def is_slo_breached(self) -> bool:
-        for slo in self.slos:
+        for slo in self.slo_details_list:
             slo_value = slo.get_SLO_value()
             if slo_value < slo.slo.slo_target:
                 logging.info(f"SLO {slo.slo.name} from document {slo.slo_document_name} is breached. Expected value:{slo.slo.slo_target} current value:{slo_value}")
