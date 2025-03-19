@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-builder:0.9.2 AS build-image
+FROM quay.io/app-sre/qontract-reconcile-builder:0.7.0 AS build-image
 COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
 
 WORKDIR /work
@@ -24,7 +24,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --pytho
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.15.2 AS dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
 
 ARG CONTAINER_UID=1000
@@ -48,7 +48,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.15.2 AS prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 AS prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
