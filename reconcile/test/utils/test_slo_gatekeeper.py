@@ -1,6 +1,3 @@
-
-
-
 import pytest
 from pytest_mock import MockFixture
 
@@ -26,28 +23,32 @@ def secret_reader(mocker) -> None:
     mock_secretreader.read_secret.return_value = "secret"
     return mock_secretreader
 
+
 def test_slo_gatekeeper_positive(secret_reader: SecretReaderBase, mocker: MockFixture):
     slo_documents: list[SaasSLODocument] = [
         SaasSLODocument(
             name="test_saas_doc",
             namespaces=[
                 SLONamespacesV1(
-                  prometheusAccess=None,
-                  SLONamespace=None,
-                  namespace=NamespaceV1(
-                      name="test_ns_name",
-                      app=AppV1(
-                          name="test",
-                          ),
-                      cluster=ClusterV1(
-                        name="test_cls",
-                        automationToken=VaultSecret(
-                            path="some/test/path", field="some-field", version=None, format=None,
+                    prometheusAccess=None,
+                    SLONamespace=None,
+                    namespace=NamespaceV1(
+                        name="test_ns_name",
+                        app=AppV1(
+                            name="test",
                         ),
-                        prometheusUrl="http://test-prom-url",
-                        spec=None,
-                      ),
-                  ),
+                        cluster=ClusterV1(
+                            name="test_cls",
+                            automationToken=VaultSecret(
+                                path="some/test/path",
+                                field="some-field",
+                                version=None,
+                                format=None,
+                            ),
+                            prometheusUrl="http://test-prom-url",
+                            spec=None,
+                        ),
+                    ),
                 ),
             ],
             slos=[
@@ -59,15 +60,20 @@ def test_slo_gatekeeper_positive(secret_reader: SecretReaderBase, mocker: MockFi
                         window="28d",
                     ),
                     SLOTarget=0.95,
-                    SLOTargetUnit="percent_0_1"
+                    SLOTargetUnit="percent_0_1",
                 ),
-                ],
+            ],
         ),
     ]
-    get_SLO_value = mocker.patch("reconcile.utils.slo_gatekeeper.SLODetails.get_SLO_value")
+    get_SLO_value = mocker.patch(
+        "reconcile.utils.slo_gatekeeper.SLODetails.get_SLO_value"
+    )
     get_SLO_value.return_value = 0.96
-    slo_gate_keeper = SLOGateKeeper(secret_reader=secret_reader, slo_documents=slo_documents)
+    slo_gate_keeper = SLOGateKeeper(
+        secret_reader=secret_reader, slo_documents=slo_documents
+    )
     assert not slo_gate_keeper.is_slo_breached()
+
 
 def test_slo_gatekeeper_(secret_reader: SecretReaderBase, mocker: MockFixture):
     slo_documents: list[SaasSLODocument] = [
@@ -75,22 +81,25 @@ def test_slo_gatekeeper_(secret_reader: SecretReaderBase, mocker: MockFixture):
             name="test_saas_doc",
             namespaces=[
                 SLONamespacesV1(
-                  prometheusAccess=None,
-                  SLONamespace=None,
-                  namespace=NamespaceV1(
-                      name="test_ns_name",
-                      app=AppV1(
-                          name="test",
-                          ),
-                      cluster=ClusterV1(
-                        name="test_cls",
-                        automationToken=VaultSecret(
-                            path="some/test/path", field="some-field", version=None, format=None,
+                    prometheusAccess=None,
+                    SLONamespace=None,
+                    namespace=NamespaceV1(
+                        name="test_ns_name",
+                        app=AppV1(
+                            name="test",
                         ),
-                        prometheusUrl="http://test-prom-url",
-                        spec=None,
-                      ),
-                  ),
+                        cluster=ClusterV1(
+                            name="test_cls",
+                            automationToken=VaultSecret(
+                                path="some/test/path",
+                                field="some-field",
+                                version=None,
+                                format=None,
+                            ),
+                            prometheusUrl="http://test-prom-url",
+                            spec=None,
+                        ),
+                    ),
                 ),
             ],
             slos=[
@@ -102,12 +111,14 @@ def test_slo_gatekeeper_(secret_reader: SecretReaderBase, mocker: MockFixture):
                         window="28d",
                     ),
                     SLOTarget=0.99,
-                    SLOTargetUnit="percent_0_1"
+                    SLOTargetUnit="percent_0_1",
                 ),
-                ],
+            ],
         ),
     ]
-    get_SLO_value = mocker.patch("reconcile.utils.slo_gatekeeper.SLODetails.get_SLO_value")
+    get_SLO_value = mocker.patch(
+        "reconcile.utils.slo_gatekeeper.SLODetails.get_SLO_value"
+    )
     get_SLO_value.return_value = 0.95
     slo_gate_keeper = SLOGateKeeper(secret_reader=secret_reader, slos=slo_documents)
     assert slo_gate_keeper.is_slo_breached()

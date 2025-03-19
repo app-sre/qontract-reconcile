@@ -55,7 +55,9 @@ class SLODetails(BaseModel):
         headers = {
             "accept": "application/json",
         }
-        headers["Authorization"] = f"{'Basic' if self.is_basic_auth else 'Bearer'} {self.prom_token}"
+        headers["Authorization"] = (
+            f"{'Basic' if self.is_basic_auth else 'Bearer'} {self.prom_token}"
+        )
         template = jinja2.Template(self.slo.expr)
         prom_query = template.render({"window": self.slo.slo_parameters.window})
         response = requests.get(
@@ -71,7 +73,9 @@ class SLODetails(BaseModel):
 
 
 class SLOGateKeeper:
-    def __init__(self, slo_documents: list[SaasSLODocument], secret_reader: SecretReaderBase):
+    def __init__(
+        self, slo_documents: list[SaasSLODocument], secret_reader: SecretReaderBase
+    ):
         self.secret_reader = secret_reader
         self.slo_details_list = self._create_SLO_details_list(slo_documents)
 
@@ -135,6 +139,8 @@ class SLOGateKeeper:
         for slo in self.slo_details_list:
             slo_value = slo.get_SLO_value()
             if slo_value < slo.slo.slo_target:
-                logging.info(f"SLO {slo.slo.name} from document {slo.slo_document_name} is breached. Expected value:{slo.slo.slo_target} current value:{slo_value}")
+                logging.info(
+                    f"SLO {slo.slo.name} from document {slo.slo_document_name} is breached. Expected value:{slo.slo.slo_target} current value:{slo_value}"
+                )
                 return True
         return False
