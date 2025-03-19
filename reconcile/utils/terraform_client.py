@@ -775,7 +775,17 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         before_version = before["engine_version"]
         after = resource_change["after"]
         after_version = after["engine_version"]
+        blue_green_update = after.get("blue_green_update", [])
+        changed_fields = self._resource_diff_changed_fields("update", resource_change)
+        # blue_green_update is not a actully rds field.
+        if "blue_green_update" in changed_fields:
+            changed_fields.remove("blue_green_update")
         if after_version == before_version:
+            if changed_fields and blue_green_update and blue_green_update[0]["enabled"]:
+                raise RdsUpgradeValidationError(
+                    f"Cannot modify RDS instance: {resource_name} for {changed_fields} with blue/green updates. "
+                    f"Blue/green updates are recommended only for major version upgrades."
+                )
             return
 
         region_name = get_region_from_availability_zone(before["availability_zone"])
@@ -806,17 +816,15 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                     f"{resource_name} to a new major version."
                 )
 
-            blue_green_update = after.get("blue_green_update", [])
             if blue_green_update and blue_green_update[0]["enabled"]:
-                changed_fields = self._resource_diff_changed_fields(
-                    "update", resource_change
-                )
                 replica = before["replicas"] != [] or before["replicate_source_db"]
                 self.validate_blue_green_update_requirements(
                     account_name,
                     resource_name,
                     engine,
+                    target["IsMajorVersionUpgrade"],
                     before_version,
+                    after_version,
                     replica,
                     before["parameter_group_name"],
                     region_name,
@@ -828,12 +836,20 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
         account_name: str,
         resource_name: str,
         engine: str,
-        version: str,
+        is_major_version_upgrade: bool,
+        before_version: str,
+        after_version: str,
         replica: bool,
         parameter_group: str,
         region_name: str,
         changed_fields: set[str],
     ) -> None:
+        if not is_major_version_upgrade:
+            raise RdsUpgradeValidationError(
+                f"Cannot upgrade RDS instance: {resource_name}. "
+                f"Blue/green updates are recommended only for major version upgrades."
+            )
+
         min_supported_versions = {
             "mysql": [pkg_version.parse("5.7"), pkg_version.parse("8.0.15")],
             "postgres": [
@@ -860,10 +876,18 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 )
             return False
 
-        if not is_supported(engine, version):
+        if not is_supported(engine=engine, version=before_version):
             raise RdsUpgradeValidationError(
                 f"Cannot upgrade RDS instance: {resource_name}. "
-                f"Engine version {version} is not supported for blue/green updates."
+                f"Engine version {before_version} is not supported for blue/green updates."
+            )
+
+        if self._aws_api and not self._aws_api.check_db_engine_version(
+            account_name, engine, after_version, region_name=region_name
+        ):
+            raise RdsUpgradeValidationError(
+                f"Cannot upgrade RDS instance: {resource_name} with blue/green updates. "
+                f"Target engine version {after_version} is deprecated."
             )
 
         if replica:
