@@ -288,7 +288,7 @@ class ExternalResourcesManager:
         if not state.resource_status.is_in_progress:
             return reconciliation_status
 
-        logging.info(
+        logging.debug(
             "Reconciliation In progress. Action: %s, Key:%s",
             state.reconciliation.action,
             state.reconciliation.key,
