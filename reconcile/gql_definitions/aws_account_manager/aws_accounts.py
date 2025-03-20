@@ -90,10 +90,12 @@ query AWSAccountManagerAccounts {
       supportedDeploymentRegions
       uid
       additionalFeatures
+      accountFileTargetPath
     }
     organization_accounts {
       ... AWSAccountManaged
     }
+    organizationAccountTags
   }
 }
 """
@@ -143,6 +145,7 @@ class AWSAccountRequestV1(ConfiguredBaseModel):
     supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
     uid: Optional[str] = Field(..., alias="uid")
     additional_features: Optional[Json] = Field(..., alias="additionalFeatures")
+    account_file_target_path: Optional[str] = Field(..., alias="accountFileTargetPath")
 
 
 class AWSAccountV1(AWSAccountManaged):
@@ -152,6 +155,7 @@ class AWSAccountV1(AWSAccountManaged):
     automation_role: Optional[AWSAutomationRoleV1] = Field(..., alias="automationRole")
     account_requests: Optional[list[AWSAccountRequestV1]] = Field(..., alias="account_requests")
     organization_accounts: Optional[list[AWSAccountManaged]] = Field(..., alias="organization_accounts")
+    organization_account_tags: Optional[Json] = Field(..., alias="organizationAccountTags")
 
 
 class AWSAccountManagerAccountsQueryData(ConfiguredBaseModel):

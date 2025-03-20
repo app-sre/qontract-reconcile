@@ -1,0 +1,51 @@
+# qenerate: plugin=pydantic_v1
+
+query AutomatedActionsInstances {
+  automated_actions_instances_v1 {
+    name
+    deployment {
+      name
+      clusterAdmin
+      delete
+      cluster {
+        ...OcConnectionCluster
+      }
+    }
+    permissions {
+      roles {
+        name
+        users {
+          org_username
+        }
+        bots {
+          org_username
+        }
+        expirationDate
+      }
+
+      action {
+        operationId
+        retries
+        maxOps
+      }
+
+      arguments {
+        type
+        ... on AutomatedActionArgumentOpenshift_v1 {
+          namespace {
+            name
+            delete
+            cluster {
+              name
+              disable {
+                integrations
+              }
+            }
+          }
+          kind_pattern
+          name_pattern
+        }
+      }
+    }
+  }
+}

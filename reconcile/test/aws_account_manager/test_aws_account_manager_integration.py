@@ -203,7 +203,9 @@ def test_aws_account_manager_utils_integration_reconcile_organization_accounts(
     intg: AwsAccountMgmtIntegration,
 ) -> None:
     intg.reconcile_account = MagicMock()  # type: ignore
-    intg.reconcile_organization_accounts(aws_api, reconciler, [org_account])
+    intg.reconcile_organization_accounts(
+        aws_api, reconciler, [org_account], default_tags={"ship": "USS Enterprise"}
+    )
     reconciler.reconcile_organization_account.assert_called_once_with(
         aws_api=aws_api,
         enterprise_support=False,

@@ -36,9 +36,11 @@ query AWSAccountManagerAccounts {
       supportedDeploymentRegions
       uid
       additionalFeatures
+      accountFileTargetPath
     }
     organization_accounts {
       ... AWSAccountManaged
     }
+    organizationAccountTags
   }
 }
