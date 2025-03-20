@@ -239,6 +239,7 @@ def test_aws_account_manager_utils_integration_reconcile_account(
             email="security@example.com",
             phoneNumber="+1234567890",
         ),
+        regions=["ca-east-1", "ca-west-2"],
     )
 
 
