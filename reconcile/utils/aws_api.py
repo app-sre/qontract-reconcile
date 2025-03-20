@@ -2076,6 +2076,32 @@ class AWSApi:
             return versions[0]["ValidUpgradeTarget"]
         return []
 
+    def check_db_engine_version(
+        self,
+        account_name: str,
+        engine: str,
+        engine_version: str,
+        region_name: str | None = None,
+    ) -> bool:
+        """
+        Check the version of the database engine is available or deprecated.
+        :param account_name: the name of the account in app-interface
+        :param engine: the database engine (ex. mysql, postgres)
+        :param engine_version: the database engine version
+        :param region_name: AWS region name for the resource, otherwise fallback to default
+        """
+        optional_kwargs = {}
+
+        if region_name:
+            optional_kwargs["region_name"] = region_name
+
+        rds = self._account_rds_client(account_name, **optional_kwargs)
+        response = rds.describe_db_engine_versions(
+            Engine=engine,
+            EngineVersion=engine_version,
+        )
+        return len(response["DBEngineVersions"]) == 1
+
     def describe_db_parameter_group(
         self,
         account_name: str,

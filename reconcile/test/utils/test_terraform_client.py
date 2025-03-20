@@ -491,6 +491,36 @@ def test_validate_db_upgrade_no_upgrade(aws_api, tf):
     )
 
 
+def test_validate_db_upgrade_modify_with_blue_green(aws_api, tf):
+    aws_api.get_db_valid_upgrade_target.return_value = [
+        {"Engine": "postgres", "EngineVersion": "11.17", "IsMajorVersionUpgrade": False}
+    ]
+
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_db_upgrade(
+            account_name="a1",
+            resource_name="test-database-1",
+            resource_change={
+                "before": {
+                    "engine": "postgres",
+                    "engine_version": "11.12",
+                    "instance_class": "db.t4g.micro",
+                },
+                "after": {
+                    "engine": "postgres",
+                    "engine_version": "11.12",
+                    "instance_class": "db.t4g.small",
+                    "blue_green_update": [{"enabled": True}],
+                },
+            },
+        )
+
+    assert (
+        str(error.value)
+        == "Cannot modify RDS instance: test-database-1 for {'instance_class'} with blue/green updates. Blue/green updates are recommended only for major version upgrades."
+    )
+
+
 def test_validate_db_upgrade(aws_api, tf):
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "11.17", "IsMajorVersionUpgrade": False}
@@ -560,10 +590,10 @@ def test_validate_db_upgrade_cannot_upgrade(
             },
         )
 
-        assert (
-            str(error.value)
-            == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2"
-        )
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 14.2"
+    )
 
 
 def test_validate_db_upgrade_major_version_upgrade_not_allow(
@@ -590,10 +620,10 @@ def test_validate_db_upgrade_major_version_upgrade_not_allow(
             },
         )
 
-        assert (
-            str(error.value)
-            == "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
-        )
+    assert (
+        str(error.value)
+        == "allow_major_version_upgrade is not enabled for upgrading RDS instance: test-database-1 to a new major version."
+    )
 
 
 def test_validate_db_upgrade_with_empty_valid_upgrade_target(
@@ -618,10 +648,33 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_target(
             },
         )
 
-        assert (
-            str(error.value)
-            == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 11.17"
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1 from 11.12 to 11.17"
+    )
+
+
+def test_validate_blue_green_update_requirements_not_major_version_upgrade(
+    tf: tfclient.TerraformClient,
+) -> None:
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            resource_name="test-database-1",
+            engine="postgres",
+            is_major_version_upgrade=False,
+            before_version="11.19",
+            after_version="11.22",
+            replica=False,
+            parameter_group="test-pg",
+            region_name="us-east-1",
+            changed_fields=set(),
         )
+
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1. Blue/green updates are recommended only for major version upgrades."
+    )
 
 
 def test_validate_blue_green_update_requirements_supported_version(
@@ -633,7 +686,9 @@ def test_validate_blue_green_update_requirements_supported_version(
         account_name="a1",
         resource_name="test-database-1",
         engine="postgres",
-        version="12.17",
+        is_major_version_upgrade=True,
+        before_version="12.17",
+        after_version="14.10",
         replica=False,
         parameter_group="test-pg",
         region_name="us-east-1",
@@ -642,26 +697,51 @@ def test_validate_blue_green_update_requirements_supported_version(
 
 
 def test_validate_blue_green_update_requirements_unsupported_version(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    tf: tfclient.TerraformClient,
 ) -> None:
-    aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
-
     with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             resource_name="test-database-1",
             engine="postgres",
-            version="11.19",
+            is_major_version_upgrade=True,
+            before_version="11.19",
+            after_version="14.10",
             replica=False,
             parameter_group="test-pg",
             region_name="us-east-1",
             changed_fields=set(),
         )
 
-        assert (
-            str(error.value)
-            == "Cannot upgrade RDS instance: test-database-1. Engine version 11.19 is not supported for blue/green updates."
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1. Engine version 11.19 is not supported for blue/green updates."
+    )
+
+
+def test_validate_blue_green_update_requirements_deprecated_version(
+    aws_api: AWSApi, tf: tfclient.TerraformClient
+) -> None:
+    aws_api.check_db_engine_version.return_value = False  # type: ignore[attr-defined]
+
+    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+        tf.validate_blue_green_update_requirements(
+            account_name="a1",
+            resource_name="test-database-1",
+            engine="postgres",
+            is_major_version_upgrade=True,
+            before_version="11.21",
+            after_version="14.10",
+            replica=False,
+            parameter_group="test-pg",
+            region_name="us-east-1",
+            changed_fields=set(),
         )
+
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1 with blue/green updates. Target engine version 14.10 is deprecated."
+    )
 
 
 def test_validate_blue_green_update_requirements_missing_logical_replication(
@@ -674,17 +754,19 @@ def test_validate_blue_green_update_requirements_missing_logical_replication(
             account_name="a1",
             resource_name="test-database-1",
             engine="postgres",
-            version="12.16",
+            is_major_version_upgrade=True,
+            before_version="12.16",
+            after_version="14.10",
             replica=False,
             parameter_group="test-pg",
             region_name="us-east-1",
             changed_fields=set(),
         )
 
-        assert (
-            str(error.value)
-            == "Cannot upgrade RDS instance: test-database-1. Blue/green updates require logical replication to be enabled in the Parameter group test-pg."
-        )
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1. Blue/green updates require logical replication to be enabled in the Parameter group test-pg."
+    )
 
 
 def test_validate_blue_green_update_requirements_with_replica_source(
@@ -697,25 +779,28 @@ def test_validate_blue_green_update_requirements_with_replica_source(
             account_name="a1",
             resource_name="test-database-1",
             engine="postgres",
-            version="12.16",
+            is_major_version_upgrade=True,
+            before_version="12.16",
+            after_version="14.10",
             parameter_group="test-pg",
             replica=True,
             region_name="us-east-1",
             changed_fields=set(),
         )
 
-        assert (
-            str(error.value)
-            == "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported for instances with read replicas."
-        )
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported for instances with read replicas."
+    )
 
 
 def test_validate_db_upgrade_with_blue_green_update(
     aws_api: AWSApi, tf: tfclient.TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [  # type: ignore[attr-defined]
-        {"Engine": "postgres", "EngineVersion": "12.16", "IsMajorVersionUpgrade": False}
+        {"Engine": "postgres", "EngineVersion": "12.16", "IsMajorVersionUpgrade": True}
     ]
+    aws_api.check_db_engine_version.return_value = True  # type: ignore[attr-defined]
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
 
     tf.validate_db_upgrade(
@@ -734,6 +819,7 @@ def test_validate_db_upgrade_with_blue_green_update(
                 "engine": "postgres",
                 "engine_version": "12.16",
                 "blue_green_update": [{"enabled": True}],
+                "allow_major_version_upgrade": True,
             },
         },
     )
@@ -749,17 +835,19 @@ def test_validate_blue_green_update_requirements_with_storage_type_change(
             account_name="a1",
             resource_name="test-database-1",
             engine="postgres",
-            version="12.16",
+            is_major_version_upgrade=True,
+            before_version="12.16",
+            after_version="14.10",
             replica=False,
             parameter_group="test-pg",
             region_name="us-east-1",
             changed_fields={"storage_type"},
         )
 
-        assert (
-            str(error.value)
-            == "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported when 'storage_type' or 'allocated_storage' has changed."
-        )
+    assert (
+        str(error.value)
+        == "Cannot upgrade RDS instance: test-database-1. Blue/green updates are not supported when 'storage_type' or 'allocated_storage' has changed."
+    )
 
 
 def test_check_output_debug(
