@@ -227,6 +227,7 @@ class AwsAccountMgmtIntegration(
             alias=account.alias,
             quotas=[q for ql in account.quota_limits or [] for q in ql.quotas],
             security_contact=account.security_contact,
+            regions=account.supported_deployment_regions or [],
         )
 
     def reconcile_payer_accounts(
