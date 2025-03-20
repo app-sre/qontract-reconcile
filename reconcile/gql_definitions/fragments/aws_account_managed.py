@@ -55,3 +55,4 @@ class AWSAccountManaged(ConfiguredBaseModel):
     organization: Optional[AWSOrganizationV1] = Field(..., alias="organization")
     quota_limits: Optional[list[AWSQuotaLimitsV1]] = Field(..., alias="quotaLimits")
     security_contact: Optional[AWSContactV1] = Field(..., alias="securityContact")
+    supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
