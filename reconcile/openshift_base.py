@@ -443,6 +443,11 @@ def apply(
             # spec.selector changes
             current_resource = oc.get(namespace, resource_type, resource.name)
 
+            if current_resource["spec"]["strategy"]["type"] == "Recreate":
+                oc.delete(namespace, resource_type, resource.name)
+                oc.create(namespace, resource=annotated)
+                return
+
             # check update strategy
             if current_resource["spec"]["strategy"]["type"] != "RollingUpdate":
                 logging.error(
