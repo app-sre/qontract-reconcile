@@ -27,7 +27,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 741951,
+      "id": 996843,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -66,7 +66,7 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 6,
             "w": 4,
             "x": 0,
             "y": 1
@@ -221,7 +221,7 @@ data:
             ]
           },
           "gridPos": {
-            "h": 7,
+            "h": 6,
             "w": 9,
             "x": 4,
             "y": 1
@@ -483,7 +483,7 @@ data:
             ]
           },
           "gridPos": {
-            "h": 21,
+            "h": 24,
             "w": 11,
             "x": 13,
             "y": 1
@@ -587,10 +587,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 6,
             "w": 4,
             "x": 0,
-            "y": 8
+            "y": 7
           },
           "id": 20,
           "options": {
@@ -704,10 +704,10 @@ data:
             ]
           },
           "gridPos": {
-            "h": 7,
+            "h": 6,
             "w": 9,
             "x": 4,
-            "y": 8
+            "y": 7
           },
           "id": 18,
           "options": {
@@ -792,10 +792,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 6,
             "w": 4,
             "x": 0,
-            "y": 15
+            "y": 13
           },
           "id": 16,
           "options": {
@@ -915,10 +915,10 @@ data:
             ]
           },
           "gridPos": {
-            "h": 7,
+            "h": 6,
             "w": 9,
             "x": 4,
-            "y": 15
+            "y": 13
           },
           "id": 10,
           "options": {
@@ -997,12 +997,201 @@ data:
           "type": "table"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7B77307D2CE073BC"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 4,
+            "x": 0,
+            "y": 19
+          },
+          "id": 21,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "10.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P7B77307D2CE073BC"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count((aus_cluster_version_remaining_soak_days{} <= -2 >= -3) * on (cluster_uuid) (aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\".*$workloads.*\", cluster_name=~\"$clusters\"}))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Ongoing upgrades",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "mode": "columns"
+              }
+            }
+          ],
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7B77307D2CE073BC"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 9,
+            "x": 4,
+            "y": 19
+          },
+          "id": 22,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "10.4.1",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P7B77307D2CE073BC"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "(\n    increase(timestamp(aus_cluster_version_remaining_soak_days{} <= -2 >= -3)[25h:])\n    * on (cluster_uuid, soaking_version) (aus_cluster_version_remaining_soak_days{} <= bool -2 >= -3)\n    * on (cluster_uuid) group_left(cluster_name, org_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\".*$workloads.*\", cluster_name=~\"$clusters\"} > 0\n)",
+              "format": "table",
+              "instant": true,
+              "interval": "10",
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Ongoing upgrades duration",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "cluster_uuid": true,
+                  "org_name": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "Time": 0,
+                  "Value": 6,
+                  "cluster_name": 3,
+                  "cluster_uuid": 2,
+                  "current_version": 4,
+                  "org_name": 1,
+                  "soaking_version": 5
+                },
+                "renameByName": {}
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [
+                  {
+                    "field": "cluster_name"
+                  }
+                ]
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
           "collapsed": false,
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 22
+            "y": 25
           },
           "id": 14,
           "panels": [],
@@ -1061,7 +1250,7 @@ data:
             "h": 21,
             "w": 24,
             "x": 0,
-            "y": 23
+            "y": 26
           },
           "id": 6,
           "options": {
@@ -1309,7 +1498,7 @@ data:
       "timezone": "",
       "title": "AUS Cluster Upgrade Overview",
       "uid": "ukLXCSwVz",
-      "version": 28,
+      "version": 1,
       "weekStart": ""
     }
 kind: ConfigMap
