@@ -6,7 +6,6 @@ from urllib.parse import urljoin
 
 import jinja2
 import requests
-from pydantic import BaseModel
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SaasSLODocument,
@@ -19,7 +18,7 @@ PROM_QUERY_URL = "api/v1/query"
 PROM_TIMEOUT = (5, 300)
 
 
-class SLODetails(BaseModel):
+class SLODetails:
     def __init__(
         self,
         namespace_name: str,

@@ -1,5 +1,5 @@
 import pytest
-from pytest_mock import MockFixture
+from pytest_mock import MockerFixture, MockFixture
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     AppV1,
@@ -16,7 +16,7 @@ from reconcile.utils.slo_gatekeeper import SLOGateKeeper
 
 
 @pytest.fixture
-def secret_reader(mocker) -> None:
+def secret_reader(mocker: MockerFixture) -> MockerFixture:
     mock_secretreader = mocker.patch(
         "reconcile.utils.secret_reader.SecretReader", autospec=True
     )
@@ -24,7 +24,9 @@ def secret_reader(mocker) -> None:
     return mock_secretreader
 
 
-def test_slo_gatekeeper_positive(secret_reader: SecretReaderBase, mocker: MockFixture):
+def test_slo_gatekeeper_positive(
+    secret_reader: SecretReaderBase, mocker: MockFixture
+) -> None:
     slo_documents: list[SaasSLODocument] = [
         SaasSLODocument(
             name="test_saas_doc",
@@ -75,7 +77,7 @@ def test_slo_gatekeeper_positive(secret_reader: SecretReaderBase, mocker: MockFi
     assert not slo_gate_keeper.is_slo_breached()
 
 
-def test_slo_gatekeeper_(secret_reader: SecretReaderBase, mocker: MockFixture):
+def test_slo_gatekeeper_(secret_reader: SecretReaderBase, mocker: MockFixture) -> None:
     slo_documents: list[SaasSLODocument] = [
         SaasSLODocument(
             name="test_saas_doc",
@@ -120,5 +122,7 @@ def test_slo_gatekeeper_(secret_reader: SecretReaderBase, mocker: MockFixture):
         "reconcile.utils.slo_gatekeeper.SLODetails.get_SLO_value"
     )
     get_SLO_value.return_value = 0.95
-    slo_gate_keeper = SLOGateKeeper(secret_reader=secret_reader, slos=slo_documents)
+    slo_gate_keeper = SLOGateKeeper(
+        secret_reader=secret_reader, slo_documents=slo_documents
+    )
     assert slo_gate_keeper.is_slo_breached()
