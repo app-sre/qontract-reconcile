@@ -7,6 +7,7 @@ from pytest_mock import MockerFixture
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.status_board import (
     AbstractStatusBoard,
+    Action,
     Application,
     Product,
     StatusBoardExporterIntegration,
@@ -18,6 +19,7 @@ from reconcile.utils.ocm_base_client import OCMBaseClient
 class StatusBoardStub(AbstractStatusBoard):
     created: bool | None = False
     deleted: bool | None = False
+    updated: bool | None = False
     summarized: bool | None = False
 
     def create(self, ocm: OCMBaseClient) -> None:
@@ -25,6 +27,9 @@ class StatusBoardStub(AbstractStatusBoard):
 
     def delete(self, ocm: OCMBaseClient) -> None:
         self.deleted = True
+
+    def update(self, ocm: OCMBaseClient) -> None:
+        self.updated = True
 
     def summarize(self) -> str:
         self.summarized = True
@@ -95,7 +100,7 @@ def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoard
 def test_status_board_handler(mocker: MockerFixture) -> None:
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
-        action="create",
+        action=Action.create,
         status_board_object=StatusBoardStub(name="foo", fullname="foo"),
     )
 
@@ -105,13 +110,23 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     assert h.status_board_object.summarized
 
     h = StatusBoardHandler(
-        action="delete",
+        action=Action.delete,
         status_board_object=StatusBoardStub(name="foo", fullname="foo"),
     )
 
     h.act(dry_run=False, ocm=ocm)
     assert isinstance(h.status_board_object, StatusBoardStub)
     assert h.status_board_object.deleted
+    assert h.status_board_object.summarized
+
+    h = StatusBoardHandler(
+        action=Action.update,
+        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
+    )
+
+    h.act(dry_run=False, ocm=ocm)
+    assert isinstance(h.status_board_object, StatusBoardStub)
+    assert h.status_board_object.updated
     assert h.status_board_object.summarized
 
 
@@ -124,12 +139,19 @@ def test_get_diff_create_app() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"foo", "bar"}},
-        [Product(name="foo", fullname="foo", applications=[])],
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+            "foo/foo": {"product": "foo", "type": "app", "app": "foo"},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""}
+        },
+        current_products={"foo": Product(name="foo", fullname="foo", applications=[])},
     )
 
     assert len(h) == 2
-    assert h[0].action == h[1].action == "create"
+    assert h[0].action == h[1].action == Action.create
     assert isinstance(h[0].status_board_object, Application)
     assert isinstance(h[1].status_board_object, Application)
     assert sorted([x.status_board_object.name for x in h]) == ["bar", "foo"]
@@ -138,20 +160,28 @@ def test_get_diff_create_app() -> None:
 
 def test_get_diff_create_one_app() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"foo", "bar"}},
-        [
-            Product(
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+            "foo/foo": {"product": "foo", "type": "app", "app": "foo"},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
-
     assert len(h) == 1
-    assert h[0].action == "create"
+    assert h[0].action == Action.create
     assert isinstance(h[0].status_board_object, Application)
     assert h[0].status_board_object.name == "foo"
     assert h[0].status_board_object.fullname == "foo/foo"
@@ -161,12 +191,17 @@ def test_get_diff_create_product_and_apps() -> None:
     Product.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"foo", "bar"}},
-        [],
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+            "foo/foo": {"product": "foo", "type": "app", "app": "foo"},
+        },
+        current_abstract_status_board_map={},
+        current_products={},
     )
 
     assert len(h) == 3
-    assert h[0].action == "create"
+    assert h[0].action == Action.create
     assert isinstance(h[0].status_board_object, Product)
     assert isinstance(h[1].status_board_object, Application)
     assert isinstance(h[2].status_board_object, Application)
@@ -174,76 +209,95 @@ def test_get_diff_create_product_and_apps() -> None:
 
 def test_get_diff_noop() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": {"bar"}},
-        [
-            Product(
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
-
     assert len(h) == 0
 
 
 def test_get_diff_delete_app() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {"foo": set()},
-        [
-            Product(
+        desired_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+        },
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
 
     assert len(h) == 1
-    assert h[0].action == "delete"
+    assert h[0].action == Action.delete
     assert isinstance(h[0].status_board_object, Application)
     assert h[0].status_board_object.name == "bar"
 
 
 def test_get_diff_delete_apps_and_product() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
-        {},
-        [
-            Product(
+        desired_abstract_status_board_map={},
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+        },
+        current_products={
+            "foo": Product(
                 name="foo",
                 fullname="foo",
-                applications=[Application(name="bar", fullname="foo/bar")],
+                applications=[Application(name="bar", fullname="foo/bar", services=[])],
             )
-        ],
+        },
     )
-
     assert len(h) == 2
-    assert h[0].action == h[1].action == "delete"
+    assert h[0].action == h[1].action == Action.delete
     assert isinstance(h[0].status_board_object, Application)
     assert isinstance(h[1].status_board_object, Product)
 
 
 def test_apply_sorted(mocker: MockerFixture) -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient", autospec=True)
     logging = mocker.patch("reconcile.status_board.logging", autospec=True)
 
     product = Product(name="foo", fullname="foo", applications=[])
     h = [
         StatusBoardHandler(
-            action="create",
+            action=Action.create,
             status_board_object=Application(
                 name="bar", fullname="foo/bar", product=product
             ),
         ),
         StatusBoardHandler(
-            action="create",
+            action=Action.create,
             status_board_object=product,
         ),
     ]
@@ -251,8 +305,8 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
     StatusBoardExporterIntegration.apply_diff(True, ocm, h)
     logging.info.assert_has_calls(
         calls=[
-            call('create - Product: "foo"'),
-            call('create - Application: "bar" "foo/bar"'),
+            call('Action.create - Product: "foo"'),
+            call('Action.create - Application: "bar" "foo/bar"'),
         ],
         any_order=False,
     )
