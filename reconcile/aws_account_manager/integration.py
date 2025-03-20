@@ -195,6 +195,7 @@ class AwsAccountMgmtIntegration(
         aws_api: AWSApi,
         reconciler: AWSReconciler,
         organization_accounts: Iterable[AWSAccountManaged],
+        default_tags: dict[str, str],
     ) -> None:
         """Reconcile organization accounts."""
         for account in organization_accounts:
@@ -204,7 +205,7 @@ class AwsAccountMgmtIntegration(
                 name=account.name,
                 uid=account.uid,
                 ou=account.organization.ou,
-                tags=self.params.default_tags
+                tags=default_tags
                 | account.organization.tags
                 | {"app-interface-name": account.name},
                 enterprise_support=account.premium_support,
@@ -276,6 +277,8 @@ class AwsAccountMgmtIntegration(
                     acct_manager_role_aws_api,
                     reconciler,
                     payer_account.organization_accounts or [],
+                    default_tags=self.params.default_tags
+                    | (payer_account.organization_account_tags or {}),
                 )
 
     def reconcile_non_organization_accounts(

@@ -41,5 +41,6 @@ query AWSAccountManagerAccounts {
     organization_accounts {
       ... AWSAccountManaged
     }
+    organizationAccountTags
   }
 }

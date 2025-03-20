@@ -95,6 +95,7 @@ query AWSAccountManagerAccounts {
     organization_accounts {
       ... AWSAccountManaged
     }
+    organizationAccountTags
   }
 }
 """
@@ -154,6 +155,7 @@ class AWSAccountV1(AWSAccountManaged):
     automation_role: Optional[AWSAutomationRoleV1] = Field(..., alias="automationRole")
     account_requests: Optional[list[AWSAccountRequestV1]] = Field(..., alias="account_requests")
     organization_accounts: Optional[list[AWSAccountManaged]] = Field(..., alias="organization_accounts")
+    organization_account_tags: Optional[Json] = Field(..., alias="organizationAccountTags")
 
 
 class AWSAccountManagerAccountsQueryData(ConfiguredBaseModel):

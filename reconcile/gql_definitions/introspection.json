@@ -10409,6 +10409,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "organizationAccountTags",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "JSON",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "account_requests",
                             "description": null,
                             "args": [],
