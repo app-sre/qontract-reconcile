@@ -342,31 +342,39 @@ class AWSReconciler:
             if _state.exists and _state.value == regions:
                 return
 
-            logging.info(f"{name}: Setting regions {regions}")
             aws_regions = aws_api.account.list_regions()
             if invalid_regions := set(regions) - {r.name for r in aws_regions}:
                 raise RuntimeError(
-                    f"Regions {invalid_regions} are not available in the account {name}"
+                    f"{name}: Regions {invalid_regions} are not available"
                 )
+
+            # ATTENTION: Regions can be "enabled by default".
+            # That means we cannot enable or disable them manually. We just gently ignore them!
+            to_enable_regions = [
+                r.name
+                for r in aws_regions
+                if r.status == OptStatus.DISABLED and r.name in regions
+            ]
+
+            to_disable_regions = [
+                r.name
+                for r in aws_regions
+                if r.status == OptStatus.ENABLED and r.name not in regions
+            ]
+
+            if to_enable_regions:
+                logging.info(f"{name}: Enabling regions {to_enable_regions}")
+
+            if to_disable_regions:
+                logging.info(f"{name}: Disabling regions {to_disable_regions}")
 
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
-            for aws_region in aws_regions:
-                # ATTENTION: Regions can be enabled by default.
-                # That means we cannot enable or disable them manually. We just gently ignore them!
-                if (
-                    aws_region.status == OptStatus.ENABLED
-                    and aws_region.name not in regions
-                ):
-                    logging.info(f"Disabling region {aws_region.name} in {name}")
-                    aws_api.account.disable_region(aws_region.name)
-                if (
-                    aws_region.status == OptStatus.DISABLED
-                    and aws_region.name in regions
-                ):
-                    logging.info(f"Enabling region {aws_region.name} in {name}")
-                    aws_api.account.enable_region(aws_region.name)
+            for aws_region in to_enable_regions:
+                aws_api.account.enable_region(aws_region)
+            for aws_region in to_disable_regions:
+                aws_api.account.disable_region(aws_region)
 
             _state.value = regions
 
