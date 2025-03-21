@@ -27,7 +27,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 996843,
+      "id": 763968,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -1007,6 +1007,7 @@ data:
                 "mode": "thresholds"
               },
               "mappings": [],
+              "noValue": "0",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -1082,22 +1083,35 @@ data:
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "thresholds"
+                "fixedColor": "text",
+                "mode": "fixed"
               },
               "custom": {
                 "align": "auto",
                 "cellOptions": {
-                  "type": "auto"
+                  "type": "color-text"
                 },
                 "filterable": true,
                 "inspect": false
               },
-              "mappings": [],
+              "mappings": [
+                {
+                  "options": {
+                    "from": 21600,
+                    "result": {
+                      "color": "red",
+                      "index": 0
+                    },
+                    "to": null
+                  },
+                  "type": "range"
+                }
+              ],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
+                    "color": "text",
                     "value": null
                   },
                   {
@@ -1139,7 +1153,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "(\n    increase(timestamp(aus_cluster_version_remaining_soak_days{} <= -2 >= -3)[25h:])\n    * on (cluster_uuid, soaking_version) (aus_cluster_version_remaining_soak_days{} <= bool -2 >= -3)\n    * on (cluster_uuid) group_left(cluster_name, org_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\".*$workloads.*\", cluster_name=~\"$clusters\"} > 0\n)",
+              "expr": "increase(timestamp(avg by (cluster_uuid, soaking_version) (aus_cluster_version_remaining_soak_days{} <= -2 >= -3))[25h:])\n* on (cluster_uuid, soaking_version) (aus_cluster_version_remaining_soak_days{} <= bool -2 >= -3)\n* on (cluster_uuid) group_left(cluster_name, org_name, current_version) aus_cluster_upgrade_policy_info{org_id=~\"$org_id\", sector=~\"$sectors\", workloads=~\".*$workloads.*\", cluster_name=~\"$clusters\"} > 0",
               "format": "table",
               "instant": true,
               "interval": "10",
@@ -1148,7 +1162,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Ongoing upgrades duration",
+          "title": "Ongoing upgrades",
           "transformations": [
             {
               "id": "organize",
@@ -1168,7 +1182,14 @@ data:
                   "org_name": 1,
                   "soaking_version": 5
                 },
-                "renameByName": {}
+                "renameByName": {
+                  "Value": "Duration",
+                  "cluster_name": "Cluster",
+                  "cluster_uuid": "Cluster UUID",
+                  "current_version": "From",
+                  "org_name": "Organization",
+                  "soaking_version": "To"
+                }
               }
             },
             {
@@ -1177,7 +1198,7 @@ data:
                 "fields": {},
                 "sort": [
                   {
-                    "field": "cluster_name"
+                    "field": "Cluster"
                   }
                 ]
               }
@@ -1498,7 +1519,7 @@ data:
       "timezone": "",
       "title": "AUS Cluster Upgrade Overview",
       "uid": "ukLXCSwVz",
-      "version": 1,
+      "version": 2,
       "weekStart": ""
     }
 kind: ConfigMap
