@@ -1,6 +1,6 @@
 from collections.abc import Callable, Mapping
 from typing import Any
-from unittest.mock import call
+from unittest.mock import call, create_autospec
 
 import pytest
 from pytest_mock import MockerFixture
@@ -136,6 +136,21 @@ def test_openshift_serviceaccount_tokens__write_outputs_to_vault(
             "data": {"token": "token"},
         }),
     ])
+
+
+def test_openshift_serviceaccount_tokens__write_outputs_to_vault_with_service_account_token_request(
+    ri: ResourceInventory,
+) -> None:
+    vault_client = create_autospec(_VaultClient)
+    ri.add_desired_resource(
+        cluster="cluster",
+        namespace="namespace",
+        resource=service_account_token_request("grafana"),
+    )
+
+    write_outputs_to_vault(vault_client, "path/to/secrets", ri)
+
+    vault_client.write.assert_not_called()
 
 
 def test_openshift_serviceaccount_tokens__get_namespaces_with_serviceaccount_tokens(
