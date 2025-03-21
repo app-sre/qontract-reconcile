@@ -594,7 +594,7 @@ def test_aws_account_manager_reconcile_check_enterprise_support_status(
     aws_api.support.describe_case.return_value = AWSCase(
         caseId="case-id", subject="foobar", status="resolved"
     )
-    reconciler._check_enterprise_support_status(aws_api, "case-id")
+    reconciler._check_enterprise_support_status(aws_api, "name", "case-id")
     aws_api.support.describe_case.assert_called_once()
 
 
@@ -602,7 +602,7 @@ def test_aws_account_manager_reconcile_check_enterprise_support_status_state_exi
     aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
 ) -> None:
     state_exists(state_key("case-id", TASK_CHECK_ENTERPRISE_SUPPORT_STATUS), True)
-    reconciler._check_enterprise_support_status(aws_api, "case-id")
+    reconciler._check_enterprise_support_status(aws_api, "name", "case-id")
     aws_api.support.describe_case.assert_not_called()
 
 
@@ -610,14 +610,14 @@ def test_aws_account_manager_reconcile_check_enterprise_support_status_state_exi
     aws_api: MagicMock, reconciler: AWSReconciler, state_exists: Callable
 ) -> None:
     state_exists(state_key("another-id", TASK_CHECK_ENTERPRISE_SUPPORT_STATUS), True)
-    reconciler._check_enterprise_support_status(aws_api, "case-id")
+    reconciler._check_enterprise_support_status(aws_api, "name", "case-id")
     aws_api.support.describe_case.assert_called_once()
 
 
 def test_aws_account_manager_reconcile_check_enterprise_support_status_dry_run(
     aws_api: MagicMock, reconciler_dry_run: AWSReconciler
 ) -> None:
-    reconciler_dry_run._check_enterprise_support_status(aws_api, "case-id")
+    reconciler_dry_run._check_enterprise_support_status(aws_api, "name", "case-id")
     aws_api.support.describe_case.assert_not_called()
 
 
@@ -842,6 +842,7 @@ def test_aws_account_manager_reconcile_reconcile_account(
         security_contact=AWSContactV1(
             name="name", title="title", email="email", phoneNumber="phone"
         ),
+        regions=[],
     )
     reconciler._set_account_alias.assert_called_once()
     reconciler._request_quotas.assert_called_once()
@@ -865,6 +866,7 @@ def test_aws_account_manager_reconcile_reconcile_account_no_initial_user(
         security_contact=AWSContactV1(
             name="name", title="title", email="email", phoneNumber="phone"
         ),
+        regions=[],
     )
     reconciler._set_account_alias.assert_called_once()
     reconciler._request_quotas.assert_called_once()

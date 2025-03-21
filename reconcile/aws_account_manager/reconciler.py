@@ -4,6 +4,7 @@ from textwrap import dedent
 from typing import Any, Protocol
 
 from reconcile.aws_account_manager.utils import state_key
+from reconcile.utils.aws_api_typed.account import OptStatus
 from reconcile.utils.aws_api_typed.api import AWSApi
 from reconcile.utils.aws_api_typed.iam import (
     AWSAccessKey,
@@ -26,6 +27,7 @@ TASK_CHECK_SERVICE_QUOTA_STATUS = "check-service-quota-status"
 TASK_ENABLE_ENTERPRISE_SUPPORT = "enable-enterprise-support"
 TASK_CHECK_ENTERPRISE_SUPPORT_STATUS = "check-enterprise-support-status"
 TASK_SET_SECURITY_CONTACT = "set-security-contact"
+TASK_SET_SUPPORTED_REGIONS = "set-supported-regions"
 
 
 class Quota(Protocol):
@@ -62,7 +64,7 @@ class AWSReconciler:
                 # account already exists, nothing to do
                 return _state.value
 
-            logging.info(f"Creating account {name}")
+            logging.info(f"{name}: Creating account")
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -83,7 +85,7 @@ class AWSReconciler:
                 # account checked and exists, nothing to do
                 return _state.value
 
-            logging.info(f"Checking account creation status {name}")
+            logging.info(f"{name}: Checking account creation status")
             status = aws_api.organizations.describe_create_account_status(
                 create_account_request_id=create_account_request_id
             )
@@ -110,7 +112,7 @@ class AWSReconciler:
                 # account already tagged, nothing to do
                 return
 
-            logging.info(f"Tagging account {name}: {tags}")
+            logging.info(f"{name}: Setting tags {tags}")
             _state.value = tags
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
@@ -133,7 +135,7 @@ class AWSReconciler:
                 # account already moved, nothing to do
                 return
 
-            logging.info(f"Moving account {name} to {ou}")
+            logging.info(f"{name}: Moving account to OU {ou}")
             destination = self._get_destination_ou(aws_api, destination_path=ou)
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
@@ -153,7 +155,7 @@ class AWSReconciler:
             if _state.exists and _state.value == new_alias:
                 return
 
-            logging.info(f"Set account alias '{new_alias}' for {name}")
+            logging.info(f"{name}: Set account alias '{new_alias}'")
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -179,7 +181,7 @@ class AWSReconciler:
                 if quota.value > q.value:
                     # a quota can be already higher than requested, because it was may set manually or enforced by the payer account
                     logging.info(
-                        f"Cannot lower quota {q.service_code=}, {q.quota_code=}: {quota.value} -> {q.value}. Skipping."
+                        f"{name}: Cannot lower quota {q.service_code=}, {q.quota_code=}: {quota.value} -> {q.value}. Skipping."
                     )
                 elif quota.value < q.value:
                     quota.value = q.value
@@ -187,7 +189,7 @@ class AWSReconciler:
 
             for q in new_quotas:
                 logging.info(
-                    f"Setting quota for {name}: {q.service_name}/{q.quota_name} ({q.service_code}/{q.quota_code}) -> {q.value}"
+                    f"{name}: Setting quota: {q.service_name}/{q.quota_name} ({q.service_code}/{q.quota_code}) -> {q.value}"
                 )
 
             if self.dry_run:
@@ -203,7 +205,7 @@ class AWSReconciler:
                     )
                 except AWSResourceAlreadyExistsException:
                     raise AbortStateTransaction(
-                        f"A quota increase for this {new_quota.service_code}/{new_quota.quota_code} already exists. Try it again later."
+                        f"{name}: A quota increase for this {new_quota.service_code}/{new_quota.quota_code} already exists. Try it again later."
                     ) from None
                 ids.append(req.id)
 
@@ -223,7 +225,7 @@ class AWSReconciler:
             if _state.exists and _state.value == request_ids:
                 return
 
-            logging.info(f"Checking quota change requests for {name}")
+            logging.info(f"{name}: Checking quota change requests")
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -258,7 +260,7 @@ class AWSReconciler:
                     raise AbortStateTransaction("Dry run")
                 return None
 
-            logging.info(f"Enabling enterprise support for {name}")
+            logging.info(f"{name}: Enabling enterprise support")
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -277,7 +279,9 @@ class AWSReconciler:
             _state.value = case_id
             return case_id
 
-    def _check_enterprise_support_status(self, aws_api: AWSApi, case_id: str) -> None:
+    def _check_enterprise_support_status(
+        self, aws_api: AWSApi, name: str, case_id: str
+    ) -> None:
         """Check the status of the enterprise support case."""
         with self.state.transaction(
             state_key(case_id, TASK_CHECK_ENTERPRISE_SUPPORT_STATUS), True
@@ -285,7 +289,7 @@ class AWSReconciler:
             if _state.exists:
                 return
 
-            logging.info(f"Checking enterprise support case {case_id}")
+            logging.info(f"{name}: Checking enterprise support case {case_id}")
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -316,7 +320,7 @@ class AWSReconciler:
             if _state.exists and _state.value == security_contact:
                 return
 
-            logging.info(f"Setting security contact for {account}")
+            logging.info(f"{name}: Setting security contact")
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -324,6 +328,55 @@ class AWSReconciler:
                 name=name, title=title, email=email, phone_number=phone_number
             )
             _state.value = security_contact
+
+    def _set_supported_regions(
+        self,
+        aws_api: AWSApi,
+        name: str,
+        regions: Iterable[str],
+    ) -> None:
+        """Set the supported regions for the account."""
+        with self.state.transaction(
+            state_key(name, TASK_SET_SUPPORTED_REGIONS)
+        ) as _state:
+            if _state.exists and _state.value == regions:
+                return
+
+            aws_regions = aws_api.account.list_regions()
+            if invalid_regions := set(regions) - {r.name for r in aws_regions}:
+                raise RuntimeError(
+                    f"{name}: Regions {invalid_regions} are not available"
+                )
+
+            # ATTENTION: Regions can be "enabled by default".
+            # That means we cannot enable or disable them manually. We just gently ignore them!
+            to_enable_regions = [
+                r.name
+                for r in aws_regions
+                if r.status == OptStatus.DISABLED and r.name in regions
+            ]
+
+            to_disable_regions = [
+                r.name
+                for r in aws_regions
+                if r.status == OptStatus.ENABLED and r.name not in regions
+            ]
+
+            if to_enable_regions:
+                logging.info(f"{name}: Enabling regions {to_enable_regions}")
+
+            if to_disable_regions:
+                logging.info(f"{name}: Disabling regions {to_disable_regions}")
+
+            if self.dry_run:
+                raise AbortStateTransaction("Dry run")
+
+            for aws_region in to_enable_regions:
+                aws_api.account.enable_region(aws_region)
+            for aws_region in to_disable_regions:
+                aws_api.account.disable_region(aws_region)
+
+            _state.value = regions
 
     #
     # Public methods
@@ -353,7 +406,7 @@ class AWSReconciler:
             if _state.exists and _state.value == user_name:
                 return None
 
-            logging.info(f"Creating IAM user '{user_name}' for {name}")
+            logging.info(f"{name}: Creating IAM user '{user_name}'")
             if self.dry_run:
                 raise AbortStateTransaction("Dry run")
 
@@ -379,7 +432,7 @@ class AWSReconciler:
         if enterprise_support and (
             case_id := self._enable_enterprise_support(aws_api, name, uid)
         ):
-            self._check_enterprise_support_status(aws_api, case_id)
+            self._check_enterprise_support_status(aws_api, name, case_id)
 
     def reconcile_account(
         self,
@@ -388,6 +441,7 @@ class AWSReconciler:
         alias: str | None,
         quotas: Iterable[Quota],
         security_contact: Contact,
+        regions: Iterable[str],
     ) -> None:
         """Reconcile/update the AWS account. Return the initial user access key if a new user was created."""
         self._set_account_alias(aws_api, name, alias)
@@ -401,3 +455,4 @@ class AWSReconciler:
             email=security_contact.email,
             phone_number=security_contact.phone_number,
         )
+        self._set_supported_regions(aws_api, name, regions)
