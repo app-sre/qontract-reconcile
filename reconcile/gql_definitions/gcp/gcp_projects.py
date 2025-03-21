@@ -34,6 +34,9 @@ query GcpProjects {
     gcrPushCredentials {
       ...VaultSecret
     }
+    artifactPushCredentials {
+      ...VaultSecret
+    }
   }
 }
 """
@@ -48,6 +51,7 @@ class ConfiguredBaseModel(BaseModel):
 class GcpProjectV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     gcr_push_credentials: Optional[VaultSecret] = Field(..., alias="gcrPushCredentials")
+    artifact_push_credentials: VaultSecret = Field(..., alias="artifactPushCredentials")
 
 
 class GcpProjectsQueryData(ConfiguredBaseModel):

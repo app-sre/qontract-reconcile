@@ -15,20 +15,25 @@ from sretoolbox.container import (
 from sretoolbox.container.image import ImageComparisonError
 from sretoolbox.container.skopeo import SkopeoCmdError
 
-import reconcile.gql_definitions.gcr_mirror.gcp_projects as gql_gcp_projects
-import reconcile.gql_definitions.gcr_mirror.gcr_repos as gql_gcr_repos
+import reconcile.gql_definitions.gcp.gcp_docker_repos as gql_gcp_repos
+import reconcile.gql_definitions.gcp.gcp_projects as gql_gcp_projects
 from reconcile import queries
+from reconcile.gql_definitions.fragments.container_image_mirror import (
+    ContainerImageMirror,
+)
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "gcp-image-mirror"
 REQUEST_TIMEOUT = 60
+GCR_SECRET_PREFIX = "gcr_"
+AR_SECRET_PREFIX = "ar_"
 
 
-class GcrSyncItem(BaseModel):
-    name: str
-    mirror: gql_gcr_repos.ContainerImageMirrorV1
-    server_url: str
+class ImageSyncItem(BaseModel):
+    mirror: ContainerImageMirror
+    destination_url: str
     org_name: str
 
 
@@ -68,9 +73,9 @@ class QuayMirror:
             except SkopeoCmdError as details:
                 logging.error("[%s]", details)
 
-    def process_repos_query(self) -> list[GcrSyncItem]:
-        result = gql_gcr_repos.query(self.gqlapi.query())
-        summary = list[GcrSyncItem]()
+    def process_repos_query(self) -> list[ImageSyncItem]:
+        result = gql_gcp_repos.query(self.gqlapi.query())
+        summary = list[ImageSyncItem]()
 
         if result.apps:
             for app in result.apps:
@@ -79,21 +84,23 @@ class QuayMirror:
                         for gcr_repo in project.items:
                             if gcr_repo.mirror:
                                 project_name = project.project.name
-                                server_url = "gcr.io"
-                                artifact_registry = gcr_repo.artifact_registry
-                                if artifact_registry and artifact_registry.enabled:
-                                    server_url = (
-                                        f"{artifact_registry.location}-docker.pkg.dev"
-                                    )
-
                                 summary.append(
-                                    GcrSyncItem(
-                                        name=gcr_repo.name,
+                                    ImageSyncItem(
                                         mirror=gcr_repo.mirror,
-                                        server_url=server_url,
-                                        org_name=project_name,
+                                        destination_url=f"gcr.io/${project_name}/${gcr_repo.name}",
+                                        org_name=project.project.name,
                                     )
                                 )
+                if app.artifact_registry_mirrors:
+                    for project in app.artifact_registry_mirrors:
+                        for ar_repo in project.items:
+                            summary.append(
+                                ImageSyncItem(
+                                    mirror=ar_repo.mirror,
+                                    destination_url=ar_repo.image_url,
+                                    org_name=project.project.name,
+                                )
+                            )
 
         return summary
 
@@ -124,7 +131,7 @@ class QuayMirror:
         sync_tasks = list[SyncTask]()
         for item in summary:
             image = Image(
-                f"{item.server_url}/{item.org_name}/{item.name}",
+                f"{item.destination_url}/{item.org_name}/{item.name}",
                 session=self.session,
                 timeout=REQUEST_TIMEOUT,
             )
@@ -233,6 +240,11 @@ class QuayMirror:
 
         return False
 
+    def _decode_push_secret(self, secret: VaultSecret):
+        raw_data = self.secret_reader.read_all(secret.dict())
+        token = base64.b64decode(raw_data["token"]).decode()
+        return f"{raw_data['user']}:{token}"
+
     @staticmethod
     def _record_timestamp(path: str) -> None:
         with open(path, "w", encoding="locale") as file_object:
@@ -243,13 +255,20 @@ class QuayMirror:
 
         creds = dict[str, str]()
         if result.projects:
-            for project_data in result.projects:
-                push_secret = project_data.push_credentials
-                if push_secret:
-                    raw_data = self.secret_reader.read_all(push_secret.dict())
-                    project_name = project_data.name
-                    token = base64.b64decode(raw_data["token"]).decode()
-                    creds[project_name] = f"{raw_data['user']}:{token}"
+            for project_data in result.gcp_projects:
+                # support old pull secret for backwards compatibility (although they are both using artifact registry on the backend)
+                if project_data.gcr_push_credentials:
+                    creds[f"{GCR_SECRET_PREFIX}{project_data.name}"] = (
+                        self._decode_push_secret(
+                            project_data.gcr_push_credentials.dict()
+                        )
+                    )
+                if project_data.artifact_push_credentials:
+                    creds[f"{AR_SECRET_PREFIX}{project_data.name}"] = (
+                        self._decode_push_secret(
+                            project_data.artifact_push_credentials.dict()
+                        )
+                    )
         return creds
 
 
