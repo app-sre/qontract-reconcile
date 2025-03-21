@@ -1102,7 +1102,7 @@ data:
                       "color": "red",
                       "index": 0
                     },
-                    "to": null
+                    "to": 99999999
                   },
                   "type": "range"
                 }
@@ -1519,7 +1519,7 @@ data:
       "timezone": "",
       "title": "AUS Cluster Upgrade Overview",
       "uid": "ukLXCSwVz",
-      "version": 2,
+      "version": 3,
       "weekStart": ""
     }
 kind: ConfigMap
