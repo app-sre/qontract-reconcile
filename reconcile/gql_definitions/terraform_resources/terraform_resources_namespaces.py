@@ -324,6 +324,9 @@ query TerraformResourcesNamespaces {
                         timeout
                         interval
                         healthy_threshold
+                        path
+                        port
+                        protocol
                     }
                 }
                 rules {
@@ -810,6 +813,9 @@ class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
     timeout: Optional[int] = Field(..., alias="timeout")
     interval: Optional[int] = Field(..., alias="interval")
     healthy_threshold: Optional[int] = Field(..., alias="healthy_threshold")
+    path: Optional[str] = Field(..., alias="path")
+    port: Optional[int] = Field(..., alias="port")
+    protocol: Optional[str] = Field(..., alias="protocol")
 
 
 class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):

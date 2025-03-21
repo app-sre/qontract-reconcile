@@ -267,6 +267,9 @@ query TerraformResourcesNamespaces {
                         timeout
                         interval
                         healthy_threshold
+                        path
+                        port
+                        protocol
                     }
                 }
                 rules {

@@ -5380,6 +5380,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             health_check_timeout = 5
             health_check_unhealthy_threshold = 3
             health_check_healthy_threshold = 3
+            health_check_path = "/"
+            health_check_protocol = "HTTPS"
+            health_check_port = 443
             if health_check := t.get("health_check"):
                 health_check_interval = (
                     health_check.get("interval") or health_check_interval
@@ -5394,6 +5397,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 health_check_healthy_threshold = (
                     health_check.get("healthy_threshold")
                     or health_check_healthy_threshold
+                )
+                health_check_path = health_check.get("path") or health_check_path
+                health_check_port = health_check.get("port") or health_check_port
+                health_check_protocol = (
+                    health_check.get("protocol") or health_check_protocol
                 )
 
             # https://www.terraform.io/docs/providers/aws/r/
@@ -5411,9 +5419,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "timeout": health_check_timeout,
                     "unhealthy_threshold": health_check_unhealthy_threshold,
                     "healthy_threshold": health_check_healthy_threshold,
-                    "path": "/",
-                    "protocol": "HTTPS",
-                    "port": 443,
+                    "path": health_check_path,
+                    "protocol": health_check_protocol,
+                    "port": health_check_port,
                 },
                 "lifecycle": {
                     "create_before_destroy": True,
