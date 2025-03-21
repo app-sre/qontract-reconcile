@@ -21,7 +21,7 @@ from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils.secret_reader import SecretReader
 
-QONTRACT_INTEGRATION = "gcr-mirror"
+QONTRACT_INTEGRATION = "gcp-image-mirror"
 REQUEST_TIMEOUT = 60
 
 
@@ -254,5 +254,5 @@ class QuayMirror:
 
 
 def run(dry_run: bool) -> None:
-    with QuayMirror(dry_run) as gcr_mirror:
-        gcr_mirror.run()
+    with QuayMirror(dry_run) as gcp_image_mirror:
+        gcp_image_mirror.run()

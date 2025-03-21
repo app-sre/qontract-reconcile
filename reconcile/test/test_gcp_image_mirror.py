@@ -1,9 +1,9 @@
 from pytest_mock import MockerFixture
 
-from reconcile.gcr_mirror import QuayMirror
+from reconcile.gcp_image_mirror import QuayMirror
 
 
-def test_gcr_mirror_session(mocker: MockerFixture) -> None:
+def test_gcp_mirror_session(mocker: MockerFixture) -> None:
     mocker.patch("reconcile.gcr_mirror.gql")
     mocker.patch("reconcile.gcr_mirror.queries")
     mocked_request = mocker.patch("reconcile.gcr_mirror.requests")
