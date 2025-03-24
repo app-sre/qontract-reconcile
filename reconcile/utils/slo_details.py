@@ -17,7 +17,7 @@ PROM_TIMEOUT = (5, 300)
 @dataclass
 class PromCredentials:
     prom_url: str
-    is_basic_auth: str
+    is_basic_auth: bool
     prom_token: str
 
 
@@ -29,7 +29,6 @@ class SLODetails:
         cluster_name: str,
         prom_credentials: PromCredentials,
         slo: SLODocumentSLOV1,
-        current_value: float = 0,
     ):
         self.namespace_name = namespace_name
         self.slo_document_name = slo_document_name
