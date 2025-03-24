@@ -117,6 +117,7 @@ query ExternalResourcesNamespaces {
                 blue_green_deployment {
                     enabled
                     switchover
+                    switchover_timeout
                     delete
                     target {
                         allocated_storage
@@ -598,6 +599,7 @@ class RDSBlueGreenDeploymentTargetV1(ConfiguredBaseModel):
 class RDSBlueGreenDeploymentV1(ConfiguredBaseModel):
     enabled: Optional[bool] = Field(..., alias="enabled")
     switchover: Optional[bool] = Field(..., alias="switchover")
+    switchover_timeout: Optional[int] = Field(..., alias="switchover_timeout")
     delete: Optional[bool] = Field(..., alias="delete")
     target: Optional[RDSBlueGreenDeploymentTargetV1] = Field(..., alias="target")
 

@@ -36,6 +36,7 @@ query ExternalResourcesNamespaces {
                 blue_green_deployment {
                     enabled
                     switchover
+                    switchover_timeout
                     delete
                     target {
                         allocated_storage
