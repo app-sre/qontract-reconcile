@@ -163,9 +163,6 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
         if "parameter_group" in data:
             pg_data = rvr._get_values(data["parameter_group"])
             data["parameter_group"] = pg_data
-        if "old_parameter_group" in data:
-            old_pg_data = rvr._get_values(data["old_parameter_group"])
-            data["old_parameter_group"] = old_pg_data
         if (
             (blue_green_deployment := data.get("blue_green_deployment"))
             and (target := blue_green_deployment.get("target"))
