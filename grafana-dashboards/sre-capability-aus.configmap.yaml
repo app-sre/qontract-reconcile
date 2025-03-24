@@ -1120,7 +1120,7 @@ data:
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "dthms"
             },
             "overrides": []
           },
@@ -1519,7 +1519,7 @@ data:
       "timezone": "",
       "title": "AUS Cluster Upgrade Overview",
       "uid": "ukLXCSwVz",
-      "version": 3,
+      "version": 4,
       "weekStart": ""
     }
 kind: ConfigMap
