@@ -45,6 +45,7 @@ fragment AWSAccountManaged on AWSAccount_v1 {
     email
     phoneNumber
   }
+  supportedDeploymentRegions
 }
 
 fragment VaultSecret on VaultSecret_v1 {

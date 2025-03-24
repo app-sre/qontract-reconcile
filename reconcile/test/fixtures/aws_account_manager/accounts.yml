@@ -4,7 +4,6 @@ accounts:
 - name: jeanluc
   alias: captain-picard
   uid: '111111111111'
-  alias: null
   premiumSupport: false
   organization:
     ou: /Root/alpha quadrant/uss enterprise/ncc-1701-d
@@ -19,6 +18,9 @@ accounts:
       quotaCode: L-1194D53C
       value: 102
   resourcesDefaultRegion: us-east-1
+  supportedDeploymentRegions:
+  - ca-east-1
+  - ca-west-2
   securityContact:
     name: security contact name
     email: security@example.com
@@ -42,6 +44,9 @@ accounts:
       quotaCode: L-1194D53C
       value: 102
   resourcesDefaultRegion: us-east-1
+  supportedDeploymentRegions:
+  - ca-east-1
+  - ca-west-2
   securityContact:
     name: security contact name
     email: security@example.com
