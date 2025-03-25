@@ -38,9 +38,9 @@ class ImageSyncItem(BaseModel):
 
 
 class SyncTask(BaseModel):
-    mirror_creds: str
-    mirror_url: str
-    image_url: str
+    mirror_creds: str | None = None
+    source_url: str
+    dest_url: str
     org_name: str
 
 
@@ -64,17 +64,21 @@ class QuayMirror:
         sync_tasks = self.process_sync_tasks()
         for task in sync_tasks:
             try:
+                dest_creds = self.push_creds[f"{GCR_SECRET_PREFIX}{task.org_name}"]
+                if "pkg.dev" in task.dest_url:
+                    dest_creds = self.push_creds[f"{AR_SECRET_PREFIX}{task.org_name}"]
+
                 self.skopeo_cli.copy(
-                    src_image=task.mirror_url,
+                    src_image=task.source_url,
                     src_creds=task.mirror_creds,
-                    dst_image=task.image_url,
-                    dest_creds=self.push_creds[task.org_name],
+                    dst_image=task.dest_url,
+                    dest_creds=dest_creds,
                 )
             except SkopeoCmdError as details:
                 logging.error("[%s]", details)
 
     def process_repos_query(self) -> list[ImageSyncItem]:
-        result = gql_gcp_repos.query(self.gqlapi.query())
+        result = gql_gcp_repos.query(query_func=self.gqlapi.query)
         summary = list[ImageSyncItem]()
 
         if result.apps:
@@ -87,7 +91,7 @@ class QuayMirror:
                                 summary.append(
                                     ImageSyncItem(
                                         mirror=gcr_repo.mirror,
-                                        destination_url=f"gcr.io/${project_name}/${gcr_repo.name}",
+                                        destination_url=f"gcr.io/{project_name}/{gcr_repo.name}",
                                         org_name=project.project.name,
                                     )
                                 )
@@ -131,7 +135,7 @@ class QuayMirror:
         sync_tasks = list[SyncTask]()
         for item in summary:
             image = Image(
-                f"{item.destination_url}/{item.org_name}/{item.name}",
+                f"{item.destination_url}",
                 session=self.session,
                 timeout=REQUEST_TIMEOUT,
             )
@@ -156,70 +160,65 @@ class QuayMirror:
                 timeout=REQUEST_TIMEOUT,
             )
 
-            if item.mirror.tags:
-                for tag in item.mirror.tags:
-                    if not self.sync_tag(
-                        tags=item.mirror.tags,
-                        tags_exclude=item.mirror.tags_exclude,
-                        candidate=tag,
-                    ):
-                        continue
+            for tag in image_mirror:
+                if not self.sync_tag(
+                    tags=item.mirror.tags,
+                    tags_exclude=item.mirror.tags_exclude,
+                    candidate=tag,
+                ):
+                    continue
 
-                    upstream = image_mirror.tag
-                    downstream = image.tag
-                    if tag not in image:
-                        logging.debug(
-                            "Image %s and mirror %s are out off sync",
-                            downstream,
-                            upstream,
-                        )
-                        sync_tasks.append(
-                            SyncTask(
-                                mirror_url=str(upstream),
-                                mirror_creds=mirror_creds,
-                                image_url=str(downstream),
-                                org_name=item.org_name,
-                            )
-                        )
-                        continue
-
-                    # Deep (slow) check only in non dry-run mode
-                    if self.dry_run:
-                        logging.debug(
-                            "Image %s and mirror %s are in sync", downstream, upstream
-                        )
-                        continue
-
-                    # Deep (slow) check only from time to time
-                    if not is_deep_sync:
-                        logging.debug(
-                            "Image %s and mirror %s are in sync", downstream, upstream
-                        )
-                        continue
-
-                    try:
-                        if downstream == upstream:
-                            logging.debug(
-                                "Image %s and mirror %s are in sync",
-                                downstream,
-                                upstream,
-                            )
-                            continue
-                    except ImageComparisonError as details:
-                        logging.error("[%s]", details)
-                        continue
-
+                upstream = image_mirror.tag
+                downstream = image.tag
+                if tag not in image:
                     logging.debug(
-                        "Image %s and mirror %s are out of sync", downstream, upstream
+                        f"Image {image.image}: {downstream} and mirror {upstream} are out of sync"
                     )
                     sync_tasks.append(
                         SyncTask(
-                            mirror_url=str(upstream),
+                            source_url=str(upstream),
                             mirror_creds=mirror_creds,
-                            image_url=str(downstream),
+                            dest_url=str(downstream),
                             org_name=item.org_name,
                         )
                     )
+                    continue
+
+                # Deep (slow) check only in non dry-run mode
+                if self.dry_run:
+                    logging.debug(
+                        f"Image {image.image}: {downstream} and mirror {upstream} are in sync"
+                    )
+                    continue
+
+                # Deep (slow) check only from time to time
+                if not is_deep_sync:
+                    logging.debug(
+                        f"Image {image.image}: {downstream} and mirror {upstream} are in sync"
+                    )
+                    continue
+
+                try:
+                    if downstream == upstream:
+                        logging.debug(
+                            f"Image {image.image}: {downstream} and mirror {upstream} are in sync",
+                        )
+                        continue
+                except ImageComparisonError as details:
+                    logging.error("[%s]", details)
+                    continue
+
+                logging.debug(
+                    f"Image {image.image}: {downstream} and mirror {upstream} are out of sync"
+                )
+                sync_tasks.append(
+                    SyncTask(
+                        source_url=str(upstream),
+                        mirror_creds=mirror_creds,
+                        dest_url=str(downstream),
+                        org_name=item.org_name,
+                    )
+                )
 
         return sync_tasks
 
@@ -251,23 +250,19 @@ class QuayMirror:
             file_object.write(str(time.time()))
 
     def _get_push_creds(self) -> dict[str, str]:
-        result = gql_gcp_projects.query(self.gqlapi.query())
+        result = gql_gcp_projects.query(query_func=self.gqlapi.query)
 
         creds = dict[str, str]()
-        if result.projects:
+        if result.gcp_projects:
             for project_data in result.gcp_projects:
                 # support old pull secret for backwards compatibility (although they are both using artifact registry on the backend)
                 if project_data.gcr_push_credentials:
                     creds[f"{GCR_SECRET_PREFIX}{project_data.name}"] = (
-                        self._decode_push_secret(
-                            project_data.gcr_push_credentials.dict()
-                        )
+                        self._decode_push_secret(project_data.gcr_push_credentials)
                     )
                 if project_data.artifact_push_credentials:
                     creds[f"{AR_SECRET_PREFIX}{project_data.name}"] = (
-                        self._decode_push_secret(
-                            project_data.artifact_push_credentials.dict()
-                        )
+                        self._decode_push_secret(project_data.artifact_push_credentials)
                     )
         return creds
 
