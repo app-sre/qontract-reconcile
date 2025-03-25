@@ -84,25 +84,25 @@ class QuayMirror:
         if result.apps:
             for app in result.apps:
                 if app.gcr_repos:
-                    for project in app.gcr_repos:
-                        for gcr_repo in project.items:
+                    for gcr_project in app.gcr_repos:
+                        for gcr_repo in gcr_project.items:
                             if gcr_repo.mirror:
-                                project_name = project.project.name
+                                project_name = gcr_project.project.name
                                 summary.append(
                                     ImageSyncItem(
                                         mirror=gcr_repo.mirror,
                                         destination_url=f"gcr.io/{project_name}/{gcr_repo.name}",
-                                        org_name=project.project.name,
+                                        org_name=project_name,
                                     )
                                 )
                 if app.artifact_registry_mirrors:
-                    for project in app.artifact_registry_mirrors:
-                        for ar_repo in project.items:
+                    for ar_project in app.artifact_registry_mirrors:
+                        for ar_repo in ar_project.items:
                             summary.append(
                                 ImageSyncItem(
                                     mirror=ar_repo.mirror,
                                     destination_url=ar_repo.image_url,
-                                    org_name=project.project.name,
+                                    org_name=ar_project.project.name,
                                 )
                             )
 
@@ -168,8 +168,9 @@ class QuayMirror:
                 ):
                     continue
 
-                upstream = image_mirror.tag
-                downstream = image.tag
+                # the Image class allows you to fetch Image information at a specific tag with a get operator
+                upstream = image_mirror[tag]
+                downstream = image[tag]
                 if tag not in image:
                     logging.debug(
                         f"Image {image.image}: {downstream} and mirror {upstream} are out of sync"
@@ -239,7 +240,7 @@ class QuayMirror:
 
         return False
 
-    def _decode_push_secret(self, secret: VaultSecret):
+    def _decode_push_secret(self, secret: VaultSecret) -> str:
         raw_data = self.secret_reader.read_all(secret.dict())
         token = base64.b64decode(raw_data["token"]).decode()
         return f"{raw_data['user']}:{token}"
@@ -260,10 +261,9 @@ class QuayMirror:
                     creds[f"{GCR_SECRET_PREFIX}{project_data.name}"] = (
                         self._decode_push_secret(project_data.gcr_push_credentials)
                     )
-                if project_data.artifact_push_credentials:
-                    creds[f"{AR_SECRET_PREFIX}{project_data.name}"] = (
-                        self._decode_push_secret(project_data.artifact_push_credentials)
-                    )
+                creds[f"{AR_SECRET_PREFIX}{project_data.name}"] = (
+                    self._decode_push_secret(project_data.artifact_push_credentials)
+                )
         return creds
 
 
