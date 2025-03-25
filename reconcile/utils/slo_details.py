@@ -1,10 +1,10 @@
+from dataclasses import dataclass
 from math import isnan
 from typing import Any
 from urllib.parse import urljoin
 
 import jinja2
 import requests
-from attr import dataclass
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLODocumentSLOV1,
@@ -19,6 +19,18 @@ class PromCredentials:
     prom_url: str
     is_basic_auth: bool
     prom_token: str
+
+
+class EmptySLOResult(Exception):
+    pass
+
+
+class EmptySLOValue(Exception):
+    pass
+
+
+class InvalidSLOValue(Exception):
+    pass
 
 
 class SLODetails:
@@ -39,13 +51,19 @@ class SLODetails:
     def parse_prom_response(self, data: Any) -> float:
         result = data["data"]["result"]
         if not result:
-            raise Exception("prometheus returned empty result")
+            raise EmptySLOResult(
+                f"prometheus returned empty result for SLO: {self.slo.name} of SLO document: {self.slo_document_name}"
+            )
         slo_value = result[0]["value"]
         if not slo_value:
-            raise Exception("prometheus returned empty SLO value")
+            raise EmptySLOValue(
+                f"prometheus returned empty SLO value for SLO: {self.slo.name} of SLO document: {self.slo_document_name}"
+            )
         slo_value = float(slo_value[1])
         if isnan(slo_value):
-            raise Exception("SLO value is having improper format")
+            raise InvalidSLOValue(
+                f"invalid format for SLO: {self.slo.name} of SLO document: {self.slo_document_name}"
+            )
         return slo_value
 
     def get_SLO_value(self) -> float:
