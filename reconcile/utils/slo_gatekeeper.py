@@ -29,7 +29,6 @@ class SLOGateKeeper:
             )
             for slo_document in slo_documents
             for namespace in slo_document.namespaces
-            if not namespace.slo_namespace or namespace.prometheus_access
             for slo in slo_document.slos or []
         ]
         return slo_details_list
