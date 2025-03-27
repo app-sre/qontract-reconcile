@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import MutableMapping
+from datetime import datetime
 from enum import Enum
 from typing import Any
 
@@ -152,6 +153,7 @@ class Project(BaseModel):
     teams: list[Team] = []
     alerts: list[ProjectAlert] = []
     event_throttle_rate: int = Field(0, alias="eventThrottleRate")
+    organization: Organization | None = None
 
     class Config:
         allow_population_by_field_name = True
@@ -185,6 +187,12 @@ class Project(BaseModel):
         return hash(self.slug)
 
 
+class ProjectStatistics(BaseModel):
+    start: datetime
+    end: datetime
+    events: int = 0
+
+
 class Organization(BaseModel):
     pk: int | None = Field(None, alias="id")
     name: str
@@ -210,3 +218,6 @@ class Organization(BaseModel):
 
     def __hash__(self) -> int:
         return hash(self.name)
+
+
+Project.update_forward_refs()

@@ -98,9 +98,23 @@ query Projects {
         }
       }
     }
-    # for glitchtip access revalidation
     app {
+    # for glitchtip access revalidation
       path
+      # for the qontract-cli glitchtip subcommands
+      escalationPolicy {
+        channels {
+          jiraBoard {
+            name
+            issueType
+            disable {
+              integrations
+            }
+          }
+          jiraComponent
+          jiraLabels
+        }
+      }
     }
   }
 }
@@ -176,8 +190,29 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
+class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
+class JiraBoardV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    issue_type: Optional[str] = Field(..., alias="issueType")
+    disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
+
+
+class AppEscalationPolicyChannelsV1(ConfiguredBaseModel):
+    jira_board: list[JiraBoardV1] = Field(..., alias="jiraBoard")
+    jira_component: Optional[str] = Field(..., alias="jiraComponent")
+    jira_labels: Optional[list[str]] = Field(..., alias="jiraLabels")
+
+
+class AppEscalationPolicyV1(ConfiguredBaseModel):
+    channels: AppEscalationPolicyChannelsV1 = Field(..., alias="channels")
+
+
 class AppV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
+    escalation_policy: AppEscalationPolicyV1 = Field(..., alias="escalationPolicy")
 
 
 class GlitchtipProjectV1(ConfiguredBaseModel):
@@ -188,7 +223,7 @@ class GlitchtipProjectV1(ConfiguredBaseModel):
     teams: list[GlitchtipTeamV1] = Field(..., alias="teams")
     organization: GlitchtipProjectV1_GlitchtipOrganizationV1 = Field(..., alias="organization")
     namespaces: list[NamespaceV1] = Field(..., alias="namespaces")
-    app: Optional[AppV1] = Field(..., alias="app")
+    app: AppV1 = Field(..., alias="app")
 
 
 class ProjectsQueryData(ConfiguredBaseModel):
