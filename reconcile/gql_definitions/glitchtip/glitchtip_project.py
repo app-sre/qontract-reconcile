@@ -106,13 +106,7 @@ query Projects {
         channels {
           jiraBoard {
             name
-            issueType
-            disable {
-              integrations
-            }
           }
-          jiraComponent
-          jiraLabels
         }
       }
     }
@@ -190,20 +184,12 @@ class NamespaceV1(ConfiguredBaseModel):
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
-class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
-    integrations: Optional[list[str]] = Field(..., alias="integrations")
-
-
 class JiraBoardV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
-    issue_type: Optional[str] = Field(..., alias="issueType")
-    disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
 
 
 class AppEscalationPolicyChannelsV1(ConfiguredBaseModel):
     jira_board: list[JiraBoardV1] = Field(..., alias="jiraBoard")
-    jira_component: Optional[str] = Field(..., alias="jiraComponent")
-    jira_labels: Optional[list[str]] = Field(..., alias="jiraLabels")
 
 
 class AppEscalationPolicyV1(ConfiguredBaseModel):
