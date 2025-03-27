@@ -385,8 +385,10 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         )
 
         # Create products, apps, and their services
-        for p in products_to_create or []:
-            product = Product(name=p["product"], fullname=p["product"])
+        for p_data in products_to_create or []:
+            product = Product(
+                name=p_data["product"], fullname=p_data["product"], applications=[]
+            )
             return_list.append(
                 StatusBoardHandler(
                     action=Action.create,
@@ -426,13 +428,13 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         # Creating services for existing apps and products
         if services_to_create:
             for p in current_products.values():
-                for a in p.applications or []:
+                for application in p.applications or []:
                     this_app_services = [
-                        s for s in services_to_create if s["app"] == a.name
+                        s for s in services_to_create if s["app"] == application.name
                     ]
                     for s in this_app_services or []:
                         name = s["service"]
-                        fullname = f"{p.name}/{a.name}/{name}"
+                        fullname = f"{p.name}/{application.name}/{name}"
                         metadata = s["metadata"]
 
                         return_list.append(
@@ -476,8 +478,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 )
             )
 
-        for p in products_to_delete:
-            product = current_products[p["product"]]
+        for p_data in products_to_delete:
+            product = current_products[p_data["product"]]
 
             return_list.append(
                 StatusBoardHandler(action=Action.delete, status_board_object=product)
