@@ -92,7 +92,7 @@ class AUSOrganizationLabelSource(LabelSource):
                 labels[aus_label_key(f"sector-max-parallel-upgrades.{sector.name}")] = (
                     sector.max_parallel_upgrades
                 )
-            if sector.dependencies:
+            if sector.dependencies is not None:
                 labels[aus_label_key(f"sector-deps.{sector.name}")] = ",".join(
                     sorted([dep.name for dep in sector.dependencies])
                 )
