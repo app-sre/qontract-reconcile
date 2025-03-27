@@ -293,7 +293,10 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
         StatusBoardHandler(
             action=Action.create,
             status_board_object=Application(
-                name="bar", fullname="foo/bar", product=product
+                name="bar",
+                fullname="foo/bar",
+                product=product,
+                services=[],
             ),
         ),
         StatusBoardHandler(
