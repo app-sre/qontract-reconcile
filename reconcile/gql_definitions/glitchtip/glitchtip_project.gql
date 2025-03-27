@@ -58,9 +58,17 @@ query Projects {
         }
       }
     }
-    # for glitchtip access revalidation
     app {
+    # for glitchtip access revalidation
       path
+      # for the qontract-cli glitchtip subcommands
+      escalationPolicy {
+        channels {
+          jiraBoard {
+            name
+          }
+        }
+      }
     }
   }
 }
