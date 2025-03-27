@@ -88,8 +88,12 @@ class AUSOrganizationLabelSource(LabelSource):
             )
         # sector dependencies
         for sector in organization.sectors or []:
+            if sector.max_parallel_upgrades:
+                labels[aus_label_key(f"sector-max-parallel-upgrades.{sector.name}")] = (
+                    sector.max_parallel_upgrades
+                )
             if sector.dependencies:
-                labels[aus_label_key(f"sectors.{sector.name}")] = ",".join(
+                labels[aus_label_key(f"sector-deps.{sector.name}")] = ",".join(
                     sorted([dep.name for dep in sector.dependencies])
                 )
         # version-data sharing
