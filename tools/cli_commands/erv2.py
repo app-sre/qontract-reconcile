@@ -222,7 +222,7 @@ class Erv2Cli:
             raise
 
     def enter_shell(self, credentials: Path) -> None:
-        """Run the CDKTF container and enter the shell."""
+        """Run the ERv2 container and enter the shell."""
         input_file = self.temp / "input.json"
         input_file.write_text(self.input_data)
 
@@ -242,6 +242,8 @@ class Erv2Cli:
                     f"{credentials!s}:/credentials:Z",
                     "-e",
                     "AWS_SHARED_CREDENTIALS_FILE=/credentials",
+                    "-e",
+                    "WORK=/tmp/work",
                     "--entrypoint",
                     "/bin/bash",
                     self.image,

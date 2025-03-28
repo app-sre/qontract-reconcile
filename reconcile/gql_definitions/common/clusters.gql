@@ -47,6 +47,7 @@ query Clusters($name: String) {
       }
       sectors {
         name
+        maxParallelUpgrades
         dependencies {
           name
           ocm {

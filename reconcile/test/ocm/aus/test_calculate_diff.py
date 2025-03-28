@@ -22,6 +22,7 @@ from reconcile.aus.models import NodePoolSpec
 from reconcile.test.ocm.aus.fixtures import (
     build_cluster_health,
     build_cluster_upgrade_spec,
+    build_organization,
     build_organization_upgrade_spec,
     build_upgrade_policy,
 )
@@ -491,6 +492,75 @@ def test_calculate_diff_implicit_mutex_set(
         ),
     )
     assert not diffs
+
+
+@pytest.mark.parametrize(
+    "max_parallel_upgrades, total_cluster_count, ongoing_cluster_upgrades, expected_skip",
+    [
+        (None, 5, 0, False),
+        (None, 5, 1, False),
+        (None, 5, 4, False),
+        ("1", 5, 0, False),  # 0 ongoing upgrade over 5 clusters, allow a new one
+        ("1", 5, 1, True),  # 1 ongoing upgrade over 5 clusters, skip a new one
+        ("1", 5, 2, True),  # 2 ongoing upgrades over 5 clusters, skip a new one
+        ("2", 5, 0, False),  # 0 ongoing upgrade over 5 clusters, allow a new one
+        ("2", 5, 1, False),  # 1 ongoing upgrade over 5 clusters, allow a new one
+        ("2", 5, 2, True),  # 2 ongoing upgrades over 5 clusters, skip a new one
+        ("2", 5, 3, True),  # 3 ongoing upgrades over 5 clusters, skip a new one
+        ("2%", 5, 1, True),  # 1 ongoing upgrade over 5 clusters, skip a new one
+        ("33%", 5, 0, False),  # 0 ongoing upgrade over 5 clusters, allow a new one
+        ("33%", 5, 1, False),  # 1 ongoing upgrade over 5 clusters, skip a new one
+        ("33%", 5, 2, True),  # 2 ongoing upgrade over 5 clusters, skip a new one
+        ("33%", 5, 3, True),  # 3 ongoing upgrade over 5 clusters, skip a new one
+        ("33%", 5, 4, True),  # 4 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 5, 1, False),  # 1 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 5, 2, True),  # 2 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 5, 3, True),  # 3 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 5, 4, True),  # 4 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 6, 1, False),  # 1 ongoing upgrades over 6 clusters, skip a new one
+        ("50%", 6, 2, False),  # 2 ongoing upgrades over 6 clusters, skip a new one
+        ("50%", 6, 3, True),  # 3 ongoing upgrades over 6 clusters, skip a new one
+        ("50%", 6, 4, True),  # 4 ongoing upgrades over 6 clusters, skip a new one
+        ("100%", 6, 5, False),  # 5 ongoing upgrades over 6 clusters, allow a new one
+    ],
+)
+def test_calculate_diff_max_parallel_upgrades_set(
+    max_parallel_upgrades: str,
+    total_cluster_count: int,
+    ongoing_cluster_upgrades: int,
+    expected_skip: bool,
+) -> None:
+    workload = "wl"
+    sector = "sector-1"
+    org = build_organization(
+        sector_max_parallel_upgrades={sector: max_parallel_upgrades},
+        sector_dependencies={sector: []},
+    )
+    clusters = [
+        build_ocm_cluster(name=f"cluster-{id}") for id in range(total_cluster_count)
+    ]
+    upgrading_cluster_names = {
+        f"cluster-{id}" for id in range(ongoing_cluster_upgrades)
+    }
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                cluster,
+                build_upgrade_policy(workloads=[workload], soak_days=1, sector=sector),
+                build_cluster_health(),
+                [],
+            )
+            for cluster in clusters
+        ],
+        org=org,
+    )
+
+    skip = base.verify_max_upgrades_should_skip(
+        desired=org_upgrade_spec.specs[-1],
+        sector_upgrades={sector: upgrading_cluster_names},
+        sector=org_upgrade_spec.sectors[sector],
+    )
+    assert skip == expected_skip
 
 
 def test__calculate_node_pool_diffs(

@@ -5,6 +5,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections import defaultdict
 from collections.abc import Callable, Sequence
 from datetime import (
     datetime,
@@ -982,6 +983,47 @@ def verify_lock_should_skip(
     return False
 
 
+def verify_max_upgrades_should_skip(
+    desired: ClusterUpgradeSpec,
+    sector_upgrades: dict[str, set[str]],
+    sector: Sector | None,
+) -> bool:
+    if sector is None:
+        return False
+
+    current_upgrades = sector_upgrades[sector.name]
+    # Allow at least one upgrade
+    if len(current_upgrades) == 0:
+        return False
+
+    # if sector.max_parallel_upgrades is not set, we allow all upgrades
+    if sector.max_parallel_upgrades is None:
+        return False
+
+    sector_cluster_count = len(sector.specs)
+
+    if sector.max_parallel_upgrades.endswith("%"):
+        max_parallel_upgrades_percent = int(sector.max_parallel_upgrades[:-1])
+        max_parallel_upgrades = round(
+            sector_cluster_count * max_parallel_upgrades_percent / 100
+        )
+    else:
+        max_parallel_upgrades = int(sector.max_parallel_upgrades)
+
+    # we allow at least one upgrade
+    if max_parallel_upgrades == 0:
+        max_parallel_upgrades = 1
+
+    if len(current_upgrades) >= max_parallel_upgrades:
+        logging.debug(
+            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: "
+            f"sector '{sector.name}' has reached max parallel upgrades {sector.max_parallel_upgrades}"
+        )
+        return True
+
+    return False
+
+
 def _create_upgrade_policy(
     next_schedule: str, spec: ClusterUpgradeSpec, version: str
 ) -> AbstractUpgradePolicy:
@@ -1042,25 +1084,32 @@ def calculate_diff(
         list: upgrade policies to be applied
     """
 
-    def set_mutex(
-        locked: dict[str, str], cluster_id: str, mutexes: set[str] | None = None
+    locked: dict[str, str] = {}
+    sector_upgrades: dict[str, set[str]] = defaultdict(set)
+
+    def set_upgrading(
+        cluster_id: str, mutexes: set[str] | None, sector_name: str | None
     ) -> None:
         for mutex in mutexes or set():
             locked[mutex] = cluster_id
+        if sector_name:
+            sector_upgrades[sector_name].add(cluster_id)
 
     diffs: list[UpgradePolicyHandler] = []
 
     # all clusters IDs with a current upgradePolicy are considered locked
-    locked: dict[str, str] = {}
     for spec in desired_state.specs:
         if spec.cluster.id in [s.cluster.id for s in current_state]:
-            for mutex in spec.effective_mutexes:
-                locked[mutex] = spec.cluster.id
+            sector_name = spec.upgrade_policy.conditions.sector
+            set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
 
     addon_service = init_addon_service(desired_state.org.environment)
     now = datetime.utcnow()
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
+        sector_name = spec.upgrade_policy.conditions.sector
+        sector = desired_state.sectors[sector_name] if sector_name else None
+
         # Upgrading node pools, only required for Hypershift clusters
         # do this in the same loop, to skip cluster on node pool upgrade
         if spec.cluster.is_rosa_hypershift():
@@ -1070,7 +1119,7 @@ def calculate_diff(
             node_pool_update = _calculate_node_pool_diffs(spec, now)
             if node_pool_update:  # node pool update policy not yet created
                 diffs.append(node_pool_update)
-                set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
+                set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
                 continue
 
         # ignore clusters with an existing upgrade policy
@@ -1089,10 +1138,9 @@ def calculate_diff(
         if verify_lock_should_skip(spec, locked):
             continue
 
-        sector_name = spec.upgrade_policy.conditions.sector
-        sector = None
-        if sector_name:
-            sector = desired_state.sectors[sector_name]
+        if verify_max_upgrades_should_skip(spec, sector_upgrades, sector):
+            continue
+
         version = upgradeable_version(spec, version_data, sector)
         if version:
             if addon_id:
@@ -1139,7 +1187,7 @@ def calculate_diff(
                         policy=_create_upgrade_policy(next_schedule, spec, version),
                     )
                 )
-            set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
+            set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
 
     return diffs
 

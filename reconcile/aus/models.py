@@ -137,7 +137,11 @@ class OrganizationUpgradeSpec(BaseModel):
 
         # extract sectors
         self._sectors = {
-            s.name: Sector(org_id=self.org.org_id, name=s.name)
+            s.name: Sector(
+                org_id=self.org.org_id,
+                name=s.name,
+                max_parallel_upgrades=s.max_parallel_upgrades,
+            )
             for s in self.org.sectors or []
         }
 
@@ -223,6 +227,7 @@ class SectorConfigError(Exception):
 
 class Sector(BaseModel):
     name: str
+    max_parallel_upgrades: str | None
     dependencies: list[Sector] = Field(default_factory=list)
     _specs: dict[str, ClusterUpgradeSpec] = PrivateAttr(default_factory=dict)
 

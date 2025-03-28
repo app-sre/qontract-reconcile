@@ -97,6 +97,7 @@ def build_organization(
     inherit_version_data_from_org_ids: list[tuple[str, str, bool]] | None = None,
     publish_version_data_from_org_ids: list[str] | None = None,
     blocked_versions: list[str] | None = None,
+    sector_max_parallel_upgrades: dict[str, str | None] | None = None,
     sector_dependencies: dict[str, list[str] | None] | None = None,
     addonManagedUpgrades: bool = False,
     disabled_integrations: list[str] | None = None,
@@ -145,6 +146,9 @@ def build_organization(
         sectors=[
             OpenShiftClusterManagerSectorV1(
                 name=sector,
+                maxParallelUpgrades=sector_max_parallel_upgrades.get(sector)
+                if sector_max_parallel_upgrades
+                else None,
                 dependencies=[
                     OpenShiftClusterManagerSectorDependenciesV1(
                         name=dep,

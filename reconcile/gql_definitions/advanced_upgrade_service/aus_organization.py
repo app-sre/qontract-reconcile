@@ -65,6 +65,7 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   }
   sectors {
     name
+    maxParallelUpgrades
     dependencies {
       name
       ocm {
