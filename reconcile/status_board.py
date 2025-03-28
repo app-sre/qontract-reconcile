@@ -182,7 +182,7 @@ class StatusBoardHandler(BaseModel):
                 if isinstance(self.status_board_object, Service):
                     self.status_board_object.update(ocm)
                 err_msg = (
-                    "Called update on StatusBoadHandler that doesn't have update method"
+                    "Called update on StatusBoardHandler that doesn't have update method"
                 )
                 logging.error(err_msg)
                 raise UpdateNotSupported(err_msg)
