@@ -444,7 +444,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                                     name=name,
                                     fullname=fullname,
                                     metadata=metadata,
-                                    application=a,
+                                    application=application,
                                 ),
                             )
                         )
