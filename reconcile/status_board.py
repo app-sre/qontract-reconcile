@@ -124,6 +124,11 @@ class Application(AbstractStatusBoard):
 
 
 class Service(AbstractStatusBoard):
+    # `application` here is used to create a flat map to easily compare state.
+    # This field is optional so we can create the Service object without the
+    # need to create an Application object first.
+    # This field is not used when we are mapping the services that belongs to an
+    # application in that case we use the `services` field in Application class.
     application: Optional["Application"]
 
     def create(self, ocm: OCMBaseClient) -> None:
