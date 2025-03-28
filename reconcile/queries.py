@@ -739,6 +739,7 @@ CLUSTERS_QUERY = """
       }
       sectors {
         name
+        maxParallelUpgrades
         dependencies {
           name
         }
@@ -1348,6 +1349,7 @@ OCM_QUERY = """
     }
     sectors {
       name
+      maxParallelUpgrades
       dependencies {
         name
         ocm {

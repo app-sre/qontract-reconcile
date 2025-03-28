@@ -165,7 +165,21 @@ def test_cluster_upgrade_policy_label_source(
                 sector_dependencies={"prod": ["stage-1", "stage-2"], "stage-1": None},
             ),
             {
-                "sre-capabilities.aus.sectors.prod": "stage-1,stage-2",
+                "sre-capabilities.aus.sector-deps.prod": "stage-1,stage-2",
+            },
+        ),
+        # sector maxParallelUpgrades
+        (
+            build_organization(
+                org_id="org-1",
+                org_name="org-1",
+                env_name="ocm-prod",
+                sector_dependencies={"prod": ["stage-1"], "stage-1": None},
+                sector_max_parallel_upgrades={"prod": "2"},
+            ),
+            {
+                "sre-capabilities.aus.sector-deps.prod": "stage-1",
+                "sre-capabilities.aus.sector-max-parallel-upgrades.prod": "2",
             },
         ),
         # inherit
@@ -199,6 +213,7 @@ def test_cluster_upgrade_policy_label_source(
     ids=[
         "blocked versions",
         "sector dependencies",
+        "sector maxParallelUpgrades",
         "inherit",
         "publish",
     ],

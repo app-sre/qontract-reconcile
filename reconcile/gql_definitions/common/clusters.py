@@ -148,6 +148,7 @@ query Clusters($name: String) {
       }
       sectors {
         name
+        maxParallelUpgrades
         dependencies {
           name
           ocm {
@@ -388,6 +389,7 @@ class OpenShiftClusterManagerSectorDependenciesV1(ConfiguredBaseModel):
 
 class OpenShiftClusterManagerSectorV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    max_parallel_upgrades: Optional[str] = Field(..., alias="maxParallelUpgrades")
     dependencies: Optional[list[OpenShiftClusterManagerSectorDependenciesV1]] = Field(..., alias="dependencies")
 
 

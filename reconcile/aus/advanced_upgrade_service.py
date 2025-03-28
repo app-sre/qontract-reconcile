@@ -289,6 +289,10 @@ class OrganizationLabelSet(BaseModel):
 
     blocked_versions: CSV | None = Field(alias=aus_label_key("blocked-versions"))
 
+    sector_max_parallel_upgrades: dict[str, str] = labelset_groupfield(
+        group_prefix=aus_label_key("sector-max-parallel-upgrades.")
+    )
+
     sector_deps: dict[str, CSV] = labelset_groupfield(
         group_prefix=aus_label_key("sector-deps.")
     )
@@ -311,6 +315,7 @@ class OrganizationLabelSet(BaseModel):
         return [
             OpenShiftClusterManagerSectorV1(
                 name=s,
+                maxParallelUpgrades=self.sector_max_parallel_upgrades.get(s),
                 dependencies=[
                     OpenShiftClusterManagerSectorDependenciesV1(name=d, ocm=None)
                     for d in self.sector_deps.get(s, [])
