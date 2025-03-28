@@ -985,18 +985,16 @@ def verify_lock_should_skip(
 
 def verify_max_upgrades_should_skip(
     desired: ClusterUpgradeSpec,
-    desired_state: OrganizationUpgradeSpec,
     sector_upgrades: dict[str, set[str]],
+    sector: Sector | None,
 ) -> bool:
-    sector_name = desired.upgrade_policy.conditions.sector
-    if not sector_name:
+    if sector is None:
         return False
 
-    current_upgrades = sector_upgrades[sector_name]
+    current_upgrades = sector_upgrades[sector.name]
     # Allow at least one upgrade
     if len(current_upgrades) == 0:
         return False
-    sector = desired_state.sectors[sector_name]
 
     # if sector.max_parallel_upgrades is not set, we allow all upgrades
     if sector.max_parallel_upgrades is None:
@@ -1019,7 +1017,7 @@ def verify_max_upgrades_should_skip(
     if len(current_upgrades) >= max_parallel_upgrades:
         logging.debug(
             f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: "
-            f"sector '{sector_name}' has reached max parallel upgrades {sector.max_parallel_upgrades}"
+            f"sector '{sector.name}' has reached max parallel upgrades {sector.max_parallel_upgrades}"
         )
         return True
 
@@ -1110,9 +1108,7 @@ def calculate_diff(
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
         sector_name = spec.upgrade_policy.conditions.sector
-        sector = None
-        if sector_name:
-            sector = desired_state.sectors[sector_name]
+        sector = desired_state.sectors[sector_name] if sector_name else None
 
         # Upgrading node pools, only required for Hypershift clusters
         # do this in the same loop, to skip cluster on node pool upgrade
@@ -1142,7 +1138,7 @@ def calculate_diff(
         if verify_lock_should_skip(spec, locked):
             continue
 
-        if verify_max_upgrades_should_skip(spec, desired_state, sector_upgrades):
+        if verify_max_upgrades_should_skip(spec, sector_upgrades, sector):
             continue
 
         version = upgradeable_version(spec, version_data, sector)

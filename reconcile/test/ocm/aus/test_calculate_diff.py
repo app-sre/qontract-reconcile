@@ -554,10 +554,11 @@ def test_calculate_diff_max_parallel_upgrades_set(
         ],
         org=org,
     )
+
     skip = base.verify_max_upgrades_should_skip(
         desired=org_upgrade_spec.specs[-1],
-        desired_state=org_upgrade_spec,
         sector_upgrades={sector: upgrading_cluster_names},
+        sector=org_upgrade_spec.sectors[sector],
     )
     assert skip == expected_skip
 
