@@ -1,3 +1,4 @@
+import copy
 import re
 from abc import ABC, abstractmethod
 from typing import Any
@@ -168,7 +169,10 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
             and (target := blue_green_deployment.get("target"))
             and (parameter_group := target.get("parameter_group"))
         ):
-            target["parameter_group"] = rvr._get_values(parameter_group)
+            data["blue_green_deployment"] = copy.deepcopy(blue_green_deployment)
+            data["blue_green_deployment"]["target"]["parameter_group"] = (
+                rvr._get_values(parameter_group)
+            )
         if "replica_source" in data:
             sourcedb_spec = self._get_source_db_spec(
                 spec.provisioner_name, data["replica_source"]
