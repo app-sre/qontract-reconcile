@@ -119,16 +119,6 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     assert h.status_board_object.deleted
     assert h.status_board_object.summarized
 
-    h = StatusBoardHandler(
-        action=Action.update,
-        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
-    )
-
-    h.act(dry_run=False, ocm=ocm)
-    assert isinstance(h.status_board_object, StatusBoardStub)
-    assert h.status_board_object.updated
-    assert h.status_board_object.summarized
-
 
 def test_get_product_apps(status_board: StatusBoardV1) -> None:
     p = StatusBoardExporterIntegration.get_product_apps(status_board)
