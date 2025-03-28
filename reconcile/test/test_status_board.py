@@ -137,6 +137,7 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
 
 def test_get_diff_create_app() -> None:
     Product.update_forward_refs()
+    Application.update_forward_refs()
 
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
