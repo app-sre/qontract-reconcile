@@ -358,18 +358,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             for name, p in current_products.items():
                 this_product_apps = [a for a in apps_to_create if a["product"] == name]
                 for a in this_product_apps or []:
-                    appplication = create_app(app_name=a["app"], product=p)
+                    application = create_app(app_name=a["app"], product=p)
                     return_list.append(
                         StatusBoardHandler(
-                            action=Action.create, status_board_object=appplication
+                            action=Action.create, status_board_object=application
                         )
                     )
                     this_app_services = [
-                        s for s in services_to_create if s["app"] == appplication.name
+                        s for s in services_to_create if s["app"] == application.name
                     ]
                     for s in this_app_services:
                         name = s["service"]
-                        fullname = f"{p.name}/{appplication.name}/{name}"
+                        fullname = f"{p.name}/{application.name}/{name}"
                         metadata = s["metadata"]
 
                         return_list.append(
@@ -379,7 +379,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                                     name=name,
                                     fullname=fullname,
                                     metadata=metadata,
-                                    application=appplication,
+                                    application=application,
                                 ),
                             )
                         )
@@ -399,18 +399,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 a for a in apps_to_create if a["product"] == product.name
             ]
             for a in this_product_apps or []:
-                appplication = create_app(app_name=a["app"], product=product)
+                application = create_app(app_name=a["app"], product=product)
                 return_list.append(
                     StatusBoardHandler(
-                        action=Action.create, status_board_object=appplication
+                        action=Action.create, status_board_object=application
                     )
                 )
                 this_app_services = [
-                    s for s in services_to_create if s["app"] == appplication.name
+                    s for s in services_to_create if s["app"] == application.name
                 ]
                 for s in this_app_services:
                     name = s["service"]
-                    fullname = f"{product.name}/{appplication.name}/{name}"
+                    fullname = f"{product.name}/{application.name}/{name}"
                     metadata = s["metadata"]
 
                     return_list.append(
@@ -420,7 +420,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                                 name=name,
                                 fullname=fullname,
                                 metadata=metadata,
-                                application=appplication,
+                                application=application,
                             ),
                         )
                     )
