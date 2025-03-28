@@ -263,7 +263,6 @@ module = [
     "reconcile.cna.state",
     "reconcile.email_sender",
     "reconcile.gabi_authorized_users",
-    "reconcile.gcr_mirror",
     "reconcile.github_org",
     "reconcile.github_owners",
     "reconcile.github_repo_invites",

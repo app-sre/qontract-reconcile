@@ -1,0 +1,27 @@
+# qenerate: plugin=pydantic_v1
+query GcpDockerRepos {
+  apps: apps_v1 {
+    gcrRepos {
+      project {
+        name
+      }
+      items {
+        name
+        mirror {
+          ...ContainerImageMirror
+        }
+      }
+    }
+    artifactRegistryMirrors {
+      project {
+        name
+      }
+      items {
+        imageURL
+        mirror {
+          ...ContainerImageMirror
+        }
+      }
+    }
+  }
+}
