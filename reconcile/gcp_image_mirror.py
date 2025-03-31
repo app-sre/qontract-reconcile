@@ -224,7 +224,7 @@ class QuayMirror:
         return sync_tasks
 
     def _is_deep_sync(self, interval: int) -> bool:
-        control_file_name = "qontract-reconcile-gcr-mirror.timestamp"
+        control_file_name = "qontract-reconcile-gcp-image-mirror.timestamp"
         control_file_path = os.path.join(tempfile.gettempdir(), control_file_name)
         try:
             with open(control_file_path, encoding="locale") as file_obj:
