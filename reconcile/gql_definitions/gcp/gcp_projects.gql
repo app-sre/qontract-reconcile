@@ -1,0 +1,12 @@
+# qenerate: plugin=pydantic_v1
+query GcpProjects {
+  gcp_projects: gcp_projects_v1 {
+    name
+    gcrPushCredentials {
+      ...VaultSecret
+    }
+    artifactPushCredentials {
+      ...VaultSecret
+    }
+  }
+}

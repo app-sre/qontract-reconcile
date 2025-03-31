@@ -1,0 +1,9 @@
+# qenerate: plugin=pydantic_v1
+fragment ContainerImageMirror on ContainerImageMirror_v1 {
+  url
+  pullCredentials {
+    ...VaultSecret
+  }
+  tags
+  tagsExclude
+}
