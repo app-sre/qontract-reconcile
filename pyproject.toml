@@ -251,7 +251,6 @@ disallow_incomplete_defs = true
 # Untyped modules
 module = [
     "reconcile.cli",
-    "reconcile.github_repo_invites",
     "reconcile.github_repo_permissions_validator",
     "reconcile.github_users",
     "reconcile.github_validator",
@@ -386,7 +385,6 @@ module = [
     "reconcile.test.test_closedbox_endpoint_monitoring",
     "reconcile.test.test_dashdotdb_dora",
     "reconcile.test.test_database_access_manager",
-    "reconcile.test.test_github_repo_invites",
     "reconcile.test.test_gitlab_housekeeping",
     "reconcile.test.test_gitlab_labeler",
     "reconcile.test.test_gitlab_members",
