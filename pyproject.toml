@@ -251,7 +251,6 @@ disallow_incomplete_defs = true
 # Untyped modules
 module = [
     "reconcile.cli",
-    "reconcile.closedbox_endpoint_monitoring_base",
     "reconcile.cna.client",
     "reconcile.cna.integration",
     "reconcile.cna.state",
