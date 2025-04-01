@@ -46,13 +46,13 @@ class CNAIntegration:
         namespaces: Iterable[NamespaceV1],
         desired_states: Mapping[str, State] | None = None,
         current_states: Mapping[str, State] | None = None,
-    ):
+    ) -> None:
         self._cna_clients = cna_clients
         self._namespaces = namespaces
         self._desired_states = desired_states or defaultdict(State)
         self._current_states = current_states or defaultdict(State)
 
-    def assemble_desired_states(self):
+    def assemble_desired_states(self) -> None:
         self._desired_states = defaultdict(State)
         for namespace in self._namespaces:
             for provider in namespace.external_resources or []:
@@ -64,7 +64,7 @@ class CNAIntegration:
                         asset_factory_from_schema(resource)
                     )
 
-    def assemble_current_states(self):
+    def assemble_current_states(self) -> None:
         self._current_states = defaultdict(State)
         for name, client in self._cna_clients.items():
             cnas = client.list_assets()
@@ -72,7 +72,7 @@ class CNAIntegration:
             state.add_raw_data(cnas)
             self._current_states[name] = state
 
-    def provision(self, dry_run: bool = False):
+    def provision(self, dry_run: bool = False) -> None:
         for provisioner_name, cna_client in self._cna_clients.items():
             desired_state = self._desired_states[provisioner_name]
             current_state = self._current_states[provisioner_name]
@@ -119,7 +119,6 @@ def run(
     dry_run: bool,
     # TODO: Threadpool not used yet - will be used once we understand scopes in more detail
     thread_pool_size: int,
-    defer=None,
 ) -> None:
     settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=settings.vault)

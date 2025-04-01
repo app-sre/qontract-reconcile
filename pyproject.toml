@@ -251,9 +251,6 @@ disallow_incomplete_defs = true
 # Untyped modules
 module = [
     "reconcile.cli",
-    "reconcile.cna.client",
-    "reconcile.cna.integration",
-    "reconcile.cna.state",
     "reconcile.email_sender",
     "reconcile.gabi_authorized_users",
     "reconcile.gcr_mirror",
@@ -358,10 +355,6 @@ module = [
     "reconcile.vpc_peerings_validator",
     "tools.sre_checkpoints.util",
     # untyped tests
-    "reconcile.test.cna.test_integration",
-    "reconcile.test.cna.test_state_assembly",
-    "reconcile.test.cna.test_state_diff",
-    "reconcile.test.cna.test_state_overrides",
     "reconcile.test.conftest",
     "reconcile.test.fixtures",
     "reconcile.test.oc.test_oc_connection_parameters",

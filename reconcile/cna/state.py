@@ -50,7 +50,7 @@ class State:
         # pytest should show nice diff
         return str(self._assets)
 
-    def _validate_addition(self, asset: Asset):
+    def _validate_addition(self, asset: Asset) -> None:
         if asset.kind not in self._assets:
             raise CNAStateError(f"State doesn't know asset_kind {asset.kind}")
         if asset.name in self._assets[asset.kind]:
@@ -58,11 +58,11 @@ class State:
                 f"Duplicate asset name found in state: kind={asset.kind}, name={asset.name}"
             )
 
-    def add_asset(self, asset: Asset):
+    def add_asset(self, asset: Asset) -> None:
         self._validate_addition(asset=asset)
         self._assets[asset.kind][asset.name] = asset
 
-    def add_raw_data(self, data: Iterable[Mapping[str, Any]]):
+    def add_raw_data(self, data: Iterable[Mapping[str, Any]]) -> None:
         for cna in data:
             asset = asset_factory_from_raw_data(cna)
             self._validate_addition(asset=asset)

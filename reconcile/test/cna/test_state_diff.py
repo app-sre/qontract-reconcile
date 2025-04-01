@@ -255,7 +255,7 @@ def test_state_create_delete_update(
     expected_additions: State,
     expected_deletions: State,
     expected_updates: State,
-):
+) -> None:
     additions = desired - actual
     deletions = actual - desired
     updates = actual.required_updates_to_reach(desired)
@@ -272,7 +272,7 @@ def test_state_create_delete_update(
         assert update.uuid == expected_update.uuid
 
 
-def test_state_create_update_terminated():
+def test_state_create_update_terminated() -> None:
     """
     Throw an error when trying to update/create TERMINATED resource
     This is a current limitation of CNA and will be fixed in the future.
