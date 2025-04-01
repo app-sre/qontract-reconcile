@@ -116,8 +116,10 @@ def lookup_github_file_content(
         )
 
     gh = init_github()
-    c = gh.get_repo(repo).get_contents(path, ref).decoded_content
-    return c.decode("utf-8")
+    content = gh.get_repo(repo).get_contents(path, ref)
+    if isinstance(content, list):
+        raise Exception(f"multiple files found for {repo}/{path}/{ref}")
+    return content.decoded_content.decode("utf-8")
 
 
 def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[Any]:
