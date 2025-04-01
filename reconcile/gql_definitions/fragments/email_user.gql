@@ -1,0 +1,5 @@
+# qenerate: plugin=pydantic_v1
+
+fragment EmailUser on User_v1 {
+  org_username
+}
