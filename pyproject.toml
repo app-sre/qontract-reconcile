@@ -251,7 +251,6 @@ disallow_incomplete_defs = true
 # Untyped modules
 module = [
     "reconcile.cli",
-    "reconcile.gitlab_fork_compliance",
     "reconcile.gitlab_housekeeping",
     "reconcile.gitlab_labeler",
     "reconcile.gitlab_mr_sqs_consumer",
