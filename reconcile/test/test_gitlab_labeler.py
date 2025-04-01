@@ -14,8 +14,8 @@ from .fixtures import Fixtures
 class StubData:
     """Class to add data to tests in setUp. It will be used by mocks"""
 
-    def __init__(self):
-        self._apps = []
+    def __init__(self) -> None:
+        self._apps: list[dict] = []
 
     @property
     def apps(self) -> list[dict]:
@@ -57,12 +57,12 @@ class TestOnboardingGuesser:
         """cleanup patches created in self.setUp"""
         self.gql_patcher.stop()
 
-    def test_get_app_list(self):
+    def test_get_app_list(self) -> None:
         self.test_data.apps = [self.app1]
         t = gl.get_app_list()
         assert t == {"normalapp": {"onboardingStatus": "BestEffort", "parentApp": None}}
 
-    def test_get_app_list_2(self):
+    def test_get_app_list_2(self) -> None:
         self.test_data.apps = [self.app1, self.app2]
         t = gl.get_app_list()
         assert t, {
@@ -70,17 +70,17 @@ class TestOnboardingGuesser:
             "normalapp2": {"onboardingStatus": "BestEffort", "parentApp": None},
         }
 
-    def test_get_parents_list(self):
+    def test_get_parents_list(self) -> None:
         self.test_data.apps = [self.app1, self.app2, self.app3]
         t = gl.get_parents_list()
         assert t == {"parentapp"}
 
-    def test_get_parents_list_empty(self):
+    def test_get_parents_list_empty(self) -> None:
         self.test_data.apps = [self.app1, self.app2]
         t = gl.get_parents_list()
         assert t == set()
 
-    def test_guess_onboarding_status_child(self):
+    def test_guess_onboarding_status_child(self) -> None:
         self.test_data.apps = [self.app1, self.app2, self.app3]
         parents = gl.get_parents_list()
         apps = gl.get_app_list()
@@ -89,7 +89,7 @@ class TestOnboardingGuesser:
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
         assert t == "BestEffort"
 
-    def test_guess_onboarding_status_parent(self):
+    def test_guess_onboarding_status_parent(self) -> None:
         self.test_data.apps = [self.app1, self.app2, self.app3, self.app4]
         parents = gl.get_parents_list()
         apps = gl.get_app_list()
@@ -98,7 +98,7 @@ class TestOnboardingGuesser:
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
         assert t == "OnBoarded"
 
-    def test_guess_onboarding_status_normal(self):
+    def test_guess_onboarding_status_normal(self) -> None:
         self.test_data.apps = [self.app1, self.app2, self.app3]
         parents = gl.get_parents_list()
         apps = gl.get_app_list()
@@ -107,7 +107,7 @@ class TestOnboardingGuesser:
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
         assert t == "BestEffort"
 
-    def test_guess_onboarding_status_no_app(self):
+    def test_guess_onboarding_status_no_app(self) -> None:
         self.test_data.apps = [self.app1, self.app2, self.app3]
         parents = gl.get_parents_list()
         apps = gl.get_app_list()
@@ -116,7 +116,7 @@ class TestOnboardingGuesser:
         t = gl.guess_onboarding_status(changed_paths, apps, parents)
         assert t is None
 
-    def test_guess_onboarding_status_key_error(self):
+    def test_guess_onboarding_status_key_error(self) -> None:
         self.test_data.apps = [self.app1, self.app2, self.app3]
         parents = gl.get_parents_list()
         apps = gl.get_app_list()
