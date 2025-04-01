@@ -250,7 +250,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.aws_iam_keys",
     "reconcile.aws_iam_password_reset",
     "reconcile.aws_support_cases_sos",
     "reconcile.cli",
@@ -399,7 +398,6 @@ module = [
     "reconcile.test.statuspage.test_statuspage_state",
     "reconcile.test.statuspage.test_statuspage_status",
     "reconcile.test.test_acs_rbac",
-    "reconcile.test.test_aws_iam_keys",
     "reconcile.test.test_aws_iam_password_reset",
     "reconcile.test.test_aws_support_cases_sos",
     "reconcile.test.test_checkpoint",
