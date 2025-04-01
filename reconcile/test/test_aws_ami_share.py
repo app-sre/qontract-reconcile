@@ -1,10 +1,12 @@
+from collections.abc import Iterable
+
 import pytest
 
 import reconcile.aws_ami_share as integ
 
 
 @pytest.fixture
-def accounts():
+def accounts() -> list[dict]:
     return [
         {
             "name": "some-account",
@@ -39,12 +41,12 @@ def accounts():
     ]
 
 
-def test_filter_accounts(accounts):
+def test_filter_accounts(accounts: Iterable[dict]) -> None:
     filtered = [a["name"] for a in integ.filter_accounts(accounts)]
     assert filtered == ["some-account", "shared-account"]
 
 
-def test_get_region_share_valid():
+def test_get_region_share_valid() -> None:
     share = {"region": "valid"}
     src_account = {"resourcesDefaultRegion": "doesnt-matter"}
     dst_account = {"supportedDeploymentRegions": ["valid"]}
@@ -52,7 +54,7 @@ def test_get_region_share_valid():
     assert result == "valid"
 
 
-def test_get_region_default_no_share():
+def test_get_region_default_no_share() -> None:
     share = {"region": None}
     src_account = {"resourcesDefaultRegion": "valid"}
     dst_account = {"supportedDeploymentRegions": ["valid"]}
@@ -60,7 +62,7 @@ def test_get_region_default_no_share():
     assert result == "valid"
 
 
-def test_get_region_share_invalid():
+def test_get_region_share_invalid() -> None:
     share = {"region": "invalid"}
     src_account = {"resourcesDefaultRegion": "doesnt-matter"}
     dst_account = {"name": "really", "supportedDeploymentRegions": ["valid"]}
