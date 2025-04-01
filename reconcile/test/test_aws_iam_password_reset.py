@@ -22,14 +22,14 @@ def roles() -> list[dict[str, Any]]:
     ]
 
 
-def test_get_roles(roles: list[dict[str, Any]]):
+def test_get_roles(roles: list[dict[str, Any]]) -> None:
     r = get_roles(roles, "barfoo")
     assert r and r["org_username"] == "barfoo"
     r = get_roles(roles, "foo")
     assert not r
 
 
-def test_account_in_roles(roles: list[dict[str, Any]]):
+def test_account_in_roles(roles: list[dict[str, Any]]) -> None:
     r = get_roles(roles, "foobar")
     assert r and account_in_roles(r["roles"], "testaws1")
     assert r and not account_in_roles(r["roles"], "a")
