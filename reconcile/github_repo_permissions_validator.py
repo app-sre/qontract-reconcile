@@ -16,7 +16,7 @@ QONTRACT_INTEGRATION = "github-repo-permissions-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def get_jobs(jjb: JJB, instance_name: str):
+def get_jobs(jjb: JJB, instance_name: str) -> list[dict] | None:
     pr_check_jobs = jjb.get_all_jobs(
         job_types=["gh-pr-check"], instance_name=instance_name
     ).get(instance_name)
@@ -24,13 +24,13 @@ def get_jobs(jjb: JJB, instance_name: str):
     return pr_check_jobs
 
 
-def init_github():
+def init_github() -> Github:
     base_url = os.environ.get("GITHUB_API", "https://api.github.com")
     token = get_default_config()["token"]
     return Github(token, base_url=base_url)
 
 
-def run(dry_run, instance_name):
+def run(dry_run: bool, instance_name: str) -> None:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     jjb: JJB = init_jjb(secret_reader)
     pr_check_jobs = get_jobs(jjb, instance_name)
