@@ -1,0 +1,114 @@
+---
+emails:
+- name: all-service-owners
+  subject: all-service-owners
+  to:
+    aliases:
+    - all-service-owners
+    services: null
+    clusters: null
+    namespaces: null
+    aws_accounts:
+    - accountOwners:
+      - email: account1-email1
+      - email: account1-email2
+    - accountOwners:
+      - email: account2-email1
+      - email: account2-email2
+    roles:
+    - users:
+      - org_username: role1-username1
+      - org_username: role1-username2
+      - org_username: no-duplicates-please
+    - users:
+      - org_username: role2-username1
+      - org_username: role2-username2
+    users:
+    - org_username: username1
+    - org_username: username2
+    - org_username: no-duplicates-please
+  body: all-service-owners
+
+- name: all-users
+  subject: all-users
+  to:
+    aliases:
+    - all-users
+    services:
+    - serviceOwners:
+      - email: name@example.com
+      - email: name2@example.com
+    clusters: null
+    namespaces: null
+    aws_accounts:
+    - accountOwners:
+      - email: account1-email1
+      - email: account1-email2
+    - accountOwners:
+      - email: account2-email1
+      - email: account2-email2
+    roles:
+    - users:
+      - org_username: role1-username1
+      - org_username: role1-username2
+    - users:
+      - org_username: role2-username1
+      - org_username: role2-username2
+    users: null
+  body: all-users
+
+- name: no-aliases
+  subject: no-aliases
+  to:
+    aliases: null
+    services:
+    - serviceOwners:
+      - email: name@example.com
+      - email: name2@example.com
+    clusters: null
+    namespaces: null
+    aws_accounts:
+    - accountOwners:
+      - email: account1-email1
+      - email: account1-email2
+    - accountOwners:
+      - email: account2-email1
+      - email: account2-email2
+    roles:
+    - users:
+      - org_username: role1-username1
+      - org_username: role1-username2
+    - users:
+      - org_username: role2-username1
+      - org_username: role2-username2
+    users:
+    - org_username: username1
+    - org_username: username2
+  body: no-aliases
+
+# not implemented yet
+- name: namespaces
+  subject: namespaces
+  to:
+    aliases: null
+    services: null
+    clusters: null
+    namespaces:
+    - name: namespace-name
+    aws_accounts: null
+    roles: null
+    users: null
+  body: namespaces
+
+- name: clusters
+  subject: clusters
+  to:
+    aliases: null
+    services: null
+    clusters:
+    - name: namespace-name
+    namespaces: null
+    aws_accounts: null
+    roles: null
+    users: null
+  body: clusters

@@ -4,9 +4,14 @@ from collections.abc import Callable
 
 from reconcile import typed_queries
 from reconcile.gql_definitions.email_sender.apps import query as apps_query
-from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailAudienceV1
+from reconcile.gql_definitions.email_sender.emails import (
+    AppInterfaceEmailAudienceV1,
+    AppInterfaceEmailV1,
+)
 from reconcile.gql_definitions.email_sender.emails import query as emails_query
 from reconcile.gql_definitions.email_sender.users import query as users_query
+from reconcile.gql_definitions.fragments.email_service import EmailServiceOwners
+from reconcile.gql_definitions.fragments.email_user import EmailUser
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -23,7 +28,11 @@ from reconcile.utils.state import init_state
 QONTRACT_INTEGRATION = "email-sender"
 
 
-def collect_to(query_func: Callable, to: AppInterfaceEmailAudienceV1) -> set[str]:
+def collect_to(
+    to: AppInterfaceEmailAudienceV1,
+    all_users: list[EmailUser],
+    all_services: list[EmailServiceOwners],
+) -> set[str]:
     """Collect audience to send email to from to object
 
     Arguments:
@@ -38,12 +47,13 @@ def collect_to(query_func: Callable, to: AppInterfaceEmailAudienceV1) -> set[str
     audience: set[str] = set()
 
     for alias in to.aliases or []:
-        if alias == "all-users":
-            to.users = users_query(query_func).users or []
-        elif alias == "all-service-owners":
-            to.services = apps_query(query_func).apps or []
-        else:
-            raise AttributeError(f"unknown alias: {alias}")
+        match alias:
+            case "all-users":
+                to.users = all_users
+            case "all-service-owners":
+                to.services = all_services
+            case _:
+                raise AttributeError(f"unknown alias: {alias}")
 
     for service in to.services or []:
         audience.update(
@@ -59,22 +69,32 @@ def collect_to(query_func: Callable, to: AppInterfaceEmailAudienceV1) -> set[str
         audience.update(user.org_username for user in role.users or [])
 
     audience.update(user.org_username for user in to.users or [])
-    # TODO: implement clusters and namespaces
+
+    if to.clusters or to.namespaces:
+        raise NotImplementedError("clusters and namespaces are not implemented yet")
     return audience
+
+
+def get_emails(query_func: Callable) -> list[AppInterfaceEmailV1]:
+    return emails_query(query_func).emails or []
 
 
 @defer
 def run(dry_run: bool, defer: Callable | None = None) -> None:
+    gql_api = gql.get_api()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
     if defer:
         defer(state.cleanup)
-    gql_api = gql.get_api()
-    emails = emails_query(gql_api.query).emails or []
+
+    emails = get_emails(gql_api.query)
     if not emails:
         logging.info("no emails to send")
         sys.exit(0)
+
+    all_users = users_query(gql_api.query).users or []
+    all_services = apps_query(gql_api.query).apps or []
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
@@ -95,6 +115,8 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         logging.info(["send_email", email.name, email.subject])
 
         if not dry_run:
-            names = collect_to(gql_api.query, email.q_to)
+            names = collect_to(
+                email.q_to, all_users=all_users, all_services=all_services
+            )
             smtp_client.send_mail(names, email.subject, email.body)
             state.add(email.name)
