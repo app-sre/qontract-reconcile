@@ -251,7 +251,6 @@ disallow_incomplete_defs = true
 # Untyped modules
 module = [
     "reconcile.cli",
-    "reconcile.github_owners",
     "reconcile.github_repo_invites",
     "reconcile.github_repo_permissions_validator",
     "reconcile.github_users",
