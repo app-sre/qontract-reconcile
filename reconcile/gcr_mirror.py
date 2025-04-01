@@ -66,7 +66,7 @@ class QuayMirror:
     }
     """
 
-    def __init__(self, dry_run=False):
+    def __init__(self, dry_run: bool = False) -> None:
         self.dry_run = dry_run
         self.gqlapi = gql.get_api()
         settings = queries.get_app_interface_settings()
@@ -81,7 +81,7 @@ class QuayMirror:
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.session.close()
 
-    def run(self):
+    def run(self) -> None:
         sync_tasks = self.process_sync_tasks()
         for org, data in sync_tasks.items():
             for item in data:
@@ -95,7 +95,7 @@ class QuayMirror:
                 except SkopeoCmdError as details:
                     _LOG.error("[%s]", details)
 
-    def process_repos_query(self):
+    def process_repos_query(self) -> dict[str, list[dict[str, Any]]]:
         result = self.gqlapi.query(self.GCR_REPOS_QUERY)
 
         summary = defaultdict(list)
@@ -122,7 +122,9 @@ class QuayMirror:
         return summary
 
     @staticmethod
-    def sync_tag(tags, tags_exclude, candidate):
+    def sync_tag(
+        tags: list[str] | None, tags_exclude: list[str] | None, candidate: str
+    ) -> bool:
         if tags is not None:
             # When tags is defined, we don't look at tags_exclude
             return any(re.match(tag, candidate) for tag in tags)
@@ -137,7 +139,7 @@ class QuayMirror:
         # tag must be synced
         return True
 
-    def process_sync_tasks(self):
+    def process_sync_tasks(self) -> dict[str, list[dict[str, Any]]]:
         eight_hours = 28800  # 60 * 60 * 8
         is_deep_sync = self._is_deep_sync(interval=eight_hours)
 
@@ -233,7 +235,7 @@ class QuayMirror:
 
         return sync_tasks
 
-    def _is_deep_sync(self, interval):
+    def _is_deep_sync(self, interval: int) -> bool:
         control_file_name = "qontract-reconcile-gcr-mirror.timestamp"
         control_file_path = os.path.join(tempfile.gettempdir(), control_file_name)
         try:
@@ -251,11 +253,11 @@ class QuayMirror:
         return False
 
     @staticmethod
-    def _record_timestamp(path):
+    def _record_timestamp(path: str) -> None:
         with open(path, "w", encoding="locale") as file_object:
             file_object.write(str(time.time()))
 
-    def _get_push_creds(self):
+    def _get_push_creds(self) -> dict[str, str]:
         result = self.gqlapi.query(self.GCR_PROJECT_CATALOG_QUERY)
 
         creds = {}
@@ -271,6 +273,6 @@ class QuayMirror:
         return creds
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     with QuayMirror(dry_run) as gcr_mirror:
         gcr_mirror.run()
