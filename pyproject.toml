@@ -250,7 +250,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.aws_support_cases_sos",
     "reconcile.cli",
     "reconcile.closedbox_endpoint_monitoring_base",
     "reconcile.cna.client",
@@ -397,7 +396,6 @@ module = [
     "reconcile.test.statuspage.test_statuspage_state",
     "reconcile.test.statuspage.test_statuspage_status",
     "reconcile.test.test_acs_rbac",
-    "reconcile.test.test_aws_support_cases_sos",
     "reconcile.test.test_checkpoint",
     "reconcile.test.test_cli",
     "reconcile.test.test_closedbox_endpoint_monitoring",
