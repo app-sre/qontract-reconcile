@@ -5,6 +5,7 @@ SQS Consumer to create Gitlab merge requests.
 import json
 import logging
 import sys
+from collections.abc import Callable
 
 from reconcile import queries
 from reconcile.utils import mr
@@ -17,18 +18,20 @@ QONTRACT_INTEGRATION = "gitlab-mr-sqs-consumer"
 
 
 @defer
-def run(dry_run, gitlab_project_id, defer=None):
+def run(dry_run: str, gitlab_project_id: str, defer: Callable | None = None) -> None:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
 
     accounts = queries.get_queue_aws_accounts()
     sqs_cli = SQSGateway(accounts, secret_reader)
-    defer(sqs_cli.cleanup)
+    if defer:
+        defer(sqs_cli.cleanup)
 
     instance = queries.get_gitlab_instance()
     gitlab_cli = GitLabApi(
         instance, project_id=gitlab_project_id, secret_reader=secret_reader
     )
-    defer(gitlab_cli.cleanup)
+    if defer:
+        defer(gitlab_cli.cleanup)
 
     errors_occured = False
     while True:
