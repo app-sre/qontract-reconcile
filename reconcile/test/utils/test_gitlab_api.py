@@ -1,6 +1,7 @@
+import os
 from collections.abc import Mapping
 from typing import Any
-from unittest.mock import create_autospec
+from unittest.mock import Mock, create_autospec
 
 import pytest
 from gitlab.v4.objects import (
@@ -16,8 +17,6 @@ from gitlab.v4.objects import (
     ProjectLabel,
     ProjectLabelManager,
     ProjectManager,
-    ProjectMember,
-    ProjectMemberAllManager,
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
@@ -55,33 +54,68 @@ def instance() -> dict:
 
 
 @pytest.fixture
-def mocked_gitlab_request(mocker: MockerFixture) -> Any:
-    """replaces the instriumentation with a mock"""
-    return mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
-
-
-@pytest.fixture
-def mocked_gl(mocker: MockerFixture) -> Any:
-    mocked_gl = mocker.patch("reconcile.utils.gitlab_api.gitlab").Gitlab.return_value
+def mocked_gl(mocker: MockerFixture) -> Mock:
+    mocked_gl = mocker.patch(
+        "reconcile.utils.gitlab_api.Gitlab", autospec=True
+    ).return_value
+    mocked_gl.user = create_autospec(CurrentUser)
+    mocked_gl.projects = create_autospec(ProjectManager)
     mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
     return mocked_gl
 
 
 @pytest.fixture
 def mocked_gitlab_api(
-    instance: Mapping, mocked_gl: Any, mocked_gitlab_request: Any
+    instance: Mapping,
+    mocked_gl: Mock,
 ) -> GitLabApi:
     """creates a gitlab api instance where the internal gitlab client
     is replaced with a mock"""
-    gitlab_api = GitLabApi(instance, project_id=1)
-    # reset the mock as the ctor tries to be smart
-    mocked_gitlab_request.reset_mock()
-    return gitlab_api
+    return GitLabApi(instance, project_id=1)
 
 
-def test_remove_label_from_merge_request(
-    mocked_gitlab_request: Any,
+def test_gitlab_api_init(
+    instance: Mapping,
+    mocker: MockerFixture,
 ) -> None:
+    """Test that the GitLabApi class is initialized correctly"""
+    mocked_gitlab = mocker.patch("reconcile.utils.gitlab_api.Gitlab", autospec=True)
+    mocked_user = create_autospec(CurrentUser)
+    mocked_gitlab.return_value.user = mocked_user
+    mocked_project_manager = create_autospec(ProjectManager)
+    mocked_gitlab.return_value.projects = mocked_project_manager
+    mocked_secret_reader = mocker.patch(
+        "reconcile.utils.gitlab_api.SecretReader", autospec=True
+    )
+    mocked_secret_reader.return_value.read.return_value = "private-token"
+    mocked_gitlab_request = mocker.patch("reconcile.utils.gitlab_api.gitlab_request")
+    mocked_session = mocker.patch(
+        "reconcile.utils.gitlab_api.InstrumentedSession", autospec=True
+    )
+    mocker.patch.dict(os.environ, {"INTEGRATION_NAME": "test-gitlab"})
+
+    gitlab_api = GitLabApi(instance, project_id=1)
+
+    mocked_gitlab.assert_called_once_with(
+        instance["url"],
+        private_token="private-token",
+        ssl_verify=False,
+        timeout=30,
+        session=mocked_session.return_value,
+    )
+    assert gitlab_api.server == instance["url"]
+    assert gitlab_api.ssl_verify is False
+    assert gitlab_api.session == mocked_session.return_value
+    assert gitlab_api.gl == mocked_gitlab.return_value
+    assert gitlab_api.user == mocked_user
+    assert gitlab_api.project == mocked_project_manager.get.return_value
+    mocked_secret_reader.assert_called_once_with(settings=None)
+    mocked_secret_reader.return_value.read.assert_called_once_with("some-token")
+    mocked_session.assert_called_once_with(mocked_gitlab_request.labels.return_value)
+    mocked_gitlab_request.labels.assert_called_once_with(integration="test-gitlab")
+
+
+def test_remove_label_from_merge_request() -> None:
     expected_label = "a"
     to_be_removed_label = "b"
     current_labels = [expected_label, to_be_removed_label]
@@ -92,14 +126,11 @@ def test_remove_label_from_merge_request(
 
     GitLabApi.remove_label(mr, to_be_removed_label)
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert mr.labels == [expected_label]
     mr.save.assert_called_once()
 
 
-def test_remove_label_from_issue(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_remove_label_from_issue() -> None:
     expected_label = "a"
     to_be_removed_label = "b"
     current_labels = [expected_label, to_be_removed_label]
@@ -110,14 +141,11 @@ def test_remove_label_from_issue(
 
     GitLabApi.remove_label(issue, to_be_removed_label)
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert issue.labels == [expected_label]
     issue.save.assert_called_once()
 
 
-def test_remove_labels_from_merge_request(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_remove_labels_from_merge_request() -> None:
     expected_label = "a"
     to_be_removed_label = "b"
     current_labels = [expected_label, to_be_removed_label]
@@ -128,14 +156,11 @@ def test_remove_labels_from_merge_request(
 
     GitLabApi.remove_labels(mr, [to_be_removed_label])
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert mr.labels == [expected_label]
     mr.save.assert_called_once()
 
 
-def test_remove_labels_from_issue(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_remove_labels_from_issue() -> None:
     expected_label = "a"
     to_be_removed_label = "b"
     current_labels = [expected_label, to_be_removed_label]
@@ -146,14 +171,11 @@ def test_remove_labels_from_issue(
 
     GitLabApi.remove_labels(issue, [to_be_removed_label])
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert issue.labels == [expected_label]
     issue.save.assert_called_once()
 
 
-def test_add_label_with_note_to_merge_request(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_add_label_with_note_to_merge_request() -> None:
     existing_label = "a"
     new_label = "b"
     mr = create_autospec(ProjectMergeRequest)
@@ -164,7 +186,6 @@ def test_add_label_with_note_to_merge_request(
 
     GitLabApi.add_label_with_note(mr, new_label)
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 3
     assert mr.labels == [existing_label, new_label]
     mr.notes.create.assert_called_once_with({
         "body": f"item has been marked as {new_label}. "
@@ -173,9 +194,7 @@ def test_add_label_with_note_to_merge_request(
     mr.save.assert_called_once()
 
 
-def test_add_label_with_note_to_issue(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_add_label_with_note_to_issue() -> None:
     existing_label = "a"
     new_label = "b"
     issue = create_autospec(ProjectIssue)
@@ -184,11 +203,8 @@ def test_add_label_with_note_to_issue(
     issue.labels = [existing_label]
     issue.notes = create_autospec(ProjectIssueNoteManager)
 
-    mocked_gitlab_request.reset_mock()
-
     GitLabApi.add_label_with_note(issue, new_label)
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 3
     assert issue.labels == [existing_label, new_label]
     issue.notes.create.assert_called_once_with({
         "body": f"item has been marked as {new_label}. "
@@ -197,9 +213,7 @@ def test_add_label_with_note_to_issue(
     issue.save.assert_called_once()
 
 
-def test_add_label_to_merge_request(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_add_label_to_merge_request() -> None:
     existing_label = "a"
     new_label = "b"
     mr = create_autospec(ProjectMergeRequest)
@@ -209,14 +223,11 @@ def test_add_label_to_merge_request(
 
     GitLabApi.add_label_to_merge_request(mr, new_label)
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert mr.labels == [existing_label, new_label]
     mr.save.assert_called_once()
 
 
-def test_add_labels_to_merge_request(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_add_labels_to_merge_request() -> None:
     existing_label = "a"
     new_label = "b"
     mr = create_autospec(ProjectMergeRequest)
@@ -226,14 +237,11 @@ def test_add_labels_to_merge_request(
 
     GitLabApi.add_labels_to_merge_request(mr, [new_label])
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert mr.labels == [existing_label, new_label]
     mr.save.assert_called_once()
 
 
-def test_set_labels_on_merge_request(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_set_labels_on_merge_request() -> None:
     existing_label = "a"
     new_label = "b"
     extra_existing_label = "c"
@@ -246,29 +254,23 @@ def test_set_labels_on_merge_request(
 
     GitLabApi.set_labels_on_merge_request(mr, [new_label])
 
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
     assert set(mr.labels) == {extra_existing_label, new_label}
     mr.save.assert_called_once()
 
 
-def test_add_comment_to_merge_request(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_add_comment_to_merge_request() -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.notes = create_autospec(ProjectMergeRequestNoteManager)
     body = "some body"
 
     GitLabApi.add_comment_to_merge_request(mr, body)
 
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     mr.notes.create.assert_called_once_with({
         "body": body,
     })
 
 
-def test_get_merge_request_comments(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_get_merge_request_comments() -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.author = {"username": "author_a"}
     mr.description = "description"
@@ -300,28 +302,21 @@ def test_get_merge_request_comments(
         },
     ]
     assert comments == expected_comments
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
 
 
-def test_delete_comment(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_delete_comment() -> None:
     note = create_autospec(ProjectMergeRequestNote)
 
     GitLabApi.delete_comment(note)
 
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     note.delete.assert_called_once_with()
 
 
 def test_delete_merge_request_comments(
     instance: dict,
-    mocked_gitlab_request: Any,
-    mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
 ) -> None:
-    mocked_gitlab_api.user = create_autospec(CurrentUser, username="author")
-
+    mocked_gitlab_api.user.username = "author"
     mr = create_autospec(ProjectMergeRequest)
     mr.notes = create_autospec(ProjectMergeRequestNoteManager)
 
@@ -337,14 +332,10 @@ def test_delete_merge_request_comments(
     mocked_gitlab_api.delete_merge_request_comments(mr, "body")
 
     note.delete.assert_called_once_with()
-    assert mocked_gitlab_request.labels.return_value.inc.call_count == 2
 
 
 def test_get_project_labels(
-    instance: dict,
-    mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
-    mocked_gitlab_request: Any,
 ) -> None:
     label = create_autospec(ProjectLabel)
     label.name = "a"
@@ -357,10 +348,9 @@ def test_get_project_labels(
     labels = mocked_gitlab_api.get_project_labels()
 
     assert labels == {"a"}
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
 
 
-def test_get_merge_request_changed_paths(mocked_gitlab_request: Any) -> None:
+def test_get_merge_request_changed_paths() -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.changes.return_value = {
         "changes": [
@@ -373,27 +363,21 @@ def test_get_merge_request_changed_paths(mocked_gitlab_request: Any) -> None:
 
     paths = GitLabApi.get_merge_request_changed_paths(mr)
 
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
     assert paths == ["path"]
 
 
-def test_get_merge_request_author_username(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_get_merge_request_author_username() -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.author = {"username": "author_a"}
 
     username = GitLabApi.get_merge_request_author_username(mr)
 
     assert username == "author_a"
-    mocked_gitlab_request.labels.return_value.inc.assert_not_called()
 
 
 def test_mr_exist(
     instance: dict,
-    mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
-    mocked_gitlab_request: Any,
 ) -> None:
     project = create_autospec(Project)
     project.mergerequests = create_autospec(ProjectMergeRequestManager)
@@ -404,10 +388,9 @@ def test_mr_exist(
     exists = mocked_gitlab_api.mr_exists("title")
 
     assert exists is True
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once()
 
 
-def test_refresh_labels_for_merge_request(mocked_gitlab_request: Any) -> None:
+def test_refresh_labels_for_merge_request() -> None:
     manager = create_autospec(ProjectMergeRequestManager)
 
     mr = create_autospec(ProjectMergeRequest)
@@ -423,13 +406,10 @@ def test_refresh_labels_for_merge_request(mocked_gitlab_request: Any) -> None:
     GitLabApi.refresh_labels(mr)
 
     assert mr.labels == ["existing_label", "new_label"]
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once_with()
     manager.get.assert_called_once_with(1)
 
 
-def test_refresh_labels_for_issue(
-    mocked_gitlab_request: Any,
-) -> None:
+def test_refresh_labels_for_issue() -> None:
     manager = create_autospec(ProjectIssueManager)
 
     issue = create_autospec(ProjectIssue)
@@ -445,12 +425,10 @@ def test_refresh_labels_for_issue(
     GitLabApi.refresh_labels(issue)
 
     assert issue.labels == ["existing_label", "new_label"]
-    mocked_gitlab_request.labels.return_value.inc.assert_called_once_with()
     manager.get.assert_called_once_with(1)
 
 
 def test_get_group_members(
-    mocked_gitlab_request: Any,
     mocked_gl: Any,
     mocked_gitlab_api: GitLabApi,
 ) -> None:
@@ -480,15 +458,7 @@ def test_get_group_members(
 
 def test_share_project_with_group_positive(
     mocked_gitlab_api: GitLabApi,
-    mocked_gl: Any,
 ) -> None:
-    projects = create_autospec(ProjectManager)
     project = create_autospec(Project)
-    project.members_all = create_autospec(ProjectMemberAllManager)
-    project.members_all.get.return_value = [
-        create_autospec(ProjectMember, id=mocked_gitlab_api.user.id, access_level=40)
-    ]
-    projects.get.return_value = project
-    mocked_gl.projects = projects
     mocked_gitlab_api.share_project_with_group(project, 1111, 40)
     project.share.assert_called_once_with(1111, 40)
