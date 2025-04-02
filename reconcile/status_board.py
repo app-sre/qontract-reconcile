@@ -236,6 +236,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     def desired_abstract_status_board_map(
         desired_product_apps: Mapping[str, set[str]], slodocs: list[SLODocumentV1]
     ) -> Mapping[str, dict[str, Any]]:
+        """
+        Returns a Mapping of all the AbstractStatusBoard data objects as dictionaries.
+        The key is formed by combining the Product, Application and Service name
+        separeted by a '/' character. This is the same format as the fullname property
+        on Status Board OCM API.
+        """
         desired_abstract_status_board_map: dict[str, dict[str, Any]] = {}
         for product, apps in desired_product_apps.items():
             desired_abstract_status_board_map[product] = {
