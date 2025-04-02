@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -17,7 +18,7 @@ from reconcile.utils.ocm.status_board import (
 
 
 @pytest.fixture
-def application_status_board() -> list[dict[str, Any]]:
+def ocm_api_return_data() -> list[dict[str, Any]]:
     return [
         {
             "id": "foo",
@@ -36,89 +37,29 @@ def application_status_board() -> list[dict[str, Any]]:
     ]
 
 
-@pytest.fixture
-def products_status_board() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": "foo",
-            "name": "foo",
-            "fullname": "foo",
-            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-        },
-        {
-            "id": "bar",
-            "foo": "bar",
-            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-        },
-        {
-            "id": "oof",
-        },
-    ]
-
-
-@pytest.fixture
-def services_status_board() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": "foo",
-            "name": "foo",
-            "fullname": "foo",
-            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-        },
-        {
-            "id": "bar",
-            "foo": "bar",
-            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-        },
-        {
-            "id": "oof",
-        },
-    ]
-
-
-def test_get_application_services(
-    mocker: MockFixture, services_status_board: list[dict[str, Any]]
+@pytest.mark.parametrize(
+    "get_function,params",
+    [
+        (get_managed_products, None),
+        (get_product_applications, "foo"),
+        (get_application_services, "foo"),
+    ],
+)
+def test_get_data_from_ocm(
+    mocker: MockFixture,
+    ocm_api_return_data: list[dict[str, Any]],
+    get_function: Callable,
+    params: str | None,
 ) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    ocm.get_paginated.return_value = iter(services_status_board)
+    ocm.get_paginated.return_value = iter(ocm_api_return_data)
 
-    services = get_application_services(ocm, "foo")
-    assert len(services) == 2
-    assert services[0] == services_status_board[0]
+    api_data = get_function(ocm, params) if params else get_function(ocm)
+
+    assert len(api_data) == 2
+    assert api_data[0] == ocm_api_return_data[0]
     # key foo not in APPLICATION_DESIRED_KEYS
-    assert services[1] == {
-        "id": "bar",
-        "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-    }
-
-
-def test_get_product_applications_fields(
-    mocker: MockFixture, application_status_board: list[dict[str, Any]]
-) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    ocm.get_paginated.return_value = iter(application_status_board)
-
-    apps = get_product_applications(ocm, "foo")
-    assert len(apps) == 2
-    assert apps[0] == application_status_board[0]
-    # key foo not in APPLICATION_DESIRED_KEYS
-    assert apps[1] == {
-        "id": "bar",
-        "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-    }
-
-
-def test_get_managed_products(
-    mocker: MockFixture, products_status_board: list[dict[str, Any]]
-) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    ocm.get_paginated.return_value = iter(products_status_board)
-
-    products = get_managed_products(ocm)
-    assert len(products) == 2
-    assert products[0] == products_status_board[0]
-    # key foo not in APPLICATION_DESIRED_KEYS
-    assert products[1] == {
+    assert api_data[1] == {
         "id": "bar",
         "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
     }
