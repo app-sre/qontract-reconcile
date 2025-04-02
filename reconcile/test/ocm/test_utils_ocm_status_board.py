@@ -10,6 +10,7 @@ from reconcile.utils.ocm.status_board import (
     create_product,
     delete_application,
     delete_product,
+    get_application_services,
     get_managed_products,
     get_product_applications,
 )
@@ -53,6 +54,42 @@ def products_status_board() -> list[dict[str, Any]]:
             "id": "oof",
         },
     ]
+
+
+@pytest.fixture
+def services_status_board() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": "foo",
+            "name": "foo",
+            "fullname": "foo",
+            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
+        },
+        {
+            "id": "bar",
+            "foo": "bar",
+            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
+        },
+        {
+            "id": "oof",
+        },
+    ]
+
+
+def test_get_application_services(
+    mocker: MockFixture, services_status_board: list[dict[str, Any]]
+) -> None:
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.get_paginated.return_value = iter(services_status_board)
+
+    services = get_application_services(ocm, "foo")
+    assert len(services) == 2
+    assert services[0] == services_status_board[0]
+    # key foo not in APPLICATION_DESIRED_KEYS
+    assert services[1] == {
+        "id": "bar",
+        "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
+    }
 
 
 def test_get_product_applications_fields(
