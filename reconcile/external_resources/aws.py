@@ -264,6 +264,7 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
             if s.provision_provider == "aws"
             and s.provider == "rds"
             and s.resource["replica_source"] == spec.identifier
+            and not s.marked_to_delete
         }
 
 
