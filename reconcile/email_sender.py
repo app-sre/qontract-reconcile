@@ -37,6 +37,8 @@ def collect_to(
 
     Arguments:
         to -- AppInterfaceEmailAudience_v1 object
+        all_users -- List of all app-interface users
+        all_services -- List of all app-interface apps/services with owners
 
     Raises:
         AttributeError: Unknown alias
