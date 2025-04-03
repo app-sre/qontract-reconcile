@@ -92,3 +92,7 @@ def delete_product(ocm_api: OCMBaseClient, product_id: str) -> None:
 
 def delete_application(ocm_api: OCMBaseClient, application_id: str) -> None:
     ocm_api.delete(f"/api/status-board/v1/applications/{application_id}")
+
+
+def delete_service(ocm_api: OCMBaseClient, service_id: str) -> None:
+    ocm_api.delete(f"/api/status-board/v1/services/{service_id}")
