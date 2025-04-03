@@ -1,4 +1,5 @@
-from typing import Any, cast
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
 
@@ -40,37 +41,40 @@ def test_get_keys_to_delete() -> None:
     assert keys_to_delete == expected_result
 
 
-class StateMock:
+class StateMock(State):
     def __init__(self) -> None:
         self.data: dict[str, Any] = {}
 
     def get(self, key: str, *args: Any) -> Any:
         return self.data.get(key, args[0])
 
-    def add(self, key: str, value: Any, force: bool) -> None:
+    def add(
+        self,
+        key: str,
+        value: Any = None,
+        metadata: Mapping[str, str] | None = None,
+        force: bool = False,
+    ) -> None:
         self.data[key] = value
 
 
 @pytest.fixture
-def state_mock() -> StateMock:
+def state() -> StateMock:
     return StateMock()
 
 
-def test_should_run_true(state_mock: StateMock) -> None:
+def test_should_run_true(state: StateMock) -> None:
     keys_to_delete = {"a": ["k1"]}
-    state = cast(State, state_mock)
     assert integ.should_run(state, keys_to_delete) is True
 
 
-def test_should_run_false(state_mock: StateMock) -> None:
+def test_should_run_false(state: StateMock) -> None:
     keys_to_delete = {"a": ["k1"]}
-    state_mock.data.update(keys_to_delete)
-    state = cast(State, state_mock)
+    state.data.update(keys_to_delete)
     assert integ.should_run(state, keys_to_delete) is False
 
 
-def test_update_state(state_mock: StateMock) -> None:
+def test_update_state(state: StateMock) -> None:
     keys_to_update = {"a": ["k1"]}
-    state = cast(State, state_mock)
     integ.update_state(state, keys_to_update)
-    assert state_mock.data == keys_to_update
+    assert state.data == keys_to_update
