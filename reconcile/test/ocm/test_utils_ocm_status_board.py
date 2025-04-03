@@ -9,6 +9,7 @@ from reconcile.utils.ocm.status_board import (
     METADATA_MANAGED_BY_VALUE,
     create_application,
     create_product,
+    create_service,
     delete_application,
     delete_product,
     get_application_services,
@@ -65,30 +66,26 @@ def test_get_data_from_ocm(
     }
 
 
-def test_create_product(mocker: MockFixture) -> None:
+@pytest.mark.parametrize(
+    "create_function,end_point",
+    [
+        (create_product, "/api/status-board/v1/products/"),
+        (create_application, "/api/status-board/v1/applications/"),
+        (create_service, "/api/status-board/v1/services/"),
+    ],
+)
+def test_create_status_board_object_via_ocm_api(
+    mocker: MockFixture,
+    create_function: Callable,
+    end_point: str,
+) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
     ocm.post.return_value = {"id": "foo"}
 
-    id = create_product(ocm, {"name": "foo"})
+    id = create_function(ocm, {"name": "foo"})
 
     ocm.post.assert_called_once_with(
-        "/api/status-board/v1/products/",
-        data={
-            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-            "name": "foo",
-        },
-    )
-    assert id == "foo"
-
-
-def test_create_application(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    ocm.post.return_value = {"id": "foo"}
-
-    id = create_application(ocm, {"name": "foo"})
-
-    ocm.post.assert_called_once_with(
-        "/api/status-board/v1/applications/",
+        end_point,
         data={
             "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
             "name": "foo",
