@@ -86,6 +86,15 @@ def create_service(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> str:
     return resp["id"]
 
 
+def update_service(
+    ocm_api: OCMBaseClient, service_id: str, spec: dict[str, Any]
+) -> None:
+    if "metadata" not in spec or spec["metadata"] is None:
+        spec["metadata"] = {}
+    spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
+    ocm_api.patch(f"/api/status-board/v1/services/{service_id}", data=spec)
+
+
 def delete_product(ocm_api: OCMBaseClient, product_id: str) -> None:
     ocm_api.delete(f"/api/status-board/v1/products/{product_id}")
 
