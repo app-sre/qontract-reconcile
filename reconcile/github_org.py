@@ -1,6 +1,6 @@
 import logging
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, KeysView
 from typing import Any
 
 import github
@@ -147,7 +147,33 @@ def get_members(unit: github.Organization.Organization) -> list[str]:
     return [member.login for member in unit.get_members()]
 
 
-def fetch_current_state(gh_api_store: "GHApiStore") -> AggregatedList:
+class GHApiStore:
+    _orgs: dict[str, Any] = {}
+
+    def __init__(self, config: dict) -> None:
+        for org_name, org_config in config["github"].items():
+            token = org_config["token"]
+            managed_teams = org_config.get("managed_teams", None)
+            self._orgs[org_name] = (
+                Github(token, base_url=GH_BASE_URL),
+                RawGithubApi(token),
+                managed_teams,
+            )
+
+    def orgs(self) -> KeysView[str]:
+        return self._orgs.keys()
+
+    def github(self, org_name: str) -> Github:
+        return self._orgs[org_name][0]
+
+    def raw_github_api(self, org_name: str) -> RawGithubApi:
+        return self._orgs[org_name][1]
+
+    def managed_teams(self, org_name: str) -> list[str] | None:
+        return self._orgs[org_name][2]
+
+
+def fetch_current_state(gh_api_store: GHApiStore) -> AggregatedList:
     state = AggregatedList()
 
     for org_name in gh_api_store.orgs():
@@ -266,32 +292,6 @@ def fetch_desired_state(infer_clusters: bool = True) -> AggregatedList:
                 )
 
     return state
-
-
-class GHApiStore:
-    _orgs: dict[str, Any] = {}
-
-    def __init__(self, config: dict) -> None:
-        for org_name, org_config in config["github"].items():
-            token = org_config["token"]
-            managed_teams = org_config.get("managed_teams", None)
-            self._orgs[org_name] = (
-                Github(token, base_url=GH_BASE_URL),
-                RawGithubApi(token),
-                managed_teams,
-            )
-
-    def orgs(self) -> Iterable[str]:
-        return self._orgs.keys()
-
-    def github(self, org_name: str) -> Github:
-        return self._orgs[org_name][0]
-
-    def raw_github_api(self, org_name: str) -> RawGithubApi:
-        return self._orgs[org_name][1]
-
-    def managed_teams(self, org_name: str) -> list[str] | None:
-        return self._orgs[org_name][2]
 
 
 class RunnerAction:
