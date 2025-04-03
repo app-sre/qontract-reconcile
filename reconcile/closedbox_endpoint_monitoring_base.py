@@ -63,7 +63,7 @@ class EndpointMonitoringProvider:
         return None
 
     @property
-    def metric_labels(self):
+    def metric_labels(self) -> dict[str, Any]:
         return json.loads(self.metricLabels) if self.metricLabels else {}
 
 
@@ -136,7 +136,7 @@ def run_for_provider(
     thread_pool_size: int,
     internal: bool,
     use_jump_host: bool,
-    defer=None,
+    defer: Callable | None = None,
 ) -> None:
     # prepare
     desired_endpoints = get_endpoints(provider)
@@ -152,7 +152,8 @@ def run_for_provider(
             integration_version=integration_version,
             override_managed_types=["Probe"],
         )
-        defer(oc_map.cleanup)
+        if defer:
+            defer(oc_map.cleanup)
 
         # reconcile
         for ep_mon_provider, endpoints in desired_endpoints.items():

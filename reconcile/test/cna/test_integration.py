@@ -144,7 +144,7 @@ def test_integration_assemble_current_states(
     cna_clients: Mapping[str, CNAClient],
     listed_assets: Iterable[Mapping[str, Any]],
     expected_state: State,
-):
+) -> None:
     cna_clients["test"].list_assets.side_effect = [listed_assets]  # type: ignore
     integration = CNAIntegration(cna_clients=cna_clients, namespaces=[])
     integration.assemble_current_states()
@@ -208,7 +208,7 @@ def test_integration_assemble_current_states(
 )
 def test_integration_assemble_desired_states(
     namespaces: list[NamespaceV1], expected_state: State
-):
+) -> None:
     integration = CNAIntegration(cna_clients={}, namespaces=namespaces)
     integration.assemble_desired_states()
     assert integration._desired_states == {"test": expected_state}

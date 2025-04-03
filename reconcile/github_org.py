@@ -1,9 +1,12 @@
 import logging
 import os
+from collections.abc import Callable, Iterable, KeysView
 from typing import Any
 
 from github import Github
 from github.GithubObject import NotSet  # type: ignore
+from github.Organization import Organization
+from github.Team import Team
 from sretoolbox.utils import retry
 
 from reconcile import (
@@ -95,15 +98,15 @@ CLUSTERS_QUERY = """
 QONTRACT_INTEGRATION = "github"
 
 
-def get_orgs():
+def get_orgs() -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
     return gqlapi.query(ORGS_QUERY)["orgs"]
 
 
-def get_config(default=False):
+def get_config(default: bool = False) -> dict[str, Any]:
     orgs = get_orgs()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    config = {"github": {}}
+    config: dict[str, Any] = {"github": {}}
     found_defaults = []
     for org in orgs:
         org_name = org["name"]
@@ -126,24 +129,52 @@ def get_config(default=False):
     return config
 
 
-def get_default_config():
+def get_default_config() -> dict[str, Any]:
     github_config = get_config(default=True)
     return next(iter(github_config["github"].values()))
 
 
 @retry()
-def get_org_and_teams(github, org_name):
+def get_org_and_teams(
+    github: Github, org_name: str
+) -> tuple[Organization, Iterable[Team]]:
     org = github.get_organization(org_name)
     teams = org.get_teams()
     return org, teams
 
 
 @retry()
-def get_members(unit):
+def get_members(unit: Organization) -> list[str]:
     return [member.login for member in unit.get_members()]
 
 
-def fetch_current_state(gh_api_store):
+class GHApiStore:
+    _orgs: dict[str, Any] = {}
+
+    def __init__(self, config: dict) -> None:
+        for org_name, org_config in config["github"].items():
+            token = org_config["token"]
+            managed_teams = org_config.get("managed_teams", None)
+            self._orgs[org_name] = (
+                Github(token, base_url=GH_BASE_URL),
+                RawGithubApi(token),
+                managed_teams,
+            )
+
+    def orgs(self) -> KeysView[str]:
+        return self._orgs.keys()
+
+    def github(self, org_name: str) -> Github:
+        return self._orgs[org_name][0]
+
+    def raw_github_api(self, org_name: str) -> RawGithubApi:
+        return self._orgs[org_name][1]
+
+    def managed_teams(self, org_name: str) -> list[str] | None:
+        return self._orgs[org_name][2]
+
+
+def fetch_current_state(gh_api_store: GHApiStore) -> AggregatedList:
     state = AggregatedList()
 
     for org_name in gh_api_store.orgs():
@@ -164,7 +195,7 @@ def fetch_current_state(gh_api_store):
 
         all_team_members = []
         for team in teams:
-            if not is_managed and team.name not in managed_teams:
+            if not is_managed and team.name not in (managed_teams or []):
                 continue
 
             members = get_members(team)
@@ -190,11 +221,11 @@ def fetch_current_state(gh_api_store):
     return state
 
 
-def fetch_desired_state(infer_clusters=True):
+def fetch_desired_state(infer_clusters: bool = True) -> AggregatedList:
     gqlapi = gql.get_api()
     state = AggregatedList()
 
-    roles = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
+    roles: list[dict[str, Any]] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     for role in roles:
         permissions = list(
             filter(
@@ -264,41 +295,15 @@ def fetch_desired_state(infer_clusters=True):
     return state
 
 
-class GHApiStore:
-    _orgs: dict[str, Any] = {}
-
-    def __init__(self, config):
-        for org_name, org_config in config["github"].items():
-            token = org_config["token"]
-            managed_teams = org_config.get("managed_teams", None)
-            self._orgs[org_name] = (
-                Github(token, base_url=GH_BASE_URL),
-                RawGithubApi(token),
-                managed_teams,
-            )
-
-    def orgs(self):
-        return self._orgs.keys()
-
-    def github(self, org_name):
-        return self._orgs[org_name][0]
-
-    def raw_github_api(self, org_name):
-        return self._orgs[org_name][1]
-
-    def managed_teams(self, org_name):
-        return self._orgs[org_name][2]
-
-
 class RunnerAction:
-    def __init__(self, dry_run, gh_api_store):
+    def __init__(self, dry_run: bool, gh_api_store: GHApiStore) -> None:
         self.dry_run = dry_run
         self.gh_api_store = gh_api_store
 
-    def add_to_team(self):
+    def add_to_team(self) -> Callable:
         label = "add_to_team"
 
-        def action(params, items):
+        def action(params: dict, items: dict) -> None:
             org = params["org"]
             team = params["team"]
 
@@ -318,10 +323,10 @@ class RunnerAction:
 
         return action
 
-    def del_from_team(self):
+    def del_from_team(self) -> Callable:
         label = "del_from_team"
 
-        def action(params, items):
+        def action(params: dict, items: dict) -> None:
             org = params["org"]
             team = params["team"]
 
@@ -346,10 +351,10 @@ class RunnerAction:
 
         return action
 
-    def create_team(self):
+    def create_team(self) -> Callable:
         label = "create_team"
 
-        def action(params, items):
+        def action(params: dict, items: dict) -> None:
             org = params["org"]
             team = params["team"]
 
@@ -367,10 +372,10 @@ class RunnerAction:
 
         return action
 
-    def add_to_org(self):
+    def add_to_org(self) -> Callable:
         label = "add_to_org"
 
-        def action(params, items):
+        def action(params: dict, items: dict) -> None:
             org = params["org"]
 
             if self.dry_run:
@@ -387,10 +392,10 @@ class RunnerAction:
 
         return action
 
-    def del_from_org(self):
+    def del_from_org(self) -> Callable:
         label = "del_from_org"
 
-        def action(params, items):
+        def action(params: dict, items: dict) -> None:
             org = params["org"]
 
             if self.dry_run:
@@ -410,18 +415,18 @@ class RunnerAction:
         return action
 
     @staticmethod
-    def raise_exception(msg):
-        def raiseException(params, items):
+    def raise_exception(msg: str) -> Callable:
+        def raiseException(params: dict, items: dict) -> None:
             raise Exception(msg)
 
         return raiseException
 
 
-def service_is(service):
+def service_is(service: str) -> Callable:
     return lambda params: params.get("service") == service
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     config = get_config()
     gh_api_store = GHApiStore(config)
 
@@ -507,7 +512,7 @@ def run(dry_run):
     runner.run()
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "github_orgs": get_orgs(),
         "github_org_members": fetch_desired_state().dump(),

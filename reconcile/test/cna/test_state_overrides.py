@@ -99,7 +99,7 @@ def null_asset(
         "uuid and href do not count towards equality",
     ],
 )
-def test_state_eq(a: State, b: State):
+def test_state_eq(a: State, b: State) -> None:
     assert a == b
 
 
@@ -164,11 +164,11 @@ def test_state_eq(a: State, b: State):
         "different elements",
     ],
 )
-def test_state_ne(a: State, b: State):
+def test_state_ne(a: State, b: State) -> None:
     assert a != b
 
 
-def test_state_iter():
+def test_state_iter() -> None:
     assets = [
         null_asset(
             name="test",

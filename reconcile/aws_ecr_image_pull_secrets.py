@@ -1,6 +1,8 @@
 import base64
 import json
 import logging
+from collections.abc import Mapping
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
@@ -9,15 +11,15 @@ from reconcile.utils.vault import VaultClient
 QONTRACT_INTEGRATION = "aws-ecr-image-pull-secrets"
 
 
-def enc_dec(data):
+def enc_dec(data: str) -> str:
     return base64.b64encode(data.encode("utf-8")).decode("utf-8")
 
 
-def get_password(token):
+def get_password(token: str) -> str:
     return base64.b64decode(token).decode("utf-8").split(":")[1]
 
 
-def construct_dockercfg_secret_data(data):
+def construct_dockercfg_secret_data(data: Mapping[str, Any]) -> dict[str, str]:
     auth_data = data["authorizationData"][0]
     server = auth_data["proxyEndpoint"]
     token = auth_data["authorizationToken"]
@@ -36,7 +38,7 @@ def construct_dockercfg_secret_data(data):
     return {".dockerconfigjson": enc_dec(json.dumps(data))}
 
 
-def construct_basic_auth_secret_data(data):
+def construct_basic_auth_secret_data(data: Mapping[str, Any]) -> dict[str, str]:
     auth_data = data["authorizationData"][0]
     token = auth_data["authorizationToken"]
     password = get_password(token)
@@ -44,17 +46,23 @@ def construct_basic_auth_secret_data(data):
     return {"user": enc_dec("AWS"), "token": enc_dec(password), "url": url}
 
 
-def write_output_to_vault(dry_run, vault_path, account, secret_data, name):
+def write_output_to_vault(
+    dry_run: bool,
+    vault_path: str,
+    account: str,
+    secret_data: Mapping[str, str],
+    name: str,
+) -> None:
     integration_name = QONTRACT_INTEGRATION
     secret_path = f"{vault_path}/{integration_name}/{account}/{name}"
     secret = {"path": secret_path, "data": secret_data}
     logging.info(["write_secret", secret_path])
     vault_client = VaultClient()
     if not dry_run:
-        vault_client.write(secret)
+        vault_client.write(secret)  # type: ignore
 
 
-def run(dry_run, vault_output_path=""):
+def run(dry_run: bool, vault_output_path: str = "") -> None:
     accounts = [a for a in queries.get_aws_accounts() if a.get("ecrs")]
     settings = queries.get_app_interface_settings()
     with AWSApi(1, accounts, settings=settings, init_ecr_auth_tokens=True) as aws:

@@ -27,7 +27,7 @@ def null_asset(name: str, addr_block: str | None = None) -> NullAsset:
     )
 
 
-def test_assemble_state_with_assets():
+def test_assemble_state_with_assets() -> None:
     state = State()
     assets = {
         "test": null_asset(
@@ -46,7 +46,7 @@ def test_assemble_state_with_assets():
     )
 
 
-def test_assemble_state_raw_data():
+def test_assemble_state_raw_data() -> None:
     state = State()
     data = [
         {
@@ -75,7 +75,7 @@ def test_assemble_state_raw_data():
     assert state == State(assets=cast(dict[AssetType, dict[str, Asset]], assets))
 
 
-def test_assemble_raises_duplicate_error():
+def test_assemble_raises_duplicate_error() -> None:
     state = State()
     null = null_asset(
         name="test",

@@ -23,7 +23,7 @@ class CNAClient:
         cnas = self._ocm_client.get(api_path="/api/cna-management/v1/cnas")
         return cnas.get("items", [])
 
-    def create(self, asset: Asset, dry_run: bool = False):
+    def create(self, asset: Asset, dry_run: bool = False) -> None:
         if dry_run:
             logging.info("CREATE %s", asset)
             return
@@ -32,7 +32,7 @@ class CNAClient:
             data=asset.api_payload(),
         )
 
-    def delete(self, asset: Asset, dry_run: bool = False):
+    def delete(self, asset: Asset, dry_run: bool = False) -> None:
         if dry_run:
             logging.info("DELETE %s", asset)
             return
@@ -41,7 +41,7 @@ class CNAClient:
                 api_path=asset.href,
             )
 
-    def update(self, asset: Asset, dry_run: bool = False):
+    def update(self, asset: Asset, dry_run: bool = False) -> None:
         if dry_run:
             logging.info("UPDATE %s", asset)
             return

@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from collections.abc import Callable
 
 from github import Github
 from github.GithubException import GithubException
@@ -30,19 +31,21 @@ GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 
 QONTRACT_INTEGRATION = "github-users"
 
+UserAndCompany = tuple[str, str | None]
 
-def init_github():
+
+def init_github() -> Github:
     token = get_default_config()["token"]
     return Github(token, base_url=GH_BASE_URL)
 
 
 @retry(exceptions=(GithubException, ReadTimeout))
-def get_user_company(user, github):
+def get_user_company(user: dict, github: Github) -> UserAndCompany:
     gh_user = github.get_user(login=user["github_username"])
     return user["org_username"], gh_user.company
 
 
-def get_users_to_delete(results):
+def get_users_to_delete(results: list[UserAndCompany]) -> list[dict]:
     pattern = r"^.*[Rr]ed ?[Hh]at.*$"
     org_usernames_to_delete = [
         u for u, c in results if c is None or not re.search(pattern, c)
@@ -51,7 +54,7 @@ def get_users_to_delete(results):
     return [u for u in users_and_paths if u["username"] in org_usernames_to_delete]
 
 
-def send_email_notification(user, smtp_client: SmtpClient):
+def send_email_notification(user: dict, smtp_client: SmtpClient) -> None:
     msg_template = """
 Hello,
 
@@ -79,13 +82,13 @@ App-Interface repository: https://gitlab.cee.redhat.com/service/app-interface
 
 @defer
 def run(
-    dry_run,
-    gitlab_project_id=None,
-    thread_pool_size=10,
-    enable_deletion=False,
-    send_mails=False,
-    defer=None,
-):
+    dry_run: bool,
+    gitlab_project_id: str | None = None,
+    thread_pool_size: int = 10,
+    enable_deletion: bool = False,
+    send_mails: bool = False,
+    defer: Callable | None = None,
+) -> None:
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
@@ -104,7 +107,8 @@ def run(
 
     if not dry_run and enable_deletion:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
-        defer(mr_cli.cleanup)
+        if defer:
+            defer(mr_cli.cleanup)
 
     for user in users_to_delete:
         username = user["username"]
