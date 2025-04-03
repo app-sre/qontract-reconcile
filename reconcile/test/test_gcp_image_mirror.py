@@ -12,3 +12,12 @@ def test_gcp_mirror_session(mocker: MockerFixture) -> None:
         assert gcr_mirror.session == mocked_request.Session.return_value
 
     mocked_request.Session.return_value.close.assert_called_once_with()
+
+
+# TODO query_repos_to_sync against AR, GCP
+
+# TODO _get_push_creds test
+
+# TODO get_sync_tasks test
+
+# how do i mock the GQL api?

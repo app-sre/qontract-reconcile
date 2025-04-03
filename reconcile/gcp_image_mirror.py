@@ -61,7 +61,7 @@ class QuayMirror:
         self.session.close()
 
     def run(self) -> None:
-        sync_tasks = self.process_sync_tasks()
+        sync_tasks = self.get_sync_tasks()
         for task in sync_tasks:
             try:
                 dest_creds = self.push_creds[f"{GCR_SECRET_PREFIX}{task.org_name}"]
@@ -77,7 +77,8 @@ class QuayMirror:
             except SkopeoCmdError as details:
                 logging.error("[%s]", details)
 
-    def process_repos_query(self) -> list[ImageSyncItem]:
+    # retrieves all GCP image mirrors in App Interface 
+    def query_repos_to_sync(self) -> list[ImageSyncItem]:
         result = gql_gcp_repos.query(query_func=self.gqlapi.query)
         summary = list[ImageSyncItem]()
 
@@ -126,11 +127,12 @@ class QuayMirror:
         # tag must be synced
         return True
 
-    def process_sync_tasks(self) -> list[SyncTask]:
+    # retrieves a list of images that need to be synced from an image mirror to GCP
+    def get_sync_tasks(self) -> list[SyncTask]:
         eight_hours = 28800  # 60 * 60 * 8
         is_deep_sync = self._is_deep_sync(interval=eight_hours)
 
-        summary = self.process_repos_query()
+        summary = self.query_repos_to_sync()
 
         sync_tasks = list[SyncTask]()
         for item in summary:
