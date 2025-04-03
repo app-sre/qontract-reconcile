@@ -3,9 +3,10 @@ import os
 from collections.abc import Callable, Iterable, KeysView
 from typing import Any
 
-import github
 from github import Github
 from github.GithubObject import NotSet  # type: ignore
+from github.Organization import Organization
+from github.Team import Team
 from sretoolbox.utils import retry
 
 from reconcile import (
@@ -136,14 +137,14 @@ def get_default_config() -> dict[str, Any]:
 @retry()
 def get_org_and_teams(
     github: Github, org_name: str
-) -> tuple[github.Organization.Organization, Iterable[github.Team.Team]]:
+) -> tuple[Organization, Iterable[Team]]:
     org = github.get_organization(org_name)
     teams = org.get_teams()
     return org, teams
 
 
 @retry()
-def get_members(unit: github.Organization.Organization) -> list[str]:
+def get_members(unit: Organization) -> list[str]:
     return [member.login for member in unit.get_members()]
 
 
