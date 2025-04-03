@@ -70,6 +70,7 @@ def collect_to(
     for role in to.roles or []:
         audience.update(user.org_username for user in role.users or [])
 
+    # SmtpClient supports sending to org_username and email addresses
     audience.update(user.org_username for user in to.users or [])
 
     if to.clusters or to.namespaces:
