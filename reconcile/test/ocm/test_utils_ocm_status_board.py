@@ -12,6 +12,7 @@ from reconcile.utils.ocm.status_board import (
     create_service,
     delete_application,
     delete_product,
+    delete_service,
     get_application_services,
     get_managed_products,
     get_product_applications,
@@ -94,21 +95,20 @@ def test_create_status_board_object_via_ocm_api(
     assert id == "foo"
 
 
-def test_delete_product(mocker: MockFixture) -> None:
+@pytest.mark.parametrize(
+    "delete_function,end_point",
+    [
+        (delete_product, "/api/status-board/v1/products/"),
+        (delete_application, "/api/status-board/v1/applications/"),
+        (delete_service, "/api/status-board/v1/services/"),
+    ],
+)
+def test_delete_status_board_object_via_ocm_api(
+    mocker: MockFixture, delete_function: Callable, end_point: str
+) -> None:
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    product_id = "foo"
+    object_id = "foo"
 
-    delete_product(ocm, product_id)
+    delete_function(ocm, object_id)
 
-    ocm.delete.assert_called_once_with(f"/api/status-board/v1/products/{product_id}")
-
-
-def test_delete_application(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    application_id = "foo"
-
-    delete_application(ocm, application_id)
-
-    ocm.delete.assert_called_once_with(
-        f"/api/status-board/v1/applications/{application_id}"
-    )
+    ocm.delete.assert_called_once_with(f"{end_point}{object_id}")
