@@ -34,3 +34,43 @@ def emails_query(
 @pytest.fixture
 def emails(emails_query: Callable) -> list[AppInterfaceEmailV1]:
     return get_emails(emails_query)
+
+
+@pytest.fixture
+def all_service_owners_email(emails: list[AppInterfaceEmailV1]) -> AppInterfaceEmailV1:
+    for email in emails:
+        if email.name == "all-service-owners":
+            return email
+    raise ValueError("Email not found")
+
+
+@pytest.fixture
+def all_users_email(emails: list[AppInterfaceEmailV1]) -> AppInterfaceEmailV1:
+    for email in emails:
+        if email.name == "all-users":
+            return email
+    raise ValueError("Email not found")
+
+
+@pytest.fixture
+def no_aliases_email(emails: list[AppInterfaceEmailV1]) -> AppInterfaceEmailV1:
+    for email in emails:
+        if email.name == "no-aliases":
+            return email
+    raise ValueError("Email not found")
+
+
+@pytest.fixture
+def namespaces_email(emails: list[AppInterfaceEmailV1]) -> AppInterfaceEmailV1:
+    for email in emails:
+        if email.name == "namespaces":
+            return email
+    raise ValueError("Email not found")
+
+
+@pytest.fixture
+def clusters_email(emails: list[AppInterfaceEmailV1]) -> AppInterfaceEmailV1:
+    for email in emails:
+        if email.name == "clusters":
+            return email
+    raise ValueError("Email not found")
