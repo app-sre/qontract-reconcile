@@ -16,6 +16,7 @@ from reconcile.utils.ocm.status_board import (
     get_application_services,
     get_managed_products,
     get_product_applications,
+    update_service,
 )
 
 
@@ -112,3 +113,19 @@ def test_delete_status_board_object_via_ocm_api(
     delete_function(ocm, object_id)
 
     ocm.delete.assert_called_once_with(f"{end_point}{object_id}")
+
+
+def test_update_service(mocker: MockFixture) -> None:
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.patch.return_value = {"id": "foo"}
+    object_id = "foo"
+
+    update_service(ocm, object_id, {"name": "foo"})
+
+    ocm.patch.assert_called_once_with(
+        f"/api/status-board/v1/services/{object_id}",
+        data={
+            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
+            "name": "foo",
+        },
+    )
