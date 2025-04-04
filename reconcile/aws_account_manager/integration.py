@@ -51,6 +51,8 @@ class AwsAccountMgmtIntegrationParams(PydanticRunParams):
     initial_user_secret_vault_path: str = (
         "app-sre-v2/creds/terraform/{account_name}/config"
     )
+    # To avoid the accidental deletion of the resource file, explicitly set the
+    # qontract.cli option in the integration extraArgs!
     account_tmpl_resource: str = "/aws-account-manager/account-tmpl.yml"
     template_collection_root_path: str = "data/templating/collections/aws-account"
 
