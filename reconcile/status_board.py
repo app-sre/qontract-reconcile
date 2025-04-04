@@ -372,6 +372,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 services=[],
             )
 
+        def create_service(
+            service_name: str,
+            metadata: dict[str, Any],
+            application: Application,
+        ) -> Service:
+            return Service(
+                name=service_name,
+                fullname=f"{p.name}/{application.name}/{name}",
+                metadata=metadata,
+                application=application,
+            )
+
         return_list: list[StatusBoardHandler] = []
 
         diff_result = diff_mappings(
@@ -403,18 +415,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     ]
                     for s in this_app_services:
                         name = s["service"]
-                        fullname = f"{p.name}/{application.name}/{name}"
                         metadata = s["metadata"]
+                        service = create_service(name, metadata, application)
 
                         return_list.append(
                             StatusBoardHandler(
-                                action=Action.create,
-                                status_board_object=Service(
-                                    name=name,
-                                    fullname=fullname,
-                                    metadata=metadata,
-                                    application=application,
-                                ),
+                                action=Action.create, status_board_object=service
                             )
                         )
 
@@ -444,18 +450,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 ]
                 for s in this_app_services:
                     name = s["service"]
-                    fullname = f"{product.name}/{application.name}/{name}"
                     metadata = s["metadata"]
+                    service = create_service(name, metadata, application)
 
                     return_list.append(
                         StatusBoardHandler(
-                            action=Action.create,
-                            status_board_object=Service(
-                                name=name,
-                                fullname=fullname,
-                                metadata=metadata,
-                                application=application,
-                            ),
+                            action=Action.create, status_board_object=service
                         )
                     )
 
@@ -468,18 +468,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     ]
                     for s in this_app_services or []:
                         name = s["service"]
-                        fullname = f"{p.name}/{application.name}/{name}"
                         metadata = s["metadata"]
+                        service = create_service(name, metadata, application)
 
                         return_list.append(
                             StatusBoardHandler(
-                                action=Action.create,
-                                status_board_object=Service(
-                                    name=name,
-                                    fullname=fullname,
-                                    metadata=metadata,
-                                    application=application,
-                                ),
+                                action=Action.create, status_board_object=service
                             )
                         )
 
@@ -536,7 +530,11 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             fullname = f"{product.name}/{application.name}/{name}"
             metadata = s["metadata"]
             service = Service(
-                id=service_id, name=name, fullname=fullname, metadata=metadata
+                id=service_id,
+                name=name,
+                fullname=fullname,
+                metadata=metadata,
+                application=application,
             )
 
             return_list.append(
