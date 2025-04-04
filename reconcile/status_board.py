@@ -30,6 +30,7 @@ from reconcile.utils.ocm.status_board import (
     get_application_services,
     get_managed_products,
     get_product_applications,
+    update_service,
 )
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
@@ -159,8 +160,19 @@ class Service(AbstractStatusBoard):
         if not self.id:
             logging.error(f'Trying to update Service "{self.name}" without id')
             return
-        # TODO: Implement update_service logic
-        # update_service(ocm, self.id)
+        spec = self.dict(by_alias=True)
+        spec.pop("id")
+        application = spec.pop("application")
+        application_id = application.get("id")
+        if application_id:
+            spec["application"] = {"id": application_id}
+            # The next two fields come from the orignal script at
+            # https://gitlab.cee.redhat.com/service/status-board/-/blob/main/scripts/create-services-from-app-intf.sh?ref_type=heads#L116
+            spec["status_type"] = "traffic_light"
+            spec["service_endpoint"] = "none"
+            update_service(ocm, self.id, spec)
+        else:
+            logging.warning("Missing application id for service")
 
     def summarize(self) -> str:
         return f'Service: "{self.name}" "{self.fullname}"'
