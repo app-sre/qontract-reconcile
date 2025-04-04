@@ -26,6 +26,7 @@ from reconcile.utils.ocm.status_board import (
     create_service,
     delete_application,
     delete_product,
+    delete_service,
     get_application_services,
     get_managed_products,
     get_product_applications,
@@ -152,8 +153,7 @@ class Service(AbstractStatusBoard):
         if not self.id:
             logging.error(f'Trying to delete Service "{self.name}" without id')
             return
-        # TODO: Implement delete_service
-        # delete_service(ocm, self.id)
+        delete_service(ocm, self.id)
 
     def update(self, ocm: OCMBaseClient) -> None:
         if not self.id:
