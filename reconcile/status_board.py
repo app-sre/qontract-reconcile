@@ -192,6 +192,17 @@ class StatusBoardHandler(BaseModel):
 
     def act(self, dry_run: bool, ocm: OCMBaseClient) -> None:
         logging.info(f"{self.action} - {self.status_board_object.summarize()}")
+
+        # Avoiding updating a inexisting service in dry-run
+        if self.action == Action.update and not isinstance(
+            self.status_board_object, Service
+        ):
+            err_msg = (
+                "Called update on StatusBoardHandler that doesn't have update method"
+            )
+            logging.error(err_msg)
+            raise UpdateNotSupported(err_msg)
+
         if dry_run:
             return
 
@@ -203,9 +214,6 @@ class StatusBoardHandler(BaseModel):
             case Action.update:
                 if isinstance(self.status_board_object, Service):
                     self.status_board_object.update(ocm)
-                err_msg = "Called update on StatusBoardHandler that doesn't have update method"
-                logging.error(err_msg)
-                raise UpdateNotSupported(err_msg)
 
 
 class StatusBoardExporterIntegration(QontractReconcileIntegration):
@@ -543,6 +551,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     ) -> None:
         creations: list[StatusBoardHandler] = []
         deletions: list[StatusBoardHandler] = []
+        updates: list[StatusBoardHandler] = []
 
         for o in diff:
             match o.action:
@@ -550,14 +559,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     creations.append(o)
                 case Action.delete:
                     deletions.append(o)
+                case Action.update:
+                    updates.append(o)
 
         # Products need to be created before Applications
+        # Applications need to be created before Services
         creations.sort(key=lambda x: x.status_board_object.get_priority())
 
+        # Services need to be created before Applications
         # Applications need to be deleted before Products
         deletions.sort(key=lambda x: x.status_board_object.get_priority(), reverse=True)
 
-        for d in creations + deletions:
+        for d in creations + deletions + updates:
             d.act(dry_run, ocm_api)
 
     def run(self, dry_run: bool) -> None:
