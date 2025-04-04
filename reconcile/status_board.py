@@ -351,7 +351,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         "service": service.name,
                         "metadata": service.metadata,
                     }
-                    # return_value[key].update(service.metadata or {})
 
         return return_value
 
