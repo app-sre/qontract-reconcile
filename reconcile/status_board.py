@@ -23,6 +23,7 @@ from reconcile.utils.differ import diff_mappings
 from reconcile.utils.ocm.status_board import (
     create_application,
     create_product,
+    create_service,
     delete_application,
     delete_product,
     get_application_services,
@@ -127,6 +128,7 @@ class Service(AbstractStatusBoard):
     # `application` here is used to create a flat map to easily compare state.
     # This field is optional so we can create the Service object without the
     # need to create an Application object first.
+    # This filed is needed when we are creating a Service on teh OCM API.
     # This field is not used when we are mapping the services that belongs to an
     # application in that case we use the `services` field in Application class.
     application: Optional["Application"]
@@ -138,10 +140,13 @@ class Service(AbstractStatusBoard):
         application_id = application.get("id")
         if application_id:
             spec["application"] = {"id": application_id}
-            # TODO: Implement create_service
-            # self.id = create_application(ocm, spec)
+            # The next two fields come from the orignal script at
+            # https://gitlab.cee.redhat.com/service/status-board/-/blob/main/scripts/create-services-from-app-intf.sh?ref_type=heads#L116
+            spec["status_type"] = "traffic_light"
+            spec["service_endpoint"] = "none"
+            self.id = create_service(ocm, spec)
         else:
-            logging.warning("Missing product id for application")
+            logging.warning("Missing application id for service")
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
