@@ -1777,6 +1777,8 @@ def rds(ctx: click.Context) -> None:
     accounts = {a["name"]: a for a in queries.get_aws_accounts()}
     results = []
     for namespace in namespaces:
+        if namespace.delete:
+            continue
         specs = [
             s
             for s in get_external_resource_specs(
@@ -1798,9 +1800,6 @@ def rds(ctx: click.Context) -> None:
                 "engine_version": rds_attr("engine_version", overrides, defaults),
                 "instance_class": rds_attr("instance_class", overrides, defaults),
                 "storage_type": rds_attr("storage_type", overrides, defaults),
-                "ca_cert_identifier": rds_attr(
-                    "ca_cert_identifier", overrides, defaults
-                ),
             }
             results.append(item)
 
@@ -1816,7 +1815,6 @@ def rds(ctx: click.Context) -> None:
                 {"key": "engine_version", "sortable": True},
                 {"key": "instance_class", "sortable": True},
                 {"key": "storage_type", "sortable": True},
-                {"key": "ca_cert_identifier", "sortable": True},
             ],
             "items": results,
         }
@@ -1842,7 +1840,6 @@ You can view the source of this Markdown to extract the JSON data.
             "engine_version",
             "instance_class",
             "storage_type",
-            "ca_cert_identifier",
         ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
