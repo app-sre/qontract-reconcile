@@ -13,6 +13,7 @@ from reconcile.status_board import (
     Service,
     StatusBoardExporterIntegration,
     StatusBoardHandler,
+    UpdateNotSupported,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -133,6 +134,22 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     assert isinstance(h.status_board_object, Service)
     assert h.status_board_object.summarize() == 'Service: "foo" "foo/bar"'
     spy.assert_called_once_with(s, ocm)
+
+
+def test_status_board_hander_update_not_supported(mocker: MockerFixture) -> None:
+    ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
+
+    h = StatusBoardHandler(
+        action=Action.update,
+        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
+    )
+
+    with pytest.raises(UpdateNotSupported) as exp:
+        h.act(dry_run=False, ocm=ocm)
+    assert (
+        str(exp.value)
+        == "Called update on StatusBoardHandler that doesn't have update method"
+    )
 
 
 def test_get_product_apps(status_board: StatusBoardV1) -> None:
