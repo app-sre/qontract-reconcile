@@ -12,7 +12,7 @@ from pydantic import (
     root_validator,
 )
 
-from reconcile import queries
+from reconcile import mr_client_gateway, queries
 from reconcile.gql_definitions.common.clusters import (
     ClusterMachinePoolV1,
     ClusterSpecAutoScaleV1,
@@ -21,6 +21,7 @@ from reconcile.gql_definitions.common.clusters import (
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.mr.cluster_machine_pool_updates import ClustersMachinePoolUpdates
 from reconcile.utils.ocm import (
     DEFAULT_OCM_MACHINE_POOL_ID,
     OCM,
@@ -130,18 +131,32 @@ class AbstractPool(ABC, BaseModel):
     def invalid_diff(self, pool: ClusterMachinePoolV1) -> str | None:
         pass
 
+    def get_pool_spec_to_update(
+        self, pool: ClusterMachinePoolV1
+    ) -> Optional[ClusterMachinePoolV1]:
+        """
+        For situations where OCM holds the source of truth for parts of the spec,
+        this function detects a drift in the app-interface spec and returns a
+        new pool spec to be updated in app-interface.
+
+        If no drift is detected, None is returned.
+        """
+        return None
+
     @abstractmethod
     def deletable(self) -> bool:
         pass
 
-    def _has_diff_autoscale(self, pool):
+    def _has_diff_autoscale(self, pool: ClusterMachinePoolV1) -> bool:
         match (self.autoscaling, pool.autoscale):
             case (None, None):
                 return False
             case (None, _) | (_, None):
                 return True
-            case _:
+            case _ if self.autoscaling and pool.autoscale:
                 return self.autoscaling.has_diff(pool.autoscale)
+            case _:
+                return False
 
 
 class MachinePool(AbstractPool):
@@ -228,7 +243,7 @@ class NodePool(AbstractPool):
     subnet: str | None
 
     def delete(self, ocm: OCM) -> None:
-        ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
+        ocm.delete_node_pool(self.cluster, self.id)
 
     def create(self, ocm: OCM) -> None:
         spec = self.dict(by_alias=True)
@@ -258,7 +273,11 @@ class NodePool(AbstractPool):
             or self.taints != pool.taints
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
-            or self.subnet != pool.subnet
+            # if the nodepool in app-interface does not define a subnet explicitely
+            # we don't consider it a diff. we don't manage it, but `get_pool_spec_to_update`
+            # will highlight it as a spec drift that is going to be fixed with an MR
+            # towards app-interface
+            or (pool.subnet is not None and self.subnet != pool.subnet)
             or self._has_diff_autoscale(pool)
         )
 
@@ -267,6 +286,27 @@ class NodePool(AbstractPool):
             return "instance_type"
         if self.subnet != pool.subnet:
             return "subnet"
+        return None
+
+    def get_pool_spec_to_update(
+        self, pool: ClusterMachinePoolV1
+    ) -> Optional[ClusterMachinePoolV1]:
+        """
+        if app-interface does not define a subnet explicitely or if the
+        subnet is different from OCM, we consider the spec in app-interface oudated.
+
+        In such a case this method returns a clone of the current pool definition
+        in app-interface with the subnet updated to the one in OCM. if no update
+        is required, None is returned
+
+        How can this happen?
+        * a cluster was created without specified subnets and ROSA CLI picks the subnet
+          assignment for the nodepools
+        * nodepools have been recreated on OCM side without app-interface involvement
+          and the subnet changed
+        """
+        if pool.subnet is None or self.subnet != pool.subnet:
+            return pool.copy(update={"subnet": self.subnet})
         return None
 
     def deletable(self) -> bool:
@@ -323,6 +363,7 @@ class PoolHandler(BaseModel):
 
 
 class DesiredMachinePool(BaseModel):
+    cluster_path: str
     cluster_name: str
     cluster_type: ClusterType
     pools: list[ClusterMachinePoolV1]
@@ -350,6 +391,7 @@ def fetch_current_state(
     return {
         c.name: fetch_current_state_for_cluster(c, ocm_map.get(c.name))
         for c in clusters
+        if c.spec and c.spec.q_id
     }
 
 
@@ -369,7 +411,7 @@ def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
             raise ValueError(f"unknown cluster type for cluster {cluster.name}")
 
 
-def fetch_current_state_for_cluster(cluster, ocm):
+def fetch_current_state_for_cluster(cluster: ClusterV1, ocm: OCM) -> list[AbstractPool]:
     cluster_type = _classify_cluster_type(cluster)
     if cluster_type == ClusterType.ROSA_HCP:
         return [
@@ -419,12 +461,13 @@ def create_desired_state_from_gql(
 ) -> dict[str, DesiredMachinePool]:
     return {
         cluster.name: DesiredMachinePool(
+            cluster_path=cluster.path,
             cluster_name=cluster.name,
             cluster_type=_classify_cluster_type(cluster),
             pools=cluster.machine_pools,
         )
         for cluster in clusters
-        if cluster.machine_pools is not None
+        if cluster.machine_pools is not None and cluster.spec and cluster.spec.q_id
     }
 
 
@@ -500,7 +543,34 @@ def calculate_diff(
     return diffs, errors
 
 
-def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
+def _drift_updates(
+    current_pools: list[AbstractPool],
+    desired: DesiredMachinePool,
+) -> list[ClusterMachinePoolV1]:
+    current_machine_pools = {pool.id: pool for pool in current_pools}
+    return [
+        spec
+        for pool in desired.pools
+        if (current_pool := current_machine_pools.get(pool.q_id))
+        and (spec := current_pool.get_pool_spec_to_update(pool)) is not None
+    ]
+
+
+def calculate_spec_drift(
+    current_state: Mapping[str, list[AbstractPool]],
+    desired_state: Mapping[str, DesiredMachinePool],
+) -> dict[str, list[ClusterMachinePoolV1]]:
+    """
+    Finds spec drifts between OCM and app-interface and returns a list of them.
+    """
+    return {
+        desired_state[k].cluster_path: updates
+        for k in current_state.keys() & desired_state.keys()
+        if (updates := _drift_updates(current_state[k], desired_state[k]))
+    }
+
+
+def update_ocm(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
     for diff in diffs:
         logging.info([diff.action, diff.pool.cluster, diff.pool.id])
         if not dry_run:
@@ -508,11 +578,35 @@ def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
             diff.act(dry_run, ocm)
 
 
+def update_app_interface(
+    dry_run: bool,
+    gitlab_project_id: Optional[str],
+    diffs: dict[str, list[ClusterMachinePoolV1]],
+) -> None:
+    if not diffs:
+        return
+
+    mr = ClustersMachinePoolUpdates(
+        machine_pool_updates={
+            cluster_path: [pool.dict(by_alias=True) for pool in pool_updates]
+            for cluster_path, pool_updates in diffs.items()
+        }
+    )
+    if not dry_run:
+        with mr_client_gateway.init(gitlab_project_id=gitlab_project_id) as mr_cli:
+            mr.submit(cli=mr_cli)
+
+
 def _cluster_is_compatible(cluster: ClusterV1) -> bool:
-    return cluster.ocm is not None and cluster.machine_pools is not None
+    return (
+        cluster.ocm is not None
+        and cluster.machine_pools is not None
+        and cluster.spec is not None
+        and cluster.spec.q_id is not None
+    )
 
 
-def run(dry_run: bool):
+def run(dry_run: bool, gitlab_project_id: Optional[str] = None):
     clusters = get_clusters()
 
     filtered_clusters = [
@@ -536,9 +630,14 @@ def run(dry_run: bool):
 
     current_state = fetch_current_state(ocm_map, filtered_clusters)
     desired_state = create_desired_state_from_gql(filtered_clusters)
-    diffs, errors = calculate_diff(current_state, desired_state)
 
-    act(dry_run, diffs, ocm_map)
+    # handle diff towards OCM
+    diffs, errors = calculate_diff(current_state, desired_state)
+    update_ocm(dry_run, diffs, ocm_map)
+
+    # handle diffs towards app-interface
+    spec_drift = calculate_spec_drift(current_state, desired_state)
+    update_app_interface(dry_run, gitlab_project_id, spec_drift)
 
     if errors:
         for err in errors:
