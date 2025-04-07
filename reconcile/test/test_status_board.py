@@ -157,6 +157,94 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
     assert p == {"foo": {"foo", "foo-bar"}}
 
 
+def test_get_current_products_applications_services(mocker: MockerFixture) -> None:
+    Product.update_forward_refs()
+    Application.update_forward_refs()
+    ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
+    mock_get_products = mocker.patch("reconcile.status_board.get_managed_products")
+    mock_get_apps = mocker.patch("reconcile.status_board.get_product_applications")
+    mock_get_services = mocker.patch("reconcile.status_board.get_application_services")
+
+    mock_get_products.return_value = [
+        {"name": "product_1", "fullname": "product_1", "id": "1"},
+        {"name": "product_2", "fullname": "product_2", "id": "2"},
+    ]
+
+    apps_mapping = {
+        "1": [
+            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1"},
+            {"name": "app_2", "fullname": "product_1/app_2", "id": "1_2"},
+        ],
+        "2": [
+            {"name": "app_3", "fullname": "product_2/app_3", "id": "2_3"},
+        ],
+    }
+
+    services_mapping = {
+        "1_1": [
+            {
+                "name": "service_1",
+                "fullname": "product_1/app_1/service_1",
+                "id": "1_1_1",
+            },
+            {
+                "name": "service_2",
+                "fullname": "product_1/app_1/service_2",
+                "id": "1_1_2",
+            },
+        ],
+        "1_2": [],
+        "2_3": [],
+    }
+
+    mock_get_apps.side_effect = lambda _, product_id: apps_mapping.get(product_id, [])
+    mock_get_services.side_effect = lambda _, app_id: services_mapping.get(app_id, [])
+
+    products = (
+        StatusBoardExporterIntegration.get_current_products_applications_services(ocm)
+    )
+
+    assert products == [
+        Product(
+            name="product_1",
+            fullname="product_1",
+            id="1",
+            applications=[
+                Application(
+                    name="app_1",
+                    fullname="product_1/app_1",
+                    id="1_1",
+                    services=[
+                        Service(
+                            name="service_1",
+                            fullname="product_1/app_1/service_1",
+                            id="1_1_1",
+                        ),
+                        Service(
+                            name="service_2",
+                            fullname="product_1/app_1/service_2",
+                            id="1_1_2",
+                        ),
+                    ],
+                ),
+                Application(
+                    name="app_2", fullname="product_1/app_2", id="1_2", services=[]
+                ),
+            ],
+        ),
+        Product(
+            name="product_2",
+            fullname="product_2",
+            id="2",
+            applications=[
+                Application(
+                    name="app_3", fullname="product_2/app_3", id="2_3", services=[]
+                )
+            ],
+        ),
+    ]
+
+
 def test_get_diff_create_app() -> None:
     Product.update_forward_refs()
     Application.update_forward_refs()
