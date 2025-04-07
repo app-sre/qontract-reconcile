@@ -10,6 +10,7 @@ from reconcile.status_board import (
     Action,
     Application,
     Product,
+    Service,
     StatusBoardExporterIntegration,
     StatusBoardHandler,
 )
@@ -27,9 +28,6 @@ class StatusBoardStub(AbstractStatusBoard):
 
     def delete(self, ocm: OCMBaseClient) -> None:
         self.deleted = True
-
-    def update(self, ocm: OCMBaseClient) -> None:
-        self.updated = True
 
     def summarize(self) -> str:
         self.summarized = True
@@ -98,6 +96,8 @@ def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoard
 
 
 def test_status_board_handler(mocker: MockerFixture) -> None:
+    Application.update_forward_refs()
+
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
         action=Action.create,
@@ -118,6 +118,21 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     assert isinstance(h.status_board_object, StatusBoardStub)
     assert h.status_board_object.deleted
     assert h.status_board_object.summarized
+
+    # Update is only supported for Services
+    # Services need an Application with ID to be updated
+    s = Service(
+        id="baz",
+        name="foo",
+        fullname="foo/bar",
+        application=Application(id="foz", name="bar", fullname="bar", services=None),
+    )
+    spy = mocker.spy(Service, "update")
+    h = StatusBoardHandler(action=Action.update, status_board_object=s)
+    h.act(dry_run=False, ocm=ocm)
+    assert isinstance(h.status_board_object, Service)
+    assert h.status_board_object.summarize() == 'Service: "foo" "foo/bar"'
+    spy.assert_called_once_with(s, ocm)
 
 
 def test_get_product_apps(status_board: StatusBoardV1) -> None:
