@@ -180,13 +180,10 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
                 sourcedb.get("region", None)
                 or sourcedb_spec.provisioner["resources_default_region"]
             )
-            blue_green_deployment_enabled = sourcedb.get(
-                "blue_green_deployment", {}
-            ).get("enabled", False)
             data["replica_source"] = {
                 "identifier": sourcedb["identifier"],
                 "region": sourcedb_region,
-                "blue_green_deployment_enabled": blue_green_deployment_enabled,
+                "blue_green_deployment": sourcedb.get("blue_green_deployment"),
             }
         # If AZ is set, but not the region, the region is got from the AZ
         if "availability_zone" in data and "region" not in data:

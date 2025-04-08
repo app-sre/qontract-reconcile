@@ -185,8 +185,12 @@ def test_resolve_replica_source(
         "region": "us-east-1",
         "blue_green_deployment": {
             "enabled": True,
+            "target": {
+                "parameter_group": "/path/to/new_parameter_group",
+            },
         },
     }
+    rvr_2._get_values.return_value = {"k": "v"}
     spec = ExternalResourceSpec(
         provision_provider="aws",
         provisioner={"name": "test"},
@@ -205,7 +209,12 @@ def test_resolve_replica_source(
         "replica_source": {
             "identifier": "test-rds",
             "region": "us-east-1",
-            "blue_green_deployment_enabled": True,
+            "blue_green_deployment": {
+                "enabled": True,
+                "target": {
+                    "parameter_group": {"k": "v"},
+                },
+            },
         },
         "output_prefix": "test-rds-read-replica-rds",
         "timeouts": DEFAULT_EXPECTED_TIMEOUTS,
