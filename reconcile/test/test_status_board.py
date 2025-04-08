@@ -245,6 +245,77 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
     ]
 
 
+def test_current_abstract_status_board_map() -> None:
+    Product.update_forward_refs()
+    Application.update_forward_refs()
+
+    current_data = [
+        Product(
+            name="product_1",
+            fullname="product_1",
+            id="1",
+            applications=[
+                Application(
+                    name="app_1",
+                    fullname="product_1/app_1",
+                    id="1_1",
+                    services=[
+                        Service(
+                            name="service_1",
+                            fullname="product_1/app_1/service_1",
+                            id="1_1_1",
+                        ),
+                        Service(
+                            name="service_2",
+                            fullname="product_1/app_1/service_2",
+                            id="1_1_2",
+                        ),
+                    ],
+                ),
+                Application(
+                    name="app_2", fullname="product_1/app_2", id="1_2", services=[]
+                ),
+            ],
+        ),
+        Product(
+            name="product_2",
+            fullname="product_2",
+            id="2",
+            applications=[
+                Application(
+                    name="app_3", fullname="product_2/app_3", id="2_3", services=[]
+                )
+            ],
+        ),
+    ]
+
+    flat_map = StatusBoardExporterIntegration.current_abstract_status_board_map(
+        current_data
+    )
+
+    assert flat_map == {
+        "product_1": {"type": "product", "product": "product_1", "app": ""},
+        "product_1/app_1": {"type": "app", "product": "product_1", "app": "app_1"},
+        "product_1/app_1/service_1": {
+            "type": "service",
+            "product": "product_1",
+            "app": "app_1",
+            "service": "service_1",
+            "metadata": None,
+        },
+        "product_1/app_1/service_2": {
+            "type": "service",
+            "product": "product_1",
+            "app": "app_1",
+            "service": "service_2",
+            "metadata": None,
+        },
+        "product_1/app_2": {"type": "app", "product": "product_1", "app": "app_2"},
+        "product_2": {"type": "product", "product": "product_2", "app": ""},
+        "product_2/app_3": {"type": "app", "product": "product_2", "app": "app_3"},
+    }
+
+
 def test_get_diff_create_app() -> None:
     Product.update_forward_refs()
     Application.update_forward_refs()
