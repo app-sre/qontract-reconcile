@@ -552,6 +552,46 @@ def test_get_diff_delete_apps_and_product() -> None:
     assert isinstance(h[1].status_board_object, Product)
 
 
+def test_get_diff_delete_product_app_and_service() -> None:
+    Product.update_forward_refs()
+    Application.update_forward_refs()
+
+    h = StatusBoardExporterIntegration.get_diff(
+        desired_abstract_status_board_map={},
+        current_abstract_status_board_map={
+            "foo": {"product": "foo", "type": "product", "app": ""},
+            "foo/bar": {"product": "foo", "type": "app", "app": "bar"},
+            "foo/bar/baz": {
+                "product": "foo",
+                "type": "service",
+                "app": "bar",
+                "service": "baz",
+                "metadata": {},
+            },
+        },
+        current_products={
+            "foo": Product(
+                name="foo",
+                fullname="foo",
+                applications=[
+                    Application(
+                        name="bar",
+                        fullname="foo/bar",
+                        services=[
+                            Service(name="baz", fullname="foo/bar/baz", metadata={})
+                        ],
+                    )
+                ],
+            )
+        },
+    )
+    assert len(h) == 3
+    assert h[0].action == h[1].action == h[2].action == Action.delete
+    assert isinstance(h[0].status_board_object, Service)
+    assert isinstance(h[1].status_board_object, Application)
+    assert isinstance(h[2].status_board_object, Product)
+
+
 def test_apply_sorted(mocker: MockerFixture) -> None:
     Product.update_forward_refs()
     Application.update_forward_refs()
