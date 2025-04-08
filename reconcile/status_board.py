@@ -375,10 +375,11 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             service_name: str,
             metadata: dict[str, Any],
             application: Application,
+            product: Product,
         ) -> Service:
             return Service(
                 name=service_name,
-                fullname=f"{p.name}/{application.name}/{name}",
+                fullname=f"{product.name}/{application.name}/{name}",
                 metadata=metadata,
                 application=application,
             )
@@ -415,7 +416,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     for s in this_app_services:
                         name = s["service"]
                         metadata = s["metadata"]
-                        service = create_service(name, metadata, application)
+                        service = create_service(name, metadata, application, p)
 
                         return_list.append(
                             StatusBoardHandler(
@@ -450,7 +451,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 for s in this_app_services:
                     name = s["service"]
                     metadata = s["metadata"]
-                    service = create_service(name, metadata, application)
+                    service = create_service(name, metadata, application, product)
 
                     return_list.append(
                         StatusBoardHandler(
@@ -468,7 +469,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     for s in this_app_services or []:
                         name = s["service"]
                         metadata = s["metadata"]
-                        service = create_service(name, metadata, application)
+                        service = create_service(name, metadata, application, p)
 
                         return_list.append(
                             StatusBoardHandler(
