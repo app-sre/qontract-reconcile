@@ -31,17 +31,17 @@ ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile && \
     chown -R reconcile /.terraform.d
 
-WORKDIR /work
+# Use a different workdir so venv can't be overwritten by volume mount
+WORKDIR /opt/app-root/src
 
 COPY --from=build-image --chown=reconcile:root /work/ ./
 RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-cache --group debugger --no-group dev
-# Move .venv out of the workdir so it can't be overwritten by volume mount
-RUN mv .venv /venv
 
+WORKDIR /work
 USER reconcile
 VOLUME ["/work", "/config"]
 # Set the PATH to include the virtualenv
-ENV PATH="/venv/bin:${PATH}"
+ENV PATH="/opt/app-root/src/.venv/bin:${PATH}"
 ENTRYPOINT ["/work/dev/run.sh"]
 
 
