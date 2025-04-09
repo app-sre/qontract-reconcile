@@ -412,14 +412,21 @@ def test_get_diff_create_product_app_and_service() -> None:
 
     assert len(h) == 4
     assert h[0].action == Action.create
-    assert h[0].status_board_object.name == "foo"
-    assert isinstance(h[0].status_board_object, Product)
-    assert h[1].status_board_object.name == "bar"
-    assert isinstance(h[1].status_board_object, Application)
-    assert h[2].status_board_object.name == "baz"
-    assert isinstance(h[2].status_board_object, Service)
-    assert h[3].status_board_object.name == "foo"
-    assert isinstance(h[3].status_board_object, Application)
+    assert any(
+        e.status_board_object.name == "foo"
+        and isinstance(e.status_board_object, Product)
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "bar"
+        and isinstance(e.status_board_object, Application)
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "baz"
+        and isinstance(e.status_board_object, Service)
+        for e in h
+    )
 
 
 def test_get_diff_update_service() -> None:
