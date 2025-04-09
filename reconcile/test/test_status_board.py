@@ -606,15 +606,23 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
     logging = mocker.patch("reconcile.status_board.logging", autospec=True)
 
     product = Product(name="foo", fullname="foo", applications=[])
+    application = Application(
+        name="bar",
+        fullname="foo/bar",
+        product=product,
+        services=[],
+    )
     h = [
         StatusBoardHandler(
             action=Action.create,
-            status_board_object=Application(
-                name="bar",
-                fullname="foo/bar",
-                product=product,
-                services=[],
+            status_board_object=Service(
+                name="baz",
+                fullname="foo/bar/baz",
             ),
+        ),
+        StatusBoardHandler(
+            action=Action.create,
+            status_board_object=application,
         ),
         StatusBoardHandler(
             action=Action.create,
@@ -627,6 +635,7 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
         calls=[
             call('Action.create - Product: "foo"'),
             call('Action.create - Application: "bar" "foo/bar"'),
+            call('Action.create - Service: "baz" "foo/bar/baz"'),
         ],
         any_order=False,
     )
