@@ -3700,7 +3700,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             }
 
             lambda_values["function_name"] = lambda_identifier
-            lambda_values["runtime"] = common_values.get("runtime", "nodejs10.x")
+            lambda_values["runtime"] = common_values.get("runtime", "nodejs18.x")
             lambda_values["timeout"] = common_values.get("timeout", 30)
             lambda_values["handler"] = common_values.get("handler", "index.handler")
             lambda_values["memory_size"] = common_values.get("memory_size", 128)
