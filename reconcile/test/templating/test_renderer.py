@@ -28,6 +28,7 @@ from reconcile.templating.renderer import (
     unpack_dynamic_variables,
     unpack_static_variables,
 )
+from reconcile.utils.gql import GqlApi
 from reconcile.utils.jinja2.utils import Jinja2TemplateError
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
@@ -146,8 +147,10 @@ def reconcile_mocks(mocker: MockerFixture) -> tuple:
     p = mocker.MagicMock(LocalFilePersistence)
     p.dry_run = False
     r = create_ruamel_instance()
+    g = MagicMock(spec=GqlApi)
+    g.url = "https://example.com/graphql"
 
-    return t, p, r, pt
+    return t, p, r, pt, g
 
 
 @pytest.fixture
@@ -534,8 +537,8 @@ def test_reconcile_simple(
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection]
 
-    t, p, r, pt = reconcile_mocks
-    t.reconcile(p, r)
+    t, p, r, pt, g = reconcile_mocks
+    t.reconcile(g, p, r)
 
     pt.assert_called_once()
     assert pt.call_args[0] == (
@@ -559,11 +562,12 @@ def test_reconcile_twice(
     reconcile_mocks: tuple,
     template_collection: TemplateCollectionV1,
 ) -> None:
-    t, p, r, pt = reconcile_mocks
+    t, p, r, pt, g = reconcile_mocks
 
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection, template_collection]
-    t.reconcile(p, r)
+
+    t.reconcile(g, p, r)
 
     assert pt.call_count == 2
 
@@ -574,7 +578,7 @@ def test_reconcile_variables(
     template_collection: TemplateCollectionV1,
     template_collection_variable: TemplateCollectionVariablesV1,
 ) -> None:
-    t, p, r, pt = reconcile_mocks
+    t, p, r, pt, g = reconcile_mocks
 
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     template_collection.variables = template_collection_variable
@@ -586,7 +590,7 @@ def test_reconcile_variables(
     usv = mocker.patch("reconcile.templating.renderer.unpack_static_variables")
     usv.return_value = {"baz": "qux"}
 
-    t.reconcile(p, r)
+    t.reconcile(g, p, r)
 
     pt.assert_called_once()
     assert pt.call_args[0] == (
