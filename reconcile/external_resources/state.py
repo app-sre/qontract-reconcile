@@ -300,11 +300,17 @@ class ExternalResourcesStateDynamoDB:
         """
         logging.debug("Getting Managed resources from DynamoDb")
         partials = {}
-        for item in self.aws_api.dynamodb.boto3_client.scan(
-            TableName=self._table, ProjectionExpression=self.PARTIALS_PROJECTED_VALUES
-        ).get("Items", []):
-            s = self.adapter.deserialize(item, partial_data=True)
-            partials[s.key] = s
+        paginator = self.aws_api.dynamodb.boto3_client.get_paginator("scan")
+        pages = paginator.paginate(
+            TableName=self._table,
+            ProjectionExpression=self.PARTIALS_PROJECTED_VALUES,
+            ConsistentRead=True,
+            PaginationConfig={"PageSize": 1000},
+        )
+        for page in pages:
+            for item in page.get("Items", []):
+                s = self.adapter.deserialize(item, partial_data=True)
+                partials[s.key] = s
         return partials
 
     def get_all_resource_keys(self) -> set[ExternalResourceKey]:
