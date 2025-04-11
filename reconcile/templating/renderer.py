@@ -211,6 +211,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
                 MrData(result=self.result, auto_approved=False)
             )
 
+
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_latest_gql_bundle_commit_sha(url: str, token: str | None = None) -> str:
     parsed_url = urlparse(url)
