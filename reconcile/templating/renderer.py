@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import requests
 from ruamel import yaml
+from sretoolbox.utils import retry
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
@@ -210,7 +211,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
                 MrData(result=self.result, auto_approved=False)
             )
 
-
+@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_latest_gql_bundle_commit_sha(url: str, token: str | None = None) -> str:
     parsed_url = urlparse(url)
     git_commit_info_endpoint = parsed_url._replace(path="/git-commit-info")
