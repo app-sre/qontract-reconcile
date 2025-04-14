@@ -126,10 +126,6 @@ class PatchRenderer(Renderer):
 
             def get_identifier(data: dict[str, Any]) -> Any:
                 assert self.template.patch is not None  # mypy
-                if not self.template.patch.identifier:
-                    raise ValueError(
-                        f"Expected identifier in patch for list at {self.template}"
-                    )
                 if self.template.patch.identifier.startswith(
                     "$"
                 ) and not self.template.patch.identifier.startswith("$ref"):
@@ -144,24 +140,35 @@ class PatchRenderer(Renderer):
                     return None
                 return data.get(self.template.patch.identifier)
 
-            dta_identifier = get_identifier(data_to_add)
-            if not dta_identifier:
-                raise ValueError(
-                    f"Expected identifier {self.template.patch.identifier} in data to add"
+            def update_data(data_to_add: dict[str, Any], matched_value: list) -> None:
+                assert self.template.patch is not None  # mypy
+                if not self.template.patch.identifier:
+                    raise ValueError(
+                        f"Expected identifier in patch for list at {self.template}"
+                    )
+                dta_identifier = get_identifier(data_to_add)
+                if not dta_identifier:
+                    raise ValueError(
+                        f"Expected identifier {self.template.patch.identifier} in data to add"
+                    )
+                index = next(
+                    (
+                        index
+                        for index, data in enumerate(matched_value)
+                        if get_identifier(data) == dta_identifier
+                    ),
+                    None,
                 )
+                if index is None:
+                    matched_value.append(data_to_add)
+                else:
+                    matched_value[index] = data_to_add
 
-            index = next(
-                (
-                    index
-                    for index, data in enumerate(matched_value)
-                    if get_identifier(data) == dta_identifier
-                ),
-                None,
-            )
-            if index is None:
-                matched_value.append(data_to_add)
+            if isinstance(data_to_add, list):
+                for d in data_to_add:
+                    update_data(d, matched_value)
             else:
-                matched_value[index] = data_to_add
+                update_data(data_to_add, matched_value)
         else:
             matched_value.update(data_to_add)
 
