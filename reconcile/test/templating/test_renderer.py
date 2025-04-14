@@ -143,7 +143,7 @@ def template_collection_variable(
 def reconcile_mocks(mocker: MockerFixture) -> tuple:
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     pt = mocker.patch.object(t, "process_template")
-    mocker.patch("reconcile.templating.renderer.init_from_config")
+    mocker.patch("reconcile.templating.renderer.gql.get_api")
     p = mocker.MagicMock(LocalFilePersistence)
     p.dry_run = False
     r = create_ruamel_instance()

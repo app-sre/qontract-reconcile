@@ -6,11 +6,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Self
-from urllib.parse import urlparse
 
-import requests
 from ruamel import yaml
-from sretoolbox.utils import retry
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
@@ -34,7 +31,7 @@ from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.git import checkout, clone
-from reconcile.utils.gql import GqlApi, init_from_config
+from reconcile.utils.gql import GqlApi
 from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
@@ -212,19 +209,6 @@ class ClonedRepoGitlabPersistence(FilePersistence):
             )
 
 
-@retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
-def get_latest_gql_bundle_commit_sha(url: str, token: str | None = None) -> str:
-    parsed_url = urlparse(url)
-    git_commit_info_endpoint = parsed_url._replace(path="/git-commit-info")
-    headers = {"Authorization": token} if token else None
-    response = requests.get(
-        git_commit_info_endpoint.geturl(), headers=headers, timeout=60
-    )
-    response.raise_for_status()
-    git_commit_info = response.json()
-    return git_commit_info["commit"]
-
-
 def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
     each: dict[str, Any],
@@ -379,7 +363,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def run(self, dry_run: bool) -> None:
         persistence: FilePersistence
         ruaml_instance = create_ruamel_instance(explicit_start=True)
-        gql_api = init_from_config(validate_schemas=False)
+        gql_api = gql.get_api()
 
         if not self.params.clone_repo and self.params.app_interface_data_path:
             persistence = LocalFilePersistence(
@@ -412,13 +396,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             with tempfile.TemporaryDirectory(
                 prefix=f"{QONTRACT_INTEGRATION}-",
             ) as temp_dir:
-                bundle_commit_sha = get_latest_gql_bundle_commit_sha(
-                    gql_api.url, gql_api.token
-                )
                 logging.debug(f"Cloning {url} to {temp_dir}")
                 clone(url, temp_dir, depth=1, verify=ssl_verify)
-                logging.debug(f"Checking out commit {bundle_commit_sha}")
-                checkout(bundle_commit_sha, temp_dir, verify=bool(ssl_verify))
+                logging.debug(f"Checking out commit {gql_api.commit}")
+                checkout(gql_api.commit, temp_dir, verify=bool(ssl_verify))
                 persistence = ClonedRepoGitlabPersistence(
                     dry_run=dry_run,
                     local_path=temp_dir,
