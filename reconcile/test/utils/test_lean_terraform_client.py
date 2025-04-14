@@ -171,7 +171,7 @@ def test_show_json(mocker: MockerFixture) -> None:
 
 
 def test_terraform_component() -> None:
-    with tempfile.TemporaryDirectory() as working_dir:
+    with tempfile.TemporaryDirectory(dir=os.getcwd()) as working_dir:
         with open(os.path.join(working_dir, "main.tf"), "w", encoding="locale"):
             pass
         assert lean_terraform_client.init(working_dir)[0] == 0
