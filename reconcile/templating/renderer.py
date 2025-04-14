@@ -331,7 +331,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                     persistence_transaction.write(output)
 
     def reconcile(
-        self, gql_api: GqlApi, persistence: FilePersistence, ruamel_instance: yaml.YAML
+        self, persistence: FilePersistence, ruamel_instance: yaml.YAML
     ) -> None:
         for collection in get_template_collections(
             name=self.params.template_collection_name
@@ -350,7 +350,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 for item in for_each_items:
                     self.reconcile_template_collection(
                         collection=collection,
-                        gql_api=gql_api,
+                        gql_api=gql.get_api(),
                         persistence=p,
                         ruamel_instance=ruamel_instance,
                         each=item,
@@ -363,14 +363,13 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def run(self, dry_run: bool) -> None:
         persistence: FilePersistence
         ruaml_instance = create_ruamel_instance(explicit_start=True)
-        gql_api = gql.get_api()
 
         if not self.params.clone_repo and self.params.app_interface_data_path:
             persistence = LocalFilePersistence(
                 dry_run=dry_run,
                 app_interface_data_path=self.params.app_interface_data_path,
             )
-            self.reconcile(gql_api, persistence, ruaml_instance)
+            self.reconcile(persistence, ruaml_instance)
 
         elif self.params.clone_repo:
             gitlab_instances = get_gitlab_instances()
@@ -398,15 +397,15 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             ) as temp_dir:
                 logging.debug(f"Cloning {url} to {temp_dir}")
                 clone(url, temp_dir, depth=1, verify=ssl_verify)
-                logging.debug(f"Checking out commit {gql_api.commit}")
-                checkout(gql_api.commit, temp_dir, verify=bool(ssl_verify))
+                logging.debug(f"Checking out commit {gql.get_api().commit}")
+                checkout(str(gql.get_api().commit), temp_dir, verify=bool(ssl_verify))
                 persistence = ClonedRepoGitlabPersistence(
                     dry_run=dry_run,
                     local_path=temp_dir,
                     vcs=vcs,
                     mr_manager=merge_request_manager,
                 )
-                self.reconcile(gql_api, persistence, ruaml_instance)
+                self.reconcile(persistence, ruaml_instance)
 
         else:
             raise ValueError("App-interface-data-path must be set")
