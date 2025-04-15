@@ -76,7 +76,7 @@ class SLODocumentSLOV1(ConfiguredBaseModel):
     slo_target_unit: str = Field(..., alias="SLOTargetUnit")
 
 
-class SaasSLODocument(ConfiguredBaseModel):
+class SLODocument(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     namespaces: list[SLONamespacesV1] = Field(..., alias="namespaces")
     slos: Optional[list[SLODocumentSLOV1]] = Field(..., alias="slos")

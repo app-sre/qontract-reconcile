@@ -17,19 +17,11 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 
 
 DEFINITION = """
-fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
-}
-
-query SLODocuments {
-  slo_documents: slo_document_v1 {
+fragment SLODocument on SLODocument_v1 {
     name
     namespaces {
       prometheusAccess {
@@ -71,6 +63,18 @@ query SLODocuments {
       SLOTarget
       SLOTargetUnit
     }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
+query SLODocuments {
+  slo_documents: slo_document_v1 {
+  ... SLODocument
   }
 }
 """
@@ -82,64 +86,8 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class SLOExternalPrometheusAccessV1(ConfiguredBaseModel):
-    url: str = Field(..., alias="url")
-    username: Optional[VaultSecret] = Field(..., alias="username")
-    password: Optional[VaultSecret] = Field(..., alias="password")
-
-
-class AppV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-
-
-class ClusterSpecV1(ConfiguredBaseModel):
-    private: bool = Field(..., alias="private")
-
-
-class ClusterV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
-    prometheus_url: str = Field(..., alias="prometheusUrl")
-    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
-
-
-class NamespaceV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    app: AppV1 = Field(..., alias="app")
-    cluster: ClusterV1 = Field(..., alias="cluster")
-
-
-class SLONamespacesV1_NamespaceV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-
-
-class SLONamespacesV1(ConfiguredBaseModel):
-    prometheus_access: Optional[SLOExternalPrometheusAccessV1] = Field(..., alias="prometheusAccess")
-    namespace: NamespaceV1 = Field(..., alias="namespace")
-    slo_namespace: Optional[SLONamespacesV1_NamespaceV1] = Field(..., alias="SLONamespace")
-
-
-class SLODocumentSLOSLOParametersV1(ConfiguredBaseModel):
-    window: str = Field(..., alias="window")
-
-
-class SLODocumentSLOV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    expr: str = Field(..., alias="expr")
-    sli_type: str = Field(..., alias="SLIType")
-    slo_parameters: SLODocumentSLOSLOParametersV1 = Field(..., alias="SLOParameters")
-    slo_target: float = Field(..., alias="SLOTarget")
-    slo_target_unit: str = Field(..., alias="SLOTargetUnit")
-
-
-class SLODocumentV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    namespaces: list[SLONamespacesV1] = Field(..., alias="namespaces")
-    slos: Optional[list[SLODocumentSLOV1]] = Field(..., alias="slos")
-
-
 class SLODocumentsQueryData(ConfiguredBaseModel):
-    slo_documents: Optional[list[SLODocumentV1]] = Field(..., alias="slo_documents")
+    slo_documents: Optional[list[SLODocument]] = Field(..., alias="slo_documents")
 
 
 def query(query_func: Callable, **kwargs: Any) -> SLODocumentsQueryData:

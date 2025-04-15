@@ -1,6 +1,6 @@
 
 # qenerate: plugin=pydantic_v1
-fragment SaasSLODocument on SLODocument_v1 {
+fragment SLODocument on SLODocument_v1 {
     name
     namespaces {
       prometheusAccess {
