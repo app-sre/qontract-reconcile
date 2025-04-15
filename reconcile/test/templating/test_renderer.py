@@ -142,7 +142,7 @@ def template_collection_variable(
 def reconcile_mocks(mocker: MockerFixture) -> tuple:
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     pt = mocker.patch.object(t, "process_template")
-    mocker.patch("reconcile.templating.renderer.init_from_config")
+    mocker.patch("reconcile.templating.renderer.gql.get_api")
     p = mocker.MagicMock(LocalFilePersistence)
     p.dry_run = False
     r = create_ruamel_instance()
@@ -563,6 +563,7 @@ def test_reconcile_twice(
 
     gtc = mocker.patch("reconcile.templating.renderer.get_template_collections")
     gtc.return_value = [template_collection, template_collection]
+
     t.reconcile(p, r)
 
     assert pt.call_count == 2
