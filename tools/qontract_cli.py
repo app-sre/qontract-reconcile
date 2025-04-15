@@ -2510,7 +2510,7 @@ def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -
             try:
                 for resource in sss["spec"]["resources"]:
                     kind = resource["kind"]
-                    namespace = resource["metadata"].get("namespace")
+                    namespace = resource["metadata"].get("namespace", "")
                     name = resource["metadata"]["name"]
                     item = {
                         "cluster": c_name,
