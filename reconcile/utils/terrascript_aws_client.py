@@ -358,6 +358,10 @@ class cloudinit_config(Data):
     pass
 
 
+class aws_lb_trust_store(Resource):
+    pass
+
+
 # temporary until we upgrade to a terrascript release
 # that supports this provider
 # https://github.com/mjuenema/python-terrascript/pull/166
