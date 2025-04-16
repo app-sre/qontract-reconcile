@@ -16,7 +16,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 PROM_QUERY_URL = "api/v1/query"
 
-DEFAULT_READ_TIMEOUT = 5
+DEFAULT_READ_TIMEOUT = 30
 DEFAULT_RETRIES = 3
 
 
