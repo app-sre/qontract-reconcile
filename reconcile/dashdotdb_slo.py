@@ -27,6 +27,8 @@ from reconcile.utils.slo_document_manager import (
 )
 
 QONTRACT_INTEGRATION = "dashdotdb-slo"
+READ_TIMEOUT = 10
+MAX_RETRIES = 2
 
 
 def get_slo_documents() -> list[SLODocument]:
@@ -110,6 +112,8 @@ class DashdotdbSLO(DashdotdbBase):
             slo_documents=slo_documents,
             secret_reader=self.secret_reader,
             thread_pool_size=self.thread_pool_size,
+            read_timeout=READ_TIMEOUT,
+            max_retries=MAX_RETRIES,
         )
 
         slo_details_list = threaded.run(

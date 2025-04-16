@@ -16,8 +16,8 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 PROM_QUERY_URL = "api/v1/query"
 
-DEFAULT_READ_TIMEOUT = 10
-DEFAULT_RETRIES = 3
+DEFAULT_READ_TIMEOUT = 30
+DEFAULT_RETRIES = 5
 
 
 class EmptySLOResult(Exception):
@@ -93,6 +93,8 @@ class SLODocumentManager(ApiBase):
         slo_documents: list[SLODocument],
         secret_reader: SecretReaderBase,
         thread_pool_size: int = 1,
+        read_timeout: int = DEFAULT_READ_TIMEOUT,
+        max_retries: int = DEFAULT_RETRIES,
     ) -> list["SLODocumentManager"]:
         """
         Creates a list of SLODocumentManager instances from a list of SLO documents.
@@ -104,6 +106,8 @@ class SLODocumentManager(ApiBase):
                 slos=slo_document.slos,
                 secret_reader=secret_reader,
                 thread_pool_size=thread_pool_size,
+                read_timeout=read_timeout,
+                max_retries=max_retries,
             )
             for slo_document in slo_documents
             for namespace in slo_document.namespaces
