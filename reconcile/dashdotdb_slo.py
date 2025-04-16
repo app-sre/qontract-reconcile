@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
+from requests.exceptions import ConnectionError
 from sretoolbox.utils import threaded
 
 from reconcile.dashdotdb_base import (
@@ -109,6 +110,20 @@ class DashdotdbSLO(DashdotdbBase):
     def get_current_slo_details(slo_manager: SLODocumentManager) -> list[SLODetails]:
         return slo_manager.get_slo_details_list()
 
+    @staticmethod
+    def check_and_raise_exception(exceptions: list[Exception]) -> None:
+        connection_exceptions = [
+            connection_exception
+            for connection_exception in exceptions
+            if isinstance(connection_exception, ConnectionError)
+        ]
+        if connection_exceptions:
+            raise RuntimeError(
+                f"Found exceptions while getting the slo details {connection_exceptions}"
+            )
+        for slo_exception in exceptions:
+            LOG.error(slo_exception)
+
     def run(self) -> None:
         slo_documents = get_slo_documents()
 
@@ -135,8 +150,8 @@ class DashdotdbSLO(DashdotdbBase):
             thread_pool_size=self.thread_pool_size,
         )
         self._close_token()
-        for exception in slo_exceptions:
-            LOG.error(f"Exception: {exception}")
+        if slo_exceptions:
+            self.check_and_raise_exception(slo_exceptions)
 
 
 def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
