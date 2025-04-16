@@ -1,5 +1,4 @@
 import itertools
-from dataclasses import dataclass
 from typing import Any
 
 import requests
@@ -34,30 +33,6 @@ def get_slo_documents() -> list[SLODocument]:
     gqlapi = gql.get_api()
     data = query(gqlapi.query)
     return list(data.slo_documents or [])
-
-
-@dataclass
-class ServiceSLO:
-    name: str
-    sli_type: str
-    slo_doc_name: str
-    namespace_name: str
-    cluster_name: str
-    service_name: str
-    value: float
-    target: float
-
-    def dashdot_payload(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "SLIType": self.sli_type,
-            "SLODoc": {"name": self.slo_doc_name},
-            "namespace": {"name": self.namespace_name},
-            "cluster": {"name": self.cluster_name},
-            "service": {"name": self.service_name},
-            "value": self.value,
-            "target": self.target,
-        }
 
 
 class DashdotdbSLO(DashdotdbBase):

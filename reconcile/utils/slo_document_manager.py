@@ -40,7 +40,7 @@ class PromCredentials:
     username: str
     password: str
 
-    def get_session(self) -> requests.Session:
+    def build_session(self) -> requests.Session:
         session = requests.Session()
         if self.is_basic_auth:
             session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
@@ -82,7 +82,7 @@ class SLODocumentManager(ApiBase):
         self.prom_credentials = self._get_credentials_from_slo_namespace(namespace)
         super().__init__(
             host=self.prom_credentials.prom_url,
-            session=self.prom_credentials.get_session(),
+            session=self.prom_credentials.build_session(),
             read_timeout=read_timeout,
             max_retries=max_retries,
         )
