@@ -16,7 +16,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 PROM_QUERY_URL = "api/v1/query"
 
-DEFAULT_READ_TIMEOUT = 30
+DEFAULT_READ_TIMEOUT = 10
 DEFAULT_RETRIES = 3
 
 
@@ -192,13 +192,10 @@ class SLODocumentManager(ApiBase):
         return slo_details
 
     def get_slo_details_list(self) -> list[SLODetails]:
-        try:
-            slo_details_list = threaded.run(
-                self._get_slo_details,
-                self.slos,
-                self.thread_pool_size,
-                return_exceptions=True,
-            )
-        finally:
-            self.cleanup()
+        slo_details_list = threaded.run(
+            self._get_slo_details,
+            self.slos,
+            self.thread_pool_size,
+            return_exceptions=True,
+        )
         return slo_details_list

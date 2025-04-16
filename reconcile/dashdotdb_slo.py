@@ -83,7 +83,11 @@ class DashdotdbSLO(DashdotdbBase):
 
     @staticmethod
     def get_current_slo_details(slo_manager: SLODocumentManager) -> list[SLODetails]:
-        return slo_manager.get_slo_details_list()
+        try:
+            slo_details_list = slo_manager.get_slo_details_list()
+        finally:
+            slo_manager.cleanup()
+        return slo_details_list
 
     @staticmethod
     def check_and_raise_exception(exceptions: list[Exception]) -> None:
