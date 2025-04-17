@@ -38,6 +38,7 @@ def run(dry_run: bool, thread_pool_size: int) -> None:
         spec
         for key, spec in er_inventory.items()
         if m_inventory.get_from_external_resource_key(key).outputs_secret_sync
+        and not spec.marked_to_delete
     ]
 
     reconciler = VaultSecretsReconciler(
