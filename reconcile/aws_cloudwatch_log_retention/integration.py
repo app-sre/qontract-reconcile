@@ -233,6 +233,15 @@ def _reconcile_log_groups(
             )
 
 
+def get_aws_accounts_test() -> list[dict]:
+    gql_api_query = gql.get_api().query
+    return [
+        account.dict(by_alias=True)
+        for account in get_aws_accounts(query_func=gql_api_query).accounts
+        or []
+    ]
+
+
 def get_active_aws_accounts() -> list[dict]:
     gql_api_query = gql.get_api().query
     accounts = get_aws_accounts(query_func=gql_api_query).accounts
