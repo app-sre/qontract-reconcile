@@ -367,6 +367,8 @@ class ManagedResourceName(Protocol):
     resource: str
     resource_names: list[str]
 
+    def dict(self) -> dict[str, str]: ...
+
 
 class SaasFile(HasParameters, HasSecretParameters, Protocol):
     path: str
