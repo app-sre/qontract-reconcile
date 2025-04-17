@@ -19,6 +19,7 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
@@ -98,6 +99,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceMskV1
     | NamespaceTerraformResourceElastiCacheV1
     | NamespaceTerraformResourceKMSV1
+    | NamespaceTerraformResourceCloudWatchV1
 )
 
 

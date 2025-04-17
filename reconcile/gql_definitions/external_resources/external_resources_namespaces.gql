@@ -211,6 +211,11 @@ query ExternalResourcesNamespaces {
                 defaults
                 es_identifier
                 filter_pattern
+                managed_by_erv2
+                delete
+                module_overrides {
+                   ... ExternalResourcesModuleOverrides
+                }
                 output_resource_name
                 annotations
             }
