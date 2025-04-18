@@ -450,13 +450,17 @@ def get_api_for_server(
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
 def get_diff(
-    old_sha: str, file_type: str | None = None, file_path: str | None = None
+    old_sha: str,
+    current_sha: str | None = None,
+    file_type: str | None = None,
+    file_path: str | None = None,
 ) -> dict[str, Any]:
     config = get_config()
 
     server_url = urlparse(config["graphql"]["server"])
     token = config["graphql"].get("token")
-    current_sha = get_sha(server_url, token)
+    if not current_sha:
+        current_sha = get_sha(server_url, token)
     logging.debug(f"get bundle diffs between {old_sha} and {current_sha}...")
     if file_type and file_path:
         if not file_path.startswith("/"):
