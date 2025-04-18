@@ -11,7 +11,10 @@ from botocore.exceptions import ClientError
 from pydantic import BaseModel
 
 from reconcile import queries
-from reconcile.queries import get_aws_accounts
+from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
+    query as get_aws_accounts,
+)
+from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
@@ -230,13 +233,31 @@ def _reconcile_log_groups(
             )
 
 
-def get_active_aws_accounts() -> list[dict]:
+def get_aws_accounts_test() -> list[dict]:
+    gql_api_query = gql.get_api().query
     return [
-        a
-        for a in get_aws_accounts(cleanup=True)
-        if "aws-cloudwatch-log-retention"
-        not in (a.get("disable") or {}).get("integrations", [])
+        account.dict(by_alias=True)
+        for account in get_aws_accounts(query_func=gql_api_query).accounts
+        or []
     ]
+
+
+def get_active_aws_accounts() -> list[dict]:
+    gql_api_query = gql.get_api().query
+    accounts = get_aws_accounts(query_func=gql_api_query).accounts
+    if accounts is not None:
+        accounts = [
+            account
+            for account in accounts
+            if account.disable is None
+            or (
+                account.disable.integrations is not None
+                and (
+                    "aws-cloudwatch-log-retention" not in (account.disable.integrations)
+                )
+            )
+        ]
+    return [account.dict(by_alias=True) for account in accounts or []]
 
 
 def run(dry_run: bool, thread_pool_size: int) -> None:
