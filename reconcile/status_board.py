@@ -61,6 +61,10 @@ class AbstractStatusBoard(ABC, BaseModel):
         pass
 
     @abstractmethod
+    def update(self, ocm: OCMBaseClient) -> None:
+        pass
+
+    @abstractmethod
     def delete(self, ocm: OCMBaseClient) -> None:
         pass
 
@@ -82,6 +86,11 @@ class Product(AbstractStatusBoard):
         spec.pop("applications")
         spec.pop("id")
         self.id = create_product(ocm, spec)
+
+    def update(self, ocm: OCMBaseClient) -> None:
+        err_msg = "Called update on StatusBoardHandler that doesn't have update method"
+        logging.error(err_msg)
+        raise UpdateNotSupported(err_msg)
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
@@ -111,6 +120,11 @@ class Application(AbstractStatusBoard):
             self.id = create_application(ocm, spec)
         else:
             logging.warning("Missing product id for application")
+
+    def update(self, ocm: OCMBaseClient) -> None:
+        err_msg = "Called update on StatusBoardHandler that doesn't have update method"
+        logging.error(err_msg)
+        raise UpdateNotSupported(err_msg)
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
@@ -193,16 +207,6 @@ class StatusBoardHandler(BaseModel):
     def act(self, dry_run: bool, ocm: OCMBaseClient) -> None:
         logging.info(f"{self.action} - {self.status_board_object.summarize()}")
 
-        # Avoiding updating a inexisting service in dry-run
-        if self.action == Action.update and not isinstance(
-            self.status_board_object, Service
-        ):
-            err_msg = (
-                "Called update on StatusBoardHandler that doesn't have update method"
-            )
-            logging.error(err_msg)
-            raise UpdateNotSupported(err_msg)
-
         if dry_run:
             return
 
@@ -212,8 +216,7 @@ class StatusBoardHandler(BaseModel):
             case Action.create:
                 self.status_board_object.create(ocm)
             case Action.update:
-                if isinstance(self.status_board_object, Service):
-                    self.status_board_object.update(ocm)
+                self.status_board_object.update(ocm)
 
 
 class StatusBoardExporterIntegration(QontractReconcileIntegration):
