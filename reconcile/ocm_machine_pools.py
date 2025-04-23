@@ -36,6 +36,8 @@ from reconcile.utils.ocm import (
 from reconcile.utils.secret_reader import create_secret_reader
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
+APP_INTERFACE_MANAGED_LABELS_KEY = "app-interface-managed-nodepool-labels"
+APP_INTERFACE_MANAGED_TAINTS_KEY = "app-interface-managed-nodepool-taints"
 
 
 class ClusterType(Enum):
@@ -231,8 +233,6 @@ class AWSNodePool(BaseModel):
 
 class NodePool(AbstractPool):
     # Node pool, used for HyperShift clusters
-    APP_INTERFACE_MANAGED_LABELS_KEY = "app-interface-managed-nodepool-labels"
-    APP_INTERFACE_MANAGED_TAINTS_KEY = "app-interface-managed-nodepool-taints"
 
     class Config:
         arbitrary_types_allowed = True
@@ -249,7 +249,7 @@ class NodePool(AbstractPool):
         ocm.create_node_pool(self.cluster, spec)
 
     def update(self, ocm: OCM) -> None:
-        update_dict = self.dict(by_alias=True)
+        update_dict = self.dict(by_alias=True, exclude={"oc"})
         # can not update instance_type
         del update_dict["aws_node_pool"]
         # can not update subnet
@@ -396,6 +396,7 @@ def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
 def fetch_current_state_for_cluster(cluster, ocm):
     cluster_type = _classify_cluster_type(cluster)
     if cluster_type == ClusterType.ROSA_HCP:
+        #print(ocm.get_node_pools(cluster.name))
         return [
             NodePool(
                 id=node_pool["id"],
@@ -418,6 +419,7 @@ def fetch_current_state_for_cluster(cluster, ocm):
             )
             for node_pool in ocm.get_node_pools(cluster.name)
         ]
+    #print(ocm.get_machine_pools(cluster.name))
     return [
         MachinePool(
             id=machine_pool["id"],
