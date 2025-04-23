@@ -709,6 +709,9 @@ class OCCli:  # pylint: disable=too-many-public-methods
         cmd = ["version", "--request-timeout=5"]
         return self._run(cmd)
 
+    def get_nodes(self):
+        return self.get_all("Node")["items"]
+
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
     def wait_for_job_running(self, namespace, name):
         logging.info("waiting for job to run: " + name)

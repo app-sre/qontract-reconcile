@@ -18,14 +18,22 @@ from reconcile.gql_definitions.common.clusters import (
     ClusterSpecAutoScaleV1,
     ClusterV1,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.oc import OCClient
+from reconcile.utils.oc_map import (
+    init_oc_map_from_clusters,
+)
 from reconcile.utils.ocm import (
     DEFAULT_OCM_MACHINE_POOL_ID,
     OCM,
     OCMMap,
 )
+from reconcile.utils.secret_reader import create_secret_reader
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
@@ -223,9 +231,15 @@ class AWSNodePool(BaseModel):
 
 class NodePool(AbstractPool):
     # Node pool, used for HyperShift clusters
+    APP_INTERFACE_MANAGED_LABELS_KEY = "app-interface-managed-nodepool-labels"
+    APP_INTERFACE_MANAGED_TAINTS_KEY = "app-interface-managed-nodepool-taints"
+
+    class Config:
+        arbitrary_types_allowed = True
 
     aws_node_pool: AWSNodePool
     subnet: str | None
+    oc: OCClient | None
 
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
@@ -245,6 +259,16 @@ class NodePool(AbstractPool):
         if not update_dict["taints"]:
             del update_dict["taints"]
         ocm.update_node_pool(self.cluster, update_dict)
+
+        if update_dict["labels"]:
+            for node in self.oc.get_nodes():
+                pass
+
+    def update_node_labels(self):
+        pass
+
+    def update_node_taints(self):
+        pass
 
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
         if self.taints != pool.taints or self.labels != pool.labels:
@@ -500,11 +524,34 @@ def calculate_diff(
     return diffs, errors
 
 
-def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
+def act(
+    dry_run: bool,
+    diffs: Iterable[PoolHandler],
+    ocm_map: OCMMap,
+    clusters: list[ClusterV1],
+) -> None:
+    hcp_clusters_to_update = [
+        d.pool.cluster
+        for d in diffs
+        if d.action == "update" and isinstance(d.pool, NodePool)
+    ]
+    if hcp_clusters_to_update:
+        vault_settings = get_app_interface_vault_settings()
+        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+        clusters_map = {c.name: c for c in clusters}
+        hcp_oc_map = init_oc_map_from_clusters(
+            clusters=[
+                clusters_map[c] for c in hcp_clusters_to_update if c in clusters_map
+            ],
+            secret_reader=secret_reader,
+            integration=QONTRACT_INTEGRATION,
+        )
     for diff in diffs:
         logging.info([diff.action, diff.pool.cluster, diff.pool.id])
         if not dry_run:
             ocm = ocm_map.get(diff.pool.cluster)
+            if isinstance(diff.pool, NodePool) and diff.action == "update":
+                diff.pool.oc = hcp_oc_map.get_cluster(diff.pool.cluster)
             diff.act(dry_run, ocm)
 
 
@@ -538,7 +585,7 @@ def run(dry_run: bool):
     desired_state = create_desired_state_from_gql(filtered_clusters)
     diffs, errors = calculate_diff(current_state, desired_state)
 
-    act(dry_run, diffs, ocm_map)
+    act(dry_run, diffs, ocm_map, filtered_clusters)
 
     if errors:
         for err in errors:
