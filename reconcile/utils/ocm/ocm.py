@@ -595,6 +595,8 @@ class OCM:  # pylint: disable=too-many-public-methods
         node_pool_id = spec["id"]
         labels = spec.get("labels", {})
         spec["labels"] = labels
+        taints = spec.get("taints", [])
+        spec["taints"] = taints
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._patch(api, spec)
 
