@@ -2068,6 +2068,7 @@ PIPELINES_PROVIDERS_QUERY = """
       }
       namespace {
         name
+        delete
         cluster {
           name
           serverUrl
