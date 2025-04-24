@@ -376,7 +376,13 @@ def _construct_tekton_trigger_resource(
     body: dict[str, Any] = {
         "apiVersion": "tekton.dev/v1",
         "kind": "PipelineRun",
-        "metadata": {"generateName": f"{name}-"},
+        "metadata": {
+            "generateName": f"{name}-",
+            "labels": {
+                "qontract.saas_file_name": saas_file_name,
+                "qontract.env_name": env_name,
+            },
+        },
         "spec": {
             "pipelineRef": {"name": tkn_pipeline_name},
             "params": parameters,
