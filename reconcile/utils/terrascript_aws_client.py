@@ -4901,10 +4901,22 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     )
                 )
         # ++++++++ END: REMOVE ++++++++++
-        # add master user creds to output and secretsmanager if internal_user_database_enabled
         if advanced_security_options:
+            master_user_options_with_optional_keys_values = advanced_security_options[
+                "master_user_options"
+            ]
+            # this secret can include optional kv pairs which are then saved to secrets manager in AWS
+            # however this step strips those extra values from `master_user_options` which only expects
+            # 2 fields https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticsearch_domain#master_user_options-1
+            advanced_security_options["master_user_options"] = {
+                k: v
+                for k, v in master_user_options_with_optional_keys_values.items()
+                if k in {"master_user_name", "master_user_password"}
+            }
+            es_values["advanced_security_options"] = advanced_security_options
             if advanced_security_options.get("internal_user_database_enabled", False):
-                master_user = advanced_security_options["master_user_options"]
+                # add master user creds to output and secretsmanager if internal_user_database_enabled
+                master_user = master_user_options_with_optional_keys_values
                 secret_name = f"qrtf/es/{identifier}"
                 secret_identifier = secret_name.replace("/", "-")
                 secret_values = {"name": secret_name, "tags": tags}
@@ -4967,15 +4979,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 tf_resources.append(
                     Output(output_name, value=output_value, sensitive=True)
                 )
-            # this secret can include additional values which are then saved to secrets manager in AWS
-            # however this step strips those extra values from `master_user_options` which only expects
-            # 2 fields https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticsearch_domain#master_user_options-1
-            advanced_security_options["master_user_options"] = {
-                k: v
-                for k, v in advanced_security_options["master_user_options"].items()
-                if k in {"master_user_name", "master_user_password"}
-            }
-            es_values["advanced_security_options"] = advanced_security_options
 
         es_tf_resource = aws_elasticsearch_domain(identifier, **es_values)
         tf_resources.append(es_tf_resource)
