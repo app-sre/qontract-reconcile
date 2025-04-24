@@ -4639,11 +4639,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             admin_user_secret = auth_options["admin_user_credentials"]
             secret_data = self.secret_reader.read_all(admin_user_secret)
 
-            required_keys = {"master_user_name", "master_user_password"}
-            if secret_data.keys() != required_keys:
+            required_keys = {
+                "master_user_name",
+                "master_user_password",
+            }
+            if not (required_keys <= secret_data.keys()):
                 raise KeyError(
                     f"vault secret '{admin_user_secret['path']}' must "
-                    f"exactly contain these keys: {', '.join(required_keys)}"
+                    f"contain these keys: {', '.join(required_keys)}"
                 )
 
             # AWS requires the admin user password must be at least 8 chars long, contain at least one
@@ -5005,11 +5008,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             master_user_secret = master_user_options["master_user_secret"]
             secret_data = self.secret_reader.read_all(master_user_secret)
 
-            required_keys = {"master_user_name", "master_user_password"}
-            if secret_data.keys() != required_keys:
+            required_keys = {
+                "master_user_name",
+                "master_user_password",
+            }
+            if not (required_keys <= secret_data.keys()):
                 raise KeyError(
                     f"vault secret '{master_user_secret['path']}' must "
-                    f"exactly contain these keys: {', '.join(required_keys)}"
+                    f"contain these keys: {', '.join(required_keys)}"
                 )
 
             advanced_security_options["master_user_options"] = secret_data
