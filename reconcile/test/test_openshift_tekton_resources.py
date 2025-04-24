@@ -96,8 +96,12 @@ class TestOpenshiftTektonResources:
         self.saas1 = self.fxt.get_json("saas1.json")
         self.saas2 = self.fxt.get_json("saas2.json")
         self.saas2_wr = self.fxt.get_json("saas2-with-resources.json")
+        self.saas7_deleted_namespace = self.fxt.get_json("saas7-deleted-namespace.json")
         self.provider1 = self.fxt.get_json("provider1.json")
         self.provider2_wr = self.fxt.get_json("provider2-with-resources.json")
+        self.provider7_deleted_ns = self.fxt.get_json(
+            "provider7-deleted-namespace.json"
+        )
 
         # Patcher for GqlApi methods
         self.gql_patcher = patch.object(gql, "get_api", autospec=True)
@@ -140,6 +144,15 @@ class TestOpenshiftTektonResources:
 
         # we have one task per namespace and a pipeline + task per saas file
         assert len(desired_resources) == 8
+
+    def test_fetch_desired_resources_skip_deleted_namespace(self) -> None:
+        self.test_data.saas_files = [self.saas7_deleted_namespace]
+        self.test_data.providers = [self.provider7_deleted_ns]
+
+        desired_resources = otr.fetch_desired_resources(otr.fetch_tkn_providers(None))
+
+        # we have one task per namespace and a pipeline + task per saas file
+        assert len(desired_resources) == 0
 
     def test_fetch_desired_resources_names(self) -> None:
         self.test_data.saas_files = [self.saas1]
