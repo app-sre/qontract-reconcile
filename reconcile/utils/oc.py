@@ -600,23 +600,6 @@ class OCCli:  # pylint: disable=too-many-public-methods
         resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
-    @OCDecorators.process_reconcile_time
-    def annotate(self, namespace, kind, name, annotations, overwrite):
-        """
-        Add or remove annotations on a resource.
-        Pass {"foo": "bar"} to set foo=bar,
-        or {"foo": None} to remove the foo annotation.
-        """
-        ns = ["-n", namespace] if namespace else []
-        added = [f"{k}={v}" for k, v in annotations.items() if v is not None]
-        removed = [f"{k}-" for k, v in annotations.items() if v is None]
-        overwrite_flag = f"--overwrite={str(overwrite).lower()}"
-        # ex cmd format: oc annotate -n fooNamespace pod fooPod some=annotation --overwrite=true
-        cmd = ["annotate"] + ns + [kind, name, overwrite_flag] + added + removed
-        self._run(cmd)
-        resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
-        return self._msg_to_process_reconcile_time(namespace or "", resource)
-
     def project_exists(self, name):
         if name in self.projects:
             return True

@@ -5,7 +5,7 @@ from abc import (
 )
 from collections.abc import Iterable, Mapping
 from enum import Enum
-from typing import Any, cast
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -33,7 +33,11 @@ from reconcile.utils.ocm import (
     OCM,
     OCMMap,
 )
-from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
+from reconcile.utils.state import (
+    State,
+    init_state,
+)
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
 
@@ -241,6 +245,7 @@ class NodePool(AbstractPool):
     aws_node_pool: AWSNodePool
     subnet: str | None
     oc: OCClient | None
+    state: State | None
 
     def delete(self, ocm: OCM) -> None:
         ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
@@ -250,7 +255,7 @@ class NodePool(AbstractPool):
         ocm.create_node_pool(self.cluster, spec)
 
     def update(self, ocm: OCM) -> None:
-        update_dict = self.dict(by_alias=True, exclude={"oc"})
+        update_dict = self.dict(by_alias=True, exclude={"oc", "state"})
         # can not update instance_type
         del update_dict["aws_node_pool"]
         # can not update subnet
@@ -280,16 +285,13 @@ class NodePool(AbstractPool):
                 f"OCClient is not initialized for NodePool: {self.cluster}-{self.id}"
             )
             return
-        # expected format of annotation:
-        # "app-interface-managed-pool-labels": "foo,bar,etc"
-        # comma-separated list of label keys
-        curr_managed_node_labels = node["metadata"]["annotations"].get(
-            APP_INTERFACE_MANAGED_POOL_LABELS_ANNOTATION
-        )
-        if curr_managed_node_labels:
-            curr_managed_node_labels = curr_managed_node_labels.split(",")
-        else:
-            curr_managed_node_labels = []
+        if self.state is None:
+            logging.error(
+                f"State is not initialized for NodePool: {self.cluster}-{self.id}"
+            )
+            return
+        state_key = f"{self.cluster}/{self.id}/{node['metadata']['name']}/labels"
+        curr_managed_node_labels = self.state.get(state_key, [])
         labels_to_remove = [
             k
             for k in curr_managed_node_labels
@@ -303,26 +305,15 @@ class NodePool(AbstractPool):
             | update_dict.get("labels", {}),
             overwrite=True,
         )
-        # ensure node annotation is updated to reflect currently reconciled labels
-        self.oc.annotate(
-            namespace=None,
-            kind="Node",
-            name=node["metadata"]["name"],
-            annotations={
-                APP_INTERFACE_MANAGED_POOL_LABELS_ANNOTATION: ",".join(
-                    k for k in update_dict["labels"]
-                )
-            }
-            if update_dict.get("labels")
-            else cast(
-                dict[str, str | None],
-                {APP_INTERFACE_MANAGED_POOL_LABELS_ANNOTATION: None},
-            ),
-            overwrite=True,
-        )
+        if update_dict.get("labels"):
+            self.state.add(
+                state_key, list(update_dict.get("labels", {}).keys()), force=True
+            )
+        else:
+            self.state.rm(state_key)
 
     def update_node_taints(self, node: dict[str, Any], update_dict: dict[str, Any]):
-        pass
+        state_key = f"{self.cluster}/{self.id}/{node['metadata']['name']}/taints"
 
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
         return (
@@ -380,7 +371,9 @@ class PoolHandler(BaseModel):
     pool: AbstractPool
 
     def act(self, dry_run: bool, ocm: OCM) -> None:
-        logging.info(f"{self.action} {self.pool.dict(by_alias=True, exclude={'oc'})}")
+        logging.info(
+            f"{self.action} {self.pool.dict(by_alias=True, exclude={'oc', 'state'})}"
+        )
         if dry_run:
             return
 
@@ -577,6 +570,8 @@ def act(
     diffs: Iterable[PoolHandler],
     ocm_map: OCMMap,
     clusters: list[ClusterV1],
+    secret_reader: SecretReaderBase,
+    state: State,
 ) -> None:
     hcp_clusters_to_update = [
         d.pool.cluster
@@ -584,8 +579,6 @@ def act(
         if d.action == "update" and isinstance(d.pool, NodePool)
     ]
     if hcp_clusters_to_update:
-        vault_settings = get_app_interface_vault_settings()
-        secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         clusters_map = {c.name: c for c in clusters}
         # build cluster-admin connections
         oc_admin_conn_params = [
@@ -607,6 +600,7 @@ def act(
                 diff.pool.oc = hcp_oc_admin_map.get_cluster(
                     diff.pool.cluster, privileged=True
                 )
+                diff.pool.state = state
             diff.act(dry_run, ocm)
 
 
@@ -626,6 +620,10 @@ def run(dry_run: bool):
         logging.debug("No machinePools definitions found in app-interface")
         return
 
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    state = init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader)
+
     settings = queries.get_app_interface_settings()
     cluster_like_objects = [
         cluster.dict(by_alias=True) for cluster in filtered_clusters
@@ -640,7 +638,7 @@ def run(dry_run: bool):
     desired_state = create_desired_state_from_gql(filtered_clusters)
     diffs, errors = calculate_diff(current_state, desired_state)
 
-    act(dry_run, diffs, ocm_map, filtered_clusters)
+    act(dry_run, diffs, ocm_map, filtered_clusters, secret_reader, state)
 
     if errors:
         for err in errors:
