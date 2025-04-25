@@ -339,7 +339,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     ) -> Mapping[str, dict[str, Any]]:
         return_value: dict[str, dict[str, Any]] = {}
         for product in current_products_applications_services:
-            pass
             return_value[product.name] = {
                 "type": "product",
                 "product": product.name,
