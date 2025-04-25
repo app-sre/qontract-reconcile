@@ -600,6 +600,29 @@ class OCCli:  # pylint: disable=too-many-public-methods
         resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
+    @OCDecorators.process_reconcile_time
+    def taint_node(
+        self,
+        name: str,
+        add: list[dict[str, str]] | None = None,
+        remove: list[str] | None = None,
+        overwrite: bool = False,
+    ) -> OCProcessReconcileTimeDecoratorMsg:
+        """
+        A wrapper around `oc adm taint node <name> key=value:Effect [key2-] --overwrite=...`.
+        :param add:    list of {"key":..., "value":..., "effect":...} to add
+        :param remove: list of keys to remove (e.g. ["key2", "key3"])
+        :param overwrite: whether to pass --overwrite=true
+        """
+        cmd = ["adm", "taint", "node", name, f"--overwrite={str(overwrite).lower()}"]
+        if add:
+            cmd += [f"{t['key']}={t['value']}:{t['effect']}" for t in add]
+        if remove:
+            cmd += [f"{k}-" for k in remove]
+        self._run(cmd)
+        resource = OR({"kind": "node", "metadata": {"name": name}}, "", "")
+        return self._msg_to_process_reconcile_time("cluster", resource)
+
     def project_exists(self, name):
         if name in self.projects:
             return True

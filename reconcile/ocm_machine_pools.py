@@ -275,7 +275,7 @@ class NodePool(AbstractPool):
             labels={"hypershift.openshift.io/nodePool": f"{self.cluster}-{self.id}"},
         ):
             self.update_node_labels(node, update_dict)
-            # TODO: self.update_node_taints(node, update_dict)
+            self.update_node_taints(node, update_dict)
 
     def update_node_labels(
         self, node: dict[str, Any], update_dict: dict[str, Any]
@@ -293,27 +293,64 @@ class NodePool(AbstractPool):
         state_key = f"{self.cluster}/{self.id}/{node['metadata']['name']}/labels"
         curr_managed_node_labels = self.state.get(state_key, [])
         labels_to_remove = [
-            k
-            for k in curr_managed_node_labels
-            if k not in update_dict.get("labels", {})
+            l
+            for l in curr_managed_node_labels
+            if l not in update_dict.get("labels", {})
         ]
-        self.oc.label(
-            namespace=None,
-            kind="Node",
-            name=node["metadata"]["name"],
-            labels=dict.fromkeys(labels_to_remove, None)
-            | update_dict.get("labels", {}),
-            overwrite=True,
+        updated_labels = dict.fromkeys(labels_to_remove, None) | update_dict.get(
+            "labels", {}
         )
+        if updated_labels:
+            self.oc.label(
+                namespace=None,
+                kind="Node",
+                name=node["metadata"]["name"],
+                labels=updated_labels,
+                overwrite=True,
+            )
+        # update state
         if update_dict.get("labels"):
             self.state.add(
                 state_key, list(update_dict.get("labels", {}).keys()), force=True
             )
-        else:
+        elif curr_managed_node_labels:
             self.state.rm(state_key)
 
     def update_node_taints(self, node: dict[str, Any], update_dict: dict[str, Any]):
+        if self.oc is None:
+            logging.error(
+                f"OCClient is not initialized for NodePool: {self.cluster}-{self.id}"
+            )
+            return
+        if self.state is None:
+            logging.error(
+                f"State is not initialized for NodePool: {self.cluster}-{self.id}"
+            )
+            return
         state_key = f"{self.cluster}/{self.id}/{node['metadata']['name']}/taints"
+        curr_managed_node_taints = self.state.get(state_key, [])
+        taints_to_remove = [
+            t
+            for t in curr_managed_node_taints
+            if t not in [k.get("key") for k in update_dict.get("taints", {})]
+        ]
+        taints_to_add = update_dict.get("taints", {})
+        if taints_to_remove or taints_to_add:
+            self.oc.taint_node(
+                name=node["metadata"]["name"],
+                add=update_dict.get("taints", {}),
+                remove=taints_to_remove,
+                overwrite=True,
+            )
+        # update state
+        if update_dict.get("taints"):
+            self.state.add(
+                state_key,
+                [k.get("key") for k in update_dict.get("taints", [])],
+                force=True,
+            )
+        elif curr_managed_node_taints:
+            self.state.rm(state_key)
 
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
         return (
