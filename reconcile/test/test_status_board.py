@@ -99,8 +99,6 @@ def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoard
 
 
 def test_status_board_handler(mocker: MockerFixture) -> None:
-    Application.update_forward_refs()
-
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
         action=Action.create,
@@ -144,8 +142,6 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
 
 
 def test_get_current_products_applications_services(mocker: MockerFixture) -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     mock_get_products = mocker.patch("reconcile.status_board.get_managed_products")
     mock_get_apps = mocker.patch("reconcile.status_board.get_product_applications")
@@ -232,9 +228,6 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
 
 
 def test_current_abstract_status_board_map() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     current_data = [
         Product(
             name="product_1",
@@ -303,9 +296,6 @@ def test_current_abstract_status_board_map() -> None:
 
 
 def test_get_diff_create_app() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": {"product": "foo", "type": "product", "app": ""},
@@ -327,9 +317,6 @@ def test_get_diff_create_app() -> None:
 
 
 def test_get_diff_create_one_app() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": {"product": "foo", "type": "product", "app": ""},
@@ -356,8 +343,6 @@ def test_get_diff_create_one_app() -> None:
 
 
 def test_get_diff_create_product_and_apps() -> None:
-    Product.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": {"product": "foo", "type": "product", "app": ""},
@@ -376,9 +361,6 @@ def test_get_diff_create_product_and_apps() -> None:
 
 
 def test_get_diff_create_product_app_and_service() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": {"product": "foo", "type": "product", "app": ""},
@@ -416,9 +398,6 @@ def test_get_diff_create_product_app_and_service() -> None:
 
 
 def test_get_diff_update_service() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": {"product": "foo", "type": "product", "app": ""},
@@ -471,9 +450,6 @@ def test_get_diff_update_service() -> None:
 
 
 def test_get_diff_noop() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": {"product": "foo", "type": "product", "app": ""},
@@ -495,9 +471,6 @@ def test_get_diff_noop() -> None:
 
 
 def test_get_diff_delete_app() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": {"product": "foo", "type": "product", "app": ""},
@@ -522,9 +495,6 @@ def test_get_diff_delete_app() -> None:
 
 
 def test_get_diff_delete_apps_and_product() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={},
         current_abstract_status_board_map={
@@ -546,9 +516,6 @@ def test_get_diff_delete_apps_and_product() -> None:
 
 
 def test_get_diff_delete_product_app_and_service() -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
-
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={},
         current_abstract_status_board_map={
@@ -586,8 +553,6 @@ def test_get_diff_delete_product_app_and_service() -> None:
 
 
 def test_apply_sorted(mocker: MockerFixture) -> None:
-    Product.update_forward_refs()
-    Application.update_forward_refs()
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient", autospec=True)
     logging = mocker.patch("reconcile.status_board.logging", autospec=True)
 

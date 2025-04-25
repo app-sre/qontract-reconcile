@@ -196,6 +196,12 @@ class Service(AbstractStatusBoard):
         return 2
 
 
+# Resolve forward references after class definitions
+Product.update_forward_refs()
+Application.update_forward_refs()
+Service.update_forward_refs()
+
+
 class UpdateNotSupported(Exception):
     pass
 
