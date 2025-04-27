@@ -27,7 +27,7 @@ from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.oc import OCClient
 from reconcile.utils.oc_connection_parameters import OCConnectionParameters
-from reconcile.utils.oc_map import OCMap
+from reconcile.utils.oc_map import OCLogMsg, OCMap
 from reconcile.utils.ocm import (
     DEFAULT_OCM_MACHINE_POOL_ID,
     OCM,
@@ -40,9 +40,6 @@ from reconcile.utils.state import (
 )
 
 QONTRACT_INTEGRATION = "ocm-machine-pools"
-
-APP_INTERFACE_MANAGED_POOL_LABELS_ANNOTATION = "app-interface-managed-pool-labels"
-APP_INTERFACE_MANAGED_POOL_TAINTS_ANNOTATION = "app-interface-managed-pool-taints"
 
 
 class ClusterType(Enum):
@@ -265,17 +262,15 @@ class NodePool(AbstractPool):
         if not update_dict["taints"]:
             del update_dict["taints"]
         ocm.update_node_pool(self.cluster, update_dict)
-        if self.oc is None:
-            logging.error(
-                f"OCClient is not initialized for NodePool: {self.cluster}-{self.id}"
-            )
-            return
-        for node in self.oc.get_items(
-            "Node",
-            labels={"hypershift.openshift.io/nodePool": f"{self.cluster}-{self.id}"},
-        ):
-            self.update_node_labels(node, update_dict)
-            self.update_node_taints(node, update_dict)
+        if self.oc:
+            for node in self.oc.get_items(
+                "Node",
+                labels={
+                    "hypershift.openshift.io/nodePool": f"{self.cluster}-{self.id}"
+                },
+            ):
+                self.update_node_labels(node, update_dict)
+                self.update_node_taints(node, update_dict)
 
     def update_node_labels(
         self, node: dict[str, Any], update_dict: dict[str, Any]
@@ -618,26 +613,37 @@ def act(
     if hcp_clusters_to_update:
         clusters_map = {c.name: c for c in clusters}
         # build cluster-admin connections
-        oc_admin_conn_params = [
-            OCConnectionParameters.from_cluster(
+        oc_admin_conn_params = []
+        for cluster_name in hcp_clusters_to_update:
+            params = OCConnectionParameters.from_cluster(
                 cluster=clusters_map[cluster_name],
                 secret_reader=secret_reader,
                 cluster_admin=True,
             )
-            for cluster_name in hcp_clusters_to_update
-        ]
+            if params.cluster_admin_automation_token:
+                oc_admin_conn_params.append(params)
+            else:
+                logging.warning(
+                    f"Reconciliation of node taints/labels for cluster {params.cluster_name} will not be performed."
+                )
         hcp_oc_admin_map = OCMap(
-            connection_parameters=oc_admin_conn_params, integration=QONTRACT_INTEGRATION
+            connection_parameters=oc_admin_conn_params,
+            integration=QONTRACT_INTEGRATION,
         )
+
     for diff in diffs:
         logging.info([diff.action, diff.pool.cluster, diff.pool.id])
         if not dry_run:
             ocm = ocm_map.get(diff.pool.cluster)
             if isinstance(diff.pool, NodePool) and diff.action == "update":
-                diff.pool.oc = hcp_oc_admin_map.get_cluster(
-                    diff.pool.cluster, privileged=True
-                )
-                diff.pool.state = state
+                try:
+                    diff.pool.oc = hcp_oc_admin_map.get_cluster(
+                        diff.pool.cluster, privileged=True
+                    )
+                except OCLogMsg:
+                    diff.pool.oc = None
+                if diff.pool.oc:
+                    diff.pool.state = state
             diff.act(dry_run, ocm)
 
 
