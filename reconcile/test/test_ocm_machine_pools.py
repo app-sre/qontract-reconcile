@@ -26,6 +26,8 @@ from reconcile.ocm_machine_pools import (
     calculate_diff,
     run,
 )
+from reconcile.utils.oc import OCCli
+from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 from reconcile.utils.ocm import OCM
 
 
@@ -428,6 +430,45 @@ def setup_mocks(
     mocked_get_clusters = mocker.patch(
         "reconcile.ocm_machine_pools.get_clusters", return_value=clusters or []
     )
+    # stub out vault + secret_reader so run() does not hit real GQL or Vault
+    mocker.patch(
+        "reconcile.ocm_machine_pools.get_app_interface_vault_settings",
+        return_value=mocker.MagicMock(vault=False),
+    )
+    mocker.patch(
+        "reconcile.ocm_machine_pools.create_secret_reader",
+        return_value=mocker.MagicMock(),
+    )
+    # stub out state initialization to avoid real S3/GQL calls
+    mocker.patch(
+        "reconcile.ocm_machine_pools.init_state", return_value=mocker.MagicMock()
+    )
+
+    # stub out OCConnectionParameters.from_cluster to avoid server_url/token mismatches
+    def _stub_from_cluster(cluster, secret_reader, cluster_admin, use_jump_host=True):
+        return OCConnectionParameters(
+            cluster_name=cluster.name,
+            server_url="",
+            is_internal=getattr(cluster, "internal", None),
+            skip_tls_verify=None,
+            automation_token=None,
+            cluster_admin_automation_token=None,
+            disabled_integrations=[],
+            jumphost_hostname=None,
+            jumphost_known_hosts=None,
+            jumphost_user=None,
+            jumphost_port=None,
+            jumphost_key=None,
+            jumphost_remote_port=None,
+            jumphost_local_port=None,
+            is_cluster_admin=cluster_admin,
+        )
+
+    mocker.patch(
+        "reconcile.ocm_machine_pools.OCConnectionParameters.from_cluster",
+        _stub_from_cluster,
+    )
+
     mocked_ocm_map = mocker.patch("reconcile.ocm_machine_pools.OCMMap", autospec=True)
     mocked_ocm = mocked_ocm_map.return_value.get.return_value
     mocked_ocm.get_machine_pools.return_value = machine_pools or []
@@ -897,6 +938,7 @@ def hypershift_cluster_builder(
                     "hypershift": True,
                 },
                 "machinePools": machine_pools,
+                "clusterAdminAutomationToken": {},
             },
         )
 
@@ -931,6 +973,8 @@ def expected_node_pool_create_payload() -> dict:
         "replicas": 2,
         "subnet": None,
         "taints": [],
+        "oc": None,
+        "state": None,
     }
 
 
@@ -1026,6 +1070,8 @@ def expected_hypershift_node_pool_delete_payload() -> dict:
         "replicas": 3,
         "subnet": None,
         "taints": None,
+        "oc": None,
+        "state": None,
     }
 
 
@@ -1101,3 +1147,60 @@ def test_run_delete_default_node_pool(
     run(False)
 
     mocks["OCM"].delete_node_pool.assert_called()
+
+
+def test_update_node_labels(mocker, node_pool):
+    node_pool.cluster = "cluster1"
+    node_pool.id = "pool1"
+
+    fake_state = mocker.MagicMock()
+    fake_state.get.return_value = ["foo"]
+    node_pool.state = fake_state
+
+    oc = mocker.create_autospec(OCCli, instance=True)
+    node_pool.oc = oc
+    node = {"metadata": {"name": "nodeA"}}
+    update_dict = {"labels": {"bar": "v1", "baz": "v2"}}
+
+    node_pool.update_node_labels(node, update_dict)
+    oc.label.assert_called_once_with(
+        namespace=None,
+        kind="Node",
+        name="nodeA",
+        labels={"foo": None, "bar": "v1", "baz": "v2"},
+        overwrite=True,
+    )
+    expected_key = "cluster1/pool1/nodeA/labels"
+    fake_state.add.assert_called_once_with(expected_key, ["bar", "baz"], force=True)
+
+
+def test_update_node_taints(mocker, node_pool):
+    node_pool.cluster = "cluster1"
+    node_pool.id = "pool1"
+
+    fake_state = mocker.MagicMock()
+    fake_state.get.return_value = ["foo", "deleteMe"]
+    node_pool.state = fake_state
+
+    oc = mocker.create_autospec(OCCli, instance=True)
+    node_pool.oc = oc
+    node = {"metadata": {"name": "nodeA"}}
+    update_dict = {
+        "taints": [
+            {"key": "foo", "effect": "NoSchedule", "value": "bar"},
+            {"key": "addMe", "effect": "NoSchedule", "value": "red"},
+        ]
+    }
+
+    node_pool.update_node_taints(node, update_dict)
+    oc.taint_node.assert_called_once_with(
+        name="nodeA",
+        add=[
+            {"key": "foo", "effect": "NoSchedule", "value": "bar"},
+            {"key": "addMe", "effect": "NoSchedule", "value": "red"},
+        ],
+        remove=["deleteMe"],
+        overwrite=True,
+    )
+    expected_key = "cluster1/pool1/nodeA/taints"
+    fake_state.add.assert_called_once_with(expected_key, ["foo", "addMe"], force=True)
