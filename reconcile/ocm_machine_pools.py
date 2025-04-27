@@ -288,9 +288,9 @@ class NodePool(AbstractPool):
         state_key = f"{self.cluster}/{self.id}/{node['metadata']['name']}/labels"
         curr_managed_node_labels = self.state.get(state_key, [])
         labels_to_remove = [
-            l
-            for l in curr_managed_node_labels
-            if l not in update_dict.get("labels", {})
+            k
+            for k in curr_managed_node_labels
+            if k not in update_dict.get("labels", {})
         ]
         updated_labels = dict.fromkeys(labels_to_remove, None) | update_dict.get(
             "labels", {}
