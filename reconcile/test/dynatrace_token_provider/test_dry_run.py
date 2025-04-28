@@ -3,7 +3,7 @@ from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
-from reconcile.dynatrace_token_provider.ocm import Cluster
+from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
@@ -26,21 +26,25 @@ def test_dry_run(
     In this case we have 2 clusters, one that needs a new (create)
     syncset and one that needs a patch for an existing syncset.
     """
-    cluster_a = Cluster(
+    cluster_a = OCMCluster(
         id="cluster_a",
         external_id="external_id_a",
         organization_id="ocm_org_id_a",
+        subscription_id="sub_id",
         dt_tenant="dt_tenant_a",
         token_spec_name="default",
         is_hcp=False,
+        labels={},
     )
-    cluster_b = Cluster(
+    cluster_b = OCMCluster(
         id="cluster_b",
         external_id="external_id_b",
         organization_id="ocm_org_id_a",
+        subscription_id="sub_id",
         dt_tenant="dt_tenant_a",
         token_spec_name="default",
         is_hcp=False,
+        labels={},
     )
     given_clusters = [cluster_a, cluster_b]
     ocm_client = build_ocm_client(

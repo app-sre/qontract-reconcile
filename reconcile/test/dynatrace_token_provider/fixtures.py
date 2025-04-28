@@ -11,7 +11,7 @@ from reconcile.dynatrace_token_provider.integration import (
     QONTRACT_INTEGRATION_VERSION,
 )
 from reconcile.dynatrace_token_provider.model import K8sSecret
-from reconcile.dynatrace_token_provider.ocm import Cluster, OCMClient
+from reconcile.dynatrace_token_provider.ocm import OCMClient, OCMCluster
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated, DynatraceClient
 from reconcile.utils.openshift_resource import (
     QONTRACT_ANNOTATION_INTEGRATION,
@@ -90,7 +90,7 @@ def build_manifest(
 
 
 def build_ocm_client(
-    discover_clusters_by_labels: Iterable[Cluster],
+    discover_clusters_by_labels: Iterable[OCMCluster],
     get_syncset: Mapping[str, Mapping],
     get_manifest: Mapping[str, Mapping],
 ) -> OCMClient:

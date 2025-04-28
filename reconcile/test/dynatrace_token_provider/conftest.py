@@ -7,7 +7,7 @@ from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
-from reconcile.dynatrace_token_provider.ocm import Cluster
+from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
@@ -92,24 +92,30 @@ def default_ingestion_token() -> DynatraceAPIToken:
 
 
 @pytest.fixture
-def default_cluster() -> Cluster:
-    return Cluster(
+def default_cluster() -> OCMCluster:
+    return OCMCluster(
         id="cluster_a",
         external_id="external_id_a",
         organization_id="ocm_org_id_a",
-        dt_tenant="dt_tenant_a",
-        token_spec_name="default",
+        subscription_id="sub_id",
         is_hcp=False,
+        labels={
+            "sre-capabilities.dtp.v2.tenant": "dt_tenant_a",
+            "sre-capabilities.dtp.v2.token-spec": "default",
+        },
     )
 
 
 @pytest.fixture
-def default_hcp_cluster() -> Cluster:
-    return Cluster(
+def default_hcp_cluster() -> OCMCluster:
+    return OCMCluster(
         id="cluster_a",
         external_id="external_id_a",
         organization_id="ocm_org_id_a",
-        dt_tenant="dt_tenant_a",
-        token_spec_name="default",
+        subscription_id="sub_id",
         is_hcp=True,
+        labels={
+            "sre-capabilities.dtp.v2.tenant": "dt_tenant_a",
+            "sre-capabilities.dtp.v2.token-spec": "default",
+        },
     )
