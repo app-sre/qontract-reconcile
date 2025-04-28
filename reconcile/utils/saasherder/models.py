@@ -12,6 +12,7 @@ from pydantic import (
     Field,
 )
 
+from reconcile.utils.oc import OCCli
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
@@ -219,6 +220,7 @@ class TargetSpec:
     saas_file: SaasFile
     resource_template: SaasResourceTemplate
     target: SaasResourceTemplateTarget
+    oc: OCCli
     image_auth: ImageAuth
     hash_length: int
     github: Github
