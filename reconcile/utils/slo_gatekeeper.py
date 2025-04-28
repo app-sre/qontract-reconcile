@@ -14,16 +14,18 @@ class SLOGateKeeper:
         secret_reader: SecretReaderBase,
         thread_pool_size: int = 1,
     ):
-        self.slo_detail_managers = SLODocumentManager.get_slo_document_manager_list(
+        self.slo_manager_list = SLODocumentManager.get_slo_document_manager_list(
             slo_documents, secret_reader, thread_pool_size
         )
 
     def get_breached_slos(self) -> list[SLODetails]:
-        current_slos = [
-            slo
-            for slo_manager in self.slo_detail_managers
-            for slo in slo_manager.get_slo_details_list()
-        ]
+        current_slos: list[SLODetails] = []
+        for slo_manager in self.slo_manager_list:
+            try:
+                current_slos.extend(slo_manager.get_slo_details_list())
+            finally:
+                slo_manager.cleanup()
+
         exceptions = [slo for slo in current_slos if isinstance(slo, Exception)]
         if exceptions:
             raise RuntimeError(
