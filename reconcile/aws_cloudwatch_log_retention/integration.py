@@ -12,7 +12,10 @@ from pydantic import BaseModel
 
 from reconcile import queries
 from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
-    query as get_aws_accounts,
+    AWSAccountV1,
+)
+from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
+    get_aws_accounts,
 )
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
@@ -233,18 +236,17 @@ def _reconcile_log_groups(
             )
 
 
-def get_aws_accounts_test() -> list[dict]:
-    gql_api_query = gql.get_api().query
-    return [
-        account.dict(by_alias=True)
-        for account in get_aws_accounts(query_func=gql_api_query).accounts
-        or []
-    ]
+# def get_aws_accounts_test() -> list[dict]:
+#     gql_api_query = gql.get_api().query
+#     return [
+#         account.dict(by_alias=True)
+#         for account in get_aws_accounts(query_func=gql_api_query).accounts
+#         or []
+#     ]
 
 
-def get_active_aws_accounts() -> list[dict]:
-    gql_api_query = gql.get_api().query
-    accounts = get_aws_accounts(query_func=gql_api_query).accounts
+def get_active_aws_accounts() -> list[AWSAccountV1]:
+    accounts = get_aws_accounts(gql.get_api())
     if accounts is not None:
         accounts = [
             account
@@ -257,11 +259,14 @@ def get_active_aws_accounts() -> list[dict]:
                 )
             )
         ]
-    return [account.dict(by_alias=True) for account in accounts or []]
+    return accounts or []
 
 
-def run(dry_run: bool, thread_pool_size: int) -> None:
-    aws_accounts = get_active_aws_accounts()
+def run(
+    dry_run: bool,
+    thread_pool_size: int
+) -> None:
+    aws_accounts = [account.dict(by_alias=True) for account in get_active_aws_accounts() or []]
     with create_awsapi_client(aws_accounts, thread_pool_size) as awsapi:
         for aws_account in aws_accounts:
             _reconcile_log_groups(dry_run, aws_account, awsapi)
