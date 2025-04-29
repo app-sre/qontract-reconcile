@@ -69,7 +69,7 @@ def test_get_data_from_ocm(
 
 
 @pytest.mark.parametrize(
-    "create_function,end_point",
+    ("create_function", "end_point"),
     [
         (create_product, "/api/status-board/v1/products/"),
         (create_application, "/api/status-board/v1/applications/"),
