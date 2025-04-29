@@ -378,6 +378,10 @@ def _construct_tekton_trigger_resource(
         "kind": "PipelineRun",
         "metadata": {
             "generateName": f"{name}-",
+            "annotations": {
+                "qontract.trigger_integration": integration,
+                "qontract.trigger_reason": reason or "",
+            },
             "labels": {
                 "qontract.saas_file_name": saas_file_name,
                 "qontract.env_name": env_name,
