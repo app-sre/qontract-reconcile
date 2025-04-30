@@ -537,7 +537,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         # Applications need to be created before Services
         creations.sort(key=lambda x: x.status_board_object.get_priority())
 
-        # Services need to be created before Applications
+        # Services need to be deleted before Applications
         # Applications need to be deleted before Products
         deletions.sort(key=lambda x: x.status_board_object.get_priority(), reverse=True)
 
