@@ -5,9 +5,9 @@ from collections.abc import Sequence
 from reconcile.gql_definitions.quay_membership import quay_membership
 from reconcile.gql_definitions.quay_membership.quay_membership import (
     BotV1,
+    ExternalUserV1,
     PermissionQuayOrgTeamV1,
     UserV1,
-    ExternalUserV1,
 )
 from reconcile.quay_base import get_quay_api_store
 from reconcile.status import ExitCodes
