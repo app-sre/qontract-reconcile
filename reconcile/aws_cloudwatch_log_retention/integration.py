@@ -5,7 +5,10 @@ from collections import defaultdict
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Any,
+)
 
 from botocore.exceptions import ClientError
 from pydantic import BaseModel
@@ -245,6 +248,10 @@ def _reconcile_log_groups(
 #     ]
 
 
+def account_to_dict(account: AWSAccountV1) -> dict[str, Any]:
+    return account.dict(by_alias=True)
+
+
 def get_active_aws_accounts() -> list[AWSAccountV1]:
     accounts = get_aws_accounts(gql.get_api())
     if accounts is not None:
@@ -262,11 +269,10 @@ def get_active_aws_accounts() -> list[AWSAccountV1]:
     return accounts or []
 
 
-def run(
-    dry_run: bool,
-    thread_pool_size: int
-) -> None:
-    aws_accounts = [account.dict(by_alias=True) for account in get_active_aws_accounts() or []]
+def run(dry_run: bool, thread_pool_size: int) -> None:
+    aws_accounts = [
+        account.dict(by_alias=True) for account in get_active_aws_accounts() or []
+    ]
     with create_awsapi_client(aws_accounts, thread_pool_size) as awsapi:
         for aws_account in aws_accounts:
             _reconcile_log_groups(dry_run, aws_account, awsapi)
