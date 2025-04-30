@@ -46586,6 +46586,42 @@
                             },
                             "isDeprecated": false,
                             "deprecationReason": null
+                        },
+                        {
+                            "name": "managed_by_erv2",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "delete",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "SCALAR",
+                                "name": "Boolean",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "module_overrides",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "ExternalResourcesModuleOverrides_v1",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ],
                     "inputFields": null,
