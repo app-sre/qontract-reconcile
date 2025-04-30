@@ -234,6 +234,50 @@ class StatusBoardHandler(BaseModel):
                 self.status_board_object.update(ocm)
 
 
+def _services_to_delete(
+    diff_result: DiffResult, current_products: Mapping[str, Product]
+) -> list[StatusBoardHandler]:
+    services_to_delete = [
+        s for _, s in diff_result.delete.items() if isinstance(s, Service)
+    ]
+
+    return_list: list[StatusBoardHandler] = []
+    for s in services_to_delete:
+        apps: list[Application] = []
+        if s.application and s.application.product:
+            apps = current_products[s.application.product.name].applications or []
+        [app] = [
+            a for a in apps or [] if s.application and a.name == s.application.name
+        ]
+        [service] = [svr for svr in app.services or [] if svr.name == s.name]
+
+        return_list.append(
+            StatusBoardHandler(action=Action.delete, status_board_object=service)
+        )
+    return return_list
+
+
+def _apps_to_delete(
+    diff_result: DiffResult, current_products: Mapping[str, Product]
+) -> list[StatusBoardHandler]:
+    apps_to_delete = [
+        a for _, a in diff_result.delete.items() if isinstance(a, Application)
+    ]
+
+    return_list: list[StatusBoardHandler] = []
+    for a in apps_to_delete:
+        apps: list[Application] = []
+        if a.product:
+            apps = current_products[a.product.name].applications or []
+        [application] = [app for app in apps or [] if app.name == a.name]
+
+        return_list.append(
+            StatusBoardHandler(action=Action.delete, status_board_object=application)
+        )
+
+    return return_list
+
+
 class StatusBoardExporterIntegration(QontractReconcileIntegration):
     @property
     def name(self) -> str:
@@ -494,12 +538,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                             )
                         )
 
-        services_to_delete = [
-            s for _, s in diff_result.delete.items() if s["type"] == "service"
-        ]
-        apps_to_delete = [
-            a for _, a in diff_result.delete.items() if a["type"] == "app"
-        ]
+        return_list.extend(_services_to_delete(diff_result, current_products))
+        return_list.extend(_apps_to_delete(diff_result, current_products))
+
         products_to_delete = [
             p for _, p in diff_result.delete.items() if p["type"] == "product"
         ]
