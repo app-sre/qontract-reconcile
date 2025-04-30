@@ -77,6 +77,15 @@ class AbstractStatusBoard(ABC, BaseModel):
     def get_priority() -> int:
         pass
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AbstractStatusBoard):
+            return NotImplemented
+        return (
+            self.name == other.name
+            and self.fullname == other.fullname
+            and self.metadata == other.metadata
+        )
+
 
 class Product(AbstractStatusBoard):
     applications: list["Application"] | None
