@@ -7,6 +7,7 @@ from reconcile.gql_definitions.quay_membership.quay_membership import (
     BotV1,
     PermissionQuayOrgTeamV1,
     UserV1,
+    ExternalUserV1,
 )
 from reconcile.quay_base import get_quay_api_store
 from reconcile.status import ExitCodes
@@ -80,7 +81,7 @@ def fetch_current_state(quay_api_store):
     return state
 
 
-def get_usernames(users: Sequence[UserV1 | BotV1]) -> list[str]:
+def get_usernames(users: Sequence[UserV1 | BotV1 | ExternalUserV1]) -> list[str]:
     return [u.quay_username for u in users if u.quay_username]
 
 
@@ -92,7 +93,11 @@ def fetch_desired_state():
         p = process_permission(permission)
         members: list[str] = []
         for role in expiration.filter(permission.roles):
-            members += get_usernames(role.users) + get_usernames(role.bots)
+            members += (
+                get_usernames(role.users)
+                + get_usernames(role.bots)
+                + get_usernames(role.external_users)
+            )
 
         state.add(p, members)
 
