@@ -61,7 +61,10 @@ class QuayMirror:
         self.session.close()
 
     def run(self) -> None:
-        sync_tasks = self.get_sync_tasks()
+        gql_result = gql_gcp_repos.query(query_func=self.gqlapi.query)
+        processed_repos = self.process_repos_to_sync(gql_result)
+        sync_tasks = self.process_sync_tasks(processed_repos)
+
         for task in sync_tasks:
             try:
                 dest_creds = self.push_creds[f"{GCR_SECRET_PREFIX}{task.org_name}"]
@@ -77,13 +80,13 @@ class QuayMirror:
             except SkopeoCmdError as details:
                 logging.error("[%s]", details)
 
-    # retrieves all GCP image mirrors in App Interface 
-    def query_repos_to_sync(self) -> list[ImageSyncItem]:
-        result = gql_gcp_repos.query(query_func=self.gqlapi.query)
+    # processes the GQL repos to come up with a list of items that need to be synced
+    def process_repos_to_sync(
+        self, repos: gql_gcp_repos.GcpDockerReposQueryData
+    ) -> list[ImageSyncItem]:
         summary = list[ImageSyncItem]()
-
-        if result.apps:
-            for app in result.apps:
+        if repos.apps:
+            for app in repos.apps:
                 if app.gcr_repos:
                     for gcr_project in app.gcr_repos:
                         for gcr_repo in gcr_project.items:
@@ -127,15 +130,13 @@ class QuayMirror:
         # tag must be synced
         return True
 
-    # retrieves a list of images that need to be synced from an image mirror to GCP
-    def get_sync_tasks(self) -> list[SyncTask]:
+    # second layer of processing that matches up pull/push creds with each repo and determines what tags need to be synced
+    def process_sync_tasks(self, repos_to_sync: list[ImageSyncItem]) -> list[SyncTask]:
         eight_hours = 28800  # 60 * 60 * 8
         is_deep_sync = self._is_deep_sync(interval=eight_hours)
 
-        summary = self.query_repos_to_sync()
-
         sync_tasks = list[SyncTask]()
-        for item in summary:
+        for item in repos_to_sync:
             image = Image(
                 f"{item.destination_url}",
                 session=self.session,
