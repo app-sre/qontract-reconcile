@@ -1,5 +1,9 @@
 from pydantic import BaseModel
 
+from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
+    DynatraceTokenProviderTokenSpecV1,
+)
+
 
 class DynatraceAPIToken(BaseModel):
     token: str
@@ -11,11 +15,12 @@ class DynatraceAPIToken(BaseModel):
 class K8sSecret(BaseModel):
     namespace_name: str
     secret_name: str
+    dt_api_url: str
     tokens: list[DynatraceAPIToken]
 
 
 class TokenSpecTenantBinding(BaseModel):
-    spec_name: str
+    spec: DynatraceTokenProviderTokenSpecV1
     tenant_id: str
 
 

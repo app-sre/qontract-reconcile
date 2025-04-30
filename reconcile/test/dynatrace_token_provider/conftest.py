@@ -57,6 +57,78 @@ def default_token_spec(
 
 
 @pytest.fixture
+def regional_token_spec(
+    gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
+) -> DynatraceTokenProviderTokenSpecV1:
+    return gql_class_factory(
+        DynatraceTokenProviderTokenSpecV1,
+        {
+            "name": "regional-spec",
+            "ocm_org_ids": ["ocm_org_id_a"],
+            "secrets": [
+                {
+                    "name": "dynatrace-token-dtp",
+                    "namespace": "dynatrace",
+                    "tokens": [
+                        {
+                            "name": "ingestion-token",
+                            "keyNameInSecret": "dataIngestToken",
+                            "scopes": [
+                                "metrics.ingest",
+                                "logs.ingest",
+                                "events.ingest",
+                            ],
+                        },
+                        {
+                            "name": "operator-token",
+                            "keyNameInSecret": "apiToken",
+                            "scopes": [
+                                "activeGateTokenManagement.create",
+                                "entities.read",
+                                "settings.write",
+                                "settings.read",
+                                "DataExport",
+                                "InstallerDownload",
+                            ],
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+
+
+@pytest.fixture
+def slo_token_spec(
+    gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
+) -> DynatraceTokenProviderTokenSpecV1:
+    return gql_class_factory(
+        DynatraceTokenProviderTokenSpecV1,
+        {
+            "name": "slo-spec",
+            "ocm_org_ids": ["ocm_org_id_a"],
+            "secrets": [
+                {
+                    "name": "dynatrace-slo-token-dtp",
+                    "namespace": "dynatrace",
+                    "tokens": [
+                        {
+                            "name": "ingestion-token",
+                            "keyNameInSecret": "dataIngestToken",
+                            "scopes": [
+                                "metrics.ingest",
+                                "logs.ingest",
+                                "events.ingest",
+                            ],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+
+@pytest.fixture
 def default_integration() -> DynatraceTokenProviderIntegration:
     return DynatraceTokenProviderIntegration()
 
@@ -102,6 +174,23 @@ def default_cluster() -> OCMCluster:
         labels={
             "sre-capabilities.dtp.v2.tenant": "dt_tenant_a",
             "sre-capabilities.dtp.v2.token-spec": "default",
+        },
+    )
+
+
+@pytest.fixture
+def default_cluster_v3() -> OCMCluster:
+    return OCMCluster(
+        id="cluster_a",
+        external_id="external_id_a",
+        organization_id="ocm_org_id_a",
+        subscription_id="sub_id",
+        is_hcp=False,
+        labels={
+            "sre-capabilities.dtp.v3.regional.tenant": "regional-tenant",
+            "sre-capabilities.dtp.v3.regional.token-spec": "regional-spec",
+            "sre-capabilities.dtp.v3.slo.tenant": "slo-tenant",
+            "sre-capabilities.dtp.v3.slo.token-spec": "slo-spec",
         },
     )
 
