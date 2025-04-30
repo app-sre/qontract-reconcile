@@ -312,6 +312,11 @@ query TerraformResourcesNamespaces {
                 ip_address_type
                 access_logs
                 ssl_policy
+                mutual_authentication {
+                    mode
+                    ca_cert_bundle_s3_bucket_name
+                    ca_cert_bundle_s3_bucket_key
+                }
                 targets {
                     name
                     default
@@ -808,6 +813,12 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
+class NamespaceTerraformResourceALBMutualAuthenticationV1(ConfiguredBaseModel):
+    mode: str = Field(..., alias="mode")
+    ca_cert_bundle_s3_bucket_name: str = Field(..., alias="ca_cert_bundle_s3_bucket_name")
+    ca_cert_bundle_s3_bucket_key: str = Field(..., alias="ca_cert_bundle_s3_bucket_key")
+
+
 class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
     unhealthy_threshold: Optional[int] = Field(..., alias="unhealthy_threshold")
     timeout: Optional[int] = Field(..., alias="timeout")
@@ -904,6 +915,7 @@ class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
     ip_address_type: Optional[str] = Field(..., alias="ip_address_type")
     access_logs: Optional[bool] = Field(..., alias="access_logs")
     ssl_policy: Optional[str] = Field(..., alias="ssl_policy")
+    mutual_authentication: Optional[NamespaceTerraformResourceALBMutualAuthenticationV1] = Field(..., alias="mutual_authentication")
     targets: list[NamespaceTerraformResourceALBTargetsV1] = Field(..., alias="targets")
     rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
@@ -1043,7 +1055,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class EnvironmentV1(ConfiguredBaseModel):

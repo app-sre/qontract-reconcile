@@ -18,6 +18,9 @@ query QuayMembership {
         bots {
           quay_username
         }
+        external_users {
+          quay_username
+        }
         expirationDate
       }
     }

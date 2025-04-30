@@ -358,6 +358,10 @@ class cloudinit_config(Data):
     pass
 
 
+class aws_lb_trust_store(Resource):
+    pass
+
+
 # temporary until we upgrade to a terrascript release
 # that supports this provider
 # https://github.com/mjuenema/python-terrascript/pull/166
@@ -4635,11 +4639,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             admin_user_secret = auth_options["admin_user_credentials"]
             secret_data = self.secret_reader.read_all(admin_user_secret)
 
-            required_keys = {"master_user_name", "master_user_password"}
-            if secret_data.keys() != required_keys:
+            required_keys = {
+                "master_user_name",
+                "master_user_password",
+            }
+            if not (required_keys <= secret_data.keys()):
                 raise KeyError(
                     f"vault secret '{admin_user_secret['path']}' must "
-                    f"exactly contain these keys: {', '.join(required_keys)}"
+                    f"contain these keys: {', '.join(required_keys)}"
                 )
 
             # AWS requires the admin user password must be at least 8 chars long, contain at least one
@@ -4876,10 +4883,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             es_values["provider"] = provider
 
         auth_options = values.get("auth", {})
+        advanced_security_options = None
         # TODO: @fishi0x01 make mandatory after migration APPSRE-3409
         if auth_options:
-            es_values["advanced_security_options"] = (
-                self._build_es_advanced_security_options(auth_options)
+            advanced_security_options = self._build_es_advanced_security_options(
+                auth_options
             )
 
         # TODO: @fishi0x01 remove after migration APPSRE-3409
@@ -4893,6 +4901,84 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     )
                 )
         # ++++++++ END: REMOVE ++++++++++
+        if advanced_security_options:
+            master_user_options_with_optional_keys_values = advanced_security_options[
+                "master_user_options"
+            ]
+            # this secret can include optional kv pairs which are then saved to secrets manager in AWS
+            # however this step strips those extra values from `master_user_options` which only expects
+            # 2 fields https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/elasticsearch_domain#master_user_options-1
+            advanced_security_options["master_user_options"] = {
+                k: v
+                for k, v in master_user_options_with_optional_keys_values.items()
+                if k in {"master_user_name", "master_user_password"}
+            }
+            es_values["advanced_security_options"] = advanced_security_options
+            if advanced_security_options.get("internal_user_database_enabled", False):
+                # add master user creds to output and secretsmanager if internal_user_database_enabled
+                master_user = master_user_options_with_optional_keys_values
+                secret_name = f"qrtf/es/{identifier}"
+                secret_identifier = secret_name.replace("/", "-")
+                secret_values = {"name": secret_name, "tags": tags}
+                if provider:
+                    secret_values["provider"] = provider
+                aws_secret_resource = aws_secretsmanager_secret(
+                    secret_identifier, **secret_values
+                )
+                tf_resources.append(aws_secret_resource)
+
+                version_values = {
+                    "secret_id": "${" + aws_secret_resource.id + "}",
+                    "secret_string": json.dumps(master_user, sort_keys=True),
+                }
+                if provider:
+                    version_values["provider"] = provider
+                aws_version_resource = aws_secretsmanager_secret_version(
+                    secret_identifier, **version_values
+                )
+                tf_resources.append(aws_version_resource)
+
+                policy = {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "secretsmanager:GetResourcePolicy",
+                                "secretsmanager:GetSecretValue",
+                                "secretsmanager:DescribeSecret",
+                                "secretsmanager:ListSecretVersionIds",
+                            ],
+                            "Resource": "${" + aws_secret_resource.id + "}",
+                        }
+                    ],
+                }
+                iam_policy_resource = aws_iam_policy(
+                    secret_identifier,
+                    name=f"{identifier}-secretsmanager-policy",
+                    policy=json.dumps(policy, sort_keys=True),
+                    tags=tags,
+                )
+                tf_resources.append(iam_policy_resource)
+
+                output_name = output_prefix + "__secret_name"
+                output_value = secret_name
+                tf_resources.append(Output(output_name, value=output_value))
+                output_name = output_prefix + "__secret_policy_arn"
+                output_value = "${" + iam_policy_resource.arn + "}"
+                tf_resources.append(Output(output_name, value=output_value))
+                # master_user_name
+                output_name = output_prefix + "__master_user_name"
+                output_value = master_user["master_user_name"]
+                tf_resources.append(
+                    Output(output_name, value=output_value, sensitive=True)
+                )
+                # master_user_password
+                output_name = output_prefix + "__master_user_password"
+                output_value = master_user["master_user_password"]
+                tf_resources.append(
+                    Output(output_name, value=output_value, sensitive=True)
+                )
 
         es_tf_resource = aws_elasticsearch_domain(identifier, **es_values)
         tf_resources.append(es_tf_resource)
@@ -4924,70 +5010,6 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "${aws_elasticsearch_domain." + identifier + ".vpc_options.0.vpc_id}"
         )
         tf_resources.append(Output(output_name, value=output_value))
-        # add master user creds to output and secretsmanager if internal_user_database_enabled
-        security_options = es_values.get("advanced_security_options")
-        if security_options and security_options.get(
-            "internal_user_database_enabled", False
-        ):
-            master_user = security_options["master_user_options"]
-            secret_name = f"qrtf/es/{identifier}"
-            secret_identifier = secret_name.replace("/", "-")
-            secret_values = {"name": secret_name, "tags": tags}
-            if provider:
-                secret_values["provider"] = provider
-            aws_secret_resource = aws_secretsmanager_secret(
-                secret_identifier, **secret_values
-            )
-            tf_resources.append(aws_secret_resource)
-
-            version_values = {
-                "secret_id": "${" + aws_secret_resource.id + "}",
-                "secret_string": json.dumps(master_user, sort_keys=True),
-            }
-            if provider:
-                version_values["provider"] = provider
-            aws_version_resource = aws_secretsmanager_secret_version(
-                secret_identifier, **version_values
-            )
-            tf_resources.append(aws_version_resource)
-
-            policy = {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "secretsmanager:GetResourcePolicy",
-                            "secretsmanager:GetSecretValue",
-                            "secretsmanager:DescribeSecret",
-                            "secretsmanager:ListSecretVersionIds",
-                        ],
-                        "Resource": "${" + aws_secret_resource.id + "}",
-                    }
-                ],
-            }
-            iam_policy_resource = aws_iam_policy(
-                secret_identifier,
-                name=f"{identifier}-secretsmanager-policy",
-                policy=json.dumps(policy, sort_keys=True),
-                tags=tags,
-            )
-            tf_resources.append(iam_policy_resource)
-
-            output_name = output_prefix + "__secret_name"
-            output_value = secret_name
-            tf_resources.append(Output(output_name, value=output_value))
-            output_name = output_prefix + "__secret_policy_arn"
-            output_value = "${" + iam_policy_resource.arn + "}"
-            tf_resources.append(Output(output_name, value=output_value))
-            # master_user_name
-            output_name = output_prefix + "__master_user_name"
-            output_value = master_user["master_user_name"]
-            tf_resources.append(Output(output_name, value=output_value, sensitive=True))
-            # master_user_password
-            output_name = output_prefix + "__master_user_password"
-            output_value = master_user["master_user_password"]
-            tf_resources.append(Output(output_name, value=output_value, sensitive=True))
 
         self.add_resources(account, tf_resources)
 
@@ -5001,11 +5023,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             master_user_secret = master_user_options["master_user_secret"]
             secret_data = self.secret_reader.read_all(master_user_secret)
 
-            required_keys = {"master_user_name", "master_user_password"}
-            if secret_data.keys() != required_keys:
+            required_keys = {
+                "master_user_name",
+                "master_user_password",
+            }
+            if not (required_keys <= secret_data.keys()):
                 raise KeyError(
                     f"vault secret '{master_user_secret['path']}' must "
-                    f"exactly contain these keys: {', '.join(required_keys)}"
+                    f"contain these keys: {', '.join(required_keys)}"
                 )
 
             advanced_security_options["master_user_options"] = secret_data
@@ -5493,6 +5518,26 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             },
             "depends_on": self.get_dependencies([lb_tf_resource, default_target]),
         }
+
+        # mutual authentication section
+        if mutual_authentication := resource.get("mutual_authentication"):
+            trust_store_values = {
+                "ca_certificates_bundle_s3_bucket": mutual_authentication[
+                    "ca_cert_bundle_s3_bucket_name"
+                ],
+                "ca_certificates_bundle_s3_key": mutual_authentication[
+                    "ca_cert_bundle_s3_bucket_key"
+                ],
+            }
+            trust_store = aws_lb_trust_store(
+                f"{identifier}-trust-store", **trust_store_values
+            )
+            tf_resources.append(trust_store)
+            values["mutual_authentication"] = {
+                "mode": mutual_authentication["mode"],
+                "trust_store_arn": f"${{{trust_store.arn}}}",
+            }
+
         forward_identifier = f"{identifier}-forward"
         forward_lbl_tf_resource = aws_lb_listener(forward_identifier, **values)
         tf_resources.append(forward_lbl_tf_resource)
