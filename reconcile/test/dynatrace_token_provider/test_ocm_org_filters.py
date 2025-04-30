@@ -2,13 +2,14 @@ from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
 )
-from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
+from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
 from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
 from reconcile.test.dynatrace_token_provider.fixtures import (
     build_dynatrace_client,
+    build_k8s_secret,
     build_ocm_client,
     build_syncset,
 )
@@ -44,13 +45,12 @@ def test_ocm_org_filters(
         get_syncset={
             cluster_a.id: build_syncset(
                 secrets=[
-                    K8sSecret(
-                        secret_name="dynatrace-tokens-dtp",
-                        namespace_name="dynatrace",
+                    build_k8s_secret(
                         tokens=[
-                            default_operator_token,
                             default_ingestion_token,
+                            default_operator_token,
                         ],
+                        tenant_id="dt_tenant_a",
                     )
                 ],
                 tenant_id="dt_tenant_a",
@@ -85,8 +85,8 @@ def test_ocm_org_filters(
 
     default_integration.reconcile(dry_run=False, dependencies=dependencies)
 
-    ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
-    dynatrace_client.create_api_token.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_syncset.assert_not_called()
+    ocm_client.create_syncset.assert_not_called()
+    ocm_client.patch_manifest.assert_not_called()
+    ocm_client.create_manifest.assert_not_called()
+    dynatrace_client.create_api_token.assert_not_called()
