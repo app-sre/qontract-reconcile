@@ -37,6 +37,9 @@ query QuayMembership {
         bots {
           quay_username
         }
+        external_users {
+          quay_username
+        }
         expirationDate
       }
     }
@@ -72,9 +75,14 @@ class BotV1(ConfiguredBaseModel):
     quay_username: Optional[str] = Field(..., alias="quay_username")
 
 
+class ExternalUserV1(ConfiguredBaseModel):
+    quay_username: Optional[str] = Field(..., alias="quay_username")
+
+
 class RoleV1(ConfiguredBaseModel):
     users: list[UserV1] = Field(..., alias="users")
     bots: list[BotV1] = Field(..., alias="bots")
+    external_users: list[ExternalUserV1] = Field(..., alias="external_users")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
 
 

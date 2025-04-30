@@ -13,6 +13,7 @@ gql_response:
         - users:
             - quay_username: expired1
           bots: []
+          external_users: []
           expirationDate: "1900-01-01"
         # standard role
         - users:
@@ -22,6 +23,7 @@ gql_response:
           bots:
             - quay_username: bot1
             - quay_username: null
+          external_users: []
           expirationDate: null
         # 2nd standard role
         - users:
@@ -31,6 +33,7 @@ gql_response:
           bots:
             - quay_username: bot2
             - quay_username: null
+          external_users: []
           expirationDate: null
     - service: quay-membership
       quayOrg:
