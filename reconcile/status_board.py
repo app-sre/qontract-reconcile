@@ -545,9 +545,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             d.act(dry_run, ocm_api)
 
     def run(self, dry_run: bool) -> None:
-        # update cyclic reference
-        Product.update_forward_refs()
-
         slodocs = get_slo_documents()
         for sb in get_status_board():
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
