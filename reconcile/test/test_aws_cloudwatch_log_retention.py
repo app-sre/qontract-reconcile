@@ -13,7 +13,6 @@ from moto import mock_logs
 from pytest_mock import MockerFixture
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
-    account_to_dict,
     get_desired_cleanup_options_by_region,
     run,
 )
@@ -113,7 +112,7 @@ def test_get_desired_cleanup_options(
     test_cloudwatch_account: AWSAccountV1,
 ) -> None:
     desired_cleanup_options_by_region = get_desired_cleanup_options_by_region(
-        account_to_dict(test_cloudwatch_account)
+        test_cloudwatch_account
     )
     assert len(desired_cleanup_options_by_region) == 1
     assert len(desired_cleanup_options_by_region["us-east-1"]) == 2

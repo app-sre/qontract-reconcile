@@ -7,7 +7,6 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
-    Any,
 )
 
 from botocore.exceptions import ClientError
@@ -48,11 +47,12 @@ DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION = AWSCloudwatchCleanupOption(
 
 
 def get_desired_cleanup_options_by_region(
-    account: dict,
+    account: AWSAccountV1,
 ) -> dict[str, list[AWSCloudwatchCleanupOption]]:
-    default_region = account["resourcesDefaultRegion"]
+    account_dict = account.dict(by_alias=True)
+    default_region = account_dict["resourcesDefaultRegion"]
     result = defaultdict(list)
-    if cleanup := account.get("cleanup"):
+    if cleanup := account_dict.get("cleanup"):
         for cleanup_option in cleanup:
             if cleanup_option["provider"] == "cloudwatch":
                 region = cleanup_option.get("region") or default_region
@@ -70,9 +70,14 @@ def get_desired_cleanup_options_by_region(
     return result
 
 
-def create_awsapi_client(accounts: list, thread_pool_size: int) -> AWSApi:
+def create_awsapi_client(accounts: list[AWSAccountV1], thread_pool_size: int) -> AWSApi:
     settings = queries.get_secret_reader_settings()
-    return AWSApi(thread_pool_size, accounts, settings=settings, init_users=False)
+    return AWSApi(
+        thread_pool_size,
+        [account.dict(by_alias=True) for account in accounts],
+        settings=settings,
+        init_users=False,
+    )
 
 
 def is_empty(log_group: LogGroupTypeDef) -> bool:
@@ -201,10 +206,10 @@ def _find_desired_cleanup_option(
 
 def _reconcile_log_groups(
     dry_run: bool,
-    aws_account: dict,
+    aws_account: AWSAccountV1,
     awsapi: AWSApi,
 ) -> None:
-    account_name = aws_account["name"]
+    account_name = aws_account.name
     desired_cleanup_options_by_region = get_desired_cleanup_options_by_region(
         aws_account
     )
@@ -239,40 +244,20 @@ def _reconcile_log_groups(
             )
 
 
-# def get_aws_accounts_test() -> list[dict]:
-#     gql_api_query = gql.get_api().query
-#     return [
-#         account.dict(by_alias=True)
-#         for account in get_aws_accounts(query_func=gql_api_query).accounts
-#         or []
-#     ]
-
-
-def account_to_dict(account: AWSAccountV1) -> dict[str, Any]:
-    return account.dict(by_alias=True)
-
-
 def get_active_aws_accounts() -> list[AWSAccountV1]:
-    accounts = get_aws_accounts(gql.get_api())
-    if accounts is not None:
-        accounts = [
-            account
-            for account in accounts
-            if account.disable is None
-            or (
-                account.disable.integrations is not None
-                and (
-                    "aws-cloudwatch-log-retention" not in (account.disable.integrations)
-                )
-            )
-        ]
-    return accounts or []
+    return [
+        account
+        for account in get_aws_accounts(gql.get_api())
+        if not (
+            account.disable
+            and account.disable.integrations
+            and "aws-cloudwatch-log-retention" in account.disable.integrations
+        )
+    ]
 
 
 def run(dry_run: bool, thread_pool_size: int) -> None:
-    aws_accounts = [
-        account.dict(by_alias=True) for account in get_active_aws_accounts() or []
-    ]
+    aws_accounts = get_active_aws_accounts()
     with create_awsapi_client(aws_accounts, thread_pool_size) as awsapi:
         for aws_account in aws_accounts:
             _reconcile_log_groups(dry_run, aws_account, awsapi)
