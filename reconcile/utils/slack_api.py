@@ -255,6 +255,10 @@ class SlackApi:
                 case "channel_not_found":
                     logging.error(f"Slack API says can't find channel {self.channel}")
                     raise
+                case "ratelimited":
+                    logging.warning(
+                        "Slack API says there are too many requests, continuing..."
+                    )
                 case _:
                     raise
 
