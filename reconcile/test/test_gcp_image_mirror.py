@@ -106,7 +106,6 @@ def test_gcp_mirror_session(mocker: MockerFixture) -> None:
     mocked_request.Session.return_value.close.assert_called_once_with()
 
 
-# TODO query_repos_to_sync against AR, GCP
 def test_process_repos_to_sync(
     mocker: MockerFixture, repo_query_gql, expected_sync_results
 ) -> None:
