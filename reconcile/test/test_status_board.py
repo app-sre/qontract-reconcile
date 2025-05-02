@@ -359,11 +359,18 @@ def test_get_diff_create_app() -> None:
     )
 
     assert len(h) == 2
-    assert h[0].action == h[1].action == Action.create
-    assert isinstance(h[0].status_board_object, Application)
-    assert isinstance(h[1].status_board_object, Application)
-    assert sorted([x.status_board_object.name for x in h]) == ["bar", "foo"]
-    assert sorted([x.status_board_object.fullname for x in h]) == ["foo/bar", "foo/foo"]
+    assert any(
+        e.status_board_object.name == "foo"
+        and isinstance(e.status_board_object, Application)
+        and e.action == Action.create
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "bar"
+        and isinstance(e.status_board_object, Application)
+        and e.action == Action.create
+        for e in h
+    )
 
 
 def test_get_diff_create_one_app() -> None:
@@ -416,10 +423,24 @@ def test_get_diff_create_product_and_apps() -> None:
     )
 
     assert len(h) == 3
-    assert h[0].action == Action.create
-    assert isinstance(h[0].status_board_object, Product)
-    assert isinstance(h[1].status_board_object, Application)
-    assert isinstance(h[2].status_board_object, Application)
+    assert any(
+        e.status_board_object.name == "foo"
+        and isinstance(e.status_board_object, Product)
+        and e.action == Action.create
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "bar"
+        and isinstance(e.status_board_object, Application)
+        and e.action == Action.create
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "foo"
+        and isinstance(e.status_board_object, Application)
+        and e.action == Action.create
+        for e in h
+    )
 
 
 def test_get_diff_create_product_app_and_service() -> None:
@@ -576,9 +597,18 @@ def test_get_diff_delete_apps_and_product() -> None:
         current_products={"foo": current_foo},
     )
     assert len(h) == 2
-    assert h[0].action == h[1].action == Action.delete
-    assert isinstance(h[0].status_board_object, Application)
-    assert isinstance(h[1].status_board_object, Product)
+    assert any(
+        e.status_board_object.name == "foo"
+        and isinstance(e.status_board_object, Product)
+        and e.action == Action.delete
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "bar"
+        and isinstance(e.status_board_object, Application)
+        and e.action == Action.delete
+        for e in h
+    )
 
 
 def test_get_diff_delete_product_app_and_service() -> None:
@@ -616,10 +646,24 @@ def test_get_diff_delete_product_app_and_service() -> None:
         current_products={"foo": current_foo},
     )
     assert len(h) == 3
-    assert h[0].action == h[1].action == h[2].action == Action.delete
-    assert isinstance(h[0].status_board_object, Service)
-    assert isinstance(h[1].status_board_object, Application)
-    assert isinstance(h[2].status_board_object, Product)
+    assert any(
+        e.status_board_object.name == "foo"
+        and isinstance(e.status_board_object, Product)
+        and e.action == Action.delete
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "bar"
+        and isinstance(e.status_board_object, Application)
+        and e.action == Action.delete
+        for e in h
+    )
+    assert any(
+        e.status_board_object.name == "baz"
+        and isinstance(e.status_board_object, Service)
+        and e.action == Action.delete
+        for e in h
+    )
 
 
 def test_apply_sorted(mocker: MockerFixture) -> None:
