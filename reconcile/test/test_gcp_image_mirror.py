@@ -43,7 +43,9 @@ def tf_repo_project() -> ContainerImageMirror:
 
 
 @pytest.fixture()
-def repo_query_gql(qr_project, tf_repo_project) -> GcpDockerReposQueryData:
+def repo_query_gql(
+    qr_project: ContainerImageMirror, tf_repo_project: ContainerImageMirror
+) -> GcpDockerReposQueryData:
     return GcpDockerReposQueryData(
         apps=[
             AppV1(
@@ -73,7 +75,9 @@ def repo_query_gql(qr_project, tf_repo_project) -> GcpDockerReposQueryData:
 
 
 @pytest.fixture()
-def expected_sync_results(qr_project, tf_repo_project) -> list[ImageSyncItem]:
+def expected_sync_results(
+    qr_project: ContainerImageMirror, tf_repo_project: ContainerImageMirror
+) -> list[ImageSyncItem]:
     return [
         ImageSyncItem(
             mirror=qr_project,
@@ -107,7 +111,9 @@ def test_gcp_mirror_session(mocker: MockerFixture) -> None:
 
 
 def test_process_repos_to_sync(
-    mocker: MockerFixture, repo_query_gql, expected_sync_results
+    mocker: MockerFixture,
+    repo_query_gql: GcpDockerReposQueryData,
+    expected_sync_results: list[ImageSyncItem],
 ) -> None:
     setup_mocks(mocker)
 
