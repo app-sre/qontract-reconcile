@@ -4,6 +4,7 @@ from unittest.mock import call
 import pytest
 from pytest_mock import MockerFixture
 
+from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.status_board import (
     AbstractStatusBoard,
@@ -15,6 +16,7 @@ from reconcile.status_board import (
     StatusBoardHandler,
 )
 from reconcile.utils.ocm_base_client import OCMBaseClient
+from reconcile.utils.runtime.integration import PydanticRunParams
 
 
 class StatusBoardStub(AbstractStatusBoard):
@@ -92,6 +94,70 @@ def status_board(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoard
                             "name": "foo",
                         },
                     },
+                },
+                {
+                    "appSelectors": {
+                        "exclude": ['apps[?@.onboardingStatus!="OnBoarded"]']
+                    },
+                    "productEnvironment": {
+                        "name": "bar",
+                        "labels": '{"bar": "bar"}',
+                        "namespaces": [
+                            {
+                                "app": {
+                                    "name": "bar",
+                                    "onboardingStatus": "OnBoarded",
+                                }
+                            },
+                        ],
+                        "product": {
+                            "name": "bar",
+                        },
+                    },
+                },
+            ],
+        },
+    )
+
+
+@pytest.fixture
+def slo_documents(gql_class_factory: Callable[..., SLODocumentV1]) -> SLODocumentV1:
+    return gql_class_factory(
+        SLODocumentV1,
+        {
+            "labels": '{"service":"bar","statusBoard":"enabled"}',
+            "name": "foo",
+            "app": {"name": "foo"},
+            "slos": [
+                {
+                    "name": "Availability",
+                    "dashboard": "https://url.com",
+                    "SLIType": "availability",
+                    "SLISpecification": "specification 1",
+                    "SLOTarget": 0.95,
+                    "SLOTargetUnit": "percent_0_1",
+                    "SLOParameters": {"window": "28d"},
+                    "SLODetails": "https://url.com",
+                    "expr": "metric{}",
+                },
+                {
+                    "name": "Latency",
+                    "dashboard": "https://url.com",
+                    "SLIType": "latency",
+                    "SLISpecification": "specification 2",
+                    "SLOTarget": 0.95,
+                    "SLOTargetUnit": "percent_0_1",
+                    "SLOParameters": {"window": "28d"},
+                    "SLODetails": "https://url.com",
+                    "expr": "metric{}",
+                },
+            ],
+            "namespaces": [
+                {
+                    "namespace": {
+                        "cluster": {"name": "cluster"},
+                        "environment": {"product": {"name": "foo"}},
+                    }
                 }
             ],
         },
@@ -144,7 +210,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
 
 def test_get_product_apps(status_board: StatusBoardV1) -> None:
     p = StatusBoardExporterIntegration.get_product_apps(status_board)
-    assert p == {"foo": {"foo", "foo-bar"}}
+    assert p == {"foo": {"foo", "foo-bar"}, "bar": {"bar"}}
 
 
 def test_get_current_products_applications_services(mocker: MockerFixture) -> None:
@@ -704,3 +770,166 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
         ],
         any_order=False,
     )
+
+
+def test_run_integration(
+    mocker: MockerFixture,
+    status_board: list[StatusBoardV1],
+    slo_documents: list[SLODocumentV1],
+) -> None:
+    mocked_get_status_board = mocker.patch(
+        "reconcile.status_board.get_status_board", autospec=True
+    )
+    mocked_get_slo_documents = mocker.patch(
+        "reconcile.status_board.get_slo_documents", autospec=True
+    )
+    mock_init_ocm_base_client = mocker.patch(
+        "reconcile.status_board.init_ocm_base_client", autospec=True
+    )
+    mocker.patch(
+        "reconcile.utils.runtime.integration.get_app_interface_vault_settings",
+        autospec=True,
+    )
+    mocker.patch(
+        "reconcile.utils.runtime.integration.create_secret_reader", autospec=True
+    )
+    mocked_get_status_board.return_value = [status_board]
+    mocked_get_slo_documents.return_value = [slo_documents]
+    ocm_api_mock = mocker.Mock(OCMBaseClient)
+    mock_init_ocm_base_client.return_value = ocm_api_mock
+
+    mock_get_products = mocker.patch(
+        "reconcile.status_board.get_managed_products", autospec=True
+    )
+    mock_get_apps = mocker.patch(
+        "reconcile.status_board.get_product_applications", autospec=True
+    )
+    mock_get_services = mocker.patch(
+        "reconcile.status_board.get_application_services", autospec=True
+    )
+
+    mock_get_products.return_value = [
+        {"name": "product_1", "fullname": "product_1", "id": "1"},
+        {"name": "bar", "fullname": "bar", "id": "2"},
+    ]
+
+    apps_mapping = {
+        "1": [
+            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1"},
+        ],
+        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1"}],
+    }
+
+    services_mapping = {
+        "1_1": [
+            {
+                "name": "service_1",
+                "fullname": "product_1/app_1/service_1",
+                "id": "1_1_1",
+            },
+        ],
+    }
+
+    mock_get_apps.side_effect = lambda _, product_id: apps_mapping.get(product_id, [])
+    mock_get_services.side_effect = lambda _, app_id: services_mapping.get(app_id, [])
+
+    mock_create_product = mocker.patch(
+        "reconcile.status_board.create_product", autospec=True
+    )
+    mock_create_product.return_value = "1"
+
+    mock_create_application = mocker.patch(
+        "reconcile.status_board.create_application", autospec=True
+    )
+    mock_create_application.return_value = "2"
+
+    mock_create_service = mocker.patch(
+        "reconcile.status_board.create_service", autospec=True
+    )
+    mock_create_service.return_value = "3"
+
+    mock_delete_product = mocker.patch(
+        "reconcile.status_board.delete_product", autospec=True
+    )
+    mock_delete_application = mocker.patch(
+        "reconcile.status_board.delete_application", autospec=True
+    )
+    mock_delete_service = mocker.patch(
+        "reconcile.status_board.delete_service", autospec=True
+    )
+    integration = StatusBoardExporterIntegration(PydanticRunParams())
+
+    integration.run(dry_run=False)
+
+    mock_create_product.assert_called_once_with(
+        ocm_api_mock, {"fullname": "foo", "metadata": None, "name": "foo"}
+    )
+    mock_create_application.assert_has_calls(
+        [
+            call(
+                ocm_api=ocm_api_mock,
+                spec={
+                    "fullname": "foo/foo-bar",
+                    "metadata": None,
+                    "name": "foo-bar",
+                    "product": {"id": "1"},
+                    "services": [],
+                },
+            ),
+            call(
+                ocm_api=ocm_api_mock,
+                spec={
+                    "fullname": "foo/foo",
+                    "metadata": None,
+                    "name": "foo",
+                    "product": {"id": "1"},
+                    "services": [],
+                },
+            ),
+        ],
+        any_order=True,
+    )
+    mock_create_service.assert_has_calls(
+        [
+            call(
+                ocm_api=ocm_api_mock,
+                spec={
+                    "name": "Availability",
+                    "fullname": "foo/foo/Availability",
+                    "metadata": {
+                        "sli_type": "availability",
+                        "sli_specification": "specification 1",
+                        "slo_details": "https://url.com",
+                        "target": 0.95,
+                        "target_unit": "percent_0_1",
+                        "window": "28d",
+                    },
+                    "application": {"id": "2"},
+                    "status_type": "traffic_light",
+                    "service_endpoint": "none",
+                },
+            ),
+            call(
+                ocm_api=ocm_api_mock,
+                spec={
+                    "name": "Latency",
+                    "fullname": "foo/foo/Latency",
+                    "metadata": {
+                        "sli_type": "latency",
+                        "sli_specification": "specification 2",
+                        "slo_details": "https://url.com",
+                        "target": 0.95,
+                        "target_unit": "percent_0_1",
+                        "window": "28d",
+                    },
+                    "application": {"id": "2"},
+                    "status_type": "traffic_light",
+                    "service_endpoint": "none",
+                },
+            ),
+        ],
+        any_order=True,
+    )
+    mock_delete_product.assert_called_once_with(ocm_api_mock, "1")
+    mock_delete_application.assert_called_once_with(ocm_api_mock, "1_1")
+    mock_delete_service.assert_called_once_with(ocm_api_mock, "1_1_1")
