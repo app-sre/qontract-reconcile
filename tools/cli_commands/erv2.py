@@ -232,20 +232,28 @@ class Erv2Cli:
 
         try:
             with task(self.progress_spinner, "-- Running terraform"):
-                # now spin up your ERv2 image in DRY_RUN=“True” ACTION=“Apply”
-                run([
-                  "docker", "pull", self.image
-                ], check=True)
-                run([
-                  "docker", "run", "--name", "erv2",
-                  "-v", f"{input_file!s}:/inputs/input.json:Z",
-                  "-v", f"{credentials!s}:/credentials:Z",
-                  "-v", f"{self.temp}:/work:Z",
-                  "-e", "AWS_SHARED_CREDENTIALS_FILE=/credentials",
-                  "-e", f"TERRAFORM_MODULE_WORK_DIR=/tmp/{tf_module}",
-                  self.image
-                ], check=True,
-                capture_output=True)
+                run(["docker", "pull", self.image], check=True)
+                run(
+                    [
+                        "docker",
+                        "run",
+                        "--name",
+                        "erv2",
+                        "-v",
+                        f"{input_file!s}:/inputs/input.json:Z",
+                        "-v",
+                        f"{credentials!s}:/credentials:Z",
+                        "-v",
+                        f"{self.temp}:/work:Z",
+                        "-e",
+                        "AWS_SHARED_CREDENTIALS_FILE=/credentials",
+                        "-e",
+                        f"TERRAFORM_MODULE_WORK_DIR=/tmp/{tf_module}",
+                        self.image,
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
 
             with task(self.progress_spinner, "-- Copying the terraform module"):
                 run(
