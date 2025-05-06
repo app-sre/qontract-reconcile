@@ -121,6 +121,7 @@ class QuayMirror:
             return any(re.match(tag, candidate) for tag in tags)
 
         if tags_exclude is not None:
+            return any(re.match(tag, candidate) for tag in tags_exclude)
             for tag_exclude in tags_exclude:
                 if re.match(tag_exclude, candidate):
                     return False
