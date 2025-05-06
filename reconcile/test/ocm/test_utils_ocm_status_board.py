@@ -84,13 +84,14 @@ def test_create_status_board_object_via_ocm_api(
     ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
     ocm.post.return_value = {"id": "foo"}
 
-    id = create_function(ocm, {"name": "foo"})
+    id = create_function(ocm, {"name": "foo", "fullname": "foo", "metadata": {}})
 
     ocm.post.assert_called_once_with(
         end_point,
         data={
             "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
             "name": "foo",
+            "fullname": "foo",
         },
     )
     assert id == "foo"
@@ -120,12 +121,42 @@ def test_update_service(mocker: MockFixture) -> None:
     ocm.patch.return_value = {"id": "foo"}
     object_id = "foo"
 
-    update_service(ocm, object_id, {"name": "foo"})
+    update_service(
+        ocm,
+        object_id,
+        {
+            "name": "foo",
+            "fullname": "foo",
+            "application_id": "1",
+            "status_type": "traffic_light",
+            "service_endpoint": "none",
+            "metadata": {
+                "sli_specification": "specification",
+                "target_unit": "unit",
+                "slo_details": "details",
+                "sli_type": "new type",
+                "window": "window",
+                "target": 0.99,
+            },
+        },
+    )
 
     ocm.patch.assert_called_once_with(
         f"/api/status-board/v1/services/{object_id}",
         data={
-            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
             "name": "foo",
+            "fullname": "foo",
+            "application_id": "1",
+            "service_endpoint": "none",
+            "status_type": "traffic_light",
+            "metadata": {
+                METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
+                "sli_specification": "specification",
+                "target_unit": "unit",
+                "slo_details": "details",
+                "sli_type": "new type",
+                "window": "window",
+                "target": 0.99,
+            },
         },
     )

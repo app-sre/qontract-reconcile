@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, TypedDict
 
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -9,6 +9,33 @@ PRODUCTS_DESIRED_KEYS = {"id", "name", "fullname", "metadata"}
 
 METADATA_MANAGED_BY_KEY = "managedBy"
 METADATA_MANAGED_BY_VALUE = "qontract-reconcile"
+
+
+class BaseOCMSpec(TypedDict):
+    name: str
+    fullname: str
+
+
+class ApplicationOCMSpec(BaseOCMSpec):
+    product_id: str
+
+
+class ServiceMetadataSpec(TypedDict):
+    sli_type: str
+    sli_specification: str
+    slo_details: str
+    target: float
+    target_unit: str
+    window: str
+
+
+class ServiceOCMSpec(BaseOCMSpec):
+    # The next two fields come from the orignal script at
+    # https://gitlab.cee.redhat.com/service/status-board/-/blob/main/scripts/create-services-from-app-intf.sh?ref_type=heads#L116
+    status_type: str
+    service_endpoint: str
+    application_id: str
+    metadata: ServiceMetadataSpec
 
 
 def get_product_applications(
@@ -62,37 +89,43 @@ def get_managed_products(ocm_api: OCMBaseClient) -> list[dict[str, Any]]:
     return results
 
 
-def create_product(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> str:
-    if "metadata" not in spec or spec["metadata"] is None:
-        spec["metadata"] = {}
-    spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
-    resp = ocm_api.post("/api/status-board/v1/products/", data=spec)
+def create_product(ocm_api: OCMBaseClient, spec: BaseOCMSpec) -> str:
+    data: dict[str, Any] = {}
+    data.update(spec)
+    data["metadata"] = {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}
+
+    resp = ocm_api.post("/api/status-board/v1/products/", data=data)
     return resp["id"]
 
 
-def create_application(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> str:
-    if "metadata" not in spec or spec["metadata"] is None:
-        spec["metadata"] = {}
-    spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
-    resp = ocm_api.post("/api/status-board/v1/applications/", data=spec)
+def create_application(ocm_api: OCMBaseClient, spec: ApplicationOCMSpec) -> str:
+    data: dict[str, Any] = {}
+    data.update(spec)
+    data["metadata"] = {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}
+
+    resp = ocm_api.post("/api/status-board/v1/applications/", data=data)
     return resp["id"]
 
 
-def create_service(ocm_api: OCMBaseClient, spec: dict[str, Any]) -> str:
-    if "metadata" not in spec or spec["metadata"] is None:
-        spec["metadata"] = {}
-    spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
-    resp = ocm_api.post("/api/status-board/v1/services/", data=spec)
+def create_service(ocm_api: OCMBaseClient, spec: ServiceOCMSpec) -> str:
+    data: dict[str, Any] = {}
+    data.update(spec)
+    data["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
+
+    resp = ocm_api.post("/api/status-board/v1/services/", data=data)
     return resp["id"]
 
 
 def update_service(
-    ocm_api: OCMBaseClient, service_id: str, spec: dict[str, Any]
+    ocm_api: OCMBaseClient,
+    service_id: str,
+    spec: ServiceOCMSpec,
 ) -> None:
-    if "metadata" not in spec or spec["metadata"] is None:
-        spec["metadata"] = {}
-    spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
-    ocm_api.patch(f"/api/status-board/v1/services/{service_id}", data=spec)
+    data: dict[str, Any] = {}
+    data.update(spec)
+    data["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
+
+    ocm_api.patch(f"/api/status-board/v1/services/{service_id}", data=data)
 
 
 def delete_product(ocm_api: OCMBaseClient, product_id: str) -> None:
