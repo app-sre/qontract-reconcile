@@ -64,11 +64,6 @@ query AWSAccountsCloudwatchLogRetentionCleanup {
         delete_empty_log_group
         region
       }
-      ... on AWSAccountCleanupOptionAMI_v1 {
-        regex
-        age
-        region
-      }
     }
   }
 }
@@ -118,12 +113,6 @@ class AWSAccountCleanupOptionCloudWatchV1(AWSAccountCleanupOptionV1):
     region: Optional[str] = Field(..., alias="region")
 
 
-class AWSAccountCleanupOptionAMIV1(AWSAccountCleanupOptionV1):
-    regex: str = Field(..., alias="regex")
-    age: str = Field(..., alias="age")
-    region: Optional[str] = Field(..., alias="region")
-
-
 class AWSAccountV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
@@ -143,7 +132,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     premium_support: bool = Field(..., alias="premiumSupport")
     ecrs: Optional[list[AWSECRV1]] = Field(..., alias="ecrs")
     partition: Optional[str] = Field(..., alias="partition")
-    cleanup: Optional[list[Union[AWSAccountCleanupOptionCloudWatchV1, AWSAccountCleanupOptionAMIV1, AWSAccountCleanupOptionV1]]] = Field(..., alias="cleanup")
+    cleanup: Optional[list[Union[AWSAccountCleanupOptionCloudWatchV1, AWSAccountCleanupOptionV1]]] = Field(..., alias="cleanup")
 
 
 class AWSAccountsCloudwatchLogRetentionCleanupQueryData(ConfiguredBaseModel):

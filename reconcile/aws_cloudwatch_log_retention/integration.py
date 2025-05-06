@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from reconcile import queries
 from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
+    AWSAccountCleanupOptionCloudWatchV1,
     AWSAccountV1,
 )
 from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
@@ -49,22 +50,18 @@ DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION = AWSCloudwatchCleanupOption(
 def get_desired_cleanup_options_by_region(
     account: AWSAccountV1,
 ) -> dict[str, list[AWSCloudwatchCleanupOption]]:
-    account_dict = account.dict(by_alias=True)
-    default_region = account_dict["resourcesDefaultRegion"]
+    default_region = account.resources_default_region
     result = defaultdict(list)
-    if cleanup := account_dict.get("cleanup"):
-        for cleanup_option in cleanup:
-            if cleanup_option["provider"] == "cloudwatch":
-                region = cleanup_option.get("region") or default_region
-                result[region].append(
-                    AWSCloudwatchCleanupOption(
-                        regex=re.compile(cleanup_option["regex"]),
-                        retention_in_days=cleanup_option["retention_in_days"],
-                        delete_empty_log_group=bool(
-                            cleanup_option["delete_empty_log_group"]
-                        ),
-                    )
+    for cleanup_option in account.cleanup or []:
+        if isinstance(cleanup_option, AWSAccountCleanupOptionCloudWatchV1):
+            region = cleanup_option.region or default_region
+            result[region].append(
+                AWSCloudwatchCleanupOption(
+                    regex=re.compile(cleanup_option.regex),
+                    retention_in_days=cleanup_option.retention_in_days,
+                    delete_empty_log_group=bool(cleanup_option.delete_empty_log_group),
                 )
+            )
     if not result:
         result[default_region].append(DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION)
     return result
