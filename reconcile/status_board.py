@@ -6,7 +6,6 @@ from abc import (
 from collections.abc import Iterable, Mapping
 from enum import Enum
 from typing import (
-    Any,
     Optional,
 )
 
@@ -21,6 +20,10 @@ from reconcile.typed_queries.status_board import (
 )
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.ocm.status_board import (
+    ApplicationOCMSpec,
+    BaseOCMSpec,
+    ServiceMetadataSpec,
+    ServiceOCMSpec,
     create_application,
     create_product,
     create_service,
@@ -54,7 +57,6 @@ class AbstractStatusBoard(ABC, BaseModel):
     id: str | None
     name: str
     fullname: str
-    metadata: dict[str, Any] | None
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -77,23 +79,21 @@ class AbstractStatusBoard(ABC, BaseModel):
     def get_priority() -> int:
         pass
 
+    @abstractmethod
+    def to_ocm_spec(self) -> BaseOCMSpec:
+        pass
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, AbstractStatusBoard):
             return NotImplemented
-        return (
-            self.name == other.name
-            and self.fullname == other.fullname
-            and self.metadata == other.metadata
-        )
+        return self.name == other.name and self.fullname == other.fullname
 
 
 class Product(AbstractStatusBoard):
     applications: list["Application"] | None
 
     def create(self, ocm: OCMBaseClient) -> None:
-        spec = self.dict(by_alias=True)
-        spec.pop("applications")
-        spec.pop("id")
+        spec = self.to_ocm_spec()
         self.id = create_product(ocm, spec)
 
     def update(self, ocm: OCMBaseClient) -> None:
@@ -110,6 +110,12 @@ class Product(AbstractStatusBoard):
     def summarize(self) -> str:
         return f'Product: "{self.name}"'
 
+    def to_ocm_spec(self) -> BaseOCMSpec:
+        return {
+            "name": self.name,
+            "fullname": self.fullname,
+        }
+
     @staticmethod
     def get_priority() -> int:
         return 0
@@ -120,12 +126,8 @@ class Application(AbstractStatusBoard):
     services: list["Service"] | None
 
     def create(self, ocm: OCMBaseClient) -> None:
-        spec = self.dict(by_alias=True)
-        spec.pop("id")
-        product = spec.pop("product")
-        product_id = product.get("id")
-        if product_id:
-            spec["product"] = {"id": product_id}
+        if self.product and self.product.id:
+            spec = self.to_ocm_spec()
             self.id = create_application(ocm, spec)
         else:
             logging.warning("Missing product id for application")
@@ -144,6 +146,14 @@ class Application(AbstractStatusBoard):
     def summarize(self) -> str:
         return f'Application: "{self.name}" "{self.fullname}"'
 
+    def to_ocm_spec(self) -> ApplicationOCMSpec:
+        product_id = self.product.id if self.product and self.product.id else ""
+        return {
+            "name": self.name,
+            "fullname": self.fullname,
+            "product_id": product_id,
+        }
+
     @staticmethod
     def get_priority() -> int:
         return 1
@@ -157,18 +167,11 @@ class Service(AbstractStatusBoard):
     # This field is not used when we are mapping the services that belongs to an
     # application in that case we use the `services` field in Application class.
     application: Optional["Application"]
+    metadata: ServiceMetadataSpec
 
     def create(self, ocm: OCMBaseClient) -> None:
-        spec = self.dict(by_alias=True)
-        spec.pop("id")
-        application = spec.pop("application")
-        application_id = application.get("id")
-        if application_id:
-            spec["application"] = {"id": application_id}
-            # The next two fields come from the orignal script at
-            # https://gitlab.cee.redhat.com/service/status-board/-/blob/main/scripts/create-services-from-app-intf.sh?ref_type=heads#L116
-            spec["status_type"] = "traffic_light"
-            spec["service_endpoint"] = "none"
+        spec = self.to_ocm_spec()
+        if self.application and self.application.id:
             self.id = create_service(ocm, spec)
         else:
             logging.warning("Missing application id for service")
@@ -183,16 +186,8 @@ class Service(AbstractStatusBoard):
         if not self.id:
             logging.error(f'Trying to update Service "{self.name}" without id')
             return
-        spec = self.dict(by_alias=True)
-        spec.pop("id")
-        application = spec.pop("application")
-        application_id = application.get("id")
-        if application_id:
-            spec["application"] = {"id": application_id}
-            # The next two fields come from the orignal script at
-            # https://gitlab.cee.redhat.com/service/status-board/-/blob/main/scripts/create-services-from-app-intf.sh?ref_type=heads#L116
-            spec["status_type"] = "traffic_light"
-            spec["service_endpoint"] = "none"
+        spec = self.to_ocm_spec()
+        if self.application and self.application.id:
             update_service(ocm, self.id, spec)
         else:
             logging.warning("Missing application id for service")
@@ -200,9 +195,32 @@ class Service(AbstractStatusBoard):
     def summarize(self) -> str:
         return f'Service: "{self.name}" "{self.fullname}"'
 
+    def to_ocm_spec(self) -> ServiceOCMSpec:
+        application_id = (
+            self.application.id if self.application and self.application.id else ""
+        )
+
+        return {
+            "name": self.name,
+            "fullname": self.fullname,
+            "metadata": self.metadata,
+            "status_type": "traffic_light",
+            "service_endpoint": "none",
+            "application_id": application_id,
+        }
+
     @staticmethod
     def get_priority() -> int:
         return 2
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Service):
+            return NotImplemented
+        return (
+            self.name == other.name
+            and self.fullname == other.fullname
+            and self.metadata == other.metadata
+        )
 
 
 # Resolve forward references after class definitions
@@ -288,7 +306,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
         for product, apps in desired_product_apps.items():
             desired_abstract_status_board_map[product] = Product(
-                name=product, fullname=product, applications=[]
+                name=product, fullname=product, applications=[], metadata={}
             )
             for a in apps:
                 key = f"{product}/{a}"
@@ -297,6 +315,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     fullname=key,
                     services=[],
                     product=desired_abstract_status_board_map[product],
+                    metadata={},
                 )
         for slodoc in slodocs:
             products = [

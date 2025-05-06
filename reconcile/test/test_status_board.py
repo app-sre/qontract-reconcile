@@ -15,6 +15,7 @@ from reconcile.status_board import (
     StatusBoardExporterIntegration,
     StatusBoardHandler,
 )
+from reconcile.utils.ocm.status_board import BaseOCMSpec, ServiceMetadataSpec
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.runtime.integration import PydanticRunParams
 
@@ -41,6 +42,9 @@ class StatusBoardStub(AbstractStatusBoard):
     @staticmethod
     def get_priority() -> int:
         return 0
+
+    def to_ocm_spec(self) -> BaseOCMSpec:
+        return {"name": "", "fullname": ""}
 
 
 @pytest.fixture
@@ -164,11 +168,23 @@ def slo_documents(gql_class_factory: Callable[..., SLODocumentV1]) -> SLODocumen
     )
 
 
+@pytest.fixture
+def basic_service_metadata_spec() -> ServiceMetadataSpec:
+    return {
+        "sli_specification": "specification",
+        "target_unit": "unit",
+        "slo_details": "details",
+        "sli_type": "type",
+        "window": "window",
+        "target": 0.99,
+    }
+
+
 def test_status_board_handler(mocker: MockerFixture) -> None:
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
         action=Action.create,
-        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
+        status_board_object=StatusBoardStub(name="foo", fullname="foo", metadata={}),
     )
 
     h.act(dry_run=False, ocm=ocm)
@@ -188,6 +204,14 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
 
     # Update is only supported for Services
     # Services need an Application with ID to be updated
+    metadata: ServiceMetadataSpec = {
+        "sli_specification": "specification",
+        "target_unit": "unit",
+        "slo_details": "details",
+        "sli_type": "type",
+        "window": "window",
+        "target": 0.99,
+    }
     s = Service(
         id="baz",
         name="foo",
@@ -199,6 +223,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
             services=[],
             product=Product(name="baz", fullname="baz", applications=[]),
         ),
+        metadata=metadata,
     )
     spy = mocker.spy(Service, "update")
     h = StatusBoardHandler(action=Action.update, status_board_object=s)
@@ -240,11 +265,27 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
                 "name": "service_1",
                 "fullname": "product_1/app_1/service_1",
                 "id": "1_1_1",
+                "metadata": {
+                    "sli_type": "type",
+                    "sli_specification": "spec",
+                    "slo_details": "details",
+                    "target": 0.99,
+                    "target_unit": "unit",
+                    "window": "1h",
+                },
             },
             {
                 "name": "service_2",
                 "fullname": "product_1/app_1/service_2",
                 "id": "1_1_2",
+                "metadata": {
+                    "sli_type": "type",
+                    "sli_specification": "spec",
+                    "slo_details": "details",
+                    "target": 0.99,
+                    "target_unit": "unit",
+                    "window": "1h",
+                },
             },
         ],
         "1_2": [],
@@ -258,6 +299,14 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         StatusBoardExporterIntegration.get_current_products_applications_services(ocm)
     )
 
+    metadata: ServiceMetadataSpec = {
+        "sli_type": "type",
+        "sli_specification": "spec",
+        "slo_details": "details",
+        "target": 0.99,
+        "target_unit": "unit",
+        "window": "1h",
+    }
     assert products == [
         Product(
             name="product_1",
@@ -273,11 +322,13 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
                             name="service_1",
                             fullname="product_1/app_1/service_1",
                             id="1_1_1",
+                            metadata=metadata,
                         ),
                         Service(
                             name="service_2",
                             fullname="product_1/app_1/service_2",
                             id="1_1_2",
+                            metadata=metadata,
                         ),
                     ],
                 ),
@@ -306,6 +357,14 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
 
 
 def test_current_abstract_status_board_map() -> None:
+    metadata: ServiceMetadataSpec = {
+        "sli_type": "type",
+        "sli_specification": "spec",
+        "slo_details": "details",
+        "target": 0.99,
+        "target_unit": "unit",
+        "window": "1h",
+    }
     current_data = [
         Product(
             name="product_1",
@@ -321,11 +380,13 @@ def test_current_abstract_status_board_map() -> None:
                             name="service_1",
                             fullname="product_1/app_1/service_1",
                             id="1_1_1",
+                            metadata=metadata,
                         ),
                         Service(
                             name="service_2",
                             fullname="product_1/app_1/service_2",
                             id="1_1_2",
+                            metadata=metadata,
                         ),
                     ],
                 ),
@@ -373,11 +434,13 @@ def test_current_abstract_status_board_map() -> None:
             name="service_1",
             fullname="product_1/app_1/service_1",
             id="1_1_1",
+            metadata=metadata,
         ),
         "product_1/app_1/service_2": Service(
             name="service_2",
             fullname="product_1/app_1/service_2",
             id="1_1_2",
+            metadata=metadata,
         ),
         "product_1/app_2": Application(
             name="app_2",
@@ -509,7 +572,9 @@ def test_get_diff_create_product_and_apps() -> None:
     )
 
 
-def test_get_diff_create_product_app_and_service() -> None:
+def test_get_diff_create_product_app_and_service(
+    basic_service_metadata_spec: ServiceMetadataSpec,
+) -> None:
     foo_product = Product(name="foo", fullname="foo", applications=[])
     bar_app = Application(
         name="bar", fullname="foo/bar", services=[], product=foo_product
@@ -522,7 +587,10 @@ def test_get_diff_create_product_app_and_service() -> None:
                 name="foo", fullname="foo/foo", services=[], product=foo_product
             ),
             "foo/bar/baz": Service(
-                name="baz", fullname="foo/bar/baz", metadata={}, application=bar_app
+                name="baz",
+                fullname="foo/bar/baz",
+                metadata=basic_service_metadata_spec,
+                application=bar_app,
             ),
         },
         current_abstract_status_board_map={},
@@ -549,13 +617,31 @@ def test_get_diff_create_product_app_and_service() -> None:
 
 
 def test_get_diff_update_service() -> None:
+    old_metadata: ServiceMetadataSpec = {
+        "sli_specification": "specification",
+        "target_unit": "unit",
+        "slo_details": "details",
+        "sli_type": "old type",
+        "window": "window",
+        "target": 0.99,
+    }
+    new_metadata: ServiceMetadataSpec = {
+        "sli_specification": "specification",
+        "target_unit": "unit",
+        "slo_details": "details",
+        "sli_type": "new type",
+        "window": "window",
+        "target": 0.99,
+    }
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": Product(name="foo", fullname="foo", applications=[]),
             "foo/bar": Application(name="bar", fullname="foo/bar", services=[]),
             "foo/foo": Application(name="foo", fullname="foo/foo", services=[]),
             "foo/bar/baz": Service(
-                name="baz", fullname="foo/bar/baz", metadata={"type": "new_type"}
+                name="baz",
+                fullname="foo/bar/baz",
+                metadata=new_metadata,
             ),
         },
         current_abstract_status_board_map={
@@ -563,7 +649,9 @@ def test_get_diff_update_service() -> None:
             "foo/bar": Application(name="bar", fullname="foo/bar", services=[]),
             "foo/foo": Application(name="foo", fullname="foo/foo", services=[]),
             "foo/bar/baz": Service(
-                name="baz", fullname="foo/bar/baz", metadata={"type": "old_type"}
+                name="baz",
+                fullname="foo/bar/baz",
+                metadata=old_metadata,
             ),
         },
         current_products={
@@ -578,7 +666,7 @@ def test_get_diff_update_service() -> None:
                             Service(
                                 name="baz",
                                 fullname="foo/bar/baz",
-                                metadata={"type": "old_type"},
+                                metadata=old_metadata,
                             )
                         ],
                     )
@@ -678,6 +766,14 @@ def test_get_diff_delete_apps_and_product() -> None:
 
 
 def test_get_diff_delete_product_app_and_service() -> None:
+    metadata: ServiceMetadataSpec = {
+        "sli_specification": "specification",
+        "target_unit": "unit",
+        "slo_details": "details",
+        "sli_type": "type",
+        "window": "window",
+        "target": 0.99,
+    }
     current_foo = Product(
         id="1",
         name="foo",
@@ -688,7 +784,9 @@ def test_get_diff_delete_product_app_and_service() -> None:
                 name="bar",
                 fullname="foo/bar",
                 services=[
-                    Service(id="3", name="baz", fullname="foo/bar/baz", metadata={})
+                    Service(
+                        id="3", name="baz", fullname="foo/bar/baz", metadata=metadata
+                    )
                 ],
             )
         ],
@@ -705,7 +803,7 @@ def test_get_diff_delete_product_app_and_service() -> None:
                 id="3",
                 name="baz",
                 fullname="foo/bar/baz",
-                metadata={},
+                metadata=metadata,
                 application=current_bar,
             ),
         },
@@ -743,12 +841,19 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
         product=product,
         services=[],
     )
+    metadata: ServiceMetadataSpec = {
+        "sli_type": "type",
+        "sli_specification": "spec",
+        "slo_details": "details",
+        "target": 0.99,
+        "target_unit": "unit",
+        "window": "1h",
+    }
     h = [
         StatusBoardHandler(
             action=Action.create,
             status_board_object=Service(
-                name="baz",
-                fullname="foo/bar/baz",
+                name="baz", fullname="foo/bar/baz", metadata=metadata
             ),
         ),
         StatusBoardHandler(
@@ -826,6 +931,14 @@ def test_run_integration(
                 "name": "service_1",
                 "fullname": "product_1/app_1/service_1",
                 "id": "1_1_1",
+                "metadata": {
+                    "sli_type": "availability",
+                    "sli_specification": "specification 1",
+                    "slo_details": "https://url.com",
+                    "target": 0.95,
+                    "target_unit": "percent_0_1",
+                    "window": "28d",
+                },
             },
         ],
     }
@@ -862,7 +975,7 @@ def test_run_integration(
     integration.run(dry_run=False)
 
     mock_create_product.assert_called_once_with(
-        ocm_api_mock, {"fullname": "foo", "metadata": None, "name": "foo"}
+        ocm_api_mock, {"fullname": "foo", "name": "foo"}
     )
     mock_create_application.assert_has_calls(
         [
@@ -870,20 +983,16 @@ def test_run_integration(
                 ocm_api=ocm_api_mock,
                 spec={
                     "fullname": "foo/foo-bar",
-                    "metadata": None,
                     "name": "foo-bar",
-                    "product": {"id": "1"},
-                    "services": [],
+                    "product_id": "1",
                 },
             ),
             call(
                 ocm_api=ocm_api_mock,
                 spec={
                     "fullname": "foo/foo",
-                    "metadata": None,
                     "name": "foo",
-                    "product": {"id": "1"},
-                    "services": [],
+                    "product_id": "1",
                 },
             ),
         ],
@@ -904,7 +1013,7 @@ def test_run_integration(
                         "target_unit": "percent_0_1",
                         "window": "28d",
                     },
-                    "application": {"id": "2"},
+                    "application_id": "2",
                     "status_type": "traffic_light",
                     "service_endpoint": "none",
                 },
@@ -922,7 +1031,7 @@ def test_run_integration(
                         "target_unit": "percent_0_1",
                         "window": "28d",
                     },
-                    "application": {"id": "2"},
+                    "application_id": "2",
                     "status_type": "traffic_light",
                     "service_endpoint": "none",
                 },
