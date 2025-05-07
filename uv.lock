@@ -426,14 +426,14 @@ wheels = [
 
 [[package]]
 name = "dt"
-version = "1.1.61"
+version = "1.1.73"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/40/23/209d5a0fb7465dff069b1e86f45b62f7ac3baf75cb215671a2d9a9a03830/dt-1.1.61.tar.gz", hash = "sha256:8e6d4f8b6fd6fa4f68cc5270590bb1f18e7b31b5c52b37393dfb8d3293245884", size = 79707 }
+sdist = { url = "https://files.pythonhosted.org/packages/46/51/5437b988896088c6df8a4a1ab788c4a0e2770e43820bf51ae46cb04e9743/dt-1.1.73.tar.gz", hash = "sha256:16852a636b4b2c484f99728c34b852ccb654ae00bfec3a2fc7cb6d587d07be4f", size = 68884 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/07/d11b133bd9a6990b16f72b5fe98f8cbc0da807f2fa6e6e7edd68c741fbc8/dt-1.1.61-py3-none-any.whl", hash = "sha256:7b1fbd1dc6820acb0a0efa81eef91f88085a08f1271b9f10b9582905531d8c7b", size = 128060 },
+    { url = "https://files.pythonhosted.org/packages/a1/d5/a178e5dc8cce0cea36d3c594bd93aade1cea607306a7daa6b593974079a8/dt-1.1.73-py3-none-any.whl", hash = "sha256:558c82c0aec0351c95529deccc48f103ca334c6d64326c437341b6a8e89585f0", size = 110766 },
 ]
 
 [[package]]
