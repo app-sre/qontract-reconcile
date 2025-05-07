@@ -1,8 +1,6 @@
-import itertools
 from typing import Any
 
 import requests
-from requests.exceptions import ConnectionError
 from sretoolbox.utils import threaded
 
 from reconcile.dashdotdb_base import (
@@ -27,7 +25,7 @@ from reconcile.utils.slo_document_manager import (
 )
 
 QONTRACT_INTEGRATION = "dashdotdb-slo"
-READ_TIMEOUT = 10
+READ_TIMEOUT = 300
 MAX_RETRIES = 2
 
 
@@ -83,32 +81,10 @@ class DashdotdbSLO(DashdotdbBase):
 
             LOG.info("%s slo %s synced", self.logmarker, slo_name)
 
-    @staticmethod
-    def get_current_slo_details(slo_manager: SLODocumentManager) -> list[SLODetails]:
-        try:
-            slo_details_list = slo_manager.get_slo_details_list()
-        finally:
-            slo_manager.cleanup()
-        return slo_details_list
-
-    @staticmethod
-    def check_and_raise_exception(exceptions: list[Exception]) -> None:
-        connection_exceptions = [
-            connection_exception
-            for connection_exception in exceptions
-            if isinstance(connection_exception, ConnectionError)
-        ]
-        if connection_exceptions:
-            raise RuntimeError(
-                f"Found exceptions while getting the slo details {connection_exceptions}"
-            )
-        for slo_exception in exceptions:
-            LOG.error(slo_exception)
-
     def run(self) -> None:
         slo_documents = get_slo_documents()
 
-        slo_document_manager_list = SLODocumentManager.get_slo_document_manager_list(
+        slo_document_manager = SLODocumentManager(
             slo_documents=slo_documents,
             secret_reader=self.secret_reader,
             thread_pool_size=self.thread_pool_size,
@@ -116,25 +92,18 @@ class DashdotdbSLO(DashdotdbBase):
             max_retries=MAX_RETRIES,
         )
 
-        slo_details_list = threaded.run(
-            func=self.get_current_slo_details,
-            iterable=slo_document_manager_list,
-            thread_pool_size=self.thread_pool_size,
-        )
-
-        slo_details_list = list(itertools.chain.from_iterable(slo_details_list))
-        slo_exceptions = [slo for slo in slo_details_list if isinstance(slo, Exception)]
-        valid_slo_list = [slo for slo in slo_details_list if slo not in slo_exceptions]
+        slo_details_list = slo_document_manager.get_current_slo_list()
+        valid_slo_list = [slo for slo in slo_details_list if slo]
 
         self._get_token()
-        threaded.run(
-            func=self._post,
-            iterable=valid_slo_list,
-            thread_pool_size=self.thread_pool_size,
-        )
-        self._close_token()
-        if slo_exceptions:
-            self.check_and_raise_exception(slo_exceptions)
+        try:
+            threaded.run(
+                func=self._post,
+                iterable=valid_slo_list,
+                thread_pool_size=self.thread_pool_size,
+            )
+        finally:
+            self._close_token()
 
 
 def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:

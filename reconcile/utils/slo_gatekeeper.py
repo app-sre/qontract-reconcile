@@ -14,25 +14,26 @@ class SLOGateKeeper:
         secret_reader: SecretReaderBase,
         thread_pool_size: int = 1,
     ):
-        self.slo_manager_list = SLODocumentManager.get_slo_document_manager_list(
-            slo_documents, secret_reader, thread_pool_size
+        self.slo_manager = SLODocumentManager(
+            slo_documents=slo_documents,
+            secret_reader=secret_reader,
+            thread_pool_size=thread_pool_size,
         )
 
     def get_breached_slos(self) -> list[SLODetails]:
-        current_slos: list[SLODetails] = []
-        for slo_manager in self.slo_manager_list:
-            try:
-                current_slos.extend(slo_manager.get_slo_details_list())
-            finally:
-                slo_manager.cleanup()
+        """
+        Returns a list of SLOs whose current value is below their defined target.
+        Raises an error if any SLOs could not be evaluated.
+        """
+        current_slos: list[SLODetails | None] = self.slo_manager.get_current_slo_list()
 
-        exceptions = [slo for slo in current_slos if isinstance(slo, Exception)]
-        if exceptions:
-            raise RuntimeError(
-                f"found exceptions while getting the slo details {exceptions}"
-            )
+        missing_slos = [slo for slo in current_slos if not slo]
+        if missing_slos:
+            raise RuntimeError("slo validation failed due to retrival errors")
 
         breached_slos = [
-            slo for slo in current_slos if slo.current_slo_value < slo.slo.slo_target
+            slo
+            for slo in current_slos
+            if slo and slo.current_slo_value < slo.slo.slo_target
         ]
         return breached_slos

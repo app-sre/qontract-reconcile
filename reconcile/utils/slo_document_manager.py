@@ -1,6 +1,8 @@
+import itertools
+import logging
 from dataclasses import dataclass
 from math import isnan
-from typing import Any
+from typing import Any, Self
 
 import jinja2
 import requests
@@ -9,15 +11,16 @@ from sretoolbox.utils import threaded
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLODocument,
     SLODocumentSLOV1,
+    SLOExternalPrometheusAccessV1,
     SLONamespacesV1,
 )
-from reconcile.utils.rest_api_base import ApiBase
+from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 from reconcile.utils.secret_reader import SecretReaderBase
 
 PROM_QUERY_URL = "api/v1/query"
 
 DEFAULT_READ_TIMEOUT = 30
-DEFAULT_RETRIES = 5
+DEFAULT_RETRIES = 3
 
 
 class EmptySLOResult(Exception):
@@ -33,23 +36,6 @@ class InvalidSLOValue(Exception):
 
 
 @dataclass
-class PromCredentials:
-    prom_url: str
-    is_basic_auth: bool
-    prom_token: str
-    username: str
-    password: str
-
-    def build_session(self) -> requests.Session:
-        session = requests.Session()
-        if self.is_basic_auth:
-            session.auth = requests.auth.HTTPBasicAuth(self.username, self.password)
-        else:
-            session.headers.update({"Authorization": f"Bearer {self.prom_token}"})
-        return session
-
-
-@dataclass
 class SLODetails:
     namespace_name: str
     slo_document_name: str
@@ -59,147 +45,220 @@ class SLODetails:
     current_slo_value: float
 
 
-class SLODocumentManager(ApiBase):
+@dataclass
+class FlatSLODocument:
+    name: str
+    namespace: SLONamespacesV1
+    slos: list[SLODocumentSLOV1] | None
+
+    def get_host_url(self) -> str:
+        return (
+            self.namespace.prometheus_access.url
+            if self.namespace.prometheus_access
+            else self.namespace.namespace.cluster.prometheus_url
+        )
+
+
+class PrometheusClient(ApiBase):
+    def get_current_slo_value(
+        self,
+        slo: SLODocumentSLOV1,
+        slo_document_name: str,
+        namespace_name: str,
+        service_name: str,
+        cluster_name: str,
+    ) -> SLODetails | None:
+        """
+        Retrieve the current SLO value from Prometheus for provided SLO configuration.
+        Returns an SLODetails instance if successful, or None on error.
+        """
+        template = jinja2.Template(slo.expr)
+        prom_query = template.render({"window": slo.slo_parameters.window})
+        try:
+            current_slo_response = self._get(
+                url=PROM_QUERY_URL, params={"query": (prom_query)}
+            )
+            current_slo_value = self._extract_current_slo_value(
+                data=current_slo_response
+            )
+            return SLODetails(
+                namespace_name=namespace_name,
+                slo=slo,
+                slo_document_name=slo_document_name,
+                current_slo_value=current_slo_value,
+                cluster_name=cluster_name,
+                service_name=service_name,
+            )
+        except requests.exceptions.ConnectionError:
+            logging.error(
+                f"Connection error  getting current value for SLO:{slo.name} of document:{slo_document_name} for namespace:{namespace_name}"
+            )
+            raise
+        except Exception as e:
+            logging.error(
+                f"Unexpected error getting current value for SLO:{slo.name} of document:{slo_document_name} for namespace:{namespace_name} details:{e}"
+            )
+            return None
+
+    def _extract_current_slo_value(self, data: dict[str, Any]) -> float:
+        result = data["data"]["result"]
+        if not result:
+            raise EmptySLOResult("prometheus returned empty result")
+        slo_value = result[0]["value"]
+        if not slo_value:
+            raise EmptySLOValue("prometheus returned empty SLO value")
+        slo_value = float(slo_value[1])
+        if isnan(slo_value):
+            raise InvalidSLOValue("slo value should be a number")
+        return slo_value
+
+
+class PrometheusClientMap:
+    """
+    A mapping from Prometheus URLs to PrometheusClient instances.
+    """
+
+    def __init__(
+        self,
+        secret_reader: SecretReaderBase,
+        flat_slo_documents: list[FlatSLODocument],
+        read_timeout: int = DEFAULT_READ_TIMEOUT,
+        max_retries: int = DEFAULT_RETRIES,
+    ):
+        self.secret_reader = secret_reader
+        self.read_timeout = read_timeout
+        self.max_retries = max_retries
+        self.pc_map: dict[str, PrometheusClient] = self._build_pc_map(
+            flat_slo_documents
+        )
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.cleanup()
+
+    def get_prometheus_client(self, prom_url: str) -> PrometheusClient:
+        return self.pc_map[prom_url]
+
+    def _build_pc_map(
+        self, flat_slo_documents: list[FlatSLODocument]
+    ) -> dict[str, PrometheusClient]:
+        pc_map: dict[str, PrometheusClient] = {}
+        for doc in flat_slo_documents:
+            key = doc.get_host_url()
+            if key not in pc_map:
+                prom_client = self.build_prom_client_from_namespace(doc.namespace)
+                pc_map[key] = prom_client
+        return pc_map
+
+    def cleanup(self) -> None:
+        for prom_client in self.pc_map.values():
+            prom_client.cleanup()
+
+    def build_auth_for_prometheus_access(
+        self, prometheus_access: SLOExternalPrometheusAccessV1
+    ) -> requests.auth.HTTPBasicAuth | None:
+        """
+        Build  authentication for  Prometheus endpoint referred in prometheusAccess section.
+        """
+        if prometheus_access.username and prometheus_access.password:
+            username = self.secret_reader.read_secret(prometheus_access.username)
+            password = self.secret_reader.read_secret(prometheus_access.password)
+            return requests.auth.HTTPBasicAuth(username, password)
+        return None
+
+    def build_prom_client_from_namespace(
+        self, namespace: SLONamespacesV1
+    ) -> PrometheusClient:
+        auth: requests.auth.HTTPBasicAuth | BearerTokenAuth | None
+        if namespace.prometheus_access:
+            prom_url = namespace.prometheus_access.url
+            auth = self.build_auth_for_prometheus_access(namespace.prometheus_access)
+            return PrometheusClient(
+                host=prom_url,
+                read_timeout=self.read_timeout,
+                max_retries=self.max_retries,
+                auth=auth,
+            )
+        if not namespace.namespace.cluster.automation_token:
+            raise Exception(
+                f"cluster {namespace.namespace.cluster.name} does not have automation token set"
+            )
+        auth = BearerTokenAuth(
+            self.secret_reader.read_secret(namespace.namespace.cluster.automation_token)
+        )
+        return PrometheusClient(
+            host=namespace.namespace.cluster.prometheus_url,
+            read_timeout=self.read_timeout,
+            max_retries=self.max_retries,
+            auth=auth,
+        )
+
+
+class SLODocumentManager:
     """
     Manages  SLO document including authentication, querying, and SLO value extraction.
     """
 
     def __init__(
         self,
-        namespace: SLONamespacesV1,
-        slo_document_name: str,
-        slos: list[SLODocumentSLOV1] | None,
-        secret_reader: SecretReaderBase,
-        read_timeout: int = DEFAULT_READ_TIMEOUT,
-        max_retries: int = DEFAULT_RETRIES,
-        thread_pool_size: int = 1,
-    ):
-        self.slos = slos
-        self.namespace = namespace
-        self.thread_pool_size = thread_pool_size
-        self.slo_document_name = slo_document_name
-        self.secret_reader = secret_reader
-        self.prom_credentials = self._get_credentials_from_slo_namespace(namespace)
-        super().__init__(
-            host=self.prom_credentials.prom_url,
-            session=self.prom_credentials.build_session(),
-            read_timeout=read_timeout,
-            max_retries=max_retries,
-        )
-
-    @classmethod
-    def get_slo_document_manager_list(
-        cls,
         slo_documents: list[SLODocument],
         secret_reader: SecretReaderBase,
         thread_pool_size: int = 1,
         read_timeout: int = DEFAULT_READ_TIMEOUT,
         max_retries: int = DEFAULT_RETRIES,
-    ) -> list["SLODocumentManager"]:
-        """
-        Creates a list of SLODocumentManager instances from a list of SLO documents.
-        """
-        slo_details_manager_list = [
-            SLODocumentManager(
+    ):
+        self.flat_slo_documents = self._flatten_slo_documents(slo_documents)
+        self.thread_pool_size = thread_pool_size
+        self.secret_reader = secret_reader
+        self.max_retries = max_retries
+        self.read_timeout = read_timeout
+
+    @staticmethod
+    def _flatten_slo_documents(
+        slo_documents: list[SLODocument],
+    ) -> list[FlatSLODocument]:
+        return [
+            FlatSLODocument(
+                name=slo_document.name,
                 namespace=namespace,
-                slo_document_name=slo_document.name,
                 slos=slo_document.slos,
-                secret_reader=secret_reader,
-                thread_pool_size=thread_pool_size,
-                read_timeout=read_timeout,
-                max_retries=max_retries,
             )
             for slo_document in slo_documents
             for namespace in slo_document.namespaces
         ]
-        return slo_details_manager_list
 
-    def _get_credentials_from_slo_namespace(
-        self, namespace: SLONamespacesV1
-    ) -> PromCredentials:
-        """
-        Extracts prometheus URL and credentials required to query prometheus endpoint.
-        """
-        prom_url: str = ""
-        prom_token: str = ""
-        username: str = ""
-        password: str = ""
-        is_basic_auth: bool = False
-        if namespace.prometheus_access:
-            if (
-                namespace.prometheus_access.username
-                and namespace.prometheus_access.password
-            ):
-                is_basic_auth = True
-                username = self.secret_reader.read_secret(
-                    namespace.prometheus_access.username
-                )
-                password = self.secret_reader.read_secret(
-                    namespace.prometheus_access.password
-                )
-
-                prom_url = namespace.prometheus_access.url
-        else:
-            prom_url = namespace.namespace.cluster.prometheus_url
-            if not namespace.namespace.cluster.automation_token:
-                raise Exception(
-                    f"cluster {namespace.namespace.cluster.name} does not have automation token set"
-                )
-            prom_token = self.secret_reader.read_secret(
-                namespace.namespace.cluster.automation_token
+    def get_current_slo_list(self) -> list[SLODetails | None]:
+        with PrometheusClientMap(
+            secret_reader=self.secret_reader,
+            flat_slo_documents=self.flat_slo_documents,
+            read_timeout=self.read_timeout,
+            max_retries=self.max_retries,
+        ) as pc_map:
+            current_slo_list_iterable = threaded.run(
+                func=self._get_current_slo_details_list,
+                pc_map=pc_map,
+                iterable=self.flat_slo_documents,
+                thread_pool_size=self.thread_pool_size,
             )
-        return PromCredentials(
-            prom_url=prom_url,
-            prom_token=prom_token,
-            is_basic_auth=is_basic_auth,
-            username=username,
-            password=password,
-        )
+            return list(itertools.chain.from_iterable(current_slo_list_iterable))
 
-    def _extract_current_slo_value(self, data: Any, slo_name: str) -> float:
-        result = data["data"]["result"]
-        if not result:
-            raise EmptySLOResult(
-                f"prometheus returned empty result for SLO: {slo_name} of SLO document: {self.slo_document_name}"
+    @staticmethod
+    def _get_current_slo_details_list(
+        slo_document: FlatSLODocument,
+        pc_map: PrometheusClientMap,
+    ) -> list[SLODetails | None]:
+        key = slo_document.get_host_url()
+        prom_client = pc_map.get_prometheus_client(key)
+        slo_details_list: list[SLODetails | None] = [
+            prom_client.get_current_slo_value(
+                slo=slo,
+                slo_document_name=slo_document.name,
+                namespace_name=slo_document.namespace.namespace.name,
+                service_name=slo_document.namespace.namespace.app.name,
+                cluster_name=slo_document.namespace.namespace.cluster.name,
             )
-        slo_value = result[0]["value"]
-        if not slo_value:
-            raise EmptySLOValue(
-                f"prometheus returned empty SLO value for SLO: {slo_name} of SLO document: {self.slo_document_name}"
-            )
-        slo_value = float(slo_value[1])
-        if isnan(slo_value):
-            raise InvalidSLOValue(
-                f"invalid format for SLO: {slo_name} of SLO document: {self.slo_document_name}"
-            )
-        return slo_value
-
-    def _get_slo_details(self, slo: SLODocumentSLOV1) -> SLODetails:
-        """
-        Build SLODetail object by retriving the current_value of the SLO from prometheus.
-        """
-        template = jinja2.Template(slo.expr)
-        prom_query = template.render({"window": slo.slo_parameters.window})
-        current_slo_response = self._get(
-            url=PROM_QUERY_URL, params={"query": (f"{prom_query}")}
-        )
-        slo_details = SLODetails(
-            namespace_name=self.namespace.namespace.name,
-            slo_document_name=self.slo_document_name,
-            cluster_name=self.namespace.namespace.cluster.name,
-            service_name=self.namespace.namespace.app.name,
-            slo=slo,
-            current_slo_value=self._extract_current_slo_value(
-                current_slo_response, slo.name
-            ),
-        )
-        return slo_details
-
-    def get_slo_details_list(self) -> list[SLODetails]:
-        slo_details_list = threaded.run(
-            self._get_slo_details,
-            self.slos,
-            self.thread_pool_size,
-            return_exceptions=True,
-        )
+            for slo in slo_document.slos or []
+        ]
         return slo_details_list

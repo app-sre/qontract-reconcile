@@ -59,25 +59,27 @@ def test_slo_gatekeeper_positive(
         ),
     ]
     get_slo_value = mocker.patch(
-        "reconcile.utils.slo_document_manager.SLODocumentManager._get_slo_details"
+        "reconcile.utils.slo_document_manager.SLODocumentManager._get_current_slo_details_list"
     )
-    get_slo_value.return_value = SLODetails(
-        namespace_name="test_ns_name",
-        service_name="test",
-        cluster_name="test_cls",
-        slo_document_name="test_slo_name",
-        slo=SLODocumentSLOV1(
-            name="test_slo_name",
-            expr="some_test_expr",
-            SLIType="availability",
-            SLOParameters=SLODocumentSLOSLOParametersV1(
-                window="28d",
+    get_slo_value.return_value = [
+        SLODetails(
+            namespace_name="test_ns_name",
+            service_name="test",
+            cluster_name="test_cls",
+            slo_document_name="test_slo_name",
+            slo=SLODocumentSLOV1(
+                name="test_slo_name",
+                expr="some_test_expr",
+                SLIType="availability",
+                SLOParameters=SLODocumentSLOSLOParametersV1(
+                    window="28d",
+                ),
+                SLOTarget=0.95,
+                SLOTargetUnit="percent_0_1",
             ),
-            SLOTarget=0.95,
-            SLOTargetUnit="percent_0_1",
-        ),
-        current_slo_value=0.99,
-    )
+            current_slo_value=0.99,
+        )
+    ]
     slo_gate_keeper = SLOGateKeeper(
         secret_reader=secret_reader, slo_documents=slo_documents
     )
@@ -128,25 +130,27 @@ def test_slo_gatekeeper_slo_breached(
         ),
     ]
     get_slo_value = mocker.patch(
-        "reconcile.utils.slo_document_manager.SLODocumentManager._get_slo_details"
+        "reconcile.utils.slo_document_manager.SLODocumentManager._get_current_slo_details_list"
     )
-    get_slo_value.return_value = SLODetails(
-        namespace_name="test_ns_name",
-        service_name="test_service",
-        cluster_name="test_cls",
-        slo_document_name="test_slo_name",
-        slo=SLODocumentSLOV1(
-            name="test_slo_name",
-            expr="some_test_expr",
-            SLIType="availability",
-            SLOParameters=SLODocumentSLOSLOParametersV1(
-                window="28d",
+    get_slo_value.return_value = [
+        SLODetails(
+            namespace_name="test_ns_name",
+            service_name="test_service",
+            cluster_name="test_cls",
+            slo_document_name="test_slo_name",
+            slo=SLODocumentSLOV1(
+                name="test_slo_name",
+                expr="some_test_expr",
+                SLIType="availability",
+                SLOParameters=SLODocumentSLOSLOParametersV1(
+                    window="28d",
+                ),
+                SLOTarget=0.95,
+                SLOTargetUnit="percent_0_1",
             ),
-            SLOTarget=0.95,
-            SLOTargetUnit="percent_0_1",
-        ),
-        current_slo_value=0.92,
-    )
+            current_slo_value=0.92,
+        )
+    ]
     slo_gate_keeper = SLOGateKeeper(
         secret_reader=secret_reader, slo_documents=slo_documents
     )
