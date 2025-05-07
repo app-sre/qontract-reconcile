@@ -91,12 +91,12 @@ class PrometheusClient(ApiBase):
             )
         except requests.exceptions.ConnectionError:
             logging.error(
-                f"Connection error  getting current value for SLO:{slo.name} of document:{slo_document_name} for namespace:{namespace_name}"
+                f"Connection error  getting current value for SLO: {slo.name} of document: {slo_document_name} for namespace: {namespace_name}"
             )
             raise
         except Exception as e:
             logging.error(
-                f"Unexpected error getting current value for SLO:{slo.name} of document:{slo_document_name} for namespace:{namespace_name} details:{e}"
+                f"Unexpected error getting current value for SLO: {slo.name} of document: {slo_document_name} for namespace: {namespace_name} details: {e}"
             )
             return None
 
