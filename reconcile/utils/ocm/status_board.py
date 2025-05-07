@@ -20,13 +20,14 @@ class ApplicationOCMSpec(BaseOCMSpec):
     product_id: str
 
 
-class ServiceMetadataSpec(TypedDict):
+class ServiceMetadataSpec(TypedDict, total=False):
     sli_type: str
     sli_specification: str
     slo_details: str
     target: float
     target_unit: str
     window: str
+    managedBy: str
 
 
 class ServiceOCMSpec(BaseOCMSpec):
@@ -90,27 +91,24 @@ def get_managed_products(ocm_api: OCMBaseClient) -> list[dict[str, Any]]:
 
 
 def create_product(ocm_api: OCMBaseClient, spec: BaseOCMSpec) -> str:
-    data: dict[str, Any] = {}
-    data.update(spec)
-    data["metadata"] = {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}
+    data = spec | {"metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}}
 
     resp = ocm_api.post("/api/status-board/v1/products/", data=data)
     return resp["id"]
 
 
 def create_application(ocm_api: OCMBaseClient, spec: ApplicationOCMSpec) -> str:
-    data: dict[str, Any] = {}
-    data.update(spec)
-    data["metadata"] = {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}
+    data = spec | {"metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}}
 
     resp = ocm_api.post("/api/status-board/v1/applications/", data=data)
     return resp["id"]
 
 
 def create_service(ocm_api: OCMBaseClient, spec: ServiceOCMSpec) -> str:
-    data: dict[str, Any] = {}
-    data.update(spec)
-    data["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
+    metadata = (spec.get("metadata") or {}) | {
+        METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE
+    }
+    data = spec | {"metadata": metadata}
 
     resp = ocm_api.post("/api/status-board/v1/services/", data=data)
     return resp["id"]
@@ -121,9 +119,10 @@ def update_service(
     service_id: str,
     spec: ServiceOCMSpec,
 ) -> None:
-    data: dict[str, Any] = {}
-    data.update(spec)
-    data["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
+    metadata = (spec.get("metadata") or {}) | {
+        METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE
+    }
+    data = spec | {"metadata": metadata}
 
     ocm_api.patch(f"/api/status-board/v1/services/{service_id}", data=data)
 
