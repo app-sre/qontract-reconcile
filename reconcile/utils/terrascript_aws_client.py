@@ -6322,6 +6322,24 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(insights_service_account_pool_client_resource)
 
+        # todo: add terrascript equivalent of this:
+#resource "aws_cognito_user_pool_client" "ocm_osdfm_service_account" {
+#  name            = "ocm-appsre-${var.environment}-osdfm-service-account"
+#  user_pool_id    = aws_cognito_user_pool.pool.id
+#  generate_secret = true
+
+#  allowed_oauth_flows = ["client_credentials"]
+#  allowed_oauth_scopes = [
+#    "ocm/OSDFleetManagerService"
+#  ]
+#  allowed_oauth_flows_user_pool_client = true
+#  supported_identity_providers         = ["COGNITO"]
+
+#  depends_on = [
+#    aws_cognito_resource_server.userpool_service_resource_server
+#  ]
+#}
+
         # USER POOL COMPLETE
 
         # rosa-authenticator-vpce provider OR pre-created vpce resources are required for this
