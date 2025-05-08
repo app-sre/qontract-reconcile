@@ -21,6 +21,7 @@ PROM_QUERY_URL = "api/v1/query"
 
 DEFAULT_READ_TIMEOUT = 30
 DEFAULT_RETRIES = 3
+DEFAULT_THREAD_POOL_SIZE = 10
 
 
 class EmptySLOResult(Exception):
@@ -46,7 +47,7 @@ class SLODetails:
 
 
 @dataclass
-class FlatSLODocument:
+class NamespaceSLODocument:
     name: str
     namespace: SLONamespacesV1
     slos: list[SLODocumentSLOV1] | None
@@ -121,7 +122,7 @@ class PrometheusClientMap:
     def __init__(
         self,
         secret_reader: SecretReaderBase,
-        flat_slo_documents: list[FlatSLODocument],
+        flat_slo_documents: list[NamespaceSLODocument],
         read_timeout: int = DEFAULT_READ_TIMEOUT,
         max_retries: int = DEFAULT_RETRIES,
     ):
@@ -142,7 +143,7 @@ class PrometheusClientMap:
         return self.pc_map[prom_url]
 
     def _build_pc_map(
-        self, flat_slo_documents: list[FlatSLODocument]
+        self, flat_slo_documents: list[NamespaceSLODocument]
     ) -> dict[str, PrometheusClient]:
         pc_map: dict[str, PrometheusClient] = {}
         for doc in flat_slo_documents:
@@ -205,7 +206,7 @@ class SLODocumentManager:
         self,
         slo_documents: list[SLODocument],
         secret_reader: SecretReaderBase,
-        thread_pool_size: int = 1,
+        thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
         read_timeout: int = DEFAULT_READ_TIMEOUT,
         max_retries: int = DEFAULT_RETRIES,
     ):
@@ -218,9 +219,9 @@ class SLODocumentManager:
     @staticmethod
     def _flatten_slo_documents(
         slo_documents: list[SLODocument],
-    ) -> list[FlatSLODocument]:
+    ) -> list[NamespaceSLODocument]:
         return [
-            FlatSLODocument(
+            NamespaceSLODocument(
                 name=slo_document.name,
                 namespace=namespace,
                 slos=slo_document.slos,
@@ -244,9 +245,20 @@ class SLODocumentManager:
             )
             return list(itertools.chain.from_iterable(current_slo_list_iterable))
 
+    def get_breached_slos(self) -> list[SLODetails]:
+        current_slo_details_list = self.get_current_slo_list()
+        missing_slos = [slo for slo in current_slo_details_list if not slo]
+        if missing_slos:
+            raise RuntimeError("slo validation failed due to retrival errors")
+        return [
+            slo
+            for slo in current_slo_details_list
+            if slo and slo.current_slo_value < slo.slo.slo_target
+        ]
+
     @staticmethod
     def _get_current_slo_details_list(
-        slo_document: FlatSLODocument,
+        slo_document: NamespaceSLODocument,
         pc_map: PrometheusClientMap,
     ) -> list[SLODetails | None]:
         key = slo_document.get_host_url()
