@@ -6322,23 +6322,21 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         )
         tf_resources.append(insights_service_account_pool_client_resource)
 
-        # todo: add terrascript equivalent of this:
-#resource "aws_cognito_user_pool_client" "ocm_osdfm_service_account" {
-#  name            = "ocm-appsre-${var.environment}-osdfm-service-account"
-#  user_pool_id    = aws_cognito_user_pool.pool.id
-#  generate_secret = true
-
-#  allowed_oauth_flows = ["client_credentials"]
-#  allowed_oauth_scopes = [
-#    "ocm/OSDFleetManagerService"
-#  ]
-#  allowed_oauth_flows_user_pool_client = true
-#  supported_identity_providers         = ["COGNITO"]
-
-#  depends_on = [
-#    aws_cognito_resource_server.userpool_service_resource_server
-#  ]
-#}
+        # OSD FLEET MANAGER
+        ocm_osdfm_service_account_pool_client_resource = aws_cognito_user_pool_client(
+            "ocm_osdfm_service_account",
+            name=f"ocm-{identifier}-osdfm-service-account",
+            user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
+            allowed_oauth_scopes=["ocm/OSDFleetManagerService"],
+            depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
+            **pool_client_service_account_common_args,
+            token_validity_units={
+                "access_token": "minutes",
+                "id_token": "minutes",
+                "refresh_token": "days",
+            },
+        )
+        tf_resources.append(insights_service_account_pool_client_resource)
 
         # USER POOL COMPLETE
 
