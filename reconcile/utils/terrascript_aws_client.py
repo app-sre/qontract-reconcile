@@ -5927,7 +5927,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.add_resources(account, tf_resources)
 
     def populate_tf_resource_rosa_authenticator(self, spec):
-        
+
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
@@ -6139,6 +6139,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             callback_urls=[f"{bucket_url}/token.html"],
             depends_on=["aws_cognito_resource_server.userpool_gateway_resource_server"],
             **pool_client_args,
+
+            #refresh_token_validity = 30
+            #access_token_validity = 60
+            #id_token_validity = 60
+            #token_validity_units {
+            #    refresh_token = "days"
+            #    access_token = "minutes"
+            #    id_token = "minutes"
+            #}
         )
         tf_resources.append(cognito_user_pool_client)
 
@@ -6150,6 +6159,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
                 callback_urls=insights_callback_urls,
                 **pool_client_args,
+
+                #refresh_token_validity = 30
+                #access_token_validity = 60
+                #id_token_validity = 60
+                #token_validity_units {
+                #    refresh_token = "days"
+                #    access_token = "minutes"
+                #    id_token = "minutes"
+                #}
             )
             tf_resources.append(insights_cognito_user_pool_client)
 
@@ -6216,6 +6234,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             allowed_oauth_scopes=["ocm/AccountManagement"],
             depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
             **pool_client_service_account_common_args,
+
+            refresh_token_validity = 30
+            access_token_validity = 60
+            id_token_validity = 60
+            token_validity_units {
+                refresh_token = "days"
+                access_token = "minutes"
+                id_token = "minutes"
+            }
         )
         tf_resources.append(ams_service_account_pool_client_resource)
 
@@ -6227,6 +6254,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             allowed_oauth_scopes=["ocm/ClusterService"],
             depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
             **pool_client_service_account_common_args,
+
+            #refresh_token_validity = 30
+            #access_token_validity = 60
+            #id_token_validity = 60
+            #token_validity_units {
+            #    refresh_token = "days"
+            #    access_token = "minutes"
+            #    id_token = "minutes"
+            #}
         )
         tf_resources.append(cs_service_account_pool_client_resource)
 
@@ -6238,6 +6274,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             allowed_oauth_scopes=["ocm/ServiceLogService"],
             depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
             **pool_client_service_account_common_args,
+
+            #refresh_token_validity = 30
+            #access_token_validity = 60
+            #id_token_validity = 60
+            #token_validity_units {
+            #    refresh_token = "days"
+            #    access_token = "minutes"
+            #    id_token = "minutes"
+            #}
         )
         tf_resources.append(osl_service_account_pool_client_resource)
 
@@ -6252,6 +6297,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "aws_cognito_resource_server.userpool_service_resource_server"
                 ],
                 **pool_client_service_account_common_args,
+
+                #refresh_token_validity = 30
+                #access_token_validity = 60
+                #id_token_validity = 60
+                #token_validity_units {
+                #    refresh_token = "days"
+                #    access_token = "minutes"
+                #    id_token = "minutes"
+                #}
             )
         )
         tf_resources.append(backplane_cli_service_account_pool_client_resource)
@@ -6267,6 +6321,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     "aws_cognito_resource_server.userpool_service_resource_server"
                 ],
                 **pool_client_service_account_common_args,
+
+                #refresh_token_validity = 30
+                #access_token_validity = 60
+                #id_token_validity = 60
+                #token_validity_units {
+                #    refresh_token = "days"
+                #    access_token = "minutes"
+                #    id_token = "minutes"
+                #}
             )
         )
         tf_resources.append(backplane_api_service_account_pool_client_resource)
@@ -6279,6 +6342,15 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             allowed_oauth_scopes=["ocm/InsightsServiceAccount"],
             depends_on=["aws_cognito_resource_server.userpool_service_resource_server"],
             **pool_client_service_account_common_args,
+
+            #refresh_token_validity = 30
+            #access_token_validity = 60
+            #id_token_validity = 60
+            #token_validity_units {
+            #    refresh_token = "days"
+            #    access_token = "minutes"
+            #    id_token = "minutes"
+            #}
         )
         tf_resources.append(insights_service_account_pool_client_resource)
 
