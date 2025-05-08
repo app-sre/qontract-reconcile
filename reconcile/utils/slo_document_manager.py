@@ -122,7 +122,7 @@ class PrometheusClientMap:
     def __init__(
         self,
         secret_reader: SecretReaderBase,
-        flat_slo_documents: list[NamespaceSLODocument],
+        namespace_slo_documents: list[NamespaceSLODocument],
         read_timeout: int = DEFAULT_READ_TIMEOUT,
         max_retries: int = DEFAULT_RETRIES,
     ):
@@ -130,7 +130,7 @@ class PrometheusClientMap:
         self.read_timeout = read_timeout
         self.max_retries = max_retries
         self.pc_map: dict[str, PrometheusClient] = self._build_pc_map(
-            flat_slo_documents
+            namespace_slo_documents
         )
 
     def __enter__(self) -> Self:
@@ -143,10 +143,10 @@ class PrometheusClientMap:
         return self.pc_map[prom_url]
 
     def _build_pc_map(
-        self, flat_slo_documents: list[NamespaceSLODocument]
+        self, namespace_slo_documents: list[NamespaceSLODocument]
     ) -> dict[str, PrometheusClient]:
         pc_map: dict[str, PrometheusClient] = {}
-        for doc in flat_slo_documents:
+        for doc in namespace_slo_documents:
             key = doc.get_host_url()
             if key not in pc_map:
                 prom_client = self.build_prom_client_from_namespace(doc.namespace)
@@ -210,14 +210,16 @@ class SLODocumentManager:
         read_timeout: int = DEFAULT_READ_TIMEOUT,
         max_retries: int = DEFAULT_RETRIES,
     ):
-        self.flat_slo_documents = self._flatten_slo_documents(slo_documents)
+        self.namespace_slo_documents = self._build_namespace_slo_documents(
+            slo_documents
+        )
         self.thread_pool_size = thread_pool_size
         self.secret_reader = secret_reader
         self.max_retries = max_retries
         self.read_timeout = read_timeout
 
     @staticmethod
-    def _flatten_slo_documents(
+    def _build_namespace_slo_documents(
         slo_documents: list[SLODocument],
     ) -> list[NamespaceSLODocument]:
         return [
@@ -233,14 +235,14 @@ class SLODocumentManager:
     def get_current_slo_list(self) -> list[SLODetails | None]:
         with PrometheusClientMap(
             secret_reader=self.secret_reader,
-            flat_slo_documents=self.flat_slo_documents,
+            namespace_slo_documents=self.namespace_slo_documents,
             read_timeout=self.read_timeout,
             max_retries=self.max_retries,
         ) as pc_map:
             current_slo_list_iterable = threaded.run(
                 func=self._get_current_slo_details_list,
                 pc_map=pc_map,
-                iterable=self.flat_slo_documents,
+                iterable=self.namespace_slo_documents,
                 thread_pool_size=self.thread_pool_size,
             )
             return list(itertools.chain.from_iterable(current_slo_list_iterable))
