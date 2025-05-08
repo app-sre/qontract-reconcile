@@ -5927,6 +5927,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.add_resources(account, tf_resources)
 
     def populate_tf_resource_rosa_authenticator(self, spec):
+        
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
