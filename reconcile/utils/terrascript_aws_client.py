@@ -6323,8 +6323,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(insights_service_account_pool_client_resource)
 
         # OSD FLEET MANAGER
-        ocm_osdfm_service_account_pool_client_resource = aws_cognito_user_pool_client(
-            "ocm_osdfm_service_account",
+        osdfm_service_account_pool_client_resource = aws_cognito_user_pool_client(
+            "osdfm_service_account",
             name=f"ocm-{identifier}-osdfm-service-account",
             user_pool_id=f"${{{cognito_user_pool_resource.id}}}",
             allowed_oauth_scopes=["ocm/OSDFleetManagerService"],
@@ -6336,7 +6336,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 "refresh_token": "days",
             },
         )
-        tf_resources.append(insights_service_account_pool_client_resource)
+        tf_resources.append(osdfm_service_account_pool_client_resource)
 
         # USER POOL COMPLETE
 
