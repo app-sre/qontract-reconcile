@@ -20,14 +20,13 @@ class ApplicationOCMSpec(BaseOCMSpec):
     product_id: str
 
 
-class ServiceMetadataSpec(TypedDict, total=False):
+class ServiceMetadataSpec(TypedDict):
     sli_type: str
     sli_specification: str
     slo_details: str
     target: float
     target_unit: str
     window: str
-    managedBy: str
 
 
 class ServiceOCMSpec(BaseOCMSpec):
@@ -105,10 +104,10 @@ def create_application(ocm_api: OCMBaseClient, spec: ApplicationOCMSpec) -> str:
 
 
 def create_service(ocm_api: OCMBaseClient, spec: ServiceOCMSpec) -> str:
-    metadata = (spec.get("metadata") or {}) | {
-        METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE
+    data = spec | {
+        "metadata": spec["metadata"]
+        | {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}
     }
-    data = spec | {"metadata": metadata}
 
     resp = ocm_api.post("/api/status-board/v1/services/", data=data)
     return resp["id"]
@@ -119,10 +118,10 @@ def update_service(
     service_id: str,
     spec: ServiceOCMSpec,
 ) -> None:
-    metadata = (spec.get("metadata") or {}) | {
-        METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE
+    data = spec | {
+        "metadata": spec["metadata"]
+        | {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}
     }
-    data = spec | {"metadata": metadata}
 
     ocm_api.patch(f"/api/status-board/v1/services/{service_id}", data=data)
 
