@@ -249,6 +249,8 @@ class Erv2Cli:
                         "AWS_SHARED_CREDENTIALS_FILE=/credentials",
                         "-e",
                         f"TERRAFORM_MODULE_WORK_DIR=/tmp/{tf_module}",
+                        "-e",
+                        "LOCAL_STATE=False",
                         self.image,
                     ],
                     check=True,
@@ -272,18 +274,6 @@ class Erv2Cli:
             for item in src_dir.iterdir():
                 if item.name != ".terraform":
                     item.rename(self.temp / item.name)
-
-            # overwrite path set while within container
-            backend_tf = Path(self.temp) / "backend.tf"
-            backend_tf.write_text(
-                f'''
-            terraform {{
-              backend "local" {{
-                path = "{self.temp}/terraform.tfstate"
-              }}
-            }}
-            '''.lstrip()
-            )
 
         except CalledProcessError as e:
             if e.stderr:
