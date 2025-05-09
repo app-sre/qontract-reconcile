@@ -4381,8 +4381,10 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
 
         with task(progress, "(erv2) Building the terraform configuration"):
             if not skip_build:
-                # build the CDKTF output
-                erv2cli.build_cdktf(credentials_file)
+                if erv2cli.module_type == "cdktf":
+                    erv2cli.build_cdktf(credentials_file)
+                else:
+                    erv2cli.build_terraform(credentials_file)
             erv2_tf_cli = TerraformCli(
                 temp_erv2, dry_run=dry_run, progress_spinner=progress
             )
