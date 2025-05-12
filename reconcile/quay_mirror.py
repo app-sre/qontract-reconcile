@@ -28,9 +28,9 @@ from reconcile.utils import (
     metrics,
     sharding,
 )
-from reconcile.utils.helpers import match_patterns
 from reconcile.utils.instrumented_wrappers import InstrumentedImage as Image
 from reconcile.utils.instrumented_wrappers import InstrumentedSkopeo as Skopeo
+from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 from reconcile.utils.secret_reader import SecretReader
 
 _LOG = logging.getLogger(__name__)
@@ -136,7 +136,7 @@ class QuayMirror:
                     _LOG.error("skopeo command error message: '%s'", details)
 
         if self.is_compare_tags and not self.dry_run:
-            self.record_timestamp(self.control_file_path)
+            record_timestamp(self.control_file_path)
 
     @classmethod
     def process_repos_query(
@@ -203,40 +203,6 @@ class QuayMirror:
                     })
         return summary
 
-    @staticmethod
-    def sync_tag(
-        tags: Iterable[str] | None,
-        tags_exclude: Iterable[str] | None,
-        candidate: str,
-    ) -> bool:
-        """
-        Determine if the candidate tag should sync, tags_exclude check take precedence.
-        :param tags: regex patterns to filter, match means to sync, None means no filter
-        :param tags_exclude: regex patterns to filter, match means not to sync, None means no filter
-        :param candidate: tag to check
-        :return: bool, True means to sync, False means not to sync
-        """
-        if not tags and not tags_exclude:
-            return True
-
-        if not tags:
-            # only tags_exclude provided
-            assert tags_exclude  # mypy can't infer not None
-            return not match_patterns(tags_exclude, candidate)
-
-        if not tags_exclude:
-            # only tags provided
-            return match_patterns(tags, candidate)
-
-        # both tags and tags_exclude provided
-        return not match_patterns(
-            tags_exclude,
-            candidate,
-        ) and match_patterns(
-            tags,
-            candidate,
-        )
-
     def process_sync_tasks(self):
         if self.is_compare_tags:
             _LOG.warning("Making a compare-tags run. This is a slow operation.")
@@ -282,7 +248,7 @@ class QuayMirror:
                 tags_exclude = item["mirror"].get("tagsExclude")
 
                 for tag in image_mirror:
-                    if not self.sync_tag(
+                    if not sync_tag(
                         tags=tags, tags_exclude=tags_exclude, candidate=tag
                     ):
                         continue
@@ -389,11 +355,6 @@ class QuayMirror:
 
         next_compare_tags = last_compare_tags + interval
         return time.time() >= next_compare_tags
-
-    @staticmethod
-    def record_timestamp(path) -> None:
-        with open(path, "w", encoding="locale") as file_object:
-            file_object.write(str(time.time()))
 
     def _get_push_creds(self):
         result = self.gqlapi.query(self.QUAY_ORG_CATALOG_QUERY)

@@ -11,6 +11,7 @@ from reconcile.quay_mirror import (
     QuayMirror,
     queries,
 )
+from reconcile.utils.quay_mirror import sync_tag
 
 from .fixtures import Fixtures
 
@@ -108,7 +109,7 @@ class TestIsCompareTags:
     ],
 )
 def test_sync_tag(tags, tags_exclude, candidate, result):
-    assert QuayMirror.sync_tag(tags, tags_exclude, candidate) == result
+    assert sync_tag(tags, tags_exclude, candidate) == result
 
 
 def test_process_repos_query_ok(mocker):

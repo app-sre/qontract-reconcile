@@ -1,7 +1,6 @@
 import base64
 import logging
 import os
-import re
 import tempfile
 import time
 from typing import Any, Self
@@ -23,6 +22,7 @@ from reconcile.gql_definitions.fragments.container_image_mirror import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils import gql
+from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 from reconcile.utils.secret_reader import SecretReader
 
 QONTRACT_INTEGRATION = "gcp-image-mirror"
@@ -112,25 +112,6 @@ class QuayMirror:
 
         return summary
 
-    @staticmethod
-    def sync_tag(
-        tags: list[str] | None, tags_exclude: list[str] | None, candidate: str
-    ) -> bool:
-        if tags is not None:
-            # When tags is defined, we don't look at tags_exclude
-            return any(re.match(tag, candidate) for tag in tags)
-
-        if tags_exclude is not None:
-            return any(re.match(tag, candidate) for tag in tags_exclude)
-            for tag_exclude in tags_exclude:
-                if re.match(tag_exclude, candidate):
-                    return False
-            return True
-
-        # Both tags and tags_exclude are None, so
-        # tag must be synced
-        return True
-
     # second layer of processing that matches up pull/push creds with each repo and determines what tags need to be synced
     def process_sync_tasks(self, repos_to_sync: list[ImageSyncItem]) -> list[SyncTask]:
         eight_hours = 28800  # 60 * 60 * 8
@@ -165,7 +146,7 @@ class QuayMirror:
             )
 
             for tag in image_mirror:
-                if not self.sync_tag(
+                if not sync_tag(
                     tags=item.mirror.tags,
                     tags_exclude=item.mirror.tags_exclude,
                     candidate=tag,
@@ -234,12 +215,12 @@ class QuayMirror:
             with open(control_file_path, encoding="locale") as file_obj:
                 last_deep_sync = float(file_obj.read())
         except FileNotFoundError:
-            self._record_timestamp(control_file_path)
+            record_timestamp(control_file_path)
             return True
 
         next_deep_sync = last_deep_sync + interval
         if time.time() >= next_deep_sync:
-            self._record_timestamp(control_file_path)
+            record_timestamp(control_file_path)
             return True
 
         return False
@@ -248,11 +229,6 @@ class QuayMirror:
         raw_data = self.secret_reader.read_all(secret.dict())
         token = base64.b64decode(raw_data["token"]).decode()
         return f"{raw_data['user']}:{token}"
-
-    @staticmethod
-    def _record_timestamp(path: str) -> None:
-        with open(path, "w", encoding="locale") as file_object:
-            file_object.write(str(time.time()))
 
     def _get_push_creds(self) -> dict[str, str]:
         result = gql_gcp_projects.query(query_func=self.gqlapi.query)
