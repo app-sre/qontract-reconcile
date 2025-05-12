@@ -32,7 +32,7 @@ from reconcile.gql_definitions.external_resources.external_resources_settings im
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
     ExternalResourcesModuleOverrides,
 )
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
