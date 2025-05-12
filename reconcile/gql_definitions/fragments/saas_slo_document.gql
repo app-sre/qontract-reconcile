@@ -1,0 +1,45 @@
+
+# qenerate: plugin=pydantic_v1
+fragment SLODocument on SLODocument_v1 {
+    name
+    namespaces {
+      prometheusAccess {
+         url
+         username {
+         ... VaultSecret
+         }
+         password {
+           ... VaultSecret
+         }
+      }
+      namespace {
+        name
+        app {
+          name
+        }
+        cluster {
+          name
+          automationToken {
+          ... VaultSecret
+          }
+          prometheusUrl
+          spec {
+            private
+          }
+        }
+      }
+      SLONamespace {
+        name
+      }
+    }
+    slos {
+      name
+      expr
+      SLIType
+      SLOParameters {
+        window
+      }
+      SLOTarget
+      SLOTargetUnit
+    }
+}

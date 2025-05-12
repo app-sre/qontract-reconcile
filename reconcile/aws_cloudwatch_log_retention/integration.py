@@ -5,13 +5,22 @@ from collections import defaultdict
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+)
 
 from botocore.exceptions import ClientError
 from pydantic import BaseModel
 
 from reconcile import queries
-from reconcile.queries import get_aws_accounts
+from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
+    AWSAccountCleanupOptionCloudWatchV1,
+    AWSAccountV1,
+)
+from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
+    get_aws_accounts,
+)
+from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
@@ -39,31 +48,33 @@ DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION = AWSCloudwatchCleanupOption(
 
 
 def get_desired_cleanup_options_by_region(
-    account: dict,
+    account: AWSAccountV1,
 ) -> dict[str, list[AWSCloudwatchCleanupOption]]:
-    default_region = account["resourcesDefaultRegion"]
+    default_region = account.resources_default_region
     result = defaultdict(list)
-    if cleanup := account.get("cleanup"):
-        for cleanup_option in cleanup:
-            if cleanup_option["provider"] == "cloudwatch":
-                region = cleanup_option.get("region") or default_region
-                result[region].append(
-                    AWSCloudwatchCleanupOption(
-                        regex=re.compile(cleanup_option["regex"]),
-                        retention_in_days=cleanup_option["retention_in_days"],
-                        delete_empty_log_group=bool(
-                            cleanup_option["delete_empty_log_group"]
-                        ),
-                    )
+    for cleanup_option in account.cleanup or []:
+        if isinstance(cleanup_option, AWSAccountCleanupOptionCloudWatchV1):
+            region = cleanup_option.region or default_region
+            result[region].append(
+                AWSCloudwatchCleanupOption(
+                    regex=re.compile(cleanup_option.regex),
+                    retention_in_days=cleanup_option.retention_in_days,
+                    delete_empty_log_group=bool(cleanup_option.delete_empty_log_group),
                 )
+            )
     if not result:
         result[default_region].append(DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION)
     return result
 
 
-def create_awsapi_client(accounts: list, thread_pool_size: int) -> AWSApi:
+def create_awsapi_client(accounts: list[AWSAccountV1], thread_pool_size: int) -> AWSApi:
     settings = queries.get_secret_reader_settings()
-    return AWSApi(thread_pool_size, accounts, settings=settings, init_users=False)
+    return AWSApi(
+        thread_pool_size,
+        [account.dict(by_alias=True) for account in accounts],
+        settings=settings,
+        init_users=False,
+    )
 
 
 def is_empty(log_group: LogGroupTypeDef) -> bool:
@@ -192,10 +203,10 @@ def _find_desired_cleanup_option(
 
 def _reconcile_log_groups(
     dry_run: bool,
-    aws_account: dict,
+    aws_account: AWSAccountV1,
     awsapi: AWSApi,
 ) -> None:
-    account_name = aws_account["name"]
+    account_name = aws_account.name
     desired_cleanup_options_by_region = get_desired_cleanup_options_by_region(
         aws_account
     )
@@ -230,12 +241,15 @@ def _reconcile_log_groups(
             )
 
 
-def get_active_aws_accounts() -> list[dict]:
+def get_active_aws_accounts() -> list[AWSAccountV1]:
     return [
-        a
-        for a in get_aws_accounts(cleanup=True)
-        if "aws-cloudwatch-log-retention"
-        not in (a.get("disable") or {}).get("integrations", [])
+        account
+        for account in get_aws_accounts(gql.get_api())
+        if not (
+            account.disable
+            and account.disable.integrations
+            and "aws-cloudwatch-log-retention" in account.disable.integrations
+        )
     ]
 
 

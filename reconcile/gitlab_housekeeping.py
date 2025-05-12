@@ -229,7 +229,7 @@ def verify_on_demand_tests(
             commit.id,
         ])
         if not dry_run and state_change:
-            markdown_report = f"On-demand Tests: \n\n All necessary tests have paased for latest [commit]({commit.web_url})\n"
+            markdown_report = f"On-demand Tests: \n\n All necessary tests have passed for latest [commit]({commit.web_url})\n"
             gl.delete_merge_request_comments(mr, startswith="On-demand Tests:")
             gl.add_comment_to_merge_request(mr, markdown_report)
             state.add(state_key, remaining_tests, force=True)

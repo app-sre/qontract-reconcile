@@ -123,6 +123,7 @@ class Erv2Cli:
                 m_inventory.get_from_spec(spec), spec, self._er_settings
             )
         )
+        self.module_type = m_inventory.get_from_spec(spec).module_type
         self._resource = f.create_external_resource(spec, self._module_configuration)
         f.validate_external_resource(self._resource, self._module_configuration)
 
@@ -214,6 +215,66 @@ class Erv2Cli:
                     check=True,
                     capture_output=True,
                 )
+        except CalledProcessError as e:
+            if e.stderr:
+                print(e.stderr.decode("utf-8"))
+            if e.stdout:
+                print(e.stdout.decode("utf-8"))
+            raise
+
+    def build_terraform(self, credentials: Path) -> None:
+        input_file = self.temp / "input.json"
+        input_file.write_text(self.input_data)
+        tf_module = "tfmodule"
+
+        # delete previous ERv2 container
+        run(["docker", "rm", "-f", "erv2"], capture_output=True, check=True)
+
+        try:
+            with task(self.progress_spinner, "-- Running terraform"):
+                run(["docker", "pull", self.image], check=True)
+                run(
+                    [
+                        "docker",
+                        "run",
+                        "--name",
+                        "erv2",
+                        "-v",
+                        f"{input_file!s}:/inputs/input.json:Z",
+                        "-v",
+                        f"{credentials!s}:/credentials:Z",
+                        "-v",
+                        f"{self.temp}:/work:Z",
+                        "-e",
+                        "AWS_SHARED_CREDENTIALS_FILE=/credentials",
+                        "-e",
+                        f"TERRAFORM_MODULE_WORK_DIR=/tmp/{tf_module}",
+                        "-e",
+                        "LOCAL_STATE=False",
+                        self.image,
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+
+            with task(self.progress_spinner, "-- Copying the terraform module"):
+                run(
+                    [
+                        "docker",
+                        "cp",
+                        f"erv2:/tmp/{tf_module}",
+                        str(self.temp),
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+
+            # move all assets to local workdir
+            src_dir = self.temp / tf_module
+            for item in src_dir.iterdir():
+                if item.name != ".terraform":
+                    item.rename(self.temp / item.name)
+
         except CalledProcessError as e:
             if e.stderr:
                 print(e.stderr.decode("utf-8"))

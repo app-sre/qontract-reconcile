@@ -17,54 +17,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
-fragment SLODocument on SLODocument_v1 {
-    name
-    namespaces {
-      prometheusAccess {
-         url
-         username {
-         ... VaultSecret
-         }
-         password {
-           ... VaultSecret
-         }
-      }
-      namespace {
-        name
-        app {
-          name
-        }
-        cluster {
-          name
-          automationToken {
-          ... VaultSecret
-          }
-          prometheusUrl
-          spec {
-            private
-          }
-        }
-      }
-      SLONamespace {
-        name
-      }
-    }
-    slos {
-      name
-      expr
-      SLIType
-      SLOParameters {
-        window
-      }
-      SLOTarget
-      SLOTargetUnit
-    }
-}
-
 fragment VaultSecret on VaultSecret_v1 {
     path
     field
@@ -72,9 +28,15 @@ fragment VaultSecret on VaultSecret_v1 {
     format
 }
 
-query SLODocuments {
-  slo_documents: slo_document_v1 {
-  ... SLODocument
+query GcpProjects {
+  gcp_projects: gcp_projects_v1 {
+    name
+    gcrPushCredentials {
+      ...VaultSecret
+    }
+    artifactPushCredentials {
+      ...VaultSecret
+    }
   }
 }
 """
@@ -86,11 +48,17 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class SLODocumentsQueryData(ConfiguredBaseModel):
-    slo_documents: Optional[list[SLODocument]] = Field(..., alias="slo_documents")
+class GcpProjectV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    gcr_push_credentials: Optional[VaultSecret] = Field(..., alias="gcrPushCredentials")
+    artifact_push_credentials: VaultSecret = Field(..., alias="artifactPushCredentials")
 
 
-def query(query_func: Callable, **kwargs: Any) -> SLODocumentsQueryData:
+class GcpProjectsQueryData(ConfiguredBaseModel):
+    gcp_projects: Optional[list[GcpProjectV1]] = Field(..., alias="gcp_projects")
+
+
+def query(query_func: Callable, **kwargs: Any) -> GcpProjectsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -103,7 +71,7 @@ def query(query_func: Callable, **kwargs: Any) -> SLODocumentsQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        SLODocumentsQueryData: queried data parsed into generated classes
+        GcpProjectsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return SLODocumentsQueryData(**raw_data)
+    return GcpProjectsQueryData(**raw_data)

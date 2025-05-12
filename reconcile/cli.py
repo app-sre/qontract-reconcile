@@ -1849,15 +1849,13 @@ def quay_membership(ctx):
     run_integration(reconcile.quay_membership, ctx.obj)
 
 
-@integration.command(
-    short_help="Mirrors external images into Google Container Registry."
-)
+@integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
 @click.pass_context
 @binary(["skopeo"])
-def gcr_mirror(ctx):
-    import reconcile.gcr_mirror
+def gcp_image_mirror(ctx):
+    import reconcile.gcp_image_mirror
 
-    run_integration(reconcile.gcr_mirror, ctx.obj)
+    run_integration(reconcile.gcp_image_mirror, ctx.obj)
 
 
 @integration.command(short_help="Mirrors external images into Quay.")

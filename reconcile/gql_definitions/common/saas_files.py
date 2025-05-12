@@ -18,6 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.oc_connection_cluster import OcConnectionCluster
+from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.gql_definitions.fragments.saas_target_namespace import SaasTargetNamespace
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -51,6 +52,50 @@ fragment OcConnectionCluster on Cluster_v1 {
   disable {
     integrations
   }
+}
+
+fragment SLODocument on SLODocument_v1 {
+    name
+    namespaces {
+      prometheusAccess {
+         url
+         username {
+         ... VaultSecret
+         }
+         password {
+           ... VaultSecret
+         }
+      }
+      namespace {
+        name
+        app {
+          name
+        }
+        cluster {
+          name
+          automationToken {
+          ... VaultSecret
+          }
+          prometheusUrl
+          spec {
+            private
+          }
+        }
+      }
+      SLONamespace {
+        name
+      }
+    }
+    slos {
+      name
+      expr
+      SLIType
+      SLOParameters {
+        window
+      }
+      SLOTarget
+      SLOTargetUnit
+    }
 }
 
 fragment SaasTargetNamespace on Namespace_v1 {
@@ -252,6 +297,9 @@ query SaasFiles {
         name
         namespace {
           ...SaasTargetNamespace
+        }
+        slos {
+         ...SLODocument 
         }
         namespaceSelector {
           jsonPathSelectors {
@@ -512,6 +560,7 @@ class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     path: Optional[str] = Field(..., alias="path")
     name: Optional[str] = Field(..., alias="name")
     namespace: Optional[SaasTargetNamespace] = Field(..., alias="namespace")
+    slos: Optional[list[SLODocument]] = Field(..., alias="slos")
     namespace_selector: Optional[SaasResourceTemplateTargetNamespaceSelectorV1] = Field(..., alias="namespaceSelector")
     provider: Optional[str] = Field(..., alias="provider")
     ref: str = Field(..., alias="ref")
