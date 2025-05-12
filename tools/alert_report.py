@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 
-QONTRACT_INTEGRATION = "sd-app-sre-alert-report"
+QONTRACT_INTEGRATION = "alert-report"
 
 
 @dataclass

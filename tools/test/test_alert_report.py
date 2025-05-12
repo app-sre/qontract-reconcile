@@ -1,7 +1,7 @@
 from statistics import median
 
 from reconcile.test.fixtures import Fixtures
-from tools.sd_app_sre_alert_report import (
+from tools.alert_report import (
     gen_alert_stats,
     group_alerts,
 )
