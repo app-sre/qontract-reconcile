@@ -26,7 +26,7 @@ from reconcile.gql_definitions.external_resources.external_resources_settings im
     ExternalResourcesSettingsV1,
     NamespaceV1,
 )
-from reconcile.gql_definitions.fragments.deplopy_resources import (
+from reconcile.gql_definitions.fragments.deploy_resources import (
     DeployResourcesFields,
     ResourceLimitsRequirementsV1,
     ResourceRequestsRequirementsV1,
