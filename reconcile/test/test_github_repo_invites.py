@@ -11,7 +11,7 @@ from reconcile import github_repo_invites
 from reconcile.utils.raw_github_api import RawGithubApi
 
 
-def test_parse_null_code_components():
+def test_parse_null_code_components() -> None:
     raw_code_components = None
     expected = github_repo_invites.CodeComponents(
         urls=set(),
@@ -20,7 +20,7 @@ def test_parse_null_code_components():
     assert github_repo_invites._parse_code_components(raw_code_components) == expected
 
 
-def test_parse_valid_code_components():
+def test_parse_valid_code_components() -> None:
     raw_code_components: Iterable[Mapping[str, Any]] = [
         {
             "codeComponents": [
@@ -61,14 +61,14 @@ def test_parse_valid_code_components():
 
 
 @pytest.fixture
-def github():
+def github() -> MagicMock:
     mock = MagicMock(spec=RawGithubApi)
     mock.repo_invitations = MagicMock()
     mock.accept_repo_invitation = MagicMock()
     return mock
 
 
-def test_accept_invitations_no_dry_run(github):
+def test_accept_invitations_no_dry_run(github: MagicMock) -> None:
     expected_id = "123"
     expected_org = "https://github.com/org1"
     github.repo_invitations.side_effect = [
@@ -96,7 +96,7 @@ def test_accept_invitations_no_dry_run(github):
     assert accepted_invitations == {expected_org}
 
 
-def test_accept_invitations_dry_run(github):
+def test_accept_invitations_dry_run(github: MagicMock) -> None:
     expected_org = "https://github.com/org1"
     github.repo_invitations.side_effect = [
         [

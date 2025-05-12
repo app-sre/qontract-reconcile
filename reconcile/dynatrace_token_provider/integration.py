@@ -13,12 +13,15 @@ from reconcile.dynatrace_token_provider.metrics import (
     DTPOrganizationErrorRate,
     DTPTokensManagedGauge,
 )
-from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
-from reconcile.dynatrace_token_provider.ocm import (
-    DTP_LABEL_SEARCH,
-    DTP_TENANT_V2_LABEL,
+from reconcile.dynatrace_token_provider.model import (
     Cluster,
+    DynatraceAPIToken,
+    K8sSecret,
+    TokenSpecTenantBinding,
+)
+from reconcile.dynatrace_token_provider.ocm import (
     OCMClient,
+    OCMCluster,
 )
 from reconcile.dynatrace_token_provider.validate import validate_token_specs
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
@@ -37,6 +40,7 @@ from reconcile.utils.ocm.base import (
     OCMServiceLogSeverity,
 )
 from reconcile.utils.ocm.labels import subscription_label_filter
+from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
 from reconcile.utils.openshift_resource import (
     QONTRACT_ANNOTATION_INTEGRATION,
     QONTRACT_ANNOTATION_INTEGRATION_VERSION,
@@ -50,6 +54,9 @@ from reconcile.utils.semver_helper import make_semver
 QONTRACT_INTEGRATION_VERSION = make_semver(2, 0, 1)
 QONTRACT_INTEGRATION = "dynatrace-token-provider"
 SYNCSET_AND_MANIFEST_ID = "ext-dynatrace-tokens-dtp"
+DTP_LABEL_SEARCH = sre_capability_label_key("dtp", "%")
+DTP_TENANT_V2_LABEL = sre_capability_label_key("dtp.v2", "tenant")
+DTP_SPEC_V2_LABEL = sre_capability_label_key("dtp.v2", "token-spec")
 
 
 class ReconcileErrorSummary(Exception):
@@ -82,13 +89,9 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         return QONTRACT_INTEGRATION
 
     def run(self, dry_run: bool) -> None:
-        dependencies = Dependencies(
+        dependencies = Dependencies.create(
             secret_reader=self.secret_reader,
-            dynatrace_client_by_tenant_id={},
-            ocm_client_by_env_name={},
-            token_spec_by_name={},
         )
-        dependencies.populate_all()
         self.reconcile(dry_run=dry_run, dependencies=dependencies)
 
     def _token_cnt(self, dt_tenant_id: str, ocm_env_name: str) -> None:
@@ -107,6 +110,27 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                     cnt,
                 )
 
+    def _parse_ocm_data_to_cluster(self, ocm_cluster: OCMCluster) -> Cluster | None:
+        dt_tenant = ocm_cluster.labels.get(DTP_TENANT_V2_LABEL)
+        token_spec_name = ocm_cluster.labels.get(DTP_SPEC_V2_LABEL)
+        if not dt_tenant or not token_spec_name:
+            logging.warning(
+                f"[Missing DTP labels] {ocm_cluster.id=} {ocm_cluster.subscription_id=} {dt_tenant=} {token_spec_name=}"
+            )
+            return None
+        return Cluster(
+            id=ocm_cluster.id,
+            external_id=ocm_cluster.external_id,
+            organization_id=ocm_cluster.organization_id,
+            is_hcp=ocm_cluster.is_hcp,
+            dt_token_bindings=[
+                TokenSpecTenantBinding(
+                    spec_name=token_spec_name,
+                    tenant_id=dt_tenant,
+                )
+            ],
+        )
+
     def _filter_clusters(
         self,
         clusters: Iterable[Cluster],
@@ -114,18 +138,19 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
     ) -> list[Cluster]:
         filtered_clusters = []
         for cluster in clusters:
-            token_spec = token_spec_by_name.get(cluster.token_spec_name)
-            if not token_spec:
-                logging.debug(
-                    f"[{cluster.id=}] Skipping cluster. {cluster.token_spec_name=} does not exist."
-                )
-                continue
-            if cluster.organization_id in token_spec.ocm_org_ids:
-                filtered_clusters.append(cluster)
-            else:
-                logging.debug(
-                    f"[{cluster.id=}] Skipping cluster for {token_spec.name=}. {cluster.organization_id=} is not defined in {token_spec.ocm_org_ids=}."
-                )
+            for token_binding in cluster.dt_token_bindings:
+                token_spec = token_spec_by_name.get(token_binding.spec_name)
+                if not token_spec:
+                    logging.debug(
+                        f"[{cluster.id=}] Skipping cluster. {token_binding.spec_name=} does not exist."
+                    )
+                    continue
+                if cluster.organization_id in token_spec.ocm_org_ids:
+                    filtered_clusters.append(cluster)
+                else:
+                    logging.debug(
+                        f"[{cluster.id=}] Skipping cluster for {token_spec.name=}. {cluster.organization_id=} is not defined in {token_spec.ocm_org_ids=}."
+                    )
         return filtered_clusters
 
     def reconcile(self, dry_run: bool, dependencies: Dependencies) -> None:
@@ -135,17 +160,26 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         with metrics.transactional_metrics(self.name):
             unhandled_exceptions = []
             for ocm_env_name, ocm_client in dependencies.ocm_client_by_env_name.items():
-                clusters: list[Cluster] = []
+                ocm_clusters: list[OCMCluster] = []
                 try:
-                    clusters = ocm_client.discover_clusters_by_labels(
+                    ocm_clusters = ocm_client.discover_clusters_by_labels(
                         label_filter=subscription_label_filter().like(
                             "key", DTP_LABEL_SEARCH
                         ),
                     )
                 except Exception as e:
                     unhandled_exceptions.append(f"{ocm_env_name}: {e}")
-                if not clusters:
+                if not ocm_clusters:
                     continue
+                clusters: list[Cluster] = [
+                    cluster
+                    for ocm_cluster in ocm_clusters
+                    if (
+                        cluster := self._parse_ocm_data_to_cluster(
+                            ocm_cluster=ocm_cluster
+                        )
+                    )
+                ]
                 filtered_clusters = self._filter_clusters(
                     clusters=clusters,
                     token_spec_by_name=dependencies.token_spec_by_name,
@@ -161,79 +195,80 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                     len(clusters),
                 )
                 for cluster in filtered_clusters:
-                    try:
-                        with DTPOrganizationErrorRate(
-                            integration=self.name,
-                            ocm_env=ocm_env_name,
-                            org_id=cluster.organization_id,
-                        ):
-                            tenant_id = cluster.dt_tenant
-                            if not tenant_id:
-                                _expose_errors_as_service_log(
-                                    ocm_client,
-                                    cluster_uuid=cluster.external_id,
-                                    error=f"Missing label {DTP_TENANT_V2_LABEL}",
-                                )
-                                logging.warn(
-                                    f"[{cluster.id=}] Missing value for label {DTP_TENANT_V2_LABEL}"
-                                )
-                                continue
-                            if (
-                                tenant_id
-                                not in dependencies.dynatrace_client_by_tenant_id
+                    for token_binding in cluster.dt_token_bindings:
+                        try:
+                            with DTPOrganizationErrorRate(
+                                integration=self.name,
+                                ocm_env=ocm_env_name,
+                                org_id=cluster.organization_id,
                             ):
-                                _expose_errors_as_service_log(
-                                    ocm_client,
-                                    cluster_uuid=cluster.external_id,
-                                    error=f"Dynatrace tenant {tenant_id} does not exist",
-                                )
-                                logging.warn(
-                                    f"[{cluster.id=}] Dynatrace {tenant_id=} does not exist"
-                                )
-                                continue
-                            dt_client = dependencies.dynatrace_client_by_tenant_id[
-                                tenant_id
-                            ]
-
-                            token_spec = dependencies.token_spec_by_name.get(
-                                cluster.token_spec_name
-                            )
-                            if not token_spec:
-                                _expose_errors_as_service_log(
-                                    ocm_client,
-                                    cluster_uuid=cluster.external_id,
-                                    error=f"Token spec {cluster.token_spec_name} does not exist",
-                                )
-                                logging.warn(
-                                    f"[{cluster.id=}] Token spec '{cluster.token_spec_name}' does not exist"
-                                )
-                                continue
-                            if tenant_id not in existing_dtp_tokens:
-                                existing_dtp_tokens[tenant_id] = (
-                                    dt_client.get_token_ids_map_for_name_prefix(
-                                        prefix="dtp"
+                                tenant_id = token_binding.tenant_id
+                                if not tenant_id:
+                                    _expose_errors_as_service_log(
+                                        ocm_client,
+                                        cluster_uuid=cluster.external_id,
+                                        error=f"Missing label {DTP_TENANT_V2_LABEL}",
                                     )
-                                )
+                                    logging.warning(
+                                        f"[{cluster.id=}] Missing value for label {DTP_TENANT_V2_LABEL}"
+                                    )
+                                    continue
+                                if (
+                                    tenant_id
+                                    not in dependencies.dynatrace_client_by_tenant_id
+                                ):
+                                    _expose_errors_as_service_log(
+                                        ocm_client,
+                                        cluster_uuid=cluster.external_id,
+                                        error=f"Dynatrace tenant {tenant_id} does not exist",
+                                    )
+                                    logging.warning(
+                                        f"[{cluster.id=}] Dynatrace {tenant_id=} does not exist"
+                                    )
+                                    continue
+                                dt_client = dependencies.dynatrace_client_by_tenant_id[
+                                    tenant_id
+                                ]
 
-                            """
-                            Note, that we consciously do not parallelize cluster processing
-                            for now. We want to keep stress on OCM at a minimum. The amount
-                            of tagged clusters is currently feasible to be processed sequentially.
-                            """
-                            self.process_cluster(
-                                dry_run=dry_run,
-                                cluster=cluster,
-                                dt_client=dt_client,
-                                ocm_client=ocm_client,
-                                existing_dtp_tokens=existing_dtp_tokens[tenant_id],
-                                tenant_id=tenant_id,
-                                token_spec=token_spec,
-                                ocm_env_name=ocm_env_name,
+                                token_spec = dependencies.token_spec_by_name.get(
+                                    token_binding.spec_name
+                                )
+                                if not token_spec:
+                                    _expose_errors_as_service_log(
+                                        ocm_client,
+                                        cluster_uuid=cluster.external_id,
+                                        error=f"Token spec {token_binding.spec_name} does not exist",
+                                    )
+                                    logging.warning(
+                                        f"[{cluster.id=}] Token spec '{token_binding.spec_name}' does not exist"
+                                    )
+                                    continue
+                                if tenant_id not in existing_dtp_tokens:
+                                    existing_dtp_tokens[tenant_id] = (
+                                        dt_client.get_token_ids_map_for_name_prefix(
+                                            prefix="dtp"
+                                        )
+                                    )
+
+                                """
+                                Note, that we consciously do not parallelize cluster processing
+                                for now. We want to keep stress on OCM at a minimum. The amount
+                                of tagged clusters is currently feasible to be processed sequentially.
+                                """
+                                self.process_cluster(
+                                    dry_run=dry_run,
+                                    cluster=cluster,
+                                    dt_client=dt_client,
+                                    ocm_client=ocm_client,
+                                    existing_dtp_tokens=existing_dtp_tokens[tenant_id],
+                                    tenant_id=tenant_id,
+                                    token_spec=token_spec,
+                                    ocm_env_name=ocm_env_name,
+                                )
+                        except Exception as e:
+                            unhandled_exceptions.append(
+                                f"{ocm_env_name}/{cluster.organization_id}/{cluster.id}: {e}"
                             )
-                    except Exception as e:
-                        unhandled_exceptions.append(
-                            f"{ocm_env_name}/{cluster.organization_id}/{cluster.id}: {e}"
-                        )
                 self._expose_token_metrics()
 
         if unhandled_exceptions:

@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+query EmailApps {
+  apps: apps_v1 {
+    ...EmailServiceOwners
+  }
+}

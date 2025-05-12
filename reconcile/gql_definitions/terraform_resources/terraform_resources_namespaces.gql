@@ -194,6 +194,7 @@ query TerraformResourcesNamespaces {
                 filter_pattern
                 output_resource_name
                 annotations
+                managed_by_erv2
             }
             ... on NamespaceTerraformResourceKMS_v1 {
                 region
@@ -255,6 +256,11 @@ query TerraformResourcesNamespaces {
                 ip_address_type
                 access_logs
                 ssl_policy
+                mutual_authentication {
+                    mode
+                    ca_cert_bundle_s3_bucket_name
+                    ca_cert_bundle_s3_bucket_key
+                }
                 targets {
                     name
                     default
@@ -262,6 +268,15 @@ query TerraformResourcesNamespaces {
                     openshift_service
                     protocol
                     protocol_version
+                    health_check {
+                        unhealthy_threshold
+                        timeout
+                        interval
+                        healthy_threshold
+                        path
+                        port
+                        protocol
+                    }
                 }
                 rules {
                     condition {

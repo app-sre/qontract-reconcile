@@ -40,6 +40,10 @@
       name: glitchtip-dev
   app:
     path: /path/to/app
+    escalationPolicy:
+      channels:
+        jiraBoard:
+          - name: jira-board
 - name: rosetta-flight-control
   platform: python
   projectId: rosetta-flight-control
@@ -72,6 +76,10 @@
       name: glitchtip-dev
   app:
     path: /path/to/app
+    escalationPolicy:
+      channels:
+        jiraBoard:
+          - name: jira-board
 - name: apollo-11-spacecraft
   platform: python
   projectId: null
@@ -113,6 +121,10 @@
       name: glitchtip-dev
   app:
     path: /path/to/app
+    escalationPolicy:
+      channels:
+        jiraBoard:
+          - name: jira-board
 - name: apollo-11-flight-control
   platform: python
   projectId: null
@@ -155,3 +167,7 @@
       name: glitchtip-dev
   app:
     path: /path/to/app
+    escalationPolicy:
+      channels:
+        jiraBoard:
+          - name: jira-board

@@ -1,6 +1,9 @@
 import logging
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from dateutil import parser as dateparser
+from gitlab.v4.objects import ProjectMergeRequest
 from sretoolbox.utils import threaded
 
 from reconcile import queries
@@ -31,7 +34,14 @@ class MRApproval:
     between the approval messages the the project owners.
     """
 
-    def __init__(self, gitlab_client, merge_request, owners, dry_run, persistent_lgtm):
+    def __init__(
+        self,
+        gitlab_client: GitLabApi,
+        merge_request: ProjectMergeRequest,
+        owners: RepoOwners,
+        dry_run: bool,
+        persistent_lgtm: bool,
+    ) -> None:
         self.gitlab = gitlab_client
         self.mr = merge_request
         self.owners = owners
@@ -45,7 +55,7 @@ class MRApproval:
             top_commit = next(commits)
             self.top_commit_created_at = dateparser.parse(top_commit.created_at)
 
-    def get_change_owners_map(self):
+    def get_change_owners_map(self) -> dict[str, dict[str, list[str]]]:
         """
         Maps each change path to the list of owners that can approve
         that change.
@@ -71,7 +81,7 @@ class MRApproval:
             }
         return change_owners_map
 
-    def get_lgtms(self):
+    def get_lgtms(self) -> list[str]:
         """
         Collects the usernames of all the '/lgtm' comments.
         """
@@ -94,8 +104,15 @@ class MRApproval:
             lgtms.append(comment["username"])
         return lgtms
 
-    def get_approval_status(self):
-        approval_status = {"approved": False, "report": None}
+    def expand_groups(self, owners: list[str]) -> set[str]:
+        members: set[str] = set()
+        for name in owners:
+            if group := self.gitlab.get_group_if_exists(name):
+                members.update(m.username for m in self.gitlab.get_group_members(group))
+        return members.union(owners)
+
+    def get_approval_status(self) -> dict[str, Any]:
+        approval_status: dict[str, Any] = {"approved": False, "report": None}
 
         try:
             change_owners_map = self.get_change_owners_map()
@@ -107,7 +124,7 @@ class MRApproval:
         if not change_owners_map:
             return approval_status
 
-        report = {}
+        report: dict[str, Any] = {}
         lgtms = self.get_lgtms()
 
         approval_status["approved"] = True
@@ -116,6 +133,13 @@ class MRApproval:
             for approver in change_owners["approvers"]:
                 if approver in lgtms:
                     change_approved = True
+
+            if (
+                not change_approved
+                and lgtms
+                and self.expand_groups(change_owners["approvers"]).intersection(lgtms)
+            ):
+                change_approved = True
 
             # Each change that was not yet approved will generate
             # a report message
@@ -186,18 +210,18 @@ class MRApproval:
         approval_status["report"] = formatted_report
         return approval_status
 
-    def has_approval_label(self):
+    def has_approval_label(self) -> bool:
         return APPROVED in self.mr.labels
 
     @staticmethod
-    def format_report(report):
+    def format_report(report: Mapping[str, Any]) -> str:
         """
         Gets a report dictionary and creates the corresponding Markdown
         comment message.
         """
         markdown_report = ""
 
-        closest_approvers = []
+        closest_approvers: list[list[str]] = []
         for owners in report.values():
             new_group = []
 
@@ -309,9 +333,16 @@ class MRApproval:
 
 
 @defer
-def act(repo, dry_run, instance, settings, defer=None):
+def act(
+    repo: Mapping,
+    dry_run: bool,
+    instance: Mapping,
+    settings: Mapping,
+    defer: Callable | None = None,
+) -> None:
     gitlab_cli = GitLabApi(instance, project_url=repo["url"], settings=settings)
-    defer(gitlab_cli.cleanup)
+    if defer:
+        defer(gitlab_cli.cleanup)
     project_owners = RepoOwners(
         git_cli=gitlab_cli, ref=gitlab_cli.project.default_branch
     )
@@ -378,7 +409,7 @@ def act(repo, dry_run, instance, settings, defer=None):
         ])
 
 
-def run(dry_run, thread_pool_size=10):
+def run(dry_run: bool, thread_pool_size: int = 10) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     repos = queries.get_repos_gitlab_owner(server=instance["url"])

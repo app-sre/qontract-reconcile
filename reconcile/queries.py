@@ -124,50 +124,6 @@ def get_app_interface_settings():
     return None
 
 
-APP_INTERFACE_EMAILS_QUERY = """
-{
-  emails: app_interface_emails_v1 {
-    name
-    subject
-    to {
-      aliases
-      services {
-        serviceOwners {
-          email
-        }
-      }
-      clusters {
-        name
-      }
-      namespaces {
-        name
-      }
-      aws_accounts {
-        accountOwners {
-          email
-        }
-      }
-      roles {
-        users {
-          org_username
-        }
-      }
-      users {
-        org_username
-      }
-    }
-    body
-  }
-}
-"""
-
-
-def get_app_interface_emails():
-    """Returns Email resources defined in app-interface"""
-    gqlapi = gql.get_api()
-    return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)["emails"]
-
-
 CREDENTIALS_REQUESTS_QUERY = """
 {
   credentials_requests: credentials_requests_v1 {
@@ -739,6 +695,7 @@ CLUSTERS_QUERY = """
       }
       sectors {
         name
+        maxParallelUpgrades
         dependencies {
           name
         }
@@ -1348,6 +1305,7 @@ OCM_QUERY = """
     }
     sectors {
       name
+      maxParallelUpgrades
       dependencies {
         name
         ocm {
@@ -2110,6 +2068,7 @@ PIPELINES_PROVIDERS_QUERY = """
       }
       namespace {
         name
+        delete
         cluster {
           name
           serverUrl

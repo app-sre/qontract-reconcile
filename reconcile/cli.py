@@ -1849,15 +1849,13 @@ def quay_membership(ctx):
     run_integration(reconcile.quay_membership, ctx.obj)
 
 
-@integration.command(
-    short_help="Mirrors external images into Google Container Registry."
-)
+@integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
 @click.pass_context
 @binary(["skopeo"])
-def gcr_mirror(ctx):
-    import reconcile.gcr_mirror
+def gcp_image_mirror(ctx):
+    import reconcile.gcp_image_mirror
 
-    run_integration(reconcile.gcr_mirror, ctx.obj)
+    run_integration(reconcile.gcp_image_mirror, ctx.obj)
 
 
 @integration.command(short_help="Mirrors external images into Quay.")
@@ -3812,6 +3810,29 @@ def external_resources_secrets_sync(
         reconcile.external_resources.integration_secrets_sync,
         ctx.obj,
         thread_pool_size,
+    )
+
+
+@integration.command(short_help="Deploy the Automated Actions Config")
+@threaded()
+@internal()
+@use_jump_host()
+@click.pass_context
+def automated_actions_config(ctx, thread_pool_size, internal, use_jump_host):
+    from reconcile.automated_actions.config.integration import (
+        AutomatedActionsConfigIntegration,
+        AutomatedActionsConfigIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AutomatedActionsConfigIntegration(
+            AutomatedActionsConfigIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                use_jump_host=use_jump_host,
+                internal=internal,
+            )
+        ),
+        ctx=ctx.obj,
     )
 
 

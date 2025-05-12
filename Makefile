@@ -67,7 +67,7 @@ test: print-host-versions test-app test-container-image
 dev-reconcile-loop: build-dev ## Trigger the reconcile loop inside a container for an integration
 	@$(CONTAINER_ENGINE) run --rm -it \
 		--add-host=host.docker.internal:host-gateway \
-		-v "$(CURDIR)":/work \
+		-v "$(CURDIR)":/work:z \
 		-p 5678:5678 \
 		-e INTEGRATION_NAME="$(INTEGRATION_NAME)" \
 		-e INTEGRATION_EXTRA_ARGS="$(INTEGRATION_EXTRA_ARGS)" \

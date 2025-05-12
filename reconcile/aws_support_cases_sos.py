@@ -1,5 +1,7 @@
 import itertools
 import logging
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any
 
 from reconcile import (
     mr_client_gateway,
@@ -12,11 +14,11 @@ from reconcile.utils.mr import CreateDeleteAwsAccessKey
 QONTRACT_INTEGRATION = "aws-support-cases-sos"
 
 
-def filter_accounts(accounts):
+def filter_accounts(accounts: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     return [a for a in accounts if a.get("premiumSupport")]
 
 
-def get_deleted_keys(accounts):
+def get_deleted_keys(accounts: Iterable[dict[str, Any]]) -> dict[str, list[str]]:
     return {
         account["name"]: account["deleteKeys"]
         for account in accounts
@@ -24,7 +26,9 @@ def get_deleted_keys(accounts):
     }
 
 
-def get_keys_to_delete(aws_support_cases):
+def get_keys_to_delete(
+    aws_support_cases: Mapping[str, Iterable[Mapping[str, Any]]],
+) -> list[dict[str, str]]:
     search_pattern = "We have become aware that the AWS Access Key "
     keys = []
     # ref:
@@ -43,10 +47,17 @@ def get_keys_to_delete(aws_support_cases):
 
 
 @defer
-def act(dry_run, gitlab_project_id, accounts, keys_to_delete, defer=None):
+def act(
+    dry_run: bool,
+    gitlab_project_id: str | None,
+    accounts: Iterable[dict[str, Any]],
+    keys_to_delete: list[dict[str, str]],
+    defer: Callable | None = None,
+) -> None:
     if not dry_run and keys_to_delete:
         mr_cli = mr_client_gateway.init(gitlab_project_id=gitlab_project_id)
-        defer(mr_cli.cleanup)
+        if defer:
+            defer(mr_cli.cleanup)
 
     for k in keys_to_delete:
         account = k["account"]
@@ -59,7 +70,9 @@ def act(dry_run, gitlab_project_id, accounts, keys_to_delete, defer=None):
             mr.submit(cli=mr_cli)
 
 
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10, enable_deletion=False):
+def run(
+    dry_run: bool, gitlab_project_id: str | None = None, thread_pool_size: int = 10
+) -> None:
     accounts = filter_accounts(queries.get_aws_accounts())
     settings = queries.get_app_interface_settings()
     deleted_keys = get_deleted_keys(accounts)

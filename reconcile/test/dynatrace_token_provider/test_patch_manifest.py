@@ -1,9 +1,10 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
+    DTP_TENANT_V2_LABEL,
     DynatraceTokenProviderIntegration,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
-from reconcile.dynatrace_token_provider.ocm import Cluster
+from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
@@ -21,7 +22,7 @@ def test_single_hcp_cluster_patch_tokens(
     default_token_spec: DynatraceTokenProviderTokenSpecV1,
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
-    default_hcp_cluster: Cluster,
+    default_hcp_cluster: OCMCluster,
     default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
@@ -29,6 +30,7 @@ def test_single_hcp_cluster_patch_tokens(
     However, one of the token ids does not match with the token ids in Dynatrace.
     We expect a new token to be created and the syncset to be patched.
     """
+    tenant_id = default_hcp_cluster.labels[DTP_TENANT_V2_LABEL]
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=[default_hcp_cluster],
         get_syncset={},
@@ -44,7 +46,7 @@ def test_single_hcp_cluster_patch_tokens(
                         ],
                     )
                 ],
-                tenant_id=default_hcp_cluster.dt_tenant,
+                tenant_id=tenant_id,
                 with_id=True,
             )
         },
@@ -114,7 +116,7 @@ def test_single_hcp_cluster_patch_tokens(
                     ],
                 )
             ],
-            tenant_id=default_hcp_cluster.dt_tenant,
+            tenant_id=tenant_id,
             with_id=False,
         ),
     )

@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from typing import Self
 
 from reconcile.dynatrace_token_provider.ocm import OCMClient
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
@@ -36,34 +37,45 @@ class Dependencies:
         self.ocm_client_by_env_name: dict[str, OCMClient] = dict(ocm_client_by_env_name)
         self.token_spec_by_name = dict(token_spec_by_name)
 
-    def populate_all(self) -> None:
-        self.populate_dynatrace_client_map()
-        self.populate_ocm_clients()
-        self.populate_token_specs()
+    @classmethod
+    def create(cls, secret_reader: SecretReaderBase) -> Self:
+        return cls(
+            secret_reader=secret_reader,
+            dynatrace_client_by_tenant_id=_dynatrace_client_map(
+                secret_reader=secret_reader
+            ),
+            ocm_client_by_env_name=_ocm_clients(secret_reader=secret_reader),
+            token_spec_by_name=_token_specs(),
+        )
 
-    def populate_token_specs(self) -> None:
-        token_specs = get_dynatrace_token_provider_token_specs()
-        self.token_spec_by_name = {spec.name: spec for spec in token_specs}
 
-    def populate_dynatrace_client_map(self) -> None:
-        dynatrace_environments = get_dynatrace_environments()
-        if not dynatrace_environments:
-            raise RuntimeError("No Dynatrace environment defined.")
-        for tenant in dynatrace_environments:
-            dt_api_token = self.secret_reader.read_secret(tenant.bootstrap_token)
-            dt_client = DynatraceClient.create(
-                environment_url=tenant.environment_url,
-                token=dt_api_token,
-                api=None,
-            )
-            tenant_id = tenant.environment_url.split(".")[0].removeprefix("https://")
-            self.dynatrace_client_by_tenant_id[tenant_id] = dt_client
+def _token_specs() -> dict[str, DynatraceTokenProviderTokenSpecV1]:
+    token_specs = get_dynatrace_token_provider_token_specs()
+    return {spec.name: spec for spec in token_specs}
 
-    def populate_ocm_clients(self) -> None:
-        ocm_environments = get_ocm_environments()
-        self.ocm_client_by_env_name = {
-            env.name: OCMClient(
-                ocm_client=init_ocm_base_client(env, self.secret_reader)
-            )
-            for env in ocm_environments
-        }
+
+def _dynatrace_client_map(
+    secret_reader: SecretReaderBase,
+) -> dict[str, DynatraceClient]:
+    dynatrace_client_by_tenant_id: dict[str, DynatraceClient] = {}
+    dynatrace_environments = get_dynatrace_environments()
+    if not dynatrace_environments:
+        raise RuntimeError("No Dynatrace environment defined.")
+    for tenant in dynatrace_environments:
+        dt_api_token = secret_reader.read_secret(tenant.bootstrap_token)
+        dt_client = DynatraceClient.create(
+            environment_url=tenant.environment_url,
+            token=dt_api_token,
+            api=None,
+        )
+        tenant_id = tenant.environment_url.split(".")[0].removeprefix("https://")
+        dynatrace_client_by_tenant_id[tenant_id] = dt_client
+    return dynatrace_client_by_tenant_id
+
+
+def _ocm_clients(secret_reader: SecretReaderBase) -> dict[str, OCMClient]:
+    ocm_environments = get_ocm_environments()
+    return {
+        env.name: OCMClient(ocm_client=init_ocm_base_client(env, secret_reader))
+        for env in ocm_environments
+    }

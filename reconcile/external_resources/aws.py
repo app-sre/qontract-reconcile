@@ -163,9 +163,14 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
         if "parameter_group" in data:
             pg_data = rvr._get_values(data["parameter_group"])
             data["parameter_group"] = pg_data
-        if "old_parameter_group" in data:
-            old_pg_data = rvr._get_values(data["old_parameter_group"])
-            data["old_parameter_group"] = old_pg_data
+        if (
+            (blue_green_deployment := data.get("blue_green_deployment"))
+            and (target := blue_green_deployment.get("target"))
+            and (parameter_group := target.get("parameter_group"))
+        ):
+            data["blue_green_deployment"] = blue_green_deployment | {
+                "target": target | {"parameter_group": rvr._get_values(parameter_group)}
+            }
         if "replica_source" in data:
             sourcedb_spec = self._get_source_db_spec(
                 spec.provisioner_name, data["replica_source"]
@@ -178,6 +183,7 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
             data["replica_source"] = {
                 "identifier": sourcedb["identifier"],
                 "region": sourcedb_region,
+                "blue_green_deployment": sourcedb.get("blue_green_deployment"),
             }
         # If AZ is set, but not the region, the region is got from the AZ
         if "availability_zone" in data and "region" not in data:
@@ -255,6 +261,7 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
             if s.provision_provider == "aws"
             and s.provider == "rds"
             and s.resource["replica_source"] == spec.identifier
+            and not s.marked_to_delete
         }
 
 

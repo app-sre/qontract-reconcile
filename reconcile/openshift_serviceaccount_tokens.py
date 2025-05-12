@@ -149,17 +149,17 @@ def write_outputs_to_vault(
     integration_name = QONTRACT_INTEGRATION.replace("_", "-")
     for cluster, namespace, _, data in ri:
         for name, d_item in data["desired"].items():
-            body_data = d_item.body["data"]
-            # write secret to per-namespace location
-            secret_path = (
-                f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
-            )
-            secret = {"path": secret_path, "data": body_data}
-            vault_client.write(secret)  # type: ignore
-            # write secret to shared-resources location
-            secret_path = f"{vault_path}/{integration_name}/shared-resources/{name}"
-            secret = {"path": secret_path, "data": body_data}
-            vault_client.write(secret)  # type: ignore
+            if body_data := d_item.body.get("data"):
+                # write secret to per-namespace location
+                secret_path = (
+                    f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
+                )
+                secret = {"path": secret_path, "data": body_data}
+                vault_client.write(secret)  # type: ignore
+                # write secret to shared-resources location
+                secret_path = f"{vault_path}/{integration_name}/shared-resources/{name}"
+                secret = {"path": secret_path, "data": body_data}
+                vault_client.write(secret)  # type: ignore
 
 
 def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[NamespaceV1]:

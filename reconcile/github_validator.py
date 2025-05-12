@@ -10,7 +10,7 @@ from reconcile.utils.secret_reader import SecretReader
 QONTRACT_INTEGRATION = "github-validator"
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     base_url = os.environ.get("GITHUB_API", "https://api.github.com")
     orgs = queries.get_github_orgs()
     settings = queries.get_app_interface_settings()

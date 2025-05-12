@@ -251,6 +251,7 @@ query TerraformResourcesNamespaces {
                 filter_pattern
                 output_resource_name
                 annotations
+                managed_by_erv2
             }
             ... on NamespaceTerraformResourceKMS_v1 {
                 region
@@ -312,6 +313,11 @@ query TerraformResourcesNamespaces {
                 ip_address_type
                 access_logs
                 ssl_policy
+                mutual_authentication {
+                    mode
+                    ca_cert_bundle_s3_bucket_name
+                    ca_cert_bundle_s3_bucket_key
+                }
                 targets {
                     name
                     default
@@ -319,6 +325,15 @@ query TerraformResourcesNamespaces {
                     openshift_service
                     protocol
                     protocol_version
+                    health_check {
+                        unhealthy_threshold
+                        timeout
+                        interval
+                        healthy_threshold
+                        path
+                        port
+                        protocol
+                    }
                 }
                 rules {
                     condition {
@@ -747,6 +762,7 @@ class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
     filter_pattern: Optional[str] = Field(..., alias="filter_pattern")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
 
 
 class NamespaceTerraformResourceKMSV1(NamespaceTerraformResourceAWSV1):
@@ -799,6 +815,22 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
     annotations: Optional[str] = Field(..., alias="annotations")
 
 
+class NamespaceTerraformResourceALBMutualAuthenticationV1(ConfiguredBaseModel):
+    mode: str = Field(..., alias="mode")
+    ca_cert_bundle_s3_bucket_name: str = Field(..., alias="ca_cert_bundle_s3_bucket_name")
+    ca_cert_bundle_s3_bucket_key: str = Field(..., alias="ca_cert_bundle_s3_bucket_key")
+
+
+class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
+    unhealthy_threshold: Optional[int] = Field(..., alias="unhealthy_threshold")
+    timeout: Optional[int] = Field(..., alias="timeout")
+    interval: Optional[int] = Field(..., alias="interval")
+    healthy_threshold: Optional[int] = Field(..., alias="healthy_threshold")
+    path: Optional[str] = Field(..., alias="path")
+    port: Optional[int] = Field(..., alias="port")
+    protocol: Optional[str] = Field(..., alias="protocol")
+
+
 class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     default: bool = Field(..., alias="default")
@@ -806,6 +838,7 @@ class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
     openshift_service: Optional[str] = Field(..., alias="openshift_service")
     protocol: Optional[str] = Field(..., alias="protocol")
     protocol_version: Optional[str] = Field(..., alias="protocol_version")
+    health_check: Optional[NamespaceTerraformResourceALBTargetHealthcheckV1] = Field(..., alias="health_check")
 
 
 class NamespaceTerraformResourceALBConditionV1(ConfiguredBaseModel):
@@ -884,6 +917,7 @@ class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
     ip_address_type: Optional[str] = Field(..., alias="ip_address_type")
     access_logs: Optional[bool] = Field(..., alias="access_logs")
     ssl_policy: Optional[str] = Field(..., alias="ssl_policy")
+    mutual_authentication: Optional[NamespaceTerraformResourceALBMutualAuthenticationV1] = Field(..., alias="mutual_authentication")
     targets: list[NamespaceTerraformResourceALBTargetsV1] = Field(..., alias="targets")
     rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
@@ -1023,7 +1057,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class EnvironmentV1(ConfiguredBaseModel):

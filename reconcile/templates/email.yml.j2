@@ -7,25 +7,25 @@ to:
 {% if USERS is defined and USERS %}
   users:
 {%  for user in USERS %}
-    - $ref: "{{ user }}"
+  - $ref: "{{ user }}"
 {% endfor %}
 {% endif %}
 {% if ALIASES is defined and ALIASES %}
   aliases:
 {%  for alias in ALIASES %}
-    - {{ alias }}
+  - {{ alias }}
 {% endfor %}
 {% endif %}
 {% if AWS_ACCOUNTS is defined and AWS_ACCOUNTS %}
   aws_accounts:
 {%  for aws_account in AWS_ACCOUNTS %}
-    - $ref: "{{ aws_account }}"
+  - $ref: "{{ aws_account }}"
 {% endfor %}
 {% endif %}
 {% if SERVICES is defined and SERVICES %}
   services:
 {%  for service in SERVICES %}
-    - $ref: "{{ service }}"
+  - $ref: "{{ service }}"
 {% endfor %}
 {% endif %}
 body: |

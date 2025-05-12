@@ -54,6 +54,8 @@ class EndpointsDiscoveryIntegrationParams(PydanticRunParams):
     use_jump_host: bool = True
     cluster_name: set[str] | None = None
     app_name: str | None = None
+    # To avoid the accidental deletion of the resource file, explicitly set the
+    # qontract.cli option in the integration extraArgs!
     endpoint_tmpl_resource: str = "/endpoints-discovery/endpoint-template.yml"
     # extended early exit parameters
     enable_extended_early_exit: bool = False

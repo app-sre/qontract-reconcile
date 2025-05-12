@@ -19,6 +19,7 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
@@ -98,6 +99,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceMskV1
     | NamespaceTerraformResourceElastiCacheV1
     | NamespaceTerraformResourceKMSV1
+    | NamespaceTerraformResourceCloudWatchV1
 )
 
 
@@ -258,8 +260,8 @@ class Resources(BaseModel, frozen=True):
 class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     image: str = ""
     version: str = ""
-    reconcile_drift_interval_minutes: int = -1000
-    reconcile_timeout_minutes: int = -1000
+    reconcile_drift_interval_minutes: int = 1440
+    reconcile_timeout_minutes: int = 1440  # same as https://developer.hashicorp.com/terraform/enterprise/application-administration/general#terraform-run-timeout-settings
     outputs_secret_image: str = ""
     outputs_secret_version: str = ""
     resources: Resources = Resources()

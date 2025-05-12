@@ -1,5 +1,6 @@
 import logging
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -37,12 +38,13 @@ def get_region(
 
 
 @defer
-def run(dry_run, defer=None):
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     accounts = queries.get_aws_accounts(sharing=True)
     sharing_accounts = filter_accounts(accounts)
     settings = queries.get_app_interface_settings()
     aws_api = AWSApi(1, sharing_accounts, settings=settings, init_users=False)
-    defer(aws_api.cleanup)
+    if defer:
+        defer(aws_api.cleanup)
 
     for src_account in sharing_accounts:
         sharing = src_account.get("sharing")

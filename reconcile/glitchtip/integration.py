@@ -144,13 +144,6 @@ def get_glitchtip_projects(query_func: Callable) -> list[GlitchtipProjectV1]:
     glitchtip_projects = (
         glitchtip_project_query(query_func=query_func).glitchtip_projects or []
     )
-    for project in glitchtip_projects:
-        # either org.owners or project.app must be set
-        if not project.organization.owners and not project.app:
-            raise ValueError(
-                f"Either owners in organization {project.organization.name} or app must be set for project {project.name}"
-            )
-
     return glitchtip_projects
 
 

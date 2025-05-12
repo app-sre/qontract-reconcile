@@ -1,0 +1,50 @@
+# qenerate: plugin=pydantic_v1
+
+query AWSAccountsCloudwatchLogRetentionCleanup {
+  accounts: awsaccounts_v1
+  {
+    path
+    name
+    uid
+    terraformUsername
+    consoleUrl
+    resourcesDefaultRegion
+    supportedDeploymentRegions
+    providerVersion
+    accountOwners {
+      name
+      email
+    }
+    automationToken {
+      path
+      field
+      version
+      format
+    }
+    garbageCollection
+    enableDeletion
+    deletionApprovals {
+      type
+      name
+      expiration
+    }
+    disable {
+      integrations
+    }
+    deleteKeys
+    premiumSupport
+    ecrs {
+      region
+    }
+    partition
+    cleanup {
+      provider
+      ... on AWSAccountCleanupOptionCloudWatch_v1 {
+        regex
+        retention_in_days
+        delete_empty_log_group
+        region
+      }
+    }
+  }
+}

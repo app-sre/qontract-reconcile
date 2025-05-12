@@ -3,7 +3,7 @@ from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
-from reconcile.dynatrace_token_provider.ocm import Cluster
+from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
@@ -27,13 +27,15 @@ def test_ocm_org_filters(
     There is a diff to desired state (patch + create).
     However, we expect the cluster to be filtered.
     """
-    cluster_a = Cluster(
+    cluster_a = OCMCluster(
         id="cluster_a",
         external_id="external_id_b",
         organization_id="does-not-exist",
+        subscription_id="sub_id",
         dt_tenant="dt_tenant_a",
         token_spec_name="default",
         is_hcp=False,
+        labels={},
     )
     given_clusters = [cluster_a]
     ocm_client = build_ocm_client(

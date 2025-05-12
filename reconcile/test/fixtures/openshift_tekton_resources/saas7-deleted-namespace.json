@@ -1,0 +1,9 @@
+{
+  "path": "saas7-deleted-namespace.yaml",
+  "name": "saas7-deleted-namespace",
+  "pipelinesProvider": {
+    "name": "provider7-deleted-namespace",
+    "provider": "tekton"
+  },
+  "deployResources": null
+}

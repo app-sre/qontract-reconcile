@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from reconcile.utils.glitchtip import (
     GlitchtipClient,
     Organization,
@@ -9,6 +11,7 @@ from reconcile.utils.glitchtip.models import (
     ProjectAlert,
     ProjectAlertRecipient,
     ProjectKey,
+    ProjectStatistics,
     RecipientType,
 )
 
@@ -231,3 +234,18 @@ def test_glitchtip_remove_user_from_team(glitchtip_client: GlitchtipClient) -> N
     glitchtip_client.remove_user_from_team(
         organization_slug="nasa", team_slug="nasa-pilots", user_pk=29
     )
+
+
+def test_glitchtip_all_projects(glitchtip_client: GlitchtipClient) -> None:
+    assert len(glitchtip_client.all_projects()) == 2
+
+
+def test_glitchtip_project_statistics(glitchtip_client: GlitchtipClient) -> None:
+    start = datetime.now(tz=UTC) - timedelta(days=1)
+    end = datetime.now(tz=UTC)
+    assert glitchtip_client.project_statistics(
+        organization_slug="esa",
+        project_pk=18,
+        start=start,
+        end=end,
+    ) == ProjectStatistics(start=start, end=end, events=364)

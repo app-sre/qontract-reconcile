@@ -51,6 +51,8 @@ class AwsAccountMgmtIntegrationParams(PydanticRunParams):
     initial_user_secret_vault_path: str = (
         "app-sre-v2/creds/terraform/{account_name}/config"
     )
+    # To avoid the accidental deletion of the resource file, explicitly set the
+    # qontract.cli option in the integration extraArgs!
     account_tmpl_resource: str = "/aws-account-manager/account-tmpl.yml"
     template_collection_root_path: str = "data/templating/collections/aws-account"
 
@@ -195,6 +197,7 @@ class AwsAccountMgmtIntegration(
         aws_api: AWSApi,
         reconciler: AWSReconciler,
         organization_accounts: Iterable[AWSAccountManaged],
+        default_tags: dict[str, str],
     ) -> None:
         """Reconcile organization accounts."""
         for account in organization_accounts:
@@ -204,7 +207,7 @@ class AwsAccountMgmtIntegration(
                 name=account.name,
                 uid=account.uid,
                 ou=account.organization.ou,
-                tags=self.params.default_tags
+                tags=default_tags
                 | account.organization.tags
                 | {"app-interface-name": account.name},
                 enterprise_support=account.premium_support,
@@ -226,6 +229,7 @@ class AwsAccountMgmtIntegration(
             alias=account.alias,
             quotas=[q for ql in account.quota_limits or [] for q in ql.quotas],
             security_contact=account.security_contact,
+            regions=account.supported_deployment_regions or [],
         )
 
     def reconcile_payer_accounts(
@@ -276,6 +280,8 @@ class AwsAccountMgmtIntegration(
                     acct_manager_role_aws_api,
                     reconciler,
                     payer_account.organization_accounts or [],
+                    default_tags=self.params.default_tags
+                    | (payer_account.organization_account_tags or {}),
                 )
 
     def reconcile_non_organization_accounts(

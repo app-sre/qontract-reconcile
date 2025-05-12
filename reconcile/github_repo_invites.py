@@ -95,7 +95,7 @@ def get_settings() -> Mapping[str, Any]:
     raise ValueError("no app-interface-settings found")
 
 
-def run(dry_run):
+def run(dry_run: bool) -> set[str]:
     gqlapi = gql.get_api()
     settings = get_settings()
     secret_reader = SecretReader(settings=settings)

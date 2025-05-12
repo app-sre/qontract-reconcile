@@ -1,5 +1,6 @@
 import logging
 import sys
+from typing import Any, Self
 
 from gitlab import GitlabGetError
 from gitlab.const import MAINTAINER_ACCESS
@@ -36,7 +37,7 @@ class GitlabForkCompliance:
     ERR_NOT_A_MEMBER = 0x0002
     ERR_NOT_A_MAINTAINER = 0x0004
 
-    def __init__(self, project_id, mr_id, maintainers_group):
+    def __init__(self, project_id: str, mr_id: str, maintainers_group: str) -> None:
         self.exit_code = self.OK
 
         self.maintainers_group = maintainers_group
@@ -50,15 +51,15 @@ class GitlabForkCompliance:
         )
         self.mr = self.gl_cli.get_merge_request(mr_id)
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.gl_cli.cleanup()
         if hasattr(self, "src") and self.src is not None:
             self.src.cleanup()
 
-    def run(self):
+    def run(self) -> None:
         self.exit_code |= self.check_branch()
         self.exit_code |= self.check_bot_access()
         if self.exit_code:
@@ -86,7 +87,7 @@ class GitlabForkCompliance:
 
         sys.exit(self.exit_code)
 
-    def check_branch(self):
+    def check_branch(self) -> int:
         # The Merge Request can use the 'master' source branch
         if self.mr.source_branch == "master":
             self.handle_error("source branch can not be master", MSG_BRANCH)
@@ -94,7 +95,7 @@ class GitlabForkCompliance:
 
         return self.OK
 
-    def check_bot_access(self):
+    def check_bot_access(self) -> int:
         try:
             self.src = GitLabApi(
                 self.instance,
@@ -113,7 +114,7 @@ class GitlabForkCompliance:
 
         return self.OK
 
-    def handle_error(self, log_msg, mr_msg):
+    def handle_error(self, log_msg: str, mr_msg: str) -> None:
         LOG.error([log_msg.format(bot=self.gl_cli.user.username)])
         self.gl_cli.add_label_to_merge_request(self.mr, BLOCKED_BOT_ACCESS)
         comment = mr_msg.format(
@@ -124,6 +125,6 @@ class GitlabForkCompliance:
         self.mr.notes.create({"body": comment})
 
 
-def run(dry_run, project_id, mr_id, maintainers_group):
+def run(dry_run: bool, project_id: str, mr_id: str, maintainers_group: str) -> None:
     with GitlabForkCompliance(project_id, mr_id, maintainers_group) as gfc:
         gfc.run()

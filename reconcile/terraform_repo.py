@@ -338,14 +338,9 @@ class TerraformRepoIntegration(
         for changes in diff.change.values():
             c = changes.current
             d = changes.desired
-            if (
-                c.account != d.account
-                or c.name != d.name
-                or c.project_path != d.project_path
-                or c.repository != d.repository
-            ):
+            if c.account != d.account or c.name != d.name:
                 raise ParameterError(
-                    f'Only the `ref` and `delete` parameters for a terraform repo may be updated in merge requests on repo: "{d.name}"'
+                    f'You cannot change the account or name after a repo has been created! Repo name: "{d.name}"'
                 )
             if self.params.validate_git:
                 self.check_ref(d.repository, d.ref)
