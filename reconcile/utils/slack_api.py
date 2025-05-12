@@ -491,6 +491,8 @@ class SlackApi:
         from_timestamp to to_timestamp ignoring threads"""
         if not self.channel:
             raise ValueError("Expecting self.channel to be set")
+        channels_found = self.get_channels_by_names(self.channel)
+        [channel_id] = [k for k in channels_found if channels_found[k] == self.channel]
 
         cursor = ""
         responses = []
@@ -499,7 +501,7 @@ class SlackApi:
             slack_request.labels("conversations.history", "GET").inc()
 
             response = self._sc.conversations_history(
-                cursor=cursor, channel=self.channel, **self.chat_kwargs
+                cursor=cursor, channel=channel_id, **self.chat_kwargs
             )
 
             for r in response["messages"]:

@@ -799,6 +799,11 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
 
 @get.command()
 @click.option(
+    "--channel",
+    help="Specifies the channel that alerts stores",
+    type=str,
+)
+@click.option(
     "--days",
     help="Days to consider for the report. Cannot be used with timestamp options.",
     type=int,
@@ -816,13 +821,14 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
     type=int,
 )
 @click.pass_context
-def sd_app_sre_alert_report(
+def alert_report(
     ctx: click.core.Context,
+    channel: str | None,
     days: int | None,
     from_timestamp: int | None,
     to_timestamp: int | None,
 ) -> None:
-    import tools.sd_app_sre_alert_report as report
+    import tools.alert_report as report
 
     if days:
         if from_timestamp or to_timestamp:
@@ -845,7 +851,9 @@ def sd_app_sre_alert_report(
             sys.exit(1)
 
     slack = slackapi_from_queries(
-        integration_name=report.QONTRACT_INTEGRATION, init_usergroups=False
+        integration_name=report.QONTRACT_INTEGRATION,
+        init_usergroups=False,
+        channel=channel,
     )
     alerts = report.group_alerts(
         slack.get_flat_conversation_history(
