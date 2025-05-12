@@ -425,6 +425,20 @@ wheels = [
 ]
 
 [[package]]
+name = "dogtag-pki"
+version = "11.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "requests" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/8c/940ca285ccf5f4a8f5eb3f8fe6410e37dbf98726a2fa54406c0b2811666a/dogtag-pki-11.2.1.tar.gz", hash = "sha256:ad04a740f358af94b278d6caa0501b9c66f65fff2eb6b7d62daf20bbdde1cb6c", size = 81888 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c8/b0/08abb9f65e55bbc2e1495d6ae3d1595b652a6546f0c28f5e2c2eddcb0539/dogtag_pki-11.2.1-py2.py3-none-any.whl", hash = "sha256:b258d0b795b2f95819d9364c479d9e80aeeeb4dfc6602e1e6146c0a3b11a7917", size = 94448 },
+]
+
+[[package]]
 name = "dt"
 version = "1.1.73"
 source = { registry = "https://pypi.org/simple" }
@@ -1504,6 +1518,7 @@ dependencies = [
     { name = "dateparser" },
     { name = "deepdiff" },
     { name = "dnspython" },
+    { name = "dogtag-pki" },
     { name = "dt" },
     { name = "filetype" },
     { name = "gql" },
@@ -1597,7 +1612,8 @@ requires-dist = [
     { name = "dateparser", specifier = "~=1.1.7" },
     { name = "deepdiff", specifier = "==6.7.1" },
     { name = "dnspython", specifier = "~=2.1" },
-    { name = "dt", specifier = "==1.1.61" },
+    { name = "dogtag-pki", specifier = "~=11.2.1" },
+    { name = "dt", specifier = "==1.1.73" },
     { name = "filetype", specifier = "~=1.2.0" },
     { name = "gql", specifier = "==3.1.0" },
     { name = "hvac", specifier = ">=0.7.0,<0.8.0" },

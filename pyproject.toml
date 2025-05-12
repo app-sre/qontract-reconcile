@@ -22,6 +22,7 @@ dependencies = [
     "dateparser~=1.1.7",
     "deepdiff==6.7.1",
     "dnspython~=2.1",
+    "dogtag-pki~=11.2.1",
     "dt==1.1.73",
     "filetype~=1.2.0",
     "gql==3.1.0",
