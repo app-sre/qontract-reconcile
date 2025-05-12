@@ -21,23 +21,22 @@ def sync_tag(
     :param candidate: tag to check
     :return: bool, True means to sync, False means not to sync
     """
-    if not tags and not tags_exclude:
-        return True
-
-    if not tags:
+    if tags:
+        if tags_exclude:
+            # both tags and tags_exclude provided
+            return not match_patterns(
+                tags_exclude,
+                candidate,
+            ) and match_patterns(
+                tags,
+                candidate,
+            )
+        else:
+            # only tags provided
+            return match_patterns(tags, candidate)
+    elif tags_exclude:
         # only tags_exclude provided
-        assert tags_exclude  # mypy can't infer not None
         return not match_patterns(tags_exclude, candidate)
-
-    if not tags_exclude:
-        # only tags provided
-        return match_patterns(tags, candidate)
-
-    # both tags and tags_exclude provided
-    return not match_patterns(
-        tags_exclude,
-        candidate,
-    ) and match_patterns(
-        tags,
-        candidate,
-    )
+    else:
+        # neither tags nor tags_exclude provided
+        return True
