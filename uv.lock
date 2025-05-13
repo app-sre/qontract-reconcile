@@ -1597,7 +1597,7 @@ requires-dist = [
     { name = "dateparser", specifier = "~=1.1.7" },
     { name = "deepdiff", specifier = "==6.7.1" },
     { name = "dnspython", specifier = "~=2.1" },
-    { name = "dt", specifier = "==1.1.61" },
+    { name = "dt", specifier = "==1.1.73" },
     { name = "filetype", specifier = "~=1.2.0" },
     { name = "gql", specifier = "==3.1.0" },
     { name = "hvac", specifier = ">=0.7.0,<0.8.0" },
