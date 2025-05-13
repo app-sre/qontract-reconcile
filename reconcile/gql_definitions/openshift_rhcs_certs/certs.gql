@@ -1,0 +1,33 @@
+# qenerate: plugin=pydantic_v1
+
+query RhcsCertificates {
+  namespaces: namespaces_v1 {
+    name
+    delete
+    cluster {
+      ...OcConnectionCluster
+    }
+    sharedResources {
+      rhcsCertificates {
+        ... on RhcsCertificate_v1 {
+          name
+          serviceAccountName
+          serviceAccountPassword {
+            ...VaultSecret
+          }
+          annotations
+        }
+      }
+    }
+    rhcsCertificates {
+      ... on RhcsCertificate_v1 {
+          name
+          serviceAccountName
+          serviceAccountPassword {
+            ...VaultSecret
+          }
+          annotations
+        }
+      }
+    }
+  }
