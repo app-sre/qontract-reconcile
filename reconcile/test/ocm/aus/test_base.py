@@ -827,8 +827,13 @@ def test_verify_lock_should_skip_not_locked() -> None:
         available_upgrades=["1", "2", "3"],
         mutexes=["mutex-1"],
     )
-    locked = base.verify_lock_should_skip(cluster_upgrade_spec, {})
-    assert not locked
+    skip = base.verify_max_upgrades_should_skip(
+        desired=cluster_upgrade_spec,
+        locked={},
+        sector_mutex_upgrades={},
+        sector=None,
+    )
+    assert not skip
 
 
 def test_verify_lock_should_skip_locked_by_self() -> None:
@@ -837,10 +842,13 @@ def test_verify_lock_should_skip_locked_by_self() -> None:
         available_upgrades=["1", "2", "3"],
         mutexes=["mutex-1"],
     )
-    locked = base.verify_lock_should_skip(
-        cluster_upgrade_spec, {"mutex-1": cluster_upgrade_spec.cluster.id}
+    skip = base.verify_max_upgrades_should_skip(
+        desired=cluster_upgrade_spec,
+        locked={"mutex-1": cluster_upgrade_spec.cluster.id},
+        sector_mutex_upgrades={},
+        sector=None,
     )
-    assert locked
+    assert skip
 
 
 def test_verify_lock_should_skip_locked_by_another_cluster() -> None:
@@ -849,10 +857,13 @@ def test_verify_lock_should_skip_locked_by_another_cluster() -> None:
         available_upgrades=["1", "2", "3"],
         mutexes=["mutex-1"],
     )
-    locked = base.verify_lock_should_skip(
-        cluster_upgrade_spec, {"mutex-1": "some-other-cluster-id"}
+    skip = base.verify_max_upgrades_should_skip(
+        desired=cluster_upgrade_spec,
+        locked={"mutex-1": "some-other-cluster-id"},
+        sector_mutex_upgrades={},
+        sector=None,
     )
-    assert locked
+    assert skip
 
 
 #
