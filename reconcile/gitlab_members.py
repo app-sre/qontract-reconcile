@@ -68,9 +68,7 @@ def get_current_state(
     """Get current gitlab group members for all managed groups."""
     return {
         g: CurrentStateSpec(
-            members={
-                u.username: u for u in gl.get_group_members(gitlab_groups_map.get(g))
-            },
+            members={u.username: u for u in gl.get_group_members(gitlab_groups_map[g])},
         )
         for g in instance.managed_groups
     }

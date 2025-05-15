@@ -1,12 +1,12 @@
 import itertools
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import (
-    GroupProject,
     Project,
+    SharedProject,
 )
 from sretoolbox.utils import threaded
 
@@ -51,9 +51,9 @@ class GroupPermissionHandler:
             for project_repo_url in filtered_project_repos
         }
         # get all projects shared with group
-        shared_projects = self.gl.get_items(self.group.shared_projects.list)
+        shared_projects = self.group.shared_projects.list(iterator=True)
         current_state = {
-            project.web_url: self.extract_group_spec(project)
+            project.web_url: self.extract_group_spec(cast(SharedProject, project))
             for project in shared_projects
         }
         self.reconcile(desired_state, current_state)
@@ -61,13 +61,14 @@ class GroupPermissionHandler:
     def filter_group_owned_projects(self, repos: list[str]) -> set[str]:
         # get only the projects that are owned by  group and its sub groups
         query = {"with_shared": False, "include_subgroups": True}
-        group_owned_projects = self.gl.get_items(
-            self.group.projects.list, query_parameters=query
+        group_owned_projects = self.group.projects.list(
+            query_parameters=query,
+            iterator=True,
         )
         group_owned_repo_list = {project.web_url for project in group_owned_projects}
         return set(repos) - group_owned_repo_list
 
-    def extract_group_spec(self, project: GroupProject) -> GroupSpec:
+    def extract_group_spec(self, project: SharedProject) -> GroupSpec:
         return next(
             GroupSpec(
                 group_name=self.group.name,

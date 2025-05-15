@@ -2,10 +2,8 @@ import logging
 import os
 import re
 from collections.abc import (
-    Callable,
     Iterable,
     Mapping,
-    Set,
 )
 from functools import cached_property
 from operator import (
@@ -66,6 +64,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 MR_DESCRIPTION_COMMENT_ID = 0
 
 DEFAULT_MAIN_BRANCH = "master"
+MAX_PER_PAGE = 100
 
 
 class MRState:
@@ -135,6 +134,8 @@ class GitLabApi:
             ssl_verify=self.ssl_verify,
             timeout=timeout,
             session=self.session,
+            per_page=MAX_PER_PAGE,
+            pagination="keyset",
         )
         self._auth()
         assert self.gl.user
@@ -267,15 +268,15 @@ class GitLabApi:
         project = self.project if repo_url is None else self.get_project(repo_url)
         if project is None:
             return None
-        if query:
-            members = self.get_items(project.members_all.list, query_parameters=query)
-        else:
-            members = self.get_items(project.members_all.list)
+        members = project.members.list(iterator=True, query_parameters=query or {})
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self) -> list[GroupMember]:
         app_sre_group = self.gl.groups.get("app-sre")
-        return self.get_items(app_sre_group.members.list)
+        return cast(
+            list[GroupMember],
+            app_sre_group.members.list(get_all=True),
+        )
 
     def get_group_if_exists(self, group_name: str) -> Group | None:
         try:
@@ -309,16 +310,12 @@ class GitLabApi:
         """
         return GROUP_BOT_NAME_REGEX.match(username) is not None
 
-    def get_group_members(self, group: Group | None) -> list[GroupMember]:
-        if group is None:
-            logging.error("no group provided")
-            return []
-        else:
-            return [
-                m
-                for m in self.get_items(group.members.list)
-                if not self._is_bot_username(m.username)
-            ]
+    def get_group_members(self, group: Group) -> list[GroupMember]:
+        return [
+            cast(GroupMember, m)
+            for m in group.members.list(iterator=True)
+            if not self._is_bot_username(m.username)
+        ]
 
     def add_project_member(
         self, repo_url: str, user: GroupMember, access: str = "maintainer"
@@ -374,9 +371,9 @@ class GitLabApi:
             case _:
                 raise ValueError(f"Invalid access level: {access}")
 
-    def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
+    def get_group_id_and_projects(self, group_name: str) -> tuple[str, set[str]]:
         group = self.gl.groups.get(group_name)
-        return group.id, [p.name for p in self.get_items(group.projects.list)]
+        return group.id, {p.name for p in group.projects.list(iterator=True)}
 
     def get_group(self, group_name: str) -> Group:
         return self.gl.groups.get(group_name)
@@ -401,23 +398,34 @@ class GitLabApi:
         return self.gl.projects.get(project_id)
 
     def get_issues(self, state: str) -> list[ProjectIssue]:
-        return self.get_items(self.project.issues.list, state=state)
+        return cast(
+            list[ProjectIssue],
+            self.project.issues.list(state=state, get_all=True),
+        )
 
     def get_merge_request(self, mr_id: str | int) -> ProjectMergeRequest:
         return self.project.mergerequests.get(mr_id)
 
     def get_merge_requests(self, state: str) -> list[ProjectMergeRequest]:
-        return self.get_items(self.project.mergerequests.list, state=state)
+        return cast(
+            list[ProjectMergeRequest],
+            self.project.mergerequests.list(state=state, get_all=True),
+        )
 
+    @staticmethod
     def get_merge_request_label_events(
-        self, mr: ProjectMergeRequest
+        mr: ProjectMergeRequest,
     ) -> list[ProjectMergeRequestResourceLabelEvent]:
-        return self.get_items(mr.resourcelabelevents.list)
+        return cast(
+            list[ProjectMergeRequestResourceLabelEvent],
+            mr.resourcelabelevents.list(get_all=True),
+        )
 
-    def get_merge_request_pipelines(self, mr: ProjectMergeRequest) -> list[dict]:
+    @staticmethod
+    def get_merge_request_pipelines(mr: ProjectMergeRequest) -> list[dict]:
         # TODO: use typed object in return
         # TODO: use server side order_by
-        items = self.get_items(mr.pipelines.list)
+        items = mr.pipelines.list(iterator=True)
         return sorted(
             [i.asdict() for i in items],
             key=itemgetter("created_at"),
@@ -457,7 +465,7 @@ class GitLabApi:
                 "created_at": merge_request.created_at,
                 "id": MR_DESCRIPTION_COMMENT_ID,
             })
-        for note in GitLabApi.get_items(merge_request.notes.list):
+        for note in merge_request.notes.list(iterator=True):
             if note.system:
                 continue
             comments.append({
@@ -485,8 +493,8 @@ class GitLabApi:
                 self.delete_comment(c["note"])
 
     @retry()
-    def get_project_labels(self) -> Set[str]:
-        return {ln.name for ln in self.get_items(self.project.labels.list)}
+    def get_project_labels(self) -> set[str]:
+        return {label.name for label in self.project.labels.list(iterator=True)}
 
     @staticmethod
     def add_label_to_merge_request(
@@ -551,20 +559,6 @@ class GitLabApi:
         body: str,
     ) -> None:
         merge_request.notes.create({"body": body})
-
-    # TODO: deprecated this method as new support of list(get_all=True)
-    @staticmethod
-    def get_items(method: Callable, **kwargs: Any) -> list:
-        all_items = []
-        page = 1
-        while True:
-            items = method(page=page, per_page=100, **kwargs)
-            all_items.extend(items)
-            if len(items) < 100:
-                break
-            page += 1
-
-        return all_items
 
     def create_label(self, label_text: str, label_color: str) -> None:
         self.project.labels.create({"name": label_text, "color": label_color})
@@ -665,11 +659,28 @@ class GitLabApi:
         }
         p.hooks.create(hook)
 
-    def get_repository_tree(self, ref: str = "master") -> list[dict]:
+    def get_repository_tree(
+        self,
+        *,
+        ref: str = "master",
+        recursive: bool = False,
+        project: Project | None = None,
+        path: str = "",
+    ) -> list[dict]:
         """
         Wrapper around Gitlab.repository_tree() with pagination enabled.
         """
-        return self.get_items(self.project.repository_tree, ref=ref, recursive=True)
+        target_project = self.project if project is None else project
+        return cast(
+            list[dict],
+            target_project.repository_tree(
+                ref=ref,
+                path=path,
+                recursive=recursive,
+                pagination="keyset",
+                get_all=True,
+            ),
+        )
 
     def get_file(self, path: str, ref: str = "master") -> ProjectFile | None:
         """
@@ -762,22 +773,23 @@ class GitLabApi:
         author, assignee = last_assignment[0], last_assignment[1]
         return author in team_usernames and mr.assignee["username"] == assignee
 
-    def last_assignment(self, mr: ProjectMergeRequest) -> tuple[str, str] | None:
+    @staticmethod
+    def last_assignment(mr: ProjectMergeRequest) -> tuple[str, str] | None:
+        """
+        Get the last assignment of a merge request.
+        :param mr: merge request
+        :return: tuple of author name and assignee name or None
+        """
         body_format = "assigned to @"
-        notes = self.get_items(mr.notes.list)
-
-        for note in notes:
-            if not note.system:
-                continue
-            body = note.body
-            if not body.startswith(body_format):
-                continue
-            assignee = body.replace(body_format, "")
-            author = note.author["username"]
-
-            return author, assignee
-
-        return None
+        notes = mr.notes.list(sort="desc", order_by="created_at", iterator=True)
+        return next(
+            (
+                (note.author["username"], note.body.removeprefix(body_format))
+                for note in notes
+                if note.system and note.body.startswith(body_format)
+            ),
+            None,
+        )
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot: bool = True
@@ -804,4 +816,7 @@ class GitLabApi:
         return response.get("commits", [])
 
     def get_personal_access_tokens(self) -> list[PersonalAccessToken]:
-        return self.get_items(self.gl.personal_access_tokens.list)
+        return cast(
+            list[PersonalAccessToken],
+            self.gl.personal_access_tokens.list(get_all=True),
+        )
