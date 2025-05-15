@@ -970,56 +970,53 @@ def verify_schedule_should_skip(
     return next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def verify_lock_should_skip(
-    desired: ClusterUpgradeSpec, locked: dict[str, str]
-) -> bool:
-    mutexes = desired.effective_mutexes
-    if any(lock in locked for lock in mutexes):
-        locking = {lock: locked[lock] for lock in mutexes if lock in locked}
-        logging.debug(
-            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: locked out by {locking}"
-        )
-        return True
-    return False
-
-
 def verify_max_upgrades_should_skip(
     desired: ClusterUpgradeSpec,
-    sector_upgrades: dict[str, set[str]],
+    locked: dict[str, str],
+    sector_mutex_upgrades: dict[tuple[str, str], set[str]],
     sector: Sector | None,
 ) -> bool:
-    if sector is None:
+    mutexes = desired.effective_mutexes
+
+    # if sector.max_parallel_upgrades is not set, we allow 1 upgrade per mutex, across the whole org
+    if sector is None or sector.max_parallel_upgrades is None:
+        if any(lock in locked for lock in mutexes):
+            locking = {lock: locked[lock] for lock in mutexes if lock in locked}
+            logging.debug(
+                f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: locked out by {locking}"
+            )
+            return True
         return False
 
-    current_upgrades = sector_upgrades[sector.name]
-    # Allow at least one upgrade
-    if len(current_upgrades) == 0:
+    current_upgrades_count_per_mutex = {
+        mutex: len(sector_mutex_upgrades[sector.name, mutex]) for mutex in mutexes
+    }
+
+    current_upgrades_total_count = sum(current_upgrades_count_per_mutex.values())
+    if current_upgrades_total_count == 0:
         return False
 
-    # if sector.max_parallel_upgrades is not set, we allow all upgrades
-    if sector.max_parallel_upgrades is None:
-        return False
+    for mutex in mutexes:
+        cluster_count = len([s for s in sector.specs if mutex in s.effective_mutexes])
+        if sector.max_parallel_upgrades.endswith("%"):
+            max_parallel_upgrades_percent = int(sector.max_parallel_upgrades[:-1])
+            max_parallel_upgrades = round(
+                cluster_count * max_parallel_upgrades_percent / 100
+            )
+        else:
+            max_parallel_upgrades = int(sector.max_parallel_upgrades)
 
-    sector_cluster_count = len(sector.specs)
+        # we allow at least one upgrade
+        if max_parallel_upgrades == 0:
+            max_parallel_upgrades = 1
 
-    if sector.max_parallel_upgrades.endswith("%"):
-        max_parallel_upgrades_percent = int(sector.max_parallel_upgrades[:-1])
-        max_parallel_upgrades = round(
-            sector_cluster_count * max_parallel_upgrades_percent / 100
-        )
-    else:
-        max_parallel_upgrades = int(sector.max_parallel_upgrades)
-
-    # we allow at least one upgrade
-    if max_parallel_upgrades == 0:
-        max_parallel_upgrades = 1
-
-    if len(current_upgrades) >= max_parallel_upgrades:
-        logging.debug(
-            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: "
-            f"sector '{sector.name}' has reached max parallel upgrades {sector.max_parallel_upgrades}"
-        )
-        return True
+        if current_upgrades_count_per_mutex.get(mutex, 0) >= max_parallel_upgrades:
+            logging.debug(
+                f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: "
+                f"sector '{sector.name}' has reached max parallel upgrades {sector.max_parallel_upgrades} "
+                f"for mutex '{mutex}'"
+            )
+            return True
 
     return False
 
@@ -1085,15 +1082,15 @@ def calculate_diff(
     """
 
     locked: dict[str, str] = {}
-    sector_upgrades: dict[str, set[str]] = defaultdict(set)
+    sector_mutex_upgrades: dict[tuple[str, str], set[str]] = defaultdict(set)
 
     def set_upgrading(
-        cluster_id: str, mutexes: set[str] | None, sector_name: str | None
+        cluster_id: str, mutexes: set[str], sector_name: str | None
     ) -> None:
-        for mutex in mutexes or set():
+        for mutex in mutexes:
             locked[mutex] = cluster_id
-        if sector_name:
-            sector_upgrades[sector_name].add(cluster_id)
+            if sector_name:
+                sector_mutex_upgrades[sector_name, mutex].add(cluster_id)
 
     diffs: list[UpgradePolicyHandler] = []
 
@@ -1113,7 +1110,9 @@ def calculate_diff(
         # Upgrading node pools, only required for Hypershift clusters
         # do this in the same loop, to skip cluster on node pool upgrade
         if spec.cluster.is_rosa_hypershift():
-            if verify_lock_should_skip(spec, locked):
+            if verify_max_upgrades_should_skip(
+                spec, locked, sector_mutex_upgrades, sector
+            ):
                 continue
 
             node_pool_update = _calculate_node_pool_diffs(spec, now)
@@ -1135,10 +1134,7 @@ def calculate_diff(
         if not next_schedule:
             continue
 
-        if verify_lock_should_skip(spec, locked):
-            continue
-
-        if verify_max_upgrades_should_skip(spec, sector_upgrades, sector):
+        if verify_max_upgrades_should_skip(spec, locked, sector_mutex_upgrades, sector):
             continue
 
         version = upgradeable_version(spec, version_data, sector)
