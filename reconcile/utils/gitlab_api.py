@@ -668,7 +668,14 @@ class GitLabApi:
         path: str = "",
     ) -> list[dict]:
         """
-        Wrapper around Gitlab.repository_tree() with pagination enabled.
+        Get a list of repository files and directories in a project.
+
+        :param ref: The name of a repository branch or tag or, if not given, the default branch.
+        :param recursive: Boolean value used to get a recursive tree. Default is false.
+        :param project: The project to get the tree from, if None, use the current project
+        :param path: The path inside the repository. Used to get content of subdirectories.
+
+        :return: list of tree objects
         """
         target_project = self.project if project is None else project
         return cast(
