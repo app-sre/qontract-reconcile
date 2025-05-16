@@ -268,7 +268,7 @@ class GitLabApi:
         project = self.project if repo_url is None else self.get_project(repo_url)
         if project is None:
             return None
-        members = project.members.list(iterator=True, query_parameters=query or {})
+        members = project.members_all.list(iterator=True, query_parameters=query or {})
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self) -> list[GroupMember]:
