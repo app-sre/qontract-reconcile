@@ -9,6 +9,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     Subscriber,
 )
 from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class SaasFileInventoryError(Exception):
@@ -25,8 +26,15 @@ class SaasFilesInventory:
     This basically spans a directed graph, with subscribers as the root.
     """
 
-    def __init__(self, saas_files: Iterable[SaasFile]):
+    def __init__(
+        self,
+        saas_files: Iterable[SaasFile],
+        secret_reader: SecretReaderBase,
+        thread_pool_size: int,
+    ):
         self._saas_files = saas_files
+        self.secret_reader = secret_reader
+        self.thread_pool_size = thread_pool_size
         self._channels_by_name: dict[str, Channel] = {}
         self.subscribers: list[Subscriber] = []
         self.publishers: list[Publisher] = []
@@ -87,9 +95,14 @@ class SaasFilesInventory:
     def _assemble_subscribers_with_auto_promotions(self) -> None:
         for saas_file in self._saas_files:
             blocked_versions: dict[str, set[str]] = {}
+            hotfix_versions: dict[str, set[str]] = {}
             for code_component in saas_file.app.code_components or []:
                 for version in code_component.blocked_versions or []:
                     blocked_versions.setdefault(code_component.url, set()).add(version)
+                for hf_version in saas_file.app.code_components or []:
+                    hotfix_versions.setdefault(code_component.url, set()).add(
+                        hf_version
+                    )
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
                     file_path = target.path or saas_file.path
@@ -112,7 +125,11 @@ class SaasFilesInventory:
                         ref=target.ref,
                         target_namespace=target.namespace,
                         soak_days=soak_days,
+                        slos=target.slos,
                         schedule=schedule,
+                        hotfix_versions=hotfix_versions.get(
+                            resource_template.url, set()
+                        ),
                         blocked_versions=blocked_versions.get(
                             resource_template.url, set()
                         ),
