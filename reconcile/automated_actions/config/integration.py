@@ -53,6 +53,7 @@ class AutomatedActionsUser(BaseModel):
 class AutomatedActionsPolicy(BaseModel):
     sub: str
     obj: str
+    max_ops: int
     params: dict[str, str] = {}
 
 
@@ -142,7 +143,7 @@ class AutomatedActionsConfigIntegration(
         roles: AutomatedActionRoles = {}
 
         for permission in permissions or []:
-            obj = permission.action.operation_id
+            action = permission.action
 
             parameters: list[dict[str, str]] = [] if permission.arguments else [{}]
             for arg in permission.arguments or []:
@@ -163,7 +164,12 @@ class AutomatedActionsConfigIntegration(
             for role in permission.roles or []:
                 aa_role = roles.setdefault(role.name, [])
                 aa_role.extend(
-                    AutomatedActionsPolicy(sub=role.name, obj=obj, params=params)
+                    AutomatedActionsPolicy(
+                        sub=role.name,
+                        obj=action.operation_id,
+                        max_ops=action.max_ops,
+                        params=params,
+                    )
                     for params in parameters
                 )
         return roles
