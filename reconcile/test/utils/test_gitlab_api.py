@@ -21,8 +21,8 @@ from gitlab.v4.objects import (
     ProjectLabel,
     ProjectLabelManager,
     ProjectManager,
-    ProjectMember,
-    ProjectMemberManager,
+    ProjectMemberAll,
+    ProjectMemberAllManager,
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
@@ -486,14 +486,14 @@ def test_get_project_maintainers(
     mocked_gl: Mock,
 ) -> None:
     mocked_project = mocked_gl.projects.get.return_value
-    mocked_project.members = create_autospec(ProjectMemberManager)
+    mocked_project.members_all = create_autospec(ProjectMemberAllManager)
     member = create_autospec(
-        ProjectMember,
+        ProjectMemberAll,
         id="1",
         username="m",
         access_level=40,
     )
-    mocked_project.members.list.return_value = [member]
+    mocked_project.members_all.list.return_value = [member]
     query = {
         "user_ids": "1",
     }
@@ -501,7 +501,7 @@ def test_get_project_maintainers(
     result = mocked_gitlab_api.get_project_maintainers(query=query)
 
     assert result == ["m"]
-    mocked_project.members.list.assert_called_once_with(
+    mocked_project.members_all.list.assert_called_once_with(
         iterator=True,
         query_parameters=query,
     )
