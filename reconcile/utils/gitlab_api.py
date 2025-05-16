@@ -685,6 +685,7 @@ class GitLabApi:
                 path=path,
                 recursive=recursive,
                 pagination="keyset",
+                per_page=MAX_PER_PAGE,
                 get_all=True,
             ),
         )

@@ -638,6 +638,7 @@ def test_get_repository_tree_as_git_cli_interface(
         ref="main",
         recursive=True,
         pagination="keyset",
+        per_page=100,
         get_all=True,
         path="",
     )
@@ -671,6 +672,7 @@ def test_get_repository_tree_with_project(
         ref="main",
         recursive=False,
         pagination="keyset",
+        per_page=100,
         get_all=True,
         path="some/path",
     )
