@@ -56,12 +56,15 @@ class ValidationError(IntFlag):
     CANT_TRANSITION_ISSUES = auto()
     INVALID_ISSUE_TYPE = auto()
     INVALID_ISSUE_STATE = auto()
-    INVALID_SECURITY_LEVEL = auto()
+    INVALID_ISSUE_FIELD = auto()
     INVALID_PRIORITY = auto()
     PERMISSION_ERROR = auto()
     PUBLIC_PROJECT_NO_SECURITY_LEVEL = auto()
     INVALID_COMPONENT = auto()
     PROJECT_ARCHIVED = auto()
+
+
+CustomIssueFields = dict[str, dict[str, str]]
 
 
 class RunnerParams(TypedDict):
@@ -81,12 +84,14 @@ def board_is_valid(
     default_reopen_state: str,
     jira_server_priorities: NameToIdMap,
     public_projects: Iterable[str],
-) -> ValidationError:
+) -> tuple[ValidationError, CustomIssueFields]:
     error = ValidationError(0)
+    custom_fields: CustomIssueFields = {}
+
     try:
         if jira.is_archived:
             logging.error(f"[{board.name}] project is archived")
-            return ValidationError.PROJECT_ARCHIVED
+            return ValidationError.PROJECT_ARCHIVED, custom_fields
 
         if not jira.can_create_issues():
             logging.error(f"[{board.name}] can not create issues in project")
@@ -109,54 +114,71 @@ def board_is_valid(
                 error |= ValidationError.INVALID_COMPONENT
 
         issue_type = board.issue_type or default_issue_type
-        project_issue_types = jira.project_issue_types()
-        project_issue_types_str = [i.name for i in project_issue_types]
-        if issue_type not in project_issue_types_str:
+        if not (project_issue_type := jira.get_issue_type(issue_type)):
+            project_issue_types_str = ", ".join([
+                t.name for t in jira.project_issue_types()
+            ])
             logging.error(
                 f"[{board.name}] {issue_type} is not a valid issue type in project. Valid issue types: {project_issue_types_str}"
             )
             error |= ValidationError.INVALID_ISSUE_TYPE
 
-        available_states = []
-        for project_issue_type in project_issue_types:
-            if issue_type == project_issue_type.name:
-                available_states = project_issue_type.statuses
-                break
+        if project_issue_type:
+            # Check issue attributes
+            if not project_issue_type.statuses:
+                logging.error(
+                    f"[{board.name}] {issue_type} doesn't have any status. Choose a different issue type."
+                )
+                error |= ValidationError.INVALID_ISSUE_TYPE
 
-        if not available_states:
-            logging.error(
-                f"[{board.name}] {issue_type} doesn't have any status. Choose a different issue type."
-            )
-            error |= ValidationError.INVALID_ISSUE_TYPE
+            reopen_state = board.issue_reopen_state or default_reopen_state
+            if reopen_state.lower() not in [
+                t.lower() for t in project_issue_type.statuses
+            ]:
+                logging.error(
+                    f"[{board.name}] '{reopen_state}' is not a valid state in project. Valid states: {project_issue_type.statuses}"
+                )
+                error |= ValidationError.INVALID_ISSUE_STATE
 
-        reopen_state = board.issue_reopen_state or default_reopen_state
-        if reopen_state.lower() not in [t.lower() for t in available_states]:
-            logging.error(
-                f"[{board.name}] '{reopen_state}' is not a valid state in project. Valid states: {available_states}"
-            )
-            error |= ValidationError.INVALID_ISSUE_STATE
+            if board.issue_resolve_state and board.issue_resolve_state.lower() not in [
+                t.lower() for t in project_issue_type.statuses
+            ]:
+                logging.error(
+                    f"[{board.name}] '{board.issue_resolve_state}' is not a valid state in project. Valid states: {project_issue_type.statuses}"
+                )
+                error |= ValidationError.INVALID_ISSUE_STATE
 
-        if board.issue_resolve_state and board.issue_resolve_state.lower() not in [
-            t.lower() for t in available_states
+            for field in board.issue_fields or []:
+                if not (
+                    project_issue_field := jira.project_issue_field(
+                        issue_type_id=project_issue_type.id, field=field.name
+                    )
+                ):
+                    logging.error(
+                        f"[{board.name}] {field.name} is not a valid field in project."
+                    )
+
+                    error |= ValidationError.INVALID_ISSUE_FIELD
+                    continue
+
+                for option in project_issue_field.options:
+                    if option == field.value:
+                        # cache the field id and option value/name for later use, e.g. in jiralert templates
+                        custom_fields[project_issue_field.id] = option.dict()
+                        break
+                else:
+                    # field.value is not in the allowed options
+                    logging.error(
+                        f"[{board.name}] {field.name} has an invalid value '{field.value}'. Valid values: {project_issue_field.options}"
+                    )
+                    error |= ValidationError.INVALID_ISSUE_FIELD
+                    continue
+
+        if board.name in public_projects and "Security Level" not in [
+            f.name for f in board.issue_fields or []
         ]:
             logging.error(
-                f"[{board.name}] '{board.issue_resolve_state}' is not a valid state in project. Valid states: {available_states}"
-            )
-            error |= ValidationError.INVALID_ISSUE_STATE
-
-        if board.issue_security_id:
-            security_levels = jira.security_levels()
-            if board.issue_security_id not in [level.id for level in security_levels]:
-                logging.error(
-                    f"[{board.name}] {board.issue_security_id} is not a valid security level in project. Valid security ids: "
-                    + ", ".join([
-                        f"{level.name} - {level.id}" for level in jira.security_levels()
-                    ])
-                )
-                error |= ValidationError.INVALID_SECURITY_LEVEL
-        elif board.name in public_projects:
-            logging.error(
-                f"[{board.name}] is a public project, but no security level is defined."
+                f"[{board.name}] is a public project, but the security level is not defined. Please add 'Security Level' field to the issueFields!"
             )
             error |= ValidationError.PUBLIC_PROJECT_NO_SECURITY_LEVEL
 
@@ -192,7 +214,7 @@ def board_is_valid(
         else:
             raise
 
-    return error
+    return error, custom_fields
 
 
 def validate_boards(
@@ -231,7 +253,7 @@ def validate_boards(
         jira = jira_clients[board.server.server_url]
         jira.project = board.name
         try:
-            error_flags = board_is_valid(
+            error_flags, custom_fields = board_is_valid(
                 jira=jira,
                 board=board,
                 default_issue_type=default_issue_type,
@@ -271,6 +293,9 @@ def validate_boards(
                         error = True
                 case _:
                     error = True
+
+            # cache the field ids for later use, e.g. in jiralert templates
+            state[f"{board.name}-ids"] = custom_fields
         except Exception as e:
             logging.error(f"[{board.name}] {e}")
             error = True
