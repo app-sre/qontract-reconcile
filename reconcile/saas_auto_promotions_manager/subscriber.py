@@ -204,6 +204,21 @@ class Subscriber:
 
         desired_ref = next(iter(publisher_refs))
         # validate slo gatekeeping
+        if self._has_breached_slos(desired_ref=desired_ref):
+            return
+
+        if desired_ref in self._blocked_versions:
+            logging.info(
+                "Subscriber at path %s promotion stopped because of blocked ref: %s",
+                self.target_file_path,
+                desired_ref,
+            )
+            return
+
+        # Passed all gates -> lets promote desired ref
+        self.desired_ref = desired_ref
+
+    def _has_breached_slos(self, desired_ref: str) -> bool:
         if self.slos and desired_ref not in self._hotfix_versions:
             slo_document_manager = SLODocumentManager(
                 slo_documents=self.slos,
@@ -224,18 +239,8 @@ class Subscriber:
                         slo.current_slo_value,
                         slo.slo.slo_target,
                     )
-                return
-
-        if desired_ref in self._blocked_versions:
-            logging.info(
-                "Subscriber at path %s promotion stopped because of blocked ref: %s",
-                self.target_file_path,
-                desired_ref,
-            )
-            return
-
-        # Passed all gates -> lets promote desired ref
-        self.desired_ref = desired_ref
+                return True
+        return False
 
     def _compute_desired_config_hashes(self) -> None:
         """
