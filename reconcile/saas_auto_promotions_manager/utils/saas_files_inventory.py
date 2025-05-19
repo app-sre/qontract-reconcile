@@ -99,7 +99,7 @@ class SaasFilesInventory:
             for code_component in saas_file.app.code_components or []:
                 for version in code_component.blocked_versions or []:
                     blocked_versions.setdefault(code_component.url, set()).add(version)
-                for hf_version in saas_file.app.code_components or []:
+                for hf_version in code_component.hotfix_versions or []:
                     hotfix_versions.setdefault(code_component.url, set()).add(
                         hf_version
                     )
@@ -125,7 +125,7 @@ class SaasFilesInventory:
                         ref=target.ref,
                         target_namespace=target.namespace,
                         soak_days=soak_days,
-                        slos=target.slos,
+                        slos=target.slos or [],
                         secret_reader=self.secret_reader,
                         thread_pool_size=self.thread_pool_size,
                         schedule=schedule,
