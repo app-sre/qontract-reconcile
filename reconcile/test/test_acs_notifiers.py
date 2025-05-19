@@ -78,7 +78,7 @@ def jira_notifier(
         url=jira_credentials.url,
         issue_type="Task",
         severity_priority_mappings=[severity_priority_mapping],
-        custom_fields={"security": {"id": "0"}},
+        custom_fields={"security": {"name": "0"}},
     )
 
 
@@ -98,7 +98,7 @@ def jira_notifier_api_payload(
             "password": jira_credentials.token,
             "issueType": "Task",
             "priorityMappings": [severity_priority_mapping.to_api()],
-            "defaultFieldsJson": '{"security": {"id": "0"}}',
+            "defaultFieldsJson": '{"security": {"name": "0"}}',
         },
     }
 
@@ -264,7 +264,7 @@ def escalation_policy() -> AppEscalationPolicyV1:
                         ],
                     ),
                     issueType="Task",
-                    issueSecurityId="0",
+                    issueFields=[{"name": "Security Level", "value": "0"}],
                     disable=DisableJiraBoardAutomationsV1(integrations=[]),
                 )
             ],
