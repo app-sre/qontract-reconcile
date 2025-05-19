@@ -29,6 +29,7 @@ from reconcile.utils.promotion_state import (
     PromotionData,
     PromotionState,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS
 
 
@@ -114,6 +115,7 @@ def promotion_state_builder() -> Callable[..., PromotionState]:
 @pytest.fixture
 def subscriber_builder(
     saas_target_namespace_builder: Callable[..., SaasTargetNamespace],
+    secret_reader: SecretReaderBase,
 ) -> Callable[[Mapping[str, Any]], Subscriber]:
     def builder(data: Mapping[str, Any]) -> Subscriber:
         channels: list[Channel] = []
@@ -159,7 +161,11 @@ def subscriber_builder(
             use_target_config_hash=data.get("USE_TARGET_CONFIG_HASH", True),
             soak_days=data.get("SOAK_DAYS", 0),
             blocked_versions=data.get("BLOCKED_VERSIONS", {}),
+            hotfix_versions=data.get("HOTFIX_VERSIONS", {}),
             schedule=data.get("SCHEDULE", "* * * * *"),
+            thread_pool_size=1,
+            secret_reader=secret_reader,
+            slos=[],
         )
         subscriber.channels = channels
         subscriber.config_hashes_by_channel_name = cur_config_hashes_by_channel

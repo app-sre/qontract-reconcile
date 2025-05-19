@@ -74,7 +74,7 @@ class Subscriber:
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
         self._blocked_versions = blocked_versions
-        self.hotfix_versions = hotfix_versions
+        self._hotfix_versions = hotfix_versions
 
     def has_diff(self) -> bool:
         current_hashes = {
@@ -203,8 +203,8 @@ class Subscriber:
             return
 
         desired_ref = next(iter(publisher_refs))
-        # slo gatekeeping
-        if self.slos and desired_ref not in self.hotfix_versions:
+        # validate slo gatekeeping
+        if self.slos and desired_ref not in self._hotfix_versions:
             slo_document_manager = SLODocumentManager(
                 slo_documents=self.slos,
                 secret_reader=self.secret_reader,
@@ -213,7 +213,8 @@ class Subscriber:
             breached_slos = slo_document_manager.get_breached_slos()
             if breached_slos:
                 logging.info(
-                    "Subscriber at path %s promotion stopped because following breached SLOs"
+                    "Subscriber at path %s promotion stopped because following breached SLOs",
+                    self.target_file_path,
                 )
                 for slo in breached_slos:
                     logging.info(

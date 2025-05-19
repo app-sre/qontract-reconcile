@@ -126,6 +126,8 @@ class SaasFilesInventory:
                         target_namespace=target.namespace,
                         soak_days=soak_days,
                         slos=target.slos,
+                        secret_reader=self.secret_reader,
+                        thread_pool_size=self.thread_pool_size,
                         schedule=schedule,
                         hotfix_versions=hotfix_versions.get(
                             resource_template.url, set()
