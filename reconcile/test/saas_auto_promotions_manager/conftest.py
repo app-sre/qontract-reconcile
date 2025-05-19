@@ -165,7 +165,7 @@ def subscriber_builder(
             schedule=data.get("SCHEDULE", "* * * * *"),
             thread_pool_size=1,
             secret_reader=secret_reader,
-            slos=[],
+            slos=data.get("SLOS", []),
         )
         subscriber.channels = channels
         subscriber.config_hashes_by_channel_name = cur_config_hashes_by_channel
