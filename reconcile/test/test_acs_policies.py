@@ -66,7 +66,7 @@ def query_data_desired_state() -> AcsPolicyQueryData:
                                                 mappings=[],
                                             ),
                                             issueType="Task",
-                                            issueSecurityId="0",
+                                            issueFields=None,
                                             disable=DisableJiraBoardAutomationsV1(
                                                 integrations=[]
                                             ),
