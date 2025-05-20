@@ -41,7 +41,10 @@ query JiraBoardsForPermissionValidation {
     issueType
     issueResolveState
     issueReopenState
-    issueSecurityId
+    issueFields {
+      name
+      value
+    }
     severityPriorityMappings {
       name
       mappings {
@@ -73,6 +76,11 @@ class JiraServerV1(ConfiguredBaseModel):
     token: VaultSecret = Field(..., alias="token")
 
 
+class JiraBoardIssueFieldV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    value: str = Field(..., alias="value")
+
+
 class SeverityPriorityMappingV1(ConfiguredBaseModel):
     priority: str = Field(..., alias="priority")
 
@@ -102,7 +110,7 @@ class JiraBoardV1(ConfiguredBaseModel):
     issue_type: Optional[str] = Field(..., alias="issueType")
     issue_resolve_state: Optional[str] = Field(..., alias="issueResolveState")
     issue_reopen_state: Optional[str] = Field(..., alias="issueReopenState")
-    issue_security_id: Optional[str] = Field(..., alias="issueSecurityId")
+    issue_fields: Optional[list[JiraBoardIssueFieldV1]] = Field(..., alias="issueFields")
     severity_priority_mappings: JiraSeverityPriorityMappingsV1 = Field(..., alias="severityPriorityMappings")
     escalation_policies: Optional[list[AppEscalationPolicyV1]] = Field(..., alias="escalationPolicies")
     disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")

@@ -1,3 +1,4 @@
+---
 
 jira_boards:
 - name: jira-board-default
@@ -9,7 +10,7 @@ jira_boards:
   issueType: null
   issueResolveState: Closed
   issueReopenState: null
-  issueSecurityId: null
+  issueFields: null
   severityPriorityMappings:
     name: major-major
     mappings:
@@ -25,7 +26,9 @@ jira_boards:
   issueType: bug
   issueResolveState: Closed
   issueReopenState: Open
-  issueSecurityId: "32168"
+  issueFields:
+  - name: Security Level
+    value: "fake"
   severityPriorityMappings:
     name: major-major
     mappings:
@@ -42,7 +45,9 @@ jira_boards:
   issueType: bug
   issueResolveState: Closed
   issueReopenState: Open
-  issueSecurityId: "32168"
+  issueFields:
+  - name: Security Level
+    value: "fake"
   severityPriorityMappings:
     name: major-major
     mappings:

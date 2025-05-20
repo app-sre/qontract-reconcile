@@ -82,8 +82,10 @@ class JiraNotifier(BaseModel):
         jira_board = escalation_policy.channels.jira_board[0]
 
         custom_fields: dict[str, Any] = {}
-        if jira_board.issue_security_id:
-            custom_fields["security"] = {"id": jira_board.issue_security_id}
+        for field in jira_board.issue_fields or []:
+            if field.name == "Security Level":
+                custom_fields["security"] = {"name": field.value}
+
         if escalation_policy.channels.jira_component:
             custom_fields["components"] = [
                 {"name": escalation_policy.channels.jira_component}

@@ -13,7 +13,10 @@ query JiraBoardsForPermissionValidation {
     issueType
     issueResolveState
     issueReopenState
-    issueSecurityId
+    issueFields {
+      name
+      value
+    }
     severityPriorityMappings {
       name
       mappings {
