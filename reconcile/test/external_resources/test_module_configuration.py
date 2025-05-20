@@ -1,12 +1,17 @@
+import pytest
+
 from reconcile.external_resources.model import (
     ExternalResourceModuleConfiguration,
-    ExternalResourcesModuleV1,
+    ExternalResourceModuleConfigurationError,
     ExternalResourcesSettingsV1,
+)
+from reconcile.gql_definitions.external_resources.external_resources_modules import (
+    ExternalResourcesModuleV1,
 )
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
     ExternalResourcesModuleOverrides,
 )
-from reconcile.gql_definitions.fragments.deplopy_resources import (
+from reconcile.gql_definitions.fragments.deploy_resources import (
     DeployResourcesFields,
     ResourceLimitsRequirementsV1,
     ResourceRequestsRequirementsV1,
@@ -14,35 +19,150 @@ from reconcile.gql_definitions.fragments.deplopy_resources import (
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 
-def test_module_conf_overrides(
-    module: ExternalResourcesModuleV1, settings: ExternalResourcesSettingsV1
-) -> None:
-    module_overrides = ExternalResourcesModuleOverrides(
-        image="i_override",
-        version="v_override",
-        module_type=None,
-        reconcile_timeout_minutes=None,
-        outputs_secret_image="whatever-image",
-        outputs_secret_version="whatever-version",
-        resources=DeployResourcesFields(
-            requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
-            limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+@pytest.mark.parametrize(
+    ("spec", "overrides", "expected_conf"),
+    [
+        (  # Module Default
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={},
+                resource={},
+                namespace={},
+            ),
+            None,
+            ExternalResourceModuleConfiguration(
+                image="stable-image",
+                version="1.0.0",
+                outputs_secret_image="path/to/er-output-secret-image",
+                outputs_secret_version="er-output-secret-version",
+                reconcile_timeout_minutes=60,
+                reconcile_drift_interval_minutes=60,
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
+            ),
         ),
+        (  # Account channel
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"external_resources": {"channel": "candidate"}},
+                resource={},
+                namespace={},
+            ),
+            None,
+            ExternalResourceModuleConfiguration(
+                image="candidate-image",
+                version="2.0.0",
+                outputs_secret_image="path/to/er-output-secret-image",
+                outputs_secret_version="er-output-secret-version",
+                reconcile_timeout_minutes=60,
+                reconcile_drift_interval_minutes=60,
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
+            ),
+        ),
+        (  # Module Overrides image/version
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"external_resources": {"channel": "candidate"}},
+                resource={"channel": "experiment"},
+                namespace={},
+            ),
+            ExternalResourcesModuleOverrides(
+                image="overridden-image",
+                version="overridden-version",
+                module_type=None,
+                channel=None,
+                reconcile_timeout_minutes=None,
+                outputs_secret_image="overridden-secrets-image",
+                outputs_secret_version="overridden-secrets-version",
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="200m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="8Gi", cpu=None),
+                ),
+            ),
+            ExternalResourceModuleConfiguration(
+                image="overridden-image",
+                version="overridden-version",
+                outputs_secret_image="overridden-secrets-image",
+                outputs_secret_version="overridden-secrets-version",
+                reconcile_timeout_minutes=60,
+                reconcile_drift_interval_minutes=60,
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="200m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="8Gi", cpu=None),
+                ),
+                overridden=True,
+            ),
+        ),
+        (  # Module Overrides channel
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"external_resources": {"channel": "candidate"}},
+                resource={"channel": "experiment"},
+                namespace={},
+            ),
+            ExternalResourcesModuleOverrides(
+                image=None,
+                version=None,
+                module_type=None,
+                channel="experiment-2",
+                reconcile_timeout_minutes=None,
+                outputs_secret_image="path/to/er-output-secret-image",
+                outputs_secret_version="er-output-secret-version",
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
+            ),
+            ExternalResourceModuleConfiguration(
+                image="experiment-2-image",
+                version="4.0.0",
+                outputs_secret_image="path/to/er-output-secret-image",
+                outputs_secret_version="er-output-secret-version",
+                reconcile_timeout_minutes=60,
+                reconcile_drift_interval_minutes=60,
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
+            ),
+        ),
+    ],
+)
+def test_module_image_configuration(
+    module: ExternalResourcesModuleV1,
+    settings: ExternalResourcesSettingsV1,
+    spec: ExternalResourceSpec,
+    overrides: ExternalResourcesModuleOverrides,
+    expected_conf: ExternalResourceModuleConfiguration,
+) -> None:
+    spec.metadata = {"module_overrides": overrides}
+
+    assert (
+        ExternalResourceModuleConfiguration.resolve_configuration(
+            module=module, spec=spec, settings=settings
+        )
+        == expected_conf
     )
+
+
+def test_module_has_wrong_default_channel(
+    module: ExternalResourcesModuleV1,
+    settings: ExternalResourcesSettingsV1,
+) -> None:
     spec = ExternalResourceSpec(
         provision_provider="aws",
-        provisioner={},
-        resource={},
+        provisioner={"name": "aws-acc-1"},
+        resource={"provider": "rds", "identifier": "my-resource"},
         namespace={},
     )
-    spec.metadata = {"module_overrides": module_overrides}
-    conf = ExternalResourceModuleConfiguration.resolve_configuration(
-        module=module, spec=spec, settings=settings
-    )
-    assert conf.image == module_overrides.image
-    assert conf.version == module_overrides.version
-    assert (
-        conf.reconcile_drift_interval_minutes == module.reconcile_drift_interval_minutes
-    )
-    assert conf.outputs_secret_image == module_overrides.outputs_secret_image
-    assert conf.outputs_secret_version == module_overrides.outputs_secret_version
+
+    module.default_channel = "non-existent-channel"
+    with pytest.raises(ExternalResourceModuleConfigurationError):
+        ExternalResourceModuleConfiguration.resolve_configuration(
+            module=module, spec=spec, settings=settings
+        )

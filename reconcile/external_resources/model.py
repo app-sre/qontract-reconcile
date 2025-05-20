@@ -61,6 +61,10 @@ class ExternalResourceOutputResourceNameDuplications(Exception):
         super().__init__("".join(msg))
 
 
+class ExternalResourceModuleConfigurationError(Exception):
+    pass
+
+
 class ExternalResourceValidationError(Exception):
     errors: list[str] = []
 
@@ -281,6 +285,13 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
         spec: ExternalResourceSpec,
         settings: ExternalResourcesSettingsV1,
     ) -> "ExternalResourceModuleConfiguration":
+        """Resolve the module configuration for a given ExternalResourceSpec.
+        Priority:
+        1.- Module_overrides from the spec
+        2.- Provisioner (AWS account) channel
+        3.- Module default channel
+        """
+
         module_overrides = spec.metadata.get("module_overrides")
         overridden = module_overrides is not None
 
@@ -289,15 +300,35 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
                 module_type=None,
                 image=None,
                 version=None,
+                channel=None,
                 reconcile_timeout_minutes=None,
                 outputs_secret_image=None,
                 outputs_secret_version=None,
                 resources=None,
             )
 
+        provisioner_channel = (spec.provisioner.get("external_resources") or {}).get(
+            "channel"
+        ) or None
+
+        channel_name = (
+            module_overrides.channel or provisioner_channel or module.default_channel
+        )
+
+        channel = next(
+            (c for c in module.channels if c.name == channel_name),
+            None,
+        )
+
+        if channel is None:
+            raise ExternalResourceModuleConfigurationError(
+                f"Module {module.provision_provider}/{module.provider} does not have the channel {channel_name}. "
+                f"Resource spec: {spec.id_object()}"
+            )
+
         return ExternalResourceModuleConfiguration(
-            image=module_overrides.image or module.image,
-            version=module_overrides.version or module.version,
+            image=module_overrides.image or channel.image,
+            version=module_overrides.version or channel.version,
             reconcile_drift_interval_minutes=module.reconcile_drift_interval_minutes,
             reconcile_timeout_minutes=module_overrides.reconcile_timeout_minutes
             or module.reconcile_timeout_minutes,
