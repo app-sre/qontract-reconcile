@@ -115,9 +115,9 @@ def board_is_valid(
 
         issue_type = board.issue_type or default_issue_type
         if not (project_issue_type := jira.get_issue_type(issue_type)):
-            project_issue_types_str = ", ".join([
+            project_issue_types_str = ", ".join(
                 t.name for t in jira.project_issue_types()
-            ])
+            )
             logging.error(
                 f"[{board.name}] {issue_type} is not a valid issue type in project. Valid issue types: {project_issue_types_str}"
             )
