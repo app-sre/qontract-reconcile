@@ -8,8 +8,9 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     ConfigHash,
     Subscriber,
 )
-from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.typed_queries.saas_files import SaasFile, SaasResourceTemplateTarget
 from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.slo_document_manager import SLODocumentManager
 
 
 class SaasFileInventoryError(Exception):
@@ -114,6 +115,7 @@ class SaasFilesInventory:
                         continue
                     soak_days = target.promotion.soak_days or 0
                     schedule = target.promotion.schedule or "* * * * *"
+
                     subscriber = Subscriber(
                         uid=target.uid(
                             parent_saas_file_name=saas_file.name,
@@ -125,9 +127,7 @@ class SaasFilesInventory:
                         ref=target.ref,
                         target_namespace=target.namespace,
                         soak_days=soak_days,
-                        slos=target.slos or [],
-                        secret_reader=self.secret_reader,
-                        thread_pool_size=self.thread_pool_size,
+                        slo_document_manager=self._build_slo_document_manager(target),
                         schedule=schedule,
                         hotfix_versions=hotfix_versions.get(
                             resource_template.url, set()
@@ -176,6 +176,17 @@ class SaasFilesInventory:
                         subscriber.channels.append(
                             self._channels_by_name[subscribe_channel]
                         )
+
+    def _build_slo_document_manager(
+        self, target: SaasResourceTemplateTarget
+    ) -> SLODocumentManager | None:
+        if target.slos:
+            return SLODocumentManager(
+                slo_documents=target.slos,
+                secret_reader=self.secret_reader,
+                thread_pool_size=self.thread_pool_size,
+            )
+        return None
 
     def _remove_unsupported(self) -> None:
         """

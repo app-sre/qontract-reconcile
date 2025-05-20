@@ -163,9 +163,7 @@ def subscriber_builder(
             blocked_versions=data.get("BLOCKED_VERSIONS", {}),
             hotfix_versions=data.get("HOTFIX_VERSIONS", {}),
             schedule=data.get("SCHEDULE", "* * * * *"),
-            thread_pool_size=1,
-            secret_reader=secret_reader,
-            slos=data.get("SLOS", []),
+            slo_document_manager=data.get("SLO_DOCUMENT_MANAGER", None),
         )
         subscriber.channels = channels
         subscriber.config_hashes_by_channel_name = cur_config_hashes_by_channel

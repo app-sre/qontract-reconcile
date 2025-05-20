@@ -6,7 +6,6 @@ from datetime import UTC, datetime, timedelta
 
 from croniter import croniter
 
-from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
@@ -14,7 +13,6 @@ from reconcile.saas_auto_promotions_manager.publisher import (
     DeploymentInfo,
     Publisher,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.slo_document_manager import SLODocumentManager
 
 CONTENT_HASH_LENGTH = 32
@@ -49,23 +47,18 @@ class Subscriber:
         use_target_config_hash: bool,
         uid: str,
         soak_days: int,
-        thread_pool_size: int,
-        slos: list[SLODocument],
-        secret_reader: SecretReaderBase,
         blocked_versions: set[str],
         hotfix_versions: set[str],
         schedule: str,
+        slo_document_manager: SLODocumentManager | None = None,
     ):
         self.saas_name = saas_name
         self.template_name = template_name
-        self.secret_reader = secret_reader
-        self.thread_pool_size = thread_pool_size
         self.ref = ref
         self.target_file_path = target_file_path
         self.config_hashes_by_channel_name: dict[str, list[ConfigHash]] = {}
         self.channels: list[Channel] = []
         self.desired_ref = ""
-        self.slos = slos
         self.desired_hashes: list[ConfigHash] = []
         self.target_namespace = target_namespace
         self.uid = uid
@@ -75,6 +68,7 @@ class Subscriber:
         self._use_target_config_hash = use_target_config_hash
         self._blocked_versions = blocked_versions
         self._hotfix_versions = hotfix_versions
+        self.slo_document_manager = slo_document_manager
 
     def has_diff(self) -> bool:
         current_hashes = {
@@ -219,13 +213,8 @@ class Subscriber:
         self.desired_ref = desired_ref
 
     def _has_breached_slos(self, desired_ref: str) -> bool:
-        if self.slos and desired_ref not in self._hotfix_versions:
-            slo_document_manager = SLODocumentManager(
-                slo_documents=self.slos,
-                secret_reader=self.secret_reader,
-                thread_pool_size=self.thread_pool_size,
-            )
-            breached_slos = slo_document_manager.get_breached_slos()
+        if self.slo_document_manager and desired_ref not in self._hotfix_versions:
+            breached_slos = self.slo_document_manager.get_breached_slos()
             if breached_slos:
                 logging.info(
                     "Subscriber at path %s promotion stopped because following breached SLOs",
