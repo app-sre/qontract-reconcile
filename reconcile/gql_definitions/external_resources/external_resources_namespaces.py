@@ -67,6 +67,7 @@ fragment DeployResourcesFields on DeployResources_v1 {
 
 fragment ExternalResourcesModuleOverrides on ExternalResourcesModuleOverrides_v1 {
   module_type
+  channel
   image
   version
   reconcile_timeout_minutes
@@ -98,6 +99,9 @@ query ExternalResourcesNamespaces {
             name
             resourcesDefaultRegion
             supportedDeploymentRegions
+            externalResources {
+                channel
+            }
         }
         resources {
             output_format {
@@ -572,10 +576,15 @@ class NamespaceExternalResourceV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
+class ExternalResourcesAccountSettingsV1(ConfiguredBaseModel):
+    channel: Optional[str] = Field(..., alias="channel")
+
+
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
+    external_resources: Optional[ExternalResourcesAccountSettingsV1] = Field(..., alias="externalResources")
 
 
 class NamespaceTerraformResourceOutputFormatV1(ConfiguredBaseModel):

@@ -18,6 +18,7 @@ from reconcile.external_resources.state import (
     ExternalResourceState,
 )
 from reconcile.gql_definitions.external_resources.external_resources_modules import (
+    ExternalResourcesChannelV1,
     ExternalResourcesModuleV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
@@ -109,9 +110,7 @@ def state(
 @fixture
 def module() -> ExternalResourcesModuleV1:
     return ExternalResourcesModuleV1(
-        image="image",
         module_type="cdktf",
-        version="0.0.1",
         provision_provider="aws",
         provider="aws-iam-role",
         reconcile_drift_interval_minutes=60,
@@ -120,6 +119,21 @@ def module() -> ExternalResourcesModuleV1:
         outputs_secret_image=None,
         outputs_secret_version=None,
         resources=None,
+        channels=[
+            ExternalResourcesChannelV1(
+                name="stable", image="stable-image", version="1.0.0"
+            ),
+            ExternalResourcesChannelV1(
+                name="candidate", image="candidate-image", version="2.0.0"
+            ),
+            ExternalResourcesChannelV1(
+                name="experiment", image="experiment-image", version="3.0.0"
+            ),
+            ExternalResourcesChannelV1(
+                name="experiment-2", image="experiment-2-image", version="4.0.0"
+            ),
+        ],
+        default_channel="stable",
     )
 
 
