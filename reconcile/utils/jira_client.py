@@ -240,14 +240,15 @@ class JiraClient:
     def can_transition_issues(self) -> bool:
         return self.can_i("TRANSITION_ISSUES")
 
-    def _project_issue_types(self) -> list[IssueType]:
+    def _project_issue_types(self, project: str) -> list[IssueType]:
+        # Don't use self.project here, because of function.cache usage
         return [
             IssueType(id=t.id, name=t.name, statuses=[s.name for s in t.statuses])
-            for t in self.jira.issue_types_for_project(self.project)
+            for t in self.jira.issue_types_for_project(project)
         ]
 
     def get_issue_type(self, issue_type: str) -> IssueType | None:
-        for _issue_type in self.project_issue_types():
+        for _issue_type in self.project_issue_types(self.project):
             if _issue_type.name == issue_type:
                 return _issue_type
         return None
@@ -264,11 +265,14 @@ class JiraClient:
             for v in allowed_values
         ]
 
-    def _project_issue_fields(self, issue_type_id: str) -> list[IssueField]:
+    def _project_issue_fields(
+        self, project: str, issue_type_id: str
+    ) -> list[IssueField]:
         """Return all available issue fields for the project.
 
         This API endpoint needs createIssue project permissions.
         """
+        # Don't use self.project here, because of function.cache usage
         return [
             IssueField(
                 name=field.name,
@@ -278,7 +282,7 @@ class JiraClient:
                 ),
             )
             for field in self.jira.project_issue_fields(
-                project=self.project, issue_type=issue_type_id, maxResults=9999
+                project=project, issue_type=issue_type_id, maxResults=9999
             )
         ]
 
@@ -287,7 +291,9 @@ class JiraClient:
 
         This API endpoint needs createIssue project permissions.
         """
-        for _field in self.project_issue_fields(issue_type_id=issue_type_id):
+        for _field in self.project_issue_fields(
+            project=self.project, issue_type_id=issue_type_id
+        ):
             if _field.name == field:
                 return _field
         return None
