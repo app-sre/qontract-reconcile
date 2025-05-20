@@ -114,7 +114,8 @@ def board_is_valid(
                 error |= ValidationError.INVALID_COMPONENT
 
         issue_type = board.issue_type or default_issue_type
-        if not (project_issue_type := jira.get_issue_type(issue_type)):
+        project_issue_type = jira.get_issue_type(issue_type)
+        if not project_issue_type:
             project_issue_types_str = ", ".join(
                 t.name for t in jira.project_issue_types()
             )
@@ -149,11 +150,10 @@ def board_is_valid(
                 error |= ValidationError.INVALID_ISSUE_STATE
 
             for field in board.issue_fields or []:
-                if not (
-                    project_issue_field := jira.project_issue_field(
-                        issue_type_id=project_issue_type.id, field=field.name
-                    )
-                ):
+                project_issue_field = jira.project_issue_field(
+                    issue_type_id=project_issue_type.id, field=field.name
+                )
+                if not project_issue_field:
                     logging.error(
                         f"[{board.name}] {field.name} is not a valid field in project."
                     )
