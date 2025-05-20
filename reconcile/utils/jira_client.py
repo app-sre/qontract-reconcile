@@ -125,12 +125,8 @@ class JiraClient:
         self.priorities = functools.lru_cache(maxsize=None)(self._priorities)
         self.public_projects = functools.lru_cache(maxsize=None)(self._public_projects)
         self.my_permissions = functools.lru_cache(maxsize=None)(self._my_permissions)
-        self.project_issue_types = functools.lru_cache(maxsize=None)(
-            self._project_issue_types
-        )
-        self.project_issue_fields = functools.lru_cache(maxsize=None)(
-            self._project_issue_fields
-        )
+        self.project_issue_types = functools.cache(self._project_issue_types)
+        self.project_issue_fields = functools.cache(self._project_issue_fields)
 
     def _deprecated_init(
         self, jira_board: Mapping[str, Any], settings: Mapping | None
