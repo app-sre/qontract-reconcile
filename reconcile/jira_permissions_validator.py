@@ -120,7 +120,7 @@ def board_is_valid(
                 t.name for t in jira.project_issue_types()
             )
             logging.error(
-                f"[{board.name}] {issue_type} is not a valid issue type in project. Valid issue types: {project_issue_types_str}"
+                f"[{board.name}] '{issue_type}' is not a valid issue type in project. Valid issue types: {project_issue_types_str}"
             )
             error |= ValidationError.INVALID_ISSUE_TYPE
 
@@ -128,7 +128,7 @@ def board_is_valid(
             # Check issue attributes
             if not project_issue_type.statuses:
                 logging.error(
-                    f"[{board.name}] {issue_type} doesn't have any status. Choose a different issue type."
+                    f"[{board.name}] '{issue_type}' doesn't have any status. Choose a different issue type."
                 )
                 error |= ValidationError.INVALID_ISSUE_TYPE
 
@@ -155,7 +155,7 @@ def board_is_valid(
                 )
                 if not project_issue_field:
                     logging.error(
-                        f"[{board.name}] {field.name} is not a valid field in project."
+                        f"[{board.name}] '{field.name}' is not a valid field for '{project_issue_type.name}' in this project."
                     )
 
                     error |= ValidationError.INVALID_ISSUE_FIELD
@@ -169,7 +169,7 @@ def board_is_valid(
                 else:
                     # field.value is not in the allowed options
                     logging.error(
-                        f"[{board.name}] {field.name} has an invalid value '{field.value}'. Valid values: {project_issue_field.options}"
+                        f"[{board.name}] '{field.name}' has an invalid value '{field.value}'. Valid values: {project_issue_field.options}"
                     )
                     error |= ValidationError.INVALID_ISSUE_FIELD
                     continue
