@@ -24,40 +24,6 @@ query AcsPolicy {
     name
     description
     severity
-    integrations {
-      notifiers {
-        jira {
-          escalationPolicy {
-            name
-            channels {
-              jiraBoard {
-                name
-                server {
-                  serverUrl
-                }
-                severityPriorityMappings {
-                  name
-                  mappings {
-                    severity
-                    priority
-                  }
-                }
-                issueType
-                issueFields {
-                  name
-                  value
-                }
-                disable {
-                  integrations
-                }
-              }
-              jiraComponent
-              jiraLabels
-            }
-          }
-        }
-      }
-    }
     categories
     scope {
       level
@@ -105,61 +71,6 @@ class ConfiguredBaseModel(BaseModel):
     class Config:
         smart_union=True
         extra=Extra.forbid
-
-
-class JiraServerV1(ConfiguredBaseModel):
-    server_url: str = Field(..., alias="serverUrl")
-
-
-class SeverityPriorityMappingV1(ConfiguredBaseModel):
-    severity: str = Field(..., alias="severity")
-    priority: str = Field(..., alias="priority")
-
-
-class JiraSeverityPriorityMappingsV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    mappings: list[SeverityPriorityMappingV1] = Field(..., alias="mappings")
-
-
-class JiraBoardIssueFieldV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    value: str = Field(..., alias="value")
-
-
-class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
-    integrations: Optional[list[str]] = Field(..., alias="integrations")
-
-
-class JiraBoardV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    server: JiraServerV1 = Field(..., alias="server")
-    severity_priority_mappings: JiraSeverityPriorityMappingsV1 = Field(..., alias="severityPriorityMappings")
-    issue_type: Optional[str] = Field(..., alias="issueType")
-    issue_fields: Optional[list[JiraBoardIssueFieldV1]] = Field(..., alias="issueFields")
-    disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
-
-
-class AppEscalationPolicyChannelsV1(ConfiguredBaseModel):
-    jira_board: list[JiraBoardV1] = Field(..., alias="jiraBoard")
-    jira_component: Optional[str] = Field(..., alias="jiraComponent")
-    jira_labels: Optional[list[str]] = Field(..., alias="jiraLabels")
-
-
-class AppEscalationPolicyV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    channels: AppEscalationPolicyChannelsV1 = Field(..., alias="channels")
-
-
-class AcsPolicyIntegrationNotifierJiraV1(ConfiguredBaseModel):
-    escalation_policy: AppEscalationPolicyV1 = Field(..., alias="escalationPolicy")
-
-
-class AcsPolicyIntegrationNotifiersV1(ConfiguredBaseModel):
-    jira: Optional[AcsPolicyIntegrationNotifierJiraV1] = Field(..., alias="jira")
-
-
-class AcsPolicyIntegrationsV1(ConfiguredBaseModel):
-    notifiers: Optional[AcsPolicyIntegrationNotifiersV1] = Field(..., alias="notifiers")
 
 
 class AcsPolicyScopeV1(ConfiguredBaseModel):
@@ -218,7 +129,6 @@ class AcsPolicyV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     description: Optional[str] = Field(..., alias="description")
     severity: str = Field(..., alias="severity")
-    integrations: Optional[AcsPolicyIntegrationsV1] = Field(..., alias="integrations")
     categories: list[str] = Field(..., alias="categories")
     scope: Union[AcsPolicyScopeClusterV1, AcsPolicyScopeNamespaceV1, AcsPolicyScopeV1] = Field(..., alias="scope")
     conditions: list[Union[AcsPolicyConditionsCvssV1, AcsPolicyConditionsSeverityV1, AcsPolicyConditionsImageTagV1, AcsPolicyConditionsCveV1, AcsPolicyConditionsImageAgeV1, AcsPolicyConditionsV1]] = Field(..., alias="conditions")
