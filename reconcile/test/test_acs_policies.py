@@ -90,7 +90,7 @@ def modeled_acs_policies() -> list[Policy]:
             name=CUSTOM_POLICY_ONE_NAME,
             description="CVEs within app-sre clusters with CVSS score gte to 7 and fixable",
             severity="HIGH_SEVERITY",
-            notifiers=[JIRA_NOTIFIER_ID],
+            notifiers=[],
             categories=["Vulnerability Management"],
             scope=[
                 Scope(cluster=CLUSTER_ID_ONE, namespace=""),
@@ -129,7 +129,7 @@ def api_response_policies_summary() -> Any:
                 "name": CUSTOM_POLICY_ONE_NAME,
                 "description": "CVEs within app-sre clusters with CVSS score gte to 7 and fixable",
                 "severity": "HIGH_SEVERITY",
-                "notifiers": [JIRA_NOTIFIER_ID],
+                "notifiers": [],
                 "disabled": False,
                 "lifecycleStages": ["BUILD", "DEPLOY"],
                 "lastUpdated": None,
@@ -182,7 +182,7 @@ def api_response_policies_specific() -> list[Any]:
             ],
             "severity": "HIGH_SEVERITY",
             "enforcementActions": [],
-            "notifiers": [JIRA_NOTIFIER_ID],
+            "notifiers": [],
             "policySections": [
                 {
                     "sectionName": "primary",
