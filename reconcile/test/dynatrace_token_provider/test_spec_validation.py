@@ -70,10 +70,10 @@ def test_dtp_spec_validation_secret_not_unique_error(
     gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
 ) -> None:
     specs = {
-        "valid_spec": gql_class_factory(
+        "invalid_spec": gql_class_factory(
             DynatraceTokenProviderTokenSpecV1,
             {
-                "name": "valid_spec",
+                "name": "invalid_spec",
                 "ocm_org_ids": ["ocm_org_id_a"],
                 "secrets": [
                     {
@@ -119,10 +119,10 @@ def test_dtp_spec_validation_token_not_unique_error(
     gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
 ) -> None:
     specs = {
-        "valid_spec": gql_class_factory(
+        "invalid_spec": gql_class_factory(
             DynatraceTokenProviderTokenSpecV1,
             {
-                "name": "valid_spec",
+                "name": "invalid_spec",
                 "ocm_org_ids": ["ocm_org_id_a"],
                 "secrets": [
                     {
@@ -162,10 +162,10 @@ def test_dtp_spec_validation_key_name_not_unique_error_1(
     gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
 ) -> None:
     specs = {
-        "valid_spec": gql_class_factory(
+        "invalid_spec": gql_class_factory(
             DynatraceTokenProviderTokenSpecV1,
             {
-                "name": "valid_spec",
+                "name": "invalid_spec",
                 "ocm_org_ids": ["ocm_org_id_a"],
                 "secrets": [
                     {
@@ -205,10 +205,10 @@ def test_dtp_spec_validation_key_name_not_unique_error_2(
     gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
 ) -> None:
     specs = {
-        "valid_spec": gql_class_factory(
+        "invalid_spec": gql_class_factory(
             DynatraceTokenProviderTokenSpecV1,
             {
-                "name": "valid_spec",
+                "name": "invalid_spec",
                 "ocm_org_ids": ["ocm_org_id_a"],
                 "secrets": [
                     {

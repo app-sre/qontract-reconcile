@@ -8,14 +8,18 @@ from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
 from reconcile.test.dynatrace_token_provider.fixtures import (
+    REGIONAL_TENANT_KEY,
+    SLO_TENANT_KEY,
     build_dynatrace_client,
+    build_k8s_secret,
     build_ocm_client,
+    build_syncset,
 )
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
-def test_single_non_hcp_cluster_create_tokens_v3(
+def test_single_non_hcp_cluster_patch_tokens_multi_spec(
     secret_reader: SecretReaderBase,
     slo_token_spec: DynatraceTokenProviderTokenSpecV1,
     regional_token_spec: DynatraceTokenProviderTokenSpecV1,
@@ -25,15 +29,30 @@ def test_single_non_hcp_cluster_create_tokens_v3(
     default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
-    We have a single non-HCP cluster that does not have any syncsets/tokens yet.
-    New tokens in new syncsets should be created.
+    We have a non-HCP cluster with an existing syncset and tokens.
+    The cluster has 2 different token specs.
+    However, some token ids do not match with the token ids in Dynatrace.
+    We expect a new token to be created and the syncset to be patched.
     """
-    # regional_tenant_id = default_cluster_v3.labels[REGIONAL_TENANT_KEY]
-    # slo_tenant_id = default_cluster_v3.labels[SLO_TENANT_KEY]
+    regional_tenant_id = default_cluster_v3.labels[REGIONAL_TENANT_KEY]
+    slo_tenant_id = default_cluster_v3.labels[SLO_TENANT_KEY]
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=[default_cluster_v3],
-        get_syncset={},
         get_manifest={},
+        get_syncset={
+            default_cluster_v3.id: build_syncset(
+                secrets=[
+                    build_k8s_secret(
+                        tokens=[
+                            default_ingestion_token,
+                            default_operator_token,
+                        ],
+                        tenant_id=regional_tenant_id,
+                    )
+                ],
+                with_id=True,
+            )
+        },
     )
 
     ocm_client_by_env_name = {
@@ -44,7 +63,6 @@ def test_single_non_hcp_cluster_create_tokens_v3(
         id=default_operator_token.id,
         token=default_operator_token.token,
     )
-
     ingestion_token = DynatraceAPITokenCreated(
         id=default_ingestion_token.id,
         token=default_ingestion_token.token,
@@ -52,16 +70,18 @@ def test_single_non_hcp_cluster_create_tokens_v3(
 
     regional_dynatrace_client = build_dynatrace_client(
         create_api_token={
-            "dtp_ingestion-token_external_id_a_f6e7fac64719": ingestion_token,
             "dtp_operator-token_external_id_a_1b6c3b9a7248": operator_token,
         },
-        existing_token_ids={},
+        # Operator token of regional tenant spec does not exist yet.
+        existing_token_ids={
+            default_ingestion_token.id: "dtp_ingestion-token_external_id_a_f6e7fac64719",
+        },
     )
-
     slo_dynatrace_client = build_dynatrace_client(
         create_api_token={
             "dtp_ingestion-token_external_id_a_f6e7fac64719": ingestion_token,
         },
+        # Ingestion token of slo tenant spec does not exist yet.
         existing_token_ids={},
     )
 
@@ -82,13 +102,13 @@ def test_single_non_hcp_cluster_create_tokens_v3(
 
     default_integration.reconcile(dry_run=False, dependencies=dependencies)
 
-    ocm_client.patch_syncset.assert_not_called()
-    ocm_client.patch_manifest.assert_not_called()
+    ocm_client.create_syncset.assert_not_called()
     ocm_client.create_manifest.assert_not_called()
+    ocm_client.patch_manifest.assert_not_called()
     regional_dynatrace_client.update_token.assert_not_called()
+    slo_dynatrace_client.update_token.assert_not_called()
 
-    assert len(regional_dynatrace_client.create_api_token.mock_calls) == 2
-    regional_dynatrace_client.create_api_token.assert_any_call(
+    regional_dynatrace_client.create_api_token.assert_called_once_with(
         name="dtp_operator-token_external_id_a_1b6c3b9a7248",
         scopes=[
             "activeGateTokenManagement.create",
@@ -99,32 +119,33 @@ def test_single_non_hcp_cluster_create_tokens_v3(
             "InstallerDownload",
         ],
     )
-    regional_dynatrace_client.create_api_token.assert_any_call(
+    slo_dynatrace_client.create_api_token.assert_called_once_with(
         name="dtp_ingestion-token_external_id_a_f6e7fac64719",
         scopes=["metrics.ingest", "logs.ingest", "events.ingest"],
     )
-
-    assert len(slo_dynatrace_client.create_api_token.mock_calls) == 1
-    slo_dynatrace_client.create_api_token.assert_any_call(
-        name="dtp_ingestion-token_external_id_a_f6e7fac64719",
-        scopes=["metrics.ingest", "logs.ingest", "events.ingest"],
+    ocm_client.patch_syncset.assert_called_once_with(
+        cluster_id=default_cluster_v3.id,
+        syncset_id="ext-dynatrace-tokens-dtp",
+        syncset_map=build_syncset(
+            secrets=[
+                build_k8s_secret(
+                    secret_name="dynatrace-token-dtp",
+                    namespace_name="dynatrace",
+                    tokens=[
+                        default_ingestion_token,
+                        default_operator_token,
+                    ],
+                    tenant_id=regional_tenant_id,
+                ),
+                build_k8s_secret(
+                    secret_name="dynatrace-slo-token-dtp",
+                    namespace_name="dynatrace",
+                    tokens=[
+                        default_ingestion_token,
+                    ],
+                    tenant_id=slo_tenant_id,
+                ),
+            ],
+            with_id=False,
+        ),
     )
-
-    # TODO
-    # ocm_client.create_syncset.assert_called_once_with(
-    #     cluster_id="cluster_a",
-    #     syncset_map=build_syncset(
-    #         secrets=[
-    #             K8sSecret(
-    #                 secret_name="dynatrace-token-dtp",
-    #                 namespace_name="dynatrace",
-    #                 tokens=[
-    #                     default_operator_token,
-    #                     default_ingestion_token,
-    #                 ],
-    #             )
-    #         ],
-    #         tenant_id=tenant_id,
-    #         with_id=True,
-    #     ),
-    # )
