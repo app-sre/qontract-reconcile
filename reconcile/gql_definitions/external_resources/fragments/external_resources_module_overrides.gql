@@ -2,6 +2,7 @@
 
 fragment ExternalResourcesModuleOverrides on ExternalResourcesModuleOverrides_v1 {
   module_type
+  channel
   image
   version
   reconcile_timeout_minutes
