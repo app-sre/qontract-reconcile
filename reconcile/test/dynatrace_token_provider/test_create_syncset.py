@@ -107,7 +107,6 @@ def test_single_non_hcp_cluster_create_tokens(
                     tenant_id=tenant_id,
                 )
             ],
-            tenant_id=tenant_id,
             with_id=True,
         ),
     )

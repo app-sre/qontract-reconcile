@@ -62,7 +62,6 @@ def test_dry_run(
                         tenant_id="dt_tenant_a",
                     )
                 ],
-                tenant_id="dt_tenant_a",
                 with_id=True,
             )
         },

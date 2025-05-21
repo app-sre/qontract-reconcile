@@ -1,6 +1,5 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
-    DTP_TENANT_V2_LABEL,
     DynatraceTokenProviderIntegration,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
@@ -29,7 +28,6 @@ def test_spec_to_existing_token_diff(
     We have an existing token in Dynatrace that does not match the spec.
     We expect DTP to update the token to match the given spec.
     """
-    tenant_id = default_cluster.labels[DTP_TENANT_V2_LABEL]
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=[default_cluster],
         get_manifest={},
@@ -43,7 +41,6 @@ def test_spec_to_existing_token_diff(
                         ]
                     )
                 ],
-                tenant_id=tenant_id,
                 with_id=True,
             )
         },

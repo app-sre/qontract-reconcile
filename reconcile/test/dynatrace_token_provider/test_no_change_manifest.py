@@ -14,7 +14,6 @@ from reconcile.test.dynatrace_token_provider.fixtures import (
     build_manifest,
     build_ocm_client,
 )
-from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -46,7 +45,6 @@ def test_no_change_hcp_cluster(
                         tenant_id=tenant_id,
                     )
                 ],
-                tenant_id=tenant_id,
                 with_id=True,
             )
         },
@@ -56,24 +54,11 @@ def test_no_change_hcp_cluster(
         "ocm_env_a": ocm_client,
     }
 
-    ingestion_token = DynatraceAPITokenCreated(
-        id=default_ingestion_token.id,
-        token=default_ingestion_token.token,
-    )
-
-    operator_token = DynatraceAPITokenCreated(
-        id=default_operator_token.id,
-        token=default_operator_token.token,
-    )
-
     dynatrace_client = build_dynatrace_client(
-        create_api_token={
-            f"dtp-ingestion-token-{default_hcp_cluster.external_id}": ingestion_token,
-            f"dtp-operator-token-{default_hcp_cluster.external_id}": operator_token,
-        },
+        create_api_token={},
         existing_token_ids={
-            default_ingestion_token.id: "name1",
-            default_operator_token.id: "name2",
+            default_ingestion_token.id: default_ingestion_token.name,
+            default_operator_token.id: default_operator_token.name,
         },
     )
 
