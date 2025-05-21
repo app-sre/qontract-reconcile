@@ -419,7 +419,7 @@ class SlackApi:
         return {
             k: v["name"]
             for k, v in self._get("users").items()
-            if v["name"] in user_names and not v["deleted"]
+            if v["profile"]["email"].split("@")[0] in user_names and not v["deleted"]
         }
 
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
