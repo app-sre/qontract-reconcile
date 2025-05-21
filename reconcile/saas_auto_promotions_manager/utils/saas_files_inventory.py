@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Iterable
 
 from reconcile.gql_definitions.common.saas_files import ParentSaasPromotionV1
@@ -95,15 +96,13 @@ class SaasFilesInventory:
 
     def _assemble_subscribers_with_auto_promotions(self) -> None:
         for saas_file in self._saas_files:
-            blocked_versions: dict[str, set[str]] = {}
-            hotfix_versions: dict[str, set[str]] = {}
+            blocked_versions: dict[str, set[str]] = defaultdict(set[str])
+            hotfix_versions: dict[str, set[str]] = defaultdict(set[str])
             for code_component in saas_file.app.code_components or []:
                 for version in code_component.blocked_versions or []:
-                    blocked_versions.setdefault(code_component.url, set()).add(version)
+                    blocked_versions[code_component.url].add(version)
                 for hf_version in code_component.hotfix_versions or []:
-                    hotfix_versions.setdefault(code_component.url, set()).add(
-                        hf_version
-                    )
+                    hotfix_versions[code_component.url].add(hf_version)
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
                     file_path = target.path or saas_file.path
@@ -129,12 +128,8 @@ class SaasFilesInventory:
                         soak_days=soak_days,
                         slo_document_manager=self._build_slo_document_manager(target),
                         schedule=schedule,
-                        hotfix_versions=hotfix_versions.get(
-                            resource_template.url, set()
-                        ),
-                        blocked_versions=blocked_versions.get(
-                            resource_template.url, set()
-                        ),
+                        hotfix_versions=hotfix_versions[resource_template.url],
+                        blocked_versions=blocked_versions[resource_template.url],
                         use_target_config_hash=bool(
                             target.promotion.redeploy_on_publisher_config_change
                         ),
