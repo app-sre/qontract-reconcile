@@ -5,7 +5,7 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
-from reconcile.utils import gql
+from reconcile.typed_queries.ldap_settings import get_ldap_settings
 from reconcile.utils.defer import defer
 from reconcile.utils.ldap_client import LdapClient
 from reconcile.utils.mr import (
@@ -44,32 +44,17 @@ def init_users() -> list[dict[str, list]]:
     return [{"username": username, "paths": paths} for username, paths in users.items()]
 
 
-LDAP_SETTINGS_QUERY = """
-{
-  settings: app_interface_settings_v1 {
-    ldap {
-      serverUrl
-      baseDn
-    }
-  }
-}
-"""
-
-
-def get_ldap_settings() -> dict:
-    """Returns LDAP settings"""
-    gqlapi = gql.get_api()
-    settings = gqlapi.query(LDAP_SETTINGS_QUERY)["settings"]
-    if settings:
-        # assuming a single settings file for now
-        return settings[0]
-    raise ValueError("no app-interface-settings settings found")
-
-
 @defer
 def run(dry_run, app_interface_project_id, infra_project_id, defer=None):
     users = init_users()
-    with LdapClient.from_settings(get_ldap_settings()) as ldap_client:
+    ldap_settings = get_ldap_settings()
+
+    with LdapClient.from_params(
+        server_url=ldap_settings.server_url,
+        user=None,
+        password=None,
+        base_dn=ldap_settings.base_dn,
+    ) as ldap_client:
         ldap_users = ldap_client.get_users([u["username"] for u in users])
 
     users_to_delete = [u for u in users if u["username"] not in ldap_users]

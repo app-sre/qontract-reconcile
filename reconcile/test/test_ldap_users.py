@@ -1,6 +1,7 @@
 import pytest
 
 from reconcile import ldap_users
+from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
 
 
 @pytest.fixture
@@ -43,14 +44,16 @@ def patched_queries_get_app_interface_settings(mocker):
     queries_get_app_interface_settings = mocker.patch.object(
         ldap_users, "get_ldap_settings", autospec=True
     )
-    queries_get_app_interface_settings.return_value = {}
+    queries_get_app_interface_settings.return_value = LdapSettingsV1(
+        serverUrl="example.com", baseDn="example"
+    )
     return queries_get_app_interface_settings
 
 
 @pytest.fixture
 def mocked_ldap_client(mocker):
     mock_ldap_client = mocker.patch.object(
-        ldap_users.LdapClient, "from_settings", autospec=True
+        ldap_users.LdapClient, "from_params", autospec=True
     )
     dummy_ldap_client = mocker.Mock(spec=ldap_users.LdapClient)
     dummy_ldap_client.__enter__ = dummy_ldap_client
