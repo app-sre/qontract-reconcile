@@ -250,6 +250,7 @@ def calculate_diff(
         ocm_api,
         version_data,
         addon_id,
+        integration=QONTRACT_INTEGRATION,
     )
     for current in addon_current_state:
         if addon_id == current.addon_id and (

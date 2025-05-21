@@ -76,7 +76,11 @@ class OCMClusterUpgradeSchedulerIntegration(
             )
 
             diffs = aus.calculate_diff(
-                current_state, org_upgrade_spec, ocm_api, version_data
+                current_state,
+                org_upgrade_spec,
+                ocm_api,
+                version_data,
+                integration=self.name,
             )
             aus.act(dry_run, diffs, ocm_api)
 

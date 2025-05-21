@@ -35,6 +35,7 @@ from reconcile.aus.metrics import (
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
     AUSClusterHealthStateGauge,
+    AUSClusterMissingVersionGateAgreementsGauge,
     AUSClusterUpgradePolicyInfoMetric,
     AUSOCMEnvironmentError,
     AUSOrganizationErrorRate,
@@ -1066,6 +1067,7 @@ def calculate_diff(
     ocm_api: OCMBaseClient,
     version_data: VersionData,
     addon_id: str = "",
+    integration: str = "",
 ) -> list[UpgradePolicyHandler]:
     """Check available upgrades for each cluster in the desired state
     according to upgrade conditions
@@ -1176,6 +1178,18 @@ def calculate_diff(
                         f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates with missing agreements for {target_version_prefix} - {missing_gate_labels} "
                         "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration or a user."
                     )
+
+                    metrics.set_gauge(
+                        AUSClusterMissingVersionGateAgreementsGauge(
+                            integration=integration,
+                            ocm_env=spec.org.environment.name,
+                            org_id=spec.org.org_id,
+                            cluster_uuid=spec.cluster.id,
+                            version_prefix=target_version_prefix,
+                        ),
+                        len(gates_with_missing_agreements),
+                    )
+
                     continue
                 diffs.append(
                     UpgradePolicyHandler(

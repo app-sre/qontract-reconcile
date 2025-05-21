@@ -56,6 +56,18 @@ class AUSClusterHealthStateGauge(AUSBaseMetric, GaugeMetric):
         return "aus_cluster_health_state"
 
 
+class AUSClusterMissingVersionGateAgreementsGauge(AUSBaseMetric, GaugeMetric):
+    "The number of missing version gate agreements for a cluster and a target version prefix."
+
+    org_id: str
+    cluster_uuid: str
+    version_prefix: str
+
+    @classmethod
+    def name(cls) -> str:
+        return "aus_cluster_missing_version_gate_agreements"
+
+
 class AUSAddonVersionRemainingSoakDaysGauge(AUSClusterVersionRemainingSoakDaysGauge):
     "Remaining days a version needs to soak for an addon on a cluster"
 
