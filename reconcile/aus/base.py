@@ -1169,11 +1169,11 @@ def calculate_diff(
                     },
                 )
                 if gates_with_missing_agreements:
-                    missing_gate_ids = [
-                        gate.id for gate in gates_with_missing_agreements
+                    missing_gate_labels = [
+                        gate.label for gate in gates_with_missing_agreements
                     ]
                     logging.info(
-                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates with missing agreements for {target_version_prefix} - {missing_gate_ids} "
+                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates with missing agreements for {target_version_prefix} - {missing_gate_labels} "
                         "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration or a user."
                     )
                     continue
