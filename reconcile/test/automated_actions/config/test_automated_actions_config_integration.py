@@ -6,9 +6,11 @@ from pytest_mock import MockerFixture
 from reconcile.automated_actions.config.integration import (
     AutomatedActionRoles,
     AutomatedActionsConfigIntegration,
+    AutomatedActionsPolicy,
     AutomatedActionsUser,
 )
 from reconcile.gql_definitions.automated_actions.instance import (
+    AutomatedActionArgumentActionListV1,
     AutomatedActionArgumentOpenshiftV1,
     AutomatedActionArgumentOpenshiftV1_NamespaceV1,
     AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1,
@@ -218,6 +220,74 @@ def test_automated_actions_config_compile_roles(
     automated_actions_roles: AutomatedActionRoles,
 ) -> None:
     assert intg.compile_roles(permissions) == automated_actions_roles
+
+
+@pytest.mark.parametrize(
+    "argument_class, argument_params, expected_params",
+    [
+        (
+            AutomatedActionArgumentOpenshiftV1,
+            {
+                "type": "openshift",
+                "kind_pattern": "Deployment|Pod",
+                "name_pattern": "shaver.*",
+                "namespace": {
+                    "name": "namespace",
+                    "cluster": {"name": "cluster"},
+                },
+            },
+            {
+                "cluster": "^cluster$",
+                "namespace": "^namespace$",
+                "kind": "Deployment|Pod",
+                "name": "shaver.*",
+            },
+        ),
+        (
+            AutomatedActionArgumentActionListV1,
+            {
+                "type": "action-list",
+                "action_user": ".*",
+                "max_age_minutes": ".*",
+            },
+            {
+                "action_user": ".*",
+                "max_age_minutes": ".*",
+            },
+        ),
+        # exclude None values
+        (
+            AutomatedActionArgumentActionListV1,
+            {
+                "type": "action-list",
+                "action_user": ".*",
+                "max_age_minutes": None,
+            },
+            {
+                "action_user": ".*",
+            },
+        ),
+    ],
+)
+def test_automated_actions_config_compile_roles_different_argument(
+    intg: AutomatedActionsConfigIntegration,
+    gql_class_factory: Callable,
+    argument_class: type[AutomatedActionArgumentV1],
+    argument_params: dict,
+    expected_params: dict,
+) -> None:
+    permission = PermissionAutomatedActionsV1(
+        roles=[RoleV1(name="role", users=[], bots=[], expirationDate=None)],
+        action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
+        arguments=[gql_class_factory(argument_class, argument_params)],
+    )
+    assert intg.compile_roles([permission]) == {
+        "role": [
+            AutomatedActionsPolicy(
+                sub="role", obj="action", max_ops=1, params=expected_params
+            )
+        ]
+    }
 
 
 def test_automated_actions_config_build_policy_file(

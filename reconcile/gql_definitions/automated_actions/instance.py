@@ -103,6 +103,10 @@ query AutomatedActionsInstances {
           kind_pattern
           name_pattern
         }
+        ... on AutomatedActionArgumentActionList_v1 {
+          action_user
+          max_age_minutes
+        }
       }
     }
   }
@@ -169,10 +173,15 @@ class AutomatedActionArgumentOpenshiftV1(AutomatedActionArgumentV1):
     name_pattern: str = Field(..., alias="name_pattern")
 
 
+class AutomatedActionArgumentActionListV1(AutomatedActionArgumentV1):
+    action_user: Optional[str] = Field(..., alias="action_user")
+    max_age_minutes: Optional[str] = Field(..., alias="max_age_minutes")
+
+
 class PermissionAutomatedActionsV1(ConfiguredBaseModel):
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
     action: AutomatedActionV1 = Field(..., alias="action")
-    arguments: Optional[list[Union[AutomatedActionArgumentOpenshiftV1, AutomatedActionArgumentV1]]] = Field(..., alias="arguments")
+    arguments: Optional[list[Union[AutomatedActionArgumentOpenshiftV1, AutomatedActionArgumentActionListV1, AutomatedActionArgumentV1]]] = Field(..., alias="arguments")
 
 
 class AutomatedActionsInstanceV1(ConfiguredBaseModel):
