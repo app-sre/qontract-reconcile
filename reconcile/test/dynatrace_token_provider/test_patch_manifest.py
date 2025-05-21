@@ -46,7 +46,6 @@ def test_single_hcp_cluster_patch_tokens(
                         tenant_id=tenant_id,
                     )
                 ],
-                tenant_id=tenant_id,
                 with_id=True,
             )
         },
@@ -115,7 +114,6 @@ def test_single_hcp_cluster_patch_tokens(
                     tenant_id=tenant_id,
                 )
             ],
-            tenant_id=tenant_id,
             with_id=False,
         ),
     )

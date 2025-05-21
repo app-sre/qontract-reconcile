@@ -53,7 +53,6 @@ def test_ocm_org_filters(
                         tenant_id="dt_tenant_a",
                     )
                 ],
-                tenant_id="dt_tenant_a",
                 with_id=True,
             )
         },

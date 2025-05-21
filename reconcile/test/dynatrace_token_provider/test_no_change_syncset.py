@@ -46,7 +46,6 @@ def test_no_change_non_hcp_cluster(
                         tenant_id=tenant_id,
                     )
                 ],
-                tenant_id=tenant_id,
                 with_id=True,
             )
         },

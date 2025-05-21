@@ -2,7 +2,7 @@ import base64
 import hashlib
 import logging
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from threading import Lock
 from typing import Any
@@ -161,7 +161,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
             # Stay backwards compatible with v2 for now
             dt_tenant = ocm_cluster.labels.get(DTP_TENANT_V2_LABEL)
             token_spec_name = ocm_cluster.labels.get(DTP_SPEC_V2_LABEL)
-            token_spec = dependencies.token_spec_by_name.get(token_spec_name)
+            token_spec = dependencies.token_spec_by_name.get(token_spec_name or "")
             if not dt_tenant or not token_spec:
                 logging.warning(
                     f"[Missing DTP labels] {ocm_cluster.id=} {ocm_cluster.subscription_id=} {dt_tenant=} {token_spec_name=}"
@@ -195,14 +195,24 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
     ) -> list[Cluster]:
         filtered_clusters = []
         for cluster in clusters:
+            # Check if any token binding is valid for this cluster
+            has_valid_binding = False
             for token_binding in cluster.dt_token_bindings:
                 token_spec = token_binding.spec
                 if cluster.organization_id in token_spec.ocm_org_ids:
-                    filtered_clusters.append(cluster)
+                    has_valid_binding = True
+                    break
                 else:
                     logging.debug(
-                        f"[{cluster.id=}] Skipping cluster for {token_spec.name=}. {cluster.organization_id=} is not defined in {token_spec.ocm_org_ids=}."
+                        f"[{cluster.id=}] Skipping token binding for {token_spec.name=}. {cluster.organization_id=} is not defined in {token_spec.ocm_org_ids=}."
                     )
+
+            if has_valid_binding:
+                filtered_clusters.append(cluster)
+            else:
+                logging.debug(
+                    f"[{cluster.id=}] Skipping cluster as it has no valid token bindings."
+                )
         return filtered_clusters
 
     def reconcile(self, dry_run: bool, dependencies: Dependencies) -> None:
@@ -252,62 +262,33 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                         ocm_env=ocm_env_name,
                         org_id=cluster.organization_id,
                     ):
-                        for token_binding in cluster.dt_token_bindings:
-                            try:
-                                tenant_id = token_binding.tenant_id
-                                dt_client = dependencies.dynatrace_client_by_tenant_id[
-                                    tenant_id
-                                ]
+                        try:
+                            self.process_cluster(
+                                dry_run=dry_run,
+                                cluster=cluster,
+                                ocm_client=ocm_client,
+                                existing_dtp_tokens=existing_dtp_tokens,
+                                ocm_env_name=ocm_env_name,
+                                dependencies=dependencies,
+                            )
 
-                                token_spec = token_binding.spec
-                                if tenant_id not in existing_dtp_tokens:
-                                    existing_dtp_tokens[tenant_id] = (
-                                        dt_client.get_token_ids_map_for_name_prefix(
-                                            prefix="dtp"
-                                        )
-                                    )
-
-                                """
-                                Note, that we consciously do not parallelize cluster processing
-                                for now. We want to keep stress on OCM at a minimum. The amount
-                                of tagged clusters is currently feasible to be processed sequentially.
-                                """
-                                self.process_cluster(
-                                    dry_run=dry_run,
-                                    cluster=cluster,
-                                    dt_client=dt_client,
-                                    ocm_client=ocm_client,
-                                    existing_dtp_tokens=existing_dtp_tokens[tenant_id],
-                                    tenant_id=tenant_id,
-                                    token_spec=token_spec,
-                                    ocm_env_name=ocm_env_name,
-                                )
-                                # TODO
-                                # self.process_cluster_v3(
-                                #     dry_run=dry_run,
-                                #     cluster=cluster,
-                                #     ocm_client=ocm_client,
-                                #     existing_dtp_tokens=existing_dtp_tokens,
-                                #     ocm_env_name=ocm_env_name,
-                                #     dependencies=dependencies,
-                                # )
-                            except Exception as e:
-                                unhandled_exceptions.append(
-                                    f"{ocm_env_name}/{cluster.organization_id}/{cluster.id}: {e}"
-                                )
+                        except Exception as e:
+                            unhandled_exceptions.append(
+                                f"{ocm_env_name}/{cluster.organization_id}/{cluster.id}: {e}"
+                            )
                 self._expose_token_metrics()
 
         if unhandled_exceptions:
             raise ReconcileErrorSummary(unhandled_exceptions)
 
-    def process_cluster_v3(
+    def process_cluster(
         self,
         dry_run: bool,
         cluster: Cluster,
         ocm_client: OCMClient,
-        dependencies: Dependencies,
-        existing_dtp_tokens: MutableMapping[str, MutableMapping[str, str]],
+        existing_dtp_tokens: dict[str, dict[str, str]],
         ocm_env_name: str,
+        dependencies: Dependencies,
     ) -> None:
         current_secrets: list[K8sSecret] = []
         if cluster.is_hcp:
@@ -329,11 +310,15 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         has_diff = False
         for binding in cluster.dt_token_bindings:
             dt_client = dependencies.dynatrace_client_by_tenant_id[binding.tenant_id]
+            if binding.tenant_id not in existing_dtp_tokens:
+                existing_dtp_tokens[binding.tenant_id] = (
+                    dt_client.get_token_ids_map_for_name_prefix(prefix="dtp")
+                )
             cur_diff, cur_desired_secrets = self.generate_desired(
                 dry_run=dry_run,
                 current_k8s_secrets=current_secrets,
                 desired_spec=binding.spec,
-                existing_dtp_tokens=existing_dtp_tokens,
+                existing_dtp_tokens=existing_dtp_tokens[binding.tenant_id],
                 dt_client=dt_client,
                 cluster_uuid=cluster.external_id,
                 dt_tenant_id=binding.tenant_id,
@@ -343,47 +328,14 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
             has_diff |= cur_diff
 
         if not current_secrets:
-            # TODO: create syncset
-            pass
-        elif has_diff:
-            # TODO: patch syncset
-            pass
-
-    def dt_api_url(self, tenant_id: str) -> str:
-        return f"https://{tenant_id}.live.dynatrace.com/api"
-
-    def process_cluster(
-        self,
-        dry_run: bool,
-        cluster: Cluster,
-        dt_client: DynatraceClient,
-        ocm_client: OCMClient,
-        existing_dtp_tokens: MutableMapping[str, str],
-        tenant_id: str,
-        token_spec: DynatraceTokenProviderTokenSpecV1,
-        ocm_env_name: str,
-    ) -> None:
-        existing_data = {}
-        if cluster.is_hcp:
-            existing_data = self.get_manifest(ocm_client=ocm_client, cluster=cluster)
-        else:
-            existing_data = self.get_syncset(ocm_client=ocm_client, cluster=cluster)
-        dt_api_url = f"https://{tenant_id}.live.dynatrace.com/api"
-        if not existing_data:
             if not dry_run:
                 try:
-                    k8s_secrets = self.construct_secrets(
-                        dt_api_url=dt_api_url,
-                        token_spec=token_spec,
-                        dt_client=dt_client,
-                        cluster_uuid=cluster.external_id,
-                    )
                     if cluster.is_hcp:
                         ocm_client.create_manifest(
                             cluster_id=cluster.id,
                             manifest_map=self.construct_manifest(
                                 with_id=True,
-                                secrets=k8s_secrets,
+                                secrets=desired_secrets,
                             ),
                         )
                     else:
@@ -391,69 +343,47 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                             cluster_id=cluster.id,
                             syncset_map=self.construct_syncset(
                                 with_id=True,
-                                secrets=k8s_secrets,
+                                secrets=desired_secrets,
                             ),
                         )
                 except Exception as e:
                     _expose_errors_as_service_log(
                         ocm_client,
                         cluster.external_id,
-                        f"DTP can't create {token_spec.name=} {e.args!s}",
+                        f"DTP can't create {SYNCSET_AND_MANIFEST_ID} due to {e.args!s}",
                     )
-            logging.info(
-                f"{token_spec.name=} created in {dt_api_url} for {cluster.id=}."
-            )
             logging.info(f"{SYNCSET_AND_MANIFEST_ID} created for {cluster.id=}.")
-        else:
-            current_k8s_secrets: list[K8sSecret] = []
-            if cluster.is_hcp:
-                current_k8s_secrets = self.get_secrets_from_manifest(
-                    manifest=existing_data, token_spec=token_spec
-                )
-            else:
-                current_k8s_secrets = self.get_secrets_from_syncset(
-                    syncset=existing_data, token_spec=token_spec
-                )
-            has_diff, desired_secrets = self.generate_desired(
-                dry_run=dry_run,
-                current_k8s_secrets=current_k8s_secrets,
-                desired_spec=token_spec,
-                existing_dtp_tokens=existing_dtp_tokens,
-                dt_client=dt_client,
-                cluster_uuid=cluster.external_id,
-                dt_tenant_id=tenant_id,
-                ocm_env_name=ocm_env_name,
-            )
-            if has_diff:
-                if not dry_run:
-                    try:
-                        if cluster.is_hcp:
-                            ocm_client.patch_manifest(
-                                cluster_id=cluster.id,
-                                manifest_id=SYNCSET_AND_MANIFEST_ID,
-                                manifest_map=self.construct_manifest(
-                                    secrets=desired_secrets,
-                                    with_id=False,
-                                ),
-                            )
-                        else:
-                            ocm_client.patch_syncset(
-                                cluster_id=cluster.id,
-                                syncset_id=SYNCSET_AND_MANIFEST_ID,
-                                syncset_map=self.construct_syncset(
-                                    secrets=desired_secrets,
-                                    with_id=False,
-                                ),
-                            )
-                    except Exception as e:
-                        _expose_errors_as_service_log(
-                            ocm_client,
-                            cluster.external_id,
-                            f"DTP can't patch {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} due to {e.args!s}",
+        elif has_diff:
+            if not dry_run:
+                try:
+                    if cluster.is_hcp:
+                        ocm_client.patch_manifest(
+                            cluster_id=cluster.id,
+                            manifest_id=SYNCSET_AND_MANIFEST_ID,
+                            manifest_map=self.construct_manifest(
+                                secrets=desired_secrets,
+                                with_id=False,
+                            ),
                         )
-                logging.info(
-                    f"Patched {token_spec.name=} for {SYNCSET_AND_MANIFEST_ID} in {cluster.id=}."
-                )
+                    else:
+                        ocm_client.patch_syncset(
+                            cluster_id=cluster.id,
+                            syncset_id=SYNCSET_AND_MANIFEST_ID,
+                            syncset_map=self.construct_syncset(
+                                secrets=desired_secrets,
+                                with_id=False,
+                            ),
+                        )
+                except Exception as e:
+                    _expose_errors_as_service_log(
+                        ocm_client,
+                        cluster.external_id,
+                        f"DTP can't patch {SYNCSET_AND_MANIFEST_ID} due to {e.args!s}",
+                    )
+            logging.info(f"Patched {SYNCSET_AND_MANIFEST_ID} in {cluster.id=}.")
+
+    def dt_api_url(self, tenant_id: str) -> str:
+        return f"https://{tenant_id}.live.dynatrace.com/api"
 
     def scopes_hash(self, scopes: Iterable[str], length: int) -> str:
         m = hashlib.sha256()
@@ -503,7 +433,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         dry_run: bool,
         current_k8s_secrets: Iterable[K8sSecret],
         desired_spec: DynatraceTokenProviderTokenSpecV1,
-        existing_dtp_tokens: MutableMapping[str, str],
+        existing_dtp_tokens: dict[str, str],
         dt_client: DynatraceClient,
         cluster_uuid: str,
         ocm_env_name: str,
@@ -654,6 +584,8 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
     def get_secrets_from_syncset(
         self, syncset: Mapping[str, Any], token_spec: DynatraceTokenProviderTokenSpecV1
     ) -> list[K8sSecret]:
+        if not syncset:
+            return []
         secret_data_by_name = {
             resource.get("metadata", {}).get("name"): resource.get("data", {})
             for resource in syncset.get("resources", [])
@@ -666,6 +598,8 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
     def get_secrets_from_manifest(
         self, manifest: Mapping[str, Any], token_spec: DynatraceTokenProviderTokenSpecV1
     ) -> list[K8sSecret]:
+        if not manifest:
+            return []
         secret_data_by_name = {
             resource.get("metadata", {}).get("name"): resource.get("data", {})
             for resource in manifest.get("workloads", [])

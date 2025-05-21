@@ -31,12 +31,11 @@ def tobase64(s: str) -> str:
 
 def _build_secret_data(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
 ) -> list[dict[str, Any]]:
     secrets_data: list[dict[str, Any]] = []
     for secret in secrets:
         data: dict[str, str] = {
-            "apiUrl": tobase64(f"https://{tenant_id}.live.dynatrace.com/api"),
+            "apiUrl": tobase64(secret.dt_api_url),
         }
         for token in secret.tokens:
             data[token.secret_key] = tobase64(token.token)
@@ -73,12 +72,10 @@ def build_k8s_secret(
 
 def build_syncset(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
     with_id: bool,
 ) -> dict:
     secrets_data = _build_secret_data(
         secrets=secrets,
-        tenant_id=tenant_id,
     )
     syncset = {
         "kind": "SyncSet",
@@ -91,12 +88,10 @@ def build_syncset(
 
 def build_manifest(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
     with_id: bool,
 ) -> dict:
     secrets_data = _build_secret_data(
         secrets=secrets,
-        tenant_id=tenant_id,
     )
     manifest = {
         "kind": "Manifest",
