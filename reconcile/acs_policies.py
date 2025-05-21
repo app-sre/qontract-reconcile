@@ -8,7 +8,6 @@ from reconcile.gql_definitions.acs.acs_policies import (
     AcsPolicyV1,
 )
 from reconcile.utils import gql
-from reconcile.utils.acs.notifiers import JiraNotifier
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
 from reconcile.utils.differ import diff_iterables
 from reconcile.utils.runtime.integration import (
@@ -63,21 +62,10 @@ class AcsPoliciesIntegration(QontractReconcileIntegration[NoParams]):
         conditions = [
             pc for c in gql_policy.conditions if (pc := self._build_policy_condition(c))
         ]
-        jira_notifier = (
-            notifier_name_to_id.get(
-                JiraNotifier.from_escalation_policy(
-                    gql_policy.integrations.notifiers.jira.escalation_policy
-                ).name
-            )
-            if gql_policy.integrations
-            and gql_policy.integrations.notifiers
-            and gql_policy.integrations.notifiers.jira
-            else None
-        )
         return Policy(
             name=gql_policy.name,
             description=gql_policy.description,
-            notifiers=[jira_notifier] if jira_notifier else [],
+            notifiers=[],
             severity=f"{gql_policy.severity.upper()}_SEVERITY",  # align with acs api severity value format
             scope=sorted(
                 [

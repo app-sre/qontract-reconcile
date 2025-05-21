@@ -5,40 +5,6 @@ query AcsPolicy {
     name
     description
     severity
-    integrations {
-      notifiers {
-        jira {
-          escalationPolicy {
-            name
-            channels {
-              jiraBoard {
-                name
-                server {
-                  serverUrl
-                }
-                severityPriorityMappings {
-                  name
-                  mappings {
-                    severity
-                    priority
-                  }
-                }
-                issueType
-                issueFields {
-                  name
-                  value
-                }
-                disable {
-                  integrations
-                }
-              }
-              jiraComponent
-              jiraLabels
-            }
-          }
-        }
-      }
-    }
     categories
     scope {
       level

@@ -10,20 +10,11 @@ from reconcile.gql_definitions.acs.acs_policies import (
     AcsPolicyConditionsCveV1,
     AcsPolicyConditionsCvssV1,
     AcsPolicyConditionsSeverityV1,
-    AcsPolicyIntegrationNotifierJiraV1,
-    AcsPolicyIntegrationNotifiersV1,
-    AcsPolicyIntegrationsV1,
     AcsPolicyQueryData,
     AcsPolicyScopeClusterV1,
     AcsPolicyScopeNamespaceV1,
     AcsPolicyV1,
-    AppEscalationPolicyChannelsV1,
-    AppEscalationPolicyV1,
     ClusterV1,
-    DisableJiraBoardAutomationsV1,
-    JiraBoardV1,
-    JiraServerV1,
-    JiraSeverityPriorityMappingsV1,
     NamespaceV1,
     NamespaceV1_ClusterV1,
 )
@@ -49,36 +40,6 @@ def query_data_desired_state() -> AcsPolicyQueryData:
                 name=CUSTOM_POLICY_ONE_NAME,
                 description="CVEs within app-sre clusters with CVSS score gte to 7 and fixable",
                 severity="high",
-                integrations=AcsPolicyIntegrationsV1(
-                    notifiers=AcsPolicyIntegrationNotifiersV1(
-                        jira=AcsPolicyIntegrationNotifierJiraV1(
-                            escalationPolicy=AppEscalationPolicyV1(
-                                name=JIRA_NOTIFIER_NAME.replace("jira-", ""),
-                                channels=AppEscalationPolicyChannelsV1(
-                                    jiraBoard=[
-                                        JiraBoardV1(
-                                            name="board",
-                                            server=JiraServerV1(
-                                                serverUrl="server",
-                                            ),
-                                            severityPriorityMappings=JiraSeverityPriorityMappingsV1(
-                                                name="sp",
-                                                mappings=[],
-                                            ),
-                                            issueType="Task",
-                                            issueFields=None,
-                                            disable=DisableJiraBoardAutomationsV1(
-                                                integrations=[]
-                                            ),
-                                        )
-                                    ],
-                                    jiraComponent="",
-                                    jiraLabels=[],
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
                 categories=["vulnerability-management"],
                 scope=AcsPolicyScopeClusterV1(
                     level="cluster",
@@ -98,7 +59,6 @@ def query_data_desired_state() -> AcsPolicyQueryData:
                 name=CUSTOM_POLICY_TWO_NAME,
                 description="image security policy violations of critical severity within app-sre namespaces",
                 severity="critical",
-                integrations=None,
                 categories=["vulnerability-management", "devops-best-practices"],
                 scope=AcsPolicyScopeNamespaceV1(
                     level="namespace",
