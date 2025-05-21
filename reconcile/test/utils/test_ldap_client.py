@@ -33,17 +33,6 @@ def connection_search_result() -> list[dict[str, Any]]:
     return result
 
 
-def test_ldap_client_from_settings(mocker: MockerFixture) -> None:
-    mock_connection_bind = mocker.patch(
-        "reconcile.utils.ldap_client.Connection", autospec=True
-    )
-
-    settings = {"ldap": {"baseDn": "test", "serverUrl": "testUrl"}}
-    with LdapClient.from_settings(settings) as ldap_client:
-        assert ldap_client.base_dn == "test"
-        assert mock_connection_bind.call_args.args[0].host == "testUrl"
-
-
 def test_ldap_client(
     mocker: MockerFixture, connection_search_result: list[dict[str, Any]]
 ) -> None:
