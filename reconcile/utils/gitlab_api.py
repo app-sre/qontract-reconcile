@@ -849,9 +849,10 @@ class GitLabApi:
         tar_bytes = io.BytesIO(archive)
         with tarfile.open(fileobj=tar_bytes, mode="r:gz") as tar:
             return {
-                path: file.read()
+                file_path: file.read()
                 for member in tar.getmembers()
                 if member.isfile()
-                and (path := member.name.split("/", 1)[-1])  # skip leading prefix xxx/
+                # skip leading prefix xxx/
+                and (file_path := member.name.split("/", 1)[-1])
                 and (file := tar.extractfile(member))
             }
