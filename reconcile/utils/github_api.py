@@ -54,9 +54,14 @@ class GithubRepositoryApi:
         Align with GitLabApi
         """
 
-    def get_repository_tree(self, ref: str = "master") -> list[dict[str, str]]:
+    def get_repository_tree(
+        self,
+        *,
+        ref: str = "master",
+        recursive: bool = False,
+    ) -> list[dict[str, str]]:
         tree_items = []
-        for item in self._repo.get_git_tree(sha=ref, recursive=True).tree:
+        for item in self._repo.get_git_tree(sha=ref, recursive=recursive).tree:
             tree_item = {"path": item.path, "name": Path(item.path).name}
             tree_items.append(tree_item)
         return tree_items

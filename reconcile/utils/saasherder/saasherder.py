@@ -798,8 +798,11 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
             project = self.gitlab.get_project(url)
-            for item in self.gitlab.get_items(
-                project.repository_tree, path=path.lstrip("/"), ref=commit_sha
+            for item in self.gitlab.get_repository_tree(
+                project=project,
+                path=path.lstrip("/"),
+                ref=commit_sha,
+                recursive=False,
             ):
                 file_contents = project.files.get(
                     file_path=item["path"], ref=commit_sha

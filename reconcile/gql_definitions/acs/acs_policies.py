@@ -21,7 +21,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 DEFINITION = """
 query AcsPolicy {
   acs_policies: acs_policy_v1 {
-   	name
+    name
     description
     severity
     integrations {
@@ -43,7 +43,10 @@ query AcsPolicy {
                   }
                 }
                 issueType
-                issueSecurityId
+                issueFields {
+                  name
+                  value
+                }
                 disable {
                   integrations
                 }
@@ -59,12 +62,12 @@ query AcsPolicy {
     scope {
       level
       ... on AcsPolicyScopeCluster_v1 {
-				clusters {
+        clusters {
           name
-        }        
+        }
       }
       ... on AcsPolicyScopeNamespace_v1 {
-       	namespaces {
+        namespaces {
           name
           cluster {
             name
@@ -72,7 +75,7 @@ query AcsPolicy {
         }
       }
     }
-	  conditions {
+    conditions {
       policyField
       ... on AcsPolicyConditionsCvss_v1 {
         comparison
@@ -118,6 +121,11 @@ class JiraSeverityPriorityMappingsV1(ConfiguredBaseModel):
     mappings: list[SeverityPriorityMappingV1] = Field(..., alias="mappings")
 
 
+class JiraBoardIssueFieldV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    value: str = Field(..., alias="value")
+
+
 class DisableJiraBoardAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -127,7 +135,7 @@ class JiraBoardV1(ConfiguredBaseModel):
     server: JiraServerV1 = Field(..., alias="server")
     severity_priority_mappings: JiraSeverityPriorityMappingsV1 = Field(..., alias="severityPriorityMappings")
     issue_type: Optional[str] = Field(..., alias="issueType")
-    issue_security_id: Optional[str] = Field(..., alias="issueSecurityId")
+    issue_fields: Optional[list[JiraBoardIssueFieldV1]] = Field(..., alias="issueFields")
     disable: Optional[DisableJiraBoardAutomationsV1] = Field(..., alias="disable")
 
 

@@ -109,7 +109,7 @@ def permissions() -> list[PermissionAutomatedActionsV1]:
                     ),
                 )
             ],
-            action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
+            action=AutomatedActionV1(operationId="action", retries=1, maxOps=5),
         ),
     ]
 
@@ -128,12 +128,13 @@ def automated_actions_users() -> list[AutomatedActionsUser]:
 def automated_actions_roles() -> AutomatedActionRoles:
     return {
         "role": [
-            AutomatedActionsPolicy(sub="role", obj="action", params={}),
+            AutomatedActionsPolicy(sub="role", obj="action", max_ops=1, params={}),
         ],
         "another-role-with-args": [
             AutomatedActionsPolicy(
                 sub="another-role-with-args",
                 obj="action",
+                max_ops=5,
                 params={
                     "cluster": "^cluster$",
                     "namespace": "^namespace$",
@@ -149,7 +150,8 @@ def automated_actions_roles() -> AutomatedActionRoles:
 def policy_file() -> str:
     return """roles:
   another-role-with-args:
-  - obj: action
+  - max_ops: 5
+    obj: action
     params:
       cluster: ^cluster$
       kind: Deployment|Pod
@@ -157,7 +159,8 @@ def policy_file() -> str:
       namespace: ^namespace$
     sub: another-role-with-args
   role:
-  - obj: action
+  - max_ops: 1
+    obj: action
     params: {}
     sub: role
 users:

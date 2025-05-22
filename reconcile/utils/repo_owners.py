@@ -120,7 +120,7 @@ class RepoOwners:
         aliases = self._get_aliases()
 
         if self._recursive:
-            repo_tree = self._git_cli.get_repository_tree(ref=self._ref)
+            repo_tree = self._git_cli.get_repository_tree(ref=self._ref, recursive=True)
             owner_files = [item for item in repo_tree if item["name"] == "OWNERS"]
         else:
             owner_files = [{"path": "OWNERS"}]
