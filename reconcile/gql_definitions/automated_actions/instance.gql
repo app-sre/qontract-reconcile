@@ -45,6 +45,10 @@ query AutomatedActionsInstances {
           kind_pattern
           name_pattern
         }
+        ... on AutomatedActionArgumentActionList_v1 {
+          action_user
+          max_age_minutes
+        }
       }
     }
   }

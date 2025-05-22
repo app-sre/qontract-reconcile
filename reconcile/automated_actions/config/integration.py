@@ -158,8 +158,13 @@ class AutomatedActionsConfigIntegration(
                             "name": arg.name_pattern,
                         })
                     case _:
-                        raise NotImplementedError(
-                            f"Unsupported argument type: {arg.q_type}"
+                        # no special handling needed, just dump the values
+                        parameters.append(
+                            arg.dict(
+                                exclude_none=True,
+                                exclude_defaults=True,
+                                exclude={"q_type": True},
+                            )
                         )
             for role in permission.roles or []:
                 aa_role = roles.setdefault(role.name, [])
