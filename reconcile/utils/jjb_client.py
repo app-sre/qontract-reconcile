@@ -25,6 +25,7 @@ from sretoolbox.utils import retry
 
 from reconcile.utils import throughput
 from reconcile.utils.helpers import toggle_logger
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 
@@ -290,7 +291,7 @@ class JJB:  # pylint: disable=too-many-public-methods
             for job in jobs:
                 try:
                     project_url_raw = job["properties"][0]["github"]["url"]
-                    if "https://github.com" in project_url_raw:
+                    if project_url_raw.startswith(GITHUB_BASE_URL):
                         continue
                     if str(job.get("disabled")).lower() == "true":
                         continue
