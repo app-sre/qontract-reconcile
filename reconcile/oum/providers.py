@@ -3,7 +3,7 @@ from abc import (
     abstractmethod,
 )
 
-from reconcile.ldap_users import get_ldap_settings
+from reconcile.typed_queries.ldap_settings import get_ldap_settings
 from reconcile.utils.ldap_client import LdapClient
 
 
@@ -53,7 +53,10 @@ def init_ldap_group_member_provider(group_base_dn: str) -> LdapGroupMemberProvid
     settings = get_ldap_settings()
     return LdapGroupMemberProvider(
         LdapClient.from_params(
-            settings["ldap"]["serverUrl"], None, None, settings["ldap"]["baseDn"]
+            server_url=settings.server_url,
+            user=None,
+            password=None,
+            base_dn=settings.base_dn,
         ),
         group_base_dn,
     )

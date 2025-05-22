@@ -57,13 +57,6 @@ class LdapClient:
         return dict(groups_and_members)
 
     @classmethod
-    def from_settings(cls, settings: dict) -> "LdapClient":
-        """Requires a nested dictionary with key 'ldap' in addition sub keys 'serverUrl' and 'baseDn'."""
-        return LdapClient.from_params(
-            settings["ldap"]["serverUrl"], None, None, settings["ldap"]["baseDn"]
-        )
-
-    @classmethod
     def from_params(
         cls, server_url: str, user: str | None, password: str | None, base_dn: str
     ) -> "LdapClient":
