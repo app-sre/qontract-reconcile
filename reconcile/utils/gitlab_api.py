@@ -1,6 +1,8 @@
+import io
 import logging
 import os
 import re
+import tarfile
 from collections.abc import (
     Iterable,
     Mapping,
@@ -828,3 +830,29 @@ class GitLabApi:
             list[PersonalAccessToken],
             self.gl.personal_access_tokens.list(get_all=True),
         )
+
+    @staticmethod
+    def get_directory_contents(
+        project: Project,
+        ref: str | None = None,
+        path: str | None = None,
+    ) -> dict[str, bytes]:
+        """
+        Get the contents of a directory in a project.
+
+        :param project: The project to get the contents from.
+        :param ref: The commit SHA to download. A tag, branch reference, or SHA can be used. If not specified, defaults to the tip of the default branch.
+        :param path: The subpath of the repository to download. If an empty string, defaults to the whole repository.
+        :return: A dictionary with the file path as keys and the file content bytes as values.
+        """
+        archive = project.repository_archive(format="tar.gz", sha=ref, path=path)
+        tar_bytes = io.BytesIO(archive)
+        with tarfile.open(fileobj=tar_bytes, mode="r:gz") as tar:
+            return {
+                file_path: file.read()
+                for member in tar.getmembers()
+                if member.isfile()
+                # skip leading prefix xxx/
+                and (file_path := member.name.split("/", 1)[-1])
+                and (file := tar.extractfile(member))
+            }

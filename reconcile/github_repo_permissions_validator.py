@@ -11,6 +11,7 @@ from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 QONTRACT_INTEGRATION = "github-repo-permissions-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -45,7 +46,7 @@ def run(dry_run: bool, instance_name: str) -> None:
     error = False
     for job in pr_check_jobs:
         repo_url = jjb.get_repo_url(job)
-        repo_name = repo_url.rstrip("/").replace("https://github.com/", "")
+        repo_name = repo_url.removeprefix(GITHUB_BASE_URL).rstrip("/")
         repo = gh.get_repo(repo_name)
         permissions = repo.permissions
         if not permissions.push and repo_url not in invitations:

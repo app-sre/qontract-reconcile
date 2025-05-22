@@ -1,4 +1,6 @@
+import io
 import os
+import tarfile
 from collections.abc import Mapping
 from typing import Any
 from unittest.mock import Mock, create_autospec
@@ -717,3 +719,28 @@ def test_get_personal_access_tokens(
 
     assert pats == [expected_pat]
     manager.list.assert_called_once_with(get_all=True)
+
+
+def test_get_directory_contents() -> None:
+    project = create_autospec(Project)
+    expected_result = {
+        "dir1/hello1.yaml": b"id: 1",
+        "dir1/dir2/hello2.yaml": b"id: 2",
+    }
+    tar_bytes = io.BytesIO()
+    with tarfile.open(fileobj=tar_bytes, mode="w:gz") as tar:
+        for name, content in expected_result.items():
+            tarinfo = tarfile.TarInfo(name=f"prefix/{name}")
+            tarinfo.size = len(content)
+            tar.addfile(tarinfo, io.BytesIO(content))
+
+    project.repository_archive.return_value = tar_bytes.getvalue()
+
+    result = GitLabApi.get_directory_contents(project, ref="main", path="dir1")
+
+    assert result == expected_result
+    project.repository_archive.assert_called_once_with(
+        format="tar.gz",
+        sha="main",
+        path="dir1",
+    )

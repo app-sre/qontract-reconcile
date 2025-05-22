@@ -186,6 +186,7 @@ from reconcile.utils.password_validator import (
 )
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.terraform import safe_resource_id
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
@@ -5685,9 +5686,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             return ref
 
         # get commit_sha from branch
-        if "github" in url:
+        if url.startswith(GITHUB_BASE_URL):
             github = self.init_github()
-            repo_name = url.rstrip("/").replace("https://github.com/", "")
+            repo_name = url.removeprefix(GITHUB_BASE_URL).rstrip("/")
             repo = github.get_repo(repo_name)
             commit = repo.get_commit(sha=ref)
             return commit.sha

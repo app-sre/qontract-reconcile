@@ -83,6 +83,7 @@ from reconcile.utils.saasherder.models import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 TARGET_CONFIG_HASH = "target_config_hash"
 
@@ -742,7 +743,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         [url, sha] = trigger_reason.split(" ")[0].split("/commit/")
         repo_name = urlparse(url).path.strip("/")
         file_name = f"{repo_name.replace('/', '-')}-{sha}.tar.gz"
-        if "github" in url:
+        if url.startswith(GITHUB_BASE_URL):
             github = self._initiate_github(saas_file, base_url="https://api.github.com")
             repo = github.get_repo(repo_name)
             # get_archive_link get redirect url form header, it does not work with github-mirror
@@ -760,8 +761,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     ) -> tuple[Any, str]:
         commit_sha = self._get_commit_sha(url, ref, github)
 
-        if "github" in url:
-            repo_name = url.rstrip("/").replace("https://github.com/", "")
+        if url.startswith(GITHUB_BASE_URL):
+            repo_name = url.removeprefix(GITHUB_BASE_URL).rstrip("/")
             repo = github.get_repo(repo_name)
             content = self._get_file_contents_github(repo, path, commit_sha)
         elif "gitlab" in url:
@@ -781,8 +782,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     ) -> tuple[list[Any], str]:
         commit_sha = self._get_commit_sha(url, ref, github)
         resources: list[Any] = []
-        if "github" in url:
-            repo_name = url.rstrip("/").replace("https://github.com/", "")
+        if url.startswith(GITHUB_BASE_URL):
+            repo_name = url.removeprefix(GITHUB_BASE_URL).rstrip("/")
             repo = github.get_repo(repo_name)
             directory = repo.get_contents(path, commit_sha)
             if isinstance(directory, ContentFile):
@@ -798,17 +799,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             if not self.gitlab:
                 raise Exception("gitlab is not initialized")
             project = self.gitlab.get_project(url)
-            for item in self.gitlab.get_repository_tree(
-                project=project,
-                path=path.lstrip("/"),
+            dir_contents = self.gitlab.get_directory_contents(
+                project,
                 ref=commit_sha,
-                recursive=False,
-            ):
-                file_contents = project.files.get(
-                    file_path=item["path"], ref=commit_sha
-                )
-                resource = yaml.safe_load(file_contents.decode())
-                resources.append(resource)
+                path=path,
+            )
+            for content in dir_contents.values():
+                result_resources = yaml.safe_load_all(content)
+                resources.extend(result_resources)
         else:
             raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
@@ -817,8 +815,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     @retry()
     def _get_commit_sha(self, url: str, ref: str, github: Github) -> str:
         commit_sha = ""
-        if "github" in url:
-            repo_name = url.rstrip("/").replace("https://github.com/", "")
+        if url.startswith(GITHUB_BASE_URL):
+            repo_name = url.removeprefix(GITHUB_BASE_URL).rstrip("/")
             repo = github.get_repo(repo_name)
             commit = repo.get_commit(sha=ref)
             commit_sha = commit.sha

@@ -22,6 +22,8 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
 )
 
+GITHUB_BASE_URL = "https://github.com/"
+
 
 class MRCheckStatus(Enum):
     NONE = 0
@@ -158,7 +160,7 @@ class VCS:
     ) -> str:
         if bool(self._is_commit_sha_regex.search(ref)):
             return ref
-        if repo_url.startswith("https://github.com/"):
+        if repo_url.startswith(GITHUB_BASE_URL):
             github = self._init_github(repo_url=repo_url, auth_code=auth_code)
             return github.get_commit_sha(ref=ref)
         # assume gitlab by default
@@ -175,7 +177,7 @@ class VCS:
         Return a list of commits between two commits.
         Note, that the commit_to is included in the result list, whereas commit_from is not included.
         """
-        if repo_url.startswith("https://github.com/"):
+        if repo_url.startswith(GITHUB_BASE_URL):
             github = self._init_github(repo_url=repo_url, auth_code=auth_code)
             data = github.compare(commit_from=commit_from, commit_to=commit_to)
             return [
