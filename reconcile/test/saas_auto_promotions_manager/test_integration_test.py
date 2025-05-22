@@ -20,10 +20,11 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
 from reconcile.utils.promotion_state import (
     PromotionState,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS
 
 
-def test_integration_test():
+def test_integration_test(secret_reader: SecretReaderBase):
     """
     Have all the parts glued together and have one full run.
     This is too complex to setup and properly maintain.
@@ -40,7 +41,9 @@ def test_integration_test():
     manager = SaasAutoPromotionsManager(
         deployment_state=create_autospec(spec=PromotionState),
         s3_exporter=create_autospec(spec=S3Exporter),
-        saas_file_inventory=SaasFilesInventory(saas_files=[]),
+        saas_file_inventory=SaasFilesInventory(
+            saas_files=[], thread_pool_size=1, secret_reader=secret_reader
+        ),
         vcs=vcs,
         merge_request_manager_v2=merge_request_manager_v2,
         thread_pool_size=1,
