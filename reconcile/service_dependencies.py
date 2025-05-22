@@ -16,6 +16,7 @@ from reconcile.gql_definitions.service_dependencies.service_dependencies import 
     SaasResourceTemplateV2,
 )
 from reconcile.utils import gql
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 QONTRACT_INTEGRATION = "service-dependencies"
 
@@ -35,7 +36,9 @@ def get_desired_dependency_names(
         gitlab_urls = [cc for cc in code_components if "gitlab" in cc.url]
         if gitlab_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "gitlab"))
-        github_urls = [cc for cc in code_components if "github.com" in cc.url]
+        github_urls = [
+            cc for cc in code_components if cc.url.startswith(GITHUB_BASE_URL)
+        ]
         if github_urls:
             required_dep_names.update(get_dependency_names(dependency_map, "github"))
 

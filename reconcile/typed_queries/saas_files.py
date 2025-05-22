@@ -39,6 +39,7 @@ from reconcile.gql_definitions.common.saasherder_settings import AppInterfaceSet
 from reconcile.gql_definitions.common.saasherder_settings import (
     query as saasherder_settings_query,
 )
+from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
@@ -63,6 +64,7 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
     secret_parameters: (
         list[SaasResourceTemplateTargetV2_SaasSecretParametersV1] | None
     ) = Field(..., alias="secretParameters")
+    slos: list[SLODocument] | None = Field(..., alias="slos")
     upstream: SaasResourceTemplateTargetUpstreamV1 | None = Field(..., alias="upstream")
     images: list[SaasResourceTemplateTargetImageV1] | None = Field(..., alias="images")
     disable: bool | None = Field(..., alias="disable")

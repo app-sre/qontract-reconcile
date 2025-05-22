@@ -317,7 +317,7 @@ class MockProjectCommit:
     "repo_info, expected",
     [
         ({"url": "http://fake", "ref": 40 * "1"}, 40 * "1"),
-        ({"url": "http://github.com/foo/bar", "ref": "main"}, "sha-12345"),
+        ({"url": "https://github.com/foo/bar", "ref": "main"}, "sha-12345"),
         (
             {"url": "http://gitlab.com/foo/bar", "ref": "master"},
             "sha-67890",

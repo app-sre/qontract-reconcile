@@ -47,6 +47,7 @@ from reconcile.utils.runtime.sharding import (
     StaticShardingStrategy,
 )
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -58,8 +59,7 @@ INTEGRATION_UPSTREAM_REPOS_PARAM = "INTEGRATION_UPSTREAM_REPOS"
 
 
 def get_image_tag_from_ref(ref: str, upstream: str) -> str:
-    gh_prefix = "https://github.com/"
-    upstream = upstream.removeprefix(gh_prefix)
+    upstream = upstream.removeprefix(GITHUB_BASE_URL)
     settings = queries.get_app_interface_settings()
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)

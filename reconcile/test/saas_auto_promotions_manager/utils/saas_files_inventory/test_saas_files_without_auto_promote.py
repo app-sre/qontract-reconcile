@@ -8,10 +8,12 @@ from reconcile.saas_auto_promotions_manager.utils.saas_files_inventory import (
     SaasFilesInventory,
 )
 from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 def test_saas_files_without_auto_promote(
     saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]],
+    secret_reader: SecretReaderBase,
 ):
     saas_files = saas_files_builder([
         {
@@ -58,7 +60,9 @@ def test_saas_files_without_auto_promote(
             ],
         },
     ])
-    inventory = SaasFilesInventory(saas_files=saas_files)
+    inventory = SaasFilesInventory(
+        saas_files=saas_files, secret_reader=secret_reader, thread_pool_size=1
+    )
     assert len(inventory.publishers) == 2
     assert len(inventory.publishers_with_subscribers) == 0
     assert len(inventory.subscribers) == 0

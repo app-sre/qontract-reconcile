@@ -34,6 +34,7 @@ from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 QONTRACT_INTEGRATION = "dashdotdb-dora"
 
@@ -421,7 +422,7 @@ class DashdotdbDORA(DashdotdbBase):
             return rc, []
 
         LOG.info("Fetching commits %s", rc)
-        if rc.repo_url.startswith("https://github.com"):
+        if rc.repo_url.startswith(GITHUB_BASE_URL):
             try:
                 commits = self._github_compare_commits(rc)
             except GithubException as e:
@@ -476,8 +477,7 @@ class DashdotdbDORA(DashdotdbBase):
         if not rc.repo_url:
             return []
 
-        prefix = "https://github.com/"
-        repo = rc.repo_url[rc.repo_url.startswith(prefix) and len(prefix) :]
+        repo = rc.repo_url.removeprefix(GITHUB_BASE_URL).rstrip("/")
 
         return [
             Commit(rc.repo_url, commit.sha, commit.commit.committer.date)
