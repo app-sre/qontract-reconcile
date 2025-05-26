@@ -34,7 +34,7 @@ from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import create_secret_reader
-from reconcile.utils.vcs import GITHUB_BASE_URL
+from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "dashdotdb-dora"
 
@@ -422,19 +422,21 @@ class DashdotdbDORA(DashdotdbBase):
             return rc, []
 
         LOG.info("Fetching commits %s", rc)
-        if rc.repo_url.startswith(GITHUB_BASE_URL):
-            try:
-                commits = self._github_compare_commits(rc)
-            except GithubException as e:
-                if e.status == 404:
-                    LOG.info(
-                        f"Ignoring RepoChanges for {rc} because could not calculate them: {e.data['message']}"
-                    )
-                    return rc, []
-        elif rc.repo_url.startswith(self.gl.server):
-            commits = self._gitlab_compare_commits(rc)
-        else:
-            raise Exception(f"Unknown git hosting {rc.repo_url}")
+        repo_info = VCS.parse_repo_url(rc.repo_url)
+        match repo_info.platform:
+            case "github":
+                try:
+                    commits = self._github_compare_commits(rc, repo_info.name)
+                except GithubException as e:
+                    if e.status == 404:
+                        LOG.info(
+                            f"Ignoring RepoChanges for {rc} because could not calculate them: {e.data['message']}"
+                        )
+                        return rc, []
+            case "gitlab":
+                commits = self._gitlab_compare_commits(rc, repo_info.name)
+            case _:
+                raise Exception(f"Unknown git hosting {rc.repo_url}")
 
         return rc, commits
 
@@ -455,12 +457,9 @@ class DashdotdbDORA(DashdotdbBase):
 
         return app_env, datetime.fromisoformat(response.json()["finish_timestamp"])
 
-    def _gitlab_compare_commits(self, rc: RepoChanges) -> list[Commit]:
+    def _gitlab_compare_commits(self, rc: RepoChanges, repo: str) -> list[Commit]:
         if not rc.repo_url or not rc.ref_from or not rc.ref_to:
             return []
-
-        prefix = "https://gitlab.cee.redhat.com/"
-        repo = rc.repo_url[rc.repo_url.startswith(prefix) and len(prefix) :]
 
         commits = self.gl.repository_compare(repo, rc.ref_from, rc.ref_to)
 
@@ -473,11 +472,9 @@ class DashdotdbDORA(DashdotdbBase):
             for commit in commits
         ]
 
-    def _github_compare_commits(self, rc: RepoChanges) -> list[Commit]:
+    def _github_compare_commits(self, rc: RepoChanges, repo: str) -> list[Commit]:
         if not rc.repo_url:
             return []
-
-        repo = rc.repo_url.removeprefix(GITHUB_BASE_URL).rstrip("/")
 
         return [
             Commit(rc.repo_url, commit.sha, commit.commit.committer.date)

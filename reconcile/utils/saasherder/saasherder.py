@@ -20,7 +20,6 @@ from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from types import TracebackType
 from typing import Any
-from urllib.parse import urlparse
 
 import yaml
 from github import (
@@ -83,7 +82,7 @@ from reconcile.utils.saasherder.models import (
 )
 from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State
-from reconcile.utils.vcs import GITHUB_BASE_URL
+from reconcile.utils.vcs import VCS
 
 TARGET_CONFIG_HASH = "target_config_hash"
 
@@ -741,17 +740,21 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         trigger_reason: str,
     ) -> tuple[str, str]:
         [url, sha] = trigger_reason.split(" ")[0].split("/commit/")
-        repo_name = urlparse(url).path.strip("/")
+        repo_info = VCS.parse_repo_url(url)
+        repo_name = repo_info.name
         file_name = f"{repo_name.replace('/', '-')}-{sha}.tar.gz"
-        if url.startswith(GITHUB_BASE_URL):
-            github = self._initiate_github(saas_file, base_url="https://api.github.com")
-            repo = github.get_repo(repo_name)
-            # get_archive_link get redirect url form header, it does not work with github-mirror
-            archive_url = repo.get_archive_link("tarball", ref=sha)
-        elif "gitlab" in url:
-            archive_url = f"{url}/-/archive/{sha}/{file_name}"
-        else:
-            raise Exception(f"Only GitHub and GitLab are supported: {url}")
+        match repo_info.platform:
+            case "github":
+                github = self._initiate_github(
+                    saas_file, base_url="https://api.github.com"
+                )
+                repo = github.get_repo(repo_name)
+                # get_archive_link get redirect url form header, it does not work with github-mirror
+                archive_url = repo.get_archive_link("tarball", ref=sha)
+            case "gitlab":
+                archive_url = f"{url}/-/archive/{sha}/{file_name}"
+            case _:
+                raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
         return file_name, archive_url
 
@@ -761,18 +764,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     ) -> tuple[Any, str]:
         commit_sha = self._get_commit_sha(url, ref, github)
 
-        if url.startswith(GITHUB_BASE_URL):
-            repo_name = url.removeprefix(GITHUB_BASE_URL).rstrip("/")
-            repo = github.get_repo(repo_name)
-            content = self._get_file_contents_github(repo, path, commit_sha)
-        elif "gitlab" in url:
-            if not self.gitlab:
-                raise Exception("gitlab is not initialized")
-            project = self.gitlab.get_project(url)
-            f = project.files.get(file_path=path.lstrip("/"), ref=commit_sha)
-            content = f.decode()
-        else:
-            raise Exception(f"Only GitHub and GitLab are supported: {url}")
+        repo_info = VCS.parse_repo_url(url)
+        match repo_info.platform:
+            case "github":
+                repo = github.get_repo(repo_info.name)
+                content = self._get_file_contents_github(repo, path, commit_sha)
+            case "gitlab":
+                if not self.gitlab:
+                    raise Exception("gitlab is not initialized")
+                project = self.gitlab.get_project(url)
+                f = project.files.get(file_path=path.lstrip("/"), ref=commit_sha)
+                content = f.decode()
+            case _:
+                raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
         return yaml.safe_load(content), commit_sha
 
@@ -782,52 +786,53 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     ) -> tuple[list[Any], str]:
         commit_sha = self._get_commit_sha(url, ref, github)
         resources: list[Any] = []
-        if url.startswith(GITHUB_BASE_URL):
-            repo_name = url.removeprefix(GITHUB_BASE_URL).rstrip("/")
-            repo = github.get_repo(repo_name)
-            directory = repo.get_contents(path, commit_sha)
-            if isinstance(directory, ContentFile):
-                raise Exception(f"Path {path} and sha {commit_sha} is a file!")
-            for f in directory:
-                file_path = os.path.join(path, f.name)
-                file_contents_decoded = self._get_file_contents_github(
-                    repo, file_path, commit_sha
+        repo_info = VCS.parse_repo_url(url)
+        match repo_info.platform:
+            case "github":
+                repo = github.get_repo(repo_info.name)
+                directory = repo.get_contents(path, commit_sha)
+                if isinstance(directory, ContentFile):
+                    raise Exception(f"Path {path} and sha {commit_sha} is a file!")
+                for f in directory:
+                    file_path = os.path.join(path, f.name)
+                    file_contents_decoded = self._get_file_contents_github(
+                        repo, file_path, commit_sha
+                    )
+                    result_resources = yaml.safe_load_all(file_contents_decoded)
+                    resources.extend(result_resources)
+            case "gitlab":
+                if not self.gitlab:
+                    raise Exception("gitlab is not initialized")
+                project = self.gitlab.get_project(url)
+                dir_contents = self.gitlab.get_directory_contents(
+                    project,
+                    ref=commit_sha,
+                    path=path,
                 )
-                result_resources = yaml.safe_load_all(file_contents_decoded)
-                resources.extend(result_resources)
-        elif "gitlab" in url:
-            if not self.gitlab:
-                raise Exception("gitlab is not initialized")
-            project = self.gitlab.get_project(url)
-            dir_contents = self.gitlab.get_directory_contents(
-                project,
-                ref=commit_sha,
-                path=path,
-            )
-            for content in dir_contents.values():
-                result_resources = yaml.safe_load_all(content)
-                resources.extend(result_resources)
-        else:
-            raise Exception(f"Only GitHub and GitLab are supported: {url}")
+                for content in dir_contents.values():
+                    result_resources = yaml.safe_load_all(content)
+                    resources.extend(result_resources)
+            case _:
+                raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
         return resources, commit_sha
 
     @retry()
     def _get_commit_sha(self, url: str, ref: str, github: Github) -> str:
-        commit_sha = ""
-        if url.startswith(GITHUB_BASE_URL):
-            repo_name = url.removeprefix(GITHUB_BASE_URL).rstrip("/")
-            repo = github.get_repo(repo_name)
-            commit = repo.get_commit(sha=ref)
-            commit_sha = commit.sha
-        elif "gitlab" in url:
-            if not self.gitlab:
-                raise Exception("gitlab is not initialized")
-            project = self.gitlab.get_project(url)
-            commits = project.commits.list(ref_name=ref, per_page=1, page=1)
-            commit_sha = commits[0].id
-
-        return commit_sha
+        repo_info = VCS.parse_repo_url(url)
+        match repo_info.platform:
+            case "github":
+                repo = github.get_repo(repo_info.name)
+                commit = repo.get_commit(sha=ref)
+                return commit.sha
+            case "gitlab":
+                if not self.gitlab:
+                    raise Exception("gitlab is not initialized")
+                project = self.gitlab.get_project(url)
+                commits = project.commits.list(ref_name=ref, per_page=1, page=1)
+                return commits[0].id
+            case _:
+                return ""
 
     @staticmethod
     def _additional_resource_process(resources: Resources, html_url: str) -> None:

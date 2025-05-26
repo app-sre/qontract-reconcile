@@ -388,7 +388,7 @@ class GitLabApi:
 
     @retry()
     def get_project(self, repo_url: str) -> Project | None:
-        repo = repo_url.replace(self.server + "/", "")
+        repo = repo_url.removeprefix(self.server).strip("/")
         try:
             project = self.gl.projects.get(repo)
         except GitlabGetError:
