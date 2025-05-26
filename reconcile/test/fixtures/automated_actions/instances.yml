@@ -10,51 +10,36 @@ automated_actions_instances_v1:
       automationToken:
         path: vault_path
         field: token
-  permissions:
-  - roles:
-    - name: app-sre
-      users:
-      - org_username: user1
-      - org_username: user2
-      bots:
-      - org_username: bot1
-    action:
-      operationId: noop
-    arguments: null
-  - roles:
-    - name: tenant
-      users:
-      - org_username: tenant1
-      - org_username: tenant2
-      bots:
-      - org_username: bot1
-    action:
-      operationId: openshift-workload-restart
-      retries: 2
-      maxOps: 2
-    arguments:
-    - type: openshift
-      kind_pattern: Deployment|Pod
-      name_pattern: 'shaver.*'
+  actions:
+  - type: openshift-workload-restart
+    retries: 2
+    maxOps: 2
+    permissions:
+    - roles:
+      - name: app-sre
+        users:
+        - org_username: user1
+        - org_username: user2
+        bots:
+        - org_username: bot1
+    openshift_workload_restart_arguments:
+    - kind: Deployment|Pod
+      name: 'shaver.*'
       namespace:
         name: namespace
         cluster:
           name: cluster
-
     # deleted namespace
-    - type: openshift
-      kind_pattern: Deployment|Pod
-      name_pattern: 'shaver.*'
+    - kind: Deployment|Pod
+      name: 'shaver.*'
       namespace:
         name: namespace
         delete: true
         cluster:
           name: cluster
-
     # integration disabled on the cluster
-    - type: openshift
-      kind_pattern: Deployment|Pod
-      name_pattern: 'shaver.*'
+    - kind: Deployment|Pod
+      name: 'shaver.*'
       namespace:
         name: another-namespace
         delete: null
@@ -64,15 +49,43 @@ automated_actions_instances_v1:
             integrations:
             - automated-actions
 
-  # expired role
-  - roles:
-    - name: app-sre
-      users:
-      - org_username: user1
-      bots: []
-      expirationDate: "1970-01-01"
-    action:
-      operationId: noop
+  - type: noop
+    retries: 0
+    maxOps: 0
+    permissions:
+    - roles:
+      - name: app-sre
+        users:
+        - org_username: user1
+        - org_username: user2
+        bots:
+        - org_username: bot1
+      # expired role
+      - name: app-sre
+        users:
+        - org_username: user1
+        bots: []
+        expirationDate: "1970-01-01"
+
+  - type: action-list
+    retries: 1
+    maxOps: 1
+    permissions:
+    - roles:
+      - name: app-sre
+        users:
+        - org_username: user1
+        - org_username: user2
+        bots:
+        - org_username: bot1
+    action_list_arguments:
+    - action_user: user1
+
+  # no permissions
+  - type: create-token
+    retries: 0
+    maxOps: 0
+    permissions: []
 
 # deleted instance
 - name: automated-actions-deleted
@@ -86,4 +99,14 @@ automated_actions_instances_v1:
       automationToken:
         path: vault_path
         field: token
-  permissions: []
+  actions:
+  - type: create-token
+    retries: 1
+    maxOps: 1
+    permissions:
+    - roles:
+      - name: app-sre
+        users:
+        - org_username: user1
+        bots:
+        - org_username: bot1
