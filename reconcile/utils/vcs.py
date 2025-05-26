@@ -184,7 +184,7 @@ class VCS:
             ),
             None,
         )
-        name = parsed_url.path.strip("/")
+        name = parsed_url.path.strip("/").removesuffix(".git")
         return RepoInfo(platform=platform, name=name)
 
     def get_commit_sha(

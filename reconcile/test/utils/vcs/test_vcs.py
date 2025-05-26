@@ -141,10 +141,12 @@ def test_get_file_content_from_app_interface_ref_overrides(
     ["repo_url", "expected_platform", "expected_name"],
     [
         ("https://github.com/foo/bar", "github", "foo/bar"),
+        ("https://github.com/foo/bar.git", "github", "foo/bar"),
         ("https://github.com/foo/bar/", "github", "foo/bar"),
         ("http://github.com/foo/bar", "github", "foo/bar"),
         ("https://github.ee.com/foo/bar", "github", "foo/bar"),
         ("https://gitlab.com/foo/bar", "gitlab", "foo/bar"),
+        ("https://gitlab.com/foo/bar.git", "gitlab", "foo/bar"),
         ("https://gitlab.com/foo/bar/", "gitlab", "foo/bar"),
         ("http://gitlab.com/foo/bar", "gitlab", "foo/bar"),
         ("https://gitlab.ee.com/foo/bar", "gitlab", "foo/bar"),
