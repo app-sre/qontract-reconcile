@@ -1,0 +1,23 @@
+# qenerate: plugin=pydantic_v1
+
+query UsersPaths {
+  users: users_v1 {
+    path
+    org_username
+    aws_accounts {
+      path
+    }
+    requests {
+      path
+    }
+    queries {
+      path
+    }
+    gabi_instances {
+      path
+    }
+    schedules {
+      path
+    }
+  }
+}

@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 from ruamel import yaml
@@ -7,7 +9,7 @@ from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 
 
-class PathTypes:
+class PathTypes(Enum):
     USER = 0
     REQUEST = 1
     QUERY = 2
@@ -16,10 +18,16 @@ class PathTypes:
     SCHEDULE = 5
 
 
+@dataclass
+class PathSpec:
+    type: PathTypes
+    path: str
+
+
 class CreateDeleteUserAppInterface(MergeRequestBase):
     name = "create_delete_user_mr"
 
-    def __init__(self, username, paths):
+    def __init__(self, username, paths: list[PathSpec]):
         self.username = username
         self.paths = paths
 
@@ -37,8 +45,8 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         for path_spec in self.paths:
-            path_type = path_spec["type"]
-            path = path_spec["path"]
+            path_type = path_spec.type
+            path = path_spec.path
             if path_type in {PathTypes.USER, PathTypes.REQUEST, PathTypes.QUERY}:
                 gitlab_cli.delete_file(
                     branch_name=self.branch, file_path=path, commit_message=self.title

@@ -1,52 +1,53 @@
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
+from itertools import starmap
 
 from reconcile import (
     mr_client_gateway,
-    queries,
 )
+from reconcile.gql_definitions.common.users_paths import UserV1
 from reconcile.typed_queries.ldap_settings import get_ldap_settings
+from reconcile.typed_queries.users_paths import get_users_paths
 from reconcile.utils.defer import defer
 from reconcile.utils.ldap_client import LdapClient
 from reconcile.utils.mr import (
     CreateDeleteUserAppInterface,
     CreateDeleteUserInfra,
 )
-from reconcile.utils.mr.user_maintenance import PathTypes
+from reconcile.utils.mr.user_maintenance import PathSpec, PathTypes
 
 QONTRACT_INTEGRATION = "ldap-users"
 
 
-def init_users() -> list[dict[str, list]]:
-    app_int_users = queries.get_users(refs=True)
+@dataclass
+class UserPaths:
+    username: str
+    paths: list[PathSpec]
 
+
+def transform_users_paths(users_paths: list[UserV1]) -> list[UserPaths]:
     users = defaultdict(list)
-    for user in app_int_users:
-        u = user["org_username"]
-        item = {"type": PathTypes.USER, "path": "data" + user["path"]}
-        users[u].append(item)
-        for r in user.get("requests"):
-            item = {"type": PathTypes.REQUEST, "path": "data" + r["path"]}
-            users[u].append(item)
-        for q in user.get("queries"):
-            item = {"type": PathTypes.QUERY, "path": "data" + q["path"]}
-            users[u].append(item)
-        for g in user.get("gabi_instances"):
-            item = {"type": PathTypes.GABI, "path": "data" + g["path"]}
-            users[u].append(item)
-        for a in user.get("aws_accounts", []):
-            item = {"type": PathTypes.AWS_ACCOUNTS, "path": "data" + a["path"]}
-            users[u].append(item)
-        for s in user.get("schedules"):
-            item = {"type": PathTypes.SCHEDULE, "path": "data" + s["path"]}
-            users[u].append(item)
+    for user in users_paths:
+        u = user.org_username
+        users[u].append(PathSpec(PathTypes.USER, "data" + user.path))
+        for r in user.requests or []:
+            users[u].append(PathSpec(PathTypes.REQUEST, "data" + r.path))
+        for q in user.queries or []:
+            users[u].append(PathSpec(PathTypes.QUERY, "data" + q.path))
+        for g in user.gabi_instances or []:
+            users[u].append(PathSpec(PathTypes.GABI, "data" + g.path))
+        for a in user.aws_accounts or []:
+            users[u].append(PathSpec(PathTypes.AWS_ACCOUNTS, "data" + a.path))
+        for s in user.schedules or []:
+            users[u].append(PathSpec(PathTypes.SCHEDULE, "data" + s.path))
 
-    return [{"username": username, "paths": paths} for username, paths in users.items()]
+    return list(starmap(UserPaths, users.items()))
 
 
 @defer
 def run(dry_run, app_interface_project_id, infra_project_id, defer=None):
-    users = init_users()
+    users = transform_users_paths(get_users_paths())
     ldap_settings = get_ldap_settings()
 
     with LdapClient.from_params(
@@ -55,9 +56,9 @@ def run(dry_run, app_interface_project_id, infra_project_id, defer=None):
         password=None,
         base_dn=ldap_settings.base_dn,
     ) as ldap_client:
-        ldap_users = ldap_client.get_users([u["username"] for u in users])
+        ldap_users = ldap_client.get_users([u.username for u in users])
 
-    users_to_delete = [u for u in users if u["username"] not in ldap_users]
+    users_to_delete = [u for u in users if u.username not in ldap_users]
 
     if not dry_run:
         mr_cli_app_interface = mr_client_gateway.init(
@@ -70,8 +71,8 @@ def run(dry_run, app_interface_project_id, infra_project_id, defer=None):
         defer(mr_cli_infra.cleanup)
 
     for u in users_to_delete:
-        username = u["username"]
-        paths = u["paths"]
+        username = u.username
+        paths = u.paths
         logging.info(["delete_user", username])
 
         if not dry_run:
@@ -79,6 +80,6 @@ def run(dry_run, app_interface_project_id, infra_project_id, defer=None):
             mr.submit(cli=mr_cli_app_interface)
 
     if not dry_run:
-        usernames = [u["username"] for u in users_to_delete]
+        usernames = [u.username for u in users_to_delete]
         mr_infra = CreateDeleteUserInfra(usernames)
         mr_infra.submit(cli=mr_cli_infra)

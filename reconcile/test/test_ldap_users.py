@@ -7,7 +7,7 @@ from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
 @pytest.fixture
 def patched_queries_get_users(mocker):
     queries_get_users_mock = mocker.patch.object(
-        ldap_users.queries, "get_users", autospec=True
+        ldap_users, "get_users_paths", autospec=True
     )
     queries_get_users_mock.return_value = [
         {
