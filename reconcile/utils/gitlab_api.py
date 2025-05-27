@@ -41,7 +41,6 @@ from gitlab.v4.objects import (
     GroupMember,
     PersonalAccessToken,
     Project,
-    ProjectFile,
     ProjectHook,
     ProjectIssue,
     ProjectIssueManager,
@@ -692,13 +691,27 @@ class GitLabApi:
             ),
         )
 
-    def get_file(self, path: str, ref: str = "master") -> ProjectFile | None:
+    def get_file(
+        self,
+        path: str,
+        ref: str = "master",
+        project: Project | None = None,
+    ) -> bytes | None:
         """
-        Wrapper around Gitlab.files.get() with exception handling.
+        Get the raw content of a file in a project.
+
+        :param path: The path to the file in the repository.
+        :param ref: The name of branch, tag or commit.
+        :param project: The project to get the file from, if None, use the current project.
+        :return: The content of the file as bytes, or None if the file does not exist.
         """
+        target_project = self.project if project is None else project
+        file_path = path.lstrip("/")
         try:
-            path = path.lstrip("/")
-            return self.project.files.get(file_path=path, ref=ref)
+            return target_project.files.raw(
+                file_path=file_path,
+                ref=ref,
+            )
         except GitlabGetError:
             return None
 
