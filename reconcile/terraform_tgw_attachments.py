@@ -550,7 +550,7 @@ def run(
             integration_version=QONTRACT_INTEGRATION_VERSION,
             dry_run=dry_run,
             cache_source=cache_source,
-            shard="_".join(account_name) if account_name else "",
+            shard=account_name or "",
             ttl_seconds=extended_early_exit_cache_ttl_seconds,
             logger=logging.getLogger(),
             runner=runner,
