@@ -7,4 +7,4 @@ from reconcile.utils import gql
 def get_users_paths(query_func: Callable | None = None) -> list[UserV1]:
     if not query_func:
         query_func = gql.get_api().query
-    return query(query_func=gql.get_api().query).users or []
+    return query(query_func=query_func).users or []

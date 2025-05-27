@@ -46,22 +46,22 @@ def init_users_and_paths() -> list[dict[str, list]]:
     users = defaultdict(list)
     for user in app_int_users:
         u = user["org_username"]
-        item = PathSpec(PathTypes.USER, "data" + user["path"])
+        item = PathSpec(type=PathTypes.USER, path=user["path"])
         users[u].append(item)
         for r in user.get("requests"):
-            item = PathSpec(PathTypes.REQUEST, "data" + r["path"])
+            item = PathSpec(type=PathTypes.REQUEST, path=r["path"])
             users[u].append(item)
         for q in user.get("queries"):
-            item = PathSpec(PathTypes.QUERY, "data" + q["path"])
+            item = PathSpec(type=PathTypes.QUERY, path=q["path"])
             users[u].append(item)
         for g in user.get("gabi_instances"):
-            item = PathSpec(PathTypes.GABI, "data" + g["path"])
+            item = PathSpec(type=PathTypes.GABI, path=g["path"])
             users[u].append(item)
         for a in user.get("aws_accounts", []):
-            item = PathSpec(PathTypes.AWS_ACCOUNTS, "data" + a["path"])
+            item = PathSpec(type=PathTypes.AWS_ACCOUNTS, path=a["path"])
             users[u].append(item)
         for s in user.get("schedules"):
-            item = PathSpec(PathTypes.SCHEDULE, "data" + s["path"])
+            item = PathSpec(type=PathTypes.SCHEDULE, path=s["path"])
             users[u].append(item)
 
     return [{"username": username, "paths": paths} for username, paths in users.items()]

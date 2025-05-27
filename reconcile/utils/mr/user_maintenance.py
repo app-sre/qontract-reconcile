@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
 
+from pydantic import BaseModel, validator
 from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -18,16 +19,19 @@ class PathTypes(Enum):
     SCHEDULE = 5
 
 
-@dataclass
-class PathSpec:
+class PathSpec(BaseModel):
     type: PathTypes
     path: str
+
+    @validator("path")
+    def prepend_data_to_path(cls, v):
+        return "data" + v
 
 
 class CreateDeleteUserAppInterface(MergeRequestBase):
     name = "create_delete_user_mr"
 
-    def __init__(self, username, paths: list[PathSpec]):
+    def __init__(self, username, paths: Iterable[PathSpec]):
         self.username = username
         self.paths = paths
 

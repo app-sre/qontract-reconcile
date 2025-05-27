@@ -1,0 +1,21 @@
+usersPaths:
+  - org_username: username1
+    requests: [{ path: test_path1 }]
+    queries: [{ path: another_test_path1 }]
+    gabi_instances: [{ path: yet_another_test_path1 }]
+    schedules: [{ path: and_yet_another_test_path1 }]
+    path: blah
+
+  - org_username: username2
+    requests: [{ path: test_path2 }]
+    queries: [{ path: another_test_path2 }]
+    gabi_instances: [{ path: yet_another_test_path2 }]
+    schedules: [{ path: and_yet_another_test_path2 }]
+    path: blah
+
+  - org_username: username3
+    requests: [{ path: test_path3 }]
+    queries: [{ path: another_test_path3 }]
+    gabi_instances: [{ path: yet_another_test_path3 }]
+    schedules: [{ path: and_yet_another_test_path3 }]
+    path: blah
