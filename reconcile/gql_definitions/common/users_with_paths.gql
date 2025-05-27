@@ -1,6 +1,6 @@
 # qenerate: plugin=pydantic_v1
 
-query UsersPaths {
+query UsersWithPaths {
   users: users_v1 {
     path
     org_username

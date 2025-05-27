@@ -19,7 +19,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query UsersPaths {
+query UsersWithPaths {
   users: users_v1 {
     path
     org_username
@@ -79,11 +79,11 @@ class UserV1(ConfiguredBaseModel):
     schedules: Optional[list[ScheduleV1]] = Field(..., alias="schedules")
 
 
-class UsersPathsQueryData(ConfiguredBaseModel):
+class UsersWithPathsQueryData(ConfiguredBaseModel):
     users: Optional[list[UserV1]] = Field(..., alias="users")
 
 
-def query(query_func: Callable, **kwargs: Any) -> UsersPathsQueryData:
+def query(query_func: Callable, **kwargs: Any) -> UsersWithPathsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -96,7 +96,7 @@ def query(query_func: Callable, **kwargs: Any) -> UsersPathsQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        UsersPathsQueryData: queried data parsed into generated classes
+        UsersWithPathsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return UsersPathsQueryData(**raw_data)
+    return UsersWithPathsQueryData(**raw_data)

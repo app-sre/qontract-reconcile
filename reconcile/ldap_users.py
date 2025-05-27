@@ -6,9 +6,9 @@ from reconcile import (
     mr_client_gateway,
 )
 from reconcile.gql_definitions.common.ldap_settings import LdapSettingsV1
-from reconcile.gql_definitions.common.users_paths import UserV1
+from reconcile.gql_definitions.common.users_with_paths import UserV1
 from reconcile.typed_queries.ldap_settings import get_ldap_settings
-from reconcile.typed_queries.users_paths import get_users_paths
+from reconcile.typed_queries.users_with_paths import get_users_with_paths
 from reconcile.utils.defer import defer
 from reconcile.utils.ldap_client import LdapClient
 from reconcile.utils.mr import (
@@ -25,9 +25,11 @@ class UserPaths(BaseModel):
     paths: list[PathSpec] = Field(default_factory=list)
 
 
-def transform_users_paths(raw_users_paths: list[UserV1]) -> list[UserPaths]:
+def transform_users_with_paths(users_with_paths: list[UserV1]) -> list[UserPaths]:
+    """Converts UserV1 objects into UserPaths, consolidating all associated resource paths by type."""
+
     users_paths = []
-    for user in raw_users_paths:
+    for user in users_with_paths:
         up = UserPaths(username=user.org_username)
         up.paths.append(PathSpec(type=PathTypes.USER, path=user.path))
         for r in user.requests or []:
@@ -47,16 +49,20 @@ def transform_users_paths(raw_users_paths: list[UserV1]) -> list[UserPaths]:
 
 
 def get_usernames(users_paths: list[UserPaths]) -> list[str]:
+    """Extracts a list of usernames from a list of UserPaths objects."""
     return [u.username for u in users_paths]
 
 
 def filter_users_not_exists(
     users_paths: list[UserPaths], ldap_users: set[str]
 ) -> list[UserPaths]:
+    """Filters out UserPaths objects whose usernames are not present in the given set of LDAP users."""
+
     return [u for u in users_paths if u.username not in ldap_users]
 
 
 def get_ldap_users(ldap_settings: LdapSettingsV1, usernames: list[str]) -> set[str]:
+    """Retrieves existing usernames from LDAP based on the provided list and connection settings."""
     with LdapClient.from_params(
         server_url=ldap_settings.server_url,
         user=None,
@@ -66,11 +72,14 @@ def get_ldap_users(ldap_settings: LdapSettingsV1, usernames: list[str]) -> set[s
         return ldap_client.get_users(usernames)
 
 
+@defer
 def delete_user_from_app_interface(
     dry_run: bool,
     app_interface_project_id: str | int | None,
     users: list[UserPaths],
+    defer=None,
 ) -> None:
+    """Delete user data stored in the repository app-interface related with the given users."""
     if not dry_run:
         mr_cli_app_interface = mr_client_gateway.init(
             gitlab_project_id=app_interface_project_id, sqs_or_gitlab="gitlab"
@@ -85,9 +94,11 @@ def delete_user_from_app_interface(
             mr.submit(cli=mr_cli_app_interface)
 
 
+@defer
 def delete_user_from_infra(
-    dry_run: bool, infra_project_id: str | int | None, usernames: list[str]
+    dry_run: bool, infra_project_id: str | int | None, usernames: list[str], defer=None
 ) -> None:
+    """Delete user data stored in the repository infra related with the given usernames."""
     if not dry_run:
         mr_cli_infra = mr_client_gateway.init(
             gitlab_project_id=infra_project_id, sqs_or_gitlab="gitlab"
@@ -98,9 +109,12 @@ def delete_user_from_infra(
         mr_infra.submit(cli=mr_cli_infra)
 
 
-@defer
-def run(dry_run, app_interface_project_id, infra_project_id, defer=None):
-    users_paths = transform_users_paths(get_users_paths())
+def run(dry_run, app_interface_project_id, infra_project_id):
+    """
+    Synchronizes user data stored in the repositories app_interface and infra
+    associated with users that are no longer found in the LDAP.
+    """
+    users_paths = transform_users_with_paths(get_users_with_paths())
 
     ldap_users = get_ldap_users(get_ldap_settings(), get_usernames(users_paths))
 
