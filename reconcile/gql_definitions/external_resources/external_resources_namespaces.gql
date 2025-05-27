@@ -17,6 +17,9 @@ query ExternalResourcesNamespaces {
             name
             resourcesDefaultRegion
             supportedDeploymentRegions
+            externalResources {
+                channel
+            }
         }
         resources {
             output_format {
