@@ -9,10 +9,9 @@ from reconcile.automated_actions.config.integration import (
     AutomatedActionsUser,
 )
 from reconcile.gql_definitions.automated_actions.instance import (
-    AutomatedActionArgumentOpenshiftV1,
-    AutomatedActionArgumentOpenshiftV1_NamespaceV1,
-    AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1,
-    AutomatedActionArgumentV1,
+    AutomatedActionOpenshiftWorkloadRestartArgumentV1,
+    AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1,
+    AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1,
     AutomatedActionsInstanceV1,
     AutomatedActionV1,
     DisableClusterAutomationsV1,
@@ -46,50 +45,81 @@ def test_automated_actions_config_get_automated_actions_instances(
                         "name": "cluster",
                         "serverUrl": "https://cluster.example.com:6443",
                         "internal": False,
-                        "automationToken": {"path": "vault_path", "field": "token"},
+                        "automationToken": {
+                            "path": "vault_path",
+                            "field": "token",
+                        },
                     },
                 },
-                "permissions": [
+                "actions": [
                     {
-                        "roles": [
+                        "type": "openshift-workload-restart",
+                        "permissions": [
                             {
-                                "name": "app-sre",
-                                "users": [
-                                    {"org_username": "user1"},
-                                    {"org_username": "user2"},
-                                ],
-                                "bots": [{"org_username": "bot1"}],
+                                "roles": [
+                                    {
+                                        "name": "app-sre",
+                                        "users": [
+                                            {"org_username": "user1"},
+                                            {"org_username": "user2"},
+                                        ],
+                                        "bots": [{"org_username": "bot1"}],
+                                    }
+                                ]
                             }
                         ],
-                        "action": {"operationId": "noop"},
-                        "arguments": [],
-                    },
-                    {
-                        "roles": [
+                        "maxOps": 2,
+                        "openshift_workload_restart_arguments": [
                             {
-                                "name": "tenant",
-                                "users": [
-                                    {"org_username": "tenant1"},
-                                    {"org_username": "tenant2"},
-                                ],
-                                "bots": [{"org_username": "bot1"}],
-                            }
-                        ],
-                        "action": {
-                            "operationId": "openshift-workload-restart",
-                            "retries": 2,
-                            "maxOps": 2,
-                        },
-                        "arguments": [
-                            {
-                                "type": "openshift",
-                                "kind_pattern": "Deployment|Pod",
-                                "name_pattern": "shaver.*",
                                 "namespace": {
                                     "name": "namespace",
-                                    "cluster": {"name": "cluster"},
+                                    "cluster": {"name": "cluster", "disable": None},
                                 },
-                            },
+                                "kind": "Deployment|Pod",
+                                "name": "shaver.*",
+                            }
+                        ],
+                    },
+                    {
+                        "type": "noop",
+                        "permissions": [
+                            {
+                                "roles": [
+                                    {
+                                        "name": "app-sre",
+                                        "users": [
+                                            {"org_username": "user1"},
+                                            {"org_username": "user2"},
+                                        ],
+                                        "bots": [{"org_username": "bot1"}],
+                                    }
+                                ]
+                            }
+                        ],
+                        "maxOps": 0,
+                    },
+                    {
+                        "type": "action-list",
+                        "permissions": [
+                            {
+                                "roles": [
+                                    {
+                                        "name": "app-sre",
+                                        "users": [
+                                            {"org_username": "user1"},
+                                            {"org_username": "user2"},
+                                        ],
+                                        "bots": [{"org_username": "bot1"}],
+                                    }
+                                ]
+                            }
+                        ],
+                        "maxOps": 1,
+                        "action_list_arguments": [
+                            {
+                                "action_user": "user1",
+                                "max_age_minutes": None,
+                            }
                         ],
                     },
                 ],
@@ -101,16 +131,14 @@ def test_automated_actions_config_get_automated_actions_instances(
 @pytest.mark.parametrize(
     "argument, expected",
     [
-        (AutomatedActionArgumentV1(type="whatever"), True),
         (
-            AutomatedActionArgumentOpenshiftV1(
-                type="openshift",
-                kind_pattern="Deployment|Pod",
-                name_pattern="shaver.*",
-                namespace=AutomatedActionArgumentOpenshiftV1_NamespaceV1(
+            AutomatedActionOpenshiftWorkloadRestartArgumentV1(
+                kind="Deployment|Pod",
+                name="shaver.*",
+                namespace=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1(
                     name="namespace",
                     delete=False,
-                    cluster=AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1(
+                    cluster=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1(
                         name="cluster", disable=None
                     ),
                 ),
@@ -119,14 +147,13 @@ def test_automated_actions_config_get_automated_actions_instances(
         ),
         # deleted namespace
         (
-            AutomatedActionArgumentOpenshiftV1(
-                type="openshift",
-                kind_pattern="Deployment|Pod",
-                name_pattern="shaver.*",
-                namespace=AutomatedActionArgumentOpenshiftV1_NamespaceV1(
+            AutomatedActionOpenshiftWorkloadRestartArgumentV1(
+                kind="Deployment|Pod",
+                name="shaver.*",
+                namespace=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1(
                     name="namespace",
                     delete=True,
-                    cluster=AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1(
+                    cluster=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1(
                         name="cluster", disable=None
                     ),
                 ),
@@ -135,14 +162,13 @@ def test_automated_actions_config_get_automated_actions_instances(
         ),
         # integration disabled
         (
-            AutomatedActionArgumentOpenshiftV1(
-                type="openshift",
-                kind_pattern="Deployment|Pod",
-                name_pattern="shaver.*",
-                namespace=AutomatedActionArgumentOpenshiftV1_NamespaceV1(
+            AutomatedActionOpenshiftWorkloadRestartArgumentV1(
+                kind="Deployment|Pod",
+                name="shaver.*",
+                namespace=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1(
                     name="namespace",
                     delete=False,
-                    cluster=AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1(
+                    cluster=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1(
                         name="cluster",
                         disable=DisableClusterAutomationsV1(
                             integrations=["automated-actions"]
@@ -156,68 +182,83 @@ def test_automated_actions_config_get_automated_actions_instances(
 )
 def test_automated_actions_config_is_enabled(
     intg: AutomatedActionsConfigIntegration,
-    argument: AutomatedActionArgumentV1,
+    argument: AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     expected: bool,
 ) -> None:
     assert intg.is_enabled(argument) == expected
 
 
 @pytest.mark.parametrize(
-    "permission, expected",
+    "action, expected",
     [
         # no roles
         (
-            PermissionAutomatedActionsV1(
-                roles=None,
-                arguments=None,
-                action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
+            AutomatedActionV1(
+                type="action",
+                maxOps=1,
+                permissions=[PermissionAutomatedActionsV1(roles=None)],
             ),
             False,
         ),
         # expired roles
         (
-            PermissionAutomatedActionsV1(
-                roles=[
-                    RoleV1(name="role", users=[], bots=[], expirationDate="1970-01-01")
+            AutomatedActionV1(
+                type="action",
+                maxOps=1,
+                permissions=[
+                    PermissionAutomatedActionsV1(
+                        roles=[
+                            RoleV1(
+                                name="role",
+                                users=[],
+                                bots=[],
+                                expirationDate="1970-01-01",
+                            )
+                        ]
+                    )
                 ],
-                arguments=None,
-                action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
             ),
             False,
         ),
         # valid
         (
-            PermissionAutomatedActionsV1(
-                roles=[RoleV1(name="role", users=[], bots=[], expirationDate=None)],
-                arguments=None,
-                action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
+            AutomatedActionV1(
+                type="action",
+                maxOps=1,
+                permissions=[
+                    PermissionAutomatedActionsV1(
+                        roles=[
+                            RoleV1(name="role", users=[], bots=[], expirationDate=None)
+                        ],
+                    )
+                ],
             ),
             True,
         ),
     ],
 )
-def test_automated_actions_config_filter_permissions(
+def test_automated_actions_config_filter_actions(
     intg: AutomatedActionsConfigIntegration,
-    permission: PermissionAutomatedActionsV1,
+    action: AutomatedActionV1,
     expected: bool,
 ) -> None:
-    assert bool(list(intg.filter_permissions([permission]))) == expected
+    assert bool(list(intg.filter_actions([action]))) == expected
 
 
 def test_automated_actions_config_compile_users(
     intg: AutomatedActionsConfigIntegration,
-    permissions: list[PermissionAutomatedActionsV1],
+    actions: list[AutomatedActionV1],
     automated_actions_users: list[AutomatedActionsUser],
 ) -> None:
-    assert intg.compile_users(permissions) == automated_actions_users
+    assert intg.compile_users(actions) == automated_actions_users
 
 
 def test_automated_actions_config_compile_roles(
     intg: AutomatedActionsConfigIntegration,
-    permissions: list[PermissionAutomatedActionsV1],
+    actions: list[AutomatedActionV1],
     automated_actions_roles: AutomatedActionRoles,
 ) -> None:
-    assert intg.compile_roles(permissions) == automated_actions_roles
+    assert intg.compile_roles(actions) == automated_actions_roles
 
 
 def test_automated_actions_config_build_policy_file(
