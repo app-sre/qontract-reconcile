@@ -82,6 +82,7 @@ from reconcile.utils.saasherder.models import (
     UpstreamJob,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.slo_document_manager import SLODocumentManager
 from reconcile.utils.state import State
 from reconcile.utils.vcs import GITHUB_BASE_URL
 
@@ -1044,19 +1045,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return channel_map
 
     def _collect_blocked_versions(self) -> dict[str, set[str]]:
-        blocked_versions: dict[str, set[str]] = {}
+        blocked_versions: dict[str, set[str]] = defaultdict(set[str])
         for saas_file in self.saas_files:
             for cc in saas_file.app.code_components or []:
                 for v in cc.blocked_versions or []:
-                    blocked_versions.setdefault(cc.url, set()).add(v)
+                    blocked_versions[cc.url].add(v)
         return blocked_versions
 
     def _collect_hotfix_versions(self) -> dict[str, set[str]]:
-        hotfix_versions: dict[str, set[str]] = {}
+        hotfix_versions: dict[str, set[str]] = defaultdict(set[str])
         for saas_file in self.saas_files:
             for cc in saas_file.app.code_components or []:
                 for v in cc.hotfix_versions or []:
-                    hotfix_versions.setdefault(cc.url, set()).add(v)
+                    hotfix_versions[cc.url].add(v)
         return hotfix_versions
 
     @staticmethod
@@ -1277,6 +1278,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     cluster_name=target.namespace.cluster.name,
                     namespace_name=target.namespace.name,
                     target_name=target.name,
+                    resource_template_url=rt.url,
+                    target_ref=target.ref,
                     state_content=None,
                 ).state_key
                 digest = SaasHerder.get_target_config_hash(
@@ -1729,7 +1732,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             dtc = SaasHerder.remove_none_values(trigger_spec.state_content)
             if ctc == dtc:
                 continue
-
+            # check for slo breach
+            if self.has_breached_slos(trigger_spec):
+                logging.info("Skipping the target due to above breached SLOs.")
+                continue
             if self.include_trigger_trace:
                 trigger_spec.reason = f"{self.repo_url}/commit/{RunningState().commit}"
                 # For now we count every saas config change as an auto-promotion
@@ -1741,6 +1747,25 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     trigger_spec.reason += " [auto-promotion]"
             trigger_specs.append(trigger_spec)
         return trigger_specs
+
+    def has_breached_slos(self, trigger_spec: TriggerSpecConfig) -> bool:
+        if trigger_spec.slo_document_manager:
+            breached_slos = trigger_spec.slo_document_manager.get_breached_slos()
+            if (
+                breached_slos
+                and trigger_spec.target_ref
+                not in self.hotfix_versions[trigger_spec.resource_template_url]
+            ):
+                for slo in breached_slos:
+                    logging.info(
+                        "SLO:%s of document %s is breached. Current value:%f Expected:%f ",
+                        slo.slo.name,
+                        slo.slo_document_name,
+                        slo.current_slo_value,
+                        slo.slo.slo_target,
+                    )
+                return True
+        return False
 
     @staticmethod
     def get_target_config_hash(target_config: Any) -> str:
@@ -1824,7 +1849,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     namespace_name=target.namespace.name,
                     target_name=target.name,
                     state_content=serializable_target_config,
+                    resource_template_url=rt.url,
+                    target_ref=target.ref,
                 )
+                if target.slos:
+                    trigger_spec.slo_document_manager = SLODocumentManager(
+                        slo_documents=target.slos,
+                        secret_reader=self.secret_reader,
+                        thread_pool_size=self.thread_pool_size,
+                    )
                 configs[trigger_spec.state_key] = trigger_spec
 
         return configs

@@ -7,6 +7,7 @@ from typing import (
     runtime_checkable,
 )
 
+from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.utils import oc_connection_parameters
 from reconcile.utils.secret_reader import HasSecret
 
@@ -325,6 +326,9 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
 
     @property
     def images(self) -> Sequence[SaasResourceTemplateTargetImage] | None: ...
+
+    @property
+    def slos(self) -> list[SLODocument] | None: ...
 
     def uid(
         self, parent_saas_file_name: str, parent_resource_template_name: str
