@@ -71,7 +71,6 @@ query AutomatedActionsInstances {
     }
     actions {
       type
-      retries
       permissions {
         roles {
           name
@@ -147,7 +146,6 @@ class PermissionAutomatedActionsV1(ConfiguredBaseModel):
 
 class AutomatedActionV1(ConfiguredBaseModel):
     q_type: str = Field(..., alias="type")
-    retries: int = Field(..., alias="retries")
     permissions: Optional[list[PermissionAutomatedActionsV1]] = Field(..., alias="permissions")
     max_ops: int = Field(..., alias="maxOps")
 

@@ -12,7 +12,6 @@ automated_actions_instances_v1:
         field: token
   actions:
   - type: openshift-workload-restart
-    retries: 2
     maxOps: 2
     permissions:
     - roles:
@@ -50,7 +49,6 @@ automated_actions_instances_v1:
             - automated-actions
 
   - type: noop
-    retries: 0
     maxOps: 0
     permissions:
     - roles:
@@ -68,7 +66,6 @@ automated_actions_instances_v1:
         expirationDate: "1970-01-01"
 
   - type: action-list
-    retries: 1
     maxOps: 1
     permissions:
     - roles:
@@ -83,7 +80,6 @@ automated_actions_instances_v1:
 
   # no permissions
   - type: create-token
-    retries: 0
     maxOps: 0
     permissions: []
 
@@ -101,7 +97,6 @@ automated_actions_instances_v1:
         field: token
   actions:
   - type: create-token
-    retries: 1
     maxOps: 1
     permissions:
     - roles:

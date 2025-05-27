@@ -13,7 +13,6 @@ query AutomatedActionsInstances {
     }
     actions {
       type
-      retries
       permissions {
         roles {
           name

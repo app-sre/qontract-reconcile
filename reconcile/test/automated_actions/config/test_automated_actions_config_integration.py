@@ -54,7 +54,6 @@ def test_automated_actions_config_get_automated_actions_instances(
                 "actions": [
                     {
                         "type": "openshift-workload-restart",
-                        "retries": 2,
                         "permissions": [
                             {
                                 "roles": [
@@ -83,7 +82,6 @@ def test_automated_actions_config_get_automated_actions_instances(
                     },
                     {
                         "type": "noop",
-                        "retries": 0,
                         "permissions": [
                             {
                                 "roles": [
@@ -102,7 +100,6 @@ def test_automated_actions_config_get_automated_actions_instances(
                     },
                     {
                         "type": "action-list",
-                        "retries": 1,
                         "permissions": [
                             {
                                 "roles": [
@@ -198,7 +195,6 @@ def test_automated_actions_config_is_enabled(
         (
             AutomatedActionV1(
                 type="action",
-                retries=1,
                 maxOps=1,
                 permissions=[PermissionAutomatedActionsV1(roles=None)],
             ),
@@ -208,7 +204,6 @@ def test_automated_actions_config_is_enabled(
         (
             AutomatedActionV1(
                 type="action",
-                retries=1,
                 maxOps=1,
                 permissions=[
                     PermissionAutomatedActionsV1(
@@ -229,7 +224,6 @@ def test_automated_actions_config_is_enabled(
         (
             AutomatedActionV1(
                 type="action",
-                retries=1,
                 maxOps=1,
                 permissions=[
                     PermissionAutomatedActionsV1(

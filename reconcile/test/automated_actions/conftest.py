@@ -80,7 +80,6 @@ def actions() -> list[AutomatedActionV1]:
         # An action with no arguments
         AutomatedActionV1(
             type="create-token",
-            retries=1,
             maxOps=1,
             permissions=[
                 PermissionAutomatedActionsV1(
@@ -97,7 +96,6 @@ def actions() -> list[AutomatedActionV1]:
         ),
         AutomatedActionActionListV1(
             type="action-list",
-            retries=0,
             maxOps=0,
             permissions=[
                 PermissionAutomatedActionsV1(
@@ -119,7 +117,6 @@ def actions() -> list[AutomatedActionV1]:
         ),
         AutomatedActionOpenshiftWorkloadRestartV1(
             type="openshift-workload-restart",
-            retries=2,
             maxOps=5,
             permissions=[
                 PermissionAutomatedActionsV1(
