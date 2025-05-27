@@ -6,6 +6,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Literal
+from urllib.parse import urlparse
 
 from gitlab.v4.objects import ProjectMergeRequest
 
@@ -23,6 +25,16 @@ from reconcile.utils.secret_reader import (
 )
 
 GITHUB_BASE_URL = "https://github.com/"
+
+Platform = Literal["github", "gitlab"]
+
+SUPPORTED_PLATFORMS: list[Platform] = ["github", "gitlab"]
+
+
+@dataclass(frozen=True)
+class RepoInfo:
+    platform: Platform | None
+    name: str
 
 
 class MRCheckStatus(Enum):
@@ -155,16 +167,40 @@ class VCS:
                 # Lets assume all other states as non-present
                 return MRCheckStatus.NONE
 
+    @staticmethod
+    def parse_repo_url(url: str) -> RepoInfo:
+        """
+        Parse a repository URL and return a RepoInfo object.
+        `platform` can be 'github', 'gitlab' or None if not recognized,
+        it's inferred from the URL host.
+        `name` is the path part of the URL, stripped of leading and trailing slashes.
+        """
+        parsed_url = urlparse(url)
+        platform = next(
+            (
+                p
+                for p in SUPPORTED_PLATFORMS
+                if (hostname := parsed_url.hostname) and p in hostname
+            ),
+            None,
+        )
+        name = parsed_url.path.strip("/").removesuffix(".git")
+        return RepoInfo(platform=platform, name=name)
+
     def get_commit_sha(
         self, repo_url: str, ref: str, auth_code: HasSecret | None
     ) -> str:
         if bool(self._is_commit_sha_regex.search(ref)):
             return ref
-        if repo_url.startswith(GITHUB_BASE_URL):
-            github = self._init_github(repo_url=repo_url, auth_code=auth_code)
-            return github.get_commit_sha(ref=ref)
-        # assume gitlab by default
-        return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
+        repo_info = self.parse_repo_url(repo_url)
+        match repo_info.platform:
+            case "github":
+                github = self._init_github(repo_url=repo_url, auth_code=auth_code)
+                return github.get_commit_sha(ref=ref)
+            case "gitlab":
+                return self._gitlab_instance.get_commit_sha(ref=ref, repo_url=repo_url)
+            case _:
+                raise ValueError(f"Unsupported repository URL: {repo_url}")
 
     def get_commits_between(
         self,
@@ -177,30 +213,33 @@ class VCS:
         Return a list of commits between two commits.
         Note, that the commit_to is included in the result list, whereas commit_from is not included.
         """
-        if repo_url.startswith(GITHUB_BASE_URL):
-            github = self._init_github(repo_url=repo_url, auth_code=auth_code)
-            data = github.compare(commit_from=commit_from, commit_to=commit_to)
-            return [
-                Commit(
-                    repo=repo_url,
-                    sha=gh_commit.sha,
-                    date=gh_commit.commit.committer.date,
+        repo_info = self.parse_repo_url(repo_url)
+        match repo_info.platform:
+            case "github":
+                github = self._init_github(repo_url=repo_url, auth_code=auth_code)
+                data = github.compare(commit_from=commit_from, commit_to=commit_to)
+                return [
+                    Commit(
+                        repo=repo_url,
+                        sha=gh_commit.sha,
+                        date=gh_commit.commit.committer.date,
+                    )
+                    for gh_commit in data
+                ]
+            case "gitlab":
+                data = self._gitlab_instance.repository_compare(
+                    repo_url=repo_url, ref_from=commit_from, ref_to=commit_to
                 )
-                for gh_commit in data
-            ]
-        # assume gitlab by default
-        else:
-            data = self._gitlab_instance.repository_compare(
-                repo_url=repo_url, ref_from=commit_from, ref_to=commit_to
-            )
-            return [
-                Commit(
-                    repo=repo_url,
-                    sha=gl_commit["id"],
-                    date=datetime.fromisoformat(gl_commit["committed_date"]),
-                )
-                for gl_commit in data
-            ]
+                return [
+                    Commit(
+                        repo=repo_url,
+                        sha=gl_commit["id"],
+                        date=datetime.fromisoformat(gl_commit["committed_date"]),
+                    )
+                    for gl_commit in data
+                ]
+            case _:
+                raise ValueError(f"Unsupported repository URL: {repo_url}")
 
     def close_app_interface_mr(self, mr: ProjectMergeRequest, comment: str) -> None:
         if not self._allow_deleting_mrs:
