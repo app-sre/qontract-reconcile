@@ -117,8 +117,8 @@ def test_get_file_content_from_app_interface_ref_defaults(
     vcs = vcs_builder({})
     vcs.get_file_content_from_app_interface_ref(file_path="/file.yaml")
 
-    vcs._app_interface_api.project.files.get.assert_called_once_with(  # type: ignore[attr-defined]
-        file_path="data/file.yaml",
+    vcs._app_interface_api.get_file.assert_called_once_with(  # type: ignore[attr-defined]
+        path="data/file.yaml",
         ref="master",
     )
 
@@ -131,8 +131,8 @@ def test_get_file_content_from_app_interface_ref_overrides(
         file_path="/file.yaml", is_data=False, ref="ref"
     )
 
-    vcs._app_interface_api.project.files.get.assert_called_once_with(  # type: ignore[attr-defined]
-        file_path="/file.yaml",
+    vcs._app_interface_api.get_file.assert_called_once_with(  # type: ignore[attr-defined]
+        path="/file.yaml",
         ref="ref",
     )
 
