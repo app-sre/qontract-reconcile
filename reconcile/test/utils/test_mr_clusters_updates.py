@@ -1,12 +1,13 @@
 from io import StringIO
 from unittest import TestCase
 from unittest.mock import (
-    MagicMock,
+    create_autospec,
     patch,
 )
 
 import reconcile.utils.mr.clusters_updates as sut
 from reconcile.test.fixtures import Fixtures
+from reconcile.utils.gitlab_api import GitLabApi
 
 fxt = Fixtures("clusters")
 
@@ -18,17 +19,17 @@ class TestProcess(TestCase):
         self.raw_clusters = fxt.get("cluster1.yml")
 
     def test_no_changes(self, cancel):
-        cli = MagicMock()
+        cli = create_autospec(GitLabApi)
         c = sut.CreateClustersUpdates({})
         c.branch = "abranch"
         c.process(cli)
         cancel.assert_called_once()
 
-        cli.project.files.get.assert_not_called()
+        cli.get_file.assert_not_called()
 
     def test_changes_to_spec(self, cancel):
-        cli = MagicMock()
-        cli.project.files.get.return_value = self.raw_clusters.encode()
+        cli = create_autospec(GitLabApi)
+        cli.get_file.return_value = self.raw_clusters.encode()
         c = sut.CreateClustersUpdates({
             "cluster1": {"spec": {"id": "42"}, "root": {}, "path": "/a/path"}
         })
@@ -46,11 +47,15 @@ class TestProcess(TestCase):
             commit_message="update cluster cluster1 spec fields",
             content=content,
         )
+        cli.get_file.assert_called_once_with(
+            path="/a/path",
+            ref=cli.main_branch,
+        )
         cancel.assert_not_called()
 
     def test_changes_to_root(self, cancel):
-        cli = MagicMock()
-        cli.project.files.get.return_value = self.raw_clusters.encode()
+        cli = create_autospec(GitLabApi)
+        cli.get_file.return_value = self.raw_clusters.encode()
         c = sut.CreateClustersUpdates({
             "cluster1": {
                 "spec": {},
@@ -70,5 +75,9 @@ class TestProcess(TestCase):
             file_path="/a/path",
             commit_message="update cluster cluster1 spec fields",
             content=content,
+        )
+        cli.get_file.assert_called_once_with(
+            path="/a/path",
+            ref=cli.main_branch,
         )
         cancel.assert_not_called()

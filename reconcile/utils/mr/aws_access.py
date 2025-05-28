@@ -37,10 +37,8 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         # add key to deleteKeys list to be picked up by aws-iam-keys
-        raw_file = gitlab_cli.project.files.get(
-            file_path=self.path, ref=gitlab_cli.main_branch
-        )
-        content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+        raw_file = gitlab_cli.get_file(path=self.path, ref=gitlab_cli.main_branch)
+        content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
 
         content.setdefault("deleteKeys", [])
         content["deleteKeys"].append(self.key)

@@ -28,10 +28,8 @@ class CreateOCMUpdateRecommendedVersion(MergeRequestBase):
         return f"ocm update recommended version for {self.ocm_name}"
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        raw_file = gitlab_cli.project.files.get(
-            file_path=self.path, ref=gitlab_cli.main_branch
-        )
-        content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+        raw_file = gitlab_cli.get_file(path=self.path, ref=gitlab_cli.main_branch)
+        content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
 
         content["recommendedVersions"] = self.recommended_versions
 
