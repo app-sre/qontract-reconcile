@@ -28,10 +28,8 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
         ocm_path = self.updates_info["path"]
         ocm_name = self.updates_info["name"]
 
-        raw_file = gitlab_cli.project.files.get(
-            file_path=ocm_path, ref=gitlab_cli.main_branch
-        )
-        content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+        raw_file = gitlab_cli.get_file(path=ocm_path, ref=gitlab_cli.main_branch)
+        content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
         upgrade_policy_clusters = content["upgradePolicyClusters"]
 
         for update in self.updates_info["updates"]:
