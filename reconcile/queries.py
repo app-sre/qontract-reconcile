@@ -1776,7 +1776,6 @@ USERS_QUERY = """
     name
     org_username
     github_username
-    slack_username
     pagerduty_username
     public_gpg_key
     {% if refs %}
@@ -1807,7 +1806,6 @@ ROLES_QUERY = """
     name
     org_username
     github_username
-    slack_username
     tag_on_cluster_updates
     labels
     roles {
