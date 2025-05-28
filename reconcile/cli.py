@@ -3719,17 +3719,6 @@ def acs_policies(ctx):
     )
 
 
-@integration.command(short_help="Manages RHACS notifier configurations")
-@click.pass_context
-def acs_notifiers(ctx):
-    from reconcile import acs_notifiers
-
-    run_class_integration(
-        integration=acs_notifiers.AcsNotifiersIntegration(),
-        ctx=ctx.obj,
-    )
-
-
 @integration.command(short_help="Manage Unleash feature toggles.")
 @click.option("--instance", help="Reconcile just this Unlash instance.", default=None)
 @click.pass_context
