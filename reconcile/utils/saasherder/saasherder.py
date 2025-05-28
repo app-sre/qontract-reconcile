@@ -27,7 +27,6 @@ from github import (
     GithubException,
 )
 from github.ContentFile import ContentFile
-from github.Repository import Repository
 from gitlab.exceptions import GitlabError
 from requests import exceptions as rqexc
 from sretoolbox.container import Image
@@ -39,6 +38,7 @@ from sretoolbox.utils import (
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
 from reconcile.utils import helm
+from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jjb_client import JJB
@@ -715,24 +715,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     def _collect_image_patterns(self) -> set[str]:
         return {p for sf in self.saas_files for p in sf.image_patterns}
 
-    @staticmethod
-    def _get_file_contents_github(repo: Repository, path: str, commit_sha: str) -> str:
-        f = repo.get_contents(path, commit_sha)
-        if isinstance(f, list):
-            raise Exception(f"Path {path} and sha {commit_sha} is a directory!")
-
-        if f.size < 1024**2:  # 1 MB
-            return f.decoded_content.decode("utf8")
-
-        tree = repo.get_git_tree(commit_sha, recursive="/" in path).tree
-        for x in tree:
-            if x.path != path.lstrip("/"):
-                continue
-            blob = repo.get_git_blob(x.sha)
-            return base64.b64decode(blob.content).decode("utf8")
-
-        return ""
-
     @retry(max_attempts=20)
     def get_archive_info(
         self,
@@ -768,16 +750,27 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         match repo_info.platform:
             case "github":
                 repo = github.get_repo(repo_info.name)
-                content = self._get_file_contents_github(repo, path, commit_sha)
+                content = GithubRepositoryApi.get_raw_file(
+                    repo=repo,
+                    path=path,
+                    ref=commit_sha,
+                )
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
                 project = self.gitlab.get_project(url)
-                f = self.gitlab.get_file(path=path, ref=commit_sha, project=project)
-                content = f.decode()
+                content = self.gitlab.get_file(
+                    path=path,
+                    ref=commit_sha,
+                    project=project,
+                )
             case _:
                 raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
+        if content is None:
+            raise Exception(
+                f"File {path} not found in {url} at ref {ref} (sha: {commit_sha})"
+            )
         return yaml.safe_load(content), commit_sha
 
     @retry()
@@ -795,10 +788,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     raise Exception(f"Path {path} and sha {commit_sha} is a file!")
                 for f in directory:
                     file_path = os.path.join(path, f.name)
-                    file_contents_decoded = self._get_file_contents_github(
-                        repo, file_path, commit_sha
+                    raw_file = GithubRepositoryApi.get_raw_file(
+                        repo=repo,
+                        path=file_path,
+                        ref=commit_sha,
                     )
-                    result_resources = yaml.safe_load_all(file_contents_decoded)
+                    result_resources = yaml.safe_load_all(raw_file)
                     resources.extend(result_resources)
             case "gitlab":
                 if not self.gitlab:

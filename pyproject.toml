@@ -427,7 +427,6 @@ module = [
     "reconcile.test.utils.test_expiration",
     "reconcile.test.utils.test_external_resource_spec",
     "reconcile.test.utils.test_external_resources",
-    "reconcile.test.utils.test_github_api",
     "reconcile.test.utils.test_gpg",
     "reconcile.test.utils.test_gql",
     "reconcile.test.utils.test_grouping",
