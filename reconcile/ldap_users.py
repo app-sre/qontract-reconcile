@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 
 from pydantic import BaseModel, Field
 
@@ -77,14 +78,15 @@ def delete_user_from_app_interface(
     dry_run: bool,
     app_interface_project_id: str | int | None,
     users: list[UserPaths],
-    defer=None,
+    defer: Callable | None = None,
 ) -> None:
     """Delete user data stored in the repository app-interface related with the given users."""
     if not dry_run:
         mr_cli_app_interface = mr_client_gateway.init(
             gitlab_project_id=app_interface_project_id, sqs_or_gitlab="gitlab"
         )
-        defer(mr_cli_app_interface.cleanup)
+        if defer:
+            defer(mr_cli_app_interface.cleanup)
 
     for user in users:
         logging.info(["delete_user", user.username])
@@ -96,20 +98,24 @@ def delete_user_from_app_interface(
 
 @defer
 def delete_user_from_infra(
-    dry_run: bool, infra_project_id: str | int | None, usernames: list[str], defer=None
+    dry_run: bool,
+    infra_project_id: str | int | None,
+    usernames: list[str],
+    defer: Callable | None = None,
 ) -> None:
     """Delete user data stored in the repository infra related with the given usernames."""
     if not dry_run:
         mr_cli_infra = mr_client_gateway.init(
             gitlab_project_id=infra_project_id, sqs_or_gitlab="gitlab"
         )
-        defer(mr_cli_infra.cleanup)
+        if defer:
+            defer(mr_cli_infra.cleanup)
 
         mr_infra = CreateDeleteUserInfra(usernames)
         mr_infra.submit(cli=mr_cli_infra)
 
 
-def run(dry_run, app_interface_project_id, infra_project_id):
+def run(dry_run: bool, app_interface_project_id: str, infra_project_id: str) -> None:
     """
     Synchronizes user data stored in the repositories app_interface and infra
     associated with users that are no longer found in the LDAP.
