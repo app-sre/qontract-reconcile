@@ -100,10 +100,12 @@ class UpdateAccessReportBase(MergeRequestBase):
         return new_workbook_md
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        workbook_file = gitlab_cli.project.files.get(
-            file_path=self._workbook_file_name, ref=self.branch
+        workbook_file = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=self._workbook_file_name,
+            ref=self.branch,
         )
-        workbook_md = self._update_workbook(workbook_file.decode().decode("utf-8"))
+        workbook_md = self._update_workbook(workbook_file.decode("utf-8"))
 
         if not self._dry_run:
             logging.info(
