@@ -96,23 +96,18 @@ def delete_user_from_app_interface(
             mr.submit(cli=mr_cli_app_interface)
 
 
-@defer
 def delete_user_from_infra(
     dry_run: bool,
     infra_project_id: str | int | None,
     usernames: list[str],
-    defer: Callable | None = None,
 ) -> None:
     """Delete user data stored in the repository infra related with the given usernames."""
     if not dry_run:
-        mr_cli_infra = mr_client_gateway.init(
+        with mr_client_gateway.init(
             gitlab_project_id=infra_project_id, sqs_or_gitlab="gitlab"
-        )
-        if defer:
-            defer(mr_cli_infra.cleanup)
-
-        mr_infra = CreateDeleteUserInfra(usernames)
-        mr_infra.submit(cli=mr_cli_infra)
+        ) as mr_cli_infra:
+            mr_infra = CreateDeleteUserInfra(usernames)
+            mr_infra.submit(cli=mr_cli_infra)
 
 
 def run(dry_run: bool, app_interface_project_id: str, infra_project_id: str) -> None:
