@@ -56,7 +56,11 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                     branch_name=self.branch, file_path=path, commit_message=self.title
                 )
             elif path_type == PathTypes.GABI:
-                raw_file = gitlab_cli.get_file(path=path, ref=self.branch)
+                raw_file = gitlab_cli.get_raw_file(
+                    project=gitlab_cli.project,
+                    path=path,
+                    ref=self.branch,
+                )
                 content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
                 for gabi_user in content["users"][:]:
                     if self.username in gabi_user["$ref"]:
@@ -70,7 +74,11 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                     content=new_content,
                 )
             elif path_type == PathTypes.AWS_ACCOUNTS:
-                raw_file = gitlab_cli.get_file(path=path, ref=self.branch)
+                raw_file = gitlab_cli.get_raw_file(
+                    project=gitlab_cli.project,
+                    path=path,
+                    ref=self.branch,
+                )
                 content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
                 for reset_record in content["resetPasswords"]:
                     if self.username in reset_record["user"]["$ref"]:
@@ -84,7 +92,11 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                             content=new_content,
                         )
             elif path_type == PathTypes.SCHEDULE:
-                raw_file = gitlab_cli.get_file(path=path, ref=self.branch)
+                raw_file = gitlab_cli.get_raw_file(
+                    project=gitlab_cli.project,
+                    path=path,
+                    ref=self.branch,
+                )
                 content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
                 delete_indexes: list[tuple[int, int]] = []
                 for schedule_index, schedule_record in enumerate(content["schedule"]):
@@ -124,7 +136,11 @@ class CreateDeleteUserInfra(MergeRequestBase):
         return "delete user(s)"
 
     def process(self, gitlab_cli):
-        raw_file = gitlab_cli.get_file(path=self.PLAYBOOK, ref=self.branch)
+        raw_file = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=self.PLAYBOOK,
+            ref=self.branch,
+        )
         content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
 
         new_list = []

@@ -691,25 +691,34 @@ class GitLabApi:
             ),
         )
 
+    @staticmethod
+    def get_raw_file(
+        project: Project,
+        path: str,
+        ref: str,
+    ) -> bytes:
+        file_path = path.lstrip("/")
+        return project.files.raw(
+            file_path=file_path,
+            ref=ref,
+        )
+
     def get_file(
         self,
         path: str,
         ref: str = "master",
-        project: Project | None = None,
     ) -> bytes | None:
         """
         Get the raw content of a file in a project.
 
         :param path: The path to the file in the repository.
         :param ref: The name of branch, tag or commit.
-        :param project: The project to get the file from, if None, use the current project.
         :return: The content of the file as bytes, or None if the file does not exist.
         """
-        target_project = self.project if project is None else project
-        file_path = path.lstrip("/")
         try:
-            return target_project.files.raw(
-                file_path=file_path,
+            return self.get_raw_file(
+                project=self.project,
+                path=path,
                 ref=ref,
             )
         except GitlabGetError:

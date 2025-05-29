@@ -5,6 +5,8 @@ from unittest.mock import (
     patch,
 )
 
+from gitlab.v4.objects import Project
+
 import reconcile.utils.mr.clusters_updates as sut
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
@@ -25,11 +27,12 @@ class TestProcess(TestCase):
         c.process(cli)
         cancel.assert_called_once()
 
-        cli.get_file.assert_not_called()
+        cli.get_raw_file.assert_not_called()
 
     def test_changes_to_spec(self, cancel):
         cli = create_autospec(GitLabApi)
-        cli.get_file.return_value = self.raw_clusters.encode()
+        cli.project = create_autospec(Project)
+        cli.get_raw_file.return_value = self.raw_clusters.encode()
         c = sut.CreateClustersUpdates({
             "cluster1": {"spec": {"id": "42"}, "root": {}, "path": "/a/path"}
         })
@@ -47,7 +50,8 @@ class TestProcess(TestCase):
             commit_message="update cluster cluster1 spec fields",
             content=content,
         )
-        cli.get_file.assert_called_once_with(
+        cli.get_raw_file.assert_called_once_with(
+            project=cli.project,
             path="/a/path",
             ref=cli.main_branch,
         )
@@ -55,7 +59,8 @@ class TestProcess(TestCase):
 
     def test_changes_to_root(self, cancel):
         cli = create_autospec(GitLabApi)
-        cli.get_file.return_value = self.raw_clusters.encode()
+        cli.project = create_autospec(Project)
+        cli.get_raw_file.return_value = self.raw_clusters.encode()
         c = sut.CreateClustersUpdates({
             "cluster1": {
                 "spec": {},
@@ -76,7 +81,8 @@ class TestProcess(TestCase):
             commit_message="update cluster cluster1 spec fields",
             content=content,
         )
-        cli.get_file.assert_called_once_with(
+        cli.get_raw_file.assert_called_once_with(
+            project=cli.project,
             path="/a/path",
             ref=cli.main_branch,
         )

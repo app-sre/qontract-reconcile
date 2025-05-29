@@ -759,18 +759,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
                 project = self.gitlab.get_project(url)
-                content = self.gitlab.get_file(
+                content = self.gitlab.get_raw_file(
+                    project=project,
                     path=path,
                     ref=commit_sha,
-                    project=project,
                 )
             case _:
                 raise Exception(f"Only GitHub and GitLab are supported: {url}")
 
-        if content is None:
-            raise Exception(
-                f"File {path} not found in {url} at ref {ref} (sha: {commit_sha})"
-            )
         return yaml.safe_load(content), commit_sha
 
     @retry()

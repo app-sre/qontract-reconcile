@@ -37,7 +37,8 @@ class CreateClustersUpdates(MergeRequestBase):
                 continue
 
             cluster_path = cluster_updates.pop("path")
-            raw_file = gitlab_cli.get_file(
+            raw_file = gitlab_cli.get_raw_file(
+                project=gitlab_cli.project,
                 path=cluster_path,
                 ref=gitlab_cli.main_branch,
             )
