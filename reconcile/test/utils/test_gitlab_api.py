@@ -785,17 +785,14 @@ def test_get_file_when_not_found(
     )
 
 
-def test_get_file_with_project(
-    mocked_gitlab_api: GitLabApi,
-    mocked_gl: Mock,
-) -> None:
+def test_get_raw_file() -> None:
     expected_file = b"# README\nThis is a test file."
     project = create_autospec(Project)
     project_file_manager = create_autospec(ProjectFileManager)
     project.files = project_file_manager
     project_file_manager.raw.return_value = expected_file
 
-    file = mocked_gitlab_api.get_file(path="/README.md", ref="main", project=project)
+    file = GitLabApi.get_raw_file(project=project, path="/README.md", ref="main")
 
     assert file == expected_file
     project_file_manager.raw.assert_called_once_with(

@@ -100,14 +100,11 @@ class UpdateAccessReportBase(MergeRequestBase):
         return new_workbook_md
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        workbook_file = gitlab_cli.get_file(
+        workbook_file = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
             path=self._workbook_file_name,
             ref=self.branch,
         )
-        if workbook_file is None:
-            raise ValueError(
-                f"Workbook file {self._workbook_file_name} not found in {self.branch}."
-            )
         workbook_md = self._update_workbook(workbook_file.decode("utf-8"))
 
         if not self._dry_run:

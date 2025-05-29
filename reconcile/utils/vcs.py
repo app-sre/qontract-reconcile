@@ -266,11 +266,11 @@ class VCS:
                 if not file_path.startswith("data")
                 else file_path
             )
-        file = self._app_interface_api.get_file(path=file_path, ref=ref)
-        if file is None:
-            raise ValueError(
-                f"File {file_path} not found in {ref} branch of app-interface."
-            )
+        file = self._app_interface_api.get_raw_file(
+            project=self._app_interface_api.project,
+            path=file_path,
+            ref=ref,
+        )
         return file.decode("utf-8")
 
     def get_open_app_interface_merge_requests(self) -> list[ProjectMergeRequest]:

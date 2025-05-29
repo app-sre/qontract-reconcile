@@ -37,9 +37,11 @@ class PromoteQontractSchemas(MergeRequestBase):
         return f"promote qontract-schemas to version {self.version}"
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        raw_file = gitlab_cli.get_file(path=self.path, ref=gitlab_cli.main_branch)
-        if raw_file is None:
-            raise ValueError(f"File {self.path} not found in {gitlab_cli.main_branch}.")
+        raw_file = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=self.path,
+            ref=gitlab_cli.main_branch,
+        )
         content = raw_file.decode("utf-8")
         lines = content.splitlines()
         for index, text in enumerate(lines):
@@ -121,9 +123,11 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
         search_text: str,
         replace_text: str,
     ) -> None:
-        raw_file = gitlab_cli.get_file(path=path, ref=gitlab_cli.main_branch)
-        if raw_file is None:
-            raise ValueError(f"File {path} not found in {gitlab_cli.main_branch}.")
+        raw_file = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=path,
+            ref=gitlab_cli.main_branch,
+        )
         match method:
             case "line_search":
                 new_content = self._process_by_line_search(
