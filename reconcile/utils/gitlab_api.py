@@ -665,25 +665,19 @@ class GitLabApi:
         *,
         ref: str = "master",
         recursive: bool = False,
-        project: Project | None = None,
-        path: str = "",
     ) -> list[dict]:
         """
         Get a list of repository files and directories in a project.
 
         :param ref: The name of a repository branch or tag or, if not given, the default branch.
         :param recursive: Boolean value used to get a recursive tree. Default is false.
-        :param project: The project to get the tree from, if None, use the current project
-        :param path: The path inside the repository. Used to get content of subdirectories.
 
         :return: list of tree objects
         """
-        target_project = self.project if project is None else project
         return cast(
             list[dict],
-            target_project.repository_tree(
+            self.project.repository_tree(
                 ref=ref,
-                path=path,
                 recursive=recursive,
                 pagination="keyset",
                 per_page=MAX_PER_PAGE,

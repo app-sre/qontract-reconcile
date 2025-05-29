@@ -644,41 +644,6 @@ def test_get_repository_tree_as_git_cli_interface(
         pagination="keyset",
         per_page=100,
         get_all=True,
-        path="",
-    )
-
-
-def test_get_repository_tree_with_project(
-    mocked_gitlab_api: GitLabApi,
-    mocked_gl: Mock,
-) -> None:
-    project = create_autospec(Project)
-    expected_result = [
-        {
-            "id": "a1e8f8d745cc87e3a9248358d9352bb7f9a0aeba",
-            "name": "html",
-            "type": "tree",
-            "path": "files/html",
-            "mode": "040000",
-        }
-    ]
-    project.repository_tree.return_value = expected_result
-
-    result = mocked_gitlab_api.get_repository_tree(
-        ref="main",
-        recursive=False,
-        project=project,
-        path="some/path",
-    )
-
-    assert result == expected_result
-    project.repository_tree.assert_called_once_with(
-        ref="main",
-        recursive=False,
-        pagination="keyset",
-        per_page=100,
-        get_all=True,
-        path="some/path",
     )
 
 
