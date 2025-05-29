@@ -112,5 +112,4 @@ def test_run(
     )
     assert mocked_create_delete_user_app_interface.return_value.submit.call_count == 2
     mocked_create_delete_user_infra.assert_called_once_with(["username2", "username3"])
-    mocked_create_delete_user_infra.return_value.submit.assert_called_once
-
+    mocked_create_delete_user_infra.return_value.submit.assert_called_once()
