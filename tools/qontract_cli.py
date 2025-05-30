@@ -4601,7 +4601,7 @@ def container_images(
             "fields": [
                 {"key": "name", "sortable": True},
                 {"key": "namespaces", "sortable": True},
-                {"key": "apps", "sortable": True},
+                {"key": "namespace_apps", "sortable": True},
                 {"key": "count", "sortable": True},
             ],
             "items": results,
@@ -4622,7 +4622,7 @@ You can view the source of this Markdown to extract the JSON data.
         columns = [
             "name",
             "namespaces",
-            "apps",
+            "namespace_apps",
             "count",
         ]
         ctx.obj["options"]["sort"] = False

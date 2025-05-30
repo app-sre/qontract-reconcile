@@ -90,7 +90,7 @@ def fetch_pods_images_from_namespaces(
 
         for name in ni.image_names or []:
             result[name]["namespaces"].add(ni.namespace_name)
-            result[name]["apps"].add(ni.app_name)
+            result[name]["namespace_apps"].add(ni.app_name)
             result[name]["count"] += 1
 
     exclude_pattern_compiled: re.Pattern | None = None
@@ -111,7 +111,7 @@ def fetch_pods_images_from_namespaces(
         result_filtered_flattened.append({
             "name": name,
             "namespaces": ",".join(sorted(value["namespaces"])),
-            "apps": ",".join(sorted(value["apps"])),
+            "namespace_apps": ",".join(sorted(value["namespace_apps"])),
             "count": value["count"],
         })
 
@@ -122,7 +122,7 @@ def fetch_pods_images_from_namespaces(
             result_filtered_flattened.append({
                 "name": "error",
                 "namespaces": message,
-                "apps": "",
+                "namespace_apps": "",
                 "count": count,
             })
 
@@ -130,7 +130,7 @@ def fetch_pods_images_from_namespaces(
 
 
 def _get_all_images_default() -> dict[str, Any]:
-    return {"namespaces": set(), "apps": set(), "count": 0}
+    return {"namespaces": set(), "namespace_apps": set(), "count": 0}
 
 
 def _get_namespace_images(ns: NamespaceV1, oc_map: OCMap) -> NamespaceImages:
