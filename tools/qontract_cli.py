@@ -2112,8 +2112,8 @@ def quay_mirrors(ctx: click.Context) -> None:
 
                 mirrors.append({
                     "repo": f"quay.io/{org_name}/{name}",
-                    "public": public,
                     "upstream": url,
+                    "public": public,
                 })
 
     if ctx.obj["options"]["output"] == "md":
@@ -3183,10 +3183,10 @@ def container_image_details(ctx: click.Context) -> None:
         json_table = {
             "filter": True,
             "fields": [
-                {"key": "name", "sortable": True},
-                {"key": "namespaces", "sortable": True},
-                {"key": "apps", "sortable": True},
-                {"key": "count", "sortable": True},
+                {"key": "app", "sortable": True},
+                {"key": "repository", "sortable": True},
+                {"key": "email", "sortable": True},
+                {"key": "slack", "sortable": True},
             ],
             "items": data,
         }
