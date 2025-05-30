@@ -2116,8 +2116,36 @@ def quay_mirrors(ctx: click.Context) -> None:
                     "upstream": url,
                 })
 
-    columns = ["repo", "upstream", "public"]
-    print_output(ctx.obj["options"], mirrors, columns)
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "repo", "sortable": True},
+                {"key": "upstream", "sortable": True},
+                {"key": "public", "sortable": True},
+            ],
+            "items": mirrors,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(mirrors)} mirror images found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "repo",
+            "upstream",
+            "public",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], mirrors, columns)
 
 
 @get.command()
@@ -3142,8 +3170,6 @@ def container_image_details(ctx: click.Context) -> None:
         for org_items in app.quay_repos or []:
             org_name = org_items.org.name
             for repo in org_items.items or []:
-                if repo.mirror:
-                    continue
                 repository = f"quay.io/{org_name}/{repo.name}"
                 item: dict[str, str | list[str]] = {
                     "app": app_name,
@@ -3152,8 +3178,39 @@ def container_image_details(ctx: click.Context) -> None:
                     "slack": slack,
                 }
                 data.append(item)
-    columns = ["app", "repository", "email", "slack"]
-    print_output(ctx.obj["options"], data, columns)
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "name", "sortable": True},
+                {"key": "namespaces", "sortable": True},
+                {"key": "apps", "sortable": True},
+                {"key": "count", "sortable": True},
+            ],
+            "items": data,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(data)} container images found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "app",
+            "repository",
+            "email",
+            "slack",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], data, columns)
 
 
 @get.command
