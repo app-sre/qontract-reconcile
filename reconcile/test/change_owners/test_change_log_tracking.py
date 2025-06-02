@@ -19,7 +19,6 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypesQueryData,
 )
 from reconcile.gql_definitions.common.apps import AppV1
-from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.gql import GqlApi
 
 APP_PATH = "/services/a/app.yml"
@@ -69,15 +68,11 @@ def setup_mocks(
     project = create_autospec(Project)
     project.default_branch = "master"
     project.commits = create_autospec(ProjectCommitManager)
-    commit = create_autospec(ProjectCommit)
-    commit.merge_requests.return_value = [
-        {
-            "merged_at": MERGED_AT,
-            "state": MRState.MERGED,
-            "target_branch": "master",
-        }
-    ]
-    commit.message = f"a\nb\n{DESCRIPTION}"
+    commit = create_autospec(
+        ProjectCommit,
+        committed_date=MERGED_AT,
+        message=f"Merge branch 'dev' into 'master'\n\n{DESCRIPTION}\n",
+    )
     project.commits.get.return_value = commit
     mocked_gl.project = project
 

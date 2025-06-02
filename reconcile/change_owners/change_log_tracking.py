@@ -2,6 +2,9 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable
 
+from gitlab.v4.objects import (
+    ProjectCommit,
+)
 from pydantic import BaseModel
 
 from reconcile.change_owners.bundle import (
@@ -23,7 +26,6 @@ from reconcile.typed_queries.jenkins import get_jenkins_configs
 from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -32,6 +34,7 @@ from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
+DEFAULT_MERGE_COMMIT_PREFIX = "Merge branch '"
 
 
 class ChangeLogItem(BaseModel):
@@ -65,6 +68,25 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
+
+    @staticmethod
+    def _get_description_from_commit(commit: ProjectCommit) -> str:
+        """
+        Extracts the description from a commit message.
+        Skip the default merge commit template.
+        Merge branch '%{source_branch}' into '%{target_branch}'
+        https://gitlab.cee.redhat.com/help/user/project/merge_requests/commit_templates#default-template-for-merge-commits
+
+        :param commit: ProjectCommit object from GitLab API
+        :return: Extracted description or an empty string if not found
+        """
+        for message in commit.message.splitlines():
+            trimmed_message = message.strip()
+            if trimmed_message and not trimmed_message.startswith(
+                DEFAULT_MERGE_COMMIT_PREFIX
+            ):
+                return trimmed_message
+        return ""
 
     @defer
     def run(
@@ -118,16 +140,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
 
             logging.info(f"Processing commit {commit}")
             gl_commit = gl.project.commits.get(commit)
-            merged_at = max(
-                mr["merged_at"]
-                for mr in gl_commit.merge_requests()
-                if mr["state"] == MRState.MERGED
-                and mr["target_branch"] == gl.project.default_branch
-            )
             change_log_item = ChangeLogItem(
                 commit=commit,
-                merged_at=merged_at,
-                description=gl_commit.message.split("\n")[2],
+                merged_at=gl_commit.committed_date,
+                description=self._get_description_from_commit(gl_commit),
             )
             change_log.items.append(change_log_item)
             obj = diff_state.get(key, None)
