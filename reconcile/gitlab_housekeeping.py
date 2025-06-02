@@ -72,6 +72,7 @@ HOLD_LABELS = [
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
+SQUASH_OPTION_ALWAYS = "always"
 
 merged_merge_requests = Counter(
     name="qontract_reconcile_merged_merge_requests",
@@ -613,7 +614,8 @@ def merge_merge_requests(
         logging.info(["merge", gl.project.name, mr.iid])
         if not dry_run and merges < merge_limit:
             try:
-                mr.merge()
+                squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
+                mr.merge(squash=squash)
                 labels = mr.labels
                 merged_merge_requests.labels(
                     project_id=mr.target_project_id,

@@ -211,13 +211,30 @@ def success_merge_request_pipeline() -> dict:
     }
 
 
+@pytest.mark.parametrize(
+    ["project_squash_option", "merge_request_squash", "expected_squash"],
+    [
+        ("never", True, True),
+        ("never", False, False),
+        ("always", True, True),
+        ("always", False, True),
+        ("default_on", True, True),
+        ("default_on", False, False),
+        ("default_off", True, True),
+        ("default_off", False, False),
+    ],
+)
 def test_merge_merge_requests(
     project: Project,
     can_be_merged_merge_request: Mock,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: dict,
+    project_squash_option: str,
+    merge_request_squash: bool,
+    expected_squash: bool,
 ) -> None:
     mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = project_squash_option
     mocked_gl.project = project
     mocked_gl.get_merge_request_label_events.return_value = [
         add_lgtm_merge_request_resource_label_event
@@ -225,6 +242,7 @@ def test_merge_merge_requests(
     mocked_gl.get_merge_request_pipelines.return_value = [
         success_merge_request_pipeline
     ]
+    can_be_merged_merge_request.squash = merge_request_squash
 
     gl_h.merge_merge_requests(
         False,
@@ -240,7 +258,7 @@ def test_merge_merge_requests(
         users_allowed_to_label=None,
     )
 
-    can_be_merged_merge_request.merge.assert_called_once()
+    can_be_merged_merge_request.merge.assert_called_once_with(squash=expected_squash)
 
 
 @pytest.fixture
