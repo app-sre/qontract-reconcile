@@ -1,12 +1,15 @@
 import logging
 import time
+from collections.abc import Generator, Iterable, Mapping
 from contextlib import contextmanager
+from typing import Any, cast
 
 from pydantic import BaseModel
 
 import reconcile.openshift_resources_base as orb
 from reconcile.gql_definitions.rhcs.certs import (
-    VaultSecretV1,
+    NamespaceOpenshiftResourceRhcsCertV1,
+    VaultSecretV1_VaultSecretV1,
 )
 from reconcile.gql_definitions.rhcs.certs import (
     query as rhcs_certs_query,
@@ -18,7 +21,7 @@ from reconcile.utils import gql
 from reconcile.utils.rhcsv2_certs import RhcsV2Cert, generate_cert
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.vault import SecretNotFound, VaultClient
+from reconcile.utils.vault import SecretNotFound, _VaultClient
 
 QONTRACT_INTEGRATION = "openshift-rhcs-certs"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
@@ -36,11 +39,11 @@ def desired_state_shard_config() -> DesiredStateShardConfig:
 
 
 class VaultRhcsCertSimulator:
-    def __init__(self):
+    def __init__(self) -> None:
         self._simulated_certs: dict[str, RhcsV2Cert] = {}
-        self._original_read_all = None
+        self._original_read_all: Any = None
 
-    def simulate(self, path: str):
+    def simulate(self, path: str) -> None:
         """Populate a simulated cert in Vault"""
         logging.info(f"Simulating RHCS cert at {path}")
         self._simulated_certs[path] = RhcsV2Cert(
@@ -50,23 +53,23 @@ class VaultRhcsCertSimulator:
         )
 
     @contextmanager
-    def patch_vault_client(self):
-        client = VaultClient()
+    def patch_vault_client(self) -> Generator[None, None, None]:
+        client = _VaultClient()
         self._original_read_all = client.read_all
 
-        def patched_read_all(spec):
+        def patched_read_all(spec: Mapping[str, Any]) -> dict[str, Any]:
             path = spec.get("path")
             if path in self._simulated_certs:
                 logging.info(f"Returning simulated RHCS cert for {path}")
                 return self._simulated_certs[path].dict()
             return self._original_read_all(spec)
 
-        client.read_all = patched_read_all
+        client.read_all = cast(Any, patched_read_all)  # type: ignore[method-assign]
         try:
             yield
         finally:
             # reset
-            client.read_all = self._original_read_all
+            client.read_all = cast(Any, self._original_read_all)  # type: ignore[method-assign]
 
 
 class OpenshiftRhcsCert(BaseModel):
@@ -74,13 +77,13 @@ class OpenshiftRhcsCert(BaseModel):
     namespace: str
     cluster: str
     sa_name: str
-    sa_password: VaultSecretV1
+    sa_password: VaultSecretV1_VaultSecretV1
     auto_renew_threshold_days: int
 
 
-def fetch_desired_rhcs_certs(gqlapi: gql.GqlApi):
-    certs = []
-    for ns in rhcs_certs_query(gqlapi.query).namespaces:
+def fetch_desired_rhcs_certs(gqlapi: gql.GqlApi) -> list[OpenshiftRhcsCert]:
+    certs: list[OpenshiftRhcsCert] = []
+    for ns in rhcs_certs_query(gqlapi.query).namespaces or []:
         if not ns.openshift_resources:
             continue
         certs.extend(
@@ -93,14 +96,16 @@ def fetch_desired_rhcs_certs(gqlapi: gql.GqlApi):
                 auto_renew_threshold_days=r.auto_renew_threshold_days or 7,
             )
             for r in ns.openshift_resources
-            if r.provider in PROVIDERS
+            if isinstance(r, NamespaceOpenshiftResourceRhcsCertV1)
         )
     return certs
 
 
-def reconcile_vault_rhcs_certs(dry_run: bool, vault_simulator: VaultRhcsCertSimulator):
+def reconcile_vault_rhcs_certs(
+    dry_run: bool, vault_simulator: VaultRhcsCertSimulator | None
+) -> None:
     gqlapi = gql.get_api()
-    vault = VaultClient()
+    vault = _VaultClient()
     cert_providers = rhcs_cert_provider_query(gqlapi.query)
     if not cert_providers.providers:
         raise Exception("No RHCS certificate providers defined")
@@ -140,7 +145,7 @@ def reconcile_vault_rhcs_certs(dry_run: bool, vault_simulator: VaultRhcsCertSimu
                 sa_password = vault.read(cert.sa_password.dict())
             except SecretNotFound:
                 logging.error(
-                    f"Unable to retrieve service account credentials at specified Vault path: {cert.sa_password['path']}. Skipping"
+                    f"Unable to retrieve service account credentials at specified Vault path: {cert.sa_password.path}. Skipping"
                 )
                 continue
             if not dry_run:
@@ -154,7 +159,7 @@ def reconcile_vault_rhcs_certs(dry_run: bool, vault_simulator: VaultRhcsCertSimu
             logging.info(
                 f"Writing cert details to Vault at {cp.vault_base_path}/{cert.cluster}/{cert.namespace}/{cert.name}"
             )
-            if dry_run:
+            if dry_run and vault_simulator:
                 # necessary for evaluating the corresponding openshift Secret to create in next stage
                 vault_simulator.simulate(
                     f"{cp.vault_base_path}/{cert.cluster}/{cert.namespace}/{cert.name}"
@@ -170,14 +175,13 @@ def reconcile_vault_rhcs_certs(dry_run: bool, vault_simulator: VaultRhcsCertSimu
 
 
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    cluster_name=None,
-    namespace_name=None,
-    defer=None,
-):
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    cluster_name: Iterable[str] | None = None,
+    namespace_name: str | None = None,
+) -> None:
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
     if dry_run:

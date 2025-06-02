@@ -58,6 +58,9 @@ def generate_cert(url: str, uid: str, pwd: str) -> RhcsV2Cert:
 
     return RhcsV2Cert(
         private_key=private_key_pem,
-        certificate=cert_pem.group(1).encode().decode('unicode_escape').replace('\\/', '/'),
+        certificate=cert_pem.group(1)
+        .encode()
+        .decode("unicode_escape")
+        .replace("\\/", "/"),
         expiration_timestamp=int(dt_expiry.timestamp()),
     )

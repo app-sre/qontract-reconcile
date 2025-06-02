@@ -72,7 +72,7 @@ from reconcile.utils.vault import (
     SecretNotFound,
     SecretVersionIsNone,
     SecretVersionNotFound,
-    VaultClient,
+    _VaultClient,
 )
 
 # +-----------------------+-------------------------+-------------+
@@ -407,7 +407,7 @@ def fetch_provider_rhcs_cert(
     integration: str,
     integration_version: str,
 ) -> OR:
-    vault = VaultClient()
+    vault = _VaultClient()
     gqlapi = gql.get_api()
     cert_providers = rhcs_cert_provider_query(gqlapi.query)
     if not cert_providers.providers:
@@ -652,14 +652,17 @@ def fetch_openshift_resource(
         _locked_debug_log(
             f"Processing {provider}: {resource['secret_name']} - {parent['cluster']['name']}/{parent['name']}"
         )
+        annotations = (
+            {}
+            if resource["annotations"] is None
+            else json.loads(resource["annotations"])
+        )
         try:
             openshift_resource = fetch_provider_rhcs_cert(
                 name=resource["secret_name"],
                 cluster=parent["cluster"]["name"],
                 namespace=parent["name"],
-                annotations=json.loads(resource.get("annotations"))
-                if resource.get("annotations")
-                else {},
+                annotations=annotations,
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
             )
