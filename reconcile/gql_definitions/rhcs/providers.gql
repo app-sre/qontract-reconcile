@@ -1,0 +1,8 @@
+# qenerate: plugin=pydantic_v1
+
+query RhcsCertProviders {
+  providers: rhcs_cert_provider_v1 {
+    url
+    vault_base_path
+  }
+}

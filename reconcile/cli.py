@@ -1739,6 +1739,31 @@ def openshift_vault_secrets(
     )
 
 
+@integration.command(short_help="Manages OpenShift Secrets for RHCS certificates")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@namespace_name
+@click.pass_context
+def openshift_rhcs_certs(
+    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
+):
+    import reconcile.openshift_rhcs_certs
+
+    run_integration(
+        reconcile.openshift_rhcs_certs,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        cluster_name=cluster_name,
+        namespace_name=namespace_name,
+    )
+
+
 @integration.command(short_help="Manages OpenShift Routes.")
 @threaded()
 @binary(["oc", "ssh"])
