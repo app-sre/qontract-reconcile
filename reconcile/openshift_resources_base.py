@@ -404,6 +404,11 @@ def fetch_provider_vault_secret(
     settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
 ) -> OR:
+    if not secret_reader and not settings:
+        raise Exception(
+            "Parameter settings or secret_reader must be provided to run fetch_provider_vault_secret."
+        )
+
     if not secret_reader:
         # get the fields from vault
         secret_reader = SecretReader(settings)
