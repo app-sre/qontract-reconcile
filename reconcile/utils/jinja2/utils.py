@@ -12,6 +12,7 @@ from reconcile.checkpoint import url_makes_sense
 from reconcile.github_users import init_github
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.helpers import flatten
 from reconcile.utils.jinja2.extensions import B64EncodeExtension, RaiseErrorExtension
 from reconcile.utils.jinja2.filters import (
@@ -116,10 +117,12 @@ def lookup_github_file_content(
         )
 
     gh = init_github()
-    content = gh.get_repo(repo).get_contents(path, ref)
-    if isinstance(content, list):
-        raise Exception(f"multiple files found for {repo}/{path}/{ref}")
-    return content.decoded_content.decode("utf-8")
+    content = GithubRepositoryApi.get_raw_file(
+        repo=gh.get_repo(repo),
+        path=path,
+        ref=ref,
+    )
+    return content.decode("utf-8")
 
 
 def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[Any]:

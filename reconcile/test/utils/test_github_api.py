@@ -135,12 +135,12 @@ def test_get_raw_file(github: Mock) -> None:
 
 
 def test_get_raw_file_with_multiple_contents(github: Mock) -> None:
-    repo = create_autospec(Repository)
+    repo = create_autospec(Repository, full_name="my/repo")
     mocked_file = create_autospec(spec=ContentFile, size=10)
     repo.get_contents.return_value = [mocked_file]
 
     with pytest.raises(
         UnsupportedDirectoryError,
-        match=r"Path some/path of ref some-ref is a directory!",
+        match=r"Path some/path of ref some-ref in repo my/repo is a directory!",
     ):
         GithubRepositoryApi.get_raw_file(path="some/path", ref="some-ref", repo=repo)

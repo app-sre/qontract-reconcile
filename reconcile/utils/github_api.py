@@ -82,7 +82,9 @@ class GithubRepositoryApi:
     ) -> bytes:
         content = repo.get_contents(path=path, ref=ref)
         if isinstance(content, list):
-            raise UnsupportedDirectoryError(f"Path {path} of ref {ref} is a directory!")
+            raise UnsupportedDirectoryError(
+                f"Path {path} of ref {ref} in repo {repo.full_name} is a directory!"
+            )
         if content.size < MAX_FILE_CONTENT_SIZE:
             return content.decoded_content
         blob = repo.get_git_blob(content.sha)
