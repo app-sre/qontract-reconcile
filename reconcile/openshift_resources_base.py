@@ -147,15 +147,6 @@ provider
 }
 ... on NamespaceOpenshiftResourceRhcsCert_v1 {
   secret_name
-  service_account_name
-  service_account_password {
-    ... on VaultSecret_v1 {
-      path
-      field
-      version
-    }
-  }
-  auto_renew_threshold_days
   annotations
 }
 """
