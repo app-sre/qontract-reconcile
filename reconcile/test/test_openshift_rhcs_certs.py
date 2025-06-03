@@ -1,5 +1,8 @@
 import time
 
+from pytest import MonkeyPatch
+from pytest_mock import MockerFixture
+
 from reconcile.gql_definitions.rhcs.certs import (
     VaultSecretV1_VaultSecretV1,
 )
@@ -12,7 +15,9 @@ from reconcile.utils.rhcsv2_certs import RhcsV2Cert
 from reconcile.utils.vault import SecretNotFound
 
 
-def test_create_or_update_certs_new_secret(monkeypatch, mocker):
+def test_create_or_update_certs_new_secret(
+    monkeypatch: MonkeyPatch, mocker: MockerFixture
+) -> None:
     desired_cert = OpenshiftRhcsCert(
         name="cert-1",
         namespace="app-sre-dev",
@@ -68,7 +73,7 @@ def test_create_or_update_certs_new_secret(monkeypatch, mocker):
     )
 
 
-def test_create_or_update_certs_not_needed(monkeypatch, mocker):
+def test_create_or_update_certs_not_needed(mocker: MockerFixture) -> None:
     future_ts = int(time.time()) + 1000 * 24 * 3600
     cert = OpenshiftRhcsCert(
         name="cert-2",
@@ -107,7 +112,9 @@ def test_create_or_update_certs_not_needed(monkeypatch, mocker):
     state.add.assert_not_called()
 
 
-def test_create_or_update_cert_needed_expiring(monkeypatch, mocker):
+def test_create_or_update_cert_needed_expiring(
+    monkeypatch: MonkeyPatch, mocker: MockerFixture
+) -> None:
     cert = OpenshiftRhcsCert(
         name="cert-3",
         namespace="app-sre-dev",
@@ -165,7 +172,7 @@ def test_create_or_update_cert_needed_expiring(monkeypatch, mocker):
     )
 
 
-def test_delete_cert(mocker):
+def test_delete_cert(mocker: MockerFixture) -> None:
     cert = OpenshiftRhcsCert(
         name="cert-4",
         namespace="app-sre-dev",
@@ -198,7 +205,7 @@ def test_delete_cert(mocker):
     state.rm.assert_called_once_with("/appsre01/app-sre-dev/delete-me-cert")
 
 
-def test_delete_certs_dry_run(monkeypatch, mocker):
+def test_delete_certs_dry_run(mocker: MockerFixture) -> None:
     cert = OpenshiftRhcsCert(
         name="cert-4",
         namespace="app-sre-dev",
