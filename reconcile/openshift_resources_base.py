@@ -72,7 +72,6 @@ from reconcile.utils.vault import (
     SecretNotFound,
     SecretVersionIsNone,
     SecretVersionNotFound,
-    _VaultClient,
 )
 
 # +-----------------------+-------------------------+-------------+
@@ -406,15 +405,15 @@ def fetch_provider_rhcs_cert(
     annotations: Mapping[str, str],
     integration: str,
     integration_version: str,
+    settings: Mapping[str, Any] | None = None,
 ) -> OR:
-    vault = _VaultClient()
+    secret_reader = SecretReader(settings)
     gqlapi = gql.get_api()
     cert_providers = rhcs_cert_provider_query(gqlapi.query)
     if not cert_providers.providers:
         raise Exception("No RHCS certificate providers defined")
     cp = cert_providers.providers[0]  # currently only anticipate one provider defined
-
-    vault_cert_secret = vault.read_all({
+    vault_cert_secret = secret_reader.read_all({
         "path": f"{cp.vault_base_path}/{cluster}/{namespace}/{name}"
     })
 
@@ -665,6 +664,7 @@ def fetch_openshift_resource(
                 annotations=annotations,
                 integration=QONTRACT_INTEGRATION,
                 integration_version=QONTRACT_INTEGRATION_VERSION,
+                settings=settings,
             )
         except SecretNotFound as e:
             raise FetchSecretError(e) from None
