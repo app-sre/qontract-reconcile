@@ -1,8 +1,6 @@
 import logging
 import time
-from collections.abc import Generator, Iterable, Mapping
-from contextlib import contextmanager
-from typing import Any, cast
+from collections.abc import Iterable
 
 from pydantic import BaseModel
 
@@ -18,10 +16,10 @@ from reconcile.gql_definitions.rhcs.providers import (
     query as rhcs_cert_provider_query,
 )
 from reconcile.utils import gql
-from reconcile.utils.rhcsv2_certs import RhcsV2Cert, generate_cert
+from reconcile.utils.rhcsv2_certs import generate_cert
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.vault import SecretNotFound, _VaultClient
+from reconcile.utils.vault import SecretNotFound, VaultClient, VaultClientSimulator
 
 QONTRACT_INTEGRATION = "openshift-rhcs-certs"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
@@ -36,40 +34,6 @@ def desired_state_shard_config() -> DesiredStateShardConfig:
         },
         sharded_run_review=lambda proposal: len(proposal.proposed_shards) <= 2,
     )
-
-
-class VaultRhcsCertSimulator:
-    def __init__(self) -> None:
-        self._simulated_certs: dict[str, RhcsV2Cert] = {}
-        self._original_read_all: Any = None
-
-    def simulate(self, path: str) -> None:
-        """Populate a simulated cert in Vault"""
-        logging.info(f"Simulating RHCS cert at {path}")
-        self._simulated_certs[path] = RhcsV2Cert(
-            certificate="DRY_RUN_CERTIFICATE",
-            private_key="DRY_RUN_PRIVATE_KEY",
-            expiration_timestamp=int(time.time()) + 90 * 24 * 60 * 60,
-        )
-
-    @contextmanager
-    def patch_vault_client(self) -> Generator[None, None, None]:
-        client = _VaultClient()
-        self._original_read_all = client.read_all
-
-        def patched_read_all(spec: Mapping[str, Any]) -> dict[str, Any]:
-            path = spec.get("path")
-            if path in self._simulated_certs:
-                logging.info(f"Returning simulated RHCS cert for {path}")
-                return self._simulated_certs[path].dict()
-            return self._original_read_all(spec)
-
-        client.read_all = cast(Any, patched_read_all)  # type: ignore[method-assign]
-        try:
-            yield
-        finally:
-            # reset
-            client.read_all = cast(Any, self._original_read_all)  # type: ignore[method-assign]
 
 
 class OpenshiftRhcsCert(BaseModel):
@@ -102,10 +66,10 @@ def fetch_desired_rhcs_certs(gqlapi: gql.GqlApi) -> list[OpenshiftRhcsCert]:
 
 
 def reconcile_vault_rhcs_certs(
-    dry_run: bool, vault_simulator: VaultRhcsCertSimulator | None
+    dry_run: bool, vault_simulator: VaultClientSimulator | None
 ) -> None:
     gqlapi = gql.get_api()
-    vault = _VaultClient()
+    vault = VaultClient()
     cert_providers = rhcs_cert_provider_query(gqlapi.query)
     if not cert_providers.providers:
         raise Exception("No RHCS certificate providers defined")
@@ -124,7 +88,7 @@ def reconcile_vault_rhcs_certs(
         except SecretNotFound:
             need_cert = True
             logging.info(
-                f"No existing cert found for cluster='{cert.cluster}', namespace='{cert.namespace}', secret='{cert.name}', threshold='{cert.auto_renew_threshold_days}' days"
+                f"No existing cert found for cluster='{cert.cluster}', namespace='{cert.namespace}', secret='{cert.name}', threshold='{cert.auto_renew_threshold_days} days'"
             )
 
         # validate cert expiration
@@ -134,7 +98,7 @@ def reconcile_vault_rhcs_certs(
             if expires_in < threshold_in_seconds:
                 need_cert = True
                 logging.info(
-                    f"Existing cert expires within threshold: cluster='{cert.cluster}', namespace='{cert.namespace}', secret='{cert.name}', threshold='{cert.auto_renew_threshold_days}' days"
+                    f"Existing cert expires within threshold: cluster='{cert.cluster}', namespace='{cert.namespace}', secret='{cert.name}', threshold='{cert.auto_renew_threshold_days} days'"
                 )
 
         if need_cert:
@@ -161,8 +125,17 @@ def reconcile_vault_rhcs_certs(
             )
             if dry_run and vault_simulator:
                 # necessary for evaluating the corresponding openshift Secret to create in next stage
-                vault_simulator.simulate(
-                    f"{cp.vault_base_path}/{cert.cluster}/{cert.namespace}/{cert.name}"
+                vault_simulator.write(
+                    secret={
+                        "data": {
+                            "certificate": "DRY_RUN_CERTIFICATE",
+                            "private_key": "DRY_RUN_PRIVATE_KEY",
+                            "expiration_timestamp": int(time.time())
+                            + 90 * 24 * 60 * 60,
+                        },
+                        "path": f"{cp.vault_base_path}/{cert.cluster}/{cert.namespace}/{cert.name}",
+                    },
+                    decode_base64=False,
                 )
             else:
                 vault.write(
@@ -185,7 +158,7 @@ def run(
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
     if dry_run:
-        vault_simulator = VaultRhcsCertSimulator()
+        vault_simulator = VaultClientSimulator()
         reconcile_vault_rhcs_certs(dry_run, vault_simulator)
         with vault_simulator.patch_vault_client():
             orb.run(

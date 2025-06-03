@@ -3,8 +3,10 @@ import logging
 import os
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Generator, Mapping
+from contextlib import contextmanager
 from functools import lru_cache
+from typing import Any, cast
 
 import hvac
 import requests
@@ -444,3 +446,55 @@ class VaultClient:
                 return cls._instance
 
             return cls._instance
+
+
+class VaultClientSimulator:
+    # Simulates limited VaultClient functionality during dry-run mode to support
+    # resource reconciliation logic that depends on Vault secrets.
+    #
+    # This class allows integrations like `openshift-rhcs-certs` to simulate
+    # Vault read/write operations for secrets that would normally be generated
+    # at runtime (e.g., RHCS certs) without actually modifying Vault.
+    #
+    # Usage:
+    #   simulator = VaultClientSimulator()
+    #   simulator.write({...})  # simulate a Vault secret
+    #   with simulator.patch_vault_client():
+    #       foo()
+
+    def __init__(self) -> None:
+        self._simulated_secrets: dict[str, Any] = {}
+        self._original_read_all: Any = None
+
+    def write(self, secret: Mapping, decode_base64: bool = True) -> None:
+        """Populate a simulated secret in Vault"""
+        path = secret["path"]
+        b64_data = secret["data"]
+        if decode_base64:
+            data = {
+                k: base64.b64decode(v or "").decode("utf-8")
+                for k, v in b64_data.items()
+            }
+        else:
+            data = b64_data
+        logging.info(f"Simulating Vault secret at {path}")
+        self._simulated_secrets[path] = data
+
+    @contextmanager
+    def patch_vault_client(self) -> Generator[None, None, None]:
+        client = VaultClient()
+        self._original_read_all = client.read_all
+
+        def patched_read_all(spec: Mapping[str, Any]) -> dict[str, Any]:
+            path = spec.get("path")
+            if path in self._simulated_secrets:
+                logging.info(f"Returning simulated Vault secret from {path}")
+                return self._simulated_secrets[path]
+            return self._original_read_all(spec)
+
+        client.read_all = cast(Any, patched_read_all)  # type: ignore[method-assign]
+        try:
+            yield
+        finally:
+            # reset
+            client.read_all = cast(Any, self._original_read_all)  # type: ignore[method-assign]
