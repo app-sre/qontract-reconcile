@@ -203,7 +203,7 @@ def delete_certs(
                 f"Deleting certificate secret from Vault. path='{cert_provider.vault_base_path}/{outstanding_cert_key}'"
             )
             if not dry_run:
-                vault.delete(f"{cert_provider.vault_base_path}/{outstanding_cert_key}")  # type: ignore[attr-defined]
+                vault.delete(f"{cert_provider.vault_base_path}{outstanding_cert_key}")  # type: ignore[attr-defined]
                 state.rm(outstanding_cert_key)
 
 
