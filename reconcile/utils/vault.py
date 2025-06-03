@@ -483,7 +483,7 @@ class VaultClientSimulator:
     @contextmanager
     def patch_vault_client(self) -> Generator[None, None, None]:
         client = VaultClient()
-        self._original_read_all = client.read_all
+        self._original_read_all = client.read_all  # type: ignore[attr-defined]
 
         def patched_read_all(spec: Mapping[str, Any]) -> dict[str, Any]:
             path = spec.get("path")
@@ -492,9 +492,9 @@ class VaultClientSimulator:
                 return self._simulated_secrets[path]
             return self._original_read_all(spec)
 
-        client.read_all = cast(Any, patched_read_all)  # type: ignore[method-assign]
+        client.read_all = cast(Any, patched_read_all)  # type: ignore[attr-defined]
         try:
             yield
         finally:
             # reset
-            client.read_all = cast(Any, self._original_read_all)  # type: ignore[method-assign]
+            client.read_all = cast(Any, self._original_read_all)  # type: ignore[attr-defined]
