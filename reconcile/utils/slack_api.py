@@ -463,7 +463,7 @@ class SlackApi:
             for r in result[result_key]:
                 results[r["id"]] = r
 
-            cursor = result["response_metadata"]["next_cursor"]
+            cursor = (result.get("response_metadata") or {}).get("next_cursor") or ""
 
             if not cursor:
                 break
@@ -517,7 +517,7 @@ class SlackApi:
             if not keep_fetching:
                 break
 
-            cursor = response["response_metadata"]["next_cursor"]
+            cursor = (response.get("response_metadata") or {}).get("next_cursor") or ""
             if not cursor:
                 break
 
