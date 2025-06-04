@@ -17,7 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 
 
 DEFINITION = """
@@ -37,8 +37,6 @@ query ExternalResourcesModules {
         provision_provider
         provider
         module_type
-        image
-        version
         reconcile_drift_interval_minutes
         reconcile_timeout_minutes
         outputs_secret_sync
@@ -46,6 +44,12 @@ query ExternalResourcesModules {
         outputs_secret_version
         resources {
           ... DeployResourcesFields
+        }
+        default_channel
+        channels {
+          name
+          image
+          version
         }
     }
 }
@@ -58,18 +62,24 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
+class ExternalResourcesChannelV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    image: str = Field(..., alias="image")
+    version: str = Field(..., alias="version")
+
+
 class ExternalResourcesModuleV1(ConfiguredBaseModel):
     provision_provider: str = Field(..., alias="provision_provider")
     provider: str = Field(..., alias="provider")
     module_type: str = Field(..., alias="module_type")
-    image: str = Field(..., alias="image")
-    version: str = Field(..., alias="version")
     reconcile_drift_interval_minutes: int = Field(..., alias="reconcile_drift_interval_minutes")
     reconcile_timeout_minutes: int = Field(..., alias="reconcile_timeout_minutes")
     outputs_secret_sync: bool = Field(..., alias="outputs_secret_sync")
     outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
     outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
     resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
+    default_channel: str = Field(..., alias="default_channel")
+    channels: list[ExternalResourcesChannelV1] = Field(..., alias="channels")
 
 
 class ExternalResourcesModulesQueryData(ConfiguredBaseModel):

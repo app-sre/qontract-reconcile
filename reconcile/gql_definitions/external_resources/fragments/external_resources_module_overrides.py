@@ -17,7 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -28,6 +28,7 @@ class ConfiguredBaseModel(BaseModel):
 
 class ExternalResourcesModuleOverrides(ConfiguredBaseModel):
     module_type: Optional[str] = Field(..., alias="module_type")
+    channel: Optional[str] = Field(..., alias="channel")
     image: Optional[str] = Field(..., alias="image")
     version: Optional[str] = Field(..., alias="version")
     reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")

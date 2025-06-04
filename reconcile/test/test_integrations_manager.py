@@ -11,7 +11,7 @@ import pytest
 
 import reconcile.integrations_manager as intop
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
     MinimalOCMOrganization,
 )
