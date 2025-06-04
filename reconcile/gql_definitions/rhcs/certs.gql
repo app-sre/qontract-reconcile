@@ -3,6 +3,8 @@
 query RhcsCerts {
   namespaces: namespaces_v1 {
     name
+    delete
+    clusterAdmin
     openshiftResources {
       provider
       ... on NamespaceOpenshiftResourceRhcsCert_v1 {
@@ -21,6 +23,21 @@ query RhcsCerts {
     }
     cluster {
       name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        ... CommonJumphostFields
+      }
+      automationToken {
+        ... VaultSecret
+      }
+      clusterAdminAutomationToken {
+        ... VaultSecret
+      }
+      internal
+      disable {
+        integrations
+      }
     }
   }
 }

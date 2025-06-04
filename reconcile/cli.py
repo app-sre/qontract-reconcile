@@ -1746,11 +1746,8 @@ def openshift_vault_secrets(
 @internal()
 @use_jump_host()
 @cluster_name
-@namespace_name
 @click.pass_context
-def openshift_rhcs_certs(
-    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
-):
+def openshift_rhcs_certs(ctx, thread_pool_size, internal, use_jump_host, cluster_name):
     import reconcile.openshift_rhcs_certs
 
     run_integration(
@@ -1760,7 +1757,6 @@ def openshift_rhcs_certs(
         internal,
         use_jump_host,
         cluster_name=cluster_name,
-        namespace_name=namespace_name,
     )
 
 

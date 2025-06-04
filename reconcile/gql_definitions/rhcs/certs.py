@@ -17,11 +17,34 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment CommonJumphostFields on ClusterJumpHost_v1 {
+  hostname
+  knownHosts
+  user
+  port
+  remotePort
+  identity {
+    ... VaultSecret
+  }
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+    path
+    field
+    version
+    format
+}
+
 query RhcsCerts {
   namespaces: namespaces_v1 {
     name
+    delete
+    clusterAdmin
     openshiftResources {
       provider
       ... on NamespaceOpenshiftResourceRhcsCert_v1 {
@@ -40,6 +63,21 @@ query RhcsCerts {
     }
     cluster {
       name
+      serverUrl
+      insecureSkipTLSVerify
+      jumpHost {
+        ... CommonJumphostFields
+      }
+      automationToken {
+        ... VaultSecret
+      }
+      clusterAdminAutomationToken {
+        ... VaultSecret
+      }
+      internal
+      disable {
+        integrations
+      }
     }
   }
 }
@@ -74,12 +112,25 @@ class NamespaceOpenshiftResourceRhcsCertV1(NamespaceOpenshiftResourceV1):
     annotations: Optional[Json] = Field(..., alias="annotations")
 
 
+class DisableClusterAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    server_url: str = Field(..., alias="serverUrl")
+    insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
+    jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
+    automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
+    cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
+    internal: Optional[bool] = Field(..., alias="internal")
+    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 
 class NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    delete: Optional[bool] = Field(..., alias="delete")
+    cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     openshift_resources: Optional[list[Union[NamespaceOpenshiftResourceRhcsCertV1, NamespaceOpenshiftResourceV1]]] = Field(..., alias="openshiftResources")
     cluster: ClusterV1 = Field(..., alias="cluster")
 

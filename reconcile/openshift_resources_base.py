@@ -35,9 +35,6 @@ import reconcile.utils.jinja2.utils as jinja2_utils
 from reconcile import queries
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.external_resources.meta import SECRET_UPDATED_AT
-from reconcile.gql_definitions.rhcs.providers import (
-    query as rhcs_cert_provider_query,
-)
 from reconcile.utils import (
     amtool,
     gql,
@@ -69,7 +66,6 @@ from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
-    SecretNotFound,
     SecretVersionIsNone,
     SecretVersionNotFound,
 )
@@ -143,10 +139,6 @@ provider
   variables
   enable_query_support
   tests
-}
-... on NamespaceOpenshiftResourceRhcsCert_v1 {
-  secret_name
-  annotations
 }
 """
 
@@ -398,41 +390,6 @@ def fetch_provider_resource(
         raise FetchResourceError(str(e)) from None
 
 
-def fetch_provider_rhcs_cert(
-    name: str,
-    cluster: str,
-    namespace: str,
-    annotations: Mapping[str, str],
-    integration: str,
-    integration_version: str,
-    settings: Mapping[str, Any] | None = None,
-) -> OR:
-    secret_reader = SecretReader(settings)
-    gqlapi = gql.get_api()
-    cert_providers = rhcs_cert_provider_query(gqlapi.query)
-    if not cert_providers.providers:
-        raise Exception("No RHCS certificate providers defined")
-    cp = cert_providers.providers[0]  # currently only anticipate one provider defined
-    vault_cert_secret = secret_reader.read_all({
-        "path": f"{cp.vault_base_path}/{cluster}/{namespace}/{name}"
-    })
-
-    body: dict[str, Any] = {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "type": "Opaque",
-        "metadata": {"name": name, "annotations": annotations},
-    }
-    for k, v in vault_cert_secret.items():
-        v = base64_encode_secret_field_value(v)
-        body.setdefault("data", {})[k] = v
-
-    try:
-        return OR(body, integration, integration_version)
-    except ConstructResourceError as e:
-        raise FetchResourceError(str(e)) from None
-
-
 def fetch_provider_vault_secret(
     path: str,
     version: str,
@@ -646,27 +603,6 @@ def fetch_openshift_resource(
                 settings=settings,
             )
         except (SecretVersionNotFound, SecretVersionIsNone) as e:
-            raise FetchSecretError(e) from None
-    elif provider == "rhcs-cert":
-        _locked_debug_log(
-            f"Processing {provider}: {resource['secret_name']} - {parent['cluster']['name']}/{parent['name']}"
-        )
-        annotations = (
-            {}
-            if resource["annotations"] is None
-            else json.loads(resource["annotations"])
-        )
-        try:
-            openshift_resource = fetch_provider_rhcs_cert(
-                name=resource["secret_name"],
-                cluster=parent["cluster"]["name"],
-                namespace=parent["name"],
-                annotations=annotations,
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-                settings=settings,
-            )
-        except SecretNotFound as e:
             raise FetchSecretError(e) from None
     elif provider == "route":
         path = resource["resource"]["path"]
