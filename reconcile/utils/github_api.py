@@ -1,12 +1,20 @@
+import base64
 import os
 from pathlib import Path
 from types import TracebackType
 from urllib.parse import urlparse
 
 from github import Commit, Github, GithubException, UnknownObjectException
+from github.Repository import Repository
 from sretoolbox.utils import retry
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
+
+MAX_FILE_CONTENT_SIZE = 1024**2  # 1MB
+
+
+class UnsupportedDirectoryError(Exception):
+    pass
 
 
 class GithubRepositoryApi:
@@ -66,16 +74,36 @@ class GithubRepositoryApi:
             tree_items.append(tree_item)
         return tree_items
 
-    @retry()
-    def get_file(self, path: str, ref: str = "master") -> bytes | None:
-        try:
-            content = self._repo.get_contents(path=path, ref=ref)
-            if isinstance(content, list):
-                # TODO: we should probably raise an exception here
-                # or handle this properly
-                # -> for now staying backwards compatible
-                return None
+    @staticmethod
+    def get_raw_file(
+        repo: Repository,
+        path: str,
+        ref: str,
+    ) -> bytes:
+        content = repo.get_contents(path=path, ref=ref)
+        if isinstance(content, list):
+            raise UnsupportedDirectoryError(
+                f"Path {path} of ref {ref} in repo {repo.full_name} is a directory!"
+            )
+        if content.size < MAX_FILE_CONTENT_SIZE:
             return content.decoded_content
+        blob = repo.get_git_blob(content.sha)
+        return base64.b64decode(blob.content)
+
+    @retry()
+    def get_file(
+        self,
+        path: str,
+        ref: str = "master",
+    ) -> bytes | None:
+        try:
+            return self.get_raw_file(
+                repo=self._repo,
+                path=path,
+                ref=ref,
+            )
+        except UnsupportedDirectoryError:
+            return None
         except GithubException as e:
             # handling a bug in the upstream GH library
             # https://github.com/PyGithub/PyGithub/issues/3179

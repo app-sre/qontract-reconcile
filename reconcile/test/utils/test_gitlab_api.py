@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import Mock, create_autospec
 
 import pytest
+from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
@@ -17,6 +18,7 @@ from gitlab.v4.objects import (
     PersonalAccessToken,
     PersonalAccessTokenManager,
     Project,
+    ProjectFileManager,
     ProjectIssue,
     ProjectIssueManager,
     ProjectIssueNoteManager,
@@ -642,41 +644,6 @@ def test_get_repository_tree_as_git_cli_interface(
         pagination="keyset",
         per_page=100,
         get_all=True,
-        path="",
-    )
-
-
-def test_get_repository_tree_with_project(
-    mocked_gitlab_api: GitLabApi,
-    mocked_gl: Mock,
-) -> None:
-    project = create_autospec(Project)
-    expected_result = [
-        {
-            "id": "a1e8f8d745cc87e3a9248358d9352bb7f9a0aeba",
-            "name": "html",
-            "type": "tree",
-            "path": "files/html",
-            "mode": "040000",
-        }
-    ]
-    project.repository_tree.return_value = expected_result
-
-    result = mocked_gitlab_api.get_repository_tree(
-        ref="main",
-        recursive=False,
-        project=project,
-        path="some/path",
-    )
-
-    assert result == expected_result
-    project.repository_tree.assert_called_once_with(
-        ref="main",
-        recursive=False,
-        pagination="keyset",
-        per_page=100,
-        get_all=True,
-        path="some/path",
     )
 
 
@@ -743,4 +710,57 @@ def test_get_directory_contents() -> None:
         format="tar.gz",
         sha="main",
         path="dir1",
+    )
+
+
+def test_get_file_as_git_cli_interface(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    expected_file = b"# README\nThis is a test file."
+    project = mocked_gl.projects.get.return_value
+    project_file_manager = create_autospec(ProjectFileManager)
+    project.files = project_file_manager
+    project_file_manager.raw.return_value = expected_file
+
+    file = mocked_gitlab_api.get_file(path="/README.md", ref="main")
+
+    assert file == expected_file
+    project_file_manager.raw.assert_called_once_with(
+        file_path="README.md",
+        ref="main",
+    )
+
+
+def test_get_file_when_not_found(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    project = mocked_gl.projects.get.return_value
+    project_file_manager = create_autospec(ProjectFileManager)
+    project.files = project_file_manager
+    project_file_manager.raw.side_effect = GitlabGetError()
+
+    file = mocked_gitlab_api.get_file(path="/README.md", ref="main")
+
+    assert file is None
+    project_file_manager.raw.assert_called_once_with(
+        file_path="README.md",
+        ref="main",
+    )
+
+
+def test_get_raw_file() -> None:
+    expected_file = b"# README\nThis is a test file."
+    project = create_autospec(Project)
+    project_file_manager = create_autospec(ProjectFileManager)
+    project.files = project_file_manager
+    project_file_manager.raw.return_value = expected_file
+
+    file = GitLabApi.get_raw_file(project=project, path="/README.md", ref="main")
+
+    assert file == expected_file
+    project_file_manager.raw.assert_called_once_with(
+        file_path="README.md",
+        ref="main",
     )
