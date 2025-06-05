@@ -93,6 +93,118 @@ def construct_rhcs_cert_oc_secret(
     return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
 
 
+def cert_expires_within_threshold(
+    ns: NamespaceV1,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
+    vault_cert_secret: Mapping[str, Any],
+) -> bool:
+    if not cert_resource.auto_renew_threshold_days:
+        cert_resource.auto_renew_threshold_days = 7  # set default for optional
+    expires_in = int(vault_cert_secret["expiration_timestamp"]) - time.time()
+    threshold_in_seconds = 60 * 60 * 24 * cert_resource.auto_renew_threshold_days
+    if expires_in < threshold_in_seconds:
+        logging.info(
+            f"Existing cert expires within threshold: cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', threshold='{cert_resource.auto_renew_threshold_days} days'"
+        )
+        return True
+    return False
+
+
+def get_vault_cert_secret(
+    ns: NamespaceV1,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
+    vault: VaultClient,
+    vault_base_path: str,
+) -> dict | None:
+    vault_cert_secret = None
+    try:
+        vault_cert_secret = vault.read_all({  # type: ignore[attr-defined]
+            "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
+        })
+    except SecretNotFound:
+        logging.info(
+            f"No existing cert found for cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', threshold='{cert_resource.auto_renew_threshold_days} days'"
+        )
+    return vault_cert_secret
+
+
+def generate_vault_cert_secret(
+    dry_run: bool,
+    ns: NamespaceV1,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
+    vault: VaultClient,
+    vault_base_path: str,
+    cert_provider_url: str,
+) -> dict:
+    logging.info(
+        f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
+    )
+    sa_password = vault.read(  # type: ignore[attr-defined]
+        cert_resource.service_account_password.dict()
+    )
+    if dry_run:
+        rhcs_cert = RhcsV2Cert(
+            certificate="PLACEHOLDER_CERT",
+            private_key="PLACEHOLDER_PRIVATE_KEY",
+            expiration_timestamp=int(time.time()),
+        )
+    else:
+        try:
+            rhcs_cert = generate_cert(
+                cert_provider_url,
+                cert_resource.service_account_name,
+                sa_password,
+            )
+        except ValueError as e:
+            raise Exception(
+                f"Certificate generation failed using service account '{cert_resource.service_account_name}': {e}"
+            ) from None
+        logging.info(
+            f"Writing cert details to Vault at {vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
+        )
+        vault.write(  # type: ignore[attr-defined]
+            secret={
+                "data": rhcs_cert.dict(),
+                "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
+            },
+            decode_base64=False,
+        )
+    return rhcs_cert.dict()
+
+
+def fetch_openshift_resource_for_cert_resource(
+    dry_run: bool,
+    ns: NamespaceV1,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
+    vault: VaultClient,
+    vault_base_path: str,
+    cert_provider_url: str,
+) -> OR:
+    vault_cert_secret = get_vault_cert_secret(ns, cert_resource, vault, vault_base_path)
+    if vault_cert_secret is None or cert_expires_within_threshold(
+        ns, cert_resource, vault_cert_secret
+    ):
+        vault_cert_secret = generate_vault_cert_secret(
+            dry_run, ns, cert_resource, vault, vault_base_path, cert_provider_url
+        )
+
+    if not dry_run:
+        metrics.set_gauge(
+            OpenshiftRhcsCertExpiration(
+                cert_name=cert_resource.secret_name,
+                namespace=ns.name,
+                cluster=ns.cluster.name,
+            ),
+            int(vault_cert_secret["expiration_timestamp"]),
+        )
+
+    return construct_rhcs_cert_oc_secret(
+        secret_name=cert_resource.secret_name,
+        cert=vault_cert_secret,
+        annotations=cert_resource.annotations or {},
+    )
+
+
 def fetch_desired_state(
     dry_run: bool,
     namespaces: list[NamespaceV1],
@@ -109,101 +221,19 @@ def fetch_desired_state(
 
     for ns in namespaces:
         for cert_resource in ns.openshift_resources or []:
-            if not isinstance(cert_resource, NamespaceOpenshiftResourceRhcsCertV1):
-                continue
-
-            vault_cert_secret = None
-            need_cert = False
-            rhcs_cert = None
-            try:
-                vault_cert_secret = vault.read_all({  # type: ignore[attr-defined]
-                    "path": f"{cert_provider.vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
-                })
-            except SecretNotFound:
-                need_cert = True
-                logging.info(
-                    f"No existing cert found for cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', threshold='{cert_resource.auto_renew_threshold_days} days'"
-                )
-
-            if not cert_resource.auto_renew_threshold_days:
-                cert_resource.auto_renew_threshold_days = 7  # set default for optional
-            # validate cert expiration
-            if vault_cert_secret:
-                expires_in = (
-                    int(vault_cert_secret["expiration_timestamp"]) - time.time()
-                )
-                threshold_in_seconds = (
-                    60 * 60 * 24 * cert_resource.auto_renew_threshold_days
-                )
-                if expires_in < threshold_in_seconds:
-                    need_cert = True
-                    logging.info(
-                        f"Existing cert expires within threshold: cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', threshold='{cert_resource.auto_renew_threshold_days} days'"
-                    )
-
-            if need_cert:
-                logging.info(
-                    f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
-                )
-                try:
-                    sa_password = vault.read(  # type: ignore[attr-defined]
-                        cert_resource.service_account_password.dict()
-                    )
-                except SecretNotFound:
-                    logging.error(
-                        f"Unable to retrieve service account credentials at specified Vault location: {cert_resource.service_account_password.dict()}. Skipping"
-                    )
-                    continue
-                if dry_run:
-                    rhcs_cert = RhcsV2Cert(
-                        certificate="PLACEHOLDER_CERT",
-                        private_key="PLACEHOLDER_PRIVATE_KEY",
-                        expiration_timestamp=int(time.time()),
-                    )
-                else:
-                    try:
-                        rhcs_cert = generate_cert(
-                            cert_provider.url,
-                            cert_resource.service_account_name,
-                            sa_password,
-                        )
-                    except ValueError as e:
-                        logging.error(
-                            f"Failed to generate RHCS certificate {cert_resource.secret_name} using service account {cert_resource.service_account_name}: {e}"
-                        )
-                        continue
-                    logging.info(
-                        f"Writing cert details to Vault at {cert_provider.vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
-                    )
-                    vault.write(  # type: ignore[attr-defined]
-                        secret={
-                            "data": rhcs_cert.dict(),
-                            "path": f"{cert_provider.vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
-                        },
-                        decode_base64=False,
-                    )
-
-            if not dry_run:
-                metrics.set_gauge(
-                    OpenshiftRhcsCertExpiration(
-                        cert_name=cert_resource.secret_name,
-                        namespace=ns.name,
-                        cluster=ns.cluster.name,
+            if isinstance(cert_resource, NamespaceOpenshiftResourceRhcsCertV1):
+                ri.add_desired_resource(
+                    cluster=ns.cluster.name,
+                    namespace=ns.name,
+                    resource=fetch_openshift_resource_for_cert_resource(
+                        dry_run,
+                        ns,
+                        cert_resource,
+                        vault,
+                        cert_provider.vault_base_path,
+                        cert_provider.url,
                     ),
-                    rhcs_cert.expiration_timestamp
-                    if rhcs_cert
-                    else int(vault_cert_secret["expiration_timestamp"]),
                 )
-
-            ri.add_desired_resource(
-                cluster=ns.cluster.name,
-                namespace=ns.name,
-                resource=construct_rhcs_cert_oc_secret(
-                    cert_resource.secret_name,
-                    rhcs_cert.dict() if rhcs_cert else dict(vault_cert_secret),
-                    cert_resource.annotations or {},
-                ),
-            )
 
 
 def run(
