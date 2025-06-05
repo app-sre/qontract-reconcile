@@ -194,6 +194,9 @@ class AWSApi:
         self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)  # type: ignore[method-assign]
         self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)  # type: ignore[method-assign]
         self._get_vpc_endpoints = lru_cache()(self._get_vpc_endpoints)  # type: ignore[method-assign]
+        self.get_alb_network_interface_ips = lru_cache()(  # type: ignore[method-assign]
+            self.get_alb_network_interface_ips
+        )
 
         if init_users:
             self.init_users()
