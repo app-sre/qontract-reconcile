@@ -42,6 +42,7 @@ if TYPE_CHECKING:
         FilterTypeDef,
         ImageTypeDef,
         LaunchPermissionModificationsTypeDef,
+        NetworkInterfaceTypeDef,
         RouteTableTypeDef,
         SubnetTypeDef,
         TagTypeDef,
@@ -52,6 +53,10 @@ if TYPE_CHECKING:
     )
     from mypy_boto3_ecr import ECRClient
     from mypy_boto3_elb import ElasticLoadBalancingClient
+    from mypy_boto3_elb.type_defs import (
+        LoadBalancerDescriptionTypeDef,
+        TagDescriptionTypeDef,
+    )
     from mypy_boto3_iam import IAMClient, IAMServiceResource
     from mypy_boto3_iam.type_defs import AccessKeyMetadataTypeDef
     from mypy_boto3_logs import CloudWatchLogsClient
@@ -92,7 +97,9 @@ else:
         TransitGatewayTypeDef
     ) = TransitGatewayVpcAttachmentTypeDef = UpgradeTargetTypeDef = (
         VpcEndpointTypeDef
-    ) = VpcTypeDef = object
+    ) = VpcTypeDef = NetworkInterfaceTypeDef = LoadBalancerDescriptionTypeDef = (
+        TagDescriptionTypeDef
+    ) = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -194,9 +201,9 @@ class AWSApi:
         self.get_vpc_route_tables = lru_cache()(self.get_vpc_route_tables)  # type: ignore[method-assign]
         self.get_vpc_subnets = lru_cache()(self.get_vpc_subnets)  # type: ignore[method-assign]
         self._get_vpc_endpoints = lru_cache()(self._get_vpc_endpoints)  # type: ignore[method-assign]
-        self.get_alb_network_interface_ips = lru_cache()(  # type: ignore[method-assign]
-            self.get_alb_network_interface_ips
-        )
+        self.get_network_interfaces = lru_cache()(self.get_network_interfaces)  # type: ignore[method-assign]
+        self.get_load_balancers = lru_cache()(self.get_load_balancers)  # type: ignore[method-assign]
+        self.get_load_balancer_tags = lru_cache()(self.get_load_balancer_tags)  # type: ignore[method-assign]
 
         if init_users:
             self.init_users()
@@ -1568,8 +1575,9 @@ class AWSApi:
         ec2.create_tags(Resources=[resource_id], Tags=[tag_type_def])
 
     def get_alb_network_interface_ips(
-        self, assumed_role_data: tuple[str, str | None, str], service_name: str
+        self, account: awsh.Account, service_name: str
     ) -> set[str]:
+        assumed_role_data = self._get_account_assume_data(account)
         ec2_client = self._get_assumed_role_client(
             account_name=assumed_role_data[0],
             assume_role=assumed_role_data[1],
@@ -1583,14 +1591,14 @@ class AWSApi:
             client_type="elb",
         )
         service_tag = {"Key": "kubernetes.io/service-name", "Value": service_name}
-        nis = ec2_client.describe_network_interfaces()["NetworkInterfaces"]
-        lbs = elb_client.describe_load_balancers()["LoadBalancerDescriptions"]
+        nis = self.get_network_interfaces(ec2_client)
+        lbs = self.get_load_balancers(elb_client)
         result_ips = set()
         for lb in lbs:
             lb_name = lb["LoadBalancerName"]
-            tag_descriptions = elb_client.describe_tags(LoadBalancerNames=[lb_name])[
-                "TagDescriptions"
-            ]
+            tag_descriptions = self.get_load_balancer_tags(
+                elb=elb_client, lb_name=lb_name
+            )
             for td in tag_descriptions:
                 tags = td["Tags"]
                 if service_tag not in tags:
@@ -1607,6 +1615,22 @@ class AWSApi:
                     result_ips.add(ip)
 
         return result_ips
+
+    @staticmethod
+    def get_network_interfaces(ec2: EC2Client) -> list[NetworkInterfaceTypeDef]:
+        return ec2.describe_network_interfaces()["NetworkInterfaces"]
+
+    @staticmethod
+    def get_load_balancers(
+        elb: ElasticLoadBalancingClient,
+    ) -> list[LoadBalancerDescriptionTypeDef]:
+        return elb.describe_load_balancers()["LoadBalancerDescriptions"]
+
+    @staticmethod
+    def get_load_balancer_tags(
+        elb: ElasticLoadBalancingClient, lb_name: str
+    ) -> list[TagDescriptionTypeDef]:
+        return elb.describe_tags(LoadBalancerNames=[lb_name])["TagDescriptions"]
 
     @staticmethod
     def get_vpc_default_sg_id(vpc_id: str, ec2: EC2Client) -> str | None:
