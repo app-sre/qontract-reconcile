@@ -17,6 +17,7 @@ from reconcile.openshift_rhcs_certs import (
     get_namespaces_with_rhcs_certs,
 )
 from reconcile.test.fixtures import Fixtures
+from reconcile.typed_queries.rhcs_provider_settings import RhcsProviderSettingsV1
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.rhcsv2_certs import RhcsV2Cert
@@ -66,15 +67,12 @@ def ri(namespaces: list[NamespaceV1]) -> ResourceInventory:
 
 @pytest.fixture
 def mock_rhcs_cert_provider(mocker: MockerFixture) -> MagicMock:
-    mock_provider = MagicMock()
-    mock_provider.vault_base_path = "app-interface/integrations-output"
-    mock_provider.url = "https://ca.example.com"
-
-    mock_query_result = MagicMock()
-    mock_query_result.providers = [mock_provider]
-
+    mock_provider = RhcsProviderSettingsV1(
+        url="https://ca.example.com/submit",
+        vaultBasePath="app-interface/integrations-output",
+    )
     return mocker.patch.object(
-        rhcs_certs, "rhcs_cert_provider_query", return_value=mock_query_result
+        rhcs_certs, "get_rhcs_provider_settings", return_value=mock_provider
     )
 
 
@@ -132,8 +130,8 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     fetch_desired_state(False, namespaces, ri, query_func)
 
     expected_vault_write_paths = {
-        "test-cert-1": "app-interface/integrations-output/cluster/with-openshift-rhcs-certs/test-cert-1",
-        "test-cert-2": "app-interface/integrations-output/cluster/with-openshift-rhcs-certs/test-cert-2",
+        "test-cert-1": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-1",
+        "test-cert-2": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-2",
     }
     assert mock_cert_generator.call_count == 2
     assert vault_instance.write.call_count == 2

@@ -13,12 +13,10 @@ from reconcile.gql_definitions.rhcs.certs import (
 from reconcile.gql_definitions.rhcs.certs import (
     query as rhcs_certs_query,
 )
-from reconcile.gql_definitions.rhcs.providers import (
-    query as rhcs_cert_provider_query,
-)
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.rhcs_provider_settings import get_rhcs_provider_settings
 from reconcile.utils import gql, metrics
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.metrics import GaugeMetric, normalize_integration_name
@@ -212,12 +210,7 @@ def fetch_desired_state(
     query_func: Callable,
 ) -> None:
     vault = VaultClient()
-    cert_providers = rhcs_cert_provider_query(query_func=query_func)
-    if not cert_providers.providers:
-        raise Exception("No RHCS certificate providers defined")
-    cert_provider = cert_providers.providers[
-        0
-    ]  # currently only anticipate one provider defined
+    cert_provider = get_rhcs_provider_settings(query_func=query_func)
 
     for ns in namespaces:
         for cert_resource in ns.openshift_resources or []:
@@ -230,7 +223,7 @@ def fetch_desired_state(
                         ns,
                         cert_resource,
                         vault,
-                        cert_provider.vault_base_path,
+                        f"{cert_provider.vault_base_path}/{QONTRACT_INTEGRATION}",
                         cert_provider.url,
                     ),
                 )
@@ -246,7 +239,6 @@ def run(
     gql_api = gql.get_api()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-
     namespaces = get_namespaces_with_rhcs_certs(gql_api.query, cluster_name)
     oc_map = init_oc_map_from_namespaces(
         namespaces=namespaces,
@@ -256,7 +248,6 @@ def run(
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
-
     ri = ResourceInventory()
     state_specs = ob.init_specs_to_fetch(
         ri,
@@ -277,6 +268,5 @@ def run(
     fetch_desired_state(dry_run, namespaces, ri, gql_api.query)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-
     if ri.has_error_registered():
         sys.exit(1)

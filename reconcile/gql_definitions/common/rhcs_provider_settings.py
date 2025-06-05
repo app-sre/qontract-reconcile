@@ -19,10 +19,12 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query RhcsCertProviders {
-  providers: rhcs_cert_provider_v1 {
-    url
-    vault_base_path
+query RhcsProviderSettings {
+  settings: app_interface_settings_v1 {
+    rhcsProvider {
+      url
+      vaultBasePath
+    }
   }
 }
 """
@@ -34,16 +36,20 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class RhcsCertProviderV1(ConfiguredBaseModel):
+class RhcsProviderSettingsV1(ConfiguredBaseModel):
     url: str = Field(..., alias="url")
-    vault_base_path: str = Field(..., alias="vault_base_path")
+    vault_base_path: str = Field(..., alias="vaultBasePath")
 
 
-class RhcsCertProvidersQueryData(ConfiguredBaseModel):
-    providers: Optional[list[RhcsCertProviderV1]] = Field(..., alias="providers")
+class AppInterfaceSettingsV1(ConfiguredBaseModel):
+    rhcs_provider: Optional[RhcsProviderSettingsV1] = Field(..., alias="rhcsProvider")
 
 
-def query(query_func: Callable, **kwargs: Any) -> RhcsCertProvidersQueryData:
+class RhcsProviderSettingsQueryData(ConfiguredBaseModel):
+    settings: Optional[list[AppInterfaceSettingsV1]] = Field(..., alias="settings")
+
+
+def query(query_func: Callable, **kwargs: Any) -> RhcsProviderSettingsQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -56,7 +62,7 @@ def query(query_func: Callable, **kwargs: Any) -> RhcsCertProvidersQueryData:
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        RhcsCertProvidersQueryData: queried data parsed into generated classes
+        RhcsProviderSettingsQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return RhcsCertProvidersQueryData(**raw_data)
+    return RhcsProviderSettingsQueryData(**raw_data)
