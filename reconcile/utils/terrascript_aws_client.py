@@ -5189,7 +5189,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         with AWSApi(
             1, [account], secret_reader=self.secret_reader, init_users=False
         ) as awsapi:
-            ips = awsapi.get_alb_network_interface_ips(account, service_name)
+            assumed_role_data = awsapi._get_account_assume_data(account)
+            ips = awsapi.get_alb_network_interface_ips(assumed_role_data, service_name)
         if not ips:
             raise ValueError(
                 f"[{account_name}/{identifier}] expected at least one "
