@@ -1568,9 +1568,8 @@ class AWSApi:
         ec2.create_tags(Resources=[resource_id], Tags=[tag_type_def])
 
     def get_alb_network_interface_ips(
-        self, account: awsh.Account, service_name: str
+        self, assumed_role_data: tuple[str, str | None, str], service_name: str
     ) -> set[str]:
-        assumed_role_data = self._get_account_assume_data(account)
         ec2_client = self._get_assumed_role_client(
             account_name=assumed_role_data[0],
             assume_role=assumed_role_data[1],
