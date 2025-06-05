@@ -54,7 +54,7 @@ query JiraBoardsForPermissionValidation {
     escalationPolicies {
       name
       channels {
-        jiraComponent
+        jiraComponents
       }
     }
     disable {
@@ -91,7 +91,7 @@ class JiraSeverityPriorityMappingsV1(ConfiguredBaseModel):
 
 
 class AppEscalationPolicyChannelsV1(ConfiguredBaseModel):
-    jira_component: Optional[str] = Field(..., alias="jiraComponent")
+    jira_components: Optional[list[str]] = Field(..., alias="jiraComponents")
 
 
 class AppEscalationPolicyV1(ConfiguredBaseModel):
