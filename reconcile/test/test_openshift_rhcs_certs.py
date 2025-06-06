@@ -119,7 +119,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs._VaultClient")
     vault_instance = mock_vault.return_value
     vault_instance.read_all.side_effect = SecretNotFound("not found")
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
@@ -166,7 +166,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs_dry_run(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs._VaultClient")
     vault_instance = mock_vault.return_value
     vault_instance.read_all.side_effect = SecretNotFound("not found")
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
@@ -197,7 +197,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs._VaultClient")
     vault_instance = mock_vault.return_value
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
@@ -254,7 +254,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
         "expiration_timestamp": str(int(time.time()) + 86400 * 120),  # 120 days
     }
 
-    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs._VaultClient")
     vault_instance = mock_vault.return_value
 
     # Simulate returning [expiring_cert, valid_cert] for cert-1 and cert-2 respectively
