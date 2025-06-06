@@ -96,13 +96,12 @@ def cert_expires_within_threshold(
     cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
     vault_cert_secret: Mapping[str, Any],
 ) -> bool:
-    if not cert_resource.auto_renew_threshold_days:
-        cert_resource.auto_renew_threshold_days = 7  # set default for optional
+    auto_renew_threshold_days = cert_resource.auto_renew_threshold_days or 7
     expires_in = int(vault_cert_secret["expiration_timestamp"]) - time.time()
-    threshold_in_seconds = 60 * 60 * 24 * cert_resource.auto_renew_threshold_days
+    threshold_in_seconds = 60 * 60 * 24 * auto_renew_threshold_days
     if expires_in < threshold_in_seconds:
         logging.info(
-            f"Existing cert expires within threshold: cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', threshold='{cert_resource.auto_renew_threshold_days} days'"
+            f"Existing cert expires within threshold: cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', threshold='{auto_renew_threshold_days} days'"
         )
         return True
     return False
