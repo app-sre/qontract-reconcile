@@ -25,6 +25,7 @@ from reconcile.utils.saasherder.interfaces import (
     SaasResourceTemplateTarget,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.slo_document_manager import SLODocumentManager
 
 
 class Providers(Enum):
@@ -68,6 +69,9 @@ class TriggerSpecBase:
 
 @dataclass
 class TriggerSpecConfig(TriggerSpecBase):
+    resource_template_url: str
+    target_ref: str
+    slo_document_manager: SLODocumentManager | None = None
     target_name: str | None = None
     reason: str | None = None
 
