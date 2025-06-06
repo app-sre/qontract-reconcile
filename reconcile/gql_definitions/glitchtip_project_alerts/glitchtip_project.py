@@ -68,7 +68,7 @@ query GlitchtipProjectsWithAlerts {
               integrations
             }
           }
-          jiraComponent
+          jiraComponents
           jiraLabels
         }
       }
@@ -127,7 +127,7 @@ class JiraBoardV1(ConfiguredBaseModel):
 
 class AppEscalationPolicyChannelsV1(ConfiguredBaseModel):
     jira_board: list[JiraBoardV1] = Field(..., alias="jiraBoard")
-    jira_component: Optional[str] = Field(..., alias="jiraComponent")
+    jira_components: Optional[list[str]] = Field(..., alias="jiraComponents")
     jira_labels: Optional[list[str]] = Field(..., alias="jiraLabels")
 
 

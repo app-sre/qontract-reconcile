@@ -160,9 +160,7 @@ class GlitchtipProjectAlertsIntegration(
                             continue
                         params = {
                             "labels": alert_labels + (channels.jira_labels or []),
-                            "components": [channels.jira_component]
-                            if channels.jira_component
-                            else [],
+                            "components": channels.jira_components or [],
                         } | token_params
                         if board.issue_type:
                             params["issue_type"] = board.issue_type
