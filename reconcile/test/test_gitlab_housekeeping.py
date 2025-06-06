@@ -2,7 +2,9 @@ from datetime import (
     datetime,
     timedelta,
 )
+from typing import Any
 from unittest.mock import (
+    MagicMock,
     Mock,
     create_autospec,
     patch,
@@ -31,7 +33,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 fixture = Fixtures("gitlab_housekeeping").get_anymarkup("api.yml")
 
 
-def get_mock(path, query_data=None, streamed=False, raw=False, **kwargs):
+def get_mock(path: str, **kwargs: Any) -> dict:
     path = path[1:]
     data = fixture.get("gitlab").get(path)
     return data
@@ -42,7 +44,9 @@ class TestGitLabHousekeeping:
     @patch.object(SecretReader, "read")
     @patch.object(Gitlab, "http_get")
     @patch.object(Gitlab, "http_post")
-    def test_clean_pipelines_happy_path(http_post, http_get, secret_read):
+    def test_clean_pipelines_happy_path(
+        http_post: MagicMock, http_get: MagicMock, _: MagicMock
+    ) -> None:
         http_get.side_effect = get_mock
         now = datetime.utcnow()
 
@@ -94,13 +98,13 @@ class TestGitLabHousekeeping:
         timeout = 60
 
         timeout_pipelines = gl_h.get_timed_out_pipelines(pipelines, timeout)
-        gl_h.clean_pipelines(dry_run, gl, "1", timeout_pipelines)
+        gl_h.clean_pipelines(dry_run, gl, 1, timeout_pipelines)
 
         # Test if mock have this exact calls
         http_post.assert_called_once_with("/projects/1/pipelines/47/cancel")
 
 
-def test_calculate_time_since_approval():
+def test_calculate_time_since_approval() -> None:
     one_hour_ago = (datetime.utcnow() - timedelta(minutes=60)).strftime(DATE_FORMAT)
 
     time_since_merge = gl_h._calculate_time_since_approval(one_hour_ago)
@@ -108,7 +112,7 @@ def test_calculate_time_since_approval():
     assert round(time_since_merge) == 60
 
 
-def test_is_rebase():
+def test_is_rebase() -> None:
     expected_ref = "master"
     mr = create_autospec(ProjectMergeRequest)
     mr.target_branch = expected_ref
@@ -225,6 +229,7 @@ def success_merge_request_pipeline() -> dict:
     ],
 )
 def test_merge_merge_requests(
+    state: Mock,
     project: Project,
     can_be_merged_merge_request: Mock,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
@@ -245,13 +250,14 @@ def test_merge_merge_requests(
     can_be_merged_merge_request.squash = merge_request_squash
 
     gl_h.merge_merge_requests(
-        False,
-        mocked_gl,
-        [can_be_merged_merge_request],
-        gl_h.ReloadToggle(reload=False),
-        1,
-        False,
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
         app_sre_usernames=set(),
+        state=state,
         pipeline_timeout=None,
         insist=True,
         wait_for_pipeline=False,
@@ -270,6 +276,7 @@ def running_merge_request_pipeline() -> dict:
 
 def test_merge_merge_requests_with_retry(
     mocker: MockerFixture,
+    state: Mock,
     project: Project,
     can_be_merged_merge_request: ProjectMergeRequest,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
@@ -295,6 +302,7 @@ def test_merge_merge_requests_with_retry(
             1,
             False,
             app_sre_usernames=set(),
+            state=state,
             pipeline_timeout=None,
             insist=True,
             wait_for_pipeline=True,
@@ -381,8 +389,8 @@ def state() -> Mock:
     return state
 
 
-class StatusMock:
-    def __init__(self, name, status):
+class StatusMock:  # noqa: B903
+    def __init__(self, name: str, status: str) -> None:
         self.name = name
         self.status = status
 
