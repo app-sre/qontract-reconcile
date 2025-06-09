@@ -2323,27 +2323,6 @@ def terraform_cloudflare_users(
     )
 
 
-@integration.command(
-    short_help="Manage Cloud Resources using Cloud Native Assets (CNA)."
-)
-@enable_deletion(default=False)
-@threaded()
-@click.pass_context
-def cna_resources(
-    ctx,
-    enable_deletion,
-    thread_pool_size,
-):
-    import reconcile.cna.integration
-
-    run_integration(
-        reconcile.cna.integration,
-        ctx.obj,
-        enable_deletion,
-        thread_pool_size,
-    )
-
-
 @integration.command(short_help="Manage auto-promotions defined in SaaS files")
 @threaded()
 @click.option("--env-name", default=None, help="environment to filter saas files by")
