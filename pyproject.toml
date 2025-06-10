@@ -370,7 +370,6 @@ module = [
     "reconcile.test.test_closedbox_endpoint_monitoring",
     "reconcile.test.test_dashdotdb_dora",
     "reconcile.test.test_database_access_manager",
-    "reconcile.test.test_gitlab_members",
     "reconcile.test.test_jenkins_worker_fleets",
     "reconcile.test.test_jump_host",
     "reconcile.test.test_make",
