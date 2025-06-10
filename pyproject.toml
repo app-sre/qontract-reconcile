@@ -250,7 +250,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.integrations_manager",
     "reconcile.jenkins_base",
     "reconcile.jenkins_job_builder",
     "reconcile.jenkins_job_builds_cleaner",
@@ -372,7 +371,6 @@ module = [
     "reconcile.test.test_dashdotdb_dora",
     "reconcile.test.test_database_access_manager",
     "reconcile.test.test_gitlab_members",
-    "reconcile.test.test_integrations_manager",
     "reconcile.test.test_jenkins_worker_fleets",
     "reconcile.test.test_jump_host",
     "reconcile.test.test_make",
