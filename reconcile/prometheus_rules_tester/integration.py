@@ -57,7 +57,7 @@ class Test(BaseModel):
     rule_length: int
     tests: list[TestContent] | None
     result: CommandExecutionResult | None = None
-
+    promtool_version: str | None = None
 
 class RuleToFetch(BaseModel):
     namespace: dict[str, Any]
@@ -80,6 +80,7 @@ def fetch_rule_and_tests(
     rule_body = openshift_resource.body
     rule_length = len(yaml.dump(rule_body))  # Same as prometheus-operator does it.
 
+    promtool_version: str | None = rule.resource.get("promtool_version")
     if rule.resource["type"] == "resource-template-extracurlyjinja2":
         variables = json.loads(rule.resource.get("variables") or "{}")
         variables["resource"] = rule.resource
@@ -113,6 +114,7 @@ def fetch_rule_and_tests(
         rule=rule_body,
         rule_length=rule_length,
         tests=tests,
+        promtool_version=promtool_version,
     )
 
 
@@ -204,7 +206,7 @@ def check_rule_length(rule_length: int) -> CommandExecutionResult:
 
 def run_test(test: Test, alerting_services: Iterable[str]) -> None:
     """Checks rules, run tests and stores the result in test.result"""
-    check_rule_result = promtool.check_rule(test.rule["spec"])
+    check_rule_result = promtool.check_rule(test.rule["spec"], promtool_version=test.promtool_version)
     valid_services_result = check_valid_services(test.rule, alerting_services)
     rule_length_result = check_rule_length(test.rule_length)
     test.result = check_rule_result and valid_services_result and rule_length_result
@@ -214,7 +216,7 @@ def run_test(test: Test, alerting_services: Iterable[str]) -> None:
 
     rule_files = {test.rule_path: test.rule["spec"]}
     for t in test.tests or []:
-        result = promtool.run_test(t.test, rule_files)
+        result = promtool.run_test(t.test, rule_files, promtool_version=test.promtool_version)
         test.result = test.result and result
 
 
