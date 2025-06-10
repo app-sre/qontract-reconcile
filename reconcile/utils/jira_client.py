@@ -176,7 +176,7 @@ class JiraClient:
             server=server_url,
         )
 
-    def get_issues(self, fields: Mapping | None = None) -> list[Issue]:
+    def get_issues(self, fields: Iterable | None = None) -> list[Issue]:
         block_size = 100
         block_num = 0
 
