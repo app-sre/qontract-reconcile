@@ -250,7 +250,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.gitlab_permissions",
     "reconcile.gitlab_projects",
     "reconcile.integrations_manager",
     "reconcile.jenkins_base",

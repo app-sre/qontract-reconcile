@@ -1,10 +1,12 @@
 import itertools
 import logging
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, cast
 
 from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import (
+    GroupMember,
     Project,
     SharedProject,
 )
@@ -159,7 +161,9 @@ class GroupPermissionHandler:
             raise ExceptionGroup("Reconcile errors occurred", errors)
 
 
-def get_members_to_add(repo, gl, app_sre):
+def get_members_to_add(
+    repo: str, gl: GitLabApi, app_sre: list[GroupMember]
+) -> list[dict[str, Any]]:
     maintainers = get_all_app_sre_maintainers(repo, gl, app_sre)
     if maintainers is None:
         return []
@@ -172,7 +176,9 @@ def get_members_to_add(repo, gl, app_sre):
     return members_to_add
 
 
-def get_all_app_sre_maintainers(repo, gl, app_sre):
+def get_all_app_sre_maintainers(
+    repo: str, gl: GitLabApi, app_sre: list[GroupMember]
+) -> list[str]:
     app_sre_user_ids = [user.id for user in app_sre]
     chunks = batches.batched(app_sre_user_ids, PAGE_SIZE)
     app_sre_maintainers = (
@@ -182,12 +188,14 @@ def get_all_app_sre_maintainers(repo, gl, app_sre):
     return list(itertools.chain.from_iterable(app_sre_maintainers))
 
 
-def create_user_ids_query(ids):
+def create_user_ids_query(ids: Iterable[str]) -> dict[str, str]:
     return {"user_ids": ",".join(str(id) for id in ids)}
 
 
 @defer
-def run(dry_run, thread_pool_size=10, defer=None):
+def run(
+    dry_run: bool, thread_pool_size: int = 10, defer: Callable | None = None
+) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
@@ -221,7 +229,7 @@ def share_project_with_group_members(
             gl.add_project_member(m["repo"], m["user"])
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     instance = queries.get_gitlab_instance()
     return {
         "instance": instance,
