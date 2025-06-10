@@ -6,16 +6,20 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RhcsV2Cert(BaseModel):
-    certificate: str
-    private_key: str
+    certificate: str = Field(alias="tls.crt")
+    private_key: str = Field(alias="tls.key")
+    ca_cert: str = Field(alias="ca.crt")
     expiration_timestamp: int
 
+    class Config:
+        allow_population_by_field_name = True
 
-def generate_cert(url: str, uid: str, pwd: str) -> RhcsV2Cert:
+
+def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cert:
     private_key = rsa.generate_private_key(65537, 4096)
     csr = (
         x509.CertificateSigningRequestBuilder()
@@ -35,8 +39,9 @@ def generate_cert(url: str, uid: str, pwd: str) -> RhcsV2Cert:
         "renewal": "false",
         "xmlOutput": "false",
     }
-    response = requests.post(url, data=data, verify=False)
+    response = requests.post(issuer_url, data=data)
     response.raise_for_status()
+
     cert_pem = re.search(
         r'outputList\.outputVal="(-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----(?:\\n|\r?\n)?)";',
         response.text,
@@ -56,11 +61,16 @@ def generate_cert(url: str, uid: str, pwd: str) -> RhcsV2Cert:
         encryption_algorithm=serialization.NoEncryption(),
     ).decode()
 
+    response = requests.get(ca_url)
+    response.raise_for_status()
+    ca_pem = response.text
+
     return RhcsV2Cert(
         private_key=private_key_pem,
         certificate=cert_pem.group(1)
         .encode()
         .decode("unicode_escape")
         .replace("\\/", "/"),
+        ca_cert=ca_pem,
         expiration_timestamp=int(dt_expiry.timestamp()),
     )

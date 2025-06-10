@@ -6,6 +6,9 @@ from typing import Any
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
+from reconcile.gql_definitions.common.rhcs_provider_settings import (
+    RhcsProviderSettingsV1,
+)
 from reconcile.gql_definitions.rhcs.certs import (
     NamespaceOpenshiftResourceRhcsCertV1,
     NamespaceV1,
@@ -13,6 +16,7 @@ from reconcile.gql_definitions.rhcs.certs import (
 from reconcile.gql_definitions.rhcs.certs import (
     query as rhcs_certs_query,
 )
+from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
@@ -82,7 +86,7 @@ def construct_rhcs_cert_oc_secret(
     body: dict[str, Any] = {
         "apiVersion": "v1",
         "kind": "Secret",
-        "type": "Opaque",
+        "type": "kubernetes.io/tls",
         "metadata": {"name": secret_name, "annotations": annotations},
     }
     for k, v in cert.items():
@@ -120,7 +124,7 @@ def get_vault_cert_secret(
         })
     except SecretNotFound:
         logging.info(
-            f"No existing cert found for cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}', threshold='{cert_resource.auto_renew_threshold_days} days'"
+            f"No existing cert found for cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}''"
         )
     return vault_cert_secret
 
@@ -131,7 +135,8 @@ def generate_vault_cert_secret(
     cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
     vault: _VaultClient,
     vault_base_path: str,
-    cert_provider_url: str,
+    issuer_url: str,
+    ca_cert_url: str,
 ) -> dict:
     logging.info(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
@@ -141,14 +146,13 @@ def generate_vault_cert_secret(
         rhcs_cert = RhcsV2Cert(
             certificate="PLACEHOLDER_CERT",
             private_key="PLACEHOLDER_PRIVATE_KEY",
+            ca_cert="PLACEHOLDER_CA_CERT",
             expiration_timestamp=int(time.time()),
         )
     else:
         try:
             rhcs_cert = generate_cert(
-                cert_provider_url,
-                cert_resource.service_account_name,
-                sa_password,
+                issuer_url, cert_resource.service_account_name, sa_password, ca_cert_url
             )
         except ValueError as e:
             raise Exception(
@@ -159,12 +163,12 @@ def generate_vault_cert_secret(
         )
         vault.write(
             secret={
-                "data": rhcs_cert.dict(),
+                "data": rhcs_cert.dict(by_alias=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
             },
             decode_base64=False,
         )
-    return rhcs_cert.dict()
+    return rhcs_cert.dict(by_alias=True)
 
 
 def fetch_openshift_resource_for_cert_resource(
@@ -172,15 +176,21 @@ def fetch_openshift_resource_for_cert_resource(
     ns: NamespaceV1,
     cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
     vault: _VaultClient,
-    vault_base_path: str,
-    cert_provider_url: str,
+    rhcs_settings: RhcsProviderSettingsV1,
 ) -> OR:
+    vault_base_path = f"{rhcs_settings.vault_base_path}/{QONTRACT_INTEGRATION}"
     vault_cert_secret = get_vault_cert_secret(ns, cert_resource, vault, vault_base_path)
     if vault_cert_secret is None or cert_expires_within_threshold(
         ns, cert_resource, vault_cert_secret
     ):
         vault_cert_secret = generate_vault_cert_secret(
-            dry_run, ns, cert_resource, vault, vault_base_path, cert_provider_url
+            dry_run,
+            ns,
+            cert_resource,
+            vault,
+            vault_base_path,
+            rhcs_settings.issuer_url,
+            rhcs_settings.ca_cert_url,
         )
 
     if not dry_run:
@@ -220,8 +230,7 @@ def fetch_desired_state(
                         ns,
                         cert_resource,
                         vault,
-                        f"{cert_provider.vault_base_path}/{QONTRACT_INTEGRATION}",
-                        cert_provider.url,
+                        cert_provider,
                     ),
                 )
 
@@ -237,6 +246,11 @@ def run(
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     namespaces = get_namespaces_with_rhcs_certs(gql_api.query, cluster_name)
+    if not namespaces:
+        logging.debug(
+            f"No rhcs-cert definitions found in app-interface for {cluster_name}"
+        )
+        sys.exit(ExitCodes.SUCCESS)
     oc_map = init_oc_map_from_namespaces(
         namespaces=namespaces,
         integration=QONTRACT_INTEGRATION,

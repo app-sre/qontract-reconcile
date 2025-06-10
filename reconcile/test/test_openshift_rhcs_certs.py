@@ -68,8 +68,9 @@ def ri(namespaces: list[NamespaceV1]) -> ResourceInventory:
 @pytest.fixture
 def mock_rhcs_cert_provider(mocker: MockerFixture) -> MagicMock:
     mock_provider = RhcsProviderSettingsV1(
-        url="https://ca.example.com/submit",
+        issuerUrl="https://ca.example.com/submit",
         vaultBasePath="app-interface/integrations-output",
+        caCertUrl="https://ca.example.com/cert",
     )
     return mocker.patch.object(
         rhcs_certs, "get_rhcs_provider_settings", return_value=mock_provider
@@ -81,6 +82,7 @@ def mock_cert_generator(mocker: MockerFixture) -> MagicMock:
     fake_cert = RhcsV2Cert(
         certificate="PEM_ENCODED_CERTIFICATE",
         private_key="PEM_ENCODED_PRIVATE_KEY",
+        ca_cert="PLACEHOLDER_CA_CERT",
         expiration_timestamp=123456789,
     )
     return mocker.patch(
@@ -92,8 +94,9 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource() -> None:
     qr = construct_rhcs_cert_oc_secret(
         "foobar",
         {
-            "certificate": "PEM_ENCODED_CERTIFICATE",
-            "private_key": "PEM_ENCODED_PRIVATE_KEY",
+            "tls.crt": "PEM_ENCODED_CERTIFICATE",
+            "tls.key": "PEM_ENCODED_PRIVATE_KEY",
+            "ca.crt": "PEM_ENCODED_CA_CERTIFICATE",
             "expiration_timestamp": 123456789,
         },
         {"foo": "bar"},
@@ -101,13 +104,14 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource() -> None:
     assert qr.body == {
         "apiVersion": "v1",
         "data": {
-            "certificate": base64.b64encode(b"PEM_ENCODED_CERTIFICATE").decode(),
-            "private_key": base64.b64encode(b"PEM_ENCODED_PRIVATE_KEY").decode(),
+            "tls.crt": base64.b64encode(b"PEM_ENCODED_CERTIFICATE").decode(),
+            "tls.key": base64.b64encode(b"PEM_ENCODED_PRIVATE_KEY").decode(),
+            "ca.crt": base64.b64encode(b"PEM_ENCODED_CA_CERTIFICATE").decode(),
             "expiration_timestamp": base64.b64encode(b"123456789").decode(),
         },
         "kind": "Secret",
         "metadata": {"name": "foobar", "annotations": {"foo": "bar"}},
-        "type": "Opaque",
+        "type": "kubernetes.io/tls",
     }
 
 
@@ -139,7 +143,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     for call_ in calls:
         _args, kwargs = call_
         secret = kwargs["secret"]
-        assert "certificate" in secret["data"]
+        assert "tls.crt" in secret["data"]
         assert "expiration_timestamp" in secret["data"]
         assert "path" in secret
 
@@ -212,13 +216,14 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
         body={
             "apiVersion": "v1",
             "data": {
-                "certificate": "PEM_ENCODED_CERTIFICATE",
-                "private_key": "PEM_ENCODED_PRIVATE_KEY",
+                "tls.crt": "PEM_ENCODED_CERTIFICATE",
+                "tls.key": "PEM_ENCODED_PRIVATE_KEY",
+                "ca.crt": "PEM_ENCODED_CA_CERT",
                 "expiration_timestamp": "123456789",
             },
             "kind": "Secret",
             "metadata": {"name": "test-cert-1"},
-            "type": "Opaque",
+            "type": "kubernetes.io/tls",
         },
     )
 
@@ -244,13 +249,15 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
     query_func: Callable,
 ) -> None:
     expiring_cert = {
-        "certificate": "EXPIRED_CERT",
-        "private_key": "EXPIRED_KEY",
+        "tls.crt": "EXPIRED_CERT",
+        "tls.key": "EXPIRED_KEY",
+        "ca.crt": "CA_CERT",
         "expiration_timestamp": str(int(time.time()) + 86400),  # 1 day from now
     }
     valid_cert = {
-        "certificate": "VALID_CERT",
-        "private_key": "VALID_KEY",
+        "tls.crt": "VALID_CERT",
+        "tls.key": "VALID_KEY",
+        "ca.crt": "CA_CERT",
         "expiration_timestamp": str(int(time.time()) + 86400 * 120),  # 120 days
     }
 
@@ -273,6 +280,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
     new_cert = RhcsV2Cert(
         certificate="NEW_CERT",
         private_key="NEW_KEY",
+        ca_cert="CA_CERT",
         expiration_timestamp=int(time.time()) + 86400 * 90,
     )
     mock_cert_generator = mocker.patch(
@@ -291,13 +299,14 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
             body={
                 "apiVersion": "v1",
                 "data": {
-                    "certificate": "PEM_ENCODED_CERTIFICATE",
-                    "private_key": "PEM_ENCODED_PRIVATE_KEY",
+                    "tls.crt": "PEM_ENCODED_CERTIFICATE",
+                    "tls.key": "PEM_ENCODED_PRIVATE_KEY",
+                    "ca.crt": "PEM_ENCODED_CA_CERT",
                     "expiration_timestamp": "123456789",
                 },
                 "kind": "Secret",
                 "metadata": {"name": cert_name},
-                "type": "Opaque",
+                "type": "kubernetes.io/tls",
             },
         )
 
@@ -309,5 +318,5 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
 
     # Assert correct data was written to Vault
     secret_data = vault_instance.write.call_args[1]["secret"]["data"]
-    assert secret_data["certificate"] == "NEW_CERT"
-    assert secret_data["private_key"] == "NEW_KEY"
+    assert secret_data["tls.crt"] == "NEW_CERT"
+    assert secret_data["tls.key"] == "NEW_KEY"
