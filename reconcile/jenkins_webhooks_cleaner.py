@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from reconcile import queries
@@ -9,7 +10,7 @@ QONTRACT_INTEGRATION = "jenkins-webhooks-cleaner"
 
 
 @defer
-def run(dry_run, defer=None):
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     gl = GitLabApi(instance, settings=settings)
@@ -40,7 +41,7 @@ def run(dry_run, defer=None):
             logging.warning("no access to project: " + repo)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "previous_urls": queries.get_jenkins_instances_previous_urls(),
     }
