@@ -3,8 +3,9 @@
 query RhcsProviderSettings {
   settings: app_interface_settings_v1 {
     rhcsProvider {
-      url
+      issuerUrl
       vaultBasePath
+      caCertUrl
     }
   }
 }

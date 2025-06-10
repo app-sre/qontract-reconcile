@@ -22,8 +22,9 @@ DEFINITION = """
 query RhcsProviderSettings {
   settings: app_interface_settings_v1 {
     rhcsProvider {
-      url
+      issuerUrl
       vaultBasePath
+      caCertUrl
     }
   }
 }
@@ -37,8 +38,9 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class RhcsProviderSettingsV1(ConfiguredBaseModel):
-    url: str = Field(..., alias="url")
+    issuer_url: str = Field(..., alias="issuerUrl")
     vault_base_path: str = Field(..., alias="vaultBasePath")
+    ca_cert_url: str = Field(..., alias="caCertUrl")
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):

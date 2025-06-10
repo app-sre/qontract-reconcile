@@ -26581,7 +26581,7 @@
                     "description": null,
                     "fields": [
                         {
-                            "name": "url",
+                            "name": "issuerUrl",
                             "description": null,
                             "args": [],
                             "type": {
@@ -26598,6 +26598,22 @@
                         },
                         {
                             "name": "vaultBasePath",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
+                            "name": "caCertUrl",
                             "description": null,
                             "args": [],
                             "type": {
