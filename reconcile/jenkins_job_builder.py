@@ -46,7 +46,7 @@ def init_jjb(
     return JJB(configs, secret_reader=secret_reader, print_only=print_only)
 
 
-def validate_repos_and_admins(jjb: JJB):
+def validate_repos_and_admins(jjb: JJB) -> None:
     jjb_repos = jjb.get_repos()
     app_int_repos = queries.get_repos()
     missing_repos = [r for r in jjb_repos if r not in app_int_repos]
