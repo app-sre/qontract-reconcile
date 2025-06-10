@@ -1,5 +1,6 @@
 import copy
 import logging
+from collections.abc import Callable, MutableMapping
 from typing import Any
 
 from reconcile import queries
@@ -17,7 +18,9 @@ def get_gitlab_api(secret_reader: SecretReader) -> GitLabApi:
     return GitLabApi(instance, secret_reader=secret_reader)
 
 
-def get_hooks_to_add(desired_state, gl):
+def get_hooks_to_add(
+    desired_state: MutableMapping, gl: GitLabApi
+) -> MutableMapping[str, list[dict[str, Any]]]:
     diff = copy.deepcopy(desired_state)
     for project_url, desired_hooks in diff.items():
         try:
@@ -45,7 +48,7 @@ def get_hooks_to_add(desired_state, gl):
 
 
 @defer
-def run(dry_run, defer=None):
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     jjb: JJB = init_jjb(secret_reader)
     gl = get_gitlab_api(secret_reader)
@@ -63,7 +66,7 @@ def run(dry_run, defer=None):
                 gl.create_project_hook(project_url, h)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "jenkins_configs": queries.get_jenkins_configs(),
     }
