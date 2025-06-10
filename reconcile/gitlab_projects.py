@@ -1,5 +1,6 @@
 import logging
 import sys
+from collections.abc import Callable
 from typing import Any
 
 from reconcile import queries
@@ -10,14 +11,15 @@ QONTRACT_INTEGRATION = "gitlab-projects"
 
 
 @defer
-def run(dry_run, defer=None):
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     code_components = queries.get_code_components()
     app_int_repos = [c["url"] for c in code_components]
     saas_bundle_repos = [c["url"] for c in code_components if c["resource"] == "bundle"]
     gl = GitLabApi(instance, settings=settings)
-    defer(gl.cleanup)
+    if defer:
+        defer(gl.cleanup)
 
     project_requests = instance["projectRequests"] or []
     error = False
@@ -45,7 +47,7 @@ def run(dry_run, defer=None):
     sys.exit(error)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     instance = queries.get_gitlab_instance()
     return {
         "instance": instance,
