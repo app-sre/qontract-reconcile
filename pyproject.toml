@@ -250,7 +250,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.jenkins_job_builds_cleaner",
     "reconcile.jenkins_job_cleaner",
     "reconcile.jenkins_roles",
     "reconcile.jenkins_webhooks_cleaner",
