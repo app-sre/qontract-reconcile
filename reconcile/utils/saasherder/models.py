@@ -104,6 +104,7 @@ class TriggerSpecConfig(TriggerSpecBase):
             for slo_document in self.slos or []
             for namespace in slo_document.namespaces
             if namespace.namespace.name == self.namespace_name
+            and namespace.namespace.cluster.name == self.cluster_name
         ]
 
 
