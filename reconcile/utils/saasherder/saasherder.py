@@ -72,6 +72,7 @@ from reconcile.utils.saasherder.models import (
     ImageAuth,
     Namespace,
     Promotion,
+    SLOKey,
     TargetSpec,
     TriggerSpecConfig,
     TriggerSpecContainerImage,
@@ -82,7 +83,7 @@ from reconcile.utils.saasherder.models import (
     UpstreamJob,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
-from reconcile.utils.slo_document_manager import SLODocumentManager
+from reconcile.utils.slo_document_manager import SLODetails, SLODocumentManager
 from reconcile.utils.state import State
 from reconcile.utils.vcs import GITHUB_BASE_URL
 
@@ -1698,7 +1699,82 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         results = threaded.run(
             self.get_configs_diff_saas_file, self.saas_files, self.thread_pool_size
         )
-        return list(itertools.chain.from_iterable(results))
+        trigger_config_spec_list = list(itertools.chain.from_iterable(results))
+        return self.filter_slo_breached_triggers(trigger_config_spec_list)
+
+    def filter_slo_breached_triggers(
+        self, trigger_config_spec_list: list[TriggerSpecConfig]
+    ) -> list[TriggerSpecConfig]:
+        trigger_config_specs_to_validate: list[TriggerSpecConfig] = [
+            trigger_config_spec
+            for trigger_config_spec in trigger_config_spec_list
+            if trigger_config_spec.slos
+            and trigger_config_spec.target_ref
+            not in self.hotfix_versions[trigger_config_spec.resource_template_url]
+        ]
+        if not trigger_config_specs_to_validate:
+            return trigger_config_spec_list
+
+        slo_documents = [
+            slo
+            for trigger_spec in trigger_config_specs_to_validate
+            for slo in trigger_spec.slos or []
+        ]
+        slo_document_manager = SLODocumentManager(
+            slo_documents=slo_documents,
+            thread_pool_size=self.thread_pool_size,
+            secret_reader=self.secret_reader,
+        )
+        breached_slos = slo_document_manager.get_breached_slos()
+        if not breached_slos:
+            return trigger_config_spec_list
+
+        breached_slos_map = self.make_breached_slos_map(breached_slos)
+        valid_trigger_config_specs = [
+            trigger_config_spec
+            for trigger_config_spec in trigger_config_spec_list
+            if not self.has_breached_slos(trigger_config_spec, breached_slos_map)
+        ]
+        return valid_trigger_config_specs
+
+    @staticmethod
+    def make_breached_slos_map(
+        breached_slos: list[SLODetails],
+    ) -> dict[SLOKey, list[SLODetails]]:
+        breached_slos_map: dict[SLOKey, list[SLODetails]] = defaultdict(
+            list[SLODetails]
+        )
+        for breached_slo in breached_slos:
+            breached_slos_map[
+                SLOKey(
+                    slo_document_name=breached_slo.slo_document_name,
+                    namespace_name=breached_slo.namespace_name,
+                    cluster_name=breached_slo.cluster_name,
+                )
+            ].append(breached_slo)
+        return breached_slos_map
+
+    @staticmethod
+    def has_breached_slos(
+        trigger_spec: TriggerSpecConfig,
+        breached_slo_map: dict[SLOKey, list[SLODetails]],
+    ) -> bool:
+        matching_slo_keys = [
+            slo_key
+            for slo_key in trigger_spec.extract_slo_keys()
+            if slo_key in breached_slo_map
+        ]
+        if not matching_slo_keys:
+            return False
+        logging.info(
+            f"Skipping target from saas file {trigger_spec.saas_file_name} due to following breached SLOs."
+        )
+        for matching_key in matching_slo_keys:
+            for breached_slo in breached_slo_map[matching_key]:
+                logging.info(
+                    f"SLO: {breached_slo.slo.name} of document {breached_slo.slo_document_name} is breached. Current value: {breached_slo.current_slo_value} Expected: {breached_slo.slo.slo_target}"
+                )
+        return True
 
     @staticmethod
     def remove_none_values(d: dict[Any, Any] | None) -> dict[Any, Any]:
@@ -1732,10 +1808,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             dtc = SaasHerder.remove_none_values(trigger_spec.state_content)
             if ctc == dtc:
                 continue
-            # check for slo breach
-            if self.has_breached_slos(trigger_spec):
-                logging.info("Skipping the target due to above breached SLOs.")
-                continue
             if self.include_trigger_trace:
                 trigger_spec.reason = f"{self.repo_url}/commit/{RunningState().commit}"
                 # For now we count every saas config change as an auto-promotion
@@ -1747,25 +1819,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     trigger_spec.reason += " [auto-promotion]"
             trigger_specs.append(trigger_spec)
         return trigger_specs
-
-    def has_breached_slos(self, trigger_spec: TriggerSpecConfig) -> bool:
-        if trigger_spec.slo_document_manager:
-            breached_slos = trigger_spec.slo_document_manager.get_breached_slos()
-            if (
-                breached_slos
-                and trigger_spec.target_ref
-                not in self.hotfix_versions[trigger_spec.resource_template_url]
-            ):
-                for slo in breached_slos:
-                    logging.info(
-                        "SLO:%s of document %s is breached. Current value:%f Expected:%f ",
-                        slo.slo.name,
-                        slo.slo_document_name,
-                        slo.current_slo_value,
-                        slo.slo.slo_target,
-                    )
-                return True
-        return False
 
     @staticmethod
     def get_target_config_hash(target_config: Any) -> str:
@@ -1851,13 +1904,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     state_content=serializable_target_config,
                     resource_template_url=rt.url,
                     target_ref=target.ref,
+                    slos=target.slos or None,
                 )
-                if target.slos:
-                    trigger_spec.slo_document_manager = SLODocumentManager(
-                        slo_documents=target.slos,
-                        secret_reader=self.secret_reader,
-                        thread_pool_size=self.thread_pool_size,
-                    )
                 configs[trigger_spec.state_key] = trigger_spec
 
         return configs

@@ -12,6 +12,9 @@ from pydantic import (
     Field,
 )
 
+from reconcile.gql_definitions.fragments.saas_slo_document import (
+    SLODocument,
+)
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
@@ -25,7 +28,6 @@ from reconcile.utils.saasherder.interfaces import (
     SaasResourceTemplateTarget,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
-from reconcile.utils.slo_document_manager import SLODocumentManager
 
 
 class Providers(Enum):
@@ -67,11 +69,18 @@ class TriggerSpecBase:
         raise NotImplementedError("implement this function in inheriting classes")
 
 
+@dataclass(frozen=True)
+class SLOKey:
+    slo_document_name: str
+    namespace_name: str
+    cluster_name: str
+
+
 @dataclass
 class TriggerSpecConfig(TriggerSpecBase):
     resource_template_url: str
     target_ref: str
-    slo_document_manager: SLODocumentManager | None = None
+    slos: list[SLODocument] | None = None
     target_name: str | None = None
     reason: str | None = None
 
@@ -84,6 +93,18 @@ class TriggerSpecConfig(TriggerSpecBase):
         if self.target_name:
             key += f"/{self.target_name}"
         return key
+
+    def extract_slo_keys(self) -> list[SLOKey]:
+        return [
+            SLOKey(
+                slo_document_name=slo_document.name,
+                namespace_name=namespace.namespace.name,
+                cluster_name=namespace.namespace.cluster.name,
+            )
+            for slo_document in self.slos or []
+            for namespace in slo_document.namespaces
+            if namespace.namespace.name == self.namespace_name
+        ]
 
 
 @dataclass

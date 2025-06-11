@@ -86,7 +86,7 @@ resourceTemplates:
         serverUrl: 'https://jenkins.com'
       name: job
   - namespace:
-      name: test-ns-subscriber
+      name: test-slo-gate-ns
       environment:
         name: App-SRE
         parameters: '{"CHANNEL":"prod"}'
@@ -101,11 +101,11 @@ resourceTemplates:
     - name: test-slo-doc
       namespaces: 
       - namespace: 
-          name: test-namespace
+          name: test-slo-gate-ns
           app: 
             name: test-app
           cluster: 
-            name: test-cluster
+            name: appsres03ue1
             automationToken: 
               path: test/path/to/token
               field: token
@@ -116,12 +116,12 @@ resourceTemplates:
               private: false
         SLONamespace: 
       slos: 
-      - name: Availability
+      - name: test_slo_name
         expr: test_expr
         SLIType: availability
         SLOParameters: 
           window: 28d
-        SLOTarget: 0.9
+        SLOTarget: 0.90
         SLOTargetUnit: percent_0_1
     promotion:
       auto: true
