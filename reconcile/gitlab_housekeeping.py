@@ -274,24 +274,20 @@ def handle_stale_items(
 
     now = datetime.utcnow()
     for item in items:
-        item_iid = item.attributes.get("iid")
-        assert item_iid  # make mypy happy
         if AUTO_MERGE in item.labels:
             if item.merge_status == MRStatus.UNCHECKED:
                 # this call triggers a status recheck
-                item = gl.get_merge_request(item_iid)
+                item = gl.get_merge_request(item.iid)
             if item.merge_status == MRStatus.CANNOT_BE_MERGED:
                 close_item(dry_run, gl, enable_closing, item_type, item)
-        updated_at = item.attributes.get("updated_at")
-        assert updated_at  # make mypy happy
-        update_date = datetime.strptime(updated_at, DATE_FORMAT)
+        update_date = datetime.strptime(item.updated_at, DATE_FORMAT)
 
         # if item is over days_interval
         current_interval = now.date() - update_date.date()
         if current_interval > timedelta(days=days_interval):
             # if item does not have 'stale' label - add it
             if LABEL not in item.labels:
-                logging.info(["add_label", gl.project.name, item_type, item_iid, LABEL])
+                logging.info(["add_label", gl.project.name, item_type, item.iid, LABEL])
                 if not dry_run:
                     gl.add_label_with_note(item, LABEL)
             # if item has 'stale' label - close it
@@ -312,10 +308,8 @@ def handle_stale_items(
             if not cancel_notes:
                 continue
 
-            updated_at = item.attributes.get("updated_at")
-            assert updated_at  # make mypy happy
             cancel_notes_dates = [
-                datetime.strptime(updated_at, DATE_FORMAT) for note in cancel_notes
+                datetime.strptime(item.updated_at, DATE_FORMAT) for note in cancel_notes
             ]
             latest_cancel_note_date = max(d for d in cancel_notes_dates)
             # if the latest cancel note is under
@@ -326,7 +320,7 @@ def handle_stale_items(
                     "remove_label",
                     gl.project.name,
                     item_type,
-                    item_iid,
+                    item.iid,
                     LABEL,
                 ])
                 if not dry_run:
