@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from collections import defaultdict
 from collections.abc import Callable
 
 from github import Github
@@ -17,9 +18,9 @@ from reconcile import (
     typed_queries,
 )
 from reconcile.github_org import get_default_config
-from reconcile.ldap_users import init_users as init_users_and_paths
 from reconcile.utils.defer import defer
 from reconcile.utils.mr import CreateDeleteUserAppInterface
+from reconcile.utils.mr.user_maintenance import PathSpec, PathTypes
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
@@ -37,6 +38,33 @@ UserAndCompany = tuple[str, str | None]
 def init_github() -> Github:
     token = get_default_config()["token"]
     return Github(token, base_url=GH_BASE_URL)
+
+
+def init_users_and_paths() -> list[dict[str, list]]:
+    app_int_users = queries.get_users(refs=True)
+
+    users = defaultdict(list)
+    for user in app_int_users:
+        u = user["org_username"]
+        item = PathSpec(type=PathTypes.USER, path=user["path"])
+        users[u].append(item)
+        for r in user.get("requests"):
+            item = PathSpec(type=PathTypes.REQUEST, path=r["path"])
+            users[u].append(item)
+        for q in user.get("queries"):
+            item = PathSpec(type=PathTypes.QUERY, path=q["path"])
+            users[u].append(item)
+        for g in user.get("gabi_instances"):
+            item = PathSpec(type=PathTypes.GABI, path=g["path"])
+            users[u].append(item)
+        for a in user.get("aws_accounts", []):
+            item = PathSpec(type=PathTypes.AWS_ACCOUNTS, path=a["path"])
+            users[u].append(item)
+        for s in user.get("schedules"):
+            item = PathSpec(type=PathTypes.SCHEDULE, path=s["path"])
+            users[u].append(item)
+
+    return [{"username": username, "paths": paths} for username, paths in users.items()]
 
 
 @retry(exceptions=(GithubException, ReadTimeout))

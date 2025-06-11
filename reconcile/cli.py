@@ -1739,6 +1739,27 @@ def openshift_vault_secrets(
     )
 
 
+@integration.command(short_help="Manages OpenShift Secrets for RHCS certificates")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@click.pass_context
+def openshift_rhcs_certs(ctx, thread_pool_size, internal, use_jump_host, cluster_name):
+    import reconcile.openshift_rhcs_certs
+
+    run_integration(
+        reconcile.openshift_rhcs_certs,
+        ctx.obj,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        cluster_name=cluster_name,
+    )
+
+
 @integration.command(short_help="Manages OpenShift Routes.")
 @threaded()
 @binary(["oc", "ssh"])
@@ -3715,17 +3736,6 @@ def acs_policies(ctx):
 
     run_class_integration(
         integration=acs_policies.AcsPoliciesIntegration(),
-        ctx=ctx.obj,
-    )
-
-
-@integration.command(short_help="Manages RHACS notifier configurations")
-@click.pass_context
-def acs_notifiers(ctx):
-    from reconcile import acs_notifiers
-
-    run_class_integration(
-        integration=acs_notifiers.AcsNotifiersIntegration(),
         ctx=ctx.obj,
     )
 

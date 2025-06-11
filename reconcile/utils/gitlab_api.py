@@ -41,7 +41,6 @@ from gitlab.v4.objects import (
     GroupMember,
     PersonalAccessToken,
     Project,
-    ProjectFile,
     ProjectHook,
     ProjectIssue,
     ProjectIssueManager,
@@ -388,7 +387,7 @@ class GitLabApi:
 
     @retry()
     def get_project(self, repo_url: str) -> Project | None:
-        repo = repo_url.replace(self.server + "/", "")
+        repo = repo_url.removeprefix(self.server).strip("/")
         try:
             project = self.gl.projects.get(repo)
         except GitlabGetError:
@@ -666,25 +665,19 @@ class GitLabApi:
         *,
         ref: str = "master",
         recursive: bool = False,
-        project: Project | None = None,
-        path: str = "",
     ) -> list[dict]:
         """
         Get a list of repository files and directories in a project.
 
         :param ref: The name of a repository branch or tag or, if not given, the default branch.
         :param recursive: Boolean value used to get a recursive tree. Default is false.
-        :param project: The project to get the tree from, if None, use the current project
-        :param path: The path inside the repository. Used to get content of subdirectories.
 
         :return: list of tree objects
         """
-        target_project = self.project if project is None else project
         return cast(
             list[dict],
-            target_project.repository_tree(
+            self.project.repository_tree(
                 ref=ref,
-                path=path,
                 recursive=recursive,
                 pagination="keyset",
                 per_page=MAX_PER_PAGE,
@@ -692,13 +685,36 @@ class GitLabApi:
             ),
         )
 
-    def get_file(self, path: str, ref: str = "master") -> ProjectFile | None:
+    @staticmethod
+    def get_raw_file(
+        project: Project,
+        path: str,
+        ref: str,
+    ) -> bytes:
+        file_path = path.lstrip("/")
+        return project.files.raw(
+            file_path=file_path,
+            ref=ref,
+        )
+
+    def get_file(
+        self,
+        path: str,
+        ref: str = "master",
+    ) -> bytes | None:
         """
-        Wrapper around Gitlab.files.get() with exception handling.
+        Get the raw content of a file in a project.
+
+        :param path: The path to the file in the repository.
+        :param ref: The name of branch, tag or commit.
+        :return: The content of the file as bytes, or None if the file does not exist.
         """
         try:
-            path = path.lstrip("/")
-            return self.project.files.get(file_path=path, ref=ref)
+            return self.get_raw_file(
+                project=self.project,
+                path=path,
+                ref=ref,
+            )
         except GitlabGetError:
             return None
 

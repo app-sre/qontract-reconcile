@@ -54,7 +54,8 @@ glitchtip_projects:
         - name: JIRA-VIA-BOARD
           disable: null
           issueType: CustomIssueType
-        jiraComponent: jira-component
+        jiraComponents:
+        - jira-component
         jiraLabels:
         - escalation-label-1
         - escalation-label-2
@@ -103,7 +104,7 @@ glitchtip_projects:
             integrations:
             - glitchtip-project-alerts
           issueType: null
-        jiraComponent: null
+        jiraComponents: null
         jiraLabels: null
     labels: null
   alerts: null
@@ -125,7 +126,7 @@ glitchtip_projects:
             integrations:
             - jira-permissions-validator
           issueType: null
-        jiraComponent: null
+        jiraComponents: null
         jiraLabels: null
     labels: null
   alerts: null

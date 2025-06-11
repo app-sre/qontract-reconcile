@@ -16,10 +16,11 @@ from pydantic import BaseModel
 
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.automated_actions.instance import (
-    AutomatedActionArgumentOpenshiftV1,
-    AutomatedActionArgumentV1,
+    AutomatedActionActionListV1,
+    AutomatedActionOpenshiftWorkloadRestartArgumentV1,
+    AutomatedActionOpenshiftWorkloadRestartV1,
     AutomatedActionsInstanceV1,
-    PermissionAutomatedActionsV1,
+    AutomatedActionV1,
 )
 from reconcile.gql_definitions.automated_actions.instance import query as instance_query
 from reconcile.utils import expiration, gql
@@ -35,7 +36,7 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "automated-actions-config"
-QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 1)
 
 
 class AutomatedActionsConfigIntegrationParams(PydanticRunParams):
@@ -51,7 +52,6 @@ class AutomatedActionsUser(BaseModel):
 
 
 class AutomatedActionsPolicy(BaseModel):
-    sub: str
     obj: str
     max_ops: int
     params: dict[str, str] = {}
@@ -89,89 +89,109 @@ class AutomatedActionsConfigIntegration(
         for instance in data.automated_actions_instances_v1 or []:
             if instance.deployment.delete:
                 continue
-            instance.permissions = list(
-                self.filter_permissions(instance.permissions or [])
-            )
+            instance.actions = list(self.filter_actions(instance.actions or []))
             yield instance
 
-    def is_enabled(self, argument: AutomatedActionArgumentV1) -> bool:
+    def is_enabled(
+        self, argument: AutomatedActionOpenshiftWorkloadRestartArgumentV1
+    ) -> bool:
         """Check if the integration is enabled for the given argument namespace."""
-        if isinstance(argument, AutomatedActionArgumentOpenshiftV1):
-            return (
-                integration_is_enabled("automated-actions", argument.namespace.cluster)
-                and not argument.namespace.delete
-            )
-        return True
+        return (
+            integration_is_enabled("automated-actions", argument.namespace.cluster)
+            and not argument.namespace.delete
+        )
 
-    def filter_permissions(
-        self, permissions: Iterable[PermissionAutomatedActionsV1]
-    ) -> Generator[PermissionAutomatedActionsV1, None, None]:
+    def filter_actions(
+        self, actions: Iterable[AutomatedActionV1]
+    ) -> Generator[AutomatedActionV1, None, None]:
         """Filter out expired roles and arguments (cluster.namespace) with disabled integrations."""
-        for permission in permissions:
-            # automated actions disabled for the cluster?
-            permission.arguments = [
-                arg for arg in permission.arguments or [] if self.is_enabled(arg)
+        for action in actions:
+            match action:
+                case AutomatedActionOpenshiftWorkloadRestartV1():
+                    # automated actions disabled for the cluster?
+                    action.openshift_workload_restart_arguments = [
+                        arg
+                        for arg in action.openshift_workload_restart_arguments or []
+                        if self.is_enabled(arg)
+                    ]
+
+            # Remove expired roles
+            for permission in action.permissions or []:
+                permission.roles = expiration.filter(permission.roles)
+
+            # Remove permissions without roles
+            action.permissions = [
+                permission
+                for permission in action.permissions or []
+                if permission.roles
             ]
-            # remove expired roles
-            permission.roles = expiration.filter(permission.roles)
-            if not permission.roles:
+
+            if not action.permissions:
                 continue
-            yield permission
+
+            yield action
 
     def compile_users(
-        self, permissions: Iterable[PermissionAutomatedActionsV1]
+        self, actions: Iterable[AutomatedActionV1]
     ) -> list[AutomatedActionsUser]:
-        """Compile all automated actions roles."""
+        """Compile a list of all automated actions users with their role relations."""
         users: dict[str, AutomatedActionsUser] = {}
-        for permission in permissions:
-            for role in permission.roles or []:
-                for user in (role.users or []) + (role.bots or []):
-                    if not user.org_username:
-                        continue
-                    aa_user = users.setdefault(
-                        user.org_username,
-                        AutomatedActionsUser(username=user.org_username, roles=[]),
-                    )
-                    aa_user.roles.add(role.name)
+        for action in actions:
+            for permission in action.permissions or []:
+                for role in permission.roles or []:
+                    for user in (role.users or []) + (role.bots or []):
+                        if not user.org_username:
+                            continue
+                        aa_user = users.setdefault(
+                            user.org_username,
+                            AutomatedActionsUser(username=user.org_username, roles=[]),
+                        )
+                        aa_user.roles.add(role.name)
 
         return list(users.values())
 
     def compile_roles(
-        self, permissions: Iterable[PermissionAutomatedActionsV1]
+        self, actions: Iterable[AutomatedActionV1]
     ) -> AutomatedActionRoles:
         """Compile all automated actions policies."""
         roles: AutomatedActionRoles = {}
 
-        for permission in permissions or []:
-            action = permission.action
-
-            parameters: list[dict[str, str]] = [] if permission.arguments else [{}]
-            for arg in permission.arguments or []:
-                match arg:
-                    case AutomatedActionArgumentOpenshiftV1():
-                        parameters.append({
+        for action in actions:
+            parameters: list[dict[str, str]] = []
+            match action:
+                case AutomatedActionActionListV1():
+                    # no special handling needed, just dump the values
+                    parameters.extend(
+                        arg.dict(exclude_none=True, exclude_defaults=True)
+                        for arg in action.action_list_arguments or []
+                    )
+                case AutomatedActionOpenshiftWorkloadRestartV1():
+                    parameters.extend(
+                        {
                             # all parameter values are regexes in the OPA policy
                             # therefore, cluster and namespace must be fixed to the current strings
                             "cluster": f"^{arg.namespace.cluster.name}$",
                             "namespace": f"^{arg.namespace.name}$",
-                            "kind": arg.kind_pattern,
-                            "name": arg.name_pattern,
-                        })
-                    case _:
-                        raise NotImplementedError(
-                            f"Unsupported argument type: {arg.q_type}"
-                        )
-            for role in permission.roles or []:
-                aa_role = roles.setdefault(role.name, [])
-                aa_role.extend(
-                    AutomatedActionsPolicy(
-                        sub=role.name,
-                        obj=action.operation_id,
-                        max_ops=action.max_ops,
-                        params=params,
+                            "kind": arg.kind,
+                            "name": arg.name,
+                        }
+                        for arg in action.openshift_workload_restart_arguments
                     )
-                    for params in parameters
-                )
+
+            if not parameters:
+                parameters = [{}]
+
+            for permission in action.permissions or []:
+                for role in permission.roles or []:
+                    aa_role = roles.setdefault(role.name, [])
+                    aa_role.extend(
+                        AutomatedActionsPolicy(
+                            obj=action.q_type,
+                            max_ops=action.max_ops,
+                            params=params,
+                        )
+                        for params in parameters
+                    )
         return roles
 
     def build_policy_file(
@@ -273,8 +293,8 @@ class AutomatedActionsConfigIntegration(
         ri = ResourceInventory()
 
         for instance in instances:
-            users = self.compile_users(instance.permissions or [])
-            policies = self.compile_roles(instance.permissions or [])
+            users = self.compile_users(instance.actions or [])
+            policies = self.compile_roles(instance.actions or [])
             if not users and not policies:
                 logging.info(
                     f"{instance.deployment.cluster.name}/{instance.deployment.name}: No enabled automated actions found. Skipping this instance!"

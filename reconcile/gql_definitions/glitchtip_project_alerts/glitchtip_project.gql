@@ -40,7 +40,7 @@ query GlitchtipProjectsWithAlerts {
               integrations
             }
           }
-          jiraComponent
+          jiraComponents
           jiraLabels
         }
       }

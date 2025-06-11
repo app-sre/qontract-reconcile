@@ -117,8 +117,9 @@ def test_get_file_content_from_app_interface_ref_defaults(
     vcs = vcs_builder({})
     vcs.get_file_content_from_app_interface_ref(file_path="/file.yaml")
 
-    vcs._app_interface_api.project.files.get.assert_called_once_with(  # type: ignore[attr-defined]
-        file_path="data/file.yaml",
+    vcs._app_interface_api.get_raw_file.assert_called_once_with(  # type: ignore[attr-defined]
+        project=vcs._app_interface_api.project,
+        path="data/file.yaml",
         ref="master",
     )
 
@@ -131,7 +132,35 @@ def test_get_file_content_from_app_interface_ref_overrides(
         file_path="/file.yaml", is_data=False, ref="ref"
     )
 
-    vcs._app_interface_api.project.files.get.assert_called_once_with(  # type: ignore[attr-defined]
-        file_path="/file.yaml",
+    vcs._app_interface_api.get_raw_file.assert_called_once_with(  # type: ignore[attr-defined]
+        project=vcs._app_interface_api.project,
+        path="/file.yaml",
         ref="ref",
     )
+
+
+@pytest.mark.parametrize(
+    ["repo_url", "expected_platform", "expected_name"],
+    [
+        ("https://github.com/foo/bar", "github", "foo/bar"),
+        ("https://github.com/foo/bar.git", "github", "foo/bar"),
+        ("https://github.com/foo/bar/", "github", "foo/bar"),
+        ("http://github.com/foo/bar", "github", "foo/bar"),
+        ("https://github.ee.com/foo/bar", "github", "foo/bar"),
+        ("https://gitlab.com/foo/bar", "gitlab", "foo/bar"),
+        ("https://gitlab.com/foo/bar.git", "gitlab", "foo/bar"),
+        ("https://gitlab.com/foo/bar/", "gitlab", "foo/bar"),
+        ("http://gitlab.com/foo/bar", "gitlab", "foo/bar"),
+        ("https://gitlab.ee.com/foo/bar", "gitlab", "foo/bar"),
+        ("https://some-other-platform.com/foo/bar", None, "foo/bar"),
+    ],
+)
+def test_parse_repo_url(
+    repo_url: str,
+    expected_platform: str | None,
+    expected_name: str,
+) -> None:
+    repo_info = VCS.parse_repo_url(repo_url)
+
+    assert repo_info.platform == expected_platform
+    assert repo_info.name == expected_name

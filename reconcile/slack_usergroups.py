@@ -10,7 +10,6 @@ from typing import (
     Any,
     TypedDict,
 )
-from urllib.parse import urlparse
 
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
@@ -67,6 +66,7 @@ from reconcile.utils.slack_api import (
     SlackApiError,
     UsergroupNotFoundException,
 )
+from reconcile.utils.vcs import VCS
 
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 QONTRACT_INTEGRATION = "slack-usergroups"
@@ -77,25 +77,23 @@ error_occurred = False
 
 def get_git_api(url: str) -> GithubRepositoryApi | GitLabApi:
     """Return GitHub/GitLab API based on url."""
-    parsed_url = urlparse(url)
-
-    if parsed_url.hostname:
-        if "github" in parsed_url.hostname:
+    repo_info = VCS.parse_repo_url(url)
+    match repo_info.platform:
+        case "github":
             vault_settings = get_app_interface_vault_settings()
             secret_reader = create_secret_reader(use_vault=vault_settings.vault)
             instance = queries.get_github_instance()
             token = secret_reader.read(instance["token"])
-
             return GithubRepositoryApi(
                 repo_url=url,
                 token=token,
             )
-        if "gitlab" in parsed_url.hostname:
+        case "gitlab":
             settings = queries.get_app_interface_settings()
             instance = queries.get_gitlab_instance()
             return GitLabApi(instance=instance, project_url=url, settings=settings)
-
-    raise ValueError(f"Unable to handle URL: {url}")
+        case _:
+            raise ValueError(f"Unable to handle URL: {url}")
 
 
 class SlackObject(BaseModel):

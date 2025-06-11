@@ -17,6 +17,14 @@ jira_boards:
     - priority: Minor
     - priority: Major
     - priority: Critical
+  escalationPolicies:
+  - name: escalation-1
+    channels:
+      jiraComponents: null
+  - name: escalation-2
+    channels:
+      jiraComponents: null
+
 - name: jira-board-custom
   server:
     serverUrl: 'https://jira-server.com'
@@ -36,6 +44,16 @@ jira_boards:
     - priority: Major
     - priority: Major
     - priority: Critical
+  escalationPolicies:
+  - name: escalation-1
+    channels:
+      jiraComponents:
+      - component-1
+      - component-2
+  - name: escalation-2
+    channels:
+      jiraComponents: null
+
 - name: disabled
   server:
     serverUrl: 'https://jira-server.com'

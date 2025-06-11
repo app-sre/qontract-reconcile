@@ -34,7 +34,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 `qontract-reconcile` includes the following integrations:
 
 ```text
-  acs-notifiers                   Manages RHACS notifier configurations
   acs-policies                    Manages RHACS security policy configurations
   acs-rbac                        Manages RHACS rbac configuration
   advanced-upgrade-scheduler      Manage Cluster Upgrade Policy schedules in
