@@ -17,10 +17,12 @@ from pydantic import BaseModel
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionActionListV1,
+    AutomatedActionExternalResourceRdsRebootV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     AutomatedActionOpenshiftWorkloadRestartV1,
     AutomatedActionsInstanceV1,
     AutomatedActionV1,
+    AWSAccountV1,
 )
 from reconcile.gql_definitions.automated_actions.instance import query as instance_query
 from reconcile.utils import expiration, gql
@@ -165,6 +167,15 @@ class AutomatedActionsConfigIntegration(
                         arg.dict(exclude_none=True, exclude_defaults=True)
                         for arg in action.action_list_arguments or []
                     )
+                case AutomatedActionExternalResourceRdsRebootV1():
+                    for arg in action.external_resource_rds_reboot_arguments:
+                        for er in arg.namespace.external_resources or []:
+                            if not isinstance(er.provisioner, AWSAccountV1):
+                                continue
+                            parameters.append({
+                                "account": f"^{er.provisioner.name}$",
+                                "identifier": arg.identifier,
+                            })
                 case AutomatedActionOpenshiftWorkloadRestartV1():
                     parameters.extend(
                         {

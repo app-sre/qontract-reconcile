@@ -26,6 +26,26 @@ query AutomatedActionsInstances {
         }
       }
       maxOps
+      ... on AutomatedActionActionList_v1 {
+        action_list_arguments: arguments {
+          action_user
+          max_age_minutes
+        }
+      }
+      ... on AutomatedActionExternalResourceRdsReboot_v1 {
+        external_resource_rds_reboot_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
       ... on AutomatedActionOpenshiftWorkloadRestart_v1 {
         openshift_workload_restart_arguments: arguments {
           namespace {
@@ -40,12 +60,6 @@ query AutomatedActionsInstances {
           }
           kind
           name
-        }
-      }
-      ... on AutomatedActionActionList_v1 {
-        action_list_arguments: arguments {
-          action_user
-          max_age_minutes
         }
       }
     }
