@@ -105,13 +105,13 @@ def board_is_valid(
 
         components = jira.components()
         for escalation_policy in board.escalation_policies or []:
-            jira_component = escalation_policy.channels.jira_component
-            if jira_component and jira_component not in components:
-                logging.error(
-                    f"[{board.name}] escalation policy '{escalation_policy.name}' references a non existing Jira component "
-                    f"'{jira_component}'. Valid components: {components}"
-                )
-                error |= ValidationError.INVALID_COMPONENT
+            for jira_component in escalation_policy.channels.jira_components or []:
+                if jira_component not in components:
+                    logging.error(
+                        f"[{board.name}] escalation policy '{escalation_policy.name}' references a non existing Jira component "
+                        f"'{jira_component}'. Valid components: {components}"
+                    )
+                    error |= ValidationError.INVALID_COMPONENT
 
         issue_type = board.issue_type or default_issue_type
         project_issue_type = jira.get_issue_type(issue_type)
