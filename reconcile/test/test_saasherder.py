@@ -24,6 +24,10 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetPromotionV1,
     SaasResourceTemplateTargetV2_SaasSecretParametersV1,
 )
+from reconcile.gql_definitions.fragments.saas_slo_document import (
+    SLODocumentSLOSLOParametersV1,
+    SLODocumentSLOV1,
+)
 from reconcile.typed_queries.saas_files import (
     SaasFile,
     SaasResourceTemplate,
@@ -41,6 +45,7 @@ from reconcile.utils.saasherder.models import (
     TriggerSpecUpstreamJob,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.slo_document_manager import SLODetails
 
 from .fixtures import Fixtures
 
@@ -1504,6 +1509,183 @@ class TestConfigHashTrigger(TestCase):
         self.state_mock.get.side_effect = [self.deploy_current_state_fxt, None]
         trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(trigger_specs), 1)
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
+class TestSLOGatekeeping(TestCase):
+    cluster: str
+    namespace: str
+    fxt: Any
+    template: Any
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.fxt = Fixtures("saasherder")
+        cls.cluster = "test-cluster"
+
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile,
+            Fixtures("saasherder").get_anymarkup("saas-slos-gate.gql.yml"),
+        )
+        self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
+        self.mock_get_breached_slos_patcher = patch(
+            "reconcile.utils.slo_document_manager.SLODocumentManager.get_breached_slos"
+        )
+        self.mock_get_breached_slo = self.mock_get_breached_slos_patcher.start()
+        self.state_mock = self.state_patcher.start().return_value
+        self.deploy_current_state_fxt = self.fxt.get_anymarkup("saas_deploy.state.json")
+
+        self.post_deploy_current_state_fxt = self.fxt.get_anymarkup(
+            "saas_post_deploy.state.json"
+        )
+
+        self.state_mock.get.side_effect = [
+            self.deploy_current_state_fxt,
+            self.post_deploy_current_state_fxt,
+        ]
+        self.saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            state=self.state_mock,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+
+    def tearDown(self) -> None:
+        self.state_patcher.stop()
+        self.mock_get_breached_slos_patcher.stop()
+
+    def test_slo_not_breached(self) -> None:
+        self.mock_get_breached_slo.return_value = []
+        self.saasherder.saas_files[0].resource_templates[0].targets[1].ref = "Changed"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        self.assertEqual(len(trigger_specs), 1)
+
+    def test_slo_breached(self) -> None:
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have applied slos
+        self.saasherder.saas_files[0].resource_templates[0].targets[1].ref = "Changed"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertListEqual(filtered_target_specs, [])
+
+    def test_slo_breached_but_hotfix(self) -> None:
+        code_component_url = "https://github.com/app-sre/test-saas-deployments"
+        hotfix_version = "valid_hotfix_version"
+        self.saasherder.hotfix_versions[code_component_url] = {hotfix_version}
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have breached slos and "hotfix" as a patch
+        self.saasherder.saas_files[0].resource_templates[0].targets[
+            1
+        ].ref = "valid_hotfix_version"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertEqual(len(filtered_target_specs), 1)
+
+    def test_slo_breached_but_hotfix_mismatch(self) -> None:
+        code_component_url = "https://github.com/app-sre/test-saas-deployments"
+        hotfix_version = "valid_hotfix_version"
+        self.saasherder.hotfix_versions[code_component_url] = {hotfix_version}
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have breached slos and "hotfix" as a patch
+        self.saasherder.saas_files[0].resource_templates[0].targets[
+            1
+        ].ref = "invalid_hotfix_version"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertListEqual(filtered_target_specs, [])
+
+    def test_slo_breached_but_in_different_namespace(self) -> None:
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns2",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have breached slos and "hotfix" as a patch
+        self.saasherder.saas_files[0].resource_templates[0].targets[1].ref = "Changed"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertEqual(len(filtered_target_specs), 1)
 
 
 class TestRemoveNoneAttributes(TestCase):
