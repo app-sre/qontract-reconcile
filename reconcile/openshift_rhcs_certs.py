@@ -22,6 +22,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.rhcs_provider_settings import get_rhcs_provider_settings
 from reconcile.utils import gql, metrics
+from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.metrics import GaugeMetric, normalize_integration_name
 from reconcile.utils.oc_map import init_oc_map_from_namespaces
@@ -235,6 +236,7 @@ def fetch_desired_state(
                 )
 
 
+@defer
 def run(
     dry_run: bool,
     thread_pool_size: int = 10,
@@ -259,6 +261,7 @@ def run(
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
+    defer(oc_map.cleanup)
     ri = ResourceInventory()
     state_specs = ob.init_specs_to_fetch(
         ri,
