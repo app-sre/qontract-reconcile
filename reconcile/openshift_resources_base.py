@@ -707,12 +707,6 @@ def fetch_desired_state(
         msg = f"[{cluster}/{namespace}] {e!s}"
         _locked_error_log(msg)
         return
-
-    labels = openshift_resource.body.get("metadata", {}).get("labels", {})
-    if labels.get("app.kubernetes.io/part-of") == "argocd":
-        _locked_info_log(f"Skipping {openshift_resource.kind} {openshift_resource.name} because it is managed by ArgoCD")
-        return
-
     # add to inventory
     try:
         ri.add_desired_resource(
