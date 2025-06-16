@@ -243,6 +243,7 @@ def run(
     internal: bool | None = None,
     use_jump_host: bool = True,
     cluster_name: Iterable[str] | None = None,
+    defer: Callable | None = None,
 ) -> None:
     gql_api = gql.get_api()
     vault_settings = get_app_interface_vault_settings()
@@ -261,7 +262,8 @@ def run(
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     ri = ResourceInventory()
     state_specs = ob.init_specs_to_fetch(
         ri,
