@@ -42,6 +42,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 PROVIDERS = ["prometheus-rule"]
 
 NAMESPACE_NAME = "openshift-customer-monitoring"
+DEFAULT_PROMTOOL_VERSION = "2.55.1"
 
 
 class TestContent(BaseModel):
@@ -81,7 +82,9 @@ def fetch_rule_and_tests(
     rule_body = openshift_resource.body
     rule_length = len(yaml.dump(rule_body))  # Same as prometheus-operator does it.
 
-    promtool_version: str | None = rule.resource.get("promtool_version")
+    promtool_version: str | None = rule.resource.get(
+        "promtool_version", DEFAULT_PROMTOOL_VERSION
+    )
     if rule.resource["type"] == "resource-template-extracurlyjinja2":
         variables = json.loads(rule.resource.get("variables") or "{}")
         variables["resource"] = rule.resource
