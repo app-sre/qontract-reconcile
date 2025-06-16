@@ -12,15 +12,25 @@ from reconcile.utils.structs import CommandExecutionResult
 PROMTOOL_VERSION = ["2.55.1", "3.2.1"]
 PROMTOOL_VERSION_REGEX = r"^promtool,\sversion\s([\d]+\.[\d]+\.[\d]+).+$"
 
+
 def _bin(version: str | None = None) -> str:
     return f"promtool-{version}" if version else "promtool"
 
-def check_rule(yaml_spec: Mapping, promtool_version: str | None = None,) -> CommandExecutionResult:
+
+def check_rule(
+    yaml_spec: Mapping,
+    promtool_version: str | None = None,
+) -> CommandExecutionResult:
     """Run promtool check rules on the given yaml spec given as dict"""
-    return _run_yaml_spec_cmd(cmd=[_bin(promtool_version), "check", "rules"], yaml_spec=yaml_spec)
+    return _run_yaml_spec_cmd(
+        cmd=[_bin(promtool_version), "check", "rules"], yaml_spec=yaml_spec
+    )
+
 
 def run_test(
-    test_yaml_spec: MutableMapping, rule_files: Mapping[str, Mapping], promtool_version: str | None = None,
+    test_yaml_spec: MutableMapping,
+    rule_files: Mapping[str, Mapping],
+    promtool_version: str | None = None,
 ) -> CommandExecutionResult:
     """Run promtool test rules
 

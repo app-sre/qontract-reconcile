@@ -59,6 +59,7 @@ class Test(BaseModel):
     result: CommandExecutionResult | None = None
     promtool_version: str | None = None
 
+
 class RuleToFetch(BaseModel):
     namespace: dict[str, Any]
     resource: dict[str, Any]
@@ -206,7 +207,9 @@ def check_rule_length(rule_length: int) -> CommandExecutionResult:
 
 def run_test(test: Test, alerting_services: Iterable[str]) -> None:
     """Checks rules, run tests and stores the result in test.result"""
-    check_rule_result = promtool.check_rule(test.rule["spec"], promtool_version=test.promtool_version)
+    check_rule_result = promtool.check_rule(
+        test.rule["spec"], promtool_version=test.promtool_version
+    )
     valid_services_result = check_valid_services(test.rule, alerting_services)
     rule_length_result = check_rule_length(test.rule_length)
     test.result = check_rule_result and valid_services_result and rule_length_result
@@ -216,7 +219,9 @@ def run_test(test: Test, alerting_services: Iterable[str]) -> None:
 
     rule_files = {test.rule_path: test.rule["spec"]}
     for t in test.tests or []:
-        result = promtool.run_test(t.test, rule_files, promtool_version=test.promtool_version)
+        result = promtool.run_test(
+            t.test, rule_files, promtool_version=test.promtool_version
+        )
         test.result = test.result and result
 
 
