@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable, Mapping
 
 from reconcile import queries
 from reconcile.utils import (
@@ -76,8 +77,8 @@ def get_jenkins_map() -> dict[str, JenkinsApi]:
     return jenkins_map
 
 
-def get_current_state(jenkins_map):
-    current_state = []
+def get_current_state(jenkins_map: Mapping[str, JenkinsApi]) -> list[dict[str, str]]:
+    current_state: list[dict[str, str]] = []
 
     for instance, jenkins in jenkins_map.items():
         roles = jenkins.get_all_roles()
@@ -97,11 +98,11 @@ def get_current_state(jenkins_map):
     return current_state
 
 
-def get_desired_state():
+def get_desired_state() -> list[dict[str, str]]:
     gqlapi = gql.get_api()
     roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
 
-    desired_state = []
+    desired_state: list[dict[str, str]] = []
     for r in roles:
         for p in r["permissions"]:
             if p["service"] != "jenkins-role":
@@ -128,7 +129,9 @@ def get_desired_state():
     return desired_state
 
 
-def calculate_diff(current_state, desired_state):
+def calculate_diff(
+    current_state: Iterable[dict[str, str]], desired_state: Iterable[dict[str, str]]
+) -> list[dict[str, str]]:
     diff = []
     users_to_assign = subtract_states(
         desired_state, current_state, "assign_role_to_user"
@@ -142,7 +145,11 @@ def calculate_diff(current_state, desired_state):
     return diff
 
 
-def subtract_states(from_state, subtract_state, action):
+def subtract_states(
+    from_state: Iterable[dict[str, str]],
+    subtract_state: Iterable[dict[str, str]],
+    action: str,
+) -> list[dict[str, str]]:
     result = []
 
     for f_user in from_state:
@@ -163,7 +170,7 @@ def subtract_states(from_state, subtract_state, action):
     return result
 
 
-def act(diff, jenkins_map):
+def act(diff: dict[str, str], jenkins_map: Mapping[str, JenkinsApi]) -> None:
     instance = diff["instance"]
     role = diff["role"]
     user = diff["user"]
@@ -177,7 +184,7 @@ def act(diff, jenkins_map):
         raise Exception(f"invalid action: {action}")
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     jenkins_map = get_jenkins_map()
     current_state = get_current_state(jenkins_map)
     desired_state = get_desired_state()

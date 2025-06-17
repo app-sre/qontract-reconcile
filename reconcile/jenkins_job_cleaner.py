@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 
 from reconcile import queries
 from reconcile.jenkins_job_builder import init_jjb
@@ -8,7 +9,9 @@ from reconcile.utils.secret_reader import SecretReader
 QONTRACT_INTEGRATION = "jenkins-job-cleaner"
 
 
-def get_managed_job_names(job_names, managed_projects):
+def get_managed_job_names(
+    job_names: Iterable[str], managed_projects: Iterable[str]
+) -> list[str]:
     managed_jobs = set()
     for job_name in job_names:
         for managed_project in managed_projects:
@@ -18,13 +21,13 @@ def get_managed_job_names(job_names, managed_projects):
     return list(managed_jobs)
 
 
-def get_desired_job_names(instance_name: str, secret_reader: SecretReader):
+def get_desired_job_names(instance_name: str, secret_reader: SecretReader) -> list[str]:
     jjb = init_jjb(secret_reader)
     desired_jobs = jjb.get_all_jobs(instance_name=instance_name)[instance_name]
     return [j["name"] for j in desired_jobs]
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     jenkins_instances = queries.get_jenkins_instances()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
 
