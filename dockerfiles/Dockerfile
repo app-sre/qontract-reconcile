@@ -24,7 +24,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --pytho
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.16.0 AS dev-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.17.0 AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.6.11@sha256:fb91e82e8643382d5bce074ba0d167677d678faff4bd518dac670476d19b159c /uv /bin/uv
 
 ARG CONTAINER_UID=1000
@@ -48,7 +48,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.16.0 AS prod-image
+FROM quay.io/app-sre/qontract-reconcile-base:0.17.0 AS prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
