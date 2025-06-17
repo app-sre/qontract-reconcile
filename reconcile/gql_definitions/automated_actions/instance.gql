@@ -32,6 +32,20 @@ query AutomatedActionsInstances {
           max_age_minutes
         }
       }
+      ... on AutomatedActionExternalResourceFlushElastiCache_v1 {
+        external_resource_flush_elasticache_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
       ... on AutomatedActionExternalResourceRdsReboot_v1 {
         external_resource_rds_reboot_arguments: arguments {
           namespace {

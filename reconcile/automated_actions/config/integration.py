@@ -17,6 +17,7 @@ from pydantic import BaseModel
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionActionListV1,
+    AutomatedActionExternalResourceFlushElastiCacheV1,
     AutomatedActionExternalResourceRdsRebootV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     AutomatedActionOpenshiftWorkloadRestartV1,
@@ -167,14 +168,23 @@ class AutomatedActionsConfigIntegration(
                         arg.dict(exclude_none=True, exclude_defaults=True)
                         for arg in action.action_list_arguments or []
                     )
-                case AutomatedActionExternalResourceRdsRebootV1():
-                    for arg in action.external_resource_rds_reboot_arguments:
-                        for er in arg.namespace.external_resources or []:
-                            if not isinstance(er.provisioner, AWSAccountV1):
+                case AutomatedActionExternalResourceFlushElastiCacheV1():
+                    for ec_arg in action.external_resource_flush_elasticache_arguments:
+                        for ec_er in ec_arg.namespace.external_resources or []:
+                            if not isinstance(ec_er.provisioner, AWSAccountV1):
                                 continue
                             parameters.append({
-                                "account": f"^{er.provisioner.name}$",
-                                "identifier": arg.identifier,
+                                "account": f"^{ec_er.provisioner.name}$",
+                                "identifier": ec_arg.identifier,
+                            })
+                case AutomatedActionExternalResourceRdsRebootV1():
+                    for rds_arg in action.external_resource_rds_reboot_arguments:
+                        for rds_er in rds_arg.namespace.external_resources or []:
+                            if not isinstance(rds_er.provisioner, AWSAccountV1):
+                                continue
+                            parameters.append({
+                                "account": f"^{rds_er.provisioner.name}$",
+                                "identifier": rds_arg.identifier,
                             })
                 case AutomatedActionOpenshiftWorkloadRestartV1():
                     parameters.extend(
