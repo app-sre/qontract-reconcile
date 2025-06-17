@@ -58,7 +58,7 @@ class Test(BaseModel):
     rule_length: int
     tests: list[TestContent] | None
     result: CommandExecutionResult | None = None
-    promtool_version: str | None = None
+    promtool_version: str
 
 
 class RuleToFetch(BaseModel):
@@ -82,9 +82,7 @@ def fetch_rule_and_tests(
     rule_body = openshift_resource.body
     rule_length = len(yaml.dump(rule_body))  # Same as prometheus-operator does it.
 
-    promtool_version: str | None = rule.resource.get(
-        "promtool_version", DEFAULT_PROMTOOL_VERSION
-    )
+    promtool_version = rule.resource.get("promtool_version", DEFAULT_PROMTOOL_VERSION)
     if rule.resource["type"] == "resource-template-extracurlyjinja2":
         variables = json.loads(rule.resource.get("variables") or "{}")
         variables["resource"] = rule.resource
