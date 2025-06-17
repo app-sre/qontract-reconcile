@@ -677,7 +677,7 @@ def terraform_aws_route53(
 
     run_integration(
         reconcile.terraform_aws_route53,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -739,7 +739,7 @@ def aws_saml_idp(
                 log_cached_log_output=log_cached_log_output,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -748,7 +748,7 @@ def aws_saml_idp(
 def github(ctx: click.Context) -> None:
     import reconcile.github_org
 
-    run_integration(reconcile.github_org, ctx.obj)
+    run_integration(reconcile.github_org, ctx)
 
 
 @integration.command(short_help="Configures owners in a GitHub org.")
@@ -756,7 +756,7 @@ def github(ctx: click.Context) -> None:
 def github_owners(ctx: click.Context) -> None:
     import reconcile.github_owners
 
-    run_integration(reconcile.github_owners, ctx.obj)
+    run_integration(reconcile.github_owners, ctx)
 
 
 @integration.command(short_help="Validate compliance of GitHub user profiles.")
@@ -776,7 +776,7 @@ def github_users(
 
     run_integration(
         reconcile.github_users,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         thread_pool_size,
         enable_deletion,
@@ -789,7 +789,7 @@ def github_users(
 def github_validator(ctx: click.Context) -> None:
     import reconcile.github_validator
 
-    run_integration(reconcile.github_validator, ctx.obj)
+    run_integration(reconcile.github_validator, ctx)
 
 
 @integration.command(short_help="Configures ClusterRolebindings in OpenShift clusters.")
@@ -806,7 +806,7 @@ def openshift_clusterrolebindings(
 
     run_integration(
         reconcile.openshift_clusterrolebindings,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -827,7 +827,7 @@ def openshift_rolebindings(
 
     run_integration(
         reconcile.openshift_rolebindings,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -847,7 +847,7 @@ def openshift_groups(
     import reconcile.openshift_groups
 
     run_integration(
-        reconcile.openshift_groups, ctx.obj, thread_pool_size, internal, use_jump_host
+        reconcile.openshift_groups, ctx, thread_pool_size, internal, use_jump_host
     )
 
 
@@ -864,7 +864,7 @@ def openshift_users(
     import reconcile.openshift_users
 
     run_integration(
-        reconcile.openshift_users, ctx.obj, thread_pool_size, internal, use_jump_host
+        reconcile.openshift_users, ctx, thread_pool_size, internal, use_jump_host
     )
 
 
@@ -889,7 +889,7 @@ def openshift_serviceaccount_tokens(
 
     run_integration(
         reconcile.openshift_serviceaccount_tokens,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -953,7 +953,7 @@ def aws_saml_roles(
                 log_cached_log_output=log_cached_log_output,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -1032,7 +1032,7 @@ def aws_account_manager(
                 template_collection_root_path=template_collection_root_path,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -1070,7 +1070,7 @@ def terraform_init(
                 template_collection_root_path=template_collection_root_path,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -1079,7 +1079,7 @@ def terraform_init(
 def jenkins_roles(ctx: click.Context) -> None:
     import reconcile.jenkins_roles
 
-    run_integration(reconcile.jenkins_roles, ctx.obj)
+    run_integration(reconcile.jenkins_roles, ctx)
 
 
 @integration.command(short_help="Manage Jenkins worker fleets via JCasC.")
@@ -1087,7 +1087,7 @@ def jenkins_roles(ctx: click.Context) -> None:
 def jenkins_worker_fleets(ctx: click.Context) -> None:
     import reconcile.jenkins_worker_fleets
 
-    run_integration(reconcile.jenkins_worker_fleets, ctx.obj)
+    run_integration(reconcile.jenkins_worker_fleets, ctx)
 
 
 @integration.command(
@@ -1111,7 +1111,7 @@ def jenkins_job_builder(
 
     run_integration(
         reconcile.jenkins_job_builder,
-        ctx.obj,
+        ctx,
         io_dir,
         print_only,
         config_name,
@@ -1125,7 +1125,7 @@ def jenkins_job_builder(
 def jenkins_job_builds_cleaner(ctx: click.Context) -> None:
     import reconcile.jenkins_job_builds_cleaner
 
-    run_integration(reconcile.jenkins_job_builds_cleaner, ctx.obj)
+    run_integration(reconcile.jenkins_job_builds_cleaner, ctx)
 
 
 @integration.command(short_help="Delete Jenkins jobs in multiple tenant instances.")
@@ -1133,7 +1133,7 @@ def jenkins_job_builds_cleaner(ctx: click.Context) -> None:
 def jenkins_job_cleaner(ctx: click.Context) -> None:
     import reconcile.jenkins_job_cleaner
 
-    run_integration(reconcile.jenkins_job_cleaner, ctx.obj)
+    run_integration(reconcile.jenkins_job_cleaner, ctx)
 
 
 @integration.command(short_help="Manage web hooks to Jenkins jobs.")
@@ -1141,7 +1141,7 @@ def jenkins_job_cleaner(ctx: click.Context) -> None:
 def jenkins_webhooks(ctx: click.Context) -> None:
     import reconcile.jenkins_webhooks
 
-    run_integration(reconcile.jenkins_webhooks, ctx.obj)
+    run_integration(reconcile.jenkins_webhooks, ctx)
 
 
 @integration.command(short_help="Remove webhooks to previous Jenkins instances.")
@@ -1149,7 +1149,7 @@ def jenkins_webhooks(ctx: click.Context) -> None:
 def jenkins_webhooks_cleaner(ctx: click.Context) -> None:
     import reconcile.jenkins_webhooks_cleaner
 
-    run_integration(reconcile.jenkins_webhooks_cleaner, ctx.obj)
+    run_integration(reconcile.jenkins_webhooks_cleaner, ctx)
 
 
 @integration.command(short_help="Validate permissions in Jira.")
@@ -1165,7 +1165,7 @@ def jira_permissions_validator(
 
     run_integration(
         reconcile.jira_permissions_validator,
-        ctx.obj,
+        ctx,
         jira_board_name=jira_board_name,
         board_check_interval_sec=board_check_interval * 60,
     )
@@ -1176,7 +1176,7 @@ def jira_permissions_validator(
 def jira_watcher(ctx: click.Context) -> None:
     import reconcile.jira_watcher
 
-    run_integration(reconcile.jira_watcher, ctx.obj)
+    run_integration(reconcile.jira_watcher, ctx)
 
 
 @integration.command(
@@ -1195,7 +1195,7 @@ def openshift_upgrade_watcher(
 
     run_integration(
         reconcile.openshift_upgrade_watcher,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1221,7 +1221,7 @@ def slack_usergroups(
 
     run_integration(
         reconcile.slack_usergroups,
-        ctx.obj,
+        ctx,
         workspace_name,
         usergroup_name,
         enable_extended_early_exit,
@@ -1236,7 +1236,7 @@ def slack_usergroups(
 def gitlab_permissions(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.gitlab_permissions
 
-    run_integration(reconcile.gitlab_permissions, ctx.obj, thread_pool_size)
+    run_integration(reconcile.gitlab_permissions, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Manage issues and merge requests on GitLab projects.")
@@ -1249,7 +1249,7 @@ def gitlab_permissions(ctx: click.Context, thread_pool_size: int) -> None:
 def gitlab_housekeeping(ctx: click.Context, wait_for_pipeline: bool) -> None:
     import reconcile.gitlab_housekeeping
 
-    run_integration(reconcile.gitlab_housekeeping, ctx.obj, wait_for_pipeline)
+    run_integration(reconcile.gitlab_housekeeping, ctx, wait_for_pipeline)
 
 
 @integration.command(short_help="Listen to SQS and creates MRs out of the messages.")
@@ -1258,7 +1258,7 @@ def gitlab_housekeeping(ctx: click.Context, wait_for_pipeline: bool) -> None:
 def gitlab_mr_sqs_consumer(ctx: click.Context, gitlab_project_id: str) -> None:
     import reconcile.gitlab_mr_sqs_consumer
 
-    run_integration(reconcile.gitlab_mr_sqs_consumer, ctx.obj, gitlab_project_id)
+    run_integration(reconcile.gitlab_mr_sqs_consumer, ctx, gitlab_project_id)
 
 
 @integration.command(short_help="Delete orphan AWS resources.")
@@ -1267,7 +1267,7 @@ def gitlab_mr_sqs_consumer(ctx: click.Context, gitlab_project_id: str) -> None:
 def aws_garbage_collector(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.aws_garbage_collector
 
-    run_integration(reconcile.aws_garbage_collector, ctx.obj, thread_pool_size)
+    run_integration(reconcile.aws_garbage_collector, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Delete IAM access keys by access key ID.")
@@ -1280,7 +1280,7 @@ def aws_iam_keys(
     import reconcile.aws_iam_keys
 
     run_integration(
-        reconcile.aws_iam_keys, ctx.obj, thread_pool_size, account_name=account_name
+        reconcile.aws_iam_keys, ctx, thread_pool_size, account_name=account_name
     )
 
 
@@ -1289,7 +1289,7 @@ def aws_iam_keys(
 def aws_iam_password_reset(ctx: click.Context) -> None:
     import reconcile.aws_iam_password_reset
 
-    run_integration(reconcile.aws_iam_password_reset, ctx.obj)
+    run_integration(reconcile.aws_iam_password_reset, ctx)
 
 
 @integration.command(short_help="Share AMI and AMI tags between accounts.")
@@ -1297,7 +1297,7 @@ def aws_iam_password_reset(ctx: click.Context) -> None:
 def aws_ami_share(ctx: click.Context) -> None:
     import reconcile.aws_ami_share
 
-    run_integration(reconcile.aws_ami_share, ctx.obj)
+    run_integration(reconcile.aws_ami_share, ctx)
 
 
 @integration.command(short_help="Cleanup old and unused AMIs.")
@@ -1306,7 +1306,7 @@ def aws_ami_share(ctx: click.Context) -> None:
 def aws_ami_cleanup(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.aws_ami_cleanup.integration
 
-    run_integration(reconcile.aws_ami_cleanup.integration, ctx.obj, thread_pool_size)
+    run_integration(reconcile.aws_ami_cleanup.integration, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Set up retention period for Cloudwatch logs.")
@@ -1316,7 +1316,7 @@ def aws_cloudwatch_log_retention(ctx: click.Context, thread_pool_size: int) -> N
     import reconcile.aws_cloudwatch_log_retention.integration
 
     run_integration(
-        reconcile.aws_cloudwatch_log_retention.integration, ctx.obj, thread_pool_size
+        reconcile.aws_cloudwatch_log_retention.integration, ctx, thread_pool_size
     )
 
 
@@ -1328,7 +1328,7 @@ def aws_cloudwatch_log_retention(ctx: click.Context, thread_pool_size: int) -> N
 def aws_ecr_image_pull_secrets(ctx: click.Context, vault_output_path: str) -> None:
     import reconcile.aws_ecr_image_pull_secrets
 
-    run_integration(reconcile.aws_ecr_image_pull_secrets, ctx.obj, vault_output_path)
+    run_integration(reconcile.aws_ecr_image_pull_secrets, ctx, vault_output_path)
 
 
 @integration.command(
@@ -1344,7 +1344,7 @@ def aws_support_cases_sos(
     import reconcile.aws_support_cases_sos
 
     run_integration(
-        reconcile.aws_support_cases_sos, ctx.obj, gitlab_project_id, thread_pool_size
+        reconcile.aws_support_cases_sos, ctx, gitlab_project_id, thread_pool_size
     )
 
 
@@ -1372,7 +1372,7 @@ def openshift_resources(
 
     run_integration(
         reconcile.openshift_resources,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1408,7 +1408,7 @@ def openshift_saas_deploy(
 
     run_integration(
         reconcile.openshift_saas_deploy,
-        ctx.obj,
+        ctx,
         thread_pool_size=thread_pool_size,
         io_dir=io_dir,
         use_jump_host=use_jump_host,
@@ -1445,7 +1445,7 @@ def openshift_saas_deploy_change_tester(
 
     run_integration(
         reconcile.openshift_saas_deploy_change_tester,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         gitlab_merge_request_id,
         thread_pool_size,
@@ -1459,7 +1459,7 @@ def openshift_saas_deploy_change_tester(
 def saas_file_validator(ctx: click.Context) -> None:
     import reconcile.saas_file_validator
 
-    run_integration(reconcile.saas_file_validator, ctx.obj)
+    run_integration(reconcile.saas_file_validator, ctx)
 
 
 @integration.command(short_help="Trigger deployments when a commit changed for a ref.")
@@ -1481,7 +1481,7 @@ def openshift_saas_deploy_trigger_moving_commits(
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_moving_commits,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1508,7 +1508,7 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_upstream_jobs,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1535,7 +1535,7 @@ def openshift_saas_deploy_trigger_images(
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_images,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1562,7 +1562,7 @@ def openshift_saas_deploy_trigger_configs(
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_configs,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1584,7 +1584,7 @@ def openshift_saas_deploy_trigger_cleaner(
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_cleaner,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1610,7 +1610,7 @@ def openshift_tekton_resources(
 
     run_integration(
         reconcile.openshift_tekton_resources,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1630,7 +1630,7 @@ def gitlab_labeler(
     import reconcile.gitlab_labeler
 
     run_integration(
-        reconcile.gitlab_labeler, ctx.obj, gitlab_project_id, gitlab_merge_request_id
+        reconcile.gitlab_labeler, ctx, gitlab_project_id, gitlab_merge_request_id
     )
 
 
@@ -1648,7 +1648,7 @@ def openshift_namespace_labels(
 
     run_integration(
         reconcile.openshift_namespace_labels,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1676,7 +1676,7 @@ def openshift_namespaces(
 
     run_integration(
         reconcile.openshift_namespaces,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1699,7 +1699,7 @@ def openshift_network_policies(
 
     run_integration(
         reconcile.openshift_network_policies,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1725,7 +1725,7 @@ def openshift_limitranges(
 
     run_integration(
         reconcile.openshift_limitranges,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1752,7 +1752,7 @@ def openshift_resourcequotas(
 
     run_integration(
         reconcile.openshift_resourcequotas,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1781,7 +1781,7 @@ def openshift_vault_secrets(
 
     run_integration(
         reconcile.openshift_vault_secrets,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1809,7 +1809,7 @@ def openshift_rhcs_certs(
 
     run_integration(
         reconcile.openshift_rhcs_certs,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1838,7 +1838,7 @@ def openshift_routes(
 
     run_integration(
         reconcile.openshift_routes,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1868,7 +1868,7 @@ def openshift_prometheus_rules(
 
     run_integration(
         reconcile.openshift_prometheus_rules,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1925,7 +1925,7 @@ def endpoints_discovery(
         params.endpoint_tmpl_resource = endpoint_tmpl_resource
     run_class_integration(
         integration=EndpointsDiscoveryIntegration(params),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -1934,7 +1934,7 @@ def endpoints_discovery(
 def quay_membership(ctx: click.Context) -> None:
     import reconcile.quay_membership
 
-    run_integration(reconcile.quay_membership, ctx.obj)
+    run_integration(reconcile.quay_membership, ctx)
 
 
 @integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
@@ -1943,7 +1943,7 @@ def quay_membership(ctx: click.Context) -> None:
 def gcp_image_mirror(ctx: click.Context) -> None:
     import reconcile.gcp_image_mirror
 
-    run_integration(reconcile.gcp_image_mirror, ctx.obj)
+    run_integration(reconcile.gcp_image_mirror, ctx)
 
 
 @integration.command(short_help="Mirrors external images into Quay.")
@@ -1994,7 +1994,7 @@ def quay_mirror(
 
     run_integration(
         reconcile.quay_mirror,
-        ctx.obj,
+        ctx,
         control_file_dir,
         compare_tags,
         compare_tags_interval,
@@ -2053,7 +2053,7 @@ def quay_mirror_org(
 
     run_integration(
         reconcile.quay_mirror_org,
-        ctx.obj,
+        ctx,
         control_file_dir,
         compare_tags,
         compare_tags_interval,
@@ -2067,7 +2067,7 @@ def quay_mirror_org(
 def quay_repos(ctx: click.Context) -> None:
     import reconcile.quay_repos
 
-    run_integration(reconcile.quay_repos, ctx.obj)
+    run_integration(reconcile.quay_repos, ctx)
 
 
 @integration.command(short_help="Manage permissions for Quay Repositories.")
@@ -2075,7 +2075,7 @@ def quay_repos(ctx: click.Context) -> None:
 def quay_permissions(ctx: click.Context) -> None:
     import reconcile.quay_permissions
 
-    run_integration(reconcile.quay_permissions, ctx.obj)
+    run_integration(reconcile.quay_permissions, ctx)
 
 
 @integration.command(short_help="Removes users which are not found in LDAP search.")
@@ -2088,7 +2088,7 @@ def ldap_users(
     import reconcile.ldap_users
 
     run_integration(
-        reconcile.ldap_users, ctx.obj, app_interface_project_id, infra_project_id
+        reconcile.ldap_users, ctx, app_interface_project_id, infra_project_id
     )
 
 
@@ -2110,7 +2110,7 @@ def ldap_groups(ctx: click.Context, aws_sso_namespace: str) -> None:
         integration=LdapGroupsIntegration(
             LdapGroupsIntegrationParams(aws_sso_namespace=aws_sso_namespace)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2167,7 +2167,7 @@ def aws_version_sync(
                 else 10,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2197,7 +2197,7 @@ def terraform_repo(
                 gitlab_merge_request_id=gitlab_merge_request_id,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2208,7 +2208,7 @@ def template_validator(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=validator.TemplateValidatorIntegration(PydanticRunParams()),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2250,7 +2250,7 @@ def template_renderer(
                 template_collection_name=template_collection_name,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2296,7 +2296,7 @@ def terraform_resources(
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_resources,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2337,7 +2337,7 @@ def terraform_cloudflare_resources(
 
     run_integration(
         reconcile.terraform_cloudflare_resources,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2377,7 +2377,7 @@ def terraform_cloudflare_dns(
                 selected_zone=zone_name,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2410,7 +2410,7 @@ def terraform_cloudflare_users(
                 enable_deletion=enable_deletion,
             )
         ),
-        ctx.obj,
+        ctx,
     )
 
 
@@ -2429,7 +2429,7 @@ def cna_resources(
 
     run_integration(
         reconcile.cna.integration,
-        ctx.obj,
+        ctx,
         enable_deletion,
         thread_pool_size,
     )
@@ -2450,7 +2450,7 @@ def saas_auto_promotions_manager(
 
     run_integration(
         reconcile.saas_auto_promotions_manager.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         env_name=env_name,
         app_name=app_name,
@@ -2480,7 +2480,7 @@ def terraform_users(
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_users,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2518,7 +2518,7 @@ def terraform_vpc_resources(
                 enable_deletion=enable_deletion,
             )
         ),
-        ctx.obj,
+        ctx,
     )
 
 
@@ -2551,7 +2551,7 @@ def terraform_vpc_peerings(
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_vpc_peerings,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2571,7 +2571,7 @@ def vpc_peerings_validator(ctx: click.Context) -> None:
 
     run_integration(
         reconcile.vpc_peerings_validator,
-        ctx.obj,
+        ctx,
     )
 
 
@@ -2602,7 +2602,7 @@ def terraform_tgw_attachments(
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_tgw_attachments,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2620,7 +2620,7 @@ def terraform_tgw_attachments(
 def github_repo_invites(ctx: click.Context) -> None:
     import reconcile.github_repo_invites
 
-    run_integration(reconcile.github_repo_invites, ctx.obj)
+    run_integration(reconcile.github_repo_invites, ctx)
 
 
 @integration.command(short_help="Validates permissions in github repositories.")
@@ -2629,7 +2629,7 @@ def github_repo_invites(ctx: click.Context) -> None:
 def github_repo_permissions_validator(ctx: click.Context, instance_name: str) -> None:
     import reconcile.github_repo_permissions_validator
 
-    run_integration(reconcile.github_repo_permissions_validator, ctx.obj, instance_name)
+    run_integration(reconcile.github_repo_permissions_validator, ctx, instance_name)
 
 
 @integration.command(short_help="Manage GitLab group members.")
@@ -2637,7 +2637,7 @@ def github_repo_permissions_validator(ctx: click.Context, instance_name: str) ->
 def gitlab_members(ctx: click.Context) -> None:
     import reconcile.gitlab_members
 
-    run_integration(reconcile.gitlab_members, ctx.obj)
+    run_integration(reconcile.gitlab_members, ctx)
 
 
 @integration.command(short_help="Create GitLab projects.")
@@ -2645,7 +2645,7 @@ def gitlab_members(ctx: click.Context) -> None:
 def gitlab_projects(ctx: click.Context) -> None:
     import reconcile.gitlab_projects
 
-    run_integration(reconcile.gitlab_projects, ctx.obj)
+    run_integration(reconcile.gitlab_projects, ctx)
 
 
 @integration.command(short_help="Manage membership in OpenShift groups via OCM.")
@@ -2654,7 +2654,7 @@ def gitlab_projects(ctx: click.Context) -> None:
 def ocm_groups(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.ocm_groups
 
-    run_integration(reconcile.ocm_groups, ctx.obj, thread_pool_size)
+    run_integration(reconcile.ocm_groups, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Manages clusters via OCM.")
@@ -2718,7 +2718,7 @@ def ocm_clusters(
                 rosa_role=rosa_role,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2763,7 +2763,7 @@ def openshift_cluster_bots(
 
     run_integration(
         reconcile.openshift_cluster_bots,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         vault_creds_path,
         dedicated_admin_ns=dedicated_admin_namespace,
@@ -2781,9 +2781,7 @@ def ocm_external_configuration_labels(
 ) -> None:
     import reconcile.ocm_external_configuration_labels
 
-    run_integration(
-        reconcile.ocm_external_configuration_labels, ctx.obj, thread_pool_size
-    )
+    run_integration(reconcile.ocm_external_configuration_labels, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
@@ -2791,7 +2789,7 @@ def ocm_external_configuration_labels(
 def ocm_addons_upgrade_tests_trigger(ctx: click.Context) -> None:
     import reconcile.ocm_addons_upgrade_tests_trigger
 
-    run_integration(reconcile.ocm_addons_upgrade_tests_trigger, ctx.obj)
+    run_integration(reconcile.ocm_addons_upgrade_tests_trigger, ctx)
 
 
 @integration.command(short_help="Manage Machine Pools in OCM.")
@@ -2799,7 +2797,7 @@ def ocm_addons_upgrade_tests_trigger(ctx: click.Context) -> None:
 def ocm_machine_pools(ctx: click.Context) -> None:
     import reconcile.ocm_machine_pools
 
-    run_integration(reconcile.ocm_machine_pools, ctx.obj)
+    run_integration(reconcile.ocm_machine_pools, ctx)
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
@@ -2821,7 +2819,7 @@ def ocm_upgrade_scheduler_org(
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2833,9 +2831,7 @@ def ocm_upgrade_scheduler_org_updater(
 ) -> None:
     import reconcile.ocm_upgrade_scheduler_org_updater
 
-    run_integration(
-        reconcile.ocm_upgrade_scheduler_org_updater, ctx.obj, gitlab_project_id
-    )
+    run_integration(reconcile.ocm_upgrade_scheduler_org_updater, ctx, gitlab_project_id)
 
 
 @integration.command(
@@ -2869,7 +2865,7 @@ def ocm_addons_upgrade_scheduler_org(
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2910,7 +2906,7 @@ def advanced_upgrade_scheduler(
                 ignore_sts_clusters=ignore_sts_clusters,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2969,7 +2965,7 @@ def version_gate_approver(
                 rosa_role=rosa_role,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2986,7 +2982,7 @@ def database_access_manager(ctx: click.Context, vault_output_path: str) -> None:
         integration=DatabaseAccessManagerIntegration(
             DBAMIntegrationParams(vault_output_path=vault_output_path)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2999,7 +2995,7 @@ def status_board_exporter(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=StatusBoardExporterIntegration(PydanticRunParams()),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3011,9 +3007,7 @@ def ocm_update_recommended_version(
 ) -> None:
     import reconcile.ocm_update_recommended_version
 
-    run_integration(
-        reconcile.ocm_update_recommended_version, ctx.obj, gitlab_project_id
-    )
+    run_integration(reconcile.ocm_update_recommended_version, ctx, gitlab_project_id)
 
 
 @integration.command(short_help="Manages cluster Addons in OCM.")
@@ -3022,7 +3016,7 @@ def ocm_update_recommended_version(
 def ocm_addons(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.ocm_addons
 
-    run_integration(reconcile.ocm_addons, ctx.obj, thread_pool_size)
+    run_integration(reconcile.ocm_addons, ctx, thread_pool_size)
 
 
 @integration.command(
@@ -3032,7 +3026,7 @@ def ocm_addons(ctx: click.Context, thread_pool_size: int) -> None:
 def ocm_aws_infrastructure_access(ctx: click.Context) -> None:
     import reconcile.ocm_aws_infrastructure_access
 
-    run_integration(reconcile.ocm_aws_infrastructure_access, ctx.obj)
+    run_integration(reconcile.ocm_aws_infrastructure_access, ctx)
 
 
 @integration.command(short_help="Manage GitHub Identity Providers in OCM.")
@@ -3041,7 +3035,7 @@ def ocm_aws_infrastructure_access(ctx: click.Context) -> None:
 def ocm_github_idp(ctx: click.Context, vault_input_path: str) -> None:
     import reconcile.ocm_github_idp
 
-    run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
+    run_integration(reconcile.ocm_github_idp, ctx, vault_input_path)
 
 
 @integration.command(
@@ -3094,7 +3088,7 @@ def ocm_oidc_idp(
                 default_auth_issuer_url=default_auth_issuer_url,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3165,7 +3159,7 @@ def rhidp_sso_client(
                 contacts=list(set(contact_emails.split(","))),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3181,7 +3175,7 @@ def cluster_auth_rhidp(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=ClusterAuthRhidpIntegration(ClusterAuthRhidpIntegrationParams()),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3196,7 +3190,7 @@ def dynatrace_token_provider(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=DynatraceTokenProviderIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3209,7 +3203,7 @@ def fleet_labeler(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=FleetLabelerIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3218,7 +3212,7 @@ def fleet_labeler(ctx: click.Context) -> None:
 def ocm_additional_routers(ctx: click.Context) -> None:
     import reconcile.ocm_additional_routers
 
-    run_integration(reconcile.ocm_additional_routers, ctx.obj)
+    run_integration(reconcile.ocm_additional_routers, ctx)
 
 
 @integration.command(short_help="Send email notifications to app-interface audience.")
@@ -3226,7 +3220,7 @@ def ocm_additional_routers(ctx: click.Context) -> None:
 def email_sender(ctx: click.Context) -> None:
     import reconcile.email_sender
 
-    run_integration(reconcile.email_sender, ctx.obj)
+    run_integration(reconcile.email_sender, ctx)
 
 
 @integration.command(
@@ -3236,7 +3230,7 @@ def email_sender(ctx: click.Context) -> None:
 def requests_sender(ctx: click.Context) -> None:
     import reconcile.requests_sender
 
-    run_integration(reconcile.requests_sender, ctx.obj)
+    run_integration(reconcile.requests_sender, ctx)
 
 
 @integration.command(short_help="Validate dependencies are defined for each service.")
@@ -3244,7 +3238,7 @@ def requests_sender(ctx: click.Context) -> None:
 def service_dependencies(ctx: click.Context) -> None:
     import reconcile.service_dependencies
 
-    run_integration(reconcile.service_dependencies, ctx.obj)
+    run_integration(reconcile.service_dependencies, ctx)
 
 
 @integration.command(short_help="Runs SQL Queries against app-interface RDS resources.")
@@ -3253,7 +3247,7 @@ def service_dependencies(ctx: click.Context) -> None:
 def sql_query(ctx: click.Context, enable_deletion: bool) -> None:
     import reconcile.sql_query
 
-    run_integration(reconcile.sql_query, ctx.obj, enable_deletion)
+    run_integration(reconcile.sql_query, ctx, enable_deletion)
 
 
 @integration.command(
@@ -3264,7 +3258,7 @@ def sql_query(ctx: click.Context, enable_deletion: bool) -> None:
 def gitlab_owners(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.gitlab_owners
 
-    run_integration(reconcile.gitlab_owners, ctx.obj, thread_pool_size)
+    run_integration(reconcile.gitlab_owners, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Ensures that forks of App Interface are compliant.")
@@ -3282,7 +3276,7 @@ def gitlab_fork_compliance(
 
     run_integration(
         reconcile.gitlab_fork_compliance,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         gitlab_merge_request_id,
         gitlab_maintainers_group,
@@ -3298,7 +3292,7 @@ def gitlab_fork_compliance(
 def dashdotdb_cso(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.dashdotdb_cso
 
-    run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
+    run_integration(reconcile.dashdotdb_cso, ctx, thread_pool_size)
 
 
 @integration.command(
@@ -3313,7 +3307,7 @@ def dashdotdb_dvo(
 ) -> None:
     import reconcile.dashdotdb_dvo
 
-    run_integration(reconcile.dashdotdb_dvo, ctx.obj, thread_pool_size, cluster_name)
+    run_integration(reconcile.dashdotdb_dvo, ctx, thread_pool_size, cluster_name)
 
 
 @integration.command(
@@ -3325,7 +3319,7 @@ def dashdotdb_dvo(
 def dashdotdb_slo(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.dashdotdb_slo
 
-    run_integration(reconcile.dashdotdb_slo, ctx.obj, thread_pool_size)
+    run_integration(reconcile.dashdotdb_slo, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Collects dora metrics.")
@@ -3337,9 +3331,7 @@ def dashdotdb_dora(
 ) -> None:
     import reconcile.dashdotdb_dora
 
-    run_integration(
-        reconcile.dashdotdb_dora, ctx.obj, gitlab_project_id, thread_pool_size
-    )
+    run_integration(reconcile.dashdotdb_dora, ctx, gitlab_project_id, thread_pool_size)
 
 
 @integration.command(short_help="Tests prometheus rules using promtool.")
@@ -3355,7 +3347,7 @@ def prometheus_rules_tester(
 
     run_integration(
         reconcile.prometheus_rules_tester.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         cluster_names=cluster_name,
     )
@@ -3366,7 +3358,7 @@ def prometheus_rules_tester(
 def resource_template_tester(ctx: click.Context) -> None:
     import reconcile.resource_template_tester
 
-    run_integration(reconcile.resource_template_tester, ctx.obj)
+    run_integration(reconcile.resource_template_tester, ctx)
 
 
 @integration.command(
@@ -3376,7 +3368,7 @@ def resource_template_tester(ctx: click.Context) -> None:
 def query_validator(ctx: click.Context) -> None:
     import reconcile.query_validator
 
-    run_integration(reconcile.query_validator, ctx.obj)
+    run_integration(reconcile.query_validator, ctx)
 
 
 @integration.command(short_help="Manages SendGrid teammates for a given account.")
@@ -3384,7 +3376,7 @@ def query_validator(ctx: click.Context) -> None:
 def sendgrid_teammates(ctx: click.Context) -> None:
     import reconcile.sendgrid_teammates
 
-    run_integration(reconcile.sendgrid_teammates, ctx.obj)
+    run_integration(reconcile.sendgrid_teammates, ctx)
 
 
 @integration.command(short_help="Maps ClusterDeployment resources to Cluster IDs.")
@@ -3393,7 +3385,7 @@ def sendgrid_teammates(ctx: click.Context) -> None:
 def cluster_deployment_mapper(ctx: click.Context, vault_output_path: str) -> None:
     import reconcile.cluster_deployment_mapper
 
-    run_integration(reconcile.cluster_deployment_mapper, ctx.obj, vault_output_path)
+    run_integration(reconcile.cluster_deployment_mapper, ctx, vault_output_path)
 
 
 @integration.command(short_help="Get resources from clusters and store in Vault.")
@@ -3411,7 +3403,7 @@ def resource_scraper(
 
     run_integration(
         reconcile.resource_scraper,
-        ctx.obj,
+        ctx,
         namespace_name,
         resource_kind,
         vault_output_path,
@@ -3432,7 +3424,7 @@ def gabi_authorized_users(
 
     run_integration(
         reconcile.gabi_authorized_users,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3448,7 +3440,7 @@ def status_page_components(ctx: click.Context) -> None:
         StatusPageComponentsIntegration,
     )
 
-    run_class_integration(StatusPageComponentsIntegration(), ctx.obj)
+    run_class_integration(StatusPageComponentsIntegration(), ctx)
 
 
 @integration.command(
@@ -3460,7 +3452,7 @@ def status_page_maintenances(ctx: click.Context) -> None:
         StatusPageMaintenancesIntegration,
     )
 
-    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx.obj)
+    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx)
 
 
 @integration.command(
@@ -3503,7 +3495,7 @@ def ocm_standalone_user_management(
                 group_provider_specs=group_provider,
             ),
         ),
-        ctx.obj,
+        ctx,
     )
 
 
@@ -3521,7 +3513,7 @@ def blackbox_exporter_endpoint_monitoring(
 
     run_integration(
         reconcile.blackbox_exporter_endpoint_monitoring,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3542,7 +3534,7 @@ def signalfx_prometheus_endpoint_monitoring(
 
     run_integration(
         reconcile.signalfx_endpoint_monitoring,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3571,7 +3563,7 @@ def parse_image_tag_from_ref(
 def vault_replication(ctx: click.Context) -> None:
     import reconcile.vault_replication
 
-    run_integration(reconcile.vault_replication, ctx.obj)
+    run_integration(reconcile.vault_replication, ctx)
 
 
 @integration.command(short_help="Manages Qontract Reconcile integrations.")
@@ -3618,7 +3610,7 @@ def integrations_manager(
 
     run_integration(
         reconcile.integrations_manager,
-        ctx.obj,
+        ctx,
         environment_name,
         get_integration_cli_meta(),
         thread_pool_size,
@@ -3664,7 +3656,7 @@ def change_owners(
 
     run_integration(
         reconcile.change_owners.change_owners,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         gitlab_merge_request_id,
         comparison_sha,
@@ -3701,7 +3693,7 @@ def change_log_tracking(
                 commit=commit,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3713,7 +3705,7 @@ def change_log_tracking(
 def glitchtip(ctx: click.Context, instance: str | None) -> None:
     import reconcile.glitchtip.integration
 
-    run_integration(reconcile.glitchtip.integration, ctx.obj, instance)
+    run_integration(reconcile.glitchtip.integration, ctx, instance)
 
 
 @integration.command(short_help="Configure Glitchtip project alerts.")
@@ -3729,7 +3721,7 @@ def glitchtip_project_alerts(ctx: click.Context, instance: str | None) -> None:
         integration=GlitchtipProjectAlertsIntegration(
             GlitchtipProjectAlertsIntegrationParams(instance=instance)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3752,7 +3744,7 @@ def glitchtip_project_dsn(
 
     run_integration(
         reconcile.glitchtip_project_dsn.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3774,7 +3766,7 @@ def skupper_network(
 
     run_integration(
         reconcile.skupper_network.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3812,7 +3804,7 @@ def ocm_labels(
                 ignored_label_prefixes=list(set(ignored_label_prefixes.split(","))),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3827,7 +3819,7 @@ def ocm_internal_notifications(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=OcmInternalNotifications(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3838,7 +3830,7 @@ def acs_rbac(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=acs_rbac.AcsRbacIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3849,7 +3841,7 @@ def acs_policies(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=acs_policies.AcsPoliciesIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3866,7 +3858,7 @@ def unleash_feature_toggles(ctx: click.Context, instance: str | None) -> None:
         integration=UnleashTogglesIntegration(
             UnleashTogglesIntegrationParams(instance=instance)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3877,7 +3869,7 @@ def deadmanssnitch(ctx: click.Context) -> None:
 
     run_class_integration(
         integration=deadmanssnitch.DeadMansSnitchIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3910,7 +3902,7 @@ def external_resources(
 
     run_integration(
         reconcile.external_resources.integration,
-        ctx.obj,
+        ctx,
         dry_run_job_suffix=dry_run_job_suffix,
         thread_pool_size=thread_pool_size,
         workers_cluster=workers_cluster,
@@ -3931,7 +3923,7 @@ def external_resources_secrets_sync(
 
     run_integration(
         reconcile.external_resources.integration_secrets_sync,
-        ctx.obj,
+        ctx,
         thread_pool_size,
     )
 
@@ -3957,7 +3949,7 @@ def automated_actions_config(
                 internal=internal,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
