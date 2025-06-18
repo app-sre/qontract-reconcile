@@ -668,12 +668,16 @@ def fetch_current_state(
             item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
         labels = openshift_resource.body.get("metadata", {}).get("labels", {})
-        # Skip resources managed by ArgoCD
-        # This uses the Kubernetes recommended label 'app.kubernetes.io/part-of=argocd'
-        # https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/
+        # Skip resources managed by the ArgoCD Operator (not ArgoCD Application CRs).
+        # This uses the label 'app.kubernetes.io/part-of=argocd', which is set by the ArgoCD Operator
+        # on resources it manages directly. See:
+        # https://argo-cd.readthedocs.io/en/latest/user-guide/annotations-and-labels/
+        # Note: This label is not set by ArgoCD Application CRs, but by the operator itself.
         if labels.get("app.kubernetes.io/part-of") == "argocd":
-            _locked_info_log(
-                f"Skipping {openshift_resource.kind} {openshift_resource.name} in current state because it is managed by ArgoCD"
+            _locked_debug_log(
+                f"Skipping {openshift_resource.kind} {openshift_resource.name} in current state "
+                f"for cluster '{cluster}' namespace '{namespace}' because it is managed by the ArgoCD Operator "
+                "(not by an ArgoCD Application CR)."
             )
             continue
         ri.add_current(
