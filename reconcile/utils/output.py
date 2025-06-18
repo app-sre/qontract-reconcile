@@ -41,26 +41,40 @@ def print_output(
     return formatted_content
 
 
-def format_table(content, columns, table_format="simple") -> str:
+def _format_cell(cell: dict, column: str, table_format: str) -> dict | str:
+    # example: for column 'cluster.name'
+    # cell = item['cluster']['name']
+    raw_data = cell
+    for token in column.split("."):
+        raw_data = raw_data.get(token) or {}
+    if raw_data == {}:
+        return ""
+
+    if not isinstance(raw_data, list | str):
+        return raw_data
+
+    data = ""
+    if isinstance(raw_data, str):
+        data = raw_data
+
+    if isinstance(raw_data, list):
+        if table_format == "github":
+            data = "<br />".join(raw_data)
+        else:
+            data = "\n".join(raw_data)
+
+    if table_format == "github":
+        return data.replace("|", "&#124;")
+
+    return data
+
+
+def format_table(
+    content: Iterable[dict], columns: Iterable[str], table_format: str = "simple"
+) -> str:
     headers = [column.upper() for column in columns]
     table_data = []
     for item in content:
-        row_data = []
-        for column in columns:
-            # example: for column 'cluster.name'
-            # cell = item['cluster']['name']
-            cell = item
-            for token in column.split("."):
-                cell = cell.get(token) or {}
-            if cell == {}:
-                cell = ""
-            if isinstance(cell, list):
-                if table_format == "github":
-                    cell = "<br />".join(cell)
-                else:
-                    cell = "\n".join(cell)
-            if table_format == "github" and isinstance(cell, str):
-                cell = cell.replace("|", "&#124;")
-            row_data.append(cell)
+        row_data = [_format_cell(item, column, table_format) for column in columns]
         table_data.append(row_data)
     return tabulate(table_data, headers=headers, tablefmt=table_format)

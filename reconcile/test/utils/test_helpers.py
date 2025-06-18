@@ -17,7 +17,7 @@ from reconcile.utils.helpers import (
 
 
 @pytest.fixture
-def default_level():
+def default_level() -> int:
     default_level = logging.INFO
     assert default_level != DEFAULT_TOGGLE_LEVEL
 
@@ -25,7 +25,7 @@ def default_level():
 
 
 @pytest.fixture
-def custom_level(default_level):
+def custom_level(default_level: int) -> int:
     custom_level = logging.WARNING
     assert custom_level != default_level
     assert custom_level != DEFAULT_TOGGLE_LEVEL
@@ -34,7 +34,7 @@ def custom_level(default_level):
 
 
 @pytest.fixture
-def logger(default_level):
+def logger(default_level: int) -> logging.Logger:
     logger = logging.getLogger()
     logger.level = default_level
     assert logger.level == default_level
@@ -42,21 +42,27 @@ def logger(default_level):
     return logger
 
 
-def test_toggle_logger_default_toggle_level(logger, default_level):
+def test_toggle_logger_default_toggle_level(
+    logger: logging.Logger, default_level: int
+) -> None:
     with toggle_logger():
         assert logger.level == DEFAULT_TOGGLE_LEVEL
 
     assert logger.level == default_level
 
 
-def test_toggle_logger_custom_level(logger, custom_level, default_level):
+def test_toggle_logger_custom_level(
+    logger: logging.Logger, custom_level: int, default_level: int
+) -> None:
     with toggle_logger(custom_level):
         assert logger.level == custom_level
 
     assert logger.level == default_level
 
 
-def test_toggle_logger_default_level(logger, default_level):
+def test_toggle_logger_default_level(
+    logger: logging.Logger, default_level: int
+) -> None:
     with toggle_logger(default_level):
         assert logger.level == default_level
 
