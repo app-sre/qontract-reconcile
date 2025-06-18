@@ -1,18 +1,25 @@
+from collections.abc import Iterable
+
+import pytest
+
 from reconcile.utils.output import format_table
 
 
-def test_format_table_simple() -> None:
+@pytest.fixture
+def content() -> Iterable[dict]:
+    return [
+        {"a": "a1", "b": {"b": "b1"}, "c": ["1", "2"]},
+        {"a": "a2", "b": {"b": "b2"}, "c": ["1", "2"]},
+        {"a": "a3", "b": {"b": "b3"}, "c": ["1", "2"]},
+    ]
+
+
+def test_format_table_simple(content: Iterable[dict]) -> None:
     output = format_table(
-        [
-            {"a": "a1", "b": {"b": "b1"}, "c": ["1", "2"]},
-            {"a": "a2", "b": {"b": "b2"}, "c": ["1", "2"]},
-            {"a": "a3", "b": {"b": "b3"}, "c": ["1", "2"]},
-        ],
+        content,
         ["a", "b", "b.b", "c"],
         "simple",
     )
-
-    print(repr(output))
 
     assert (
         output
@@ -20,18 +27,12 @@ def test_format_table_simple() -> None:
     )
 
 
-def test_format_table_github() -> None:
+def test_format_table_github(content: Iterable[dict]) -> None:
     output = format_table(
-        [
-            {"a": "a1", "b": {"b": "b1"}, "c": ["1", "2"]},
-            {"a": "a2", "b": {"b": "b2"}, "c": ["1", "2"]},
-            {"a": "a3", "b": {"b": "b3"}, "c": ["1", "2"]},
-        ],
+        content,
         ["a", "b", "b.b", "c"],
         "github",
     )
-
-    print(repr(output))
 
     assert (
         output
@@ -39,16 +40,10 @@ def test_format_table_github() -> None:
     )
 
 
-def test_format_table_missing_column_field() -> None:
+def test_format_table_missing_column_field(content: Iterable[dict]) -> None:
     output = format_table(
-        [
-            {"a": "a1", "b": {"b": "b1"}, "c": ["1", "2"]},
-            {"a": "a2", "b": {"b": "b2"}, "c": ["1", "2"]},
-            {"a": "a3", "b": {"b": "b3"}, "c": ["1", "2"]},
-        ],
+        content,
         ["non_existant"],
     )
-
-    print(repr(output))
 
     assert output == "NON_EXISTANT\n--------------\n\n\n"
