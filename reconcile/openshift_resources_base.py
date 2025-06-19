@@ -669,10 +669,16 @@ def fetch_current_state(
         )
         labels = openshift_resource.body.get("metadata", {}).get("labels", {})
         # Skip resources managed by the ArgoCD Operator (not ArgoCD Application CRs).
-        # This uses the label 'app.kubernetes.io/part-of=argocd', which is set by the ArgoCD Operator
-        # on resources it manages directly. See:
-        # https://argo-cd.readthedocs.io/en/latest/user-guide/annotations-and-labels/
-        # Note: This label is not set by ArgoCD Application CRs, but by the operator itself.
+        # This is determined by the presence of the label:
+        #   app.kubernetes.io/part-of=argocd
+        #
+        # Details:
+        # - The ArgoCD Operator sets this label on resources it manages directly.
+        # - ArgoCD Application CRs do NOT set this label.
+        # - See:
+        #     https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/
+        #     https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
+        #     https://github.com/argoproj-labs/argocd-operator/blob/master/common/keys.go#L98
         if labels.get("app.kubernetes.io/part-of") == "argocd":
             _locked_debug_log(
                 f"Skipping {openshift_resource.kind} {openshift_resource.name} in current state "
