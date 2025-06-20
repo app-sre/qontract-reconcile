@@ -759,31 +759,6 @@ def github_owners(ctx: click.Context) -> None:
     run_integration(reconcile.github_owners, ctx)
 
 
-@integration.command(short_help="Validate compliance of GitHub user profiles.")
-@gitlab_project_id
-@threaded()
-@enable_deletion(default=False)
-@send_mails(default=False)
-@click.pass_context
-def github_users(
-    ctx: click.Context,
-    gitlab_project_id: str | None,
-    thread_pool_size: int,
-    enable_deletion: bool,
-    send_mails: bool,
-) -> None:
-    import reconcile.github_users
-
-    run_integration(
-        reconcile.github_users,
-        ctx,
-        gitlab_project_id,
-        thread_pool_size,
-        enable_deletion,
-        send_mails,
-    )
-
-
 @integration.command(short_help="Validates GitHub organization settings.")
 @click.pass_context
 def github_validator(ctx: click.Context) -> None:
