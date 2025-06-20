@@ -335,7 +335,7 @@ def _construct_tekton_trigger_resource(
     integration_version: str,
     include_trigger_trace: bool,
     reason: str | None,
-    target_ref: str | any,
+    target_ref: str | Any,
 ) -> tuple[OR, str]:
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 
