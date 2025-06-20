@@ -213,9 +213,10 @@ def verify_on_demand_tests(
         if not dry_run and state_change:
             markdown_report = (
                 f"On-demand Tests: \n\n For latest [commit]({commit.web_url}) You will need to pass following test jobs to get this MR merged.\n\n"
-                f"Add comment with `/test [test_name]` to trigger the tests.\n\n"
+                f"Add a comment with `/test [test_name]` to trigger a test; multiple tests can be triggered from the same comment: repeat the `/test [test_name]` command separated by lines.\n\n"
             )
-            markdown_report += f"* {', '.join(remaining_tests)}\n"
+            markdown_report += f"* {', '.join(remaining_tests)}\n\n"
+            markdown_report += "An update of the MR will reset the on-demand tests. Consider running them once the MR is REVIEWED and no more code changes are required.\n\n"
             gl.delete_merge_request_comments(mr, startswith="On-demand Tests:")
             gl.add_comment_to_merge_request(mr, markdown_report)
             state.add(state_key, remaining_tests, force=True)
