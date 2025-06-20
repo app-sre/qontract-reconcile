@@ -1,15 +1,17 @@
 import datetime
+import os
 from functools import cache
 from typing import Any, Self
 
 import jinja2
+from github import Github
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile import queries
 from reconcile.checkpoint import url_makes_sense
-from reconcile.github_users import init_github
+from reconcile.github_org import get_default_config
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.github_api import GithubRepositoryApi
@@ -95,6 +97,14 @@ def compile_jinja2_template(
     })
 
     return jinja_env.from_string(body)
+
+
+GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
+
+
+def init_github() -> Github:
+    token = get_default_config()["token"]
+    return Github(token, base_url=GH_BASE_URL)
 
 
 def lookup_github_file_content(
