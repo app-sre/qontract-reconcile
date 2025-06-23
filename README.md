@@ -34,7 +34,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 `qontract-reconcile` includes the following integrations:
 
 ```text
-  acs-notifiers                   Manages RHACS notifier configurations
   acs-policies                    Manages RHACS security policy configurations
   acs-rbac                        Manages RHACS rbac configuration
   advanced-upgrade-scheduler      Manage Cluster Upgrade Policy schedules in
@@ -67,8 +66,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   RHIDP.
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
-  cna-resources                   Manage Cloud Resources using Cloud Native
-                                  Assets (CNA).
   dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
                                   the clusters and posts them to Dashdotdb.
   dashdotdb-dora                  Collects dora metrics.

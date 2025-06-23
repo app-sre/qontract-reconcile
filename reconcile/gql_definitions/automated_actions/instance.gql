@@ -11,27 +11,57 @@ query AutomatedActionsInstances {
         ...OcConnectionCluster
       }
     }
-    permissions {
-      roles {
-        name
-        users {
-          org_username
+    actions {
+      type
+      permissions {
+        roles {
+          name
+          users {
+            org_username
+          }
+          bots {
+            org_username
+          }
+          expirationDate
         }
-        bots {
-          org_username
+      }
+      maxOps
+      ... on AutomatedActionActionList_v1 {
+        action_list_arguments: arguments {
+          action_user
+          max_age_minutes
         }
-        expirationDate
       }
-
-      action {
-        operationId
-        retries
-        maxOps
+      ... on AutomatedActionExternalResourceFlushElastiCache_v1 {
+        external_resource_flush_elasticache_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
       }
-
-      arguments {
-        type
-        ... on AutomatedActionArgumentOpenshift_v1 {
+      ... on AutomatedActionExternalResourceRdsReboot_v1 {
+        external_resource_rds_reboot_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
+      ... on AutomatedActionOpenshiftWorkloadRestart_v1 {
+        openshift_workload_restart_arguments: arguments {
           namespace {
             name
             delete
@@ -42,8 +72,8 @@ query AutomatedActionsInstances {
               }
             }
           }
-          kind_pattern
-          name_pattern
+          kind
+          name
         }
       }
     }

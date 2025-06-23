@@ -16,6 +16,8 @@ from jira import (
     Issue,
 )
 from jira.client import ResultList
+from jira.resources import CustomFieldOption as JiraCustomFieldOption
+from jira.resources import Resource
 from pydantic import BaseModel
 
 from reconcile.utils.secret_reader import SecretReader
@@ -24,13 +26,6 @@ from reconcile.utils.secret_reader import SecretReader
 class JiraWatcherSettings(Protocol):
     read_timeout: int
     connect_timeout: int
-
-
-class SecurityLevel(BaseModel):
-    """Jira security level."""
-
-    id: str
-    name: str
 
 
 class Priority(BaseModel):
@@ -46,6 +41,50 @@ class IssueType(BaseModel):
     id: str
     name: str
     statuses: list[str]
+
+
+class FieldOption(BaseModel):
+    """A standard buildin issue field option."""
+
+    name: str
+
+    def __eq__(self, value: Any) -> bool:
+        """Compare the field option with a string value."""
+        if isinstance(value, str):
+            return self.name == value
+        return False
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+class CustomFieldOption(BaseModel):
+    """A custom issue field option."""
+
+    value: str
+
+    def __eq__(self, value: Any) -> bool:
+        """Compare the custom field option with a string value."""
+        if isinstance(value, str):
+            return self.value == value
+        return False
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+class IssueField(BaseModel):
+    """Jira issue field."""
+
+    id: str
+    name: str
+    options: list[FieldOption | CustomFieldOption]
 
 
 class JiraClient:
@@ -86,6 +125,8 @@ class JiraClient:
         self.priorities = functools.lru_cache(maxsize=None)(self._priorities)
         self.public_projects = functools.lru_cache(maxsize=None)(self._public_projects)
         self.my_permissions = functools.lru_cache(maxsize=None)(self._my_permissions)
+        self.project_issue_types = functools.cache(self._project_issue_types)
+        self.project_issue_fields = functools.cache(self._project_issue_fields)
 
     def _deprecated_init(
         self, jira_board: Mapping[str, Any], settings: Mapping | None
@@ -135,7 +176,7 @@ class JiraClient:
             server=server_url,
         )
 
-    def get_issues(self, fields: Mapping | None = None) -> list[Issue]:
+    def get_issues(self, fields: Iterable | None = None) -> list[Issue]:
         block_size = 100
         block_num = 0
 
@@ -199,19 +240,63 @@ class JiraClient:
     def can_transition_issues(self) -> bool:
         return self.can_i("TRANSITION_ISSUES")
 
-    def project_issue_types(self) -> list[IssueType]:
+    def _project_issue_types(self, project: str) -> list[IssueType]:
+        # Don't use self.project here, because of function.cache usage
         return [
             IssueType(id=t.id, name=t.name, statuses=[s.name for s in t.statuses])
-            for t in self.jira.issue_types_for_project(self.project)
+            for t in self.jira.issue_types_for_project(project)
         ]
 
-    def security_levels(self) -> list[SecurityLevel]:
-        """Return a list of all available security levels for the project.
+    def get_issue_type(self, issue_type: str) -> IssueType | None:
+        for _issue_type in self.project_issue_types(self.project):
+            if _issue_type.name == issue_type:
+                return _issue_type
+        return None
 
-        This API endpoint needs admin/owner project permissions.
+    @staticmethod
+    def _get_allowed_issue_field_options(
+        allowed_values: list[Resource],
+    ) -> list[FieldOption | CustomFieldOption]:
+        """Return a list of allowed values for a field."""
+        return [
+            CustomFieldOption(value=v.value)
+            if isinstance(v, JiraCustomFieldOption)
+            else FieldOption(name=v.name)
+            for v in allowed_values
+        ]
+
+    def _project_issue_fields(
+        self, project: str, issue_type_id: str
+    ) -> list[IssueField]:
+        """Return all available issue fields for the project.
+
+        This API endpoint needs createIssue project permissions.
         """
-        scheme = self.jira.project_issue_security_level_scheme(self.project)
-        return [SecurityLevel(id=level.id, name=level.name) for level in scheme.levels]
+        # Don't use self.project here, because of function.cache usage
+        return [
+            IssueField(
+                name=field.name,
+                id=field.fieldId,
+                options=self._get_allowed_issue_field_options(
+                    getattr(field, "allowedValues", [])
+                ),
+            )
+            for field in self.jira.project_issue_fields(
+                project=project, issue_type=issue_type_id, maxResults=9999
+            )
+        ]
+
+    def project_issue_field(self, issue_type_id: str, field: str) -> IssueField | None:
+        """Return a issue field for the project if it exists.
+
+        This API endpoint needs createIssue project permissions.
+        """
+        for _field in self.project_issue_fields(
+            project=self.project, issue_type_id=issue_type_id
+        ):
+            if _field.name == field:
+                return _field
+        return None
 
     def _priorities(self) -> list[Priority]:
         """Return a list of all available Jira priorities."""

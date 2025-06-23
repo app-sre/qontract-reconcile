@@ -16,6 +16,7 @@ from reconcile.gql_definitions.service_dependencies.service_dependencies import 
     SaasResourceTemplateV2,
 )
 from reconcile.utils import gql
+from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "service-dependencies"
 
@@ -31,13 +32,13 @@ def get_desired_dependency_names(
     required_dep_names = set()
 
     code_components: list[AppCodeComponentsV1] = app.code_components or []
-    if code_components:
-        gitlab_urls = [cc for cc in code_components if "gitlab" in cc.url]
-        if gitlab_urls:
-            required_dep_names.update(get_dependency_names(dependency_map, "gitlab"))
-        github_urls = [cc for cc in code_components if "github.com" in cc.url]
-        if github_urls:
-            required_dep_names.update(get_dependency_names(dependency_map, "github"))
+    code_component_platforms = {
+        platform
+        for cc in code_components
+        if (platform := VCS.parse_repo_url(cc.url).platform)
+    }
+    for platform in code_component_platforms:
+        required_dep_names.update(get_dependency_names(dependency_map, platform))
 
     jenkins_configs: list[JenkinsConfigV1] = app.jenkins_configs or []
     if jenkins_configs:

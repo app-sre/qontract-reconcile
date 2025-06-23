@@ -69,27 +69,57 @@ query AutomatedActionsInstances {
         ...OcConnectionCluster
       }
     }
-    permissions {
-      roles {
-        name
-        users {
-          org_username
+    actions {
+      type
+      permissions {
+        roles {
+          name
+          users {
+            org_username
+          }
+          bots {
+            org_username
+          }
+          expirationDate
         }
-        bots {
-          org_username
+      }
+      maxOps
+      ... on AutomatedActionActionList_v1 {
+        action_list_arguments: arguments {
+          action_user
+          max_age_minutes
         }
-        expirationDate
       }
-
-      action {
-        operationId
-        retries
-        maxOps
+      ... on AutomatedActionExternalResourceFlushElastiCache_v1 {
+        external_resource_flush_elasticache_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
       }
-
-      arguments {
-        type
-        ... on AutomatedActionArgumentOpenshift_v1 {
+      ... on AutomatedActionExternalResourceRdsReboot_v1 {
+        external_resource_rds_reboot_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
+      ... on AutomatedActionOpenshiftWorkloadRestart_v1 {
+        openshift_workload_restart_arguments: arguments {
           namespace {
             name
             delete
@@ -100,8 +130,8 @@ query AutomatedActionsInstances {
               }
             }
           }
-          kind_pattern
-          name_pattern
+          kind
+          name
         }
       }
     }
@@ -138,47 +168,104 @@ class RoleV1(ConfiguredBaseModel):
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
 
 
+class PermissionAutomatedActionsV1(ConfiguredBaseModel):
+    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
+
+
 class AutomatedActionV1(ConfiguredBaseModel):
-    operation_id: str = Field(..., alias="operationId")
-    retries: int = Field(..., alias="retries")
+    q_type: str = Field(..., alias="type")
+    permissions: Optional[list[PermissionAutomatedActionsV1]] = Field(..., alias="permissions")
     max_ops: int = Field(..., alias="maxOps")
 
 
-class AutomatedActionArgumentV1(ConfiguredBaseModel):
-    q_type: str = Field(..., alias="type")
+class AutomatedActionActionListArgumentV1(ConfiguredBaseModel):
+    action_user: Optional[str] = Field(..., alias="action_user")
+    max_age_minutes: Optional[int] = Field(..., alias="max_age_minutes")
+
+
+class AutomatedActionActionListV1(AutomatedActionV1):
+    action_list_arguments: Optional[list[AutomatedActionActionListArgumentV1]] = Field(..., alias="action_list_arguments")
+
+
+class ExternalResourcesProvisionerV1(ConfiguredBaseModel):
+    ...
+
+
+class AWSAccountV1(ExternalResourcesProvisionerV1):
+    name: str = Field(..., alias="name")
+
+
+class NamespaceExternalResourceV1(ConfiguredBaseModel):
+    provisioner: Union[AWSAccountV1, ExternalResourcesProvisionerV1] = Field(..., alias="provisioner")
+
+
+class AutomatedActionExternalResourceArgumentV1_NamespaceV1(ConfiguredBaseModel):
+    external_resources: Optional[list[NamespaceExternalResourceV1]] = Field(..., alias="externalResources")
+
+
+class AutomatedActionExternalResourceArgumentV1(ConfiguredBaseModel):
+    namespace: AutomatedActionExternalResourceArgumentV1_NamespaceV1 = Field(..., alias="namespace")
+    identifier: str = Field(..., alias="identifier")
+
+
+class AutomatedActionExternalResourceFlushElastiCacheV1(AutomatedActionV1):
+    external_resource_flush_elasticache_arguments: list[AutomatedActionExternalResourceArgumentV1] = Field(..., alias="external_resource_flush_elasticache_arguments")
+
+
+class AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1(ConfiguredBaseModel):
+    ...
+
+
+class AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1_AWSAccountV1(AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1):
+    name: str = Field(..., alias="name")
+
+
+class AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1(ConfiguredBaseModel):
+    provisioner: Union[AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1_AWSAccountV1, AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1] = Field(..., alias="provisioner")
+
+
+class AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1(ConfiguredBaseModel):
+    external_resources: Optional[list[AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1]] = Field(..., alias="externalResources")
+
+
+class AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1(ConfiguredBaseModel):
+    namespace: AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1 = Field(..., alias="namespace")
+    identifier: str = Field(..., alias="identifier")
+
+
+class AutomatedActionExternalResourceRdsRebootV1(AutomatedActionV1):
+    external_resource_rds_reboot_arguments: list[AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1] = Field(..., alias="external_resource_rds_reboot_arguments")
 
 
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
 
-class AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1(ConfiguredBaseModel):
+class AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 
-class AutomatedActionArgumentOpenshiftV1_NamespaceV1(ConfiguredBaseModel):
+class AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     delete: Optional[bool] = Field(..., alias="delete")
-    cluster: AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1 = Field(..., alias="cluster")
+    cluster: AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1 = Field(..., alias="cluster")
 
 
-class AutomatedActionArgumentOpenshiftV1(AutomatedActionArgumentV1):
-    namespace: AutomatedActionArgumentOpenshiftV1_NamespaceV1 = Field(..., alias="namespace")
-    kind_pattern: str = Field(..., alias="kind_pattern")
-    name_pattern: str = Field(..., alias="name_pattern")
+class AutomatedActionOpenshiftWorkloadRestartArgumentV1(ConfiguredBaseModel):
+    namespace: AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1 = Field(..., alias="namespace")
+    kind: str = Field(..., alias="kind")
+    name: str = Field(..., alias="name")
 
 
-class PermissionAutomatedActionsV1(ConfiguredBaseModel):
-    roles: Optional[list[RoleV1]] = Field(..., alias="roles")
-    action: AutomatedActionV1 = Field(..., alias="action")
-    arguments: Optional[list[Union[AutomatedActionArgumentOpenshiftV1, AutomatedActionArgumentV1]]] = Field(..., alias="arguments")
+class AutomatedActionOpenshiftWorkloadRestartV1(AutomatedActionV1):
+    openshift_workload_restart_arguments: list[AutomatedActionOpenshiftWorkloadRestartArgumentV1] = Field(..., alias="openshift_workload_restart_arguments")
 
 
 class AutomatedActionsInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     deployment: NamespaceV1 = Field(..., alias="deployment")
-    permissions: Optional[list[PermissionAutomatedActionsV1]] = Field(..., alias="permissions")
+    actions: Optional[list[Union[AutomatedActionActionListV1, AutomatedActionExternalResourceFlushElastiCacheV1, AutomatedActionExternalResourceRdsRebootV1, AutomatedActionOpenshiftWorkloadRestartV1, AutomatedActionV1]]] = Field(..., alias="actions")
 
 
 class AutomatedActionsInstancesQueryData(ConfiguredBaseModel):

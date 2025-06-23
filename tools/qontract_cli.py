@@ -799,6 +799,11 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
 
 @get.command()
 @click.option(
+    "--channel",
+    help="Specifies the channel that alerts stores",
+    type=str,
+)
+@click.option(
     "--days",
     help="Days to consider for the report. Cannot be used with timestamp options.",
     type=int,
@@ -816,13 +821,14 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
     type=int,
 )
 @click.pass_context
-def sd_app_sre_alert_report(
+def alert_report(
     ctx: click.core.Context,
+    channel: str | None,
     days: int | None,
     from_timestamp: int | None,
     to_timestamp: int | None,
 ) -> None:
-    import tools.sd_app_sre_alert_report as report
+    import tools.alert_report as report
 
     if days:
         if from_timestamp or to_timestamp:
@@ -845,7 +851,9 @@ def sd_app_sre_alert_report(
             sys.exit(1)
 
     slack = slackapi_from_queries(
-        integration_name=report.QONTRACT_INTEGRATION, init_usergroups=False
+        integration_name=report.QONTRACT_INTEGRATION,
+        init_usergroups=False,
+        channel=channel,
     )
     alerts = report.group_alerts(
         slack.get_flat_conversation_history(
@@ -2104,12 +2112,40 @@ def quay_mirrors(ctx: click.Context) -> None:
 
                 mirrors.append({
                     "repo": f"quay.io/{org_name}/{name}",
-                    "public": public,
                     "upstream": url,
+                    "public": public,
                 })
 
-    columns = ["repo", "upstream", "public"]
-    print_output(ctx.obj["options"], mirrors, columns)
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "repo", "sortable": True},
+                {"key": "upstream", "sortable": True},
+                {"key": "public", "sortable": True},
+            ],
+            "items": mirrors,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(mirrors)} mirror images found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "repo",
+            "upstream",
+            "public",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], mirrors, columns)
 
 
 @get.command()
@@ -3134,8 +3170,6 @@ def container_image_details(ctx: click.Context) -> None:
         for org_items in app.quay_repos or []:
             org_name = org_items.org.name
             for repo in org_items.items or []:
-                if repo.mirror:
-                    continue
                 repository = f"quay.io/{org_name}/{repo.name}"
                 item: dict[str, str | list[str]] = {
                     "app": app_name,
@@ -3144,8 +3178,39 @@ def container_image_details(ctx: click.Context) -> None:
                     "slack": slack,
                 }
                 data.append(item)
-    columns = ["app", "repository", "email", "slack"]
-    print_output(ctx.obj["options"], data, columns)
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "app", "sortable": True},
+                {"key": "repository", "sortable": True},
+                {"key": "email", "sortable": True},
+                {"key": "slack", "sortable": True},
+            ],
+            "items": data,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(data)} container images found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "app",
+            "repository",
+            "email",
+            "slack",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], data, columns)
 
 
 @get.command
@@ -4536,7 +4601,7 @@ def container_images(
             "fields": [
                 {"key": "name", "sortable": True},
                 {"key": "namespaces", "sortable": True},
-                {"key": "apps", "sortable": True},
+                {"key": "namespace_apps", "sortable": True},
                 {"key": "count", "sortable": True},
             ],
             "items": results,
@@ -4557,7 +4622,7 @@ You can view the source of this Markdown to extract the JSON data.
         columns = [
             "name",
             "namespaces",
-            "apps",
+            "namespace_apps",
             "count",
         ]
         ctx.obj["options"]["sort"] = False

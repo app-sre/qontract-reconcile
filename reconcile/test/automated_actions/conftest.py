@@ -11,9 +11,12 @@ from reconcile.automated_actions.config.integration import (
     AutomatedActionsUser,
 )
 from reconcile.gql_definitions.automated_actions.instance import (
-    AutomatedActionArgumentOpenshiftV1,
-    AutomatedActionArgumentOpenshiftV1_NamespaceV1,
-    AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1,
+    AutomatedActionActionListArgumentV1,
+    AutomatedActionActionListV1,
+    AutomatedActionOpenshiftWorkloadRestartArgumentV1,
+    AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1,
+    AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1,
+    AutomatedActionOpenshiftWorkloadRestartV1,
     AutomatedActionsInstanceV1,
     AutomatedActionV1,
     BotV1,
@@ -72,44 +75,74 @@ def instances(
 
 
 @pytest.fixture
-def permissions() -> list[PermissionAutomatedActionsV1]:
+def actions() -> list[AutomatedActionV1]:
     return [
-        PermissionAutomatedActionsV1(
-            roles=[
-                RoleV1(
-                    name="role",
-                    users=[UserV1(org_username="user1")],
-                    bots=[BotV1(org_username="bot1")],
-                    expirationDate=None,
+        # An action with no arguments
+        AutomatedActionV1(
+            type="create-token",
+            maxOps=1,
+            permissions=[
+                PermissionAutomatedActionsV1(
+                    roles=[
+                        RoleV1(
+                            name="role-1",
+                            users=[UserV1(org_username="user1")],
+                            bots=[BotV1(org_username="bot1")],
+                            expirationDate=None,
+                        )
+                    ],
                 )
             ],
-            arguments=None,
-            action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
         ),
-        PermissionAutomatedActionsV1(
-            roles=[
-                RoleV1(
-                    name="another-role-with-args",
-                    users=[UserV1(org_username="user1")],
-                    bots=[],
-                    expirationDate=None,
+        AutomatedActionActionListV1(
+            type="action-list",
+            maxOps=0,
+            permissions=[
+                PermissionAutomatedActionsV1(
+                    roles=[
+                        RoleV1(
+                            name="role-2",
+                            users=[UserV1(org_username="user1")],
+                            bots=[],
+                            expirationDate=None,
+                        )
+                    ],
                 )
             ],
-            arguments=[
-                AutomatedActionArgumentOpenshiftV1(
-                    type="openshift",
-                    kind_pattern="Deployment|Pod",
-                    name_pattern="shaver.*",
-                    namespace=AutomatedActionArgumentOpenshiftV1_NamespaceV1(
+            action_list_arguments=[
+                AutomatedActionActionListArgumentV1(
+                    action_user=".*", max_age_minutes=None
+                )
+            ],
+        ),
+        AutomatedActionOpenshiftWorkloadRestartV1(
+            type="openshift-workload-restart",
+            maxOps=5,
+            permissions=[
+                PermissionAutomatedActionsV1(
+                    roles=[
+                        RoleV1(
+                            name="role-2",
+                            users=[UserV1(org_username="user1")],
+                            bots=[],
+                            expirationDate=None,
+                        )
+                    ],
+                )
+            ],
+            openshift_workload_restart_arguments=[
+                AutomatedActionOpenshiftWorkloadRestartArgumentV1(
+                    kind="Deployment|Pod",
+                    name="shaver.*",
+                    namespace=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1(
                         name="namespace",
                         delete=False,
-                        cluster=AutomatedActionArgumentOpenshiftV1_NamespaceV1_ClusterV1(
+                        cluster=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1(
                             name="cluster", disable=None
                         ),
                     ),
                 )
             ],
-            action=AutomatedActionV1(operationId="action", retries=1, maxOps=1),
         ),
     ]
 
@@ -117,23 +150,26 @@ def permissions() -> list[PermissionAutomatedActionsV1]:
 @pytest.fixture
 def automated_actions_users() -> list[AutomatedActionsUser]:
     return [
-        AutomatedActionsUser(
-            username="user1", roles={"another-role-with-args", "role"}
-        ),
-        AutomatedActionsUser(username="bot1", roles={"role"}),
+        AutomatedActionsUser(username="user1", roles={"role-1", "role-2"}),
+        AutomatedActionsUser(username="bot1", roles={"role-1"}),
     ]
 
 
 @pytest.fixture
 def automated_actions_roles() -> AutomatedActionRoles:
     return {
-        "role": [
-            AutomatedActionsPolicy(sub="role", obj="action", params={}),
+        "role-1": [
+            AutomatedActionsPolicy(obj="create-token", max_ops=1, params={}),
         ],
-        "another-role-with-args": [
+        "role-2": [
             AutomatedActionsPolicy(
-                sub="another-role-with-args",
-                obj="action",
+                obj="action-list",
+                max_ops=0,
+                params={"action_user": ".*"},
+            ),
+            AutomatedActionsPolicy(
+                obj="openshift-workload-restart",
+                max_ops=5,
                 params={
                     "cluster": "^cluster$",
                     "namespace": "^namespace$",
@@ -148,24 +184,28 @@ def automated_actions_roles() -> AutomatedActionRoles:
 @pytest.fixture
 def policy_file() -> str:
     return """roles:
-  another-role-with-args:
-  - obj: action
+  role-1:
+  - max_ops: 1
+    obj: create-token
+    params: {}
+  role-2:
+  - max_ops: 0
+    obj: action-list
+    params:
+      action_user: .*
+  - max_ops: 5
+    obj: openshift-workload-restart
     params:
       cluster: ^cluster$
       kind: Deployment|Pod
       name: shaver.*
       namespace: ^namespace$
-    sub: another-role-with-args
-  role:
-  - obj: action
-    params: {}
-    sub: role
 users:
   bot1:
-  - role
+  - role-1
   user1:
-  - another-role-with-args
-  - role
+  - role-1
+  - role-2
 """
 
 
@@ -188,5 +228,5 @@ def instance() -> AutomatedActionsInstanceV1:
                 disable=None,
             ),
         ),
-        permissions=None,
+        actions=None,
     )

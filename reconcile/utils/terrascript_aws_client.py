@@ -186,6 +186,7 @@ from reconcile.utils.password_validator import (
 )
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.terraform import safe_resource_id
+from reconcile.utils.vcs import VCS
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
 LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
@@ -5685,20 +5686,20 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             return ref
 
         # get commit_sha from branch
-        if "github" in url:
-            github = self.init_github()
-            repo_name = url.rstrip("/").replace("https://github.com/", "")
-            repo = github.get_repo(repo_name)
-            commit = repo.get_commit(sha=ref)
-            return commit.sha
-
-        if "gitlab" in url:
-            gitlab = self.init_gitlab()
-            project = gitlab.get_project(url)
-            commits = project.commits.list(ref_name=ref, per_page=1, page=1)
-            return commits[0].id
-
-        return ""
+        repo_url_info = VCS.parse_repo_url(url)
+        match repo_url_info.platform:
+            case "github":
+                github = self.init_github()
+                repo = github.get_repo(repo_url_info.name)
+                commit = repo.get_commit(sha=ref)
+                return commit.sha
+            case "gitlab":
+                gitlab = self.init_gitlab()
+                project = gitlab.get_project(url)
+                commits = project.commits.list(ref_name=ref, per_page=1, page=1)
+                return commits[0].id
+            case _:
+                return ""
 
     def get_asg_image_id(
         self, filters: Iterable[Mapping[str, Any]], account: str, region: str

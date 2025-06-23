@@ -476,3 +476,29 @@ def test_secret_keys(test_parameters, exception_expected):
             orb.assert_valid_secret_keys(test_parameters)
     else:
         orb.assert_valid_secret_keys(test_parameters)
+
+
+def test_fetch_current_state_skips_argocd_managed(oc_cs1: oc.OCClient):
+    """Resources labeled as managed by ArgoCD should be skipped in current state."""
+    ri = ResourceInventory()
+    ri.initialize_resource_type("cs1", "ns1", "Deployment")
+    argocd_labeled_resource = {
+        "kind": "Deployment",
+        "apiVersion": "apps/v1",
+        "metadata": {
+            "name": "my-deployment",
+            "labels": {"app.kubernetes.io/part-of": "argocd"},
+        },
+    }
+    oc_cs1.get_items = lambda kind, **kwargs: [argocd_labeled_resource]  # type: ignore[method-assign]
+    orb.fetch_current_state(
+        oc=oc_cs1,
+        ri=ri,
+        cluster="cs1",
+        namespace="ns1",
+        kind="Deployment",
+        resource_names=[],
+    )
+
+    _, _, _, resource = next(iter(ri))
+    assert len(resource["current"]) == 0

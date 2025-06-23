@@ -77,10 +77,6 @@ def test_run_share_with_group(
     group.name = "app-sre"
     group.projects = create_autospec(GroupProjectManager)
     group.shared_projects = create_autospec(SharedProjectManager)
-    mocked_gl.get_items.side_effect = [
-        [],
-        [],
-    ]
     mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
     project = create_autospec(Project, web_url="https://test.com")
@@ -110,10 +106,6 @@ def test_run_managed_repo_not_created_yet(
     group.name = "app-sre"
     group.projects = create_autospec(GroupProjectManager)
     group.shared_projects = create_autospec(SharedProjectManager)
-    mocked_gl.get_items.side_effect = [
-        [],
-        [],
-    ]
     mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
     project = None
@@ -133,22 +125,18 @@ def test_run_reshare_with_group(
     group.name = "app-sre"
     group.projects = create_autospec(GroupProjectManager)
     group.shared_projects = create_autospec(SharedProjectManager)
-    mocked_gl.get_items.side_effect = [
-        [],
-        [
-            create_autospec(
-                SharedProject,
-                web_url=GITLAB_TEST_URL,
-                shared_with_groups=[
-                    {
-                        "group_access_level": 30,
-                        "group_name": "app-sre",
-                        "group_id": 1234,
-                    }
-                ],
-            )
+    shared_project = create_autospec(
+        SharedProject,
+        web_url=GITLAB_TEST_URL,
+        shared_with_groups=[
+            {
+                "group_access_level": 30,
+                "group_name": "app-sre",
+                "group_id": 1234,
+            }
         ],
-    ]
+    )
+    group.shared_projects.list.return_value = [shared_project]
     mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
     project = create_autospec(Project, web_url=GITLAB_TEST_URL)
@@ -176,22 +164,18 @@ def test_run_share_with_group_failed(
     group.shared_projects = create_autospec(SharedProjectManager)
     group.projects = create_autospec(GroupProjectManager)
     group.shared_projects = create_autospec(SharedProjectManager)
-    mocked_gl.get_items.side_effect = [
-        [],
-        [
-            create_autospec(
-                SharedProject,
-                web_url="https://test-gitlab.com",
-                shared_with_groups=[
-                    {
-                        "group_access_level": 30,
-                        "group_name": "app-sre",
-                        "group_id": 134,
-                    }
-                ],
-            )
+    shared_project = create_autospec(
+        SharedProject,
+        web_url="https://test-gitlab.com",
+        shared_with_groups=[
+            {
+                "group_access_level": 30,
+                "group_name": "app-sre",
+                "group_id": 134,
+            }
         ],
-    ]
+    )
+    group.shared_projects.list.return_value = [shared_project]
     mocked_gl.get_group.return_value = group
     mocked_gl.get_access_level.return_value = 40
     project = create_autospec(Project)

@@ -18,6 +18,7 @@ from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile.quay_base import get_quay_api_store
 from reconcile.quay_mirror import QuayMirror
+from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 
 _LOG = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ class QuayMirrorOrg:
                     _LOG.error("skopeo command error message: '%s'", details)
 
         if self.is_compare_tags and not self.dry_run:
-            QuayMirror.record_timestamp(self.control_file_path)
+            record_timestamp(self.control_file_path)
 
     def process_org_mirrors(self, summary):
         """adds new keys to the summary dict with information about mirrored
@@ -183,7 +184,7 @@ class QuayMirrorOrg:
                     upstream = image_mirror[tag]
                     downstream = image[tag]
 
-                    if not QuayMirror.sync_tag(
+                    if not sync_tag(
                         tags=tags, tags_exclude=tags_exclude, candidate=tag
                     ):
                         _LOG.debug(

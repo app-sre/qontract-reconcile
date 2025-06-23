@@ -19,6 +19,9 @@ from reconcile import (
 )
 from reconcile import openshift_resources_base as orb
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resources import get_external_resource_specs
 from reconcile.utils.oc import (
@@ -30,7 +33,10 @@ from reconcile.utils.openshift_resource import (
     ResourceInventory,
 )
 from reconcile.utils.ruamel import create_ruamel_instance
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import (
+    SecretReaderBase,
+    create_secret_reader,
+)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.smtp_client import (
     DEFAULT_SMTP_TIMEOUT,
@@ -187,14 +193,16 @@ def get_tf_resource_info(
 
 
 def collect_queries(
-    settings: dict[str, Any], smtp_client: SmtpClient, query_name: str | None = None
+    secret_reader: SecretReaderBase,
+    smtp_client: SmtpClient,
+    query_name: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Consults the app-interface and constructs the list of queries
     to be executed.
 
     :param query_name: (optional) query to look for
-    :param settings: App Interface settings
+    :param secret_reader: SecretReaderBase
 
     :return: List of queries dictionaries
     """
@@ -218,8 +226,8 @@ def collect_queries(
         "",
         1,
         accounts=[],
-        settings=settings,
         prefetch_resources_by_schemas=["/aws/rds-defaults-1.yml"],
+        secret_reader=secret_reader,
     )
 
     for sql_query in sql_queries:
@@ -499,11 +507,11 @@ def get_service_account(name: str, labels: dict) -> dict[str, Any]:
     }
 
 
-def split_long_query(q, size) -> list[str]:
+def split_long_query(q: str, size: int) -> list[str]:
     return [q[i : i + size] for i in range(0, len(q), size)]
 
 
-def merge_files_command(directory, file_glob, output_file):
+def merge_files_command(directory: str, file_glob: str, output_file: str) -> str:
     return f"cat ''{directory}''/{file_glob} > ''{output_file}''"
 
 
@@ -582,8 +590,8 @@ def _build_openshift_resources(
     query: dict[str, Any],
     image_repository: str,
     pull_secret: dict[str, Any] | None,
-    settings: dict[str, Any],
-):
+    secret_reader: SecretReaderBase,
+) -> list[OpenshiftResource]:
     query_name = query["name"]
     common_resource_labels = _build_common_resource_labels(query)
     openshift_resources: list[OpenshiftResource] = []
@@ -600,7 +608,7 @@ def _build_openshift_resources(
             type=pull_secret["type"],
             integration=QONTRACT_INTEGRATION,
             integration_version=QONTRACT_INTEGRATION_VERSION,
-            settings=settings,
+            secret_reader=secret_reader,
         )
         openshift_resources.append(secret_resource)
     # ConfigMap gpg
@@ -696,14 +704,14 @@ def _reconstruct_for_metrics(
     query: dict[str, Any],
     image_repository: str,
     pull_secret: dict[str, Any] | None,
-    settings: dict[str, Any],
     ri: ResourceInventory,
+    secret_reader: SecretReaderBase,
 ) -> None:
     openshift_resources = _build_openshift_resources(
         query,
         image_repository,
         pull_secret,
-        settings,
+        secret_reader,
     )
     cluster = query["cluster"]
     namespace = query["namespace"]["name"]
@@ -762,6 +770,7 @@ def _process_existing_query(
     image_repository: str,
     pull_secret: dict[str, Any],
     ri: ResourceInventory,
+    secret_reader: SecretReaderBase,
 ) -> None:
     match _get_query_status(query, state):
         case QueryStatus.ACTIVE:
@@ -769,8 +778,8 @@ def _process_existing_query(
                 query,
                 image_repository,
                 pull_secret,
-                settings,
                 ri,
+                secret_reader,
             )
         case QueryStatus.PENDING_DELETION:
             _delete_query_resources(
@@ -797,12 +806,10 @@ def _process_new_query(
     image_repository: str,
     pull_secret: dict[str, Any],
     ri: ResourceInventory,
-):
+    secret_reader: SecretReaderBase,
+) -> None:
     openshift_resources = _build_openshift_resources(
-        query,
-        image_repository,
-        pull_secret,
-        settings,
+        query, image_repository, pull_secret, secret_reader
     )
 
     cluster = query["cluster"]
@@ -835,12 +842,14 @@ def run(
 ) -> None:
     settings = queries.get_app_interface_settings()
     state = init_state(integration=QONTRACT_INTEGRATION)
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     if defer:
         defer(state.cleanup)
     smtp_settings = typed_queries.smtp.settings()
     smtp_client = SmtpClient(
         server=get_smtp_server_connection(
-            secret_reader=SecretReader(settings=queries.get_secret_reader_settings()),
+            secret_reader=secret_reader,
             secret=smtp_settings.credentials,
         ),
         mail_address=smtp_settings.mail_address,
@@ -854,7 +863,7 @@ def run(
         image_repository = sql_query_settings["imageRepository"]
         pull_secret = sql_query_settings["pullSecret"]
 
-    queries_list = collect_queries(settings=settings, smtp_client=smtp_client)
+    queries_list = collect_queries(secret_reader=secret_reader, smtp_client=smtp_client)
     query_states = {s.lstrip("/") for s in state.ls()}
     ri = ResourceInventory()
     for query in queries_list:
@@ -868,6 +877,7 @@ def run(
                 image_repository,
                 pull_secret,
                 ri,
+                secret_reader,
             )
         else:
             _process_new_query(
@@ -878,6 +888,7 @@ def run(
                 image_repository,
                 pull_secret,
                 ri,
+                secret_reader,
             )
     openshift_base.publish_metrics(ri, QONTRACT_INTEGRATION)
 

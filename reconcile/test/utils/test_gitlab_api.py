@@ -1,26 +1,40 @@
+import io
 import os
+import tarfile
 from collections.abc import Mapping
 from typing import Any
 from unittest.mock import Mock, create_autospec
 
 import pytest
+from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import (
     CurrentUser,
     Group,
     GroupManager,
     GroupMember,
     GroupMemberManager,
+    GroupProject,
+    GroupProjectManager,
+    PersonalAccessToken,
+    PersonalAccessTokenManager,
     Project,
+    ProjectFileManager,
     ProjectIssue,
     ProjectIssueManager,
     ProjectIssueNoteManager,
     ProjectLabel,
     ProjectLabelManager,
     ProjectManager,
+    ProjectMemberAll,
+    ProjectMemberAllManager,
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
     ProjectMergeRequestNoteManager,
+    ProjectMergeRequestPipeline,
+    ProjectMergeRequestPipelineManager,
+    ProjectMergeRequestResourceLabelEvent,
+    ProjectMergeRequestResourceLabelEventManager,
 )
 from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
@@ -60,6 +74,8 @@ def mocked_gl(mocker: MockerFixture) -> Mock:
     ).return_value
     mocked_gl.user = create_autospec(CurrentUser)
     mocked_gl.projects = create_autospec(ProjectManager)
+    mocked_gl.groups = create_autospec(GroupManager)
+    mocked_gl.personal_access_tokens = create_autospec(PersonalAccessTokenManager)
     mocker.patch("reconcile.utils.gitlab_api.SecretReader", autospec=True)
     return mocked_gl
 
@@ -102,6 +118,8 @@ def test_gitlab_api_init(
         ssl_verify=False,
         timeout=30,
         session=mocked_session.return_value,
+        per_page=100,
+        pagination="keyset",
     )
     assert gitlab_api.server == instance["url"]
     assert gitlab_api.ssl_verify is False
@@ -302,6 +320,7 @@ def test_get_merge_request_comments() -> None:
         },
     ]
     assert comments == expected_comments
+    mr.notes.list.assert_called_once_with(iterator=True)
 
 
 def test_delete_comment() -> None:
@@ -348,6 +367,7 @@ def test_get_project_labels(
     labels = mocked_gitlab_api.get_project_labels()
 
     assert labels == {"a"}
+    project.labels.list.assert_called_once_with(iterator=True)
 
 
 def test_get_merge_request_changed_paths() -> None:
@@ -454,6 +474,7 @@ def test_get_group_members(
     mocked_gl.groups = groups
 
     assert mocked_gitlab_api.get_group_members(group) == [user]
+    group.members.list.assert_called_once_with(iterator=True)
 
 
 def test_share_project_with_group_positive(
@@ -462,3 +483,284 @@ def test_share_project_with_group_positive(
     project = create_autospec(Project)
     mocked_gitlab_api.share_project_with_group(project, 1111, 40)
     project.share.assert_called_once_with(1111, 40)
+
+
+def test_get_project_maintainers(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    mocked_project = mocked_gl.projects.get.return_value
+    mocked_project.members_all = create_autospec(ProjectMemberAllManager)
+    member = create_autospec(
+        ProjectMemberAll,
+        id="1",
+        username="m",
+        access_level=40,
+    )
+    mocked_project.members_all.list.return_value = [member]
+    query = {
+        "user_ids": "1",
+    }
+
+    result = mocked_gitlab_api.get_project_maintainers(query=query)
+
+    assert result == ["m"]
+    mocked_project.members_all.list.assert_called_once_with(
+        iterator=True,
+        query_parameters=query,
+    )
+
+
+def test_get_app_sre_group_users(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    mocked_group = mocked_gl.groups.get.return_value
+    mocked_group.members = create_autospec(GroupMemberManager)
+    expected_members = [
+        create_autospec(GroupMember, id="1", username="m1"),
+    ]
+    mocked_group.members.list.return_value = expected_members
+
+    members = mocked_gitlab_api.get_app_sre_group_users()
+
+    assert members == expected_members
+    mocked_gl.groups.get.assert_called_once_with("app-sre")
+    mocked_group.members.list.assert_called_once_with(get_all=True)
+
+
+def test_get_group_id_and_projects(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    group = create_autospec(Group, id="1")
+    mocked_gl.groups.get.return_value = group
+    group.projects = create_autospec(GroupProjectManager)
+    project = create_autospec(GroupProject)
+    project.name = "project_name"
+    group.projects.list.return_value = [project]
+
+    group_id, project_names = mocked_gitlab_api.get_group_id_and_projects("group_name")
+
+    assert group_id == "1"
+    assert project_names == {"project_name"}
+
+
+def test_get_issues(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    project = mocked_gl.projects.get.return_value
+    project.issues = create_autospec(ProjectIssueManager)
+    expected_issue = create_autospec(ProjectIssue)
+    project.issues.list.return_value = [expected_issue]
+
+    issue = mocked_gitlab_api.get_issues(state="opened")
+
+    assert issue == [expected_issue]
+    project.issues.list.assert_called_once_with(state="opened", get_all=True)
+
+
+def test_get_merge_requests(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    project = mocked_gl.projects.get.return_value
+    project.mergerequests = create_autospec(ProjectMergeRequestManager)
+    expected_mr = create_autospec(ProjectMergeRequest)
+    project.mergerequests.list.return_value = [expected_mr]
+
+    mr = mocked_gitlab_api.get_merge_requests(state="opened")
+
+    assert mr == [expected_mr]
+    project.mergerequests.list.assert_called_once_with(state="opened", get_all=True)
+
+
+def test_get_merge_request_label_events() -> None:
+    mr = create_autospec(ProjectMergeRequest)
+    mr.resourcelabelevents = create_autospec(
+        ProjectMergeRequestResourceLabelEventManager
+    )
+    expected_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    mr.resourcelabelevents.list.return_value = [expected_event]
+
+    events = GitLabApi.get_merge_request_label_events(mr)
+
+    assert events == [expected_event]
+    mr.resourcelabelevents.list.assert_called_once_with(get_all=True)
+
+
+def test_get_merge_request_pipelines() -> None:
+    mr = create_autospec(ProjectMergeRequest)
+    mr.pipelines = create_autospec(ProjectMergeRequestPipelineManager)
+
+    pipeline_1 = create_autospec(ProjectMergeRequestPipeline)
+    expected_pipeline_1 = {
+        "created_at": "2025-01-01T00:00:00Z",
+        "id": 1,
+    }
+    pipeline_1.asdict.return_value = expected_pipeline_1
+
+    pipeline_2 = create_autospec(ProjectMergeRequestPipeline)
+    expected_pipeline_2 = {
+        "created_at": "2025-01-02T00:00:00Z",
+        "id": 2,
+    }
+    pipeline_2.asdict.return_value = expected_pipeline_2
+
+    mr.pipelines.list.return_value = [pipeline_1, pipeline_2]
+
+    pipelines = GitLabApi.get_merge_request_pipelines(mr)
+
+    assert pipelines == [expected_pipeline_2, expected_pipeline_1]
+    mr.pipelines.list.assert_called_once_with(iterator=True)
+
+
+def test_get_repository_tree_as_git_cli_interface(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    project = mocked_gl.projects.get.return_value
+    expected_result = [
+        {
+            "id": "a1e8f8d745cc87e3a9248358d9352bb7f9a0aeba",
+            "name": "html",
+            "type": "tree",
+            "path": "files/html",
+            "mode": "040000",
+        }
+    ]
+    project.repository_tree.return_value = expected_result
+
+    result = mocked_gitlab_api.get_repository_tree(
+        ref="main",
+        recursive=True,
+    )
+
+    assert result == expected_result
+    project.repository_tree.assert_called_once_with(
+        ref="main",
+        recursive=True,
+        pagination="keyset",
+        per_page=100,
+        get_all=True,
+    )
+
+
+def test_last_assignment() -> None:
+    mr = create_autospec(ProjectMergeRequest)
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+
+    note_1 = create_autospec(ProjectMergeRequestNote)
+    note_1.system = True
+    note_1.body = "assigned to @assignee_1"
+    note_1.author = {"username": "author_1"}
+
+    note_2 = create_autospec(ProjectMergeRequestNote)
+    note_2.system = True
+    note_2.body = "assigned to @assignee_2"
+    note_2.author = {"username": "author_2"}
+
+    mr.notes.list.return_value = [note_1, note_2]
+
+    result = GitLabApi.last_assignment(mr)
+
+    assert result == ("author_1", "assignee_1")
+
+    mr.notes.list.assert_called_once_with(
+        sort="desc",
+        order_by="created_at",
+        iterator=True,
+    )
+
+
+def test_get_personal_access_tokens(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    manager = mocked_gl.personal_access_tokens
+    expected_pat = create_autospec(PersonalAccessToken)
+    manager.list.return_value = [expected_pat]
+
+    pats = mocked_gitlab_api.get_personal_access_tokens()
+
+    assert pats == [expected_pat]
+    manager.list.assert_called_once_with(get_all=True)
+
+
+def test_get_directory_contents() -> None:
+    project = create_autospec(Project)
+    expected_result = {
+        "dir1/hello1.yaml": b"id: 1",
+        "dir1/dir2/hello2.yaml": b"id: 2",
+    }
+    tar_bytes = io.BytesIO()
+    with tarfile.open(fileobj=tar_bytes, mode="w:gz") as tar:
+        for name, content in expected_result.items():
+            tarinfo = tarfile.TarInfo(name=f"prefix/{name}")
+            tarinfo.size = len(content)
+            tar.addfile(tarinfo, io.BytesIO(content))
+
+    project.repository_archive.return_value = tar_bytes.getvalue()
+
+    result = GitLabApi.get_directory_contents(project, ref="main", path="dir1")
+
+    assert result == expected_result
+    project.repository_archive.assert_called_once_with(
+        format="tar.gz",
+        sha="main",
+        path="dir1",
+    )
+
+
+def test_get_file_as_git_cli_interface(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    expected_file = b"# README\nThis is a test file."
+    project = mocked_gl.projects.get.return_value
+    project_file_manager = create_autospec(ProjectFileManager)
+    project.files = project_file_manager
+    project_file_manager.raw.return_value = expected_file
+
+    file = mocked_gitlab_api.get_file(path="/README.md", ref="main")
+
+    assert file == expected_file
+    project_file_manager.raw.assert_called_once_with(
+        file_path="README.md",
+        ref="main",
+    )
+
+
+def test_get_file_when_not_found(
+    mocked_gitlab_api: GitLabApi,
+    mocked_gl: Mock,
+) -> None:
+    project = mocked_gl.projects.get.return_value
+    project_file_manager = create_autospec(ProjectFileManager)
+    project.files = project_file_manager
+    project_file_manager.raw.side_effect = GitlabGetError()
+
+    file = mocked_gitlab_api.get_file(path="/README.md", ref="main")
+
+    assert file is None
+    project_file_manager.raw.assert_called_once_with(
+        file_path="README.md",
+        ref="main",
+    )
+
+
+def test_get_raw_file() -> None:
+    expected_file = b"# README\nThis is a test file."
+    project = create_autospec(Project)
+    project_file_manager = create_autospec(ProjectFileManager)
+    project.files = project_file_manager
+    project_file_manager.raw.return_value = expected_file
+
+    file = GitLabApi.get_raw_file(project=project, path="/README.md", ref="main")
+
+    assert file == expected_file
+    project_file_manager.raw.assert_called_once_with(
+        file_path="README.md",
+        ref="main",
+    )

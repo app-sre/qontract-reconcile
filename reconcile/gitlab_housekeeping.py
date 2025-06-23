@@ -72,6 +72,7 @@ HOLD_LABELS = [
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
+SQUASH_OPTION_ALWAYS = "always"
 
 merged_merge_requests = Counter(
     name="qontract_reconcile_merged_merge_requests",
@@ -212,9 +213,10 @@ def verify_on_demand_tests(
         if not dry_run and state_change:
             markdown_report = (
                 f"On-demand Tests: \n\n For latest [commit]({commit.web_url}) You will need to pass following test jobs to get this MR merged.\n\n"
-                f"Add comment with `/test [test_name]` to trigger the tests.\n\n"
+                f"Add a comment with `/test [test_name]` to trigger a test; multiple tests can be triggered from the same comment: repeat the `/test [test_name]` command separated by lines.\n\n"
             )
-            markdown_report += f"* {', '.join(remaining_tests)}\n"
+            markdown_report += f"* {', '.join(remaining_tests)}\n\n"
+            markdown_report += "An update of the MR will reset the on-demand tests. Consider running them once the MR is REVIEWED and no more code changes are required.\n\n"
             gl.delete_merge_request_comments(mr, startswith="On-demand Tests:")
             gl.add_comment_to_merge_request(mr, markdown_report)
             state.add(state_key, remaining_tests, force=True)
@@ -242,7 +244,7 @@ def close_item(
     enable_closing: bool,
     item_type: str,
     item: ProjectIssue | ProjectMergeRequest,
-):
+) -> None:
     if enable_closing:
         logging.info([
             "close_item",
@@ -262,32 +264,31 @@ def close_item(
 
 
 def handle_stale_items(
-    dry_run,
-    gl,
-    days_interval,
-    enable_closing,
-    items,
-    item_type,
-):
+    dry_run: bool,
+    gl: GitLabApi,
+    days_interval: int,
+    enable_closing: bool,
+    items: Iterable[ProjectIssue | ProjectMergeRequest],
+    item_type: str,
+) -> None:
     LABEL = "stale"
 
     now = datetime.utcnow()
     for item in items:
-        item_iid = item.attributes.get("iid")
         if AUTO_MERGE in item.labels:
             if item.merge_status == MRStatus.UNCHECKED:
                 # this call triggers a status recheck
-                item = gl.get_merge_request(item_iid)
+                item = gl.get_merge_request(item.iid)
             if item.merge_status == MRStatus.CANNOT_BE_MERGED:
                 close_item(dry_run, gl, enable_closing, item_type, item)
-        update_date = datetime.strptime(item.attributes.get("updated_at"), DATE_FORMAT)
+        update_date = datetime.strptime(item.updated_at, DATE_FORMAT)
 
         # if item is over days_interval
         current_interval = now.date() - update_date.date()
         if current_interval > timedelta(days=days_interval):
             # if item does not have 'stale' label - add it
             if LABEL not in item.labels:
-                logging.info(["add_label", gl.project.name, item_type, item_iid, LABEL])
+                logging.info(["add_label", gl.project.name, item_type, item.iid, LABEL])
                 if not dry_run:
                     gl.add_label_with_note(item, LABEL)
             # if item has 'stale' label - close it
@@ -309,8 +310,7 @@ def handle_stale_items(
                 continue
 
             cancel_notes_dates = [
-                datetime.strptime(note.attributes.get("updated_at"), DATE_FORMAT)
-                for note in cancel_notes
+                datetime.strptime(item.updated_at, DATE_FORMAT) for note in cancel_notes
             ]
             latest_cancel_note_date = max(d for d in cancel_notes_dates)
             # if the latest cancel note is under
@@ -321,20 +321,20 @@ def handle_stale_items(
                     "remove_label",
                     gl.project.name,
                     item_type,
-                    item_iid,
+                    item.iid,
                     LABEL,
                 ])
                 if not dry_run:
                     gl.remove_label(item, LABEL)
 
 
-def is_good_to_merge(labels):
+def is_good_to_merge(labels: Iterable[str]) -> bool:
     return any(m in MERGE_LABELS_PRIORITY for m in labels) and not any(
         b in HOLD_LABELS for b in labels
     )
 
 
-def is_rebased(mr, gl: GitLabApi) -> bool:
+def is_rebased(mr: ProjectMergeRequest, gl: GitLabApi) -> bool:
     target_branch = mr.target_branch
     head = cast(
         list[ProjectCommit],
@@ -470,14 +470,14 @@ def preprocess_merge_requests(
 
 
 def rebase_merge_requests(
-    dry_run,
-    gl,
-    rebase_limit,
-    pipeline_timeout=None,
-    wait_for_pipeline=False,
-    users_allowed_to_label=None,
-    state=None,
-):
+    dry_run: bool,
+    gl: GitLabApi,
+    rebase_limit: int,
+    state: State,
+    pipeline_timeout: int | None = None,
+    wait_for_pipeline: bool = False,
+    users_allowed_to_label: Iterable[str] | None = None,
+) -> None:
     rebases = 0
     merge_requests = [
         item["mr"]
@@ -541,20 +541,20 @@ def rebase_merge_requests(
 
 @retry(max_attempts=10, hook=_log_exception)
 def merge_merge_requests(
-    dry_run,
+    dry_run: bool,
     gl: GitLabApi,
     project_merge_requests: list[ProjectMergeRequest],
     reload_toggle: ReloadToggle,
-    merge_limit,
-    rebase,
+    merge_limit: int,
+    rebase: bool,
     app_sre_usernames: Set[str],
-    pipeline_timeout=None,
-    insist=False,
-    wait_for_pipeline=False,
-    users_allowed_to_label=None,
-    must_pass=None,
-    state=None,
-):
+    state: State,
+    pipeline_timeout: int | None = None,
+    insist: bool = False,
+    wait_for_pipeline: bool = False,
+    users_allowed_to_label: Iterable[str] | None = None,
+    must_pass: Iterable[str] | None = None,
+) -> None:
     merges = 0
     if reload_toggle.reload:
         project_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
@@ -613,7 +613,8 @@ def merge_merge_requests(
         logging.info(["merge", gl.project.name, mr.iid])
         if not dry_run and merges < merge_limit:
             try:
-                mr.merge()
+                squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
+                mr.merge(squash=squash)
                 labels = mr.labels
                 merged_merge_requests.labels(
                     project_id=mr.target_project_id,
@@ -652,7 +653,7 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
                 gitlab_token_expiration.remove(pat.name)
 
 
-def run(dry_run, wait_for_pipeline):
+def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     default_days_interval = 15
     default_limit = 8
     default_enable_closing = False
@@ -709,45 +710,46 @@ def run(dry_run, wait_for_pipeline):
             must_pass = hk.get("must_pass")
             try:
                 merge_merge_requests(
-                    dry_run,
-                    gl,
-                    project_merge_requests,
-                    reload_toggle,
-                    limit,
-                    rebase,
-                    app_sre_usernames,
-                    pipeline_timeout,
+                    dry_run=dry_run,
+                    gl=gl,
+                    project_merge_requests=project_merge_requests,
+                    reload_toggle=reload_toggle,
+                    merge_limit=limit,
+                    rebase=rebase,
+                    app_sre_usernames=app_sre_usernames,
+                    state=state,
+                    pipeline_timeout=pipeline_timeout,
                     insist=True,
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
-                    state=state,
                 )
             except Exception:
                 logging.error(
                     "All retries failed, trying to rerun merge_merge_requests() again."
                 )
                 merge_merge_requests(
-                    dry_run,
-                    gl,
-                    project_merge_requests,
-                    reload_toggle,
-                    limit,
-                    rebase,
-                    app_sre_usernames,
-                    pipeline_timeout,
+                    dry_run=dry_run,
+                    gl=gl,
+                    project_merge_requests=project_merge_requests,
+                    reload_toggle=reload_toggle,
+                    merge_limit=limit,
+                    rebase=rebase,
+                    app_sre_usernames=app_sre_usernames,
+                    state=state,
+                    pipeline_timeout=pipeline_timeout,
+                    insist=False,
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
-                    state=state,
                 )
             if rebase:
                 rebase_merge_requests(
-                    dry_run,
-                    gl,
-                    limit,
+                    dry_run=dry_run,
+                    gl=gl,
+                    rebase_limit=limit,
+                    state=state,
                     pipeline_timeout=pipeline_timeout,
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
-                    state=state,
                 )

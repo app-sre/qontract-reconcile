@@ -2,6 +2,7 @@ import logging
 import operator
 import re
 import time
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils.jenkins_api import JenkinsApi
@@ -10,11 +11,13 @@ from reconcile.utils.secret_reader import SecretReader
 QONTRACT_INTEGRATION = "jenkins-job-builds-cleaner"
 
 
-def hours_to_ms(hours):
+def hours_to_ms(hours: int) -> int:
     return hours * 60 * 60 * 1000
 
 
-def delete_builds(jenkins, builds_todel, dry_run=True):
+def delete_builds(
+    jenkins: JenkinsApi, builds_todel: list[dict[str, Any]], dry_run: bool = True
+) -> None:
     delete_builds_count = len(builds_todel)
     for idx, build in enumerate(builds_todel, start=1):
         job_name = build["job_name"]
@@ -35,7 +38,7 @@ def delete_builds(jenkins, builds_todel, dry_run=True):
                 logging.exception(msg)
 
 
-def get_last_build_ids(builds):
+def get_last_build_ids(builds: list[dict[str, Any]]) -> list[str]:
     builds_to_keep = []
     sorted_builds = sorted(builds, key=operator.itemgetter("timestamp"), reverse=True)
     if sorted_builds:
@@ -49,7 +52,9 @@ def get_last_build_ids(builds):
     return builds_to_keep
 
 
-def find_builds(jenkins, job_names, rules):
+def find_builds(
+    jenkins: JenkinsApi, job_names: list[str], rules: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     # Current time in ms
     time_ms = time.time() * 1000
 
@@ -78,7 +83,7 @@ def find_builds(jenkins, job_names, rules):
     return builds_found
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     jenkins_instances = queries.get_jenkins_instances()
     secret_reader = SecretReader(queries.get_secret_reader_settings())
 

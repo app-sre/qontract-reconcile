@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from collections.abc import Iterable
 
 from reconcile.gql_definitions.common.saas_files import ParentSaasPromotionV1
@@ -8,7 +9,9 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
     ConfigHash,
     Subscriber,
 )
-from reconcile.typed_queries.saas_files import SaasFile
+from reconcile.typed_queries.saas_files import SaasFile, SaasResourceTemplateTarget
+from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.slo_document_manager import SLODocumentManager
 
 
 class SaasFileInventoryError(Exception):
@@ -25,8 +28,15 @@ class SaasFilesInventory:
     This basically spans a directed graph, with subscribers as the root.
     """
 
-    def __init__(self, saas_files: Iterable[SaasFile]):
+    def __init__(
+        self,
+        saas_files: Iterable[SaasFile],
+        secret_reader: SecretReaderBase,
+        thread_pool_size: int,
+    ):
         self._saas_files = saas_files
+        self.secret_reader = secret_reader
+        self.thread_pool_size = thread_pool_size
         self._channels_by_name: dict[str, Channel] = {}
         self.subscribers: list[Subscriber] = []
         self.publishers: list[Publisher] = []
@@ -86,10 +96,13 @@ class SaasFilesInventory:
 
     def _assemble_subscribers_with_auto_promotions(self) -> None:
         for saas_file in self._saas_files:
-            blocked_versions: dict[str, set[str]] = {}
+            blocked_versions: dict[str, set[str]] = defaultdict(set[str])
+            hotfix_versions: dict[str, set[str]] = defaultdict(set[str])
             for code_component in saas_file.app.code_components or []:
                 for version in code_component.blocked_versions or []:
-                    blocked_versions.setdefault(code_component.url, set()).add(version)
+                    blocked_versions[code_component.url].add(version)
+                for hf_version in code_component.hotfix_versions or []:
+                    hotfix_versions[code_component.url].add(hf_version)
             for resource_template in saas_file.resource_templates:
                 for target in resource_template.targets:
                     file_path = target.path or saas_file.path
@@ -101,6 +114,7 @@ class SaasFilesInventory:
                         continue
                     soak_days = target.promotion.soak_days or 0
                     schedule = target.promotion.schedule or "* * * * *"
+
                     subscriber = Subscriber(
                         uid=target.uid(
                             parent_saas_file_name=saas_file.name,
@@ -112,10 +126,10 @@ class SaasFilesInventory:
                         ref=target.ref,
                         target_namespace=target.namespace,
                         soak_days=soak_days,
+                        slo_document_manager=self._build_slo_document_manager(target),
                         schedule=schedule,
-                        blocked_versions=blocked_versions.get(
-                            resource_template.url, set()
-                        ),
+                        hotfix_versions=hotfix_versions[resource_template.url],
+                        blocked_versions=blocked_versions[resource_template.url],
                         use_target_config_hash=bool(
                             target.promotion.redeploy_on_publisher_config_change
                         ),
@@ -157,6 +171,17 @@ class SaasFilesInventory:
                         subscriber.channels.append(
                             self._channels_by_name[subscribe_channel]
                         )
+
+    def _build_slo_document_manager(
+        self, target: SaasResourceTemplateTarget
+    ) -> SLODocumentManager | None:
+        if target.slos:
+            return SLODocumentManager(
+                slo_documents=target.slos,
+                secret_reader=self.secret_reader,
+                thread_pool_size=self.thread_pool_size,
+            )
+        return None
 
     def _remove_unsupported(self) -> None:
         """
