@@ -201,7 +201,9 @@ def fetch_openshift_resource_for_cert_resource(
                 cert_name=cert_resource.secret_name,
                 namespace=ns.name,
                 cluster=ns.cluster.name,
-                renewal_threshold_days=str(cert_resource.auto_renew_threshold_days or 7)
+                renewal_threshold_days=str(
+                    cert_resource.auto_renew_threshold_days or 7
+                ),
             ),
             int(vault_cert_secret["expiration_timestamp"]),
         )
