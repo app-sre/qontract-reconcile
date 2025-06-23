@@ -254,7 +254,7 @@ class GitLabApi:
             "remove_source_branch": str(remove_source_branch),
             "labels": labels,
         }
-        return cast(ProjectMergeRequest, self.project.mergerequests.create(data))
+        return self.project.mergerequests.create(data)
 
     def mr_exists(self, title: str) -> bool:
         mrs = self.get_merge_requests(state=MRState.OPENED)
@@ -274,10 +274,7 @@ class GitLabApi:
 
     def get_app_sre_group_users(self) -> list[GroupMember]:
         app_sre_group = self.gl.groups.get("app-sre")
-        return cast(
-            list[GroupMember],
-            app_sre_group.members.list(get_all=True),
-        )
+        return app_sre_group.members.list(get_all=True)
 
     def get_group_if_exists(self, group_name: str) -> Group | None:
         try:
@@ -312,7 +309,7 @@ class GitLabApi:
 
     def get_group_members(self, group: Group) -> list[GroupMember]:
         return [
-            cast(GroupMember, m)
+            m
             for m in group.members.list(iterator=True)
             if not self._is_bot_username(m.username)
         ]
@@ -398,28 +395,19 @@ class GitLabApi:
         return self.gl.projects.get(project_id)
 
     def get_issues(self, state: str) -> list[ProjectIssue]:
-        return cast(
-            list[ProjectIssue],
-            self.project.issues.list(state=state, get_all=True),
-        )
+        return self.project.issues.list(state=state, get_all=True)
 
     def get_merge_request(self, mr_id: str | int) -> ProjectMergeRequest:
         return self.project.mergerequests.get(mr_id)
 
     def get_merge_requests(self, state: str) -> list[ProjectMergeRequest]:
-        return cast(
-            list[ProjectMergeRequest],
-            self.project.mergerequests.list(state=state, get_all=True),
-        )
+        return self.project.mergerequests.list(state=state, get_all=True)
 
     @staticmethod
     def get_merge_request_label_events(
         mr: ProjectMergeRequest,
     ) -> list[ProjectMergeRequestResourceLabelEvent]:
-        return cast(
-            list[ProjectMergeRequestResourceLabelEvent],
-            mr.resourcelabelevents.list(get_all=True),
-        )
+        return mr.resourcelabelevents.list(get_all=True)
 
     @staticmethod
     def get_merge_request_pipelines(mr: ProjectMergeRequest) -> list[dict]:
@@ -631,7 +619,7 @@ class GitLabApi:
         item.save()
 
     def get_user(self, username: str) -> User | None:
-        user = cast(list[User], self.gl.users.list(search=username, page=1, per_page=1))
+        user = self.gl.users.list(search=username, page=1, per_page=1)
         if not user:
             logging.error(f"{username} user not found")
             return None
@@ -747,10 +735,7 @@ class GitLabApi:
                 last_action_by_team = comment["created_at"]
                 break
         # labels
-        label_events = cast(
-            list[ProjectMergeRequestResourceLabelEvent],
-            mr.resourcelabelevents.list(get_all=True),
-        )
+        label_events = mr.resourcelabelevents.list(get_all=True)
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
                 username = label.user["username"]
@@ -841,10 +826,7 @@ class GitLabApi:
         return response.get("commits", [])
 
     def get_personal_access_tokens(self) -> list[PersonalAccessToken]:
-        return cast(
-            list[PersonalAccessToken],
-            self.gl.personal_access_tokens.list(get_all=True),
-        )
+        return self.gl.personal_access_tokens.list(get_all=True)
 
     @staticmethod
     def get_directory_contents(
