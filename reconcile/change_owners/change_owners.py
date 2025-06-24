@@ -382,7 +382,7 @@ def run(
 
             comments = gl.get_merge_request_comments(merge_request)
             good_to_test_approvers = {
-                c["username"] for c in comments if c["body"].strip() == "/good-to-test"
+                c.username for c in comments if c.body.strip() == "/good-to-test"
             }
 
             change_admitted = is_change_admitted(

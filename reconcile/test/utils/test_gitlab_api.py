@@ -39,7 +39,7 @@ from gitlab.v4.objects import (
 from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
 
-from reconcile.utils.gitlab_api import Assignment, GitLabApi
+from reconcile.utils.gitlab_api import Assignment, Comment, GitLabApi
 
 
 def test_gitlab_client_timeout(mocker: MockerFixture, patch_sleep: None) -> None:
@@ -305,19 +305,19 @@ def test_get_merge_request_comments() -> None:
     comments = GitLabApi.get_merge_request_comments(mr, True)
 
     expected_comments = [
-        {
-            "username": "author_a",
-            "body": "description",
-            "created_at": "2023-01-01T00:00:00Z",
-            "id": 0,
-        },
-        {
-            "username": "author_b",
-            "body": "body",
-            "created_at": "2023-01-02T00:00:00Z",
-            "id": 2,
-            "note": note,
-        },
+        Comment(
+            username="author_a",
+            body="description",
+            created_at="2023-01-01T00:00:00Z",
+            id=0,
+        ),
+        Comment(
+            username="author_b",
+            body="body",
+            created_at="2023-01-02T00:00:00Z",
+            id=2,
+            note=note,
+        ),
     ]
     assert comments == expected_comments
     mr.notes.list.assert_called_once_with(iterator=True)

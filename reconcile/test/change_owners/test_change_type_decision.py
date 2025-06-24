@@ -15,6 +15,7 @@ from reconcile.test.change_owners.fixtures import (
     build_bundle_datafile_change,
     change_type_to_processor,
 )
+from reconcile.utils.gitlab_api import Comment
 
 #
 # test MR decision comment parsing
@@ -23,26 +24,30 @@ from reconcile.test.change_owners.fixtures import (
 
 def test_get_approver_decisions_from_mr_comments() -> None:
     comments = [
-        {
-            "username": "user-1",
-            "body": (f"nice\n{DecisionCommand.APPROVED.value}"),
-            "created_at": "2020-01-01T00:00:00Z",
-        },
-        {
-            "username": "user-2",
-            "body": (f"{DecisionCommand.HOLD.value}\noh wait... big problems"),
-            "created_at": "2020-01-03T00:00:00Z",
-        },
-        {
-            "username": "user-2",
-            "body": (f"{DecisionCommand.CANCEL_HOLD.value}\nnever mind... all good"),
-            "created_at": "2020-01-04T00:00:00Z",
-        },
-        {
-            "username": "user-1",
-            "body": (f"{DecisionCommand.CANCEL_APPROVED.value}"),
-            "created_at": "2020-01-05T00:00:00Z",
-        },
+        Comment(
+            username="user-1",
+            body=f"nice\n{DecisionCommand.APPROVED.value}",
+            created_at="2020-01-01T00:00:00Z",
+            id=1,
+        ),
+        Comment(
+            username="user-2",
+            body=f"{DecisionCommand.HOLD.value}\noh wait... big problems",
+            created_at="2020-01-03T00:00:00Z",
+            id=2,
+        ),
+        Comment(
+            username="user-2",
+            body=f"{DecisionCommand.CANCEL_HOLD.value}\nnever mind... all good",
+            created_at="2020-01-04T00:00:00Z",
+            id=3,
+        ),
+        Comment(
+            username="user-1",
+            body=f"{DecisionCommand.CANCEL_APPROVED.value}",
+            created_at="2020-01-05T00:00:00Z",
+            id=4,
+        ),
     ]
     assert get_approver_decisions_from_mr_comments(comments) == [
         Decision(approver_name="user-1", command=DecisionCommand.APPROVED),
@@ -54,16 +59,18 @@ def test_get_approver_decisions_from_mr_comments() -> None:
 
 def test_get_approver_decisions_from_mr_comments_unordered() -> None:
     comments = [
-        {
-            "username": "user-1",
-            "body": (f"nice\n{DecisionCommand.APPROVED.value}"),
-            "created_at": "2020-01-02T00:00:00Z",  # this date is later then the next comment
-        },
-        {
-            "username": "user-2",
-            "body": (f"{DecisionCommand.HOLD.value}\noh wait... big problems"),
-            "created_at": "2020-01-01T00:00:00Z",
-        },
+        Comment(
+            username="user-1",
+            body=f"nice\n{DecisionCommand.APPROVED.value}",
+            created_at="2020-01-02T00:00:00Z",  # this date is later then the next comment
+            id=1,
+        ),
+        Comment(
+            username="user-2",
+            body=f"{DecisionCommand.HOLD.value}\noh wait... big problems",
+            created_at="2020-01-01T00:00:00Z",
+            id=2,
+        ),
     ]
     assert get_approver_decisions_from_mr_comments(comments) == [
         Decision(approver_name="user-2", command=DecisionCommand.HOLD),
@@ -71,29 +78,32 @@ def test_get_approver_decisions_from_mr_comments_unordered() -> None:
     ]
 
 
-def test_approval_comments_none_body() -> None:
+def test_approval_comments_empty_body() -> None:
     comments = [
-        {
-            "username": "user-1",
-            "body": None,
-            "created_at": "2020-01-02T00:00:00Z",
-        },
+        Comment(
+            username="user-1",
+            body="",
+            created_at="2020-01-02T00:00:00Z",
+            id=1,
+        ),
     ]
     assert not get_approver_decisions_from_mr_comments(comments)
 
 
 def test_approver_decision_leading_trailing_spaces() -> None:
     comments = [
-        {
-            "username": "user-1",
-            "body": (f"nice\n {DecisionCommand.APPROVED.value}"),
-            "created_at": "2020-01-01T00:00:00Z",
-        },
-        {
-            "username": "user-2",
-            "body": (f"{DecisionCommand.HOLD.value} \noh wait... big problems"),
-            "created_at": "2020-01-02T00:00:00Z",
-        },
+        Comment(
+            username="user-1",
+            body=f"nice\n {DecisionCommand.APPROVED.value}",
+            created_at="2020-01-01T00:00:00Z",
+            id=1,
+        ),
+        Comment(
+            username="user-2",
+            body=f"{DecisionCommand.HOLD.value} \noh wait... big problems",
+            created_at="2020-01-02T00:00:00Z",
+            id=2,
+        ),
     ]
     assert get_approver_decisions_from_mr_comments(comments) == [
         Decision(approver_name="user-1", command=DecisionCommand.APPROVED),

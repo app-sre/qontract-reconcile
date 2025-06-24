@@ -2357,7 +2357,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 if (
                     last_comment
                     and trigger_phrases_regex
-                    and not re.fullmatch(trigger_phrases_regex, last_comment["body"])
+                    and not re.fullmatch(trigger_phrases_regex, last_comment.body)
                 ):
                     continue
 

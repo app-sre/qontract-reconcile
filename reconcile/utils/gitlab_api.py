@@ -102,6 +102,15 @@ class Assignment:
     assignee: str
 
 
+@dataclass(frozen=True)
+class Comment:
+    id: int
+    username: str
+    body: str
+    created_at: str
+    note: ProjectMergeRequestNote | None = None
+
+
 class GitLabApi:
     def __init__(
         self,
@@ -438,25 +447,28 @@ class GitLabApi:
     def get_merge_request_comments(
         merge_request: ProjectMergeRequest,
         include_description: bool = False,
-    ) -> list[dict[str, Any]]:
+    ) -> list[Comment]:
         comments = []
         if include_description:
-            comments.append({
-                "username": merge_request.author["username"],
-                "body": merge_request.description,
-                "created_at": merge_request.created_at,
-                "id": MR_DESCRIPTION_COMMENT_ID,
-            })
-        for note in merge_request.notes.list(iterator=True):
-            if note.system:
-                continue
-            comments.append({
-                "username": note.author["username"],
-                "body": note.body,
-                "created_at": note.created_at,
-                "id": note.id,
-                "note": note,
-            })
+            comments.append(
+                Comment(
+                    id=MR_DESCRIPTION_COMMENT_ID,
+                    username=merge_request.author["username"],
+                    body=merge_request.description,
+                    created_at=merge_request.created_at,
+                )
+            )
+        comments.extend(
+            Comment(
+                id=note.id,
+                username=note.author["username"],
+                body=note.body,
+                created_at=note.created_at,
+                note=note,
+            )
+            for note in merge_request.notes.list(iterator=True)
+            if not note.system
+        )
         return comments
 
     @staticmethod
@@ -470,9 +482,13 @@ class GitLabApi:
     ) -> None:
         comments = self.get_merge_request_comments(merge_request)
         for c in comments:
-            body = c["body"] or ""
-            if c["username"] == self.user.username and body.startswith(startswith):
-                self.delete_comment(c["note"])
+            body = c.body or ""
+            if (
+                c.username == self.user.username
+                and body.startswith(startswith)
+                and c.note is not None
+            ):
+                self.delete_comment(c.note)
 
     @retry()
     def get_project_labels(self) -> set[str]:
@@ -720,13 +736,13 @@ class GitLabApi:
         last_action_by_team = None
         # comments
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=itemgetter("created_at"), reverse=True)
+        comments.sort(key=lambda c: c.created_at, reverse=True)
         for comment in comments:
-            username = comment["username"]
+            username = comment.username
             if username == self.user.username:
                 continue
             if username in team_usernames:
-                last_action_by_team = comment["created_at"]
+                last_action_by_team = comment.created_at
                 break
         # labels
         label_events = mr.resourcelabelevents.list(get_all=True)
@@ -753,11 +769,11 @@ class GitLabApi:
             break
         # comments
         for comment in comments:
-            username = comment["username"]
+            username = comment.username
             if username == self.user.username:
                 continue
             if username not in team_usernames:
-                last_action_not_by_team = comment["created_at"]
+                last_action_not_by_team = comment.created_at
                 break
 
         if not last_action_not_by_team:
@@ -801,15 +817,17 @@ class GitLabApi:
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot: bool = True
-    ) -> dict[str, Any] | None:
+    ) -> Comment | None:
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=itemgetter("created_at"), reverse=True)
-        for comment in comments:
-            username = comment["username"]
-            if username == self.user.username and exclude_bot:
-                continue
-            return comment
-        return None
+        comments.sort(key=lambda c: c.created_at, reverse=True)
+        return next(
+            (
+                comment
+                for comment in comments
+                if not (exclude_bot and comment.username == self.user.username)
+            ),
+            None,
+        )
 
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
         project = self.get_project(repo_url)
