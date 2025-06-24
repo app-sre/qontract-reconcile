@@ -74,7 +74,6 @@ def base_state():
 def user() -> UserV1:
     return UserV1(
         org_username="org",
-        slack_username="slack",
         github_username="github",
         name="name",
         pagerduty_username="pagerduty",
@@ -164,18 +163,12 @@ def test_get_slack_usernames_from_schedule(user: UserV1) -> None:
         users=[user],
     )
     result = integ.get_slack_usernames_from_schedule([schedule])
-    assert result == [user.slack_username]
+    assert result == [user.org_username]
 
 
 def test_get_slack_username_org_username(user: UserV1) -> None:
-    user.slack_username = None
     result = integ.get_slack_username(user)
     assert result == user.org_username
-
-
-def test_get_slack_username_slack_username(user: UserV1) -> None:
-    result = integ.get_slack_username(user)
-    assert result == user.slack_username
 
 
 def test_get_pagerduty_username_org_username(user: UserV1) -> None:
@@ -210,7 +203,7 @@ def test_get_usernames_from_pagerduty(user: UserV1) -> None:
         usergroup="usergroup",
         pagerduty_map=mock_pagerduty_map,
     )
-    assert result == [user.slack_username]
+    assert result == [user.org_username]
 
 
 def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) -> None:
@@ -228,7 +221,7 @@ def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) ->
         usergroup="usergroup",
         repo_owner_class=mock_repo_owner,
     )
-    assert result == [user.slack_username]
+    assert result == [user.org_username]
 
 
 def test_include_user_to_cluster_usergroup_user_has_cluster_access(
