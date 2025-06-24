@@ -14,10 +14,12 @@ from operator import itemgetter
 from typing import Any, cast
 
 import gitlab
+from gitlab.const import PipelineStatus
 from gitlab.v4.objects import (
     ProjectCommit,
     ProjectIssue,
     ProjectMergeRequest,
+    ProjectMergeRequestPipeline,
 )
 from prometheus_client import (
     Counter,
@@ -133,11 +135,16 @@ def _calculate_time_since_approval(approved_at: str) -> float:
 
 
 def get_timed_out_pipelines(
-    pipelines: list[dict], pipeline_timeout: int = 60
-) -> list[dict]:
+    pipelines: list[ProjectMergeRequestPipeline],
+    pipeline_timeout: int = 60,
+) -> list[ProjectMergeRequestPipeline]:
     now = datetime.utcnow()
 
-    pending_pipelines = [p for p in pipelines if p["status"] in {"pending", "running"}]
+    pending_pipelines = [
+        p
+        for p in pipelines
+        if p.status in {PipelineStatus.PENDING, PipelineStatus.RUNNING}
+    ]
 
     if not pending_pipelines:
         return []
@@ -145,7 +152,7 @@ def get_timed_out_pipelines(
     timed_out_pipelines = []
 
     for p in pending_pipelines:
-        update_time = datetime.strptime(p["updated_at"], DATE_FORMAT)
+        update_time = datetime.strptime(p.updated_at, DATE_FORMAT)
 
         elapsed = (now - update_time).total_seconds()
 
@@ -160,20 +167,19 @@ def clean_pipelines(
     dry_run: bool,
     gl: GitLabApi,
     fork_project_id: int,
-    pipelines: list[dict],
+    pipelines: list[ProjectMergeRequestPipeline],
 ) -> None:
     if not dry_run:
         gl_piplelines = gl.get_project_by_id(fork_project_id).pipelines
 
     for p in pipelines:
-        logging.info(["canceling", p["web_url"]])
+        logging.info(["canceling", p.web_url])
         if not dry_run:
             try:
-                gl_piplelines.get(p["id"]).cancel()
+                gl_piplelines.get(p.id).cancel()
             except gitlab.exceptions.GitlabPipelineCancelError as err:
                 logging.error(
-                    f"unable to cancel {p['web_url']} - "
-                    f"error message {err.error_message}"
+                    f"unable to cancel {p.web_url} - error message {err.error_message}"
                 )
 
 
@@ -188,9 +194,9 @@ def verify_on_demand_tests(
     Check if MR has passed all necessary test jobs and add comments to indicate test results.
     """
     pipelines = gl.get_merge_request_pipelines(mr)
-    running_pipelines = [p for p in pipelines if p["status"] == "running"]
+    running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
     if running_pipelines:
-        # wait for pipelines complate
+        # wait for pipelines completion
         return False
 
     commit = next(mr.commits())
@@ -510,7 +516,9 @@ def rebase_merge_requests(
                 continue
             # possible statuses:
             # running, pending, success, failed, canceled, skipped
-            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            running_pipelines = [
+                p for p in pipelines if p.status == PipelineStatus.RUNNING
+            ]
             if running_pipelines:
                 continue
 
@@ -591,7 +599,9 @@ def merge_merge_requests(
         if wait_for_pipeline:
             # possible statuses:
             # running, pending, success, failed, canceled, skipped
-            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            running_pipelines = [
+                p for p in pipelines if p.status == PipelineStatus.RUNNING
+            ]
             if running_pipelines:
                 if insist:
                     # This raise causes the method to restart due to the usage of
@@ -606,8 +616,8 @@ def merge_merge_requests(
                     )
                 continue
 
-        last_pipeline_result = pipelines[0]["status"]
-        if last_pipeline_result != "success":
+        last_pipeline_result = pipelines[0].status
+        if last_pipeline_result != PipelineStatus.SUCCESS:
             continue
 
         logging.info(["merge", gl.project.name, mr.iid])

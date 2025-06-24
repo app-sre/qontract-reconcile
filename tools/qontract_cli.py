@@ -27,6 +27,7 @@ import click
 import click.core
 import requests
 import yaml
+from gitlab.const import PipelineStatus
 from rich import box
 from rich import print as rich_print
 from rich.console import Console, Group
@@ -2331,11 +2332,13 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             pipelines = gl.get_merge_request_pipelines(mr)
             if not pipelines:
                 continue
-            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            running_pipelines = [
+                p for p in pipelines if p.status == PipelineStatus.RUNNING
+            ]
             if running_pipelines:
                 continue
-            last_pipeline_result = pipelines[0]["status"]
-            if last_pipeline_result != "success":
+            last_pipeline_result = pipelines[0].status
+            if last_pipeline_result != PipelineStatus.SUCCESS:
                 continue
 
             author = mr.author["username"]
@@ -2428,11 +2431,11 @@ def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
-        running_pipelines = [p for p in pipelines if p["status"] == "running"]
+        running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
         if running_pipelines:
             continue
-        last_pipeline_result = pipelines[0]["status"]
-        if last_pipeline_result != "success":
+        last_pipeline_result = pipelines[0].status
+        if last_pipeline_result != PipelineStatus.SUCCESS:
             continue
 
         item = {

@@ -189,7 +189,9 @@ def test_gitlab_members_reconcile_gitlab_members(
         dry_run=False,
         gl=gl_mock,
     )
-    gl_mock.add_group_member.assert_called_once_with(group, new_user)
+    gl_mock.add_group_member.assert_called_once_with(
+        group, new_user.user, new_user.access_level
+    )
     gl_mock.change_access.assert_called_once_with(all_users[2], 50)
     gl_mock.remove_group_member.assert_called_once_with(group, all_users[3].id)
 

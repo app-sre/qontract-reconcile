@@ -594,25 +594,22 @@ def test_get_merge_request_pipelines() -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.pipelines = create_autospec(ProjectMergeRequestPipelineManager)
 
-    pipeline_1 = create_autospec(ProjectMergeRequestPipeline)
-    expected_pipeline_1 = {
-        "created_at": "2025-01-01T00:00:00Z",
-        "id": 1,
-    }
-    pipeline_1.asdict.return_value = expected_pipeline_1
-
-    pipeline_2 = create_autospec(ProjectMergeRequestPipeline)
-    expected_pipeline_2 = {
-        "created_at": "2025-01-02T00:00:00Z",
-        "id": 2,
-    }
-    pipeline_2.asdict.return_value = expected_pipeline_2
+    pipeline_1 = create_autospec(
+        ProjectMergeRequestPipeline,
+        id=1,
+        created_at="2025-01-01T00:00:00Z",
+    )
+    pipeline_2 = create_autospec(
+        ProjectMergeRequestPipeline,
+        id=2,
+        created_at="2025-01-02T00:00:00Z",
+    )
 
     mr.pipelines.list.return_value = [pipeline_1, pipeline_2]
 
     pipelines = GitLabApi.get_merge_request_pipelines(mr)
 
-    assert pipelines == [expected_pipeline_2, expected_pipeline_1]
+    assert pipelines == [pipeline_2, pipeline_1]
     mr.pipelines.list.assert_called_once_with(iterator=True)
 
 

@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from functools import cached_property
 from operator import (
     attrgetter,
-    itemgetter,
 )
 from typing import (
     Any,
@@ -46,6 +45,7 @@ from gitlab.v4.objects import (
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
+    ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
     User,
 )
@@ -413,13 +413,12 @@ class GitLabApi:
         return mr.resourcelabelevents.list(get_all=True)
 
     @staticmethod
-    def get_merge_request_pipelines(mr: ProjectMergeRequest) -> list[dict]:
-        # TODO: use typed object in return
-        # TODO: use server side order_by
-        items = mr.pipelines.list(iterator=True)
+    def get_merge_request_pipelines(
+        mr: ProjectMergeRequest,
+    ) -> list[ProjectMergeRequestPipeline]:
         return sorted(
-            [i.asdict() for i in items],
-            key=itemgetter("created_at"),
+            mr.pipelines.list(iterator=True),
+            key=lambda pipeline: pipeline.created_at,
             reverse=True,
         )
 

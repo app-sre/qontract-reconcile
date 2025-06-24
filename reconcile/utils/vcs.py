@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Literal
 from urllib.parse import urlparse
 
+from gitlab.const import PipelineStatus
 from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.typed_queries.github_orgs import GithubOrgV1
@@ -154,14 +155,13 @@ class VCS:
         pipelines = self._gitlab_instance.get_merge_request_pipelines(mr)
         if not pipelines:
             return MRCheckStatus.NONE
-        # available status codes https://docs.gitlab.com/ee/api/pipelines.html
-        last_pipeline_result = pipelines[0]["status"]
+        last_pipeline_result = pipelines[0].status
         match last_pipeline_result:
-            case "success":
+            case PipelineStatus.SUCCESS:
                 return MRCheckStatus.SUCCESS
-            case "running":
+            case PipelineStatus.RUNNING:
                 return MRCheckStatus.RUNNING
-            case "failed":
+            case PipelineStatus.FAILED:
                 return MRCheckStatus.FAILED
             case _:
                 # Lets assume all other states as non-present
