@@ -1,9 +1,8 @@
 from collections import defaultdict
-from collections.abc import (
-    Iterable,
-)
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
+from operator import attrgetter
 
 from reconcile.change_owners.approver import (
     Approver,
@@ -34,7 +33,7 @@ def get_approver_decisions_from_mr_comments(
     comments: Iterable[Comment],
 ) -> list[Decision]:
     decisions: list[Decision] = []
-    for c in sorted(comments, key=lambda comment: comment.created_at):
+    for c in sorted(comments, key=attrgetter("created_at")):
         commenter = c.username
         comment_body = c.body
         for line in comment_body.split("\n") if comment_body else []:

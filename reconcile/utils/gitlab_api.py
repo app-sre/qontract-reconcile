@@ -9,9 +9,7 @@ from collections.abc import (
 )
 from dataclasses import dataclass
 from functools import cached_property
-from operator import (
-    attrgetter,
-)
+from operator import attrgetter
 from typing import (
     Any,
     Self,
@@ -418,7 +416,7 @@ class GitLabApi:
     ) -> list[ProjectMergeRequestPipeline]:
         return sorted(
             mr.pipelines.list(iterator=True),
-            key=lambda pipeline: pipeline.created_at,
+            key=attrgetter("created_at"),
             reverse=True,
         )
 
@@ -735,7 +733,7 @@ class GitLabApi:
         last_action_by_team = None
         # comments
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=lambda c: c.created_at, reverse=True)
+        comments.sort(key=attrgetter("created_at"), reverse=True)
         for comment in comments:
             username = comment.username
             if username == self.user.username:
@@ -818,7 +816,7 @@ class GitLabApi:
         self, mr: ProjectMergeRequest, exclude_bot: bool = True
     ) -> Comment | None:
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=lambda c: c.created_at, reverse=True)
+        comments.sort(key=attrgetter("created_at"), reverse=True)
         return next(
             (
                 comment
