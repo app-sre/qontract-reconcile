@@ -176,7 +176,7 @@ def clean_pipelines(
         logging.info(["canceling", p.web_url])
         if not dry_run:
             try:
-                gl_piplelines.get(p.id).cancel()
+                gl_piplelines.get(p.id, lazy=True).cancel()
             except gitlab.exceptions.GitlabPipelineCancelError as err:
                 logging.error(
                     f"unable to cancel {p.web_url} - error message {err.error_message}"
