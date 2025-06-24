@@ -39,7 +39,7 @@ from gitlab.v4.objects import (
 from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
 
-from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import Assignment, GitLabApi
 
 
 def test_gitlab_client_timeout(mocker: MockerFixture, patch_sleep: None) -> None:
@@ -665,7 +665,7 @@ def test_last_assignment() -> None:
 
     result = GitLabApi.last_assignment(mr)
 
-    assert result == ("author_1", "assignee_1")
+    assert result == Assignment(author="author_1", assignee="assignee_1")
 
     mr.notes.list.assert_called_once_with(
         sort="desc",

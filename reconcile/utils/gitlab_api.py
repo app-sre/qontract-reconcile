@@ -7,6 +7,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
+from dataclasses import dataclass
 from functools import cached_property
 from operator import (
     attrgetter,
@@ -14,9 +15,7 @@ from operator import (
 )
 from typing import (
     Any,
-    Protocol,
     Self,
-    TypedDict,
     cast,
 )
 from urllib.parse import urlparse
@@ -97,15 +96,10 @@ class MRStatus:
 GROUP_BOT_NAME_REGEX = re.compile(r"group_.+_bot_.+")
 
 
-class GLGroupMember(TypedDict):
-    id: str
-    user: str
-    access_level: str
-
-
-class GitlabUser(Protocol):
-    user: str
-    access_level: int
+@dataclass(frozen=True)
+class Assignment:
+    author: str
+    assignee: str
 
 
 class GitLabApi:
@@ -328,17 +322,17 @@ class GitLabApi:
             member.access_level = access_level
             member.save()
 
-    def add_group_member(self, group: Group, user: GitlabUser) -> None:
-        gitlab_user = self.get_user(user.user)
+    def add_group_member(self, group: Group, username: str, access_level: int) -> None:
+        gitlab_user = self.get_user(username)
         if gitlab_user is not None:
             try:
                 group.members.create({
                     "user_id": gitlab_user.id,
-                    "access_level": user.access_level,
+                    "access_level": access_level,
                 })
             except GitlabCreateError:
-                member = group.members.get(user.user)
-                member.access_level = user.access_level
+                member = group.members.get(gitlab_user.id)
+                member.access_level = access_level
                 member.save()
 
     def remove_group_member(self, group: Group, user_id: str) -> None:
@@ -720,7 +714,7 @@ class GitLabApi:
         self.create_branch("production", "master")
 
     def is_last_action_by_team(
-        self, mr: ProjectMergeRequest, team_usernames: list[str], hold_labels: list[str]
+        self, mr: ProjectMergeRequest, team_usernames: set[str], hold_labels: list[str]
     ) -> bool:
         # what is the time of the last app-sre response?
         last_action_by_team = None
@@ -772,19 +766,20 @@ class GitLabApi:
         return last_action_not_by_team < last_action_by_team
 
     def is_assigned_by_team(
-        self, mr: ProjectMergeRequest, team_usernames: list[str]
+        self, mr: ProjectMergeRequest, team_usernames: set[str]
     ) -> bool:
         if not mr.assignee:
             return False
         last_assignment = self.last_assignment(mr)
-        if not last_assignment:
+        if last_assignment is None:
             return False
-
-        author, assignee = last_assignment[0], last_assignment[1]
-        return author in team_usernames and mr.assignee["username"] == assignee
+        return (
+            last_assignment.author in team_usernames
+            and mr.assignee["username"] == last_assignment.assignee
+        )
 
     @staticmethod
-    def last_assignment(mr: ProjectMergeRequest) -> tuple[str, str] | None:
+    def last_assignment(mr: ProjectMergeRequest) -> Assignment | None:
         """
         Get the last assignment of a merge request.
         :param mr: merge request
@@ -794,7 +789,10 @@ class GitLabApi:
         notes = mr.notes.list(sort="desc", order_by="created_at", iterator=True)
         return next(
             (
-                (note.author["username"], note.body.removeprefix(body_format))
+                Assignment(
+                    author=note.author["username"],
+                    assignee=note.body.removeprefix(body_format),
+                )
                 for note in notes
                 if note.system and note.body.startswith(body_format)
             ),

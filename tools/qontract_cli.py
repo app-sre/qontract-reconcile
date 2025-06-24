@@ -2339,7 +2339,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 continue
 
             author = mr.author["username"]
-            app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+            app_sre_team_members = {u.username for u in gl.get_app_sre_group_users()}
             if author in app_sre_team_members:
                 continue
 
@@ -2417,7 +2417,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
 
         # skip MRs where AppSRE is involved already (author or assignee)
         author = mr.author["username"]
-        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+        app_sre_team_members = {u.username for u in gl.get_app_sre_group_users()}
         if author in app_sre_team_members:
             continue
         is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
