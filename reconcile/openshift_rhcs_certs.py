@@ -35,7 +35,7 @@ from reconcile.utils.rhcsv2_certs import RhcsV2Cert, generate_cert
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.vault import SecretNotFound, _VaultClient
+from reconcile.utils.vault import SecretNotFound, VaultClient
 
 QONTRACT_INTEGRATION = "openshift-rhcs-certs"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
@@ -115,12 +115,12 @@ def cert_expires_within_threshold(
 def get_vault_cert_secret(
     ns: NamespaceV1,
     cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
-    vault: _VaultClient,
+    vault: VaultClient,
     vault_base_path: str,
 ) -> dict | None:
     vault_cert_secret = None
     try:
-        vault_cert_secret = vault.read_all({
+        vault_cert_secret = vault.read_all({  # type: ignore[attr-defined]
             "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         })
     except SecretNotFound:
@@ -134,7 +134,7 @@ def generate_vault_cert_secret(
     dry_run: bool,
     ns: NamespaceV1,
     cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
-    vault: _VaultClient,
+    vault: VaultClient,
     vault_base_path: str,
     issuer_url: str,
     ca_cert_url: str,
@@ -142,7 +142,7 @@ def generate_vault_cert_secret(
     logging.info(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
     )
-    sa_password = vault.read(cert_resource.service_account_password.dict())
+    sa_password = vault.read(cert_resource.service_account_password.dict())  # type: ignore[attr-defined]
     if dry_run:
         rhcs_cert = RhcsV2Cert(
             certificate="PLACEHOLDER_CERT",
@@ -162,7 +162,7 @@ def generate_vault_cert_secret(
         logging.info(
             f"Writing cert details to Vault at {vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         )
-        vault.write(
+        vault.write(  # type: ignore[attr-defined]
             secret={
                 "data": rhcs_cert.dict(by_alias=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
@@ -176,7 +176,7 @@ def fetch_openshift_resource_for_cert_resource(
     dry_run: bool,
     ns: NamespaceV1,
     cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
-    vault: _VaultClient,
+    vault: VaultClient,
     rhcs_settings: RhcsProviderSettingsV1,
 ) -> OR:
     vault_base_path = f"{rhcs_settings.vault_base_path}/{QONTRACT_INTEGRATION}"
@@ -217,7 +217,7 @@ def fetch_desired_state(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    vault = _VaultClient()
+    vault = VaultClient()
     cert_provider = get_rhcs_provider_settings(query_func=query_func)
 
     for ns in namespaces:
