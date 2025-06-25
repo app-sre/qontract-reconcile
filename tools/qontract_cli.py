@@ -27,6 +27,7 @@ import click
 import click.core
 import requests
 import yaml
+from gitlab.const import PipelineStatus
 from rich import box
 from rich import print as rich_print
 from rich.console import Console, Group
@@ -2331,15 +2332,17 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             pipelines = gl.get_merge_request_pipelines(mr)
             if not pipelines:
                 continue
-            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            running_pipelines = [
+                p for p in pipelines if p.status == PipelineStatus.RUNNING
+            ]
             if running_pipelines:
                 continue
-            last_pipeline_result = pipelines[0]["status"]
-            if last_pipeline_result != "success":
+            last_pipeline_result = pipelines[0].status
+            if last_pipeline_result != PipelineStatus.SUCCESS:
                 continue
 
             author = mr.author["username"]
-            app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+            app_sre_team_members = {u.username for u in gl.get_app_sre_group_users()}
             if author in app_sre_team_members:
                 continue
 
@@ -2357,7 +2360,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 if (
                     last_comment
                     and trigger_phrases_regex
-                    and not re.fullmatch(trigger_phrases_regex, last_comment["body"])
+                    and not re.fullmatch(trigger_phrases_regex, last_comment.body)
                 ):
                     continue
 
@@ -2417,7 +2420,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
 
         # skip MRs where AppSRE is involved already (author or assignee)
         author = mr.author["username"]
-        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+        app_sre_team_members = {u.username for u in gl.get_app_sre_group_users()}
         if author in app_sre_team_members:
             continue
         is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
@@ -2428,11 +2431,11 @@ def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
-        running_pipelines = [p for p in pipelines if p["status"] == "running"]
+        running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
         if running_pipelines:
             continue
-        last_pipeline_result = pipelines[0]["status"]
-        if last_pipeline_result != "success":
+        last_pipeline_result = pipelines[0].status
+        if last_pipeline_result != PipelineStatus.SUCCESS:
             continue
 
         item = {

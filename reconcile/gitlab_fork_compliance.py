@@ -77,8 +77,7 @@ class GitlabForkCompliance:
                     continue
                 LOG.info([f"adding {member.username} as maintainer"])
                 user_payload = {"user_id": member.id, "access_level": MAINTAINER_ACCESS}
-                member = self.src.project.members.create(user_payload)
-                member.save()
+                self.src.project.members.create(user_payload)
 
         # Last but not least, we remove the blocked label, in case
         # it is set
