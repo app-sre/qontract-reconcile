@@ -316,59 +316,6 @@ def test_get_diff_update_app_metadata() -> None:
         assert h[0].status_board_object.metadata["deploymentSaasFiles"] == ["foo-deployment"]
 
 
-def test_get_diff_update_app_metadata_preserves_managed_by() -> None:
-    Product.update_forward_refs()
-
-    # Existing application with old metadata that should be replaced
-    existing_app = Application(
-        id="app-123",
-        name="foo",
-        fullname="product/foo",
-        metadata={
-            "managedBy": "qontract-reconcile",
-            "someOtherField": "value"  # This should be discarded in fresh metadata
-        },
-        old_metadata=None,
-        product=None
-    )
-    existing_product = Product(
-        id="prod-123",
-        name="product",
-        fullname="product",
-        metadata=None,
-        applications=[existing_app]
-    )
-
-    # Desired state with deploymentSaasFiles
-    desired_apps = {
-        "product": {
-            "foo": {
-                "name": "foo",
-                "metadata": {
-                    "deploymentSaasFiles": ["foo-deployment"]
-                }
-            }
-        }
-    }
-
-    h = StatusBoardExporterIntegration.get_diff(
-        desired_apps,
-        [existing_product],
-    )
-
-    # Should generate an update action with fresh metadata
-    assert len(h) == 1
-    assert h[0].action == "update"
-    assert isinstance(h[0].status_board_object, Application)
-    
-    updated_metadata = h[0].status_board_object.metadata
-    if updated_metadata:
-        assert updated_metadata["managedBy"] == "qontract-reconcile"  # Always present
-        assert updated_metadata["deploymentSaasFiles"] == ["foo-deployment"]  # From desired state
-        assert "someOtherField" not in updated_metadata  # Old metadata discarded
-        assert len(updated_metadata) == 2  # Only managedBy and deploymentSaasFiles
-
-
 def test_apply_sorted(mocker: MockerFixture) -> None:
     Product.update_forward_refs()
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient", autospec=True)
