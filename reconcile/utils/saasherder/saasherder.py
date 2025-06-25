@@ -1869,7 +1869,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         # to reduce false-positives.
         auto_promotion_suffix = (
             " [auto-promotion]"
-            if state_content.get("promotion", {}).get("auto", False)
+            if (state_content.get("promotion") or {}).get("auto", False)
             else ""
         )
         return f"{self.repo_url}/commit/{RunningState().commit}{auto_promotion_suffix}"
