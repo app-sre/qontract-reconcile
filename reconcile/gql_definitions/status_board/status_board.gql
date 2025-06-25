@@ -37,6 +37,10 @@ query StatusBoard {
               name
               onboardingStatus
             }
+            saasFiles {
+              name
+              managedResourceTypes
+            }
           }
         }
       }
