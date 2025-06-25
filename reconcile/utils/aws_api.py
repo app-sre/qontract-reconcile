@@ -2,14 +2,12 @@ import logging
 import operator
 import os
 import re
-import time
 from collections.abc import (
     Iterable,
     Iterator,
     Mapping,
     Sequence,
 )
-from datetime import datetime
 from functools import lru_cache
 from threading import Lock
 from typing import (
@@ -21,7 +19,6 @@ from typing import (
     overload,
 )
 
-import botocore
 from boto3 import Session
 from botocore.client import BaseClient
 from botocore.config import Config
@@ -142,13 +139,6 @@ RESOURCE_NAME = Literal[
     "s3",
     "sqs",
 ]
-RESOURCE_TYPE = Literal[
-    "dynamodb",
-    "rds",
-    "rds_snapshots",
-    "s3",
-    "sqs",
-]
 
 
 class AWSApi:
@@ -169,17 +159,10 @@ class AWSApi:
             self.secret_reader = secret_reader
         else:
             self.secret_reader = SecretReader(settings=settings)
-        self.init_sessions_and_resources(accounts)
+        self.init_sessions(accounts)
         if init_ecr_auth_tokens:
             self.init_ecr_auth_tokens(accounts)
         self._lock = Lock()
-        self.resource_types: list[RESOURCE_TYPE] = [
-            "s3",
-            "sqs",
-            "dynamodb",
-            "rds",
-            "rds_snapshots",
-        ]
 
         # store the app-interface accounts in a dictionary indexed by name
         self.accounts = {acc["name"]: acc for acc in accounts}
@@ -208,7 +191,7 @@ class AWSApi:
         if init_users:
             self.init_users()
 
-    def init_sessions_and_resources(self, accounts: Iterable[awsh.Account]) -> None:
+    def init_sessions(self, accounts: Iterable[awsh.Account]) -> None:
         results = threaded.run(
             awsh.get_tf_secrets,
             accounts,
@@ -216,7 +199,6 @@ class AWSApi:
             secret_reader=self.secret_reader,
         )
         self.sessions: dict[str, Session] = {}
-        self.resources: dict[str, Any] = {}
         for account_name, secret in results:
             account = awsh.get_account(accounts, account_name)
             access_key = secret["aws_access_key_id"]
@@ -235,7 +217,6 @@ class AWSApi:
                 region_name=region_name,
             )
             self.sessions[account_name] = session
-            self.resources[account_name] = {}
 
     def __enter__(self) -> Self:
         return self
@@ -490,121 +471,6 @@ class AWSApi:
             users = [u["UserName"] for u in users]
             self.users[account] = users
 
-    def map_resources(self) -> None:
-        threaded.run(self.map_resource, self.resource_types, self.thread_pool_size)
-
-    def map_resource(self, resource_type: str) -> None:
-        match resource_type:
-            case "s3":
-                self.map_s3_resources()
-            case "sqs":
-                self.map_sqs_resources()
-            case "dynamodb":
-                self.map_dynamodb_resources()
-            case "rds":
-                self.map_rds_resources()
-            case "rds_snapshots":
-                self.map_rds_snapshots()
-            case "route53":
-                self.map_route53_resources()
-            case "ecr":
-                self.map_ecr_resources()
-            case _:
-                raise InvalidResourceTypeError(resource_type)
-
-    def map_s3_resources(self) -> None:
-        for account, s in self.sessions.items():
-            s3 = self.get_session_client(s, "s3")
-            buckets_list = s3.list_buckets()
-            if "Buckets" not in buckets_list:
-                continue
-            buckets = [b["Name"] for b in buckets_list["Buckets"]]
-            self.set_resouces(account, "s3", buckets)
-            buckets_without_owner = self.get_resources_without_owner(account, buckets)
-            unfiltered_buckets = self.custom_s3_filter(
-                account, s3, buckets_without_owner
-            )
-            self.set_resouces(account, "s3_no_owner", unfiltered_buckets)
-
-    def map_sqs_resources(self) -> None:
-        for account, s in self.sessions.items():
-            sqs = self.get_session_client(s, "sqs")
-            queues_list = sqs.list_queues()
-            if "QueueUrls" not in queues_list:
-                continue
-            queues = queues_list["QueueUrls"]
-            self.set_resouces(account, "sqs", queues)
-            queues_without_owner = self.get_resources_without_owner(account, queues)
-            unfiltered_queues = self.custom_sqs_filter(
-                account, sqs, queues_without_owner
-            )
-            self.set_resouces(account, "sqs_no_owner", unfiltered_queues)
-
-    def map_dynamodb_resources(self) -> None:
-        for account, s in self.sessions.items():
-            dynamodb = self.get_session_client(s, "dynamodb")
-            tables = self.paginate(dynamodb, "list_tables", "TableNames")
-            self.set_resouces(account, "dynamodb", tables)
-            tables_without_owner = self.get_resources_without_owner(account, tables)
-            unfiltered_tables = self.custom_dynamodb_filter(
-                account, s, dynamodb, tables_without_owner
-            )
-            self.set_resouces(account, "dynamodb_no_owner", unfiltered_tables)
-
-    def map_rds_resources(self) -> None:
-        for account, s in self.sessions.items():
-            rds = self.get_session_client(s, "rds")
-            results = self.paginate(rds, "describe_db_instances", "DBInstances")
-            instances = [t["DBInstanceIdentifier"] for t in results]
-            self.set_resouces(account, "rds", instances)
-            instances_without_owner = self.get_resources_without_owner(
-                account, instances
-            )
-            unfiltered_instances = self.custom_rds_filter(
-                account, rds, instances_without_owner
-            )
-            self.set_resouces(account, "rds_no_owner", unfiltered_instances)
-
-    def map_rds_snapshots(self) -> None:
-        self.wait_for_resource("rds")
-        for account, s in self.sessions.items():
-            rds = self.get_session_client(s, "rds")
-            results = self.paginate(rds, "describe_db_snapshots", "DBSnapshots")
-            snapshots = [t["DBSnapshotIdentifier"] for t in results]
-            self.set_resouces(account, "rds_snapshots", snapshots)
-            snapshots_without_db = [
-                t["DBSnapshotIdentifier"]
-                for t in results
-                if t["DBInstanceIdentifier"] not in self.resources[account]["rds"]
-            ]
-            unfiltered_snapshots = self.custom_rds_snapshot_filter(
-                account, rds, snapshots_without_db
-            )
-            self.set_resouces(account, "rds_snapshots_no_owner", unfiltered_snapshots)
-
-    def map_route53_resources(self) -> None:
-        for account, s in self.sessions.items():
-            client = self.get_session_client(s, "route53")
-            results = self.paginate(client, "list_hosted_zones", "HostedZones")
-            zones = list(results)
-            for zone in zones:
-                results = self.paginate(
-                    client,
-                    "list_resource_record_sets",
-                    "ResourceRecordSets",
-                    {"HostedZoneId": zone["Id"]},
-                )
-                zone["records"] = results
-            self.set_resouces(account, "route53", zones)
-
-    def map_ecr_resources(self) -> None:
-        for account, s in self.sessions.items():
-            client = self.get_session_client(s, "ecr")
-            repositories = self.paginate(
-                client=client, method="describe_repositories", key="repositories"
-            )
-            self.set_resouces(account, "ecr", repositories)
-
     @staticmethod
     def paginate(
         client: BaseClient, method: str, key: str, params: Mapping | None = None
@@ -619,246 +485,6 @@ class AWSApi:
             for page in paginator.paginate(**params)
             for values in page.get(key, [])
         ]
-
-    def wait_for_resource(self, resource: str) -> None:
-        """wait_for_resource waits until the specified resource type
-        is ready for all accounts.
-        When we have more resource types then threads,
-        this function will need to change to a dependency graph."""
-        wait = True
-        while wait:
-            wait = False
-            for account in self.sessions:
-                if self.resources[account].get(resource) is None:
-                    wait = True
-            if wait:
-                time.sleep(2)
-
-    def set_resouces(self, account: str, key: str, value: Any) -> None:
-        with self._lock:
-            self.resources[account][key] = value
-
-    def get_resources_without_owner(
-        self, account: str, resources: Iterable[str]
-    ) -> list[str]:
-        return [r for r in resources if not self.has_owner(account, r)]
-
-    def has_owner(self, account: str, resource: str) -> bool:
-        has_owner = False
-        for u in self.users[account]:
-            if resource.lower().startswith(u.lower()):
-                has_owner = True
-                break
-            if "://" in resource:
-                if resource.split("/")[-1].startswith(u.lower()):
-                    has_owner = True
-                    break
-        return has_owner
-
-    def custom_s3_filter(
-        self, account: str, s3: S3Client, buckets: Iterable[str]
-    ) -> list[str]:
-        type = "s3 bucket"
-        unfiltered_buckets = []
-        for b in buckets:
-            try:
-                tags = s3.get_bucket_tagging(Bucket=b)
-            except botocore.exceptions.ClientError:
-                tags = {}  # type: ignore
-            if not self.should_filter(account, type, b, tags, "TagSet"):
-                unfiltered_buckets.append(b)
-
-        return unfiltered_buckets
-
-    def custom_sqs_filter(
-        self, account: str, sqs: SQSClient, queues: Iterable[str]
-    ) -> list[str]:
-        type = "sqs queue"
-        unfiltered_queues = []
-        for q in queues:
-            tags = sqs.list_queue_tags(QueueUrl=q)
-            if not self.should_filter(account, type, q, tags, "Tags"):
-                unfiltered_queues.append(q)
-
-        return unfiltered_queues
-
-    def custom_dynamodb_filter(
-        self,
-        account: str,
-        session: Session,
-        dynamodb: DynamoDBClient,
-        tables: Iterable[str],
-    ) -> list[str]:
-        type = "dynamodb table"
-        dynamodb_resource = self._get_session_resource(session, "dynamodb")
-        unfiltered_tables = []
-        for t in tables:
-            table_arn = dynamodb_resource.Table(t).table_arn
-            tags = dynamodb.list_tags_of_resource(ResourceArn=table_arn)
-            if not self.should_filter(account, type, t, tags, "Tags"):
-                unfiltered_tables.append(t)
-
-        return unfiltered_tables
-
-    def custom_rds_filter(
-        self, account: str, rds: RDSClient, instances: Iterable[str]
-    ) -> list[str]:
-        type = "rds instance"
-        unfiltered_instances = []
-        for i in instances:
-            instance = rds.describe_db_instances(DBInstanceIdentifier=i)
-            instance_arn = instance["DBInstances"][0]["DBInstanceArn"]
-            tags = rds.list_tags_for_resource(ResourceName=instance_arn)
-            if not self.should_filter(account, type, i, tags, "TagList"):
-                unfiltered_instances.append(i)
-
-        return unfiltered_instances
-
-    def custom_rds_snapshot_filter(
-        self, account: str, rds: RDSClient, snapshots: Iterable[str]
-    ) -> list[str]:
-        type = "rds snapshots"
-        unfiltered_snapshots = []
-        for s in snapshots:
-            snapshot = rds.describe_db_snapshots(DBSnapshotIdentifier=s)
-            snapshot_arn = snapshot["DBSnapshots"][0]["DBSnapshotArn"]
-            tags = rds.list_tags_for_resource(ResourceName=snapshot_arn)
-            if not self.should_filter(account, type, s, tags, "TagList"):
-                unfiltered_snapshots.append(s)
-
-        return unfiltered_snapshots
-
-    def should_filter(
-        self,
-        account: str,
-        resource_type: str,
-        resource_name: str,
-        resource_tags: Mapping,
-        tags_key: str,
-    ) -> bool:
-        if self.resource_has_special_name(account, resource_type, resource_name):
-            return True
-        if tags_key in resource_tags:
-            tags = resource_tags[tags_key]
-            if self.resource_has_special_tags(
-                account, resource_type, resource_name, tags
-            ):
-                return True
-
-        return False
-
-    @staticmethod
-    def resource_has_special_name(account: str, type: str, resource: str) -> bool:
-        skip_msg = f"[{account}] skipping {type} " + "({} related) {}"
-
-        ignore_names = {
-            "production": ["prod"],
-            "stage": ["stage", "staging"],
-            "terraform": ["terraform", "-tf-"],
-        }
-
-        for msg, tags in ignore_names.items():
-            for tag in tags:
-                if tag.lower() in resource.lower():
-                    logging.debug(skip_msg.format(msg, resource))
-                    return True
-
-        return False
-
-    def resource_has_special_tags(
-        self, account: str, type: str, resource: str, tags: Mapping | list[Mapping]
-    ) -> bool:
-        skip_msg = f"[{account}] skipping {type} " + "({}={}) {}"
-
-        ignore_tags = {
-            "ENV": ["prod", "stage", "staging"],
-            "environment": ["prod", "stage", "staging"],
-            "owner": ["app-sre"],
-            "managed_by_integration": ["terraform_resources", "terraform_users"],
-            "aws_gc_hands_off": ["true"],
-        }
-
-        for tag, ignore_values in ignore_tags.items():
-            for ignore_value in ignore_values:
-                value = self.get_tag_value(tags, tag)
-                if ignore_value.lower() in value.lower():
-                    logging.debug(skip_msg.format(tag, value, resource))
-                    return True
-
-        return False
-
-    @staticmethod
-    def get_tag_value(tags: Mapping | list[Mapping], tag: str) -> str:
-        if isinstance(tags, dict):
-            return tags.get(tag, "")
-        if isinstance(tags, list):
-            for t in tags:
-                if t["Key"] == tag:
-                    return t["Value"]
-
-        return ""
-
-    def delete_resources_without_owner(self, dry_run: bool) -> None:
-        for account, s in self.sessions.items():
-            for rt in self.resource_types:
-                for r in self.resources[account].get(rt + "_no_owner", []):
-                    logging.info(["delete_resource", account, rt, r])
-                    if not dry_run:
-                        self.delete_resource(s, rt, r)
-
-    def delete_resource(
-        self, session: Session, resource_type: RESOURCE_TYPE, resource_name: str
-    ) -> None:
-        match resource_type:
-            case "s3":
-                self.delete_bucket(
-                    self._get_session_resource(session, resource_type), resource_name
-                )
-            case "sqs":
-                self.delete_queue(
-                    self.get_session_client(session, resource_type), resource_name
-                )
-            case "dynamodb":
-                self.delete_table(
-                    self._get_session_resource(session, resource_type), resource_name
-                )
-            case "rds":
-                self.delete_instance(
-                    self.get_session_client(session, resource_type), resource_name
-                )
-            case "rds_snapshots":
-                self.delete_snapshot(
-                    self.get_session_client(session, "rds"), resource_name
-                )
-            case _:
-                raise InvalidResourceTypeError(resource_type)
-
-    @staticmethod
-    def delete_bucket(s3: S3ServiceResource, bucket_name: str) -> None:
-        bucket = s3.Bucket(bucket_name)
-        bucket.object_versions.delete()
-        bucket.delete()
-
-    @staticmethod
-    def delete_queue(sqs: SQSClient, queue_url: str) -> None:
-        sqs.delete_queue(QueueUrl=queue_url)
-
-    @staticmethod
-    def delete_table(dynamodb: DynamoDBServiceResource, table_name: str) -> None:
-        table = dynamodb.Table(table_name)
-        table.delete()
-
-    @staticmethod
-    def delete_instance(rds: RDSClient, instance_name: str) -> None:
-        rds.delete_db_instance(
-            DBInstanceIdentifier=instance_name,
-            SkipFinalSnapshot=True,
-            DeleteAutomatedBackups=True,
-        )
-
-    @staticmethod
-    def delete_snapshot(rds: RDSClient, snapshot_identifier: str) -> None:
-        rds.delete_db_snapshot(DBSnapshotIdentifier=snapshot_identifier)
 
     @staticmethod
     def determine_key_type(iam: IAMClient, user: str) -> str:
@@ -1874,145 +1500,6 @@ class AWSApi:
         resource_records = filtered_record_sets[0]["ResourceRecords"]
         ns_records = self._extract_records(resource_records)
         return ns_records
-
-    def get_route53_zones(self) -> dict[str, list[dict[str, str]]]:
-        """
-        Return a list of (str, dict) representing Route53 DNS zones per account
-
-        :return: route53 dns zones per account
-        :rtype: list of (str, dict)
-        """
-        return {
-            account: self.resources.get(account, {}).get("route53", [])
-            for account, _ in self.sessions.items()
-        }
-
-    def create_route53_zone(self, account_name: str, zone_name: str) -> None:
-        """
-        Create a Route53 DNS zone
-
-        :param account_name: the account name to operate on
-        :param zone_name: name of the zone to create
-        :type account_name: str
-        :type zone_name: str
-        """
-        session = self.get_session(account_name)
-        client = self.get_session_client(session, "route53")
-
-        try:
-            caller_ref = f"{datetime.now()}"
-            client.create_hosted_zone(
-                Name=zone_name,
-                CallerReference=caller_ref,
-                HostedZoneConfig={
-                    "Comment": "Managed by App-Interface",
-                },
-            )
-        except client.exceptions.InvalidDomainName:
-            logging.error(f"[{account_name}] invalid domain name {zone_name}")
-        except client.exceptions.HostedZoneAlreadyExists:
-            logging.error(f"[{account_name}] hosted zone already exists: {zone_name}")
-        except client.exceptions.TooManyHostedZones:
-            logging.error(f"[{account_name}] too many hosted zones in account")
-        except Exception as e:
-            logging.error(f"[{account_name}] unhandled exception: {e}")
-
-    def delete_route53_zone(self, account_name: str, zone_id: str) -> None:
-        """
-        Delete a Route53 DNS zone
-
-        :param account_name: the account name to operate on
-        :param zone_id: aws zone id of the zone to delete
-        :type account_name: str
-        :type zone_id: str
-        """
-        session = self.get_session(account_name)
-        client = self.get_session_client(session, "route53")
-
-        try:
-            client.delete_hosted_zone(Id=zone_id)
-        except client.exceptions.NoSuchHostedZone:
-            logging.error(
-                f"[{account_name}] Error trying to delete unknown DNS zone {zone_id}"
-            )
-        except client.exceptions.HostedZoneNotEmpty:
-            logging.error(
-                f"[{account_name}] Cannot delete DNS zone that is not empty {zone_id}"
-            )
-        except Exception as e:
-            logging.error(f"[{account_name}] unhandled exception: {e}")
-
-    def delete_route53_record(
-        self, account_name: str, zone_id: str, awsdata: ResourceRecordSetTypeDef
-    ) -> None:
-        """
-        Delete a Route53 DNS zone record
-
-        :param account_name: the account name to operate on
-        :param zone_id: aws zone id of the zone to operate on
-        :param awsdata: aws record data of the record to delete
-        :type account_name: str
-        :type zone_id: str
-        :type awsdata: dict
-        """
-        session = self.get_session(account_name)
-        client = self.get_session_client(session, "route53")
-
-        try:
-            client.change_resource_record_sets(
-                HostedZoneId=zone_id,
-                ChangeBatch={
-                    "Changes": [
-                        {
-                            "Action": "DELETE",
-                            "ResourceRecordSet": awsdata,
-                        }
-                    ]
-                },
-            )
-        except client.exceptions.NoSuchHostedZone:
-            logging.error(
-                f"[{account_name}] Error trying to delete record: "
-                f"unknown DNS zone {zone_id}"
-            )
-        except Exception as e:
-            logging.error(f"[{account_name}] unhandled exception: {e}")
-
-    def upsert_route53_record(
-        self, account_name: str, zone_id: str, recordset: ResourceRecordSetTypeDef
-    ) -> None:
-        """
-        Upsert a Route53 DNS zone record
-
-        :param account_name: the account name to operate on
-        :param zone_id: aws zone id of the zone to operate on
-        :param recordset: aws record data of the record to create or update
-        :type account_name: str
-        :type zone_id: str
-        :type recordset: dict
-        """
-        session = self.get_session(account_name)
-        client = self.get_session_client(session, "route53")
-
-        try:
-            client.change_resource_record_sets(
-                HostedZoneId=zone_id,
-                ChangeBatch={
-                    "Changes": [
-                        {
-                            "Action": "UPSERT",
-                            "ResourceRecordSet": recordset,
-                        }
-                    ]
-                },
-            )
-        except client.exceptions.NoSuchHostedZone:
-            logging.error(
-                f"[{account_name}] Error trying to delete record: "
-                f"unknown DNS zone {zone_id}"
-            )
-        except Exception as e:
-            logging.error(f"[{account_name}] unhandled exception: {e}")
 
     def get_image_id(
         self, account_name: str, region_name: str, tags: Iterable[AmiTag]
