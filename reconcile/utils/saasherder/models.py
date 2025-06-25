@@ -53,7 +53,7 @@ class UpstreamJob:
         return self.__str__()
 
 
-@dataclass(frozen=True)
+@dataclass
 class TriggerSpecBase:
     saas_file_name: str
     env_name: str
@@ -63,8 +63,6 @@ class TriggerSpecBase:
     cluster_name: str
     namespace_name: str
     state_content: Any
-    reason: str | None
-    target_ref: str
 
     @property
     def state_key(self) -> str:
@@ -78,11 +76,13 @@ class SLOKey:
     cluster_name: str
 
 
-@dataclass(frozen=True)
+@dataclass
 class TriggerSpecConfig(TriggerSpecBase):
     resource_template_url: str
+    target_ref: str
     slos: list[SLODocument] | None = None
     target_name: str | None = None
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -108,9 +108,10 @@ class TriggerSpecConfig(TriggerSpecBase):
         ]
 
 
-@dataclass(frozen=True)
+@dataclass
 class TriggerSpecMovingCommit(TriggerSpecBase):
     ref: str
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -121,10 +122,11 @@ class TriggerSpecMovingCommit(TriggerSpecBase):
         return key
 
 
-@dataclass(frozen=True)
+@dataclass
 class TriggerSpecUpstreamJob(TriggerSpecBase):
     instance_name: str
     job_name: str
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -135,9 +137,10 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
         return key
 
 
-@dataclass(frozen=True)
+@dataclass
 class TriggerSpecContainerImage(TriggerSpecBase):
     images: Sequence[str]
+    reason: str | None = None
 
     @property
     def state_key(self) -> str:
