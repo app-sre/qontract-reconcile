@@ -25,7 +25,6 @@ from reconcile.utils.ocm.status_board import (
     get_managed_products,
     get_product_applications,
     update_application,
-    update_product,
 )
 from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
@@ -82,14 +81,6 @@ class Product(AbstractStatusBoard):
             return
         delete_product(ocm, self.id)
 
-    def update(self, ocm: OCMBaseClient) -> None:
-        if not self.id:
-            logging.error(f'Trying to update Product "{self.name}" without id')
-            return
-        spec = self.dict(by_alias=True)
-        spec.pop("applications")
-        spec.pop("id")
-        update_product(ocm, self.id, spec)
 
     def summarize(self) -> str:
         return f'Product: "{self.name}"'

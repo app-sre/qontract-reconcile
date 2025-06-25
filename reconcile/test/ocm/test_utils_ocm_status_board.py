@@ -13,7 +13,6 @@ from reconcile.utils.ocm.status_board import (
     get_managed_products,
     get_product_applications,
     update_application,
-    update_product,
 )
 
 
@@ -138,22 +137,6 @@ def test_delete_application(mocker: MockFixture) -> None:
 
     ocm.delete.assert_called_once_with(
         f"/api/status-board/v1/applications/{application_id}"
-    )
-
-
-def test_update_product(mocker: MockFixture) -> None:
-    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
-    product_id = "foo"
-
-    update_product(ocm, product_id, {"name": "foo", "fullname": "foo"})
-
-    ocm.patch.assert_called_once_with(
-        f"/api/status-board/v1/products/{product_id}",
-        data={
-            "metadata": {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE},
-            "name": "foo",
-            "fullname": "foo",
-        },
     )
 
 
