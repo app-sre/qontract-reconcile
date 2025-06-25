@@ -95,7 +95,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-  github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-fork-compliance          Ensures that forks of App Interface are
                                   compliant.

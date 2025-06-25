@@ -316,7 +316,6 @@ module = [
     "reconcile.utils.statuspage.atlassian",
     "reconcile.utils.statuspage.models",
     "reconcile.utils.structs",
-    "reconcile.utils.template",
     "reconcile.utils.terraform_client",
     "reconcile.utils.terrascript_aws_client",
     "reconcile.utils.throughput",
