@@ -66,7 +66,7 @@ fileExistenceTests:
 - name: Terraform plugin cache
   path: /.terraform.d/plugin-cache
   shouldExist: true
-  permissions: drwxrwxr-x
+  permissions: dgrwxrwxr-x
   uid: 0
   gid: 0
 
