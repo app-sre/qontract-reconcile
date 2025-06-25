@@ -451,7 +451,7 @@ class GitLabApi:
                 Comment(
                     id=MR_DESCRIPTION_COMMENT_ID,
                     username=merge_request.author["username"],
-                    body=merge_request.description,
+                    body=merge_request.description or "",
                     created_at=merge_request.created_at,
                 )
             )
@@ -459,7 +459,7 @@ class GitLabApi:
             Comment(
                 id=note.id,
                 username=note.author["username"],
-                body=note.body,
+                body=note.body or "",
                 created_at=note.created_at,
                 note=note,
             )
@@ -479,10 +479,9 @@ class GitLabApi:
     ) -> None:
         comments = self.get_merge_request_comments(merge_request)
         for c in comments:
-            body = c.body or ""
             if (
                 c.username == self.user.username
-                and body.startswith(startswith)
+                and c.body.startswith(startswith)
                 and c.note is not None
             ):
                 self.delete_comment(c.note)
