@@ -67,6 +67,12 @@ def update_application(
     ocm_api.patch(f"/api/status-board/v1/applications/{application_id}", data=spec)
 
 
+def update_product(ocm_api: OCMBaseClient, product_id: str, spec: dict[str, Any]) -> None:
+    if "metadata" not in spec or spec["metadata"] is None:
+        spec["metadata"] = {}
+    spec["metadata"][METADATA_MANAGED_BY_KEY] = METADATA_MANAGED_BY_VALUE
+    ocm_api.patch(f"/api/status-board/v1/products/{product_id}", data=spec)
+
 def delete_product(ocm_api: OCMBaseClient, product_id: str) -> None:
     ocm_api.delete(f"/api/status-board/v1/products/{product_id}")
 

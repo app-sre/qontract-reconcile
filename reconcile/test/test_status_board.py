@@ -316,6 +316,9 @@ def test_get_diff_update_app_metadata() -> None:
         assert h[0].status_board_object.metadata["deploymentSaasFiles"] == ["foo-deployment"]
 
 
+
+
+
 def test_apply_sorted(mocker: MockerFixture) -> None:
     Product.update_forward_refs()
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient", autospec=True)
