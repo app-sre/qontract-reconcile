@@ -64,6 +64,7 @@ class TriggerSpecBase:
     namespace_name: str
     state_content: Any
     reason: str | None
+    target_ref: str
 
     @property
     def state_key(self) -> str:
@@ -80,7 +81,6 @@ class SLOKey:
 @dataclass(frozen=True)
 class TriggerSpecConfig(TriggerSpecBase):
     resource_template_url: str
-    target_ref: str
     slos: list[SLODocument] | None = None
     target_name: str | None = None
 

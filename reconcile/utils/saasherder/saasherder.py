@@ -1475,6 +1475,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             url=rt.url,
                             desired_commit_sha=desired_commit_sha,
                         ),
+                        target_ref=desired_commit_sha,
                     )
 
                     if not self.state:
@@ -1582,6 +1583,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         job_name=job_name,
                         url=rt.url,
                     ),
+                    target_ref=last_build_result.get("commit_sha") or target.ref,
                 )
                 if not self.state:
                     raise Exception("state is not initialized")
@@ -1705,6 +1707,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                             url=rt.url,
                             commit_sha=commit_sha,
                         ),
+                        target_ref=commit_sha,
                     )
                     if not self.state:
                         raise Exception("state is not initialized")
