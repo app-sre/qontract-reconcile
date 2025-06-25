@@ -298,16 +298,15 @@ class GitLabApi:
 
     @staticmethod
     def _is_bot_username(username: str) -> bool:
-        """crudely checking for the username
+        """
+        Checks if a given username matches the pattern for an internal GitLab bot user.
 
-        as gitlab-python require a major upgrade to use the billable members apis
-        https://python-gitlab.readthedocs.io/en/stable/gl_objects/groups.html#id11 lists the api
-        billable_membersis the attribute that provides billable members of groups
+        This method uses a regular expression (GROUP_BOT_NAME_REGEX) to determine
+        if the username conforms to the naming convention for internal GitLab bots,
+        as described in the GitLab documentation.
 
-        the second api is https://python-gitlab.readthedocs.io/en/stable/gl_objects/group_access_tokens.html
-        which provides a list of access tokens as well as their assigned users
-
-        those apis are not avaliable in python-gitlab v1.x
+        Reference:
+            - GitLab Internal Users Documentation: https://docs.gitlab.com/administration/internal_users/
         """
         return GROUP_BOT_NAME_REGEX.match(username) is not None
 
