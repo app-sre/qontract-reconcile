@@ -382,7 +382,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     def get_diff(
         desired_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
         current_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
-        current_products: Mapping[str, Product],
     ) -> list[StatusBoardHandler]:
         return_list: list[StatusBoardHandler] = []
 
@@ -461,13 +460,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 current_products_applications_services
             )
 
-            current_products = {
-                p.name: p for p in current_products_applications_services
-            }
             diff = self.get_diff(
                 desired_abstract_status_board_map,
                 current_abstract_status_board_map,
-                current_products,
             )
 
             self.apply_diff(dry_run, ocm_api, diff)
