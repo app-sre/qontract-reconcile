@@ -6,6 +6,10 @@ from abc import (
 from collections.abc import Iterable, Mapping
 from enum import Enum
 from itertools import chain
+from typing import (
+    Any,
+    Optional,
+)
 
 from pydantic import BaseModel
 
@@ -31,6 +35,7 @@ from reconcile.utils.ocm.status_board import (
     get_application_services,
     get_managed_products,
     get_product_applications,
+    update_application,
     update_service,
 )
 from reconcile.utils.ocm_base_client import (
@@ -121,7 +126,8 @@ class Product(AbstractStatusBoard):
 
 class Application(AbstractStatusBoard):
     product: Product
-    services: list["Service"] | None = None
+    services: list["Service"] | None
+    metadata: dict[str, Any]
 
     def create(self, ocm: OCMBaseClient) -> None:
         if self.product.id:
@@ -131,9 +137,11 @@ class Application(AbstractStatusBoard):
             logging.warning("Missing product id for application")
 
     def update(self, ocm: OCMBaseClient) -> None:
-        err_msg = "Called update on StatusBoardHandler that doesn't have update method"
-        logging.error(err_msg)
-        raise UpdateNotSupportedError(err_msg)
+        if not self.id:
+            logging.error(f'Trying to update Application "{self.name}" without id')
+            return
+        spec = self.to_ocm_spec()
+        update_application(ocm, self.id, spec)
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
@@ -149,7 +157,8 @@ class Application(AbstractStatusBoard):
         return {
             "name": self.name,
             "fullname": self.fullname,
-            "product": {"id": product_id},
+            "product_id": product_id,
+            "metadata": self.metadata,
         }
 
     @staticmethod
