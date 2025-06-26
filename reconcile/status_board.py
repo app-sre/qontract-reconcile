@@ -5,9 +5,6 @@ from abc import (
 )
 from collections.abc import Iterable, Mapping
 from enum import Enum
-from typing import (
-    Optional,
-)
 
 from pydantic import BaseModel
 
@@ -122,11 +119,11 @@ class Product(AbstractStatusBoard):
 
 
 class Application(AbstractStatusBoard):
-    product: Optional["Product"]
+    product: Product
     services: list["Service"] | None
 
     def create(self, ocm: OCMBaseClient) -> None:
-        if self.product and self.product.id:
+        if self.product.id:
             spec = self.to_ocm_spec()
             self.id = create_application(ocm, spec)
         else:
@@ -147,7 +144,7 @@ class Application(AbstractStatusBoard):
         return f'Application: "{self.name}" "{self.fullname}"'
 
     def to_ocm_spec(self) -> ApplicationOCMSpec:
-        product_id = self.product.id if self.product and self.product.id else ""
+        product_id = self.product.id or ""
         return {
             "name": self.name,
             "fullname": self.fullname,
@@ -166,12 +163,12 @@ class Service(AbstractStatusBoard):
     # This filed is needed when we are creating a Service on teh OCM API.
     # This field is not used when we are mapping the services that belongs to an
     # application in that case we use the `services` field in Application class.
-    application: Optional["Application"]
+    application: Application
     metadata: ServiceMetadataSpec
 
     def create(self, ocm: OCMBaseClient) -> None:
         spec = self.to_ocm_spec()
-        if self.application and self.application.id:
+        if self.application.id:
             self.id = create_service(ocm, spec)
         else:
             logging.warning("Missing application id for service")
@@ -187,7 +184,7 @@ class Service(AbstractStatusBoard):
             logging.error(f'Trying to update Service "{self.name}" without id')
             return
         spec = self.to_ocm_spec()
-        if self.application and self.application.id:
+        if self.application.id:
             update_service(ocm, self.id, spec)
         else:
             logging.warning("Missing application id for service")
@@ -196,9 +193,7 @@ class Service(AbstractStatusBoard):
         return f'Service: "{self.name}" "{self.fullname}"'
 
     def to_ocm_spec(self) -> ServiceOCMSpec:
-        application_id = (
-            self.application.id if self.application and self.application.id else ""
-        )
+        application_id = self.application.id or ""
 
         return {
             "name": self.name,
@@ -281,14 +276,16 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 logging.error(f'Product "{p.name}" has no id')
                 continue
             p.applications = [
-                Application(**a) for a in get_product_applications(ocm_api, p.id)
+                Application(**a, product=p)
+                for a in get_product_applications(ocm_api, p.id)
             ]
             for a in p.applications:
                 if not a.id:
                     logging.error(f'Application "{a.name}" has no id')
                     continue
                 a.services = [
-                    Service(**s) for s in get_application_services(ocm_api, a.id)
+                    Service(**s, application=a)
+                    for s in get_application_services(ocm_api, a.id)
                 ]
 
         return products
