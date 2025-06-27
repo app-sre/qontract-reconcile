@@ -1054,3 +1054,111 @@ def test_run_integration(
     mock_delete_product.assert_called_once_with(ocm_api_mock, "1")
     mock_delete_application.assert_called_once_with(ocm_api_mock, "1_1")
     mock_delete_service.assert_called_once_with(ocm_api_mock, "1_1_1")
+
+
+def test_run_integration_create_services(
+    mocker: MockerFixture,
+    status_board: list[StatusBoardV1],
+    slo_documents: list[SLODocumentV1],
+) -> None:
+    mocked_get_status_board = mocker.patch(
+        "reconcile.status_board.get_status_board", autospec=True
+    )
+    mocked_get_slo_documents = mocker.patch(
+        "reconcile.status_board.get_slo_documents", autospec=True
+    )
+    mock_init_ocm_base_client = mocker.patch(
+        "reconcile.status_board.init_ocm_base_client", autospec=True
+    )
+    mocker.patch(
+        "reconcile.utils.runtime.integration.get_app_interface_vault_settings",
+        autospec=True,
+    )
+    mocker.patch(
+        "reconcile.utils.runtime.integration.create_secret_reader", autospec=True
+    )
+    mocked_get_status_board.return_value = [status_board]
+    mocked_get_slo_documents.return_value = [slo_documents]
+    ocm_api_mock = mocker.Mock(OCMBaseClient)
+    mock_init_ocm_base_client.return_value = ocm_api_mock
+
+    mock_get_products = mocker.patch(
+        "reconcile.status_board.get_managed_products", autospec=True
+    )
+    mock_get_apps = mocker.patch(
+        "reconcile.status_board.get_product_applications", autospec=True
+    )
+    mock_get_services = mocker.patch(
+        "reconcile.status_board.get_application_services", autospec=True
+    )
+
+    mock_get_products.return_value = [
+        {"name": "foo", "fullname": "foo", "id": "1"},
+        {"name": "bar", "fullname": "bar", "id": "2"},
+    ]
+
+    apps_mapping = {
+        "1": [
+            {"name": "foo", "fullname": "foo/foo", "id": "1_1"},
+        ],
+        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1"}],
+    }
+
+    mock_get_apps.side_effect = lambda _, product_id: apps_mapping.get(product_id, [])
+    mock_get_services.side_effect = lambda _, app_id: []
+
+    mock_create_application = mocker.patch(
+        "reconcile.status_board.create_application", autospec=True
+    )
+    mock_create_application.return_value = "2"
+
+    mock_create_service = mocker.patch(
+        "reconcile.status_board.create_service", autospec=True
+    )
+    mock_create_service.return_value = "3"
+
+    integration = StatusBoardExporterIntegration(PydanticRunParams())
+
+    integration.run(dry_run=False)
+
+    mock_create_service.assert_has_calls(
+        [
+            call(
+                ocm_api=ocm_api_mock,
+                spec={
+                    "name": "Availability",
+                    "fullname": "foo/foo/Availability",
+                    "metadata": {
+                        "sli_type": "availability",
+                        "sli_specification": "specification 1",
+                        "slo_details": "https://url.com",
+                        "target": 0.95,
+                        "target_unit": "percent_0_1",
+                        "window": "28d",
+                    },
+                    "application_id": "1_1",
+                    "status_type": "traffic_light",
+                    "service_endpoint": "none",
+                },
+            ),
+            call(
+                ocm_api=ocm_api_mock,
+                spec={
+                    "name": "Latency",
+                    "fullname": "foo/foo/Latency",
+                    "metadata": {
+                        "sli_type": "latency",
+                        "sli_specification": "specification 2",
+                        "slo_details": "https://url.com",
+                        "target": 0.95,
+                        "target_unit": "percent_0_1",
+                        "window": "28d",
+                    },
+                    "application_id": "1_1",
+                    "status_type": "traffic_light",
+                    "service_endpoint": "none",
+                },
+            ),
+        ],
+        any_order=True,
+    )
