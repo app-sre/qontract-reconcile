@@ -18,6 +18,7 @@ class BaseOCMSpec(TypedDict):
 
 class ApplicationOCMSpec(BaseOCMSpec):
     product_id: str
+    metadata: dict[str, Any]
 
 
 class ServiceMetadataSpec(TypedDict):
