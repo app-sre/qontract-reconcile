@@ -347,7 +347,7 @@ def test_populate_resources(
     reources = _populate_resources(
         db_access=db_access,
         engine="postgres",
-        image_repository="foo",
+        job_image="foo",
         pull_secret={
             "version": 1,
             "annotations": [],
@@ -469,7 +469,7 @@ def dbam_process_mocks(
 def ai_settings() -> dict[str, Any]:
     d: dict[str, Any] = defaultdict(str)
     d["sqlQuery"] = {
-        "imageRepository": {"foo": "bar"},
+        "jobImage": "quay.io/job/image",
         "pullSecret": {"foo": "bar"},
     }
     return d
