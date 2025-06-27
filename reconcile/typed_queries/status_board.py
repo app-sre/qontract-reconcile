@@ -19,11 +19,11 @@ def get_status_board(
     return query(query_func).status_board_v1 or []
 
 
-def get_selected_app_names(
+def get_selected_app_data(
     global_selectors: Iterable[str],
     product: StatusBoardProductV1,
-) -> set[str]:
-    selected_app_names: set[str] = set()
+) -> dict[str, dict[str, set[str]]]:
+    selected_app_data: dict[str, dict[str, set[str]]] = {}
 
     apps: dict[str, Any] = {"apps": []}
     for namespace in product.product_environment.namespaces or []:
@@ -31,44 +31,46 @@ def get_selected_app_names(
         if namespace.app.parent_app:
             prefix = f"{namespace.app.parent_app.name}-"
         name = f"{prefix}{namespace.app.name}"
-        selected_app_names.add(name)
-        app = namespace.app.dict(by_alias=True)
-        app["name"] = name
-
-        deployment_saas_files = []
+        
+        deployment_saas_files = set()
         if namespace.app.saas_files:
-            deployment_saas_files = [
+            deployment_saas_files = {
                 saas_file.name
                 for saas_file in namespace.app.saas_files
                 if "Deployment" in saas_file.managed_resource_types
-            ]
+            }
 
-        app["metadata"] = {
+        selected_app_data[name] = {
             "deployment_saas_files": deployment_saas_files,
         }
 
+        app = namespace.app.dict(by_alias=True)
+        app["name"] = name
+        app["metadata"] = {
+            "deployment_saas_files": list(deployment_saas_files),
+        }
         apps["apps"].append(app)
         
         for child in namespace.app.children_apps or []:
             name = f"{namespace.app.name}-{child.name}"
-            if name not in selected_app_names:
-                selected_app_names.add(f"{namespace.app.name}-{child.name}")
-                child_dict = child.dict(by_alias=True)
-                child_dict["name"] = name
-
-                deployment_saas_files = []
-
+            if name not in selected_app_data:
+                deployment_saas_files = set()
                 if child.saas_files:
-                    deployment_saas_files = [
+                    deployment_saas_files = {
                         saas_file.name
                         for saas_file in child.saas_files
                         if "Deployment" in saas_file.managed_resource_types
-                    ]
+                    }
 
-                child_dict["metadata"] = {
+                selected_app_data[name] = {
                     "deployment_saas_files": deployment_saas_files,
                 }
 
+                child_dict = child.dict(by_alias=True)
+                child_dict["name"] = name
+                child_dict["metadata"] = {
+                    "deployment_saas_files": list(deployment_saas_files),
+                }
                 apps["apps"].append(child_dict)
 
     selectors = set(global_selectors)
@@ -79,6 +81,7 @@ def get_selected_app_names(
         apps_to_remove: set[str] = set()
         results = parser.parse(selector).find(apps)
         apps_to_remove.update(match.value["name"] for match in results)
-        selected_app_names -= apps_to_remove
+        for app_name in apps_to_remove:
+            selected_app_data.pop(app_name, None)
 
-    return selected_app_names
+    return selected_app_data
