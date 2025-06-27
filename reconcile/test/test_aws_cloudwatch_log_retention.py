@@ -80,7 +80,6 @@ def test_cloudwatch_account(
                 "version": None,
                 "format": None,
             },
-            "garbageCollection": None,
             "enableDeletion": None,
             "deletionApprovals": None,
             "disable": None,
@@ -419,7 +418,6 @@ def account_with_disabled_integration(
                 "version": None,
                 "format": None,
             },
-            "garbageCollection": None,
             "enableDeletion": None,
             "deletionApprovals": None,
             "disable": {
