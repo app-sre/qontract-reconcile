@@ -17,7 +17,7 @@ from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import (
-    get_selected_app_names,
+    get_selected_app_data,
     get_status_board,
 )
 from reconcile.utils.differ import diff_mappings
@@ -258,12 +258,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return QONTRACT_INTEGRATION
 
     @staticmethod
-    def get_product_apps(sb: StatusBoardV1) -> dict[str, set[str]]:
+    def get_product_apps(sb: StatusBoardV1) -> dict[str, dict[str, dict[str, dict[str, set[str]]]]]:
         global_selectors = (
             sb.global_app_selectors.exclude or [] if sb.global_app_selectors else []
         )
         return {
-            p.product_environment.product.name: get_selected_app_names(
+            p.product_environment.product.name: get_selected_app_data(
                 global_selectors, p
             )
             for p in sb.products
@@ -297,8 +297,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, set[str]],
-        slodocs: list[SLODocumentV1],
+        desired_product_apps: Mapping[str, dict[str, dict[str, dict[str, set[str]]]]], slodocs: list[SLODocumentV1]
     ) -> dict[str, AbstractStatusBoard]:
         """
         Returns a Mapping of all the AbstractStatusBoard data objects as dictionaries.
@@ -320,7 +319,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     fullname=key,
                     services=[],
                     product=desired_abstract_status_board_map[product],  # type: ignore
-                    metadata={},
+                    metadata=apps[a]["metadata"],  # type: ignore
                 )
         for slodoc in slodocs:
             products = [
@@ -385,6 +384,69 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return return_value
 
     @staticmethod
+    def _compare_metadata(current_metadata: dict[str, Any], desired_metadata: dict[str, Any]) -> bool:
+        """
+        Compare metadata dictionaries with deep equality checking for nested structures.
+        
+        :param current_metadata: The current metadata dictionary
+        :param desired_metadata: The desired metadata dictionary
+        :return: True if metadata are equal, False otherwise
+        """
+        if current_metadata.keys() != desired_metadata.keys():
+            return False
+        
+        for key in current_metadata.keys():
+            current_value = current_metadata[key]
+            desired_value = desired_metadata[key]
+            
+            # Handle None values
+            if current_value is None or desired_value is None:
+                if current_value is not desired_value:
+                    return False
+                continue
+            
+            # Handle different types
+            if type(current_value) != type(desired_value):
+                return False
+            
+            # Handle sets
+            if isinstance(current_value, set) and isinstance(desired_value, set):
+                if current_value != desired_value:
+                    return False
+            # Handle lists and tuples
+            elif isinstance(current_value, (list, tuple)) and isinstance(desired_value, (list, tuple)):
+                if len(current_value) != len(desired_value):
+                    return False
+                if not all(c == d for c, d in zip(current_value, desired_value)):
+                    return False
+            # Handle nested dictionaries
+            elif isinstance(current_value, dict) and isinstance(desired_value, dict):
+                if not StatusBoardExporterIntegration._compare_metadata(current_value, desired_value):
+                    return False
+            # Handle primitive types
+            else:
+                if current_value != desired_value:
+                    return False
+        
+        return True
+
+    @staticmethod
+    def _status_board_objects_equal(current: AbstractStatusBoard, desired: AbstractStatusBoard) -> bool:
+        """
+        Check if two AbstractStatusBoard objects are equal, including metadata comparison.
+        
+        :param current: The current AbstractStatusBoard object
+        :param desired: The desired AbstractStatusBoard object
+        :return: True if objects are equal, False otherwise
+        """
+        # Check basic equality first (name, fullname)
+        if current.name != desired.name or current.fullname != desired.fullname:
+            return False
+        
+        # Compare metadata with deep equality
+        return StatusBoardExporterIntegration._compare_metadata(current.metadata, desired.metadata)
+
+    @staticmethod
     def get_diff(
         desired_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
         current_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
@@ -394,6 +456,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         diff_result = diff_mappings(
             current_abstract_status_board_map,
             desired_abstract_status_board_map,
+            equal=StatusBoardExporterIntegration._status_board_objects_equal,
         )
 
         for pair in chain(diff_result.identical.values(), diff_result.change.values()):
@@ -407,6 +470,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return_list.extend(
             StatusBoardHandler(action=Action.delete, status_board_object=o)
             for o in diff_result.delete.values()
+        )
+
+        # Handle Applications that need updates (metadata changes)
+        applications_to_update = [
+            a.desired
+            for _, a in diff_result.change.items()
+            if isinstance(a.desired, Application)
+        ]
+
+        return_list.extend(
+            StatusBoardHandler(action=Action.update, status_board_object=a)
+            for a in applications_to_update
         )
 
         services_to_update = [
@@ -456,7 +531,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
             # Desired state
-            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
+            desired_product_apps: dict[str, dict[str, dict[str, dict[str, set[str]]]]] = self.get_product_apps(sb)
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
                 desired_product_apps, slodocs
             )
