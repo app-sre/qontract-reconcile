@@ -2,11 +2,14 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from jsonpath_ng.ext import parser
-
 from reconcile.gql_definitions.status_board.status_board import (
     StatusBoardProductV1,
     StatusBoardV1,
     query,
+)
+from reconcile.utils.ocm.status_board import (
+    METADATA_MANAGED_BY_KEY,
+    METADATA_MANAGED_BY_VALUE,
 )
 from reconcile.utils import gql
 
@@ -22,8 +25,8 @@ def get_status_board(
 def get_selected_app_data(
     global_selectors: Iterable[str],
     product: StatusBoardProductV1,
-) -> dict[str, dict[str, set[str]]]:
-    selected_app_data: dict[str, dict[str, set[str]]] = {}
+) -> dict[str, dict[str, dict[str, set[str]]]]:
+    selected_app_data: dict[str, dict[str, dict[str, Any]]] = {}
 
     apps: dict[str, Any] = {"apps": []}
     for namespace in product.product_environment.namespaces or []:
@@ -44,14 +47,14 @@ def get_selected_app_data(
             }
 
         selected_app_data[name] = {
-            "deployment_saas_files": deployment_saas_files,
+            "metadata": {
+                METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
+                "deployment_saas_files": set(deployment_saas_files),
+            },
         }
 
         app = namespace.app.dict(by_alias=True)
         app["name"] = name
-        app["metadata"] = {
-            "deployment_saas_files": list(deployment_saas_files),
-        }
         apps["apps"].append(app)
         
         for child in namespace.app.children_apps or []:
@@ -71,14 +74,14 @@ def get_selected_app_data(
                     }
 
                 selected_app_data[name] = {
-                    "deployment_saas_files": deployment_saas_files,
+                    "metadata": {
+                        METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
+                        "deployment_saas_files": set(deployment_saas_files),
+                    },
                 }
 
                 child_dict = child.dict(by_alias=True)
                 child_dict["name"] = name
-                child_dict["metadata"] = {
-                    "deployment_saas_files": list(deployment_saas_files),
-                }
                 apps["apps"].append(child_dict)
 
     selectors = set(global_selectors)
