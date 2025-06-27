@@ -52,7 +52,6 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 SUPPORTED_ENGINES = ["postgres"]
 
 JOB_DEADLINE_IN_SECONDS = 60
-JOB_PSQL_ENGINE_VERSION = "15.4-alpine"
 
 
 def get_database_access_namespaces(
@@ -227,9 +226,8 @@ def get_db_engine(resource: NamespaceTerraformResourceRDSV1) -> str:
 
 class JobData(BaseModel):
     engine: str
-    engine_version: str
     name_suffix: str
-    image_repository: str
+    image: str
     service_account_name: str
     rds_admin_secret_name: str
     script_secret_name: str
@@ -269,7 +267,7 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                     "containers": [
                         {
                             "name": job_name,
-                            "image": f"{job_data.image_repository}/{job_data.engine}:{job_data.engine_version}",
+                            "image": f"{job_data.image}",
                             "command": [
                                 command,
                             ],
@@ -415,7 +413,7 @@ class JobStatus(BaseModel):
 def _populate_resources(
     db_access: DatabaseAccessV1,
     engine: str,
-    image_repository: str,
+    job_image: str,
     pull_secret: dict[Any, Any],
     admin_secret_name: str,
     resource_prefix: str,
@@ -479,9 +477,8 @@ def _populate_resources(
             resource=get_job_spec(
                 JobData(
                     engine=engine,
-                    engine_version=JOB_PSQL_ENGINE_VERSION,
                     name_suffix=db_access.name,
-                    image_repository=image_repository,
+                    image=job_image,
                     service_account_name=resource_prefix,
                     rds_admin_secret_name=admin_secret_name,
                     script_secret_name=script_secret_name,
@@ -620,10 +617,14 @@ def _process_db_access(
         if not sql_query_settings:
             raise KeyError("sqlQuery settings are required")
 
+        job_image = (
+            sql_query_settings.get("jobImage") or "quay.io/app-sre/debug-container"
+        )
+
         managed_resources = _populate_resources(
             db_access,
             engine,
-            sql_query_settings["imageRepository"],
+            job_image,
             sql_query_settings["pullSecret"],
             admin_secret_name,
             resource_prefix,

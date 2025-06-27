@@ -89,7 +89,7 @@ spec:
       serviceAccountName: {{ SVC_NAME }}
       containers:
       - name: {{ JOB_NAME }}
-        image: {{ IMAGE_REPOSITORY }}/{{ ENGINE }}:{{ENGINE_VERSION}}
+        image: {{ JOB_IMAGE }}
         command:
           - /bin/bash
         args:
@@ -187,7 +187,6 @@ def get_tf_resource_info(
             "cluster": spec.cluster_name,
             "output_resource_name": spec.output_resource_name,
             "engine": values.get("engine", "postgres"),
-            "engine_version": values.get("engine_version", "latest"),
         }
     return None
 
@@ -412,7 +411,7 @@ def encrypted_closing_message(recipient: str) -> list[str]:
 
 def process_template(
     query: dict[str, Any],
-    image_repository: str,
+    job_image: str,
     use_pull_secret: bool,
     config_map_names: list[str],
     service_account_name: str,
@@ -422,7 +421,7 @@ def process_template(
 
     :param query: the query dictionary containing the parameters
                   to be used in the Template
-    :param image_repository: docker image repo url
+    :param job_image: docker image repo url
     :param use_pull_secret: add imagePullSecrets to Job
     :param config_map_names: ConfigMap names to mount in Job
 
@@ -457,10 +456,8 @@ def process_template(
         "CONFIG_MAPS_MOUNT_PATH": CONFIG_MAPS_MOUNT_PATH,
         "QUERY_NAME": query["name"],
         "QONTRACT_INTEGRATION": QONTRACT_INTEGRATION,
-        "IMAGE_REPOSITORY": image_repository,
+        "JOB_IMAGE": job_image,
         "SECRET_NAME": query["output_resource_name"],
-        "ENGINE": engine,
-        "ENGINE_VERSION": query["engine_version"],
         "DB_CONN": query["db_conn"],
         "CONFIG_MAPS": config_map_names,
         "COMMAND": command,
@@ -588,7 +585,7 @@ def _build_common_resource_labels(query: dict[str, Any]) -> dict[str, str]:
 
 def _build_openshift_resources(
     query: dict[str, Any],
-    image_repository: str,
+    job_image: str,
     pull_secret: dict[str, Any] | None,
     secret_reader: SecretReaderBase,
 ) -> list[OpenshiftResource]:
@@ -649,7 +646,7 @@ def _build_openshift_resources(
     # Job (sql executer)
     job_yaml = process_template(
         query,
-        image_repository=image_repository,
+        job_image=job_image,
         use_pull_secret=bool(pull_secret),
         config_map_names=[cm["metadata"]["name"] for cm in config_map_resources],
         service_account_name=svc["metadata"]["name"],
@@ -702,14 +699,14 @@ def _initialize_resource_types(
 
 def _reconstruct_for_metrics(
     query: dict[str, Any],
-    image_repository: str,
+    job_image: str,
     pull_secret: dict[str, Any] | None,
     ri: ResourceInventory,
     secret_reader: SecretReaderBase,
 ) -> None:
     openshift_resources = _build_openshift_resources(
         query,
-        image_repository,
+        job_image,
         pull_secret,
         secret_reader,
     )
@@ -767,7 +764,7 @@ def _process_existing_query(
     enable_deletion: bool,
     settings: dict[str, Any],
     state: State,
-    image_repository: str,
+    job_image: str,
     pull_secret: dict[str, Any],
     ri: ResourceInventory,
     secret_reader: SecretReaderBase,
@@ -776,7 +773,7 @@ def _process_existing_query(
         case QueryStatus.ACTIVE:
             _reconstruct_for_metrics(
                 query,
-                image_repository,
+                job_image,
                 pull_secret,
                 ri,
                 secret_reader,
@@ -803,13 +800,13 @@ def _process_new_query(
     dry_run: bool,
     settings: dict[str, Any],
     state: State,
-    image_repository: str,
+    job_image: str,
     pull_secret: dict[str, Any],
     ri: ResourceInventory,
     secret_reader: SecretReaderBase,
 ) -> None:
     openshift_resources = _build_openshift_resources(
-        query, image_repository, pull_secret, secret_reader
+        query, job_image, pull_secret, secret_reader
     )
 
     cluster = query["cluster"]
@@ -855,12 +852,12 @@ def run(
         mail_address=smtp_settings.mail_address,
         timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
     )
-    image_repository = "quay.io/app-sre"
+    job_image = "quay.io/app-sre/debug-container"
 
     sql_query_settings = settings.get("sqlQuery")
     pull_secret: dict[str, Any] = {}
     if sql_query_settings:
-        image_repository = sql_query_settings["imageRepository"]
+        job_image = sql_query_settings.get("jobImage") or job_image
         pull_secret = sql_query_settings["pullSecret"]
 
     queries_list = collect_queries(secret_reader=secret_reader, smtp_client=smtp_client)
@@ -874,7 +871,7 @@ def run(
                 enable_deletion,
                 settings,
                 state,
-                image_repository,
+                job_image,
                 pull_secret,
                 ri,
                 secret_reader,
@@ -885,7 +882,7 @@ def run(
                 dry_run,
                 settings,
                 state,
-                image_repository,
+                job_image,
                 pull_secret,
                 ri,
                 secret_reader,
