@@ -3,7 +3,6 @@ users:
   - name: "user1-name"
     org_username: user1-org-username
     github_username: user1-github-username
-    slack_username: user1-slack-username
     pagerduty_username: user1-pagerduty-username
     tag_on_cluster_updates: null
     tag_on_merge_requests: null
@@ -16,7 +15,6 @@ users:
   - name: "user2-name"
     org_username: user2-org-username
     github_username: user2-github-username
-    slack_username: user2-slack-username
     pagerduty_username: user2-pagerduty-username
     tag_on_cluster_updates: null
     tag_on_merge_requests: null

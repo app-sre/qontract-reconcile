@@ -334,7 +334,7 @@ these tools for static analysis and type checking:
 The [Makefile](Makefile) contains several targets to help with testing, linting,
 formatting, and type checking:
 
-- `make all-test`: Run all available tests.
+- `make all-tests`: Run all available tests.
 - `make linter-test`: Run the linter and formatter tests.
 - `make types-test`: Run the type checker tests.
 - `make qenerate-test`: Run the query classes generation tests.
@@ -364,7 +364,7 @@ Start the [qontract-server](https://github.com/app-sre/qontract-server) in a dif
 Run this in the root dir of `qontract-server` repo:
 
 ```shell
-make dev
+make build-dev
 ```
 
 ### Trigger integration

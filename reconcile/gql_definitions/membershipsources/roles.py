@@ -29,7 +29,6 @@ query MembershipSourceRolesQuery($filter: JSON) {
       org_username
       github_username
       quay_username
-      slack_username
       pagerduty_username
       aws_username
       cloudflare_user
@@ -62,7 +61,6 @@ class UserV1(ConfiguredBaseModel):
     org_username: str = Field(..., alias="org_username")
     github_username: str = Field(..., alias="github_username")
     quay_username: Optional[str] = Field(..., alias="quay_username")
-    slack_username: Optional[str] = Field(..., alias="slack_username")
     pagerduty_username: Optional[str] = Field(..., alias="pagerduty_username")
     aws_username: Optional[str] = Field(..., alias="aws_username")
     cloudflare_user: Optional[str] = Field(..., alias="cloudflare_user")

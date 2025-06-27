@@ -294,7 +294,6 @@ def users():
             name="",
             org_username="org_user",
             github_username="github_user",
-            slack_username=None,
             pagerduty_username=None,
             tag_on_merge_requests=None,
         )

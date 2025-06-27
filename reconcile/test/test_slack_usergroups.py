@@ -74,7 +74,6 @@ def base_state():
 def user() -> UserV1:
     return UserV1(
         org_username="org",
-        slack_username="slack",
         github_username="github",
         name="name",
         pagerduty_username="pagerduty",
@@ -164,18 +163,12 @@ def test_get_slack_usernames_from_schedule(user: UserV1) -> None:
         users=[user],
     )
     result = integ.get_slack_usernames_from_schedule([schedule])
-    assert result == [user.slack_username]
+    assert result == [user.org_username]
 
 
 def test_get_slack_username_org_username(user: UserV1) -> None:
-    user.slack_username = None
     result = integ.get_slack_username(user)
     assert result == user.org_username
-
-
-def test_get_slack_username_slack_username(user: UserV1) -> None:
-    result = integ.get_slack_username(user)
-    assert result == user.slack_username
 
 
 def test_get_pagerduty_username_org_username(user: UserV1) -> None:
@@ -210,7 +203,7 @@ def test_get_usernames_from_pagerduty(user: UserV1) -> None:
         usergroup="usergroup",
         pagerduty_map=mock_pagerduty_map,
     )
-    assert result == [user.slack_username]
+    assert result == [user.org_username]
 
 
 def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) -> None:
@@ -228,7 +221,7 @@ def test_get_slack_usernames_from_owners(mocker: MockerFixture, user: UserV1) ->
         usergroup="usergroup",
         repo_owner_class=mock_repo_owner,
     )
-    assert result == [user.slack_username]
+    assert result == [user.org_username]
 
 
 def test_include_user_to_cluster_usergroup_user_has_cluster_access(
@@ -426,7 +419,7 @@ def test_get_desired_state(
                 usergroup="saas-osd-operators",
                 description="SREP managed-cluster-config owners (managed via app-interface)",
                 users=set(),
-                user_names={"repo-user", "user1", "slack_username"},
+                user_names={"repo-user", "user1", "org_username"},
                 channels=set(),
                 channel_names={"sre-operators", "sd-sre-platform"},
                 usergroup_id="ugid",
@@ -478,7 +471,7 @@ def test_get_desired_state_cluster_usergroups(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
-                user_names={"slack"},
+                user_names={"org"},
                 channels=set(),
                 channel_names={"channel"},
                 usergroup_id="ugid",
@@ -490,7 +483,7 @@ def test_get_desired_state_cluster_usergroups(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
-                user_names={"slack"},
+                user_names={"org"},
                 channels=set(),
                 channel_names={"channel"},
                 usergroup_id="ugid",
@@ -519,7 +512,7 @@ def test_get_desired_state_non_existing_usergroup(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
-                user_names={"slack"},
+                user_names={"org"},
                 channels=set(),
                 channel_names={"channel"},
                 usergroup_id=None,
@@ -531,7 +524,7 @@ def test_get_desired_state_non_existing_usergroup(
                 usergroup="cluster1-cluster",
                 description="Users with access to the cluster1 cluster",
                 users=set(),
-                user_names={"slack"},
+                user_names={"org"},
                 channels=set(),
                 channel_names={"channel"},
                 usergroup_id=None,
