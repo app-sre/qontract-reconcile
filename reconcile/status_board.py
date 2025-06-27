@@ -292,7 +292,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, set[str]], slodocs: list[SLODocumentV1]
+        current_status_board_map: Mapping[str, AbstractStatusBoard],
+        desired_product_apps: Mapping[str, set[str]],
+        slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
         """
         Returns a Mapping of all the AbstractStatusBoard data objects as dictionaries.
@@ -302,17 +304,21 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         """
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
         for product, apps in desired_product_apps.items():
+            current_product = current_status_board_map.get(product)
+            product_id = current_product.id if current_product else None
             desired_abstract_status_board_map[product] = Product(
-                name=product, fullname=product, applications=[], metadata={}
+                id=product_id, name=product, fullname=product, applications=[]
             )
             for a in apps:
                 key = f"{product}/{a}"
+                current_app = current_status_board_map.get(key)
+                app_id = current_app.id if current_app else None
                 desired_abstract_status_board_map[key] = Application(
+                    id=app_id,
                     name=a,
                     fullname=key,
                     services=[],
-                    product=desired_abstract_status_board_map[product],
-                    metadata={},
+                    product=desired_abstract_status_board_map.get(product),
                 )
         for slodoc in slodocs:
             products = [
@@ -342,7 +348,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         continue
 
                     key = f"{product}/{app}/{slo.name}"
-                    metadata = {
+                    metadata: ServiceMetadataSpec = {
                         "sli_type": slo.sli_type,
                         "sli_specification": slo.sli_specification,
                         "slo_details": slo.slo_details,
@@ -350,7 +356,10 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         "target_unit": slo.slo_target_unit,
                         "window": slo.slo_parameters.window,
                     }
+                    current_service = current_status_board_map.get(key)
+                    service_id = current_service.id if current_service else None
                     desired_abstract_status_board_map[key] = Service(
+                        id=service_id,
                         name=slo.name,
                         fullname=key,
                         metadata=metadata,
@@ -443,18 +452,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         for sb in get_status_board():
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
-            # Desired state
-            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
-            desired_abstract_status_board_map = self.desired_abstract_status_board_map(
-                desired_product_apps, slodocs
-            )
-
             # Current state
             current_products_applications_services = (
                 self.get_current_products_applications_services(ocm_api)
             )
             current_abstract_status_board_map = self.current_abstract_status_board_map(
                 current_products_applications_services
+            )
+
+            # Desired state
+            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
+            desired_abstract_status_board_map = self.desired_abstract_status_board_map(
+                current_abstract_status_board_map, desired_product_apps, slodocs
             )
 
             diff = self.get_diff(
