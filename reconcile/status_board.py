@@ -5,9 +5,6 @@ from abc import (
 )
 from collections.abc import Iterable, Mapping
 from enum import Enum
-from typing import (
-    Optional,
-)
 
 from pydantic import BaseModel
 
@@ -122,11 +119,11 @@ class Product(AbstractStatusBoard):
 
 
 class Application(AbstractStatusBoard):
-    product: Optional["Product"]
+    product: Product
     services: list["Service"] | None
 
     def create(self, ocm: OCMBaseClient) -> None:
-        if self.product and self.product.id:
+        if self.product.id:
             spec = self.to_ocm_spec()
             self.id = create_application(ocm, spec)
         else:
@@ -147,7 +144,7 @@ class Application(AbstractStatusBoard):
         return f'Application: "{self.name}" "{self.fullname}"'
 
     def to_ocm_spec(self) -> ApplicationOCMSpec:
-        product_id = self.product.id if self.product and self.product.id else ""
+        product_id = self.product.id or ""
         return {
             "name": self.name,
             "fullname": self.fullname,
@@ -166,12 +163,12 @@ class Service(AbstractStatusBoard):
     # This filed is needed when we are creating a Service on teh OCM API.
     # This field is not used when we are mapping the services that belongs to an
     # application in that case we use the `services` field in Application class.
-    application: Optional["Application"]
+    application: Application
     metadata: ServiceMetadataSpec
 
     def create(self, ocm: OCMBaseClient) -> None:
         spec = self.to_ocm_spec()
-        if self.application and self.application.id:
+        if self.application.id:
             self.id = create_service(ocm, spec)
         else:
             logging.warning("Missing application id for service")
@@ -187,7 +184,7 @@ class Service(AbstractStatusBoard):
             logging.error(f'Trying to update Service "{self.name}" without id')
             return
         spec = self.to_ocm_spec()
-        if self.application and self.application.id:
+        if self.application.id:
             update_service(ocm, self.id, spec)
         else:
             logging.warning("Missing application id for service")
@@ -196,9 +193,7 @@ class Service(AbstractStatusBoard):
         return f'Service: "{self.name}" "{self.fullname}"'
 
     def to_ocm_spec(self) -> ServiceOCMSpec:
-        application_id = (
-            self.application.id if self.application and self.application.id else ""
-        )
+        application_id = self.application.id or ""
 
         return {
             "name": self.name,
@@ -281,21 +276,25 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 logging.error(f'Product "{p.name}" has no id')
                 continue
             p.applications = [
-                Application(**a) for a in get_product_applications(ocm_api, p.id)
+                Application(**a, product=p)
+                for a in get_product_applications(ocm_api, p.id)
             ]
             for a in p.applications:
                 if not a.id:
                     logging.error(f'Application "{a.name}" has no id')
                     continue
                 a.services = [
-                    Service(**s) for s in get_application_services(ocm_api, a.id)
+                    Service(**s, application=a)
+                    for s in get_application_services(ocm_api, a.id)
                 ]
 
         return products
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, set[str]], slodocs: list[SLODocumentV1]
+        current_status_board_map: Mapping[str, AbstractStatusBoard],
+        desired_product_apps: Mapping[str, set[str]],
+        slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
         """
         Returns a Mapping of all the AbstractStatusBoard data objects as dictionaries.
@@ -305,17 +304,21 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         """
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
         for product, apps in desired_product_apps.items():
+            current_product = current_status_board_map.get(product)
+            product_id = current_product.id if current_product else None
             desired_abstract_status_board_map[product] = Product(
-                name=product, fullname=product, applications=[], metadata={}
+                id=product_id, name=product, fullname=product, applications=[]
             )
             for a in apps:
                 key = f"{product}/{a}"
+                current_app = current_status_board_map.get(key)
+                app_id = current_app.id if current_app else None
                 desired_abstract_status_board_map[key] = Application(
+                    id=app_id,
                     name=a,
                     fullname=key,
                     services=[],
-                    product=desired_abstract_status_board_map[product],
-                    metadata={},
+                    product=desired_abstract_status_board_map.get(product),
                 )
         for slodoc in slodocs:
             products = [
@@ -345,7 +348,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         continue
 
                     key = f"{product}/{app}/{slo.name}"
-                    metadata = {
+                    metadata: ServiceMetadataSpec = {
                         "sli_type": slo.sli_type,
                         "sli_specification": slo.sli_specification,
                         "slo_details": slo.slo_details,
@@ -353,7 +356,10 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         "target_unit": slo.slo_target_unit,
                         "window": slo.slo_parameters.window,
                     }
+                    current_service = current_status_board_map.get(key)
+                    service_id = current_service.id if current_service else None
                     desired_abstract_status_board_map[key] = Service(
+                        id=service_id,
                         name=slo.name,
                         fullname=key,
                         metadata=metadata,
@@ -382,7 +388,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     def get_diff(
         desired_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
         current_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
-        current_products: Mapping[str, Product],
     ) -> list[StatusBoardHandler]:
         return_list: list[StatusBoardHandler] = []
 
@@ -447,12 +452,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         for sb in get_status_board():
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
-            # Desired state
-            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
-            desired_abstract_status_board_map = self.desired_abstract_status_board_map(
-                desired_product_apps, slodocs
-            )
-
             # Current state
             current_products_applications_services = (
                 self.get_current_products_applications_services(ocm_api)
@@ -461,13 +460,15 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 current_products_applications_services
             )
 
-            current_products = {
-                p.name: p for p in current_products_applications_services
-            }
+            # Desired state
+            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
+            desired_abstract_status_board_map = self.desired_abstract_status_board_map(
+                current_abstract_status_board_map, desired_product_apps, slodocs
+            )
+
             diff = self.get_diff(
                 desired_abstract_status_board_map,
                 current_abstract_status_board_map,
-                current_products,
             )
 
             self.apply_diff(dry_run, ocm_api, diff)
