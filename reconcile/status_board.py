@@ -60,6 +60,7 @@ class AbstractStatusBoard(ABC, BaseModel):
     id: str | None = None
     name: str
     fullname: str
+    metadata: dict[str, Any]
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -306,9 +307,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         on Status Board OCM API.
         """
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
-        for product_name, apps in desired_product_apps.items():
-            product = Product(
-                id=None, name=product_name, fullname=product_name, applications=[]
+        for product, apps in desired_product_apps.items():
+            desired_abstract_status_board_map[product] = Product(
+                id=None, name=product, fullname=product, applications=[], metadata={}
             )
             desired_abstract_status_board_map[product_name] = product
             for a in apps:
@@ -318,7 +319,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     name=a,
                     fullname=key,
                     services=[],
-                    product=product,
+                    product=desired_abstract_status_board_map[product],  # type: ignore
+                    metadata={},
                 )
         for slodoc in slodocs:
             products = [
