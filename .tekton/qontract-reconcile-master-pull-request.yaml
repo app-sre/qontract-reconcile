@@ -27,11 +27,17 @@ spec:
   - name: image-expires-after
     value: 5d
   - name: dockerfile
-    value: dockerfiles/Dockerfile
+    value: dockerfiles/Dockerfile.konflux
   - name: path-context
     value: .
   - name: target-stage
     value: prod-image
+  - name: fetchTags
+    value: 'true'
+  # Note, that we have to specify some depth here. Lets go with something we wont reach in a long time
+  # We need the depth to properly have uv infer version
+  - name: cloneDepth
+    value: '100000'
   pipelineRef:
     params:
     - name: url
