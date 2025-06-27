@@ -46,9 +46,9 @@ ENTRYPOINT ["/work/dev/run.sh"]
 
 
 ###############################################################################
-# STAGE 3 - prod-image
+# STAGE 3 - prod-image-pre-test
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image-pre-test
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
@@ -75,9 +75,9 @@ CMD ["run-integration"]
 
 
 ###############################################################################
-# STAGE 4 - fips-prod-image
+# STAGE 4 - fips-prod-image-pre-test
 ###############################################################################
-FROM prod-image AS fips-prod-image
+FROM prod-image-pre-test AS fips-prod-image-pre-test
 ENV OC_VERSION=4.16.2
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
@@ -89,16 +89,15 @@ COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1 \
 ###############################################################################
 # STAGE 5 - unittest image
 ###############################################################################
-FROM prod-image AS test-image
+FROM prod-image-pre-test AS test-image
 COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 RUN id
 RUN microdnf install -y make
 
 # Tests need the .git directory to run
-# podman does not support --mount=type=bind
-# TODO: use --mount=source=.git,target=.git,type=bind in both RUN commands below
 COPY .git .git
+RUN git log -3
 
 # Install test dependencies
 RUN uv sync --frozen --no-cache --group dev
@@ -106,15 +105,27 @@ RUN uv sync --frozen --no-cache --group dev
 # Run tests
 COPY Makefile .
 RUN make all-tests
+RUN echo "true" > /is_tested
+###############################################################################
+# STAGE 6 - tested prod image
+###############################################################################
+FROM prod-image-pre-test AS prod-image
+
+# Lets make sure we run tests when targeting prod-image
+COPY --from=test-image /is_tested /is_tested
 
 ###############################################################################
-# STAGE 6 - PyPI publish package
+# STAGE 7 - PyPI publish package
 ###############################################################################
-FROM test-image AS pypi
-ARG TWINE_USERNAME
-ARG TWINE_PASSWORD
+# TODO
+# FROM test-image AS pypi
+# ARG TWINE_USERNAME
+# ARG TWINE_PASSWORD
 
-# TODO: use --mount=source=.git,target=.git,type=bind
-# podman does not support --mount=type=bind
-# qontract-reconcile version depends on git tags!
-RUN make pypi
+# # Lets make sure we ran previous prod stage before uploading to pypi
+# COPY --from=prod-image /is_tested /is_tested
+
+# # TODO: use --mount=source=.git,target=.git,type=bind
+# # podman does not support --mount=type=bind
+# # qontract-reconcile version depends on git tags!
+# RUN make pypi
