@@ -34,14 +34,41 @@ def get_selected_app_names(
         selected_app_names.add(name)
         app = namespace.app.dict(by_alias=True)
         app["name"] = name
-        apps["apps"].append(app)
 
+        deployment_saas_files = []
+        if namespace.app.saas_files:
+            deployment_saas_files = [
+                saas_file.name
+                for saas_file in namespace.app.saas_files
+                if "Deployment" in saas_file.managed_resource_types
+            ]
+
+        app["metadata"] = {
+            "deployment_saas_files": deployment_saas_files,
+        }
+
+        apps["apps"].append(app)
+        
         for child in namespace.app.children_apps or []:
             name = f"{namespace.app.name}-{child.name}"
             if name not in selected_app_names:
                 selected_app_names.add(f"{namespace.app.name}-{child.name}")
                 child_dict = child.dict(by_alias=True)
                 child_dict["name"] = name
+
+                deployment_saas_files = []
+
+                if child.saas_files:
+                    deployment_saas_files = [
+                        saas_file.name
+                        for saas_file in child.saas_files
+                        if "Deployment" in saas_file.managed_resource_types
+                    ]
+
+                child_dict["metadata"] = {
+                    "deployment_saas_files": deployment_saas_files,
+                }
+
                 apps["apps"].append(child_dict)
 
     selectors = set(global_selectors)
