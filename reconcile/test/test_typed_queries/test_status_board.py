@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 
 from reconcile.gql_definitions.status_board.status_board import StatusBoardProductV1
-from reconcile.typed_queries.status_board import get_selected_app_names
+from reconcile.typed_queries.status_board import get_selected_app_data
 
 
 @pytest.fixture
@@ -61,11 +61,11 @@ def status_board_product(
     )
 
 
-def test_get_selected_app_names(status_board_product: StatusBoardProductV1) -> None:
-    app_names = get_selected_app_names(
+def test_get_selected_app_data(status_board_product):
+    app_names = get_selected_app_data(
         ['apps[?@.name=="excluded"]'], status_board_product
     )
     assert app_names == {"bar-oof-bar", "oof-bar", "foo"}
 
-    app_names = get_selected_app_names([], status_board_product)
+    app_names = get_selected_app_data([], status_board_product)
     assert app_names == {"excluded", "bar-oof-bar", "oof-bar", "foo"}
