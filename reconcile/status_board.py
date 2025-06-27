@@ -362,7 +362,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         id=None,
                         name=slo.name,
                         fullname=key,
-                        metadata=metadata,
+                        metadata=metadata,  # type: ignore
                         application=desired_abstract_status_board_map[
                             f"{product_name}/{app}"
                         ],
