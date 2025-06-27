@@ -21,7 +21,6 @@ query AWSAccountsCloudwatchLogRetentionCleanup {
       version
       format
     }
-    garbageCollection
     enableDeletion
     deletionApprovals {
       type

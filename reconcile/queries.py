@@ -449,7 +449,6 @@ AWS_ACCOUNTS_QUERY = """
       version
       format
     }
-    garbageCollection
     enableDeletion
     deletionApprovals {
       type

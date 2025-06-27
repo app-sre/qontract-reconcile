@@ -39,7 +39,6 @@ fragment AWSAccountCommon on AWSAccount_v1 {
   automationToken {
     ... VaultSecret
   }
-  garbageCollection
   enableDeletion
   deletionApprovals {
     type
