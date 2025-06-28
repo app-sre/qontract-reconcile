@@ -66,7 +66,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-debugger = ["debugpy ~=1.6.0"]
+debugger = ["debugpy ~=1.8.14"]
 dev = [
     "anymarkup ~=0.8.1",
     # keep in sync project.dependencies.boto3
