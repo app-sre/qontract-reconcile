@@ -1256,7 +1256,7 @@ wheels = [
 
 [[package]]
 name = "pygithub"
-version = "1.58.2"
+version = "1.59.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "deprecated" },
@@ -1264,9 +1264,9 @@ dependencies = [
     { name = "pynacl" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/9e/7dcb97cb7c4e4656b704ae78ea9c0846d2d8f471a66a495214da586bb593/PyGithub-1.58.2.tar.gz", hash = "sha256:1e6b1b7afe31f75151fb81f7ab6b984a7188a852bdb123dbb9ae90023c3ce60f", size = 3171156, upload-time = "2023-05-09T09:53:14.639Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/30/203d3420960853e399de3b85d6613cea1cf17c1cf7fc9716f7ee7e17e0fc/PyGithub-1.59.1.tar.gz", hash = "sha256:c44e3a121c15bf9d3a5cc98d94c9a047a5132a9b01d22264627f58ade9ddc217", size = 3295328, upload-time = "2023-08-03T09:43:01.794Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/64/a39f7b0d0860490b43707f01f84cecce661039968d9cfc082414a29e5b1d/PyGithub-1.58.2-py3-none-any.whl", hash = "sha256:f435884af617c6debaa76cbc355372d1027445a56fbc39972a3b9ed4968badc8", size = 312470, upload-time = "2023-05-09T09:53:11.297Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/71/aff5465d9e3d448a5d4beab1dc7c8dec72037e3ae7e0d856ee08538dc934/PyGithub-1.59.1-py3-none-any.whl", hash = "sha256:3d87a822e6c868142f0c2c4bf16cce4696b5a7a4d142a7bd160e1bdf75bc54a9", size = 342171, upload-time = "2023-08-03T09:43:00.046Z" },
 ]
 
 [[package]]
@@ -1616,7 +1616,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = "~=0.8" },
     { name = "psycopg2-binary", specifier = "~=2.9" },
     { name = "pydantic", specifier = "~=1.10.6" },
-    { name = "pygithub", specifier = ">=1.58,<1.59" },
+    { name = "pygithub", specifier = ">=1.59,<1.60" },
     { name = "pyjwt", specifier = "~=2.7" },
     { name = "pyopenssl", specifier = "~=23.0" },
     { name = "pypd", specifier = ">=1.1.0,<1.2.0" },
