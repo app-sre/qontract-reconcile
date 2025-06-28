@@ -56,7 +56,7 @@ dependencies = [
     "slack_sdk>=3.10,<4.0",
     "sretoolbox~=2.6",
     "sshtunnel>=0.4.0",
-    "tabulate>=0.8.6,<0.9.0",
+    "tabulate>=0.9.0,<0.10.0",
     "terrascript==0.9.0",
     "toml>=0.10.0,<0.11.0",
     "UnleashClient~=5.11",
