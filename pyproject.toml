@@ -37,7 +37,7 @@ dependencies = [
     "ldap3>=2.9.1,<2.10.0",
     "MarkupSafe==2.1.1",
     "networkx~=2.8",
-    "parse==1.18.0",
+    "parse==1.20.2",
     "prometheus-client~=0.8",
     "psycopg2-binary~=2.9",
     "pydantic~=1.10.6",
