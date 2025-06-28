@@ -5,7 +5,7 @@ description = "Collection of tools to reconcile services with their desired stat
 authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-requires-python = "==3.11.*"
+requires-python = "==3.13.*"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python",
