@@ -1636,7 +1636,7 @@ requires-dist = [
     { name = "toml", specifier = ">=0.10.0,<0.11.0" },
     { name = "unleashclient", specifier = "~=5.11" },
     { name = "urllib3", specifier = "~=2.2" },
-    { name = "websocket-client", specifier = ">=0.35,<0.55.0" },
+    { name = "websocket-client", specifier = ">=0.59,<0.60" },
     { name = "yamllint", specifier = "==1.34.0" },
 ]
 
@@ -2301,14 +2301,14 @@ wheels = [
 
 [[package]]
 name = "websocket-client"
-version = "0.54.0"
+version = "0.59.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/d4/14e446a82bc9172d088ebd81c0b02c5ca8481bfeecb13c9ef07998f9249b/websocket_client-0.54.0.tar.gz", hash = "sha256:e51562c91ddb8148e791f0155fdb01325d99bb52c4cdbb291aee7a3563fd0849", size = 36413, upload-time = "2018-11-01T04:35:16.66Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/bf/c706b56243f1641159ff211b51d3341024e1cdf63defc2b74595b6319039/websocket-client-0.59.0.tar.gz", hash = "sha256:d376bd60eace9d437ab6d7ee16f4ab4e821c9dae591e1b783c58ebd8aaf80c5c", size = 57897, upload-time = "2021-05-05T01:43:07.811Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/2d/f749a5c82f6192d77ed061a38e02001afcba55fe8477336d26a950ab17ce/websocket_client-0.54.0-py2.py3-none-any.whl", hash = "sha256:8c8bf2d4f800c3ed952df206b18c28f7070d9e3dcbd6ca6291127574f57ee786", size = 200115, upload-time = "2018-11-01T04:35:20.98Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/0c/d52a2a63512a613817846d430d16a8fbe5ea56dd889e89c68facf6b91cb6/websocket_client-0.59.0-py2.py3-none-any.whl", hash = "sha256:2e50d26ca593f70aba7b13a489435ef88b8fc3b5c5643c1ce8808ff9b40f0b32", size = 67216, upload-time = "2021-05-05T01:43:04.863Z" },
 ]
 
 [[package]]
