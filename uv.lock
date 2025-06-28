@@ -1128,6 +1128,18 @@ wheels = [
 ]
 
 [[package]]
+name = "portpicker"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "psutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4d/d0/cda2fc582f09510c84cd6b7d7b9e22a02d4e45dbad2b2ef1c6edd7847e00/portpicker-1.6.0.tar.gz", hash = "sha256:bd507fd6f96f65ee02781f2e674e9dc6c99bbfa6e3c39992e3916204c9d431fa", size = 25676, upload-time = "2023-08-15T04:37:08.865Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/2d/440e4d7041fff89f28f483733eb617127aa866135c2dc719e05893f089e1/portpicker-1.6.0-py3-none-any.whl", hash = "sha256:b2787a41404cf7edbe29b07b9e0ed863b09f2665dcc01c1eb0c2261c1e7d0755", size = 16613, upload-time = "2023-08-15T04:37:07.327Z" },
+]
+
+[[package]]
 name = "prometheus-client"
 version = "0.21.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1399,15 +1411,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-dotenv"
-version = "1.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/bc/57/e84d88dfe0aec03b7a2d4327012c1627ab5f03652216c63d49846d7a6c58/python-dotenv-1.0.1.tar.gz", hash = "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca", size = 39115, upload-time = "2024-01-23T06:33:00.505Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/3e/b68c118422ec867fa7ab88444e1274aa40681c606d59ac27de5a5588f082/python_dotenv-1.0.1-py3-none-any.whl", hash = "sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a", size = 19863, upload-time = "2024-01-23T06:32:58.246Z" },
-]
-
-[[package]]
 name = "python-gitlab"
 version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1657,7 +1660,7 @@ dev = [
     { name = "qenerate", specifier = "==0.7.0" },
     { name = "responses", specifier = "~=0.25.0" },
     { name = "ruff", specifier = "~=0.9.0" },
-    { name = "smtpdfix", specifier = "~=0.3.3" },
+    { name = "smtpdfix", specifier = "~=0.5.2" },
     { name = "testslide", specifier = "~=2.7" },
     { name = "typeguard", specifier = "~=2.13.3" },
     { name = "types-click" },
@@ -1910,17 +1913,17 @@ wheels = [
 
 [[package]]
 name = "smtpdfix"
-version = "0.3.3"
+version = "0.5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosmtpd" },
     { name = "cryptography" },
+    { name = "portpicker" },
     { name = "pytest" },
-    { name = "python-dotenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/3b/38af99b9a31d8c14886dd148642a9b4a9952d48b926e10b03a34c9d2cf14/smtpdfix-0.3.3.tar.gz", hash = "sha256:35fd48615315180f5deecf05b3869405435eafec1d6416092f443d449c46eecd", size = 19779, upload-time = "2021-11-18T04:10:06.401Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/4a/561500fd9db689746449888045758a74d19f7a9a739e595fd6e3b2d92078/smtpdfix-0.5.2.tar.gz", hash = "sha256:e4d1ace90f3712a19127ed8874e697a86148c1f48d2b2db0c0720968e8e3ec95", size = 23542, upload-time = "2024-04-21T14:17:35.416Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/e1/68c3509a117d883cd6eb2a1c0d18d20f9388d48dac0c106a3baa27d24901/smtpdfix-0.3.3-py3-none-any.whl", hash = "sha256:6bf9862172988367a814f8eb450336ad6cea0b7c65602de01078d3b51fe3bd28", size = 19991, upload-time = "2021-11-18T04:10:04.735Z" },
+    { url = "https://files.pythonhosted.org/packages/72/14/1c4107f0e625a4f95c5412b82f20ea05665c515d74e724898d4c3a8c7ac5/smtpdfix-0.5.2-py3-none-any.whl", hash = "sha256:85045723df6bb492af2ddbadfb0b8f8b5c52f69bb6fd4f6bca78c4f182d6c2b7", size = 17294, upload-time = "2024-04-21T14:17:33.94Z" },
 ]
 
 [[package]]
