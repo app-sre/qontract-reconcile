@@ -501,14 +501,15 @@ wheels = [
 
 [[package]]
 name = "hvac"
-version = "0.7.2"
+version = "0.11.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
+    { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/13/a97470552dbcc2ff5ca18ba67cd5f6e5dc1954c647a943634cb890f60adb/hvac-0.7.2.tar.gz", hash = "sha256:773775fa827c74299abd96079eeeeb0cefbb23b484195c03cff27d04716539ba", size = 62074, upload-time = "2019-01-01T23:30:02.771Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/8c/51fc4c339a5ba7e2d3203a76c7c79c9bcafbbd1e2720381a186480be4359/hvac-0.11.2.tar.gz", hash = "sha256:f905c59d32d88d3f67571fe5a8a78de4659e04798ad809de439f667247d13626", size = 113064, upload-time = "2021-09-23T17:47:12.268Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/dd/49f4e316369e492d728983a1774367fddc5bb9975d32661247466cfea67c/hvac-0.7.2-py2.py3-none-any.whl", hash = "sha256:001978c8e8778b6eda78bceba5781ba444f9f5f0d94634f9631e5a6a47ebb3c7", size = 167505, upload-time = "2019-01-01T23:30:00.63Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/a9/c9362c1728aba6579f1c9d8853302b3a04727ffe77240364ecd4bcafee81/hvac-0.11.2-py2.py3-none-any.whl", hash = "sha256:3e8a34804b1e20954a2b4991cc13ed9c09b32e50dadd9d3438224481150f6568", size = 148965, upload-time = "2021-09-23T17:47:10.352Z" },
 ]
 
 [[package]]
@@ -1600,7 +1601,7 @@ requires-dist = [
     { name = "dt", specifier = "==1.1.73" },
     { name = "filetype", specifier = "~=1.2.0" },
     { name = "gql", specifier = "==3.1.0" },
-    { name = "hvac", specifier = ">=0.7.0,<0.8.0" },
+    { name = "hvac", specifier = ">=0.11.2,<0.12.0" },
     { name = "jenkins-job-builder", specifier = "~=4.3.0" },
     { name = "jinja2", specifier = ">=2.10.1,<3.2.0" },
     { name = "jira", specifier = "~=3.1" },
