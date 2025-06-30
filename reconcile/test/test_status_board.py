@@ -247,13 +247,13 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
             "foo": {
                 "metadata": {
                     "managedBy": "qontract-reconcile",
-                    "deployment_saas_files": set(),
+                    "deploymentSaasFiles": set(),
                 }
             },
             "foo-bar": {
                 "metadata": {
                     "managedBy": "qontract-reconcile",
-                    "deployment_saas_files": set(),
+                    "deploymentSaasFiles": set(),
                 }
             },
         },
@@ -261,7 +261,7 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
             "bar": {
                 "metadata": {
                     "managedBy": "qontract-reconcile",
-                    "deployment_saas_files": set(),
+                    "deploymentSaasFiles": set(),
                 }
             }
         },
@@ -1128,7 +1128,7 @@ def test_run_integration(
                     "name": "foo-bar",
                     "product_id": "1",
                     "metadata": {
-                        "deployment_saas_files": set(),
+                        "deploymentSaasFiles": set(),
                         "managedBy": "qontract-reconcile",
                     },
                 },
@@ -1140,7 +1140,7 @@ def test_run_integration(
                     "name": "foo",
                     "product_id": "1",
                     "metadata": {
-                        "deployment_saas_files": set(),
+                        "deploymentSaasFiles": set(),
                         "managedBy": "qontract-reconcile",
                     },
                 },
@@ -1450,7 +1450,7 @@ def test_get_diff_create_app_with_saas_file(
     assert app_handler.action == Action.create
     assert isinstance(app_handler.status_board_object, Application)
     assert app_handler.status_board_object.name == "foo"
-    assert "baz" in app_handler.status_board_object.metadata["deployment_saas_files"]
+    assert "baz" in app_handler.status_board_object.metadata["deploymentSaasFiles"]
     assert app_handler.status_board_object.metadata["managedBy"] == "qontract-reconcile"
 
 
@@ -1500,6 +1500,6 @@ def test_get_diff_update_app_with_additional_saas_file(
     assert isinstance(app_handler.status_board_object, Application)
     app_obj = app_handler.status_board_object
     assert app_obj.name == "foo"
-    assert "baz" in app_obj.metadata["deployment_saas_files"]
-    assert "qux" in app_obj.metadata["deployment_saas_files"]
+    assert "baz" in app_obj.metadata["deploymentSaasFiles"]
+    assert "qux" in app_obj.metadata["deploymentSaasFiles"]
     assert app_obj.metadata["managedBy"] == "qontract-reconcile"
