@@ -60,7 +60,7 @@ class AbstractStatusBoard(ABC, BaseModel):
     id: str | None = None
     name: str
     fullname: str
-    metadata: dict[str, Any] | None
+    metadata: dict[str, Any] | ServiceMetadataSpec | None
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -364,7 +364,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         id=None,
                         name=slo.name,
                         fullname=key,
-                        metadata=None,
                         metadata=metadata,
                         application=desired_abstract_status_board_map[
                             f"{product_name}/{app}"
@@ -389,7 +388,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def _compare_metadata(
-        current_metadata: dict[str, Any], desired_metadata: dict[str, Any]
+        current_metadata: dict[str, Any] | ServiceMetadataSpec,
+        desired_metadata: dict[str, Any] | ServiceMetadataSpec,
     ) -> bool:
         """
         Compare metadata dictionaries with deep equality checking for nested structures.
@@ -398,11 +398,15 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         :param desired_metadata: The desired metadata dictionary
         :return: True if metadata are equal, False otherwise
         """
-        if current_metadata.keys() != desired_metadata.keys():
+        # Convert TypedDict to regular dict to allow variable key access
+        current_dict = dict(current_metadata)
+        desired_dict = dict(desired_metadata)
+
+        if current_dict.keys() != desired_dict.keys():
             return False
 
-        for key, current_value in current_metadata.items():
-            desired_value = desired_metadata[key]
+        for key, current_value in current_dict.items():
+            desired_value = desired_dict[key]
 
             # Handle None values
             if current_value is None or desired_value is None:
