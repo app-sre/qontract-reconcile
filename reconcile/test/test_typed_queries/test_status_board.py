@@ -65,7 +65,51 @@ def test_get_selected_app_data(status_board_product):
     app_names = get_selected_app_data(
         ['apps[?@.name=="excluded"]'], status_board_product
     )
-    assert app_names == {"bar-oof-bar", "oof-bar", "foo"}
+    assert app_names == {
+        "oof-bar": {
+            "metadata": {
+                "managedBy": "qontract-reconcile",
+                "deployment_saas_files": set(),
+            }
+        },
+        "bar-oof-bar": {
+            "metadata": {
+                "managedBy": "qontract-reconcile",
+                "deployment_saas_files": set(),
+            }
+        },
+        "foo": {
+            "metadata": {
+                "managedBy": "qontract-reconcile",
+                "deployment_saas_files": set(),
+            }
+        },
+    }
 
     app_names = get_selected_app_data([], status_board_product)
-    assert app_names == {"excluded", "bar-oof-bar", "oof-bar", "foo"}
+    assert app_names == {
+        "excluded": {
+            "metadata": {
+                "managedBy": "qontract-reconcile",
+                "deployment_saas_files": set(),
+            }
+        },
+        "oof-bar": {
+            "metadata": {
+                "managedBy": "qontract-reconcile",
+                "deployment_saas_files": set(),
+            }
+        },
+        "bar-oof-bar": {
+            "metadata": {
+                "managedBy": "qontract-reconcile",
+                "deployment_saas_files": set(),
+            }
+        },
+        "foo": {
+            "metadata": {
+                "managedBy": "qontract-reconcile",
+                "deployment_saas_files": set(),
+            }
+        },
+    }
