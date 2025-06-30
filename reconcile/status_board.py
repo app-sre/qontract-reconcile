@@ -60,7 +60,7 @@ class AbstractStatusBoard(ABC, BaseModel):
     id: str | None
     name: str
     fullname: str
-    metadata: dict[str, Any]
+    metadata: dict[str, Any] | None
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -444,7 +444,10 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             return False
         
         # Compare metadata with deep equality
-        return StatusBoardExporterIntegration._compare_metadata(current.metadata, desired.metadata)
+        if current.metadata and desired.metadata:
+            return StatusBoardExporterIntegration._compare_metadata(current.metadata, desired.metadata)
+        else:
+            return True
 
     @staticmethod
     def get_diff(
