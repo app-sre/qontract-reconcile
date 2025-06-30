@@ -50,7 +50,7 @@ def get_selected_app_data(
         selected_app_data[name] = {
             "metadata": {
                 METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
-                "deployment_saas_files": set(deployment_saas_files),
+                "deploymentSaasFiles": set(deployment_saas_files),
             },
         }
 
@@ -77,7 +77,7 @@ def get_selected_app_data(
                 selected_app_data[name] = {
                     "metadata": {
                         METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
-                        "deployment_saas_files": set(deployment_saas_files),
+                        "deploymentSaasFiles": set(deployment_saas_files),
                     },
                 }
 
