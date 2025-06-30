@@ -2,16 +2,17 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from jsonpath_ng.ext import parser
+
 from reconcile.gql_definitions.status_board.status_board import (
     StatusBoardProductV1,
     StatusBoardV1,
     query,
 )
+from reconcile.utils import gql
 from reconcile.utils.ocm.status_board import (
     METADATA_MANAGED_BY_KEY,
     METADATA_MANAGED_BY_VALUE,
 )
-from reconcile.utils import gql
 
 
 def get_status_board(
@@ -34,7 +35,7 @@ def get_selected_app_data(
         if namespace.app.parent_app:
             prefix = f"{namespace.app.parent_app.name}-"
         name = f"{prefix}{namespace.app.name}"
-        
+
         deployment_saas_files = set()
         if namespace.app.saas_files:
             deployment_saas_files = {
@@ -53,7 +54,7 @@ def get_selected_app_data(
         app = namespace.app.dict(by_alias=True)
         app["name"] = name
         apps["apps"].append(app)
-        
+
         for child in namespace.app.children_apps or []:
             name = f"{namespace.app.name}-{child.name}"
             if name not in selected_app_data:

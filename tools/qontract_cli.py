@@ -2772,7 +2772,7 @@ def slo_document_services(ctx: click.Context, status_board_instance: str) -> Non
         print(f"Status-board instance '{status_board_instance}' not found.")
         sys.exit(1)
 
-    desired_product_apps: dict[str, set[str]] = (
+    desired_product_apps: dict[str, dict[str, dict[str, dict[str, set[str]]]]] = (
         StatusBoardExporterIntegration.get_product_apps(sb)
     )
 
