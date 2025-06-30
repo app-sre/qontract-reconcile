@@ -258,7 +258,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return QONTRACT_INTEGRATION
 
     @staticmethod
-    def get_product_apps(sb: StatusBoardV1) -> dict[str, dict[str, dict[str, dict[str, set[str]]]]]:
+    def get_product_apps(
+        sb: StatusBoardV1,
+    ) -> dict[str, dict[str, dict[str, dict[str, set[str]]]]]:
         global_selectors = (
             sb.global_app_selectors.exclude or [] if sb.global_app_selectors else []
         )
@@ -297,7 +299,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, dict[str, dict[str, dict[str, set[str]]]]], slodocs: list[SLODocumentV1]
+        desired_product_apps: Mapping[str, dict[str, dict[str, dict[str, set[str]]]]],
+        slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
         """
         Returns a Mapping of all the AbstractStatusBoard data objects as dictionaries.
@@ -318,8 +321,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     name=a,
                     fullname=key,
                     services=[],
-                    product=desired_abstract_status_board_map[product],  # type: ignore
-                    metadata=apps[a]["metadata"],  # type: ignore
+                    product=desired_abstract_status_board_map[product],
+                    metadata=apps[a]["metadata"],
                 )
         for slodoc in slodocs:
             products = [
@@ -361,7 +364,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         id=None,
                         name=slo.name,
                         fullname=key,
-                        metadata=metadata,  # type: ignore
+                        metadata=None,
+                        metadata=metadata,
                         application=desired_abstract_status_board_map[
                             f"{product_name}/{app}"
                         ],
@@ -384,57 +388,61 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return return_value
 
     @staticmethod
-    def _compare_metadata(current_metadata: dict[str, Any], desired_metadata: dict[str, Any]) -> bool:
+    def _compare_metadata(
+        current_metadata: dict[str, Any], desired_metadata: dict[str, Any]
+    ) -> bool:
         """
         Compare metadata dictionaries with deep equality checking for nested structures.
-        
+
         :param current_metadata: The current metadata dictionary
         :param desired_metadata: The desired metadata dictionary
         :return: True if metadata are equal, False otherwise
         """
         if current_metadata.keys() != desired_metadata.keys():
             return False
-        
-        for key in current_metadata.keys():
-            current_value = current_metadata[key]
+
+        for key, current_value in current_metadata.items():
             desired_value = desired_metadata[key]
-            
+
             # Handle None values
             if current_value is None or desired_value is None:
                 if current_value is not desired_value:
                     return False
                 continue
-            
-            # Handle different types
-            if type(current_value) != type(desired_value):
-                return False
-            
+
             # Handle sets
             if isinstance(current_value, set) and isinstance(desired_value, set):
                 if current_value != desired_value:
                     return False
             # Handle lists and tuples
-            elif isinstance(current_value, (list, tuple)) and isinstance(desired_value, (list, tuple)):
+            elif isinstance(current_value, list | tuple) and isinstance(
+                desired_value, list | tuple
+            ):
                 if len(current_value) != len(desired_value):
                     return False
-                if not all(c == d for c, d in zip(current_value, desired_value)):
+                if not all(
+                    c == d for c, d in zip(current_value, desired_value, strict=False)
+                ):
                     return False
             # Handle nested dictionaries
             elif isinstance(current_value, dict) and isinstance(desired_value, dict):
-                if not StatusBoardExporterIntegration._compare_metadata(current_value, desired_value):
+                if not StatusBoardExporterIntegration._compare_metadata(
+                    current_value, desired_value
+                ):
                     return False
             # Handle primitive types
-            else:
-                if current_value != desired_value:
-                    return False
-        
+            elif current_value != desired_value:
+                return False
+
         return True
 
     @staticmethod
-    def _status_board_objects_equal(current: AbstractStatusBoard, desired: AbstractStatusBoard) -> bool:
+    def _status_board_objects_equal(
+        current: AbstractStatusBoard, desired: AbstractStatusBoard
+    ) -> bool:
         """
         Check if two AbstractStatusBoard objects are equal, including metadata comparison.
-        
+
         :param current: The current AbstractStatusBoard object
         :param desired: The desired AbstractStatusBoard object
         :return: True if objects are equal, False otherwise
@@ -442,10 +450,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         # Check basic equality first (name, fullname)
         if current.name != desired.name or current.fullname != desired.fullname:
             return False
-        
+
         # Compare metadata with deep equality
         if current.metadata and desired.metadata:
-            return StatusBoardExporterIntegration._compare_metadata(current.metadata, desired.metadata)
+            return StatusBoardExporterIntegration._compare_metadata(
+                current.metadata, desired.metadata
+            )
         else:
             return True
 
@@ -534,7 +544,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
             # Desired state
-            desired_product_apps: dict[str, dict[str, dict[str, dict[str, set[str]]]]] = self.get_product_apps(sb)
+            desired_product_apps: dict[
+                str, dict[str, dict[str, dict[str, set[str]]]]
+            ] = self.get_product_apps(sb)
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
                 desired_product_apps, slodocs
             )
