@@ -19,6 +19,7 @@ from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionActionListV1,
     AutomatedActionExternalResourceFlushElastiCacheV1,
     AutomatedActionExternalResourceRdsRebootV1,
+    AutomatedActionExternalResourceRdsSnapshotV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     AutomatedActionOpenshiftWorkloadRestartV1,
     AutomatedActionsInstanceV1,
@@ -178,13 +179,30 @@ class AutomatedActionsConfigIntegration(
                                 "identifier": ec_arg.identifier,
                             })
                 case AutomatedActionExternalResourceRdsRebootV1():
-                    for rds_arg in action.external_resource_rds_reboot_arguments:
-                        for rds_er in rds_arg.namespace.external_resources or []:
-                            if not isinstance(rds_er.provisioner, AWSAccountV1):
+                    for rds_reboot_arg in action.external_resource_rds_reboot_arguments:
+                        for rds_reboot_er in (
+                            rds_reboot_arg.namespace.external_resources or []
+                        ):
+                            if not isinstance(rds_reboot_er.provisioner, AWSAccountV1):
                                 continue
                             parameters.append({
-                                "account": f"^{rds_er.provisioner.name}$",
-                                "identifier": rds_arg.identifier,
+                                "account": f"^{rds_reboot_er.provisioner.name}$",
+                                "identifier": rds_reboot_arg.identifier,
+                            })
+                case AutomatedActionExternalResourceRdsSnapshotV1():
+                    for (
+                        rds_snapshot_arg
+                    ) in action.external_resource_rds_snapshot_arguments:
+                        for rds_snapshot_er in (
+                            rds_snapshot_arg.namespace.external_resources or []
+                        ):
+                            if not isinstance(
+                                rds_snapshot_er.provisioner, AWSAccountV1
+                            ):
+                                continue
+                            parameters.append({
+                                "account": f"^{rds_snapshot_er.provisioner.name}$",
+                                "identifier": rds_snapshot_arg.identifier,
                             })
                 case AutomatedActionOpenshiftWorkloadRestartV1():
                     parameters.extend(

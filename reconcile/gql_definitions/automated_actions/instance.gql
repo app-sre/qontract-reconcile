@@ -60,6 +60,20 @@ query AutomatedActionsInstances {
           identifier
         }
       }
+      ... on AutomatedActionExternalResourceRdsSnapshot_v1 {
+        external_resource_rds_snapshot_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
       ... on AutomatedActionOpenshiftWorkloadRestart_v1 {
         openshift_workload_restart_arguments: arguments {
           namespace {
