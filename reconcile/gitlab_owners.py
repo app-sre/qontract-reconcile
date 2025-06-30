@@ -89,19 +89,19 @@ class MRApproval:
         comments = self.gitlab.get_merge_request_comments(self.mr)
         for comment in comments:
             # Only interested in '/lgtm' comments
-            if comment["body"] != "/lgtm":
+            if comment.body != "/lgtm":
                 continue
 
             # Only interested in comments created after the top commit
             # creation time
-            comment_created_at = dateparser.parse(comment["created_at"])
+            comment_created_at = dateparser.parse(comment.created_at)
             if (
                 comment_created_at < self.top_commit_created_at
                 and not self.persistent_lgtm
             ):
                 continue
 
-            lgtms.append(comment["username"])
+            lgtms.append(comment.username)
         return lgtms
 
     def expand_groups(self, owners: list[str]) -> set[str]:
@@ -173,19 +173,22 @@ class MRApproval:
         comments = self.gitlab.get_merge_request_comments(self.mr)
         for comment in comments:
             # Only interested on our own comments
-            if comment["username"] != self.gitlab.user.username:
+            if comment.username != self.gitlab.user.username:
                 continue
 
             # Ignoring non-approval comments
-            body = comment["body"]
+            body = comment.body
             if not body.startswith(COMMENT_PREFIX):
                 continue
 
             # If the comment was created before the last commit,
             # it means we had a push after the comment. In this case,
             # we delete the comment and move on.
-            comment_created_at = dateparser.parse(comment["created_at"])
-            if comment_created_at < self.top_commit_created_at:
+            comment_created_at = dateparser.parse(comment.created_at)
+            if (
+                comment_created_at < self.top_commit_created_at
+                and comment.note is not None
+            ):
                 # Deleting stale comments
                 _LOG.info([
                     f"Project:{self.gitlab.project.id} "
@@ -193,7 +196,7 @@ class MRApproval:
                     f"- removing stale comment"
                 ])
                 if not self.dry_run:
-                    self.gitlab.delete_comment(comment["note"])
+                    self.gitlab.delete_comment(comment.note)
                 continue
 
             # At this point, we've found an approval comment comment

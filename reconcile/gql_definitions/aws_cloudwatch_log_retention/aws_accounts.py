@@ -40,7 +40,6 @@ query AWSAccountsCloudwatchLogRetentionCleanup {
       version
       format
     }
-    garbageCollection
     enableDeletion
     deletionApprovals {
       type
@@ -124,7 +123,6 @@ class AWSAccountV1(ConfiguredBaseModel):
     provider_version: str = Field(..., alias="providerVersion")
     account_owners: list[OwnerV1] = Field(..., alias="accountOwners")
     automation_token: VaultSecretV1 = Field(..., alias="automationToken")
-    garbage_collection: Optional[bool] = Field(..., alias="garbageCollection")
     enable_deletion: Optional[bool] = Field(..., alias="enableDeletion")
     deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(..., alias="deletionApprovals")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")

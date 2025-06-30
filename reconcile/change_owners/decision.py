@@ -1,12 +1,8 @@
-import operator
 from collections import defaultdict
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from operator import attrgetter
 
 from reconcile.change_owners.approver import (
     Approver,
@@ -16,6 +12,7 @@ from reconcile.change_owners.bundle import FileRef
 from reconcile.change_owners.change_types import ChangeTypeContext, DiffCoverage
 from reconcile.change_owners.changes import BundleFileChange
 from reconcile.change_owners.diff import Diff
+from reconcile.utils.gitlab_api import Comment
 
 
 class DecisionCommand(Enum):
@@ -33,12 +30,12 @@ class Decision:
 
 
 def get_approver_decisions_from_mr_comments(
-    comments: Iterable[Mapping[str, Any]],
+    comments: Iterable[Comment],
 ) -> list[Decision]:
     decisions: list[Decision] = []
-    for c in sorted(comments, key=operator.itemgetter("created_at")):
-        commenter = c["username"]
-        comment_body = c.get("body")
+    for c in sorted(comments, key=attrgetter("created_at")):
+        commenter = c.username
+        comment_body = c.body
         for line in comment_body.split("\n") if comment_body else []:
             line = line.strip()
             if line == DecisionCommand.APPROVED.value:

@@ -1,8 +1,8 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-builder:0.10.0 AS build-image
-COPY --from=ghcr.io/astral-sh/uv:0.6.11@sha256:fb91e82e8643382d5bce074ba0d167677d678faff4bd518dac670476d19b159c /uv /bin/uv
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.0.0-1 AS build-image
+COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 WORKDIR /work
 
@@ -24,8 +24,8 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --pytho
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.17.0 AS dev-image
-COPY --from=ghcr.io/astral-sh/uv:0.6.11@sha256:fb91e82e8643382d5bce074ba0d167677d678faff4bd518dac670476d19b159c /uv /bin/uv
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS dev-image
+COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile && \
@@ -48,7 +48,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.17.0 AS prod-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
@@ -90,7 +90,7 @@ COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1 \
 # STAGE 5 - unittest image
 ###############################################################################
 FROM prod-image AS test-image
-COPY --from=ghcr.io/astral-sh/uv:0.6.11@sha256:fb91e82e8643382d5bce074ba0d167677d678faff4bd518dac670476d19b159c /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 RUN microdnf install -y make
 

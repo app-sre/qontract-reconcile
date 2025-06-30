@@ -759,31 +759,6 @@ def github_owners(ctx: click.Context) -> None:
     run_integration(reconcile.github_owners, ctx)
 
 
-@integration.command(short_help="Validate compliance of GitHub user profiles.")
-@gitlab_project_id
-@threaded()
-@enable_deletion(default=False)
-@send_mails(default=False)
-@click.pass_context
-def github_users(
-    ctx: click.Context,
-    gitlab_project_id: str | None,
-    thread_pool_size: int,
-    enable_deletion: bool,
-    send_mails: bool,
-) -> None:
-    import reconcile.github_users
-
-    run_integration(
-        reconcile.github_users,
-        ctx,
-        gitlab_project_id,
-        thread_pool_size,
-        enable_deletion,
-        send_mails,
-    )
-
-
 @integration.command(short_help="Validates GitHub organization settings.")
 @click.pass_context
 def github_validator(ctx: click.Context) -> None:
@@ -1259,15 +1234,6 @@ def gitlab_mr_sqs_consumer(ctx: click.Context, gitlab_project_id: str) -> None:
     import reconcile.gitlab_mr_sqs_consumer
 
     run_integration(reconcile.gitlab_mr_sqs_consumer, ctx, gitlab_project_id)
-
-
-@integration.command(short_help="Delete orphan AWS resources.")
-@threaded()
-@click.pass_context
-def aws_garbage_collector(ctx: click.Context, thread_pool_size: int) -> None:
-    import reconcile.aws_garbage_collector
-
-    run_integration(reconcile.aws_garbage_collector, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Delete IAM access keys by access key ID.")

@@ -1278,6 +1278,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     resource_template_url=rt.url,
                     target_ref=target.ref,
                     state_content=None,
+                    reason=None,
                 ).state_key
                 digest = SaasHerder.get_target_config_hash(
                     all_trigger_specs[state_key].state_content
@@ -1432,6 +1433,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
         return list(itertools.chain.from_iterable(results))
 
+    def _build_trigger_spec_moving_commit_reason(
+        self,
+        url: str,
+        desired_commit_sha: str,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        return f"{url}/commit/{desired_commit_sha}"
+
     def get_moving_commits_diff_saas_file(
         self, saas_file: SaasFile, dry_run: bool
     ) -> list[TriggerSpecMovingCommit]:
@@ -1461,9 +1471,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         namespace_name=target.namespace.name,
                         ref=target.ref,
                         state_content=desired_commit_sha,
+                        reason=self._build_trigger_spec_moving_commit_reason(
+                            url=rt.url,
+                            desired_commit_sha=desired_commit_sha,
+                        ),
+                        target_ref=desired_commit_sha,
                     )
-                    if self.include_trigger_trace:
-                        trigger_spec.reason = f"{rt.url}/commit/{desired_commit_sha}"
 
                     if not self.state:
                         raise Exception("state is not initialized")
@@ -1519,6 +1532,24 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         return current_state, error
 
+    def _build_trigger_spec_upstream_job_reason(
+        self,
+        last_build_result: Any,
+        server_url: str,
+        job_name: str,
+        url: str,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        last_build_result_number = last_build_result["number"]
+        last_build_result_commit_sha = last_build_result.get("commit_sha")
+        prefix = (
+            f"{url}/commit/{last_build_result_commit_sha} via "
+            if last_build_result_commit_sha
+            else ""
+        )
+        return f"{prefix}{server_url}/job/{job_name}/{last_build_result_number}"
+
     def get_upstream_jobs_diff_saas_file(
         self, saas_file: SaasFile, dry_run: bool, current_state: dict[str, Any]
     ) -> list[TriggerSpecUpstreamJob]:
@@ -1546,16 +1577,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     instance_name=target.upstream.instance.name,
                     job_name=job_name,
                     state_content=last_build_result,
+                    reason=self._build_trigger_spec_upstream_job_reason(
+                        last_build_result=last_build_result,
+                        server_url=target.upstream.instance.server_url,
+                        job_name=job_name,
+                        url=rt.url,
+                    ),
+                    target_ref=last_build_result.get("commit_sha") or target.ref,
                 )
-                last_build_result_number = last_build_result["number"]
-                if self.include_trigger_trace:
-                    trigger_spec.reason = f"{target.upstream.instance.server_url}/job/{job_name}/{last_build_result_number}"
-                    last_build_result_commit_sha = last_build_result.get("commit_sha")
-                    if last_build_result_commit_sha:
-                        trigger_spec.reason = (
-                            f"{rt.url}/commit/{last_build_result_commit_sha} via "
-                            + trigger_spec.reason
-                        )
                 if not self.state:
                     raise Exception("state is not initialized")
                 state_build_result = self.state.get(trigger_spec.state_key, None)
@@ -1576,6 +1605,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         self.update_state(trigger_spec)
                     continue
 
+                last_build_result_number = last_build_result["number"]
                 state_build_result_number = state_build_result["number"]
                 # this is the most important condition
                 # if there is a successful newer build -
@@ -1608,6 +1638,20 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             dry_run=dry_run,
         )
         return list(itertools.chain.from_iterable(results))
+
+    def _build_trigger_spec_container_image_reason(
+        self,
+        desired_image_tag: str,
+        image_registries: list[str],
+        url: str,
+        commit_sha: str,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        image_uris = ", ".join(
+            f"{image}:{desired_image_tag}" for image in sorted(image_registries)
+        )
+        return f"{url}/commit/{commit_sha} build {image_uris}"
 
     def get_container_images_diff_saas_file(
         self, saas_file: SaasFile, dry_run: bool
@@ -1657,15 +1701,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         namespace_name=target.namespace.name,
                         images=image_registries,
                         state_content=desired_image_tag,
+                        reason=self._build_trigger_spec_container_image_reason(
+                            desired_image_tag=desired_image_tag,
+                            image_registries=image_registries,
+                            url=rt.url,
+                            commit_sha=commit_sha,
+                        ),
+                        target_ref=commit_sha,
                     )
-                    if self.include_trigger_trace:
-                        image_uris = ", ".join(
-                            f"{image}:{desired_image_tag}"
-                            for image in sorted(image_registries)
-                        )
-                        trigger_spec.reason = (
-                            f"{rt.url}/commit/{commit_sha} build {image_uris}"
-                        )
                     if not self.state:
                         raise Exception("state is not initialized")
                     current_image_tag = self.state.get(trigger_spec.state_key, None)
@@ -1804,15 +1847,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             dtc = SaasHerder.remove_none_values(trigger_spec.state_content)
             if ctc == dtc:
                 continue
-            if self.include_trigger_trace:
-                trigger_spec.reason = f"{self.repo_url}/commit/{RunningState().commit}"
-                # For now we count every saas config change as an auto-promotion
-                # if the auto promotion field is enabled in the saas target.
-                # Ideally, we check if there was an actual ref change in order
-                # to reduce false-positives.
-                promotion = trigger_spec.state_content.get("promotion")
-                if promotion and promotion.get("auto", False):
-                    trigger_spec.reason += " [auto-promotion]"
             trigger_specs.append(trigger_spec)
         return trigger_specs
 
@@ -1822,6 +1856,23 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         m.update(json.dumps(target_config, sort_keys=True).encode("utf-8"))
         digest = m.hexdigest()[:16]
         return digest
+
+    def _build_trigger_spec_config_reason(
+        self,
+        state_content: dict,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        # For now we count every saas config change as an auto-promotion
+        # if the auto promotion field is enabled in the saas target.
+        # Ideally, we check if there was an actual ref change in order
+        # to reduce false-positives.
+        auto_promotion_suffix = (
+            " [auto-promotion]"
+            if (state_content.get("promotion") or {}).get("auto", False)
+            else ""
+        )
+        return f"{self.repo_url}/commit/{RunningState().commit}{auto_promotion_suffix}"
 
     def get_saas_targets_config_trigger_specs(
         self, saas_file: SaasFile
@@ -1901,6 +1952,9 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     resource_template_url=rt.url,
                     target_ref=target.ref,
                     slos=target.slos or None,
+                    reason=self._build_trigger_spec_config_reason(
+                        state_content=serializable_target_config
+                    ),
                 )
                 configs[trigger_spec.state_key] = trigger_spec
 

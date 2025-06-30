@@ -44,7 +44,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   aws-cloudwatch-log-retention    Set up retention period for Cloudwatch logs.
   aws-ecr-image-pull-secrets      Generate AWS ECR image pull secrets and
                                   store them in Vault.
-  aws-garbage-collector           Delete orphan AWS resources.
   aws-iam-keys                    Delete IAM access keys by access key ID.
   aws-iam-password-reset          Reset IAM user password by user reference.
   aws-saml-idp                    Manage the SAML IDP config for all AWS
@@ -95,7 +94,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-  github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-fork-compliance          Ensures that forks of App Interface are
                                   compliant.
