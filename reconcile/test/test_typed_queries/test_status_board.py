@@ -69,19 +69,19 @@ def test_get_selected_app_data(status_board_product):
         "oof-bar": {
             "metadata": {
                 "managedBy": "qontract-reconcile",
-                "deployment_saas_files": set(),
+                "deploymentSaasFiles": set(),
             }
         },
         "bar-oof-bar": {
             "metadata": {
                 "managedBy": "qontract-reconcile",
-                "deployment_saas_files": set(),
+                "deploymentSaasFiles": set(),
             }
         },
         "foo": {
             "metadata": {
                 "managedBy": "qontract-reconcile",
-                "deployment_saas_files": set(),
+                "deploymentSaasFiles": set(),
             }
         },
     }
@@ -91,25 +91,25 @@ def test_get_selected_app_data(status_board_product):
         "excluded": {
             "metadata": {
                 "managedBy": "qontract-reconcile",
-                "deployment_saas_files": set(),
+                "deploymentSaasFiles": set(),
             }
         },
         "oof-bar": {
             "metadata": {
                 "managedBy": "qontract-reconcile",
-                "deployment_saas_files": set(),
+                "deploymentSaasFiles": set(),
             }
         },
         "bar-oof-bar": {
             "metadata": {
                 "managedBy": "qontract-reconcile",
-                "deployment_saas_files": set(),
+                "deploymentSaasFiles": set(),
             }
         },
         "foo": {
             "metadata": {
                 "managedBy": "qontract-reconcile",
-                "deployment_saas_files": set(),
+                "deploymentSaasFiles": set(),
             }
         },
     }
