@@ -1,4 +1,5 @@
 from collections.abc import Callable
+import pdb
 from unittest.mock import call
 
 import pytest
@@ -236,7 +237,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
 
 def test_get_product_apps(status_board: StatusBoardV1) -> None:
     p = StatusBoardExporterIntegration.get_product_apps(status_board)
-    assert p == {"foo": {"foo", "foo-bar"}, "bar": {"bar"}}
+    assert p == {'foo': {'foo': {'metadata': {'managedBy': 'qontract-reconcile', 'deployment_saas_files': set()}}, 'foo-bar': {'metadata': {'managedBy': 'qontract-reconcile', 'deployment_saas_files': set()}}}, 'bar': {'bar': {'metadata': {'managedBy': 'qontract-reconcile', 'deployment_saas_files': set()}}}}
 
 
 def test_get_current_products_applications_services(mocker: MockerFixture) -> None:
@@ -246,17 +247,17 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
     mock_get_services = mocker.patch("reconcile.status_board.get_application_services")
 
     mock_get_products.return_value = [
-        {"name": "product_1", "fullname": "product_1", "id": "1"},
-        {"name": "product_2", "fullname": "product_2", "id": "2"},
+        {"name": "product_1", "fullname": "product_1", "id": "1", "metadata": {}},
+        {"name": "product_2", "fullname": "product_2", "id": "2", "metadata": {}},
     ]
 
     apps_mapping = {
         "1": [
-            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1"},
-            {"name": "app_2", "fullname": "product_1/app_2", "id": "1_2"},
+            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1", "metadata": {}},
+            {"name": "app_2", "fullname": "product_1/app_2", "id": "1_2", "metadata": {}},
         ],
         "2": [
-            {"name": "app_3", "fullname": "product_2/app_3", "id": "2_3"},
+            {"name": "app_3", "fullname": "product_2/app_3", "id": "2_3", "metadata": {}},
         ],
     }
 
@@ -952,15 +953,15 @@ def test_run_integration(
     )
 
     mock_get_products.return_value = [
-        {"name": "product_1", "fullname": "product_1", "id": "1"},
-        {"name": "bar", "fullname": "bar", "id": "2"},
+        {"name": "product_1", "fullname": "product_1", "id": "1", "metadata": {}},
+        {"name": "bar", "fullname": "bar", "id": "2", "metadata": {}},
     ]
 
     apps_mapping = {
         "1": [
-            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1"},
+            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1", "metadata": {}},
         ],
-        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1"}],
+        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1", "metadata": {}}],
     }
 
     services_mapping = {
@@ -1023,6 +1024,10 @@ def test_run_integration(
                     "fullname": "foo/foo-bar",
                     "name": "foo-bar",
                     "product_id": "1",
+                    "metadata": {
+                        "deployment_saas_files": set(),
+                        "managedBy": "qontract-reconcile",
+                    },
                 },
             ),
             call(
@@ -1031,6 +1036,10 @@ def test_run_integration(
                     "fullname": "foo/foo",
                     "name": "foo",
                     "product_id": "1",
+                    "metadata": {
+                        "deployment_saas_files": set(),
+                        "managedBy": "qontract-reconcile",
+                    },
                 },
             ),
         ],
@@ -1188,3 +1197,176 @@ def test_run_integration_create_services(
         ],
         any_order=True,
     )
+@pytest.fixture
+def status_board_with_saas_file(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoardV1:
+    """StatusBoard fixture for app 'foo' under product 'bar' with saas-file 'baz'"""
+    return gql_class_factory(
+        StatusBoardV1,
+        {
+            "name": "test-board",
+            "ocm": {
+                "url": "https://test.com",
+                "accessTokenUrl": "test",
+                "accessTokenClientId": "test",
+                "accessTokenClientSecret": {
+                    "path": "test",
+                    "field": "test", 
+                    "version": "1",
+                    "format": "test",
+                },
+            },
+            "products": [
+                {
+                    "productEnvironment": {
+                        "name": "bar",
+                        "labels": '{"environment": "production"}',
+                        "namespaces": [
+                            {
+                                "app": {
+                                    "name": "foo",
+                                    "onboardingStatus": "OnBoarded",
+                                    "saasFiles": [
+                                        {
+                                            "name": "baz",
+                                            "managedResourceTypes": ["Deployment"]
+                                        }
+                                    ]
+                                }
+                            }
+                        ],
+                        "product": {
+                            "name": "bar",
+                        },
+                    },
+                },
+            ],
+        },
+    )
+
+
+@pytest.fixture 
+def status_board_with_multiple_saas_files(gql_class_factory: Callable[..., StatusBoardV1]) -> StatusBoardV1:
+    """StatusBoard fixture for app 'foo' under product 'bar' with multiple saas-files"""
+    return gql_class_factory(
+        StatusBoardV1,
+        {
+            "name": "test-board",
+            "ocm": {
+                "url": "https://test.com", 
+                "accessTokenUrl": "test",
+                "accessTokenClientId": "test",
+                "accessTokenClientSecret": {
+                    "path": "test",
+                    "field": "test",
+                    "version": "1", 
+                    "format": "test",
+                },
+            },
+            "products": [
+                {
+                    "productEnvironment": {
+                        "name": "bar",
+                        "labels": '{"environment": "production"}',
+                        "namespaces": [
+                            {
+                                "app": {
+                                    "name": "foo",
+                                    "onboardingStatus": "OnBoarded",
+                                    "saasFiles": [
+                                        {
+                                            "name": "baz",
+                                            "managedResourceTypes": ["Deployment"]
+                                        },
+                                        {
+                                            "name": "qux", 
+                                            "managedResourceTypes": ["Deployment"]
+                                        }
+                                    ]
+                                }
+                            }
+                        ],
+                        "product": {
+                            "name": "bar",
+                        },
+                    },
+                },
+            ],
+        },
+    )
+
+
+def test_get_diff_create_app_with_saas_file(status_board_with_saas_file: StatusBoardV1) -> None:
+    """Test creating app 'foo' under product 'bar' with deployment saas-file 'baz'"""
+    # Get desired state from status board
+    desired_product_apps = StatusBoardExporterIntegration.get_product_apps(status_board_with_saas_file)
+    desired_abstract_status_board_map = StatusBoardExporterIntegration.desired_abstract_status_board_map(
+        desired_product_apps, []
+    )
+    
+    # No current state (creating from scratch)
+    current_abstract_status_board_map = {}
+    current_products = {}
+    
+    h = StatusBoardExporterIntegration.get_diff(
+        desired_abstract_status_board_map,
+        current_abstract_status_board_map,
+        current_products,
+    )
+
+    assert len(h) == 2
+    
+    # Should create product first
+    product_handler = next((handler for handler in h if isinstance(handler.status_board_object, Product)), None)
+    assert product_handler is not None
+    assert product_handler.action == Action.create
+    assert product_handler.status_board_object.name == "bar"
+    
+    # Should create application with saas file
+    app_handler = next((handler for handler in h if isinstance(handler.status_board_object, Application)), None)
+    assert app_handler is not None
+    assert app_handler.action == Action.create
+    assert isinstance(app_handler.status_board_object, Application)
+    assert app_handler.status_board_object.name == "foo"
+    assert "baz" in app_handler.status_board_object.metadata["deployment_saas_files"]
+    assert app_handler.status_board_object.metadata["managedBy"] == "qontract-reconcile"
+
+
+def test_get_diff_update_app_with_additional_saas_file(
+    status_board_with_saas_file: StatusBoardV1,
+    status_board_with_multiple_saas_files: StatusBoardV1
+) -> None:
+    """Test updating app 'foo' to add another saas-file and assert update call is made"""
+    
+    # Current state: app with one saas file
+    current_product_apps = StatusBoardExporterIntegration.get_product_apps(status_board_with_saas_file)
+    current_abstract_status_board_map = StatusBoardExporterIntegration.desired_abstract_status_board_map(
+        current_product_apps, []
+    )
+    
+    # Simulate current products that exist in OCM
+    current_bar_product = Product(name="bar", fullname="bar", applications=[], id="1", metadata={})
+    current_products = {"bar": current_bar_product}
+    
+    # Desired state: app with two saas files  
+    desired_product_apps = StatusBoardExporterIntegration.get_product_apps(status_board_with_multiple_saas_files)
+    desired_abstract_status_board_map = StatusBoardExporterIntegration.desired_abstract_status_board_map(
+        desired_product_apps, []
+    )
+    
+    h = StatusBoardExporterIntegration.get_diff(
+        desired_abstract_status_board_map,
+        current_abstract_status_board_map, 
+        current_products,
+    )
+
+    assert len(h) == 1
+    
+    # Should update the application
+    app_handler = h[0]
+    assert app_handler.action == Action.update
+    assert isinstance(app_handler.status_board_object, Application)
+    app_obj = app_handler.status_board_object
+    assert app_obj.name == "foo"
+    assert "baz" in app_obj.metadata["deployment_saas_files"]
+    assert "qux" in app_obj.metadata["deployment_saas_files"]
+    assert app_obj.metadata["managedBy"] == "qontract-reconcile"
