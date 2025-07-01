@@ -93,20 +93,6 @@ class JenkinsApi:
         )
         res.raise_for_status()
 
-    def delete_job(self, job_name):
-        kwargs = self.get_crumb_kwargs()
-
-        url = f"{self.url}/job/{job_name}/doDelete"
-        res = requests.post(
-            url,
-            verify=self.ssl_verify,
-            auth=(self.user, self.password),
-            timeout=60,
-            **kwargs,
-        )
-
-        res.raise_for_status()
-
     def get_all_roles(self):
         url = f"{self.url}/role-strategy/strategy/getAllRoles"
         res = requests.get(
