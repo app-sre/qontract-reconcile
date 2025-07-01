@@ -133,7 +133,7 @@ def report_invalid_metadata(
     :param path: path in app-interface to said app
 
     :param board: JIRA board description, as per
-    queries.JIRA_BOARDS_QUERY
+    queries.JIRA_BOARDS_QUICK_QUERY
 
     :param settings: app-interface settings (necessary to log into the
     JIRA instance)

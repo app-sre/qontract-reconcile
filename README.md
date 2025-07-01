@@ -125,8 +125,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   instances.
   jenkins-worker-fleets           Manage Jenkins worker fleets via JCasC.
   jira-permissions-validator      Validate permissions in Jira.
-  jira-watcher                    Watch for changes in Jira boards and notify
-                                  on Slack.
   ldap-groups                     Manages LDAP groups based on App-Interface
                                   roles.
   ldap-users                      Removes users which are not found in LDAP
