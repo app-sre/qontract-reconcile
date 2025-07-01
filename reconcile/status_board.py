@@ -297,25 +297,26 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         on Status Board OCM API.
         """
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
-        for product, apps in desired_product_apps.items():
-            desired_abstract_status_board_map[product] = Product(
-                id=None, name=product, fullname=product, applications=[]
+        for product_name, apps in desired_product_apps.items():
+            product = Product(
+                id=None, name=product_name, fullname=product_name, applications=[]
             )
+            desired_abstract_status_board_map[product_name] = product
             for a in apps:
-                key = f"{product}/{a}"
+                key = f"{product_name}/{a}"
                 desired_abstract_status_board_map[key] = Application(
                     id=None,
                     name=a,
                     fullname=key,
                     services=[],
-                    product=desired_abstract_status_board_map.get(product),
+                    product=product,
                 )
         for slodoc in slodocs:
             products = [
                 ns.namespace.environment.product.name for ns in slodoc.namespaces
             ]
             for slo in slodoc.slos or []:
-                for product in products:
+                for product_name in products:
                     if slodoc.app.parent_app:
                         app = f"{slodoc.app.parent_app.name}-{slodoc.app.name}"
                     else:
@@ -323,8 +324,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
                     # Check if the product or app is excluded from the desired list
                     product_or_app_excluded = (
-                        product not in desired_product_apps
-                        or app not in desired_product_apps.get(product, set())
+                        product_name not in desired_product_apps
+                        or app not in desired_product_apps.get(product_name, set())
                     )
 
                     # Check if statusBoard label exists and is explicitly disabled
@@ -337,7 +338,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     if product_or_app_excluded or not status_board_enabled:
                         continue
 
-                    key = f"{product}/{app}/{slo.name}"
+                    key = f"{product_name}/{app}/{slo.name}"
                     metadata: ServiceMetadataSpec = {
                         "sli_type": slo.sli_type,
                         "sli_specification": slo.sli_specification,
@@ -352,7 +353,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         fullname=key,
                         metadata=metadata,
                         application=desired_abstract_status_board_map[
-                            f"{product}/{app}"
+                            f"{product_name}/{app}"
                         ],
                     )
 
