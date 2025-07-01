@@ -245,6 +245,8 @@ class SaasResourceTemplateTargetPromotion(Protocol):
     @property
     def promotion_data(self) -> Sequence[SaasPromotionData] | None: ...
 
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+
 
 class Channel(Protocol):
     name: str
@@ -289,6 +291,8 @@ class SaasResourceTemplateTargetUpstream(Protocol):
     @property
     def instance(self) -> SaasJenkinsInstance: ...
 
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+
 
 class SaasQuayInstance(Protocol):
     url: str
@@ -306,6 +310,8 @@ class SaasResourceTemplateTargetImage(Protocol):
 
     @property
     def org(self) -> SaasQuayOrg: ...
+
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):

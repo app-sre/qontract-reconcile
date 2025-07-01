@@ -6,7 +6,6 @@ import logging
 import os
 import re
 from collections import (
-    ChainMap,
     defaultdict,
 )
 from collections.abc import (
@@ -74,6 +73,10 @@ from reconcile.utils.saasherder.models import (
     SLOKey,
     TargetSpec,
     TriggerSpecConfig,
+    TriggerSpecConfigStateContent,
+    TriggerSpecConfigStateContentNamespace,
+    TriggerSpecConfigStateContentNamespaceApp,
+    TriggerSpecConfigStateContentNamespaceCluster,
     TriggerSpecContainerImage,
     TriggerSpecMovingCommit,
     TriggerSpecUnion,
@@ -1816,7 +1819,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return True
 
     @staticmethod
-    def remove_none_values(d: dict[Any, Any] | None) -> dict[Any, Any]:
+    def remove_none_values(d: Mapping[Any, Any] | None) -> dict[Any, Any]:
         if d is None:
             return {}
         new = {}
@@ -1859,7 +1862,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def _build_trigger_spec_config_reason(
         self,
-        state_content: dict,
+        state_content: TriggerSpecConfigStateContent,
     ) -> str | None:
         if not self.include_trigger_trace:
             return None
@@ -1869,7 +1872,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         # to reduce false-positives.
         auto_promotion_suffix = (
             " [auto-promotion]"
-            if (state_content.get("promotion") or {}).get("auto", False)
+            if (state_content["promotion"] or {}).get("auto", False)
             else ""
         )
         return f"{self.repo_url}/commit/{RunningState().commit}{auto_promotion_suffix}"
@@ -1880,51 +1883,66 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         configs = {}
         for rt in saas_file.resource_templates:
             for target in rt.targets:
-                # ChainMap will store modifications avoiding a deep copy
-                desired_target_config = ChainMap(target.dict(by_alias=True))
-                # This will add the namespace key/value to the chainMap, but
-                # the target will remain with the original value
-                # When the namespace key is looked up, the chainmap will
-                # return the modified attribute (set in the first mapping)
-                desired_target_config["namespace"] = self.sanitize_namespace(
-                    target.namespace
-                )
-                # add parent parameters to target config
-                # before the GQL classes are introduced, the parameters attribute
-                # was a json string. Keep it that way to be backwards compatible.
-                desired_target_config["saas_file_parameters"] = (
-                    json.dumps(saas_file.parameters, separators=(",", ":"))
-                    if saas_file.parameters is not None
-                    else None
-                )
-
-                # before the GQL classes are introduced, the parameters attribute
-                # was a json string. Keep it that way to be backwards compatible.
-                desired_target_config["parameters"] = (
-                    json.dumps(target.parameters, separators=(",", ":"))
-                    if target.parameters is not None
-                    else None
-                )
-
-                # add managed resource types to target config
-                desired_target_config["saas_file_managed_resource_types"] = (
-                    saas_file.managed_resource_types
+                desired_target_config = TriggerSpecConfigStateContent(
+                    name=target.name,
+                    ref=target.ref,
+                    promotion=(
+                        target.promotion.dict(by_alias=True)
+                        if target.promotion
+                        else None
+                    ),
+                    secretParameters=(
+                        [p.dict(by_alias=True) for p in target.secret_parameters]
+                        if target.secret_parameters
+                        else None
+                    ),
+                    slos=(
+                        [slo.dict(by_alias=True) for slo in target.slos]
+                        if target.slos
+                        else None
+                    ),
+                    upstream=(
+                        target.upstream.dict(by_alias=True) if target.upstream else None
+                    ),
+                    images=(
+                        [i.dict(by_alias=True) for i in target.images]
+                        if target.images
+                        else None
+                    ),
+                    disable=target.disable,
+                    delete=target.delete,
+                    namespace=self.sanitize_namespace(target.namespace),
+                    # add parent parameters to target config
+                    # before the GQL classes are introduced, the parameters attribute
+                    # was a json string. Keep it that way to be backwards compatible.
+                    saas_file_parameters=(
+                        json.dumps(saas_file.parameters, separators=(",", ":"))
+                        if saas_file.parameters is not None
+                        else None
+                    ),
+                    # before the GQL classes are introduced, the parameters attribute
+                    # was a json string. Keep it that way to be backwards compatible.
+                    parameters=(
+                        json.dumps(target.parameters, separators=(",", ":"))
+                        if target.parameters is not None
+                        else None
+                    ),
+                    # add managed resource types to target config
+                    saas_file_managed_resource_types=saas_file.managed_resource_types,
+                    url=rt.url,
+                    path=rt.path,
+                    # before the GQL classes are introduced, the parameters attribute
+                    # was a json string. Keep it that way to be backwards compatible.
+                    rt_parameters=(
+                        json.dumps(rt.parameters, separators=(",", ":"))
+                        if rt.parameters is not None
+                        else None
+                    ),
                 )
                 if saas_file.managed_resource_names:
                     desired_target_config["saas_file_managed_resource_names"] = [
                         m.dict() for m in saas_file.managed_resource_names
                     ]
-
-                desired_target_config["url"] = rt.url
-                desired_target_config["path"] = rt.path
-                # before the GQL classes are introduced, the parameters attribute
-                # was a json string. Keep it that way to be backwards compatible.
-                desired_target_config["rt_parameters"] = (
-                    json.dumps(rt.parameters, separators=(",", ":"))
-                    if rt.parameters is not None
-                    else None
-                )
-
                 # include secret parameters from resource template and saas file
                 if rt.secret_parameters:
                     desired_target_config["rt_secretparameters"] = [
@@ -1935,10 +1953,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         p.dict() for p in saas_file.secret_parameters
                     ]
 
-                # Convert to dict, ChainMap is not JSON serializable
-                # desired_target_config needs to be serialized to generate
-                # its config hash and to be stored in S3
-                serializable_target_config = dict(desired_target_config)
                 trigger_spec = TriggerSpecConfig(
                     saas_file_name=saas_file.name,
                     env_name=target.namespace.environment.name,
@@ -1948,12 +1962,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     cluster_name=target.namespace.cluster.name,
                     namespace_name=target.namespace.name,
                     target_name=target.name,
-                    state_content=serializable_target_config,
+                    state_content=desired_target_config,
                     resource_template_url=rt.url,
                     target_ref=target.ref,
                     slos=target.slos or None,
                     reason=self._build_trigger_spec_config_reason(
-                        state_content=serializable_target_config
+                        state_content=desired_target_config
                     ),
                 )
                 configs[trigger_spec.state_key] = trigger_spec
@@ -1963,17 +1977,19 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     @staticmethod
     def sanitize_namespace(
         namespace: SaasResourceTemplateTargetNamespace,
-    ) -> dict[str, dict[str, str]]:
+    ) -> TriggerSpecConfigStateContentNamespace:
         """Only keep fields that should trigger a new job."""
-        return namespace.dict(
-            by_alias=True,
-            include={
-                "name": True,
-                "cluster": {"name": True, "server_url": True},
-                "app": {"name": True},
-            },
-            # TODO: add environment.parameters to the include list!?!?
+        return TriggerSpecConfigStateContentNamespace(
+            name=namespace.name,
+            cluster=TriggerSpecConfigStateContentNamespaceCluster(
+                name=namespace.cluster.name,
+                serverUrl=namespace.cluster.server_url,
+            ),
+            app=TriggerSpecConfigStateContentNamespaceApp(
+                name=namespace.app.name,
+            ),
         )
+        # TODO: add environment.parameters to the include list!?!?
 
     def _validate_promotion(self, promotion: Promotion) -> bool:
         # Placing this check here to make mypy happy
