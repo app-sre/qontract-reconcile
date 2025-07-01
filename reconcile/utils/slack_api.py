@@ -415,11 +415,19 @@ class SlackApi:
             k: v["name"] for k, v in self._get("channels").items() if k in channels_ids
         }
 
+    @staticmethod
+    def extract_name_from_user(user: dict[str, Any]) -> str | None:
+        if email := user["profile"].get("email"):
+            return email.split("@")[0]
+        return None
+
     def get_active_users_by_names(self, user_names: Iterable[str]) -> dict[str, str]:
         return {
             k: v["name"]
             for k, v in self._get("users").items()
-            if v["profile"]["email"].split("@")[0] in user_names and not v["deleted"]
+            if not v["deleted"]
+            and (name := self.extract_name_from_user(v))
+            and name in user_names
         }
 
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
@@ -428,9 +436,10 @@ class SlackApi:
             self._translate_user_id(user_id) for user_id in users_ids
         )
         return {
-            user_id: user["name"]
+            user_id: name
             for user_id in translated_user_ids
             if (user := users.get(user_id))
+            and (name := self.extract_name_from_user(user))
         }
 
     def _get(self, resource: str) -> dict[str, Any]:
