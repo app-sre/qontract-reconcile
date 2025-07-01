@@ -155,6 +155,7 @@ class TriggerSpecConfig(TriggerSpecBase):
 
 @dataclass(frozen=True)
 class TriggerSpecMovingCommit(TriggerSpecBase):
+    state_content: str
     ref: str
 
     @property
