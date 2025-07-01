@@ -182,6 +182,7 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
 
 @dataclass(frozen=True)
 class TriggerSpecContainerImage(TriggerSpecBase):
+    state_content: str
     images: Sequence[str]
 
     @property
