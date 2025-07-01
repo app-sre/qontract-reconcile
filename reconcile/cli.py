@@ -1146,14 +1146,6 @@ def jira_permissions_validator(
     )
 
 
-@integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")
-@click.pass_context
-def jira_watcher(ctx: click.Context) -> None:
-    import reconcile.jira_watcher
-
-    run_integration(reconcile.jira_watcher, ctx)
-
-
 @integration.command(
     short_help="Watches for OpenShift upgrades and sends notifications."
 )
