@@ -1882,82 +1882,90 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
         return f"{self.repo_url}/commit/{RunningState().commit}{auto_promotion_suffix}"
 
+    def _build_trigger_spec_config_state_content(
+        self,
+        target: SaasResourceTemplateTarget,
+        saas_file: SaasFile,
+        resource_template: SaasResourceTemplate,
+    ) -> TriggerSpecConfigStateContent:
+        state_content = TriggerSpecConfigStateContent(
+            name=target.name,
+            ref=target.ref,
+            promotion=(
+                target.promotion.dict(by_alias=True) if target.promotion else None
+            ),
+            secretParameters=(
+                [p.dict(by_alias=True) for p in target.secret_parameters]
+                if target.secret_parameters
+                else None
+            ),
+            slos=(
+                [slo.dict(by_alias=True) for slo in target.slos]
+                if target.slos
+                else None
+            ),
+            upstream=(target.upstream.dict(by_alias=True) if target.upstream else None),
+            images=(
+                [i.dict(by_alias=True) for i in target.images]
+                if target.images
+                else None
+            ),
+            disable=target.disable,
+            delete=target.delete,
+            namespace=self.sanitize_namespace(target.namespace),
+            # add parent parameters to target config
+            # before the GQL classes are introduced, the parameters attribute
+            # was a json string. Keep it that way to be backwards compatible.
+            saas_file_parameters=(
+                json.dumps(saas_file.parameters, separators=(",", ":"))
+                if saas_file.parameters is not None
+                else None
+            ),
+            # before the GQL classes are introduced, the parameters attribute
+            # was a json string. Keep it that way to be backwards compatible.
+            parameters=(
+                json.dumps(target.parameters, separators=(",", ":"))
+                if target.parameters is not None
+                else None
+            ),
+            # add managed resource types to target config
+            saas_file_managed_resource_types=saas_file.managed_resource_types,
+            url=resource_template.url,
+            path=resource_template.path,
+            # before the GQL classes are introduced, the parameters attribute
+            # was a json string. Keep it that way to be backwards compatible.
+            rt_parameters=(
+                json.dumps(resource_template.parameters, separators=(",", ":"))
+                if resource_template.parameters is not None
+                else None
+            ),
+        )
+        if saas_file.managed_resource_names:
+            state_content["saas_file_managed_resource_names"] = [
+                m.dict() for m in saas_file.managed_resource_names
+            ]
+        # include secret parameters from resource template and saas file
+        if resource_template.secret_parameters:
+            state_content["rt_secretparameters"] = [
+                p.dict() for p in resource_template.secret_parameters
+            ]
+        if saas_file.secret_parameters:
+            state_content["saas_file_secretparameters"] = [
+                p.dict() for p in saas_file.secret_parameters
+            ]
+        return state_content
+
     def get_saas_targets_config_trigger_specs(
         self, saas_file: SaasFile
     ) -> dict[str, TriggerSpecConfig]:
         configs = {}
         for rt in saas_file.resource_templates:
             for target in rt.targets:
-                desired_target_config = TriggerSpecConfigStateContent(
-                    name=target.name,
-                    ref=target.ref,
-                    promotion=(
-                        target.promotion.dict(by_alias=True)
-                        if target.promotion
-                        else None
-                    ),
-                    secretParameters=(
-                        [p.dict(by_alias=True) for p in target.secret_parameters]
-                        if target.secret_parameters
-                        else None
-                    ),
-                    slos=(
-                        [slo.dict(by_alias=True) for slo in target.slos]
-                        if target.slos
-                        else None
-                    ),
-                    upstream=(
-                        target.upstream.dict(by_alias=True) if target.upstream else None
-                    ),
-                    images=(
-                        [i.dict(by_alias=True) for i in target.images]
-                        if target.images
-                        else None
-                    ),
-                    disable=target.disable,
-                    delete=target.delete,
-                    namespace=self.sanitize_namespace(target.namespace),
-                    # add parent parameters to target config
-                    # before the GQL classes are introduced, the parameters attribute
-                    # was a json string. Keep it that way to be backwards compatible.
-                    saas_file_parameters=(
-                        json.dumps(saas_file.parameters, separators=(",", ":"))
-                        if saas_file.parameters is not None
-                        else None
-                    ),
-                    # before the GQL classes are introduced, the parameters attribute
-                    # was a json string. Keep it that way to be backwards compatible.
-                    parameters=(
-                        json.dumps(target.parameters, separators=(",", ":"))
-                        if target.parameters is not None
-                        else None
-                    ),
-                    # add managed resource types to target config
-                    saas_file_managed_resource_types=saas_file.managed_resource_types,
-                    url=rt.url,
-                    path=rt.path,
-                    # before the GQL classes are introduced, the parameters attribute
-                    # was a json string. Keep it that way to be backwards compatible.
-                    rt_parameters=(
-                        json.dumps(rt.parameters, separators=(",", ":"))
-                        if rt.parameters is not None
-                        else None
-                    ),
+                desired_target_config = self._build_trigger_spec_config_state_content(
+                    target=target,
+                    saas_file=saas_file,
+                    resource_template=rt,
                 )
-                if saas_file.managed_resource_names:
-                    desired_target_config["saas_file_managed_resource_names"] = [
-                        m.dict() for m in saas_file.managed_resource_names
-                    ]
-                # include secret parameters from resource template and saas file
-                if rt.secret_parameters:
-                    desired_target_config["rt_secretparameters"] = [
-                        p.dict() for p in rt.secret_parameters
-                    ]
-                if saas_file.secret_parameters:
-                    desired_target_config["saas_file_secretparameters"] = [
-                        p.dict() for p in saas_file.secret_parameters
-                    ]
-
                 trigger_spec = TriggerSpecConfig(
                     saas_file_name=saas_file.name,
                     env_name=target.namespace.environment.name,
@@ -1993,8 +2001,8 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             app=TriggerSpecConfigStateContentNamespaceApp(
                 name=namespace.app.name,
             ),
+            # TODO: add environment.parameters to the include list!?!?
         )
-        # TODO: add environment.parameters to the include list!?!?
 
     def _validate_promotion(self, promotion: Promotion) -> bool:
         # Placing this check here to make mypy happy

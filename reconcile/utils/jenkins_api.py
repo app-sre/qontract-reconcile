@@ -83,6 +83,13 @@ class JenkinsApi:
         return job_names
 
     @staticmethod
+    def _get_commit_sha_from_build(build: Mapping[str, Any]) -> str | None:
+        for action in reversed(build.get("actions", [])):
+            if revision := action.get("lastBuiltRevision"):
+                return revision["SHA1"]
+        return None
+
+    @staticmethod
     def _build_job_build_state(build: Mapping) -> JobBuildState:
         job_build_state = JobBuildState(number=build["number"])
         if "_class" in build:
@@ -91,15 +98,7 @@ class JenkinsApi:
             job_build_state["actions"] = build["actions"]
         if "result" in build:
             job_build_state["result"] = build["result"]
-        commit_sha = next(
-            (
-                revision["SHA1"]
-                for a in reversed(build.get("actions", []))
-                if (revision := a.get("lastBuiltRevision"))
-            ),
-            None,
-        )
-        if commit_sha:
+        if commit_sha := JenkinsApi._get_commit_sha_from_build(build):
             job_build_state["commit_sha"] = commit_sha
         return job_build_state
 
