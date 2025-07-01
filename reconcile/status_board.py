@@ -5,6 +5,7 @@ from abc import (
 )
 from collections.abc import Iterable, Mapping
 from enum import Enum
+from itertools import chain
 
 from pydantic import BaseModel
 
@@ -286,7 +287,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        current_status_board_map: Mapping[str, AbstractStatusBoard],
         desired_product_apps: Mapping[str, set[str]],
         slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
@@ -298,17 +298,13 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         """
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
         for product, apps in desired_product_apps.items():
-            current_product = current_status_board_map.get(product)
-            product_id = current_product.id if current_product else None
             desired_abstract_status_board_map[product] = Product(
-                id=product_id, name=product, fullname=product, applications=[]
+                id=None, name=product, fullname=product, applications=[]
             )
             for a in apps:
                 key = f"{product}/{a}"
-                current_app = current_status_board_map.get(key)
-                app_id = current_app.id if current_app else None
                 desired_abstract_status_board_map[key] = Application(
-                    id=app_id,
+                    id=None,
                     name=a,
                     fullname=key,
                     services=[],
@@ -350,10 +346,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         "target_unit": slo.slo_target_unit,
                         "window": slo.slo_parameters.window,
                     }
-                    current_service = current_status_board_map.get(key)
-                    service_id = current_service.id if current_service else None
                     desired_abstract_status_board_map[key] = Service(
-                        id=service_id,
+                        id=None,
                         name=slo.name,
                         fullname=key,
                         metadata=metadata,
@@ -389,6 +383,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             current_abstract_status_board_map,
             desired_abstract_status_board_map,
         )
+
+        for pair in chain(diff_result.identical.values(), diff_result.change.values()):
+            pair.desired.id = pair.current.id
 
         return_list.extend(
             StatusBoardHandler(action=Action.create, status_board_object=o)
@@ -457,7 +454,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             # Desired state
             desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
-                current_abstract_status_board_map, desired_product_apps, slodocs
+                desired_product_apps, slodocs
             )
 
             diff = self.get_diff(
