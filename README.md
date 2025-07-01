@@ -116,8 +116,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   jenkins-job-builder             Manage Jenkins jobs configurations using
                                   jenkins-jobs.
   jenkins-job-builds-cleaner      Clean up jenkins job history.
-  jenkins-job-cleaner             Delete Jenkins jobs in multiple tenant
-                                  instances.
   jenkins-roles                   Manage Jenkins roles association via REST
                                   API.
   jenkins-webhooks                Manage web hooks to Jenkins jobs.

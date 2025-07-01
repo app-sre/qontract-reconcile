@@ -1103,14 +1103,6 @@ def jenkins_job_builds_cleaner(ctx: click.Context) -> None:
     run_integration(reconcile.jenkins_job_builds_cleaner, ctx)
 
 
-@integration.command(short_help="Delete Jenkins jobs in multiple tenant instances.")
-@click.pass_context
-def jenkins_job_cleaner(ctx: click.Context) -> None:
-    import reconcile.jenkins_job_cleaner
-
-    run_integration(reconcile.jenkins_job_cleaner, ctx)
-
-
 @integration.command(short_help="Manage web hooks to Jenkins jobs.")
 @click.pass_context
 def jenkins_webhooks(ctx: click.Context) -> None:
