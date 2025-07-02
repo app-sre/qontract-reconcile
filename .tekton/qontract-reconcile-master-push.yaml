@@ -24,11 +24,17 @@ spec:
   - name: output-image
     value: quay.io/redhat-user-workloads/app-sre-tenant/qontract-reconcile-master/qontract-reconcile-master:{{revision}}
   - name: dockerfile
-    value: dockerfiles/Dockerfile
+    value: dockerfiles/Dockerfile.konflux
   - name: path-context
     value: .
   - name: target-stage
-    value: prod-image
+    value: prod-image-post-pypi-push
+  - name: fetchTags
+    value: 'true'
+  # Note, that we have to specify some depth here. Lets go with something we wont reach in a long time
+  # We need the depth to properly have uv infer version
+  - name: cloneDepth
+    value: '100000'
   pipelineRef:
     params:
     - name: url
