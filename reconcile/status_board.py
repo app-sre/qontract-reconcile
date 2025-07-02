@@ -444,6 +444,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         for sb in get_status_board():
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
+            # Desired state
+            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
+            desired_abstract_status_board_map = self.desired_abstract_status_board_map(
+                desired_product_apps, slodocs
+            )
+
             # Current state
             current_products_applications_services = (
                 self.get_current_products_applications_services(ocm_api)
@@ -451,13 +457,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             current_abstract_status_board_map = self.current_abstract_status_board_map(
                 current_products_applications_services
             )
-
-            # Desired state
-            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
-            desired_abstract_status_board_map = self.desired_abstract_status_board_map(
-                desired_product_apps, slodocs
-            )
-
             diff = self.get_diff(
                 desired_abstract_status_board_map,
                 current_abstract_status_board_map,
