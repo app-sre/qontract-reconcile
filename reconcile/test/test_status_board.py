@@ -307,59 +307,53 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         "target_unit": "unit",
         "window": "1h",
     }
-
-    product_1 = Product(
-        name="product_1",
-        fullname="product_1",
-        id="1",
-        applications=[],
-    )
-    product_2 = Product(
-        name="product_2",
-        fullname="product_2",
-        id="2",
-        applications=[],
-    )
-    app_1 = Application(
-        name="app_1",
-        fullname="product_1/app_1",
-        id="1_1",
-        services=[],
-        product=product_1,
-    )
-    app_2 = Application(
-        name="app_2",
-        fullname="product_1/app_2",
-        id="1_2",
-        services=[],
-        product=product_1,
-    )
-    app_3 = Application(
-        name="app_3",
-        fullname="product_2/app_3",
-        id="2_3",
-        services=[],
-        product=product_2,
-    )
-    service_1 = Service(
-        name="service_1",
-        fullname="product_1/app_1/service_1",
-        id="1_1_1",
-        metadata=metadata,
-        application=app_1,
-    )
-    service_2 = Service(
-        name="service_2",
-        fullname="product_1/app_1/service_2",
-        id="1_1_2",
-        metadata=metadata,
-        application=app_1,
-    )
-    app_1.services = [service_1, service_2]
-    product_1.applications = [app_1, app_2]
-    product_2.applications = [app_3]
-
-    assert products == [product_1, product_2]
+    assert products == [
+        Product(
+            name="product_1",
+            fullname="product_1",
+            id="1",
+            applications=[
+                Application(
+                    name="app_1",
+                    fullname="product_1/app_1",
+                    id="1_1",
+                    services=[
+                        Service(
+                            name="service_1",
+                            fullname="product_1/app_1/service_1",
+                            id="1_1_1",
+                            metadata=metadata,
+                        ),
+                        Service(
+                            name="service_2",
+                            fullname="product_1/app_1/service_2",
+                            id="1_1_2",
+                            metadata=metadata,
+                        ),
+                    ],
+                ),
+                Application(
+                    name="app_2",
+                    fullname="product_1/app_2",
+                    id="1_2",
+                    services=[],
+                ),
+            ],
+        ),
+        Product(
+            name="product_2",
+            fullname="product_2",
+            id="2",
+            applications=[
+                Application(
+                    name="app_3",
+                    fullname="product_2/app_3",
+                    id="2_3",
+                    services=[],
+                )
+            ],
+        ),
+    ]
 
 
 def test_current_abstract_status_board_map() -> None:
@@ -371,62 +365,57 @@ def test_current_abstract_status_board_map() -> None:
         "target_unit": "unit",
         "window": "1h",
     }
+    current_data = [
+        Product(
+            name="product_1",
+            fullname="product_1",
+            id="1",
+            applications=[
+                Application(
+                    name="app_1",
+                    fullname="product_1/app_1",
+                    id="1_1",
+                    services=[
+                        Service(
+                            name="service_1",
+                            fullname="product_1/app_1/service_1",
+                            id="1_1_1",
+                            metadata=metadata,
+                        ),
+                        Service(
+                            name="service_2",
+                            fullname="product_1/app_1/service_2",
+                            id="1_1_2",
+                            metadata=metadata,
+                        ),
+                    ],
+                ),
+                Application(
+                    name="app_2",
+                    fullname="product_1/app_2",
+                    id="1_2",
+                    services=[],
+                ),
+            ],
+        ),
+        Product(
+            name="product_2",
+            fullname="product_2",
+            id="2",
+            applications=[
+                Application(
+                    name="app_3",
+                    fullname="product_2/app_3",
+                    id="2_3",
+                    services=[],
+                )
+            ],
+        ),
+    ]
 
-    product_1 = Product(
-        name="product_1",
-        fullname="product_1",
-        id=None,
-        applications=[],
+    flat_map = StatusBoardExporterIntegration.current_abstract_status_board_map(
+        current_data
     )
-    product_2 = Product(
-        name="product_2",
-        fullname="product_2",
-        id="2",
-        applications=[],
-    )
-    app_1 = Application(
-        name="app_1",
-        fullname="product_1/app_1",
-        id="1_1",
-        services=[],
-        product=product_1,
-    )
-    app_2 = Application(
-        name="app_2",
-        fullname="product_1/app_2",
-        id="1_2",
-        services=[],
-        product=product_1,
-    )
-    app_3 = Application(
-        name="app_3",
-        fullname="product_2/app_3",
-        id="2_3",
-        services=[],
-        product=product_2,
-    )
-    service_1 = Service(
-        name="service_1",
-        fullname="product_1/app_1/service_1",
-        id="1_1_1",
-        metadata=metadata,
-        application=app_1,
-    )
-    service_2 = Service(
-        name="service_2",
-        fullname="product_1/app_1/service_2",
-        id="1_1_2",
-        metadata=metadata,
-        application=app_1,
-    )
-    app_1.services = [service_1, service_2]
-    product_1.applications = [app_1, app_2]
-    product_2.applications = [app_3]
-
-    flat_map = StatusBoardExporterIntegration.current_abstract_status_board_map([
-        product_1,
-        product_2,
-    ])
 
     assert flat_map == {
         "product_1": Product(
@@ -440,28 +429,24 @@ def test_current_abstract_status_board_map() -> None:
             fullname="product_1/app_1",
             id="1_1",
             services=[],
-            product=product_1,
         ),
         "product_1/app_1/service_1": Service(
             name="service_1",
             fullname="product_1/app_1/service_1",
             id="1_1_1",
             metadata=metadata,
-            application=app_1,
         ),
         "product_1/app_1/service_2": Service(
             name="service_2",
             fullname="product_1/app_1/service_2",
             id="1_1_2",
             metadata=metadata,
-            application=app_1,
         ),
         "product_1/app_2": Application(
             name="app_2",
             fullname="product_1/app_2",
             id="1_2",
             services=[],
-            product=product_1,
         ),
         "product_2": Product(
             name="product_2",
@@ -474,7 +459,6 @@ def test_current_abstract_status_board_map() -> None:
             fullname="product_2/app_3",
             id="2_3",
             services=[],
-            product=product_2,
         ),
     }
 
@@ -500,6 +484,7 @@ def test_get_diff_create_app() -> None:
         current_abstract_status_board_map={
             "foo": Product(name="foo", fullname="foo", applications=[]),
         },
+        current_products={"foo": Product(name="foo", fullname="foo", applications=[])},
     )
 
     assert len(h) == 2
@@ -523,12 +508,8 @@ def test_get_diff_create_one_app() -> None:
         id="1",
         name="foo",
         fullname="foo",
-        applications=[],
+        applications=[Application(id="2", name="bar", fullname="foo/bar", services=[])],
     )
-    current_app = Application(
-        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
-    )
-    current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
@@ -541,8 +522,11 @@ def test_get_diff_create_one_app() -> None:
         },
         current_abstract_status_board_map={
             "foo": current_foo,
-            "foo/bar": current_app,
+            "foo/bar": Application(
+                id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
+            ),
         },
+        current_products={"foo": current_foo},
     )
     assert len(h) == 1
     assert h[0].action == Action.create
@@ -564,6 +548,7 @@ def test_get_diff_create_product_and_apps() -> None:
             ),
         },
         current_abstract_status_board_map={},
+        current_products={},
     )
 
     assert len(h) == 3
@@ -609,6 +594,7 @@ def test_get_diff_create_product_app_and_service(
             ),
         },
         current_abstract_status_board_map={},
+        current_products={},
     )
 
     assert len(h) == 4
@@ -647,36 +633,45 @@ def test_get_diff_update_service() -> None:
         "window": "window",
         "target": 0.99,
     }
-    foo_product = Product(name="foo", fullname="foo", applications=[])
-    foo_bar_app = Application(
-        name="bar", fullname="foo/bar", services=[], product=foo_product
-    )
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
-            "foo": foo_product,
-            "foo/bar": foo_bar_app,
-            "foo/foo": Application(
-                name="foo", fullname="foo/foo", services=[], product=foo_product
-            ),
+            "foo": Product(name="foo", fullname="foo", applications=[]),
+            "foo/bar": Application(name="bar", fullname="foo/bar", services=[]),
+            "foo/foo": Application(name="foo", fullname="foo/foo", services=[]),
             "foo/bar/baz": Service(
                 name="baz",
                 fullname="foo/bar/baz",
                 metadata=new_metadata,
-                application=foo_bar_app,
             ),
         },
         current_abstract_status_board_map={
-            "foo": foo_product,
-            "foo/bar": foo_bar_app,
-            "foo/foo": Application(
-                name="foo", fullname="foo/foo", services=[], product=foo_product
-            ),
+            "foo": Product(name="foo", fullname="foo", applications=[]),
+            "foo/bar": Application(name="bar", fullname="foo/bar", services=[]),
+            "foo/foo": Application(name="foo", fullname="foo/foo", services=[]),
             "foo/bar/baz": Service(
                 name="baz",
                 fullname="foo/bar/baz",
                 metadata=old_metadata,
-                application=foo_bar_app,
             ),
+        },
+        current_products={
+            "foo": Product(
+                name="foo",
+                fullname="foo",
+                applications=[
+                    Application(
+                        name="bar",
+                        fullname="foo/bar",
+                        services=[
+                            Service(
+                                name="baz",
+                                fullname="foo/bar/baz",
+                                metadata=old_metadata,
+                            )
+                        ],
+                    )
+                ],
+            )
         },
     )
 
@@ -691,12 +686,8 @@ def test_get_diff_noop() -> None:
         id="1",
         name="foo",
         fullname="foo",
-        applications=[],
+        applications=[Application(id="2", name="bar", fullname="foo/bar", services=[])],
     )
-    current_app = Application(
-        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
-    )
-    current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
@@ -706,8 +697,11 @@ def test_get_diff_noop() -> None:
         },
         current_abstract_status_board_map={
             "foo": current_foo,
-            "foo/bar": current_app,
+            "foo/bar": Application(
+                id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
+            ),
         },
+        current_products={"foo": current_foo},
     )
     assert len(h) == 0
 
@@ -718,12 +712,8 @@ def test_get_diff_delete_app() -> None:
         id="1",
         name="foo",
         fullname="foo",
-        applications=[],
+        applications=[Application(id="2", name="bar", fullname="foo/bar", services=[])],
     )
-    current_app = Application(
-        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
-    )
-    current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
@@ -734,6 +724,7 @@ def test_get_diff_delete_app() -> None:
                 id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
             ),
         },
+        current_products={"foo": current_foo},
     )
 
     assert len(h) == 1
@@ -747,12 +738,8 @@ def test_get_diff_delete_apps_and_product() -> None:
         id="1",
         name="foo",
         fullname="foo",
-        applications=[],
+        applications=[Application(id="2", name="bar", fullname="foo/bar", services=[])],
     )
-    current_app = Application(
-        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
-    )
-    current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={},
         current_abstract_status_board_map={
@@ -761,6 +748,7 @@ def test_get_diff_delete_apps_and_product() -> None:
                 id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
             ),
         },
+        current_products={"foo": current_foo},
     )
     assert len(h) == 2
     assert any(
@@ -790,20 +778,22 @@ def test_get_diff_delete_product_app_and_service() -> None:
         id="1",
         name="foo",
         fullname="foo",
-        applications=[],
+        applications=[
+            Application(
+                id="2",
+                name="bar",
+                fullname="foo/bar",
+                services=[
+                    Service(
+                        id="3", name="baz", fullname="foo/bar/baz", metadata=metadata
+                    )
+                ],
+            )
+        ],
     )
     current_bar = Application(
         id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
     )
-    current_service = Service(
-        id="3",
-        name="baz",
-        fullname="foo/bar/baz",
-        metadata=metadata,
-        application=current_bar,
-    )
-    current_bar.services = [current_service]
-    current_foo.applications = [current_bar]
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={},
         current_abstract_status_board_map={
@@ -817,6 +807,7 @@ def test_get_diff_delete_product_app_and_service() -> None:
                 application=current_bar,
             ),
         },
+        current_products={"foo": current_foo},
     )
     assert len(h) == 3
     assert any(
@@ -862,10 +853,7 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
         StatusBoardHandler(
             action=Action.create,
             status_board_object=Service(
-                name="baz",
-                fullname="foo/bar/baz",
-                metadata=metadata,
-                application=application,
+                name="baz", fullname="foo/bar/baz", metadata=metadata
             ),
         ),
         StatusBoardHandler(
@@ -1054,111 +1042,3 @@ def test_run_integration(
     mock_delete_product.assert_called_once_with(ocm_api_mock, "1")
     mock_delete_application.assert_called_once_with(ocm_api_mock, "1_1")
     mock_delete_service.assert_called_once_with(ocm_api_mock, "1_1_1")
-
-
-def test_run_integration_create_services(
-    mocker: MockerFixture,
-    status_board: list[StatusBoardV1],
-    slo_documents: list[SLODocumentV1],
-) -> None:
-    mocked_get_status_board = mocker.patch(
-        "reconcile.status_board.get_status_board", autospec=True
-    )
-    mocked_get_slo_documents = mocker.patch(
-        "reconcile.status_board.get_slo_documents", autospec=True
-    )
-    mock_init_ocm_base_client = mocker.patch(
-        "reconcile.status_board.init_ocm_base_client", autospec=True
-    )
-    mocker.patch(
-        "reconcile.utils.runtime.integration.get_app_interface_vault_settings",
-        autospec=True,
-    )
-    mocker.patch(
-        "reconcile.utils.runtime.integration.create_secret_reader", autospec=True
-    )
-    mocked_get_status_board.return_value = [status_board]
-    mocked_get_slo_documents.return_value = [slo_documents]
-    ocm_api_mock = mocker.Mock(OCMBaseClient)
-    mock_init_ocm_base_client.return_value = ocm_api_mock
-
-    mock_get_products = mocker.patch(
-        "reconcile.status_board.get_managed_products", autospec=True
-    )
-    mock_get_apps = mocker.patch(
-        "reconcile.status_board.get_product_applications", autospec=True
-    )
-    mock_get_services = mocker.patch(
-        "reconcile.status_board.get_application_services", autospec=True
-    )
-
-    mock_get_products.return_value = [
-        {"name": "foo", "fullname": "foo", "id": "1"},
-        {"name": "bar", "fullname": "bar", "id": "2"},
-    ]
-
-    apps_mapping = {
-        "1": [
-            {"name": "foo", "fullname": "foo/foo", "id": "1_1"},
-        ],
-        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1"}],
-    }
-
-    mock_get_apps.side_effect = lambda _, product_id: apps_mapping.get(product_id, [])
-    mock_get_services.side_effect = lambda _, app_id: []
-
-    mock_create_application = mocker.patch(
-        "reconcile.status_board.create_application", autospec=True
-    )
-    mock_create_application.return_value = "2"
-
-    mock_create_service = mocker.patch(
-        "reconcile.status_board.create_service", autospec=True
-    )
-    mock_create_service.return_value = "3"
-
-    integration = StatusBoardExporterIntegration(PydanticRunParams())
-
-    integration.run(dry_run=False)
-
-    mock_create_service.assert_has_calls(
-        [
-            call(
-                ocm_api=ocm_api_mock,
-                spec={
-                    "name": "Availability",
-                    "fullname": "foo/foo/Availability",
-                    "metadata": {
-                        "sli_type": "availability",
-                        "sli_specification": "specification 1",
-                        "slo_details": "https://url.com",
-                        "target": 0.95,
-                        "target_unit": "percent_0_1",
-                        "window": "28d",
-                    },
-                    "application_id": "1_1",
-                    "status_type": "traffic_light",
-                    "service_endpoint": "none",
-                },
-            ),
-            call(
-                ocm_api=ocm_api_mock,
-                spec={
-                    "name": "Latency",
-                    "fullname": "foo/foo/Latency",
-                    "metadata": {
-                        "sli_type": "latency",
-                        "sli_specification": "specification 2",
-                        "slo_details": "https://url.com",
-                        "target": 0.95,
-                        "target_unit": "percent_0_1",
-                        "window": "28d",
-                    },
-                    "application_id": "1_1",
-                    "status_type": "traffic_light",
-                    "service_endpoint": "none",
-                },
-            ),
-        ],
-        any_order=True,
-    )
