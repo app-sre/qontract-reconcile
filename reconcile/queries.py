@@ -87,7 +87,7 @@ APP_INTERFACE_SETTINGS_QUERY = """
       }
     }
     sqlQuery {
-      imageRepository
+      jobImage
       pullSecret {
         path
         version
