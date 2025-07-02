@@ -8,7 +8,6 @@ from enum import Enum
 from itertools import chain
 from typing import (
     Any,
-    Optional,
 )
 
 from pydantic import BaseModel
@@ -313,9 +312,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             desired_abstract_status_board_map[product] = Product(
                 id=None, name=product, fullname=product, applications=[], metadata={}
             )
-            desired_abstract_status_board_map[product_name] = product
             for a in apps:
-                key = f"{product_name}/{a}"
+                key = f"{product}/{a}"
                 desired_abstract_status_board_map[key] = Application(
                     id=None,
                     name=a,
