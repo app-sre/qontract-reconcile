@@ -32,6 +32,7 @@ from reconcile.typed_queries.saas_files import (
     SaasFile,
     SaasResourceTemplate,
 )
+from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.promotion_state import PromotionData
@@ -575,7 +576,11 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
         self.maxDiff = None
 
     def test_get_upstream_jobs_diff_saas_file_all_fine(self) -> None:
-        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        state_content = JobBuildState(
+            number=2,
+            result="SUCCESS",
+            commit_sha="abcd4242",
+        )
         current_state = {"ci": {"job": [state_content]}}
         saasherder = SaasHerder(
             [self.saas_file],
@@ -619,7 +624,11 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
     def test_get_upstream_jobs_diff_saas_file_all_fine_include_trigger_trace(
         self,
     ) -> None:
-        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        state_content = JobBuildState(
+            number=2,
+            result="SUCCESS",
+            commit_sha="abcd4242",
+        )
         current_state = {"ci": {"job": [state_content]}}
         saasherder = SaasHerder(
             [self.saas_file],
