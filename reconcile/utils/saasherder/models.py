@@ -15,6 +15,7 @@ from pydantic import (
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLODocument,
 )
+from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
@@ -169,6 +170,7 @@ class TriggerSpecMovingCommit(TriggerSpecBase):
 
 @dataclass(frozen=True)
 class TriggerSpecUpstreamJob(TriggerSpecBase):
+    state_content: JobBuildState
     instance_name: str
     job_name: str
 

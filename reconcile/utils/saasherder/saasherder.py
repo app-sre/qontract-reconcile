@@ -39,7 +39,7 @@ from reconcile.status import RunningState
 from reconcile.utils import helm
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.jenkins_api import JenkinsApi, JobBuildState
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import (
     OCLocal,
@@ -1519,8 +1519,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
         return list(itertools.chain.from_iterable(results)), error
 
-    def _get_upstream_jobs_current_state(self) -> tuple[dict[str, Any], bool]:
-        current_state: dict[str, Any] = {}
+    def _get_upstream_jobs_current_state(
+        self,
+    ) -> tuple[dict[str, dict[str, list[JobBuildState]]], bool]:
+        current_state: dict[str, dict[str, list[JobBuildState]]] = {}
         error = False
         if not self.jenkins_map:
             raise Exception("jenkins_map is not initialized")
@@ -1537,7 +1539,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
     def _build_trigger_spec_upstream_job_reason(
         self,
-        last_build_result: Any,
+        last_build_result: JobBuildState,
         server_url: str,
         job_name: str,
         url: str,
@@ -1554,7 +1556,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return f"{prefix}{server_url}/job/{job_name}/{last_build_result_number}"
 
     def get_upstream_jobs_diff_saas_file(
-        self, saas_file: SaasFile, dry_run: bool, current_state: dict[str, Any]
+        self,
+        saas_file: SaasFile,
+        dry_run: bool,
+        current_state: dict[str, dict[str, list[JobBuildState]]],
     ) -> list[TriggerSpecUpstreamJob]:
         trigger_specs = []
         for rt in saas_file.resource_templates:

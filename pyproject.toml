@@ -290,7 +290,6 @@ module = [
     "reconcile.utils.gpg",
     "reconcile.utils.gql",
     "reconcile.utils.imap_client",
-    "reconcile.utils.jenkins_api",
     "reconcile.utils.jjb_client",
     "reconcile.utils.ldap_client",
     "reconcile.utils.lean_terraform_client",
