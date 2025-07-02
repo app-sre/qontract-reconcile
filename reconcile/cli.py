@@ -2958,15 +2958,6 @@ def ocm_aws_infrastructure_access(ctx: click.Context) -> None:
     run_integration(reconcile.ocm_aws_infrastructure_access, ctx)
 
 
-@integration.command(short_help="Manage GitHub Identity Providers in OCM.")
-@vault_input_path
-@click.pass_context
-def ocm_github_idp(ctx: click.Context, vault_input_path: str) -> None:
-    import reconcile.ocm_github_idp
-
-    run_integration(reconcile.ocm_github_idp, ctx, vault_input_path)
-
-
 @integration.command(
     short_help="Manage OIDC cluster configuration in OCM organizations based on OCM labels. Part of RHIDP."
 )

@@ -256,7 +256,6 @@ module = [
     "reconcile.ocm_aws_infrastructure_access",
     "reconcile.ocm_clusters",
     "reconcile.ocm_external_configuration_labels",
-    "reconcile.ocm_github_idp",
     "reconcile.ocm_groups",
     "reconcile.ocm_machine_pools",
     "reconcile.ocm_upgrade_scheduler_org_updater",

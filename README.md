@@ -140,7 +140,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   ocm-clusters                    Manages clusters via OCM.
   ocm-external-configuration-labels
                                   Manage External Configuration labels in OCM.
-  ocm-github-idp                  Manage GitHub Identity Providers in OCM.
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
   ocm-internal-notifications      Notifications to internal Red Hat users
