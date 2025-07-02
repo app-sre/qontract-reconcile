@@ -93,7 +93,6 @@ def permissions() -> list[PermissionGitlabGroupMembershipV1]:
 def user() -> User:
     return User(
         org_username="org_username",
-        slack_username="slack_username",
         github_username="github_username",
         name="name",
         pagerduty_username="pagerduty_username",

@@ -219,7 +219,7 @@ def get_current_state(
 
 def get_slack_username(user: User) -> str:
     """Return slack username"""
-    return user.slack_username or user.org_username
+    return user.org_username
 
 
 def get_pagerduty_name(user: User) -> str:

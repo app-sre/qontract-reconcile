@@ -280,6 +280,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
             },
             ["ID_A"],
             {"ID_A": "user_a"},
@@ -288,6 +289,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ENTERPRISE_ID_A"],
@@ -297,6 +299,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ID_A"],
@@ -306,6 +309,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ID_NOT_FOUND"],
