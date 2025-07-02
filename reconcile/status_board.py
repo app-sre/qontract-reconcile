@@ -149,7 +149,7 @@ class Application(AbstractStatusBoard):
         return {
             "name": self.name,
             "fullname": self.fullname,
-            "product_id": product_id,
+            "product": {"id": product_id},
         }
 
     @staticmethod
@@ -196,7 +196,7 @@ class Service(AbstractStatusBoard):
             "metadata": self.metadata,
             "status_type": "traffic_light",
             "service_endpoint": "none",
-            "application_id": application_id,
+            "application": {"id": application_id},
         }
 
     @staticmethod

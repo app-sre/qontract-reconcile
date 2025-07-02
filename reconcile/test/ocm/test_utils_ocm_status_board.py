@@ -127,7 +127,7 @@ def test_update_service(mocker: MockFixture) -> None:
         {
             "name": "foo",
             "fullname": "foo",
-            "application_id": "1",
+            "application": {"id": "1"},
             "status_type": "traffic_light",
             "service_endpoint": "none",
             "metadata": {
@@ -146,7 +146,7 @@ def test_update_service(mocker: MockFixture) -> None:
         data={
             "name": "foo",
             "fullname": "foo",
-            "application_id": "1",
+            "application": {"id": "1"},
             "service_endpoint": "none",
             "status_type": "traffic_light",
             "metadata": {

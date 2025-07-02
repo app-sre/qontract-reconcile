@@ -16,8 +16,12 @@ class BaseOCMSpec(TypedDict):
     fullname: str
 
 
+class IDSpec(TypedDict):
+    id: str
+
+
 class ApplicationOCMSpec(BaseOCMSpec):
-    product_id: str
+    product: IDSpec
 
 
 class ServiceMetadataSpec(TypedDict):
@@ -34,7 +38,7 @@ class ServiceOCMSpec(BaseOCMSpec):
     # https://gitlab.cee.redhat.com/service/status-board/-/blob/main/scripts/create-services-from-app-intf.sh?ref_type=heads#L116
     status_type: str
     service_endpoint: str
-    application_id: str
+    application: IDSpec
     metadata: ServiceMetadataSpec
 
 
