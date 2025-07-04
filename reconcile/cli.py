@@ -3204,18 +3204,6 @@ def gitlab_fork_compliance(
 
 
 @integration.command(
-    short_help="Collects the ImageManifestVuln CRs from all the clusters "
-    "and posts them to Dashdotdb."
-)
-@threaded(default=2)
-@click.pass_context
-def dashdotdb_cso(ctx: click.Context, thread_pool_size: int) -> None:
-    import reconcile.dashdotdb_cso
-
-    run_integration(reconcile.dashdotdb_cso, ctx, thread_pool_size)
-
-
-@integration.command(
     short_help="Collects the DeploymentValidations from all the clusters "
     "and posts them to Dashdotdb."
 )

@@ -65,8 +65,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   RHIDP.
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
-  dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
-                                  the clusters and posts them to Dashdotdb.
   dashdotdb-dora                  Collects dora metrics.
   dashdotdb-dvo                   Collects the DeploymentValidations from all
                                   the clusters and posts them to Dashdotdb.
