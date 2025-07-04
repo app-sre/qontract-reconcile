@@ -606,21 +606,27 @@ def fetch_current_state(
                 ocm_api, spec.cluster.id
             )
             for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = spec.cluster
-                current_state.append(ControlPlaneUpgradePolicy(**upgrade_policy))
+                policy = upgrade_policy | {
+                    "cluster": spec.cluster,
+                }
+                current_state.append(ControlPlaneUpgradePolicy(**policy))
             for node_pool in spec.node_pools:
                 node_upgrade_policies = get_node_pool_upgrade_policies(
                     ocm_api, spec.cluster.id, node_pool.id
                 )
                 for upgrade_policy in node_upgrade_policies:
-                    upgrade_policy["cluster"] = spec.cluster
-                    upgrade_policy["node_pool"] = node_pool.id
-                    current_state.append(NodePoolUpgradePolicy(**upgrade_policy))
+                    policy = upgrade_policy | {
+                        "cluster": spec.cluster,
+                        "node_pool": node_pool.id,
+                    }
+                    current_state.append(NodePoolUpgradePolicy(**policy))
         else:
             upgrade_policies = get_upgrade_policies(ocm_api, spec.cluster.id)
             for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = spec.cluster
-                current_state.append(ClusterUpgradePolicy(**upgrade_policy))
+                policy = upgrade_policy | {
+                    "cluster": spec.cluster,
+                }
+                current_state.append(ClusterUpgradePolicy(**policy))
 
     return current_state
 
