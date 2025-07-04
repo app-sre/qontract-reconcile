@@ -22,6 +22,7 @@ from reconcile.test.ocm.aus.fixtures import (
     build_cluster_health,
     build_cluster_upgrade_policy,
     build_cluster_upgrade_spec,
+    build_node_pool_upgrade_policy,
     build_organization,
     build_organization_upgrade_spec,
     build_upgrade_policy,
@@ -287,6 +288,30 @@ def test_remaining_soak_day_metric_values_for_cluster_not_filtering() -> None:
         "4.13.11": 0.0,
         "4.13.12": 2.0,
         "4.14.1": UPGRADE_BLOCKED_METRIC_VALUE,
+    }
+
+
+def test_remaining_soak_day_metric_values_for_hypershift_node_pool() -> None:
+    spec = build_cluster_upgrade_spec(
+        name="cluster1",
+        current_version="4.13.0",
+        available_upgrades=[],
+        soak_days=0,
+        hypershift=True,
+        node_pools=[NodePoolSpec(id="np1", version="4.12.0")],
+    )
+    node_pool_upgrade = build_node_pool_upgrade_policy(
+        cluster=spec.cluster,
+        node_pool_id="np1",
+        version="4.13.0",
+        state="scheduled",
+    )
+    assert remaining_soak_day_metric_values_for_cluster(
+        spec=spec,
+        soaked_versions={"4.13.0": 0},
+        current_upgrade=node_pool_upgrade,
+    ) == {
+        "4.13.0": UPGRADE_SCHEDULED_METRIC_VALUE,
     }
 
 
