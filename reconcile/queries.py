@@ -2722,3 +2722,37 @@ SCHEMAS_QUERY = """
 def get_schemas() -> dict:
     gqlapi = gql.get_api()
     return gqlapi.query(SCHEMAS_QUERY)["schemas"]
+
+
+SLO_DOC_ALERTS = """
+{
+  slo_docs: slo_document_v1(filter: { generateAlerts: true, name: {{ name }} }) {
+    name
+    namespaces {
+      SLONamespace {
+        name
+      }
+    }
+    app {
+      name
+    }
+    slos {
+      name
+      SLIType
+      SLOTargetUnit
+      SLOParameters {
+        window
+      }
+      expr
+      SLOTarget
+      prometheusRules
+    }
+  }
+}
+"""
+
+
+def get_slo_doc_alerts(name: str):
+    gqlapi = gql.get_api()
+    query = Template(SLO_DOC_ALERTS).render(name=name)
+    return gqlapi.query(query)["slo_docs"]
