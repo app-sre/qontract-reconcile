@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
-from reconcile.aus.base import ClusterUpgradePolicy
+from reconcile.aus.base import ClusterUpgradePolicy, NodePoolUpgradePolicy
 from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
@@ -206,11 +206,15 @@ def build_cluster_upgrade_spec(
     blocked_versions: list[str] | None = None,
     cluster_health: bool = True,
     node_pools: list[NodePoolSpec] | None = None,
+    hypershift: bool = False,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
         cluster=build_ocm_cluster(
-            name=name, version=current_version, available_upgrades=available_upgrades
+            name=name,
+            version=current_version,
+            available_upgrades=available_upgrades,
+            hypershift=hypershift,
         ),
         upgradePolicy=build_upgrade_policy(
             workloads=workloads,
@@ -273,7 +277,7 @@ def build_addon_upgrade_spec(
 def build_cluster_upgrade_policy(
     cluster: OCMCluster, version: str, state: str, next_run: datetime | None = None
 ) -> ClusterUpgradePolicy:
-    next_run_str = (next_run or datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
+    next_run_str = (next_run or datetime.now(tz=UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
     return ClusterUpgradePolicy(
         cluster=cluster,
         id="1",
@@ -282,6 +286,26 @@ def build_cluster_upgrade_policy(
         next_run=next_run_str,
         schedule_type="manual",
         schedule=None,
+    )
+
+
+def build_node_pool_upgrade_policy(
+    cluster: OCMCluster,
+    node_pool_id: str,
+    version: str,
+    state: str,
+    next_run: datetime | None = None,
+) -> NodePoolUpgradePolicy:
+    next_run_str = (next_run or datetime.now(tz=UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return NodePoolUpgradePolicy(
+        cluster=cluster,
+        id="1",
+        version=version,
+        state=state,
+        next_run=next_run_str,
+        schedule_type="manual",
+        schedule=None,
+        node_pool=node_pool_id,
     )
 
 
