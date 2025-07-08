@@ -423,7 +423,7 @@ class SlackApi:
 
     def get_active_users_by_names(self, user_names: Iterable[str]) -> dict[str, str]:
         return {
-            k: v["name"]
+            k: name
             for k, v in self._get("users").items()
             if not v["deleted"]
             and (name := self.extract_name_from_user(v))
