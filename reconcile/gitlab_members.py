@@ -216,7 +216,7 @@ def reconcile_gitlab_members(
                 gl.get_access_level_string(gitlab_user.access_level),
             ])
             if not dry_run:
-                gl.add_group_member(group, gitlab_user)
+                gl.add_group_member(group, gitlab_user.user, gitlab_user.access_level)
         for key, group_member in diff_data.delete.items():
             logging.info([
                 key,

@@ -7,16 +7,12 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
+from dataclasses import dataclass
 from functools import cached_property
-from operator import (
-    attrgetter,
-    itemgetter,
-)
+from operator import attrgetter
 from typing import (
     Any,
-    Protocol,
     Self,
-    TypedDict,
     cast,
 )
 from urllib.parse import urlparse
@@ -47,6 +43,7 @@ from gitlab.v4.objects import (
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
+    ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
     User,
 )
@@ -97,15 +94,19 @@ class MRStatus:
 GROUP_BOT_NAME_REGEX = re.compile(r"group_.+_bot_.+")
 
 
-class GLGroupMember(TypedDict):
-    id: str
-    user: str
-    access_level: str
+@dataclass(frozen=True)
+class Assignment:
+    author: str
+    assignee: str
 
 
-class GitlabUser(Protocol):
-    user: str
-    access_level: int
+@dataclass(frozen=True)
+class Comment:
+    id: int
+    username: str
+    body: str
+    created_at: str
+    note: ProjectMergeRequestNote | None = None
 
 
 class GitLabApi:
@@ -254,7 +255,7 @@ class GitLabApi:
             "remove_source_branch": str(remove_source_branch),
             "labels": labels,
         }
-        return cast(ProjectMergeRequest, self.project.mergerequests.create(data))
+        return self.project.mergerequests.create(data)
 
     def mr_exists(self, title: str) -> bool:
         mrs = self.get_merge_requests(state=MRState.OPENED)
@@ -274,10 +275,7 @@ class GitLabApi:
 
     def get_app_sre_group_users(self) -> list[GroupMember]:
         app_sre_group = self.gl.groups.get("app-sre")
-        return cast(
-            list[GroupMember],
-            app_sre_group.members.list(get_all=True),
-        )
+        return app_sre_group.members.list(get_all=True)
 
     def get_group_if_exists(self, group_name: str) -> Group | None:
         try:
@@ -298,22 +296,21 @@ class GitLabApi:
 
     @staticmethod
     def _is_bot_username(username: str) -> bool:
-        """crudely checking for the username
+        """
+        Checks if a given username matches the pattern for an internal GitLab bot user.
 
-        as gitlab-python require a major upgrade to use the billable members apis
-        https://python-gitlab.readthedocs.io/en/stable/gl_objects/groups.html#id11 lists the api
-        billable_membersis the attribute that provides billable members of groups
+        This method uses a regular expression (GROUP_BOT_NAME_REGEX) to determine
+        if the username conforms to the naming convention for internal GitLab bots,
+        as described in the GitLab documentation.
 
-        the second api is https://python-gitlab.readthedocs.io/en/stable/gl_objects/group_access_tokens.html
-        which provides a list of access tokens as well as their assigned users
-
-        those apis are not avaliable in python-gitlab v1.x
+        Reference:
+            - GitLab Internal Users Documentation: https://docs.gitlab.com/administration/internal_users/
         """
         return GROUP_BOT_NAME_REGEX.match(username) is not None
 
     def get_group_members(self, group: Group) -> list[GroupMember]:
         return [
-            cast(GroupMember, m)
+            m
             for m in group.members.list(iterator=True)
             if not self._is_bot_username(m.username)
         ]
@@ -332,17 +329,17 @@ class GitLabApi:
             member.access_level = access_level
             member.save()
 
-    def add_group_member(self, group: Group, user: GitlabUser) -> None:
-        gitlab_user = self.get_user(user.user)
+    def add_group_member(self, group: Group, username: str, access_level: int) -> None:
+        gitlab_user = self.get_user(username)
         if gitlab_user is not None:
             try:
                 group.members.create({
                     "user_id": gitlab_user.id,
-                    "access_level": user.access_level,
+                    "access_level": access_level,
                 })
             except GitlabCreateError:
-                member = group.members.get(user.user)
-                member.access_level = user.access_level
+                member = group.members.get(gitlab_user.id)
+                member.access_level = access_level
                 member.save()
 
     def remove_group_member(self, group: Group, user_id: str) -> None:
@@ -399,37 +396,27 @@ class GitLabApi:
         return self.gl.projects.get(project_id)
 
     def get_issues(self, state: str) -> list[ProjectIssue]:
-        return cast(
-            list[ProjectIssue],
-            self.project.issues.list(state=state, get_all=True),
-        )
+        return self.project.issues.list(state=state, get_all=True)
 
     def get_merge_request(self, mr_id: str | int) -> ProjectMergeRequest:
         return self.project.mergerequests.get(mr_id)
 
     def get_merge_requests(self, state: str) -> list[ProjectMergeRequest]:
-        return cast(
-            list[ProjectMergeRequest],
-            self.project.mergerequests.list(state=state, get_all=True),
-        )
+        return self.project.mergerequests.list(state=state, get_all=True)
 
     @staticmethod
     def get_merge_request_label_events(
         mr: ProjectMergeRequest,
     ) -> list[ProjectMergeRequestResourceLabelEvent]:
-        return cast(
-            list[ProjectMergeRequestResourceLabelEvent],
-            mr.resourcelabelevents.list(get_all=True),
-        )
+        return mr.resourcelabelevents.list(get_all=True)
 
     @staticmethod
-    def get_merge_request_pipelines(mr: ProjectMergeRequest) -> list[dict]:
-        # TODO: use typed object in return
-        # TODO: use server side order_by
-        items = mr.pipelines.list(iterator=True)
+    def get_merge_request_pipelines(
+        mr: ProjectMergeRequest,
+    ) -> list[ProjectMergeRequestPipeline]:
         return sorted(
-            [i.asdict() for i in items],
-            key=itemgetter("created_at"),
+            mr.pipelines.list(iterator=True),
+            key=attrgetter("created_at"),
             reverse=True,
         )
 
@@ -457,25 +444,28 @@ class GitLabApi:
     def get_merge_request_comments(
         merge_request: ProjectMergeRequest,
         include_description: bool = False,
-    ) -> list[dict[str, Any]]:
+    ) -> list[Comment]:
         comments = []
         if include_description:
-            comments.append({
-                "username": merge_request.author["username"],
-                "body": merge_request.description,
-                "created_at": merge_request.created_at,
-                "id": MR_DESCRIPTION_COMMENT_ID,
-            })
-        for note in merge_request.notes.list(iterator=True):
-            if note.system:
-                continue
-            comments.append({
-                "username": note.author["username"],
-                "body": note.body,
-                "created_at": note.created_at,
-                "id": note.id,
-                "note": note,
-            })
+            comments.append(
+                Comment(
+                    id=MR_DESCRIPTION_COMMENT_ID,
+                    username=merge_request.author["username"],
+                    body=merge_request.description or "",
+                    created_at=merge_request.created_at,
+                )
+            )
+        comments.extend(
+            Comment(
+                id=note.id,
+                username=note.author["username"],
+                body=note.body or "",
+                created_at=note.created_at,
+                note=note,
+            )
+            for note in merge_request.notes.list(iterator=True)
+            if not note.system
+        )
         return comments
 
     @staticmethod
@@ -489,9 +479,12 @@ class GitLabApi:
     ) -> None:
         comments = self.get_merge_request_comments(merge_request)
         for c in comments:
-            body = c["body"] or ""
-            if c["username"] == self.user.username and body.startswith(startswith):
-                self.delete_comment(c["note"])
+            if (
+                c.username == self.user.username
+                and c.body.startswith(startswith)
+                and c.note is not None
+            ):
+                self.delete_comment(c.note)
 
     @retry()
     def get_project_labels(self) -> set[str]:
@@ -632,7 +625,7 @@ class GitLabApi:
         item.save()
 
     def get_user(self, username: str) -> User | None:
-        user = cast(list[User], self.gl.users.list(search=username, page=1, per_page=1))
+        user = self.gl.users.list(search=username, page=1, per_page=1)
         if not user:
             logging.error(f"{username} user not found")
             return None
@@ -733,25 +726,22 @@ class GitLabApi:
         self.create_branch("production", "master")
 
     def is_last_action_by_team(
-        self, mr: ProjectMergeRequest, team_usernames: list[str], hold_labels: list[str]
+        self, mr: ProjectMergeRequest, team_usernames: set[str], hold_labels: list[str]
     ) -> bool:
         # what is the time of the last app-sre response?
         last_action_by_team = None
         # comments
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=itemgetter("created_at"), reverse=True)
+        comments.sort(key=attrgetter("created_at"), reverse=True)
         for comment in comments:
-            username = comment["username"]
+            username = comment.username
             if username == self.user.username:
                 continue
             if username in team_usernames:
-                last_action_by_team = comment["created_at"]
+                last_action_by_team = comment.created_at
                 break
         # labels
-        label_events = cast(
-            list[ProjectMergeRequestResourceLabelEvent],
-            mr.resourcelabelevents.list(get_all=True),
-        )
+        label_events = mr.resourcelabelevents.list(get_all=True)
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
                 username = label.user["username"]
@@ -775,11 +765,11 @@ class GitLabApi:
             break
         # comments
         for comment in comments:
-            username = comment["username"]
+            username = comment.username
             if username == self.user.username:
                 continue
             if username not in team_usernames:
-                last_action_not_by_team = comment["created_at"]
+                last_action_not_by_team = comment.created_at
                 break
 
         if not last_action_not_by_team:
@@ -788,19 +778,20 @@ class GitLabApi:
         return last_action_not_by_team < last_action_by_team
 
     def is_assigned_by_team(
-        self, mr: ProjectMergeRequest, team_usernames: list[str]
+        self, mr: ProjectMergeRequest, team_usernames: set[str]
     ) -> bool:
         if not mr.assignee:
             return False
         last_assignment = self.last_assignment(mr)
-        if not last_assignment:
+        if last_assignment is None:
             return False
-
-        author, assignee = last_assignment[0], last_assignment[1]
-        return author in team_usernames and mr.assignee["username"] == assignee
+        return (
+            last_assignment.author in team_usernames
+            and mr.assignee["username"] == last_assignment.assignee
+        )
 
     @staticmethod
-    def last_assignment(mr: ProjectMergeRequest) -> tuple[str, str] | None:
+    def last_assignment(mr: ProjectMergeRequest) -> Assignment | None:
         """
         Get the last assignment of a merge request.
         :param mr: merge request
@@ -810,7 +801,10 @@ class GitLabApi:
         notes = mr.notes.list(sort="desc", order_by="created_at", iterator=True)
         return next(
             (
-                (note.author["username"], note.body.removeprefix(body_format))
+                Assignment(
+                    author=note.author["username"],
+                    assignee=note.body.removeprefix(body_format),
+                )
                 for note in notes
                 if note.system and note.body.startswith(body_format)
             ),
@@ -819,15 +813,17 @@ class GitLabApi:
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot: bool = True
-    ) -> dict[str, Any] | None:
+    ) -> Comment | None:
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=itemgetter("created_at"), reverse=True)
-        for comment in comments:
-            username = comment["username"]
-            if username == self.user.username and exclude_bot:
-                continue
-            return comment
-        return None
+        comments.sort(key=attrgetter("created_at"), reverse=True)
+        return next(
+            (
+                comment
+                for comment in comments
+                if not (exclude_bot and comment.username == self.user.username)
+            ),
+            None,
+        )
 
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
         project = self.get_project(repo_url)
@@ -842,10 +838,7 @@ class GitLabApi:
         return response.get("commits", [])
 
     def get_personal_access_tokens(self) -> list[PersonalAccessToken]:
-        return cast(
-            list[PersonalAccessToken],
-            self.gl.personal_access_tokens.list(get_all=True),
-        )
+        return self.gl.personal_access_tokens.list(get_all=True)
 
     @staticmethod
     def get_directory_contents(

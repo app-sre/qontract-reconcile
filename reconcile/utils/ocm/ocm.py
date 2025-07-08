@@ -337,62 +337,6 @@ class OCM:  # pylint: disable=too-many-public-methods
             aws_infrastructure_access_role_grant_id = rg["id"]
             self._delete(f"{api}/{aws_infrastructure_access_role_grant_id}")
 
-    def get_github_idp_teams(self, cluster):
-        """Returns a list of details of GitHub IDP providers
-
-        :param cluster: cluster name
-
-        :type cluster: string
-        """
-        result_idps = []
-        cluster_id = self.cluster_ids.get(cluster)
-        if not cluster_id:
-            return result_idps
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers"
-        idps = self._get_json(api).get("items")
-        if not idps:
-            return result_idps
-
-        for idp in idps:
-            if idp["type"] != "GithubIdentityProvider":
-                continue
-            idp_name = idp["name"]
-            idp_github = idp["github"]
-
-            item = {
-                "id": idp["id"],
-                "cluster": cluster,
-                "name": idp_name,
-                "client_id": idp_github["client_id"],
-                "teams": idp_github.get("teams"),
-            }
-            result_idps.append(item)
-        return result_idps
-
-    def create_github_idp_teams(self, spec):
-        """Creates a new GitHub IDP
-
-        :param cluster: cluster name
-        :param spec: required information for idp creation
-
-        :type cluster: string
-        :type spec: dictionary
-        """
-        cluster = spec["cluster"]
-        cluster_id = self.cluster_ids[cluster]
-        api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/identity_providers"
-        payload = {
-            "type": "GithubIdentityProvider",
-            "mapping_method": "add",
-            "name": spec["name"],
-            "github": {
-                "client_id": spec["client_id"],
-                "client_secret": spec["client_secret"],
-                "teams": spec["teams"],
-            },
-        }
-        self._post(api, payload)
-
     def get_kubeconfig(self, cluster: str) -> str | None:
         """Returns the cluster credentials (kubeconfig)
 

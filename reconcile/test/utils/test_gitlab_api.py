@@ -39,7 +39,7 @@ from gitlab.v4.objects import (
 from pytest_mock import MockerFixture
 from requests.exceptions import ConnectTimeout
 
-from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.gitlab_api import Assignment, Comment, GitLabApi
 
 
 def test_gitlab_client_timeout(mocker: MockerFixture, patch_sleep: None) -> None:
@@ -305,19 +305,19 @@ def test_get_merge_request_comments() -> None:
     comments = GitLabApi.get_merge_request_comments(mr, True)
 
     expected_comments = [
-        {
-            "username": "author_a",
-            "body": "description",
-            "created_at": "2023-01-01T00:00:00Z",
-            "id": 0,
-        },
-        {
-            "username": "author_b",
-            "body": "body",
-            "created_at": "2023-01-02T00:00:00Z",
-            "id": 2,
-            "note": note,
-        },
+        Comment(
+            username="author_a",
+            body="description",
+            created_at="2023-01-01T00:00:00Z",
+            id=0,
+        ),
+        Comment(
+            username="author_b",
+            body="body",
+            created_at="2023-01-02T00:00:00Z",
+            id=2,
+            note=note,
+        ),
     ]
     assert comments == expected_comments
     mr.notes.list.assert_called_once_with(iterator=True)
@@ -594,25 +594,22 @@ def test_get_merge_request_pipelines() -> None:
     mr = create_autospec(ProjectMergeRequest)
     mr.pipelines = create_autospec(ProjectMergeRequestPipelineManager)
 
-    pipeline_1 = create_autospec(ProjectMergeRequestPipeline)
-    expected_pipeline_1 = {
-        "created_at": "2025-01-01T00:00:00Z",
-        "id": 1,
-    }
-    pipeline_1.asdict.return_value = expected_pipeline_1
-
-    pipeline_2 = create_autospec(ProjectMergeRequestPipeline)
-    expected_pipeline_2 = {
-        "created_at": "2025-01-02T00:00:00Z",
-        "id": 2,
-    }
-    pipeline_2.asdict.return_value = expected_pipeline_2
+    pipeline_1 = create_autospec(
+        ProjectMergeRequestPipeline,
+        id=1,
+        created_at="2025-01-01T00:00:00Z",
+    )
+    pipeline_2 = create_autospec(
+        ProjectMergeRequestPipeline,
+        id=2,
+        created_at="2025-01-02T00:00:00Z",
+    )
 
     mr.pipelines.list.return_value = [pipeline_1, pipeline_2]
 
     pipelines = GitLabApi.get_merge_request_pipelines(mr)
 
-    assert pipelines == [expected_pipeline_2, expected_pipeline_1]
+    assert pipelines == [pipeline_2, pipeline_1]
     mr.pipelines.list.assert_called_once_with(iterator=True)
 
 
@@ -665,7 +662,7 @@ def test_last_assignment() -> None:
 
     result = GitLabApi.last_assignment(mr)
 
-    assert result == ("author_1", "assignee_1")
+    assert result == Assignment(author="author_1", assignee="assignee_1")
 
     mr.notes.list.assert_called_once_with(
         sort="desc",

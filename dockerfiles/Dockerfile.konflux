@@ -46,9 +46,9 @@ ENTRYPOINT ["/work/dev/run.sh"]
 
 
 ###############################################################################
-# STAGE 3 - prod-image
+# STAGE 3 - prod-image-pre-test
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image-pre-test
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
@@ -73,30 +73,15 @@ ENV PATH="/work/.venv/bin:${PATH}"
 ENTRYPOINT ["/tini", "--"]
 CMD ["run-integration"]
 
-
 ###############################################################################
-# STAGE 4 - fips-prod-image
+# STAGE 4 - unittest image
 ###############################################################################
-FROM prod-image AS fips-prod-image
-ENV OC_VERSION=4.16.2
-
-# oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
-# versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1 \
-    /work/${OC_VERSION}/ /usr/local/bin/
-
-
-###############################################################################
-# STAGE 5 - unittest image
-###############################################################################
-FROM prod-image AS test-image
+FROM prod-image-pre-test AS test-image
 COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 RUN microdnf install -y make
 
-# Tests need the .git directory to run
-# podman does not support --mount=type=bind
-# TODO: use --mount=source=.git,target=.git,type=bind in both RUN commands below
+# Tests need the .git directory to run and infer version
 COPY .git .git
 
 # Install test dependencies
@@ -105,15 +90,52 @@ RUN uv sync --frozen --no-cache --group dev
 # Run tests
 COPY Makefile .
 RUN make all-tests
+RUN echo "true" > /is_tested
 
 ###############################################################################
-# STAGE 6 - PyPI publish package
+# STAGE 5 - tested prod image
+###############################################################################
+FROM prod-image-pre-test AS prod-image
+
+# Lets make sure we run tests when targeting prod-image
+# However, we dont want any installed deps from test image
+COPY --from=test-image /is_tested /is_tested
+
+###############################################################################
+# STAGE 6 - tested fips-prod-image
+###############################################################################
+FROM prod-image-pre-test AS fips-prod-image
+ENV OC_VERSION=4.16.2
+
+# oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
+# versions in these environments so in this case we extract an older version of oc and kubectl
+COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1 \
+    /work/${OC_VERSION}/ /usr/local/bin/
+
+# Lets make sure we run tests when targeting fips-prod-image
+# However, we dont want any installed deps from test image
+COPY --from=test-image /is_tested /is_tested
+
+###############################################################################
+# STAGE 7 - PyPI publish package
 ###############################################################################
 FROM test-image AS pypi
 ARG TWINE_USERNAME
 ARG TWINE_PASSWORD
 
-# TODO: use --mount=source=.git,target=.git,type=bind
-# podman does not support --mount=type=bind
+# Lets make sure we ran previous prod stage before uploading to pypi
+COPY --from=prod-image /is_tested /is_tested
+RUN echo "true" > /is_pypi_pushed
+
 # qontract-reconcile version depends on git tags!
-RUN make pypi
+# The .git dir should already be part of the test image.
+# TODO
+# RUN make pypi
+
+###############################################################################
+# STAGE 8 - tested and pypi pushed prod image
+###############################################################################
+FROM prod-image AS prod-image-post-pypi-push
+
+# Lets make sure we pypi push
+COPY --from=pypi /is_pypi_pushed /is_pypi_pushed

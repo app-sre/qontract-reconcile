@@ -6,7 +6,6 @@ import logging
 import os
 import re
 from collections import (
-    ChainMap,
     defaultdict,
 )
 from collections.abc import (
@@ -40,7 +39,7 @@ from reconcile.status import RunningState
 from reconcile.utils import helm
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.jenkins_api import JenkinsApi
+from reconcile.utils.jenkins_api import JenkinsApi, JobBuildState
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.oc import (
     OCLocal,
@@ -74,6 +73,10 @@ from reconcile.utils.saasherder.models import (
     SLOKey,
     TargetSpec,
     TriggerSpecConfig,
+    TriggerSpecConfigStateContent,
+    TriggerSpecConfigStateContentNamespace,
+    TriggerSpecConfigStateContentNamespaceApp,
+    TriggerSpecConfigStateContentNamespaceCluster,
     TriggerSpecContainerImage,
     TriggerSpecMovingCommit,
     TriggerSpecUnion,
@@ -1278,6 +1281,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     resource_template_url=rt.url,
                     target_ref=target.ref,
                     state_content=None,
+                    reason=None,
                 ).state_key
                 digest = SaasHerder.get_target_config_hash(
                     all_trigger_specs[state_key].state_content
@@ -1432,6 +1436,15 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
         return list(itertools.chain.from_iterable(results))
 
+    def _build_trigger_spec_moving_commit_reason(
+        self,
+        url: str,
+        desired_commit_sha: str,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        return f"{url}/commit/{desired_commit_sha}"
+
     def get_moving_commits_diff_saas_file(
         self, saas_file: SaasFile, dry_run: bool
     ) -> list[TriggerSpecMovingCommit]:
@@ -1461,9 +1474,12 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         namespace_name=target.namespace.name,
                         ref=target.ref,
                         state_content=desired_commit_sha,
+                        reason=self._build_trigger_spec_moving_commit_reason(
+                            url=rt.url,
+                            desired_commit_sha=desired_commit_sha,
+                        ),
+                        target_ref=desired_commit_sha,
                     )
-                    if self.include_trigger_trace:
-                        trigger_spec.reason = f"{rt.url}/commit/{desired_commit_sha}"
 
                     if not self.state:
                         raise Exception("state is not initialized")
@@ -1503,8 +1519,10 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         )
         return list(itertools.chain.from_iterable(results)), error
 
-    def _get_upstream_jobs_current_state(self) -> tuple[dict[str, Any], bool]:
-        current_state: dict[str, Any] = {}
+    def _get_upstream_jobs_current_state(
+        self,
+    ) -> tuple[dict[str, dict[str, list[JobBuildState]]], bool]:
+        current_state: dict[str, dict[str, list[JobBuildState]]] = {}
         error = False
         if not self.jenkins_map:
             raise Exception("jenkins_map is not initialized")
@@ -1519,8 +1537,29 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
 
         return current_state, error
 
+    def _build_trigger_spec_upstream_job_reason(
+        self,
+        last_build_result: JobBuildState,
+        server_url: str,
+        job_name: str,
+        url: str,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        last_build_result_number = last_build_result["number"]
+        last_build_result_commit_sha = last_build_result.get("commit_sha")
+        prefix = (
+            f"{url}/commit/{last_build_result_commit_sha} via "
+            if last_build_result_commit_sha
+            else ""
+        )
+        return f"{prefix}{server_url}/job/{job_name}/{last_build_result_number}"
+
     def get_upstream_jobs_diff_saas_file(
-        self, saas_file: SaasFile, dry_run: bool, current_state: dict[str, Any]
+        self,
+        saas_file: SaasFile,
+        dry_run: bool,
+        current_state: dict[str, dict[str, list[JobBuildState]]],
     ) -> list[TriggerSpecUpstreamJob]:
         trigger_specs = []
         for rt in saas_file.resource_templates:
@@ -1546,16 +1585,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     instance_name=target.upstream.instance.name,
                     job_name=job_name,
                     state_content=last_build_result,
+                    reason=self._build_trigger_spec_upstream_job_reason(
+                        last_build_result=last_build_result,
+                        server_url=target.upstream.instance.server_url,
+                        job_name=job_name,
+                        url=rt.url,
+                    ),
+                    target_ref=last_build_result.get("commit_sha") or target.ref,
                 )
-                last_build_result_number = last_build_result["number"]
-                if self.include_trigger_trace:
-                    trigger_spec.reason = f"{target.upstream.instance.server_url}/job/{job_name}/{last_build_result_number}"
-                    last_build_result_commit_sha = last_build_result.get("commit_sha")
-                    if last_build_result_commit_sha:
-                        trigger_spec.reason = (
-                            f"{rt.url}/commit/{last_build_result_commit_sha} via "
-                            + trigger_spec.reason
-                        )
                 if not self.state:
                     raise Exception("state is not initialized")
                 state_build_result = self.state.get(trigger_spec.state_key, None)
@@ -1576,6 +1613,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         self.update_state(trigger_spec)
                     continue
 
+                last_build_result_number = last_build_result["number"]
                 state_build_result_number = state_build_result["number"]
                 # this is the most important condition
                 # if there is a successful newer build -
@@ -1608,6 +1646,20 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             dry_run=dry_run,
         )
         return list(itertools.chain.from_iterable(results))
+
+    def _build_trigger_spec_container_image_reason(
+        self,
+        desired_image_tag: str,
+        image_registries: list[str],
+        url: str,
+        commit_sha: str,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        image_uris = ", ".join(
+            f"{image}:{desired_image_tag}" for image in sorted(image_registries)
+        )
+        return f"{url}/commit/{commit_sha} build {image_uris}"
 
     def get_container_images_diff_saas_file(
         self, saas_file: SaasFile, dry_run: bool
@@ -1657,15 +1709,14 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                         namespace_name=target.namespace.name,
                         images=image_registries,
                         state_content=desired_image_tag,
+                        reason=self._build_trigger_spec_container_image_reason(
+                            desired_image_tag=desired_image_tag,
+                            image_registries=image_registries,
+                            url=rt.url,
+                            commit_sha=commit_sha,
+                        ),
+                        target_ref=commit_sha,
                     )
-                    if self.include_trigger_trace:
-                        image_uris = ", ".join(
-                            f"{image}:{desired_image_tag}"
-                            for image in sorted(image_registries)
-                        )
-                        trigger_spec.reason = (
-                            f"{rt.url}/commit/{commit_sha} build {image_uris}"
-                        )
                     if not self.state:
                         raise Exception("state is not initialized")
                     current_image_tag = self.state.get(trigger_spec.state_key, None)
@@ -1773,7 +1824,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         return True
 
     @staticmethod
-    def remove_none_values(d: dict[Any, Any] | None) -> dict[Any, Any]:
+    def remove_none_values(d: Mapping[Any, Any] | None) -> dict[Any, Any]:
         if d is None:
             return {}
         new = {}
@@ -1804,15 +1855,6 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
             dtc = SaasHerder.remove_none_values(trigger_spec.state_content)
             if ctc == dtc:
                 continue
-            if self.include_trigger_trace:
-                trigger_spec.reason = f"{self.repo_url}/commit/{RunningState().commit}"
-                # For now we count every saas config change as an auto-promotion
-                # if the auto promotion field is enabled in the saas target.
-                # Ideally, we check if there was an actual ref change in order
-                # to reduce false-positives.
-                promotion = trigger_spec.state_content.get("promotion")
-                if promotion and promotion.get("auto", False):
-                    trigger_spec.reason += " [auto-promotion]"
             trigger_specs.append(trigger_spec)
         return trigger_specs
 
@@ -1823,71 +1865,107 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         digest = m.hexdigest()[:16]
         return digest
 
+    def _build_trigger_spec_config_reason(
+        self,
+        state_content: TriggerSpecConfigStateContent,
+    ) -> str | None:
+        if not self.include_trigger_trace:
+            return None
+        # For now we count every saas config change as an auto-promotion
+        # if the auto promotion field is enabled in the saas target.
+        # Ideally, we check if there was an actual ref change in order
+        # to reduce false-positives.
+        auto_promotion_suffix = (
+            " [auto-promotion]"
+            if (state_content["promotion"] or {}).get("auto", False)
+            else ""
+        )
+        return f"{self.repo_url}/commit/{RunningState().commit}{auto_promotion_suffix}"
+
+    def _build_trigger_spec_config_state_content(
+        self,
+        target: SaasResourceTemplateTarget,
+        saas_file: SaasFile,
+        resource_template: SaasResourceTemplate,
+    ) -> TriggerSpecConfigStateContent:
+        state_content = TriggerSpecConfigStateContent(
+            name=target.name,
+            ref=target.ref,
+            promotion=(
+                target.promotion.dict(by_alias=True) if target.promotion else None
+            ),
+            secretParameters=(
+                [p.dict(by_alias=True) for p in target.secret_parameters]
+                if target.secret_parameters
+                else None
+            ),
+            slos=(
+                [slo.dict(by_alias=True) for slo in target.slos]
+                if target.slos
+                else None
+            ),
+            upstream=(target.upstream.dict(by_alias=True) if target.upstream else None),
+            images=(
+                [i.dict(by_alias=True) for i in target.images]
+                if target.images
+                else None
+            ),
+            disable=target.disable,
+            delete=target.delete,
+            namespace=self.sanitize_namespace(target.namespace),
+            # add parent parameters to target config
+            # before the GQL classes are introduced, the parameters attribute
+            # was a json string. Keep it that way to be backwards compatible.
+            saas_file_parameters=(
+                json.dumps(saas_file.parameters, separators=(",", ":"))
+                if saas_file.parameters is not None
+                else None
+            ),
+            # before the GQL classes are introduced, the parameters attribute
+            # was a json string. Keep it that way to be backwards compatible.
+            parameters=(
+                json.dumps(target.parameters, separators=(",", ":"))
+                if target.parameters is not None
+                else None
+            ),
+            # add managed resource types to target config
+            saas_file_managed_resource_types=saas_file.managed_resource_types,
+            url=resource_template.url,
+            path=resource_template.path,
+            # before the GQL classes are introduced, the parameters attribute
+            # was a json string. Keep it that way to be backwards compatible.
+            rt_parameters=(
+                json.dumps(resource_template.parameters, separators=(",", ":"))
+                if resource_template.parameters is not None
+                else None
+            ),
+        )
+        if saas_file.managed_resource_names:
+            state_content["saas_file_managed_resource_names"] = [
+                m.dict() for m in saas_file.managed_resource_names
+            ]
+        # include secret parameters from resource template and saas file
+        if resource_template.secret_parameters:
+            state_content["rt_secretparameters"] = [
+                p.dict() for p in resource_template.secret_parameters
+            ]
+        if saas_file.secret_parameters:
+            state_content["saas_file_secretparameters"] = [
+                p.dict() for p in saas_file.secret_parameters
+            ]
+        return state_content
+
     def get_saas_targets_config_trigger_specs(
         self, saas_file: SaasFile
     ) -> dict[str, TriggerSpecConfig]:
         configs = {}
         for rt in saas_file.resource_templates:
             for target in rt.targets:
-                # ChainMap will store modifications avoiding a deep copy
-                desired_target_config = ChainMap(target.dict(by_alias=True))
-                # This will add the namespace key/value to the chainMap, but
-                # the target will remain with the original value
-                # When the namespace key is looked up, the chainmap will
-                # return the modified attribute (set in the first mapping)
-                desired_target_config["namespace"] = self.sanitize_namespace(
-                    target.namespace
+                desired_target_config = self._build_trigger_spec_config_state_content(
+                    target=target,
+                    saas_file=saas_file,
+                    resource_template=rt,
                 )
-                # add parent parameters to target config
-                # before the GQL classes are introduced, the parameters attribute
-                # was a json string. Keep it that way to be backwards compatible.
-                desired_target_config["saas_file_parameters"] = (
-                    json.dumps(saas_file.parameters, separators=(",", ":"))
-                    if saas_file.parameters is not None
-                    else None
-                )
-
-                # before the GQL classes are introduced, the parameters attribute
-                # was a json string. Keep it that way to be backwards compatible.
-                desired_target_config["parameters"] = (
-                    json.dumps(target.parameters, separators=(",", ":"))
-                    if target.parameters is not None
-                    else None
-                )
-
-                # add managed resource types to target config
-                desired_target_config["saas_file_managed_resource_types"] = (
-                    saas_file.managed_resource_types
-                )
-                if saas_file.managed_resource_names:
-                    desired_target_config["saas_file_managed_resource_names"] = [
-                        m.dict() for m in saas_file.managed_resource_names
-                    ]
-
-                desired_target_config["url"] = rt.url
-                desired_target_config["path"] = rt.path
-                # before the GQL classes are introduced, the parameters attribute
-                # was a json string. Keep it that way to be backwards compatible.
-                desired_target_config["rt_parameters"] = (
-                    json.dumps(rt.parameters, separators=(",", ":"))
-                    if rt.parameters is not None
-                    else None
-                )
-
-                # include secret parameters from resource template and saas file
-                if rt.secret_parameters:
-                    desired_target_config["rt_secretparameters"] = [
-                        p.dict() for p in rt.secret_parameters
-                    ]
-                if saas_file.secret_parameters:
-                    desired_target_config["saas_file_secretparameters"] = [
-                        p.dict() for p in saas_file.secret_parameters
-                    ]
-
-                # Convert to dict, ChainMap is not JSON serializable
-                # desired_target_config needs to be serialized to generate
-                # its config hash and to be stored in S3
-                serializable_target_config = dict(desired_target_config)
                 trigger_spec = TriggerSpecConfig(
                     saas_file_name=saas_file.name,
                     env_name=target.namespace.environment.name,
@@ -1897,10 +1975,13 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
                     cluster_name=target.namespace.cluster.name,
                     namespace_name=target.namespace.name,
                     target_name=target.name,
-                    state_content=serializable_target_config,
+                    state_content=desired_target_config,
                     resource_template_url=rt.url,
                     target_ref=target.ref,
                     slos=target.slos or None,
+                    reason=self._build_trigger_spec_config_reason(
+                        state_content=desired_target_config
+                    ),
                 )
                 configs[trigger_spec.state_key] = trigger_spec
 
@@ -1909,15 +1990,17 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
     @staticmethod
     def sanitize_namespace(
         namespace: SaasResourceTemplateTargetNamespace,
-    ) -> dict[str, dict[str, str]]:
+    ) -> TriggerSpecConfigStateContentNamespace:
         """Only keep fields that should trigger a new job."""
-        return namespace.dict(
-            by_alias=True,
-            include={
-                "name": True,
-                "cluster": {"name": True, "server_url": True},
-                "app": {"name": True},
-            },
+        return TriggerSpecConfigStateContentNamespace(
+            name=namespace.name,
+            cluster=TriggerSpecConfigStateContentNamespaceCluster(
+                name=namespace.cluster.name,
+                serverUrl=namespace.cluster.server_url,
+            ),
+            app=TriggerSpecConfigStateContentNamespaceApp(
+                name=namespace.app.name,
+            ),
             # TODO: add environment.parameters to the include list!?!?
         )
 

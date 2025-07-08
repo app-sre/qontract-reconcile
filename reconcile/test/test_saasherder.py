@@ -32,6 +32,7 @@ from reconcile.typed_queries.saas_files import (
     SaasFile,
     SaasResourceTemplate,
 )
+from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.promotion_state import PromotionData
@@ -40,6 +41,7 @@ from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 from reconcile.utils.saasherder.models import (
     Channel,
     Promotion,
+    TriggerSpecConfig,
     TriggerSpecContainerImage,
     TriggerSpecMovingCommit,
     TriggerSpecUpstreamJob,
@@ -496,6 +498,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 state_content="abcd4242",
                 ref="main",
                 reason=None,
+                target_ref="abcd4242",
             )
         ]
 
@@ -533,6 +536,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 state_content="abcd4242",
                 ref="main",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242",
+                target_ref="abcd4242",
             ),
         ]
         actual = saasherder.get_moving_commits_diff_saas_file(self.saas_file, True)
@@ -572,7 +576,11 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
         self.maxDiff = None
 
     def test_get_upstream_jobs_diff_saas_file_all_fine(self) -> None:
-        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        state_content = JobBuildState(
+            number=2,
+            result="SUCCESS",
+            commit_sha="abcd4242",
+        )
         current_state = {"ci": {"job": [state_content]}}
         saasherder = SaasHerder(
             [self.saas_file],
@@ -602,6 +610,7 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
                 job_name="job",
                 state_content=state_content,
                 reason=None,
+                target_ref="abcd4242",
             )
         ]
 
@@ -615,7 +624,11 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
     def test_get_upstream_jobs_diff_saas_file_all_fine_include_trigger_trace(
         self,
     ) -> None:
-        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        state_content = JobBuildState(
+            number=2,
+            result="SUCCESS",
+            commit_sha="abcd4242",
+        )
         current_state = {"ci": {"job": [state_content]}}
         saasherder = SaasHerder(
             [self.saas_file],
@@ -646,6 +659,7 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
                 job_name="job",
                 state_content=state_content,
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 via https://jenkins.com/job/job/2",
+                target_ref="abcd4242",
             )
         ]
 
@@ -719,6 +733,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424",
+                target_ref="abcd4242",
             ),
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
@@ -731,6 +746,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos", "quay.io/fedora/fedora"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424, quay.io/fedora/fedora:abcd424",
+                target_ref="abcd4242",
             ),
         ])
 
@@ -761,6 +777,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
             images=images,
             state_content="abcd424",
             reason=None,
+            target_ref="abcd4242",
         )
         b = TriggerSpecContainerImage(
             saas_file_name=self.saas_file.name,
@@ -773,6 +790,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
             images=images[::-1],
             state_content="abcd424",
             reason=None,
+            target_ref="abcd4242",
         )
         expected_key = "test-saas-deployments-deploy/test-saas-deployments/appsres03ue1/test-image-trigger-v2/App-SRE-stage/quay.io/centos/centos/quay.io/fedora/fedora"
 
@@ -814,6 +832,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424",
+                target_ref="abcd4242",
             ),
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
@@ -826,6 +845,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos", "quay.io/fedora/fedora"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424, quay.io/fedora/fedora:abcd424",
+                target_ref="abcd4242",
             ),
         ])
 
@@ -1503,7 +1523,67 @@ class TestConfigHashTrigger(TestCase):
             1
         ].promotion.promotion_data[0].data[0].target_config_hash = "Changed"
         trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
-        self.assertEqual(len(trigger_specs), 1)
+        expected_trigger_specs = [
+            TriggerSpecConfig(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-ns-subscriber",
+                state_content={
+                    "delete": None,
+                    "disable": None,
+                    "images": None,
+                    "name": None,
+                    "namespace": {
+                        "app": {"name": "test-saas-deployments"},
+                        "cluster": {
+                            "name": "appsres03ue1",
+                            "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
+                        },
+                        "name": "test-ns-subscriber",
+                    },
+                    "parameters": None,
+                    "path": "/openshift/deploy-template.yml",
+                    "promotion": {
+                        "auto": True,
+                        "promotion_data": [
+                            {
+                                "channel": "test-saas-deployments-deploy",
+                                "data": [
+                                    {
+                                        "parent_saas": "test-saas-deployments-deploy",
+                                        "target_config_hash": "Changed",
+                                        "type": "parent_saas_config",
+                                    }
+                                ],
+                            }
+                        ],
+                        "publish": None,
+                        "redeployOnPublisherConfigChange": None,
+                        "schedule": None,
+                        "soakDays": None,
+                        "subscribe": ["test-saas-deployments-deploy"],
+                    },
+                    "ref": "1234567890123456789012345678901234567890",
+                    "rt_parameters": '{"PARAM":"test"}',
+                    "saas_file_managed_resource_types": ["Job"],
+                    "saas_file_parameters": None,
+                    "secretParameters": None,
+                    "slos": None,
+                    "upstream": None,
+                    "url": "https://github.com/app-sre/test-saas-deployments",
+                },
+                reason=None,
+                target_ref="1234567890123456789012345678901234567890",
+                resource_template_url="https://github.com/app-sre/test-saas-deployments",
+                slos=None,
+                target_name=None,
+            )
+        ]
+        self.assertEqual(trigger_specs, expected_trigger_specs)
 
     def test_non_existent_config_triggers(self) -> None:
         self.state_mock.get.side_effect = [self.deploy_current_state_fxt, None]

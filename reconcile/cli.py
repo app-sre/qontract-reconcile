@@ -759,31 +759,6 @@ def github_owners(ctx: click.Context) -> None:
     run_integration(reconcile.github_owners, ctx)
 
 
-@integration.command(short_help="Validate compliance of GitHub user profiles.")
-@gitlab_project_id
-@threaded()
-@enable_deletion(default=False)
-@send_mails(default=False)
-@click.pass_context
-def github_users(
-    ctx: click.Context,
-    gitlab_project_id: str | None,
-    thread_pool_size: int,
-    enable_deletion: bool,
-    send_mails: bool,
-) -> None:
-    import reconcile.github_users
-
-    run_integration(
-        reconcile.github_users,
-        ctx,
-        gitlab_project_id,
-        thread_pool_size,
-        enable_deletion,
-        send_mails,
-    )
-
-
 @integration.command(short_help="Validates GitHub organization settings.")
 @click.pass_context
 def github_validator(ctx: click.Context) -> None:
@@ -1128,14 +1103,6 @@ def jenkins_job_builds_cleaner(ctx: click.Context) -> None:
     run_integration(reconcile.jenkins_job_builds_cleaner, ctx)
 
 
-@integration.command(short_help="Delete Jenkins jobs in multiple tenant instances.")
-@click.pass_context
-def jenkins_job_cleaner(ctx: click.Context) -> None:
-    import reconcile.jenkins_job_cleaner
-
-    run_integration(reconcile.jenkins_job_cleaner, ctx)
-
-
 @integration.command(short_help="Manage web hooks to Jenkins jobs.")
 @click.pass_context
 def jenkins_webhooks(ctx: click.Context) -> None:
@@ -1169,14 +1136,6 @@ def jira_permissions_validator(
         jira_board_name=jira_board_name,
         board_check_interval_sec=board_check_interval * 60,
     )
-
-
-@integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")
-@click.pass_context
-def jira_watcher(ctx: click.Context) -> None:
-    import reconcile.jira_watcher
-
-    run_integration(reconcile.jira_watcher, ctx)
 
 
 @integration.command(
@@ -1259,15 +1218,6 @@ def gitlab_mr_sqs_consumer(ctx: click.Context, gitlab_project_id: str) -> None:
     import reconcile.gitlab_mr_sqs_consumer
 
     run_integration(reconcile.gitlab_mr_sqs_consumer, ctx, gitlab_project_id)
-
-
-@integration.command(short_help="Delete orphan AWS resources.")
-@threaded()
-@click.pass_context
-def aws_garbage_collector(ctx: click.Context, thread_pool_size: int) -> None:
-    import reconcile.aws_garbage_collector
-
-    run_integration(reconcile.aws_garbage_collector, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Delete IAM access keys by access key ID.")
@@ -3008,15 +2958,6 @@ def ocm_aws_infrastructure_access(ctx: click.Context) -> None:
     run_integration(reconcile.ocm_aws_infrastructure_access, ctx)
 
 
-@integration.command(short_help="Manage GitHub Identity Providers in OCM.")
-@vault_input_path
-@click.pass_context
-def ocm_github_idp(ctx: click.Context, vault_input_path: str) -> None:
-    import reconcile.ocm_github_idp
-
-    run_integration(reconcile.ocm_github_idp, ctx, vault_input_path)
-
-
 @integration.command(
     short_help="Manage OIDC cluster configuration in OCM organizations based on OCM labels. Part of RHIDP."
 )
@@ -3260,18 +3201,6 @@ def gitlab_fork_compliance(
         gitlab_merge_request_id,
         gitlab_maintainers_group,
     )
-
-
-@integration.command(
-    short_help="Collects the ImageManifestVuln CRs from all the clusters "
-    "and posts them to Dashdotdb."
-)
-@threaded(default=2)
-@click.pass_context
-def dashdotdb_cso(ctx: click.Context, thread_pool_size: int) -> None:
-    import reconcile.dashdotdb_cso
-
-    run_integration(reconcile.dashdotdb_cso, ctx, thread_pool_size)
 
 
 @integration.command(

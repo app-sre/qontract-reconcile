@@ -118,6 +118,20 @@ query AutomatedActionsInstances {
           identifier
         }
       }
+      ... on AutomatedActionExternalResourceRdsSnapshot_v1 {
+        external_resource_rds_snapshot_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
       ... on AutomatedActionOpenshiftWorkloadRestart_v1 {
         openshift_workload_restart_arguments: arguments {
           namespace {
@@ -237,6 +251,31 @@ class AutomatedActionExternalResourceRdsRebootV1(AutomatedActionV1):
     external_resource_rds_reboot_arguments: list[AutomatedActionExternalResourceRdsRebootV1_AutomatedActionExternalResourceArgumentV1] = Field(..., alias="external_resource_rds_reboot_arguments")
 
 
+class AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1(ConfiguredBaseModel):
+    ...
+
+
+class AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1_AWSAccountV1(AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1):
+    name: str = Field(..., alias="name")
+
+
+class AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1(ConfiguredBaseModel):
+    provisioner: Union[AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1_AWSAccountV1, AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1_ExternalResourcesProvisionerV1] = Field(..., alias="provisioner")
+
+
+class AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1(ConfiguredBaseModel):
+    external_resources: Optional[list[AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1_NamespaceExternalResourceV1]] = Field(..., alias="externalResources")
+
+
+class AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1(ConfiguredBaseModel):
+    namespace: AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1_NamespaceV1 = Field(..., alias="namespace")
+    identifier: str = Field(..., alias="identifier")
+
+
+class AutomatedActionExternalResourceRdsSnapshotV1(AutomatedActionV1):
+    external_resource_rds_snapshot_arguments: list[AutomatedActionExternalResourceRdsSnapshotV1_AutomatedActionExternalResourceArgumentV1] = Field(..., alias="external_resource_rds_snapshot_arguments")
+
+
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -265,7 +304,7 @@ class AutomatedActionOpenshiftWorkloadRestartV1(AutomatedActionV1):
 class AutomatedActionsInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     deployment: NamespaceV1 = Field(..., alias="deployment")
-    actions: Optional[list[Union[AutomatedActionActionListV1, AutomatedActionExternalResourceFlushElastiCacheV1, AutomatedActionExternalResourceRdsRebootV1, AutomatedActionOpenshiftWorkloadRestartV1, AutomatedActionV1]]] = Field(..., alias="actions")
+    actions: Optional[list[Union[AutomatedActionActionListV1, AutomatedActionExternalResourceFlushElastiCacheV1, AutomatedActionExternalResourceRdsRebootV1, AutomatedActionExternalResourceRdsSnapshotV1, AutomatedActionOpenshiftWorkloadRestartV1, AutomatedActionV1]]] = Field(..., alias="actions")
 
 
 class AutomatedActionsInstancesQueryData(ConfiguredBaseModel):

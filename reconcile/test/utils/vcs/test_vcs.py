@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.mock import create_autospec
 
 import pytest
-from gitlab.v4.objects import ProjectMergeRequest
+from gitlab.v4.objects import ProjectMergeRequest, ProjectMergeRequestPipeline
 
 from reconcile.utils.vcs import VCS, Commit, MRCheckStatus, VCSMissingSourceBranchError
 
@@ -24,7 +24,9 @@ def test_gitlab_mr_check_status(
     expected_status: MRCheckStatus,
 ) -> None:
     vcs = vcs_builder({
-        "MR_PIPELINES": pipelines,
+        "MR_PIPELINES": [
+            create_autospec(ProjectMergeRequestPipeline, **p) for p in pipelines
+        ],
     })
 
     mr = create_autospec(spec=ProjectMergeRequest)

@@ -44,7 +44,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   aws-cloudwatch-log-retention    Set up retention period for Cloudwatch logs.
   aws-ecr-image-pull-secrets      Generate AWS ECR image pull secrets and
                                   store them in Vault.
-  aws-garbage-collector           Delete orphan AWS resources.
   aws-iam-keys                    Delete IAM access keys by access key ID.
   aws-iam-password-reset          Reset IAM user password by user reference.
   aws-saml-idp                    Manage the SAML IDP config for all AWS
@@ -66,8 +65,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   RHIDP.
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
-  dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
-                                  the clusters and posts them to Dashdotdb.
   dashdotdb-dora                  Collects dora metrics.
   dashdotdb-dvo                   Collects the DeploymentValidations from all
                                   the clusters and posts them to Dashdotdb.
@@ -95,7 +92,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-  github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-fork-compliance          Ensures that forks of App Interface are
                                   compliant.
@@ -118,8 +114,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   jenkins-job-builder             Manage Jenkins jobs configurations using
                                   jenkins-jobs.
   jenkins-job-builds-cleaner      Clean up jenkins job history.
-  jenkins-job-cleaner             Delete Jenkins jobs in multiple tenant
-                                  instances.
   jenkins-roles                   Manage Jenkins roles association via REST
                                   API.
   jenkins-webhooks                Manage web hooks to Jenkins jobs.
@@ -127,8 +121,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   instances.
   jenkins-worker-fleets           Manage Jenkins worker fleets via JCasC.
   jira-permissions-validator      Validate permissions in Jira.
-  jira-watcher                    Watch for changes in Jira boards and notify
-                                  on Slack.
   ldap-groups                     Manages LDAP groups based on App-Interface
                                   roles.
   ldap-users                      Removes users which are not found in LDAP
@@ -146,7 +138,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   ocm-clusters                    Manages clusters via OCM.
   ocm-external-configuration-labels
                                   Manage External Configuration labels in OCM.
-  ocm-github-idp                  Manage GitHub Identity Providers in OCM.
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
   ocm-internal-notifications      Notifications to internal Red Hat users
