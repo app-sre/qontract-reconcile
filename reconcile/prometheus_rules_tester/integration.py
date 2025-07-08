@@ -83,7 +83,7 @@ def fetch_rule_and_tests(
     rule_length = len(yaml.dump(rule_body))  # Same as prometheus-operator does it.
 
     promtool_version = rule.resource.get("promtool_version") or DEFAULT_PROMTOOL_VERSION
-    
+
     if rule.resource["type"] == "resource-template-extracurlyjinja2":
         variables = json.loads(rule.resource.get("variables") or "{}")
         variables["resource"] = rule.resource
