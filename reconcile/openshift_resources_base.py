@@ -139,6 +139,7 @@ provider
   variables
   enable_query_support
   tests
+  promtool_version
 }
 """
 
