@@ -17,6 +17,9 @@ query ExternalResourcesNamespaces {
             name
             resourcesDefaultRegion
             supportedDeploymentRegions
+            externalResources {
+                channel
+            }
         }
         resources {
             output_format {
@@ -33,6 +36,21 @@ query ExternalResourcesNamespaces {
                 availability_zone
                 parameter_group
                 old_parameter_group
+                blue_green_deployment {
+                    enabled
+                    switchover
+                    switchover_timeout
+                    delete
+                    target {
+                        allocated_storage
+                        engine_version
+                        instance_class
+                        iops
+                        parameter_group
+                        storage_throughput
+                        storage_type
+                    }
+                }
                 overrides
                 output_resource_name
                 enhanced_monitoring
@@ -124,6 +142,7 @@ query ExternalResourcesNamespaces {
                 output_resource_name
                 annotations
                 managed_by_erv2
+                max_session_duration
             }
             ... on NamespaceTerraformResourceSQS_v1 {
                 region
@@ -205,6 +224,11 @@ query ExternalResourcesNamespaces {
                 defaults
                 es_identifier
                 filter_pattern
+                managed_by_erv2
+                delete
+                module_overrides {
+                   ... ExternalResourcesModuleOverrides
+                }
                 output_resource_name
                 annotations
             }

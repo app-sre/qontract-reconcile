@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
-from reconcile.aus.base import ClusterUpgradePolicy
+from reconcile.aus.base import ClusterUpgradePolicy, NodePoolUpgradePolicy
 from reconcile.aus.healthchecks import AUSClusterHealth, AUSHealthError
 from reconcile.aus.models import (
     ClusterAddonUpgradeSpec,
@@ -97,6 +97,7 @@ def build_organization(
     inherit_version_data_from_org_ids: list[tuple[str, str, bool]] | None = None,
     publish_version_data_from_org_ids: list[str] | None = None,
     blocked_versions: list[str] | None = None,
+    sector_max_parallel_upgrades: dict[str, str | None] | None = None,
     sector_dependencies: dict[str, list[str] | None] | None = None,
     addonManagedUpgrades: bool = False,
     disabled_integrations: list[str] | None = None,
@@ -145,6 +146,9 @@ def build_organization(
         sectors=[
             OpenShiftClusterManagerSectorV1(
                 name=sector,
+                maxParallelUpgrades=sector_max_parallel_upgrades.get(sector)
+                if sector_max_parallel_upgrades
+                else None,
                 dependencies=[
                     OpenShiftClusterManagerSectorDependenciesV1(
                         name=dep,
@@ -202,11 +206,15 @@ def build_cluster_upgrade_spec(
     blocked_versions: list[str] | None = None,
     cluster_health: bool = True,
     node_pools: list[NodePoolSpec] | None = None,
+    hypershift: bool = False,
 ) -> ClusterUpgradeSpec:
     return ClusterUpgradeSpec(
         org=org or build_organization(),
         cluster=build_ocm_cluster(
-            name=name, version=current_version, available_upgrades=available_upgrades
+            name=name,
+            version=current_version,
+            available_upgrades=available_upgrades,
+            hypershift=hypershift,
         ),
         upgradePolicy=build_upgrade_policy(
             workloads=workloads,
@@ -233,6 +241,7 @@ def build_addon_upgrade_spec(
     available_cluster_upgrades: list[str] | None = None,
     available_addon_upgrades: list[str] | None = None,
     cluster_health: bool = True,
+    blocked_versions: list[str] | None = None,
 ) -> ClusterAddonUpgradeSpec:
     return ClusterAddonUpgradeSpec(
         org=org or build_organization(),
@@ -241,7 +250,11 @@ def build_addon_upgrade_spec(
             version=current_cluster_version,
             available_upgrades=available_cluster_upgrades,
         ),
-        upgradePolicy=build_upgrade_policy(workloads=workloads, soak_days=soak_days),
+        upgradePolicy=build_upgrade_policy(
+            workloads=workloads,
+            soak_days=soak_days,
+            blocked_versions=blocked_versions,
+        ),
         addon=OCMAddonInstallation(
             id=addon_id,
             addon=OCMModelLink(
@@ -264,7 +277,7 @@ def build_addon_upgrade_spec(
 def build_cluster_upgrade_policy(
     cluster: OCMCluster, version: str, state: str, next_run: datetime | None = None
 ) -> ClusterUpgradePolicy:
-    next_run_str = (next_run or datetime.utcnow()).strftime("%Y-%m-%dT%H:%M:%SZ")
+    next_run_str = (next_run or datetime.now(tz=UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
     return ClusterUpgradePolicy(
         cluster=cluster,
         id="1",
@@ -273,6 +286,26 @@ def build_cluster_upgrade_policy(
         next_run=next_run_str,
         schedule_type="manual",
         schedule=None,
+    )
+
+
+def build_node_pool_upgrade_policy(
+    cluster: OCMCluster,
+    node_pool_id: str,
+    version: str,
+    state: str,
+    next_run: datetime | None = None,
+) -> NodePoolUpgradePolicy:
+    next_run_str = (next_run or datetime.now(tz=UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return NodePoolUpgradePolicy(
+        cluster=cluster,
+        id="1",
+        version=version,
+        state=state,
+        next_run=next_run_str,
+        schedule_type="manual",
+        schedule=None,
+        node_pool=node_pool_id,
     )
 
 

@@ -18,7 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import MinimalOCMOrganization
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 

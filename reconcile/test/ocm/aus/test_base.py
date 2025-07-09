@@ -258,6 +258,54 @@ def test_upgradeable_version_no_block(cluster_1: OCMCluster) -> None:
     assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "4.12.19"
 
 
+def test_addon_upgradable_version_cluster_level_blocked() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+        blocked_versions=["addon-1/1.2.5"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "1.2.4"
+
+
+def test_addon_upgradable_version_org_level_blocked() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        org=build_organization(blocked_versions=["addon-1/1.2.5"]),
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "1.2.4"
+
+
+def test_addon_upgradable_version_cluster_and_org_level_blocked() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        org=build_organization(blocked_versions=["addon-1/1.2.5"]),
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+        blocked_versions=["addon-1/1.2.4"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) is None
+
+
+def test_addon_upgradable_version_no_block() -> None:
+    upgrade_spec = build_addon_upgrade_spec(
+        cluster_name="cluster-1",
+        current_addon_version="1.2.3",
+        addon_id="addon-1",
+        available_addon_upgrades=["1.2.4", "1.2.5"],
+    )
+
+    assert base.upgradeable_version(upgrade_spec, VersionData(), None) == "1.2.5"
+
+
 #
 # upgrade priority
 #
@@ -779,8 +827,13 @@ def test_verify_lock_should_skip_not_locked() -> None:
         available_upgrades=["1", "2", "3"],
         mutexes=["mutex-1"],
     )
-    locked = base.verify_lock_should_skip(cluster_upgrade_spec, {})
-    assert not locked
+    skip = base.verify_max_upgrades_should_skip(
+        desired=cluster_upgrade_spec,
+        locked={},
+        sector_mutex_upgrades={},
+        sector=None,
+    )
+    assert not skip
 
 
 def test_verify_lock_should_skip_locked_by_self() -> None:
@@ -789,10 +842,13 @@ def test_verify_lock_should_skip_locked_by_self() -> None:
         available_upgrades=["1", "2", "3"],
         mutexes=["mutex-1"],
     )
-    locked = base.verify_lock_should_skip(
-        cluster_upgrade_spec, {"mutex-1": cluster_upgrade_spec.cluster.id}
+    skip = base.verify_max_upgrades_should_skip(
+        desired=cluster_upgrade_spec,
+        locked={"mutex-1": cluster_upgrade_spec.cluster.id},
+        sector_mutex_upgrades={},
+        sector=None,
     )
-    assert locked
+    assert skip
 
 
 def test_verify_lock_should_skip_locked_by_another_cluster() -> None:
@@ -801,10 +857,13 @@ def test_verify_lock_should_skip_locked_by_another_cluster() -> None:
         available_upgrades=["1", "2", "3"],
         mutexes=["mutex-1"],
     )
-    locked = base.verify_lock_should_skip(
-        cluster_upgrade_spec, {"mutex-1": "some-other-cluster-id"}
+    skip = base.verify_max_upgrades_should_skip(
+        desired=cluster_upgrade_spec,
+        locked={"mutex-1": "some-other-cluster-id"},
+        sector_mutex_upgrades={},
+        sector=None,
     )
-    assert locked
+    assert skip
 
 
 #

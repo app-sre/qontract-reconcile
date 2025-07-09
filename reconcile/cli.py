@@ -6,9 +6,11 @@ import os
 import re
 import sys
 import traceback
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from io import TextIOWrapper
 from signal import SIGUSR1
 from types import ModuleType
+from typing import Any
 
 import click
 import sentry_sdk
@@ -54,7 +56,7 @@ HELM_VERSIONS = ["3.11.1"]
 HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
 
 
-def before_breadcrumb(crumb, hint):
+def before_breadcrumb(crumb: dict, _: Any) -> dict:
     # https://docs.sentry.io/platforms/python/configuration/filtering/
     # Configure breadcrumb to filter error mesage
     if "category" in crumb and crumb["category"] == "subprocess":
@@ -89,7 +91,7 @@ if os.getenv("SENTRY_DSN"):
     )
 
 
-def config_file(function):
+def config_file(function: Callable) -> Callable:
     help_msg = "Path to configuration file in toml format."
     function = click.option(
         "--config",
@@ -101,7 +103,7 @@ def config_file(function):
     return function
 
 
-def log_level(function):
+def log_level(function: Callable) -> Callable:
     function = click.option(
         "--log-level",
         help="log-level of the command. Defaults to INFO.",
@@ -110,7 +112,7 @@ def log_level(function):
     return function
 
 
-def early_exit(function):
+def early_exit(function: Callable) -> Callable:
     help_msg = (
         "Runs integration in early exit mode. If the observed desired state of "
         "an integration does not change between the provided bundle SHA "
@@ -125,7 +127,7 @@ def early_exit(function):
     return function
 
 
-def check_only_affected_shards(function):
+def check_only_affected_shards(function: Callable) -> Callable:
     help_msg = (
         "Execute a dry-run only for those integration shards where the "
         "desired state changed. Works only when --early-exit-compare-sha is set"
@@ -139,7 +141,7 @@ def check_only_affected_shards(function):
     return function
 
 
-def dry_run(function):
+def dry_run(function: Callable) -> Callable:
     help_msg = (
         "If `true`, it will only print the planned actions "
         "that would be performed, without executing them."
@@ -151,7 +153,7 @@ def dry_run(function):
     return function
 
 
-def validate_schemas(function):
+def validate_schemas(function: Callable) -> Callable:
     help_msg = "Fail integration if it queries forbidden schemas"
 
     function = click.option(
@@ -160,7 +162,7 @@ def validate_schemas(function):
     return function
 
 
-def dump_schemas(function):
+def dump_schemas(function: Callable) -> Callable:
     help_msg = "Dump schemas to a file"
 
     function = click.option("--dump-schemas", "dump_schemas_file", help=help_msg)(
@@ -169,7 +171,7 @@ def dump_schemas(function):
     return function
 
 
-def gql_sha_url(function):
+def gql_sha_url(function: Callable) -> Callable:
     help_msg = (
         "If `false`, it will not use the sha_url endpoint "
         "of graphql (prevent stopping execution on data reload)."
@@ -181,7 +183,7 @@ def gql_sha_url(function):
     return function
 
 
-def gql_url_print(function):
+def gql_url_print(function: Callable) -> Callable:
     help_msg = "If `false`, it will not print the url endpoint of graphql."
 
     function = click.option(
@@ -190,20 +192,18 @@ def gql_url_print(function):
     return function
 
 
-def threaded(**kwargs):
-    def f(function):
+def threaded(default: int = 10) -> Callable:
+    def f(function: Callable) -> Callable:
         opt = "--thread-pool-size"
         msg = "number of threads to run in parallel."
-        function = click.option(opt, default=kwargs.get("default", 10), help=msg)(
-            function
-        )
+        function = click.option(opt, type=int, default=default, help=msg)(function)
         return function
 
     return f
 
 
-def take_over(**kwargs):
-    def f(function):
+def take_over() -> Callable:
+    def f(function: Callable) -> Callable:
         help_msg = "manage resources exclusively (take over existing ones)."
         function = click.option(
             "--take-over/--no-take-over", help=help_msg, default=True
@@ -213,8 +213,8 @@ def take_over(**kwargs):
     return f
 
 
-def internal(**kwargs):
-    def f(function):
+def internal() -> Callable:
+    def f(function: Callable) -> Callable:
         help_msg = "manage resources in internal or external clusters only."
         function = click.option("--internal/--external", help=help_msg, default=None)(
             function
@@ -224,8 +224,8 @@ def internal(**kwargs):
     return f
 
 
-def use_jump_host(**kwargs):
-    def f(function):
+def use_jump_host() -> Callable:
+    def f(function: Callable) -> Callable:
         help_msg = "use jump host if defined."
         function = click.option(
             "--use-jump-host/--no-use-jump-host", help=help_msg, default=False
@@ -235,7 +235,7 @@ def use_jump_host(**kwargs):
     return f
 
 
-def print_only(function):
+def print_only(function: Callable) -> Callable:
     function = click.option(
         "--print-only/--no-print-only",
         help="only print the config file.",
@@ -245,7 +245,7 @@ def print_only(function):
     return function
 
 
-def print_to_file(function):
+def print_to_file(function: Callable) -> Callable:
     function = click.option(
         "--print-to-file", help="print the config to file.", default=None
     )(function)
@@ -253,7 +253,7 @@ def print_to_file(function):
     return function
 
 
-def config_name(function):
+def config_name(function: Callable) -> Callable:
     function = click.option(
         "--config-name",
         help="jenkins config name to print out.must works with --print-only mode",
@@ -263,7 +263,7 @@ def config_name(function):
     return function
 
 
-def job_name(function):
+def job_name(function: Callable) -> Callable:
     function = click.option(
         "--job-name", help="jenkins job name to print out.", default=None
     )(function)
@@ -271,7 +271,7 @@ def job_name(function):
     return function
 
 
-def instance_name(function):
+def instance_name(function: Callable) -> Callable:
     function = click.option(
         "--instance-name", help="jenkins instance name to act on.", default=None
     )(function)
@@ -279,7 +279,7 @@ def instance_name(function):
     return function
 
 
-def throughput(function):
+def throughput(function: Callable) -> Callable:
     function = click.option(
         "--io-dir", help="directory of input/output files.", default="throughput/"
     )(function)
@@ -287,7 +287,7 @@ def throughput(function):
     return function
 
 
-def vault_input_path(function):
+def vault_input_path(function: Callable) -> Callable:
     function = click.option(
         "--vault-input-path", help="path in Vault to find input resources.", default=""
     )(function)
@@ -295,7 +295,7 @@ def vault_input_path(function):
     return function
 
 
-def vault_output_path(function):
+def vault_output_path(function: Callable) -> Callable:
     function = click.option(
         "--vault-output-path",
         help="path in Vault to store output resources.",
@@ -305,17 +305,7 @@ def vault_output_path(function):
     return function
 
 
-def vault_throughput_path(function):
-    function = click.option(
-        "--vault-throughput-path",
-        help="path in Vault to find input resources and store output resources.",
-        default="",
-    )(function)
-
-    return function
-
-
-def cluster_name(function):
+def cluster_name(function: Callable) -> Callable:
     """This option can be used when more than one cluster needs to be passed as argument"""
     function = click.option(
         "--cluster-name",
@@ -327,7 +317,7 @@ def cluster_name(function):
     return function
 
 
-def exclude_cluster(function):
+def exclude_cluster(function: Callable) -> Callable:
     function = click.option(
         "--exclude-cluster",
         multiple=True,
@@ -338,7 +328,7 @@ def exclude_cluster(function):
     return function
 
 
-def namespace_name(function):
+def namespace_name(function: Callable) -> Callable:
     function = click.option(
         "--namespace-name", help="namespace name to act on.", default=None
     )(function)
@@ -346,7 +336,7 @@ def namespace_name(function):
     return function
 
 
-def environment_name(function):
+def environment_name(function: Callable) -> Callable:
     function = click.option(
         "--environment-name",
         help="environment name to act on.",
@@ -356,7 +346,7 @@ def environment_name(function):
     return function
 
 
-def resource_kind(function):
+def resource_kind(function: Callable) -> Callable:
     function = click.option("--resource-kind", help="kind to act on.", default=None)(
         function
     )
@@ -364,7 +354,7 @@ def resource_kind(function):
     return function
 
 
-def account_name(function):
+def account_name(function: Callable) -> Callable:
     function = click.option(
         "--account-name", help="aws account name to act on.", default=None
     )(function)
@@ -372,13 +362,13 @@ def account_name(function):
     return function
 
 
-def cloudflare_zone_name(function):
+def cloudflare_zone_name(function: Callable) -> Callable:
     function = click.option("--zone-name", default=None)(function)
 
     return function
 
 
-def account_name_multiple(function):
+def account_name_multiple(function: Callable) -> Callable:
     """This option can be used when more than one account needs to be passed as argument"""
     function = click.option(
         "--account-name",
@@ -390,7 +380,7 @@ def account_name_multiple(function):
     return function
 
 
-def exclude_aws_accounts(function):
+def exclude_aws_accounts(function: Callable) -> Callable:
     function = click.option(
         "--exclude-accounts",
         multiple=True,
@@ -401,11 +391,11 @@ def exclude_aws_accounts(function):
     return function
 
 
-def org_id_multiple(function):
+def org_id_multiple(function: Callable) -> Callable:
     """This option can be used when more than one OCM organization ID needs to be passed as argument"""
     function = click.option(
         "--org-id",
-        default=None,
+        default=[],
         multiple=True,
         help="OCM organization IDs to act on",
     )(function)
@@ -413,7 +403,7 @@ def org_id_multiple(function):
     return function
 
 
-def exclude_org_id(function):
+def exclude_org_id(function: Callable) -> Callable:
     function = click.option(
         "--exclude-org-id",
         multiple=True,
@@ -424,7 +414,7 @@ def exclude_org_id(function):
     return function
 
 
-def workspace_name(function):
+def workspace_name(function: Callable) -> Callable:
     function = click.option(
         "--workspace-name", help="slack workspace name to act on.", default=None
     )(function)
@@ -432,7 +422,7 @@ def workspace_name(function):
     return function
 
 
-def usergroup_name(function):
+def usergroup_name(function: Callable) -> Callable:
     function = click.option(
         "--usergroup-name", help="slack usergroup name to act on.", default=None
     )(function)
@@ -440,7 +430,7 @@ def usergroup_name(function):
     return function
 
 
-def gitlab_project_id(function):
+def gitlab_project_id(function: Callable) -> Callable:
     function = click.option(
         "--gitlab-project-id",
         help="gitlab project id to submit PRs to. "
@@ -452,7 +442,7 @@ def gitlab_project_id(function):
     return function
 
 
-def saas_file_name(function):
+def saas_file_name(function: Callable) -> Callable:
     function = click.option(
         "--saas-file-name", help="saas-file to act on.", default=None
     )(function)
@@ -460,43 +450,27 @@ def saas_file_name(function):
     return function
 
 
-def enable_deletion(**kwargs):
-    def f(function):
+def enable_deletion(default: bool = True) -> Callable:
+    def f(function: Callable) -> Callable:
         opt = "--enable-deletion/--no-enable-deletion"
         msg = "enable destroy/replace action."
-        function = click.option(opt, default=kwargs.get("default", True), help=msg)(
-            function
-        )
+        function = click.option(opt, default=default, help=msg)(function)
         return function
 
     return f
 
 
-def send_mails(**kwargs):
-    def f(function):
+def send_mails(default: bool = False) -> Callable:
+    def f(function: Callable) -> Callable:
         opt = "--send-mails/--no-send-mails"
         msg = "send email notification to users."
-        function = click.option(opt, default=kwargs.get("default", False), help=msg)(
-            function
-        )
+        function = click.option(opt, default=default, help=msg)(function)
         return function
 
     return f
 
 
-def enable_rebase(**kwargs):
-    def f(function):
-        opt = "--enable-rebase/--no-enable-rebase"
-        msg = "enable the merge request rebase action."
-        function = click.option(opt, default=kwargs.get("default", True), help=msg)(
-            function
-        )
-        return function
-
-    return f
-
-
-def include_trigger_trace(function):
+def include_trigger_trace(function: Callable) -> Callable:
     help_msg = "If `true`, include traces of the triggering integration and reason."
 
     function = click.option(
@@ -507,7 +481,7 @@ def include_trigger_trace(function):
     return function
 
 
-def trigger_reason(function):
+def trigger_reason(function: Callable) -> Callable:
     function = click.option(
         "--trigger-reason",
         help="reason deployment was triggered.",
@@ -517,7 +491,7 @@ def trigger_reason(function):
     return function
 
 
-def trigger_integration(function):
+def trigger_integration(function: Callable) -> Callable:
     function = click.option(
         "--trigger-integration",
         help="integration deployment was triggered.",
@@ -527,7 +501,7 @@ def trigger_integration(function):
     return function
 
 
-def enable_extended_early_exit(function):
+def enable_extended_early_exit(function: Callable) -> Callable:
     return click.option(
         "--enable-extended-early-exit/--no-enable-extended-early-exit",
         default=False,
@@ -535,7 +509,7 @@ def enable_extended_early_exit(function):
     )(function)
 
 
-def extended_early_exit_cache_ttl_seconds(function):
+def extended_early_exit_cache_ttl_seconds(function: Callable) -> Callable:
     return click.option(
         "--extended-early-exit-cache-ttl-seconds",
         default=3600,
@@ -543,7 +517,7 @@ def extended_early_exit_cache_ttl_seconds(function):
     )(function)
 
 
-def log_cached_log_output(function):
+def log_cached_log_output(function: Callable) -> Callable:
     return click.option(
         "--log-cached-log-output/--no-log-cached-log-output",
         default=False,
@@ -551,7 +525,7 @@ def log_cached_log_output(function):
     )(function)
 
 
-def register_faulthandler(fileobj=sys.__stderr__):
+def register_faulthandler(fileobj: TextIOWrapper | None = sys.__stderr__) -> None:
     if fileobj:
         if not faulthandler.is_enabled():
             try:
@@ -575,10 +549,10 @@ class UnknownIntegrationTypeError(Exception):
 
 def run_integration(
     func_container: ModuleType,
-    ctx,
-    *args,
-    **kwargs,
-):
+    ctx: click.Context,
+    *args: Any,
+    **kwargs: Any,
+) -> None:
     run_class_integration(
         integration=ModuleBasedQontractReconcileIntegration(
             ModuleArgsKwargsRunParams(func_container, *args, **kwargs)
@@ -589,10 +563,10 @@ def run_integration(
 
 def run_class_integration(
     integration: QontractReconcileIntegration,
-    ctx,
-):
+    ctx: click.Context,
+) -> None:
     register_faulthandler()
-    dump_schemas_file = ctx.get("dump_schemas_file")
+    dump_schemas_file = ctx.obj["dump_schemas_file"]
     try:
         running_state = RunningState()
         running_state.integration = integration.name  # type: ignore[attr-defined]
@@ -603,18 +577,18 @@ def run_class_integration(
             sys.exit(ExitCodes.SUCCESS)
 
         check_only_affected_shards = (
-            ctx.get("check_only_affected_shards", False)
+            ctx.obj["check_only_affected_shards"]
             or os.environ.get("CHECK_ONLY_AFFECTED_SHARDS", "false") == "true"
         )
         run_integration_cfg(
             IntegrationRunConfiguration(
                 integration=integration,
-                valdiate_schemas=ctx["validate_schemas"],
-                dry_run=ctx.get("dry_run", False),
-                early_exit_compare_sha=ctx.get("early_exit_compare_sha"),
+                valdiate_schemas=ctx.obj["validate_schemas"],
+                dry_run=ctx.obj["dry_run"],
+                early_exit_compare_sha=ctx.obj["early_exit_compare_sha"],
                 check_only_affected_shards=check_only_affected_shards,
-                gql_sha_url=ctx["gql_sha_url"],
-                print_url=ctx["gql_url_print"],
+                gql_sha_url=ctx.obj["gql_sha_url"],
+                print_url=ctx.obj["gql_url_print"],
             )
         )
     except gql.GqlApiIntegrationNotFound as e:
@@ -648,18 +622,19 @@ def run_class_integration(
 @log_level
 @click.pass_context
 def integration(
-    ctx,
-    configfile,
-    dry_run,
-    early_exit_compare_sha,
-    check_only_affected_shards,
-    validate_schemas,
-    dump_schemas_file,
-    log_level,
-    gql_sha_url,
-    gql_url_print,
-):
+    ctx: click.Context,
+    configfile: str,
+    dry_run: bool,
+    early_exit_compare_sha: str,
+    check_only_affected_shards: bool,
+    validate_schemas: bool,
+    dump_schemas_file: str | None,
+    log_level: str | None,
+    gql_sha_url: bool,
+    gql_url_print: bool,
+) -> None:
     ctx.ensure_object(dict)
+    ctx.obj["gql_url_print"] = not dry_run and gql_url_print
 
     init_env(
         log_level=log_level,
@@ -667,7 +642,7 @@ def integration(
         dry_run=dry_run,
         # don't print gql url in dry-run mode - less noisy PR check logs and
         # the actual SHA is not that important during PR checks
-        print_gql_url=(not dry_run and bool(gql_url_print)),
+        print_gql_url=ctx.obj["gql_url_print"],
     )
 
     ctx.obj["dry_run"] = dry_run
@@ -675,23 +650,11 @@ def integration(
     ctx.obj["check_only_affected_shards"] = check_only_affected_shards
     ctx.obj["validate_schemas"] = validate_schemas
     ctx.obj["gql_sha_url"] = gql_sha_url
-    ctx.obj["gql_url_print"] = not dry_run and bool(gql_url_print)
     ctx.obj["dump_schemas_file"] = dump_schemas_file
 
 
 @integration.result_callback()
-def exit_integration(
-    ctx,
-    configfile,
-    dry_run,
-    early_exit_compare_sha,
-    check_only_affected_shards,
-    validate_schemas,
-    dump_schemas_file,
-    log_level,
-    gql_sha_url,
-    gql_url_print,
-):
+def exit_integration(*args: Any, **kwargs: Any) -> None:
     GqlApiSingleton.close()
 
 
@@ -704,13 +667,17 @@ def exit_integration(
 @account_name
 @click.pass_context
 def terraform_aws_route53(
-    ctx, print_to_file, enable_deletion, thread_pool_size, account_name
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    account_name: str | None,
+) -> None:
     import reconcile.terraform_aws_route53
 
     run_integration(
         reconcile.terraform_aws_route53,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -742,17 +709,17 @@ def terraform_aws_route53(
 @log_cached_log_output
 @click.pass_context
 def aws_saml_idp(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    thread_pool_size,
-    account_name,
-    saml_idp_name,
-    saml_metadata_url,
-    enable_extended_early_exit,
-    extended_early_exit_cache_ttl_seconds,
-    log_cached_log_output,
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    account_name: str | None,
+    saml_idp_name: str,
+    saml_metadata_url: str,
+    enable_extended_early_exit: bool,
+    extended_early_exit_cache_ttl_seconds: int,
+    log_cached_log_output: bool,
+) -> None:
     from reconcile.aws_saml_idp.integration import (
         AwsSamlIdpIntegration,
         AwsSamlIdpIntegrationParams,
@@ -772,51 +739,32 @@ def aws_saml_idp(
                 log_cached_log_output=log_cached_log_output,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Configures the teams and members in a GitHub org.")
 @click.pass_context
-def github(ctx):
+def github(ctx: click.Context) -> None:
     import reconcile.github_org
 
-    run_integration(reconcile.github_org, ctx.obj)
+    run_integration(reconcile.github_org, ctx)
 
 
 @integration.command(short_help="Configures owners in a GitHub org.")
 @click.pass_context
-def github_owners(ctx):
+def github_owners(ctx: click.Context) -> None:
     import reconcile.github_owners
 
-    run_integration(reconcile.github_owners, ctx.obj)
-
-
-@integration.command(short_help="Validate compliance of GitHub user profiles.")
-@gitlab_project_id
-@threaded()
-@enable_deletion(default=False)
-@send_mails(default=False)
-@click.pass_context
-def github_users(ctx, gitlab_project_id, thread_pool_size, enable_deletion, send_mails):
-    import reconcile.github_users
-
-    run_integration(
-        reconcile.github_users,
-        ctx.obj,
-        gitlab_project_id,
-        thread_pool_size,
-        enable_deletion,
-        send_mails,
-    )
+    run_integration(reconcile.github_owners, ctx)
 
 
 @integration.command(short_help="Validates GitHub organization settings.")
 @click.pass_context
-def github_validator(ctx):
+def github_validator(ctx: click.Context) -> None:
     import reconcile.github_validator
 
-    run_integration(reconcile.github_validator, ctx.obj)
+    run_integration(reconcile.github_validator, ctx)
 
 
 @integration.command(short_help="Configures ClusterRolebindings in OpenShift clusters.")
@@ -826,12 +774,14 @@ def github_validator(ctx):
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_clusterrolebindings(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_clusterrolebindings(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_clusterrolebindings
 
     run_integration(
         reconcile.openshift_clusterrolebindings,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -845,12 +795,14 @@ def openshift_clusterrolebindings(ctx, thread_pool_size, internal, use_jump_host
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_rolebindings(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_rolebindings
 
     run_integration(
         reconcile.openshift_rolebindings,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -864,11 +816,13 @@ def openshift_rolebindings(ctx, thread_pool_size, internal, use_jump_host):
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_groups(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_groups
 
     run_integration(
-        reconcile.openshift_groups, ctx.obj, thread_pool_size, internal, use_jump_host
+        reconcile.openshift_groups, ctx, thread_pool_size, internal, use_jump_host
     )
 
 
@@ -879,11 +833,13 @@ def openshift_groups(ctx, thread_pool_size, internal, use_jump_host):
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_users(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_users
 
     run_integration(
-        reconcile.openshift_users, ctx.obj, thread_pool_size, internal, use_jump_host
+        reconcile.openshift_users, ctx, thread_pool_size, internal, use_jump_host
     )
 
 
@@ -898,13 +854,17 @@ def openshift_users(ctx, thread_pool_size, internal, use_jump_host):
 @vault_output_path
 @click.pass_context
 def openshift_serviceaccount_tokens(
-    ctx, thread_pool_size, internal, use_jump_host, vault_output_path
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    vault_output_path: str,
+) -> None:
     import reconcile.openshift_serviceaccount_tokens
 
     run_integration(
         reconcile.openshift_serviceaccount_tokens,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -938,17 +898,17 @@ def openshift_serviceaccount_tokens(
 @log_cached_log_output
 @click.pass_context
 def aws_saml_roles(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    thread_pool_size,
-    account_name,
-    saml_idp_name,
-    max_session_duration_hours,
-    enable_extended_early_exit,
-    extended_early_exit_cache_ttl_seconds,
-    log_cached_log_output,
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    account_name: str | None,
+    saml_idp_name: str,
+    max_session_duration_hours: int,
+    enable_extended_early_exit: bool,
+    extended_early_exit_cache_ttl_seconds: int,
+    log_cached_log_output: bool,
+) -> None:
     from reconcile.aws_saml_roles.integration import (
         AwsSamlRolesIntegration,
         AwsSamlRolesIntegrationParams,
@@ -968,7 +928,7 @@ def aws_saml_roles(
                 log_cached_log_output=log_cached_log_output,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -1019,16 +979,16 @@ def aws_saml_roles(
 )
 @click.pass_context
 def aws_account_manager(
-    ctx,
-    account_name,
-    flavor,
-    tag,
-    initial_user_name,
-    initial_user_policy_arn,
-    initial_user_secret_vault_path,
-    account_tmpl_resource,
-    template_collection_root_path,
-):
+    ctx: click.Context,
+    account_name: str | None,
+    flavor: str,
+    tag: Iterable[tuple[str, str]],
+    initial_user_name: str,
+    initial_user_policy_arn: str,
+    initial_user_secret_vault_path: str,
+    account_tmpl_resource: str,
+    template_collection_root_path: str,
+) -> None:
     from reconcile.aws_account_manager.integration import (
         AwsAccountMgmtIntegration,
         AwsAccountMgmtIntegrationParams,
@@ -1047,7 +1007,7 @@ def aws_account_manager(
                 template_collection_root_path=template_collection_root_path,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -1067,8 +1027,11 @@ def aws_account_manager(
 )
 @click.pass_context
 def terraform_init(
-    ctx, account_name, state_tmpl_resource, template_collection_root_path
-):
+    ctx: click.Context,
+    account_name: str | None,
+    state_tmpl_resource: str,
+    template_collection_root_path: str,
+) -> None:
     from reconcile.terraform_init.integration import (
         TerraformInitIntegration,
         TerraformInitIntegrationParams,
@@ -1082,24 +1045,24 @@ def terraform_init(
                 template_collection_root_path=template_collection_root_path,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Manage Jenkins roles association via REST API.")
 @click.pass_context
-def jenkins_roles(ctx):
+def jenkins_roles(ctx: click.Context) -> None:
     import reconcile.jenkins_roles
 
-    run_integration(reconcile.jenkins_roles, ctx.obj)
+    run_integration(reconcile.jenkins_roles, ctx)
 
 
 @integration.command(short_help="Manage Jenkins worker fleets via JCasC.")
 @click.pass_context
-def jenkins_worker_fleets(ctx):
+def jenkins_worker_fleets(ctx: click.Context) -> None:
     import reconcile.jenkins_worker_fleets
 
-    run_integration(reconcile.jenkins_worker_fleets, ctx.obj)
+    run_integration(reconcile.jenkins_worker_fleets, ctx)
 
 
 @integration.command(
@@ -1111,12 +1074,19 @@ def jenkins_worker_fleets(ctx):
 @instance_name
 @throughput
 @click.pass_context
-def jenkins_job_builder(ctx, io_dir, print_only, config_name, job_name, instance_name):
+def jenkins_job_builder(
+    ctx: click.Context,
+    io_dir: str,
+    print_only: bool,
+    config_name: str | None,
+    job_name: str | None,
+    instance_name: str | None,
+) -> None:
     import reconcile.jenkins_job_builder
 
     run_integration(
         reconcile.jenkins_job_builder,
-        ctx.obj,
+        ctx,
         io_dir,
         print_only,
         config_name,
@@ -1127,34 +1097,26 @@ def jenkins_job_builder(ctx, io_dir, print_only, config_name, job_name, instance
 
 @integration.command(short_help="Clean up jenkins job history.")
 @click.pass_context
-def jenkins_job_builds_cleaner(ctx):
+def jenkins_job_builds_cleaner(ctx: click.Context) -> None:
     import reconcile.jenkins_job_builds_cleaner
 
-    run_integration(reconcile.jenkins_job_builds_cleaner, ctx.obj)
-
-
-@integration.command(short_help="Delete Jenkins jobs in multiple tenant instances.")
-@click.pass_context
-def jenkins_job_cleaner(ctx):
-    import reconcile.jenkins_job_cleaner
-
-    run_integration(reconcile.jenkins_job_cleaner, ctx.obj)
+    run_integration(reconcile.jenkins_job_builds_cleaner, ctx)
 
 
 @integration.command(short_help="Manage web hooks to Jenkins jobs.")
 @click.pass_context
-def jenkins_webhooks(ctx):
+def jenkins_webhooks(ctx: click.Context) -> None:
     import reconcile.jenkins_webhooks
 
-    run_integration(reconcile.jenkins_webhooks, ctx.obj)
+    run_integration(reconcile.jenkins_webhooks, ctx)
 
 
 @integration.command(short_help="Remove webhooks to previous Jenkins instances.")
 @click.pass_context
-def jenkins_webhooks_cleaner(ctx):
+def jenkins_webhooks_cleaner(ctx: click.Context) -> None:
     import reconcile.jenkins_webhooks_cleaner
 
-    run_integration(reconcile.jenkins_webhooks_cleaner, ctx.obj)
+    run_integration(reconcile.jenkins_webhooks_cleaner, ctx)
 
 
 @integration.command(short_help="Validate permissions in Jira.")
@@ -1163,23 +1125,17 @@ def jenkins_webhooks_cleaner(ctx):
 )
 @click.option("--board-check-interval", help="Check interval in minutes", default=120)
 @click.pass_context
-def jira_permissions_validator(ctx, jira_board_name, board_check_interval):
+def jira_permissions_validator(
+    ctx: click.Context, jira_board_name: Iterable[str] | None, board_check_interval: int
+) -> None:
     import reconcile.jira_permissions_validator
 
     run_integration(
         reconcile.jira_permissions_validator,
-        ctx.obj,
+        ctx,
         jira_board_name=jira_board_name,
         board_check_interval_sec=board_check_interval * 60,
     )
-
-
-@integration.command(short_help="Watch for changes in Jira boards and notify on Slack.")
-@click.pass_context
-def jira_watcher(ctx):
-    import reconcile.jira_watcher
-
-    run_integration(reconcile.jira_watcher, ctx.obj)
 
 
 @integration.command(
@@ -1191,12 +1147,14 @@ def jira_watcher(ctx):
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_upgrade_watcher(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_upgrade_watcher
 
     run_integration(
         reconcile.openshift_upgrade_watcher,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1211,18 +1169,18 @@ def openshift_upgrade_watcher(ctx, thread_pool_size, internal, use_jump_host):
 @log_cached_log_output
 @click.pass_context
 def slack_usergroups(
-    ctx,
-    workspace_name,
-    usergroup_name,
-    enable_extended_early_exit,
-    extended_early_exit_cache_ttl_seconds,
-    log_cached_log_output,
-):
+    ctx: click.Context,
+    workspace_name: str | None,
+    usergroup_name: str | None,
+    enable_extended_early_exit: bool,
+    extended_early_exit_cache_ttl_seconds: int,
+    log_cached_log_output: bool,
+) -> None:
     import reconcile.slack_usergroups
 
     run_integration(
         reconcile.slack_usergroups,
-        ctx.obj,
+        ctx,
         workspace_name,
         usergroup_name,
         enable_extended_early_exit,
@@ -1234,10 +1192,10 @@ def slack_usergroups(
 @integration.command(short_help="Manage permissions on GitLab projects.")
 @threaded()
 @click.pass_context
-def gitlab_permissions(ctx, thread_pool_size):
+def gitlab_permissions(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.gitlab_permissions
 
-    run_integration(reconcile.gitlab_permissions, ctx.obj, thread_pool_size)
+    run_integration(reconcile.gitlab_permissions, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Manage issues and merge requests on GitLab projects.")
@@ -1247,75 +1205,68 @@ def gitlab_permissions(ctx, thread_pool_size):
     help="wait for pending/running pipelines before acting.",
 )
 @click.pass_context
-def gitlab_housekeeping(ctx, wait_for_pipeline):
+def gitlab_housekeeping(ctx: click.Context, wait_for_pipeline: bool) -> None:
     import reconcile.gitlab_housekeeping
 
-    run_integration(reconcile.gitlab_housekeeping, ctx.obj, wait_for_pipeline)
+    run_integration(reconcile.gitlab_housekeeping, ctx, wait_for_pipeline)
 
 
 @integration.command(short_help="Listen to SQS and creates MRs out of the messages.")
 @click.argument("gitlab-project-id")
 @click.pass_context
-def gitlab_mr_sqs_consumer(ctx, gitlab_project_id):
+def gitlab_mr_sqs_consumer(ctx: click.Context, gitlab_project_id: str) -> None:
     import reconcile.gitlab_mr_sqs_consumer
 
-    run_integration(reconcile.gitlab_mr_sqs_consumer, ctx.obj, gitlab_project_id)
-
-
-@integration.command(short_help="Delete orphan AWS resources.")
-@threaded()
-@click.pass_context
-def aws_garbage_collector(ctx, thread_pool_size):
-    import reconcile.aws_garbage_collector
-
-    run_integration(reconcile.aws_garbage_collector, ctx.obj, thread_pool_size)
+    run_integration(reconcile.gitlab_mr_sqs_consumer, ctx, gitlab_project_id)
 
 
 @integration.command(short_help="Delete IAM access keys by access key ID.")
 @threaded()
 @account_name
 @click.pass_context
-def aws_iam_keys(ctx, thread_pool_size, account_name):
+def aws_iam_keys(
+    ctx: click.Context, thread_pool_size: int, account_name: str | None
+) -> None:
     import reconcile.aws_iam_keys
 
     run_integration(
-        reconcile.aws_iam_keys, ctx.obj, thread_pool_size, account_name=account_name
+        reconcile.aws_iam_keys, ctx, thread_pool_size, account_name=account_name
     )
 
 
 @integration.command(short_help="Reset IAM user password by user reference.")
 @click.pass_context
-def aws_iam_password_reset(ctx):
+def aws_iam_password_reset(ctx: click.Context) -> None:
     import reconcile.aws_iam_password_reset
 
-    run_integration(reconcile.aws_iam_password_reset, ctx.obj)
+    run_integration(reconcile.aws_iam_password_reset, ctx)
 
 
 @integration.command(short_help="Share AMI and AMI tags between accounts.")
 @click.pass_context
-def aws_ami_share(ctx):
+def aws_ami_share(ctx: click.Context) -> None:
     import reconcile.aws_ami_share
 
-    run_integration(reconcile.aws_ami_share, ctx.obj)
+    run_integration(reconcile.aws_ami_share, ctx)
 
 
 @integration.command(short_help="Cleanup old and unused AMIs.")
 @threaded()
 @click.pass_context
-def aws_ami_cleanup(ctx, thread_pool_size):
+def aws_ami_cleanup(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.aws_ami_cleanup.integration
 
-    run_integration(reconcile.aws_ami_cleanup.integration, ctx.obj, thread_pool_size)
+    run_integration(reconcile.aws_ami_cleanup.integration, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Set up retention period for Cloudwatch logs.")
 @threaded()
 @click.pass_context
-def aws_cloudwatch_log_retention(ctx, thread_pool_size):
+def aws_cloudwatch_log_retention(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.aws_cloudwatch_log_retention.integration
 
     run_integration(
-        reconcile.aws_cloudwatch_log_retention.integration, ctx.obj, thread_pool_size
+        reconcile.aws_cloudwatch_log_retention.integration, ctx, thread_pool_size
     )
 
 
@@ -1324,10 +1275,10 @@ def aws_cloudwatch_log_retention(ctx, thread_pool_size):
 )
 @vault_output_path
 @click.pass_context
-def aws_ecr_image_pull_secrets(ctx, vault_output_path):
+def aws_ecr_image_pull_secrets(ctx: click.Context, vault_output_path: str) -> None:
     import reconcile.aws_ecr_image_pull_secrets
 
-    run_integration(reconcile.aws_ecr_image_pull_secrets, ctx.obj, vault_output_path)
+    run_integration(reconcile.aws_ecr_image_pull_secrets, ctx, vault_output_path)
 
 
 @integration.command(
@@ -1337,11 +1288,13 @@ def aws_ecr_image_pull_secrets(ctx, vault_output_path):
 @gitlab_project_id
 @threaded()
 @click.pass_context
-def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
+def aws_support_cases_sos(
+    ctx: click.Context, gitlab_project_id: str | None, thread_pool_size: int
+) -> None:
     import reconcile.aws_support_cases_sos
 
     run_integration(
-        reconcile.aws_support_cases_sos, ctx.obj, gitlab_project_id, thread_pool_size
+        reconcile.aws_support_cases_sos, ctx, gitlab_project_id, thread_pool_size
     )
 
 
@@ -1357,19 +1310,19 @@ def aws_support_cases_sos(ctx, gitlab_project_id, thread_pool_size):
 @namespace_name
 @click.pass_context
 def openshift_resources(
-    ctx,
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    cluster_name,
-    exclude_cluster,
-    namespace_name,
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    cluster_name: Iterable[str] | None,
+    exclude_cluster: Iterable[str],
+    namespace_name: str | None,
+) -> None:
     import reconcile.openshift_resources
 
     run_integration(
         reconcile.openshift_resources,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1392,20 +1345,20 @@ def openshift_resources(
 @trigger_reason
 @click.pass_context
 def openshift_saas_deploy(
-    ctx,
-    thread_pool_size,
-    io_dir,
-    use_jump_host,
-    saas_file_name,
-    env_name,
-    trigger_integration,
-    trigger_reason,
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    io_dir: str,
+    use_jump_host: bool,
+    saas_file_name: str | None,
+    env_name: str | None,
+    trigger_integration: str | None,
+    trigger_reason: str | None,
+) -> None:
     import reconcile.openshift_saas_deploy
 
     run_integration(
         reconcile.openshift_saas_deploy,
-        ctx.obj,
+        ctx,
         thread_pool_size=thread_pool_size,
         io_dir=io_dir,
         use_jump_host=use_jump_host,
@@ -1431,18 +1384,18 @@ def openshift_saas_deploy(
 @use_jump_host()
 @click.pass_context
 def openshift_saas_deploy_change_tester(
-    ctx,
-    gitlab_project_id,
-    gitlab_merge_request_id,
-    thread_pool_size,
-    comparison_sha,
-    use_jump_host,
-):
+    ctx: click.Context,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: str,
+    thread_pool_size: int,
+    comparison_sha: str | None,
+    use_jump_host: bool,
+) -> None:
     import reconcile.openshift_saas_deploy_change_tester
 
     run_integration(
         reconcile.openshift_saas_deploy_change_tester,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         gitlab_merge_request_id,
         thread_pool_size,
@@ -1453,10 +1406,10 @@ def openshift_saas_deploy_change_tester(
 
 @integration.command(short_help="Validates Saas files.")
 @click.pass_context
-def saas_file_validator(ctx):
+def saas_file_validator(ctx: click.Context) -> None:
     import reconcile.saas_file_validator
 
-    run_integration(reconcile.saas_file_validator, ctx.obj)
+    run_integration(reconcile.saas_file_validator, ctx)
 
 
 @integration.command(short_help="Trigger deployments when a commit changed for a ref.")
@@ -1468,13 +1421,17 @@ def saas_file_validator(ctx):
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_moving_commits(
-    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    include_trigger_trace: bool,
+) -> None:
     import reconcile.openshift_saas_deploy_trigger_moving_commits
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_moving_commits,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1491,13 +1448,17 @@ def openshift_saas_deploy_trigger_moving_commits(
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_upstream_jobs(
-    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    include_trigger_trace: bool,
+) -> None:
     import reconcile.openshift_saas_deploy_trigger_upstream_jobs
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_upstream_jobs,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1514,13 +1475,17 @@ def openshift_saas_deploy_trigger_upstream_jobs(
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_images(
-    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    include_trigger_trace: bool,
+) -> None:
     import reconcile.openshift_saas_deploy_trigger_images
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_images,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1537,13 +1502,17 @@ def openshift_saas_deploy_trigger_images(
 @include_trigger_trace
 @click.pass_context
 def openshift_saas_deploy_trigger_configs(
-    ctx, thread_pool_size, internal, use_jump_host, include_trigger_trace
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    include_trigger_trace: bool,
+) -> None:
     import reconcile.openshift_saas_deploy_trigger_configs
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_configs,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1559,13 +1528,13 @@ def openshift_saas_deploy_trigger_configs(
 @use_jump_host()
 @click.pass_context
 def openshift_saas_deploy_trigger_cleaner(
-    ctx, thread_pool_size, internal, use_jump_host
-):
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_saas_deploy_trigger_cleaner
 
     run_integration(
         reconcile.openshift_saas_deploy_trigger_cleaner,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1581,13 +1550,17 @@ def openshift_saas_deploy_trigger_cleaner(
 @saas_file_name
 @click.pass_context
 def openshift_tekton_resources(
-    ctx, thread_pool_size, internal, use_jump_host, saas_file_name
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    saas_file_name: str | None,
+) -> None:
     import reconcile.openshift_tekton_resources
 
     run_integration(
         reconcile.openshift_tekton_resources,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1601,11 +1574,13 @@ def openshift_tekton_resources(
 @click.argument("gitlab-project-id")
 @click.argument("gitlab-merge-request-id")
 @click.pass_context
-def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
+def gitlab_labeler(
+    ctx: click.Context, gitlab_project_id: str, gitlab_merge_request_id: str
+) -> None:
     import reconcile.gitlab_labeler
 
     run_integration(
-        reconcile.gitlab_labeler, ctx.obj, gitlab_project_id, gitlab_merge_request_id
+        reconcile.gitlab_labeler, ctx, gitlab_project_id, gitlab_merge_request_id
     )
 
 
@@ -1616,12 +1591,14 @@ def gitlab_labeler(ctx, gitlab_project_id, gitlab_merge_request_id):
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_namespace_labels(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_namespace_labels
 
     run_integration(
         reconcile.openshift_namespace_labels,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1638,13 +1615,18 @@ def openshift_namespace_labels(ctx, thread_pool_size, internal, use_jump_host):
 @namespace_name
 @click.pass_context
 def openshift_namespaces(
-    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+) -> None:
     import reconcile.openshift_namespaces
 
     run_integration(
         reconcile.openshift_namespaces,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1660,12 +1642,14 @@ def openshift_namespaces(
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
+def openshift_network_policies(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.openshift_network_policies
 
     run_integration(
         reconcile.openshift_network_policies,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1680,12 +1664,18 @@ def openshift_network_policies(ctx, thread_pool_size, internal, use_jump_host):
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_limitranges(ctx, thread_pool_size, internal, use_jump_host, take_over):
+def openshift_limitranges(
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    take_over: bool,
+) -> None:
     import reconcile.openshift_limitranges
 
     run_integration(
         reconcile.openshift_limitranges,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1701,12 +1691,18 @@ def openshift_limitranges(ctx, thread_pool_size, internal, use_jump_host, take_o
 @internal()
 @use_jump_host()
 @click.pass_context
-def openshift_resourcequotas(ctx, thread_pool_size, internal, use_jump_host, take_over):
+def openshift_resourcequotas(
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    take_over: bool,
+) -> None:
     import reconcile.openshift_resourcequotas
 
     run_integration(
         reconcile.openshift_resourcequotas,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1724,18 +1720,50 @@ def openshift_resourcequotas(ctx, thread_pool_size, internal, use_jump_host, tak
 @namespace_name
 @click.pass_context
 def openshift_vault_secrets(
-    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+) -> None:
     import reconcile.openshift_vault_secrets
 
     run_integration(
         reconcile.openshift_vault_secrets,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
         cluster_name=cluster_name,
         namespace_name=namespace_name,
+    )
+
+
+@integration.command(short_help="Manages OpenShift Secrets for RHCS certificates")
+@threaded()
+@binary(["oc", "ssh"])
+@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
+@internal()
+@use_jump_host()
+@cluster_name
+@click.pass_context
+def openshift_rhcs_certs(
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    cluster_name: Iterable[str] | None,
+) -> None:
+    import reconcile.openshift_rhcs_certs
+
+    run_integration(
+        reconcile.openshift_rhcs_certs,
+        ctx,
+        thread_pool_size,
+        internal,
+        use_jump_host,
+        cluster_name=cluster_name,
     )
 
 
@@ -1749,13 +1777,18 @@ def openshift_vault_secrets(
 @namespace_name
 @click.pass_context
 def openshift_routes(
-    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+) -> None:
     import reconcile.openshift_routes
 
     run_integration(
         reconcile.openshift_routes,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1774,13 +1807,18 @@ def openshift_routes(
 @namespace_name
 @click.pass_context
 def openshift_prometheus_rules(
-    ctx, thread_pool_size, internal, use_jump_host, cluster_name, namespace_name
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    cluster_name: Iterable[str] | None,
+    namespace_name: str | None,
+) -> None:
     import reconcile.openshift_prometheus_rules
 
     run_integration(
         reconcile.openshift_prometheus_rules,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -1807,17 +1845,17 @@ def openshift_prometheus_rules(
 )
 @click.pass_context
 def endpoints_discovery(
-    ctx,
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    cluster_name,
-    enable_extended_early_exit,
-    extended_early_exit_cache_ttl_seconds,
-    log_cached_log_output,
-    app_name,
-    endpoint_tmpl_resource,
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    cluster_name: Iterable[str] | None,
+    enable_extended_early_exit: bool,
+    extended_early_exit_cache_ttl_seconds: int,
+    log_cached_log_output: bool,
+    app_name: str | None,
+    endpoint_tmpl_resource: str | None,
+) -> None:
     from reconcile.endpoints_discovery.integration import (
         EndpointsDiscoveryIntegration,
         EndpointsDiscoveryIntegrationParams,
@@ -1837,27 +1875,25 @@ def endpoints_discovery(
         params.endpoint_tmpl_resource = endpoint_tmpl_resource
     run_class_integration(
         integration=EndpointsDiscoveryIntegration(params),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Configures the teams and members in Quay.")
 @click.pass_context
-def quay_membership(ctx):
+def quay_membership(ctx: click.Context) -> None:
     import reconcile.quay_membership
 
-    run_integration(reconcile.quay_membership, ctx.obj)
+    run_integration(reconcile.quay_membership, ctx)
 
 
-@integration.command(
-    short_help="Mirrors external images into Google Container Registry."
-)
+@integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
 @click.pass_context
 @binary(["skopeo"])
-def gcr_mirror(ctx):
-    import reconcile.gcr_mirror
+def gcp_image_mirror(ctx: click.Context) -> None:
+    import reconcile.gcp_image_mirror
 
-    run_integration(reconcile.gcr_mirror, ctx.obj)
+    run_integration(reconcile.gcp_image_mirror, ctx)
 
 
 @integration.command(short_help="Mirrors external images into Quay.")
@@ -1897,18 +1933,18 @@ def gcr_mirror(ctx):
 @click.pass_context
 @binary(["skopeo"])
 def quay_mirror(
-    ctx,
-    control_file_dir,
-    compare_tags,
-    compare_tags_interval,
-    repository_url,
-    exclude_repository_url,
-):
+    ctx: click.Context,
+    control_file_dir: str | None,
+    compare_tags: bool | None,
+    compare_tags_interval: int,
+    repository_url: Iterable[str] | None,
+    exclude_repository_url: Iterable[str] | None,
+) -> None:
     import reconcile.quay_mirror
 
     run_integration(
         reconcile.quay_mirror,
-        ctx.obj,
+        ctx,
         control_file_dir,
         compare_tags,
         compare_tags_interval,
@@ -1956,13 +1992,18 @@ def quay_mirror(
 @click.pass_context
 @binary(["skopeo"])
 def quay_mirror_org(
-    ctx, control_file_dir, compare_tags, compare_tags_interval, org, repository
-):
+    ctx: click.Context,
+    control_file_dir: str | None,
+    compare_tags: bool | None,
+    compare_tags_interval: int,
+    org: Iterable[str] | None,
+    repository: Iterable[str] | None,
+) -> None:
     import reconcile.quay_mirror_org
 
     run_integration(
         reconcile.quay_mirror_org,
-        ctx.obj,
+        ctx,
         control_file_dir,
         compare_tags,
         compare_tags_interval,
@@ -1973,29 +2014,31 @@ def quay_mirror_org(
 
 @integration.command(short_help="Creates and Manages Quay Repos.")
 @click.pass_context
-def quay_repos(ctx):
+def quay_repos(ctx: click.Context) -> None:
     import reconcile.quay_repos
 
-    run_integration(reconcile.quay_repos, ctx.obj)
+    run_integration(reconcile.quay_repos, ctx)
 
 
 @integration.command(short_help="Manage permissions for Quay Repositories.")
 @click.pass_context
-def quay_permissions(ctx):
+def quay_permissions(ctx: click.Context) -> None:
     import reconcile.quay_permissions
 
-    run_integration(reconcile.quay_permissions, ctx.obj)
+    run_integration(reconcile.quay_permissions, ctx)
 
 
 @integration.command(short_help="Removes users which are not found in LDAP search.")
 @click.argument("app-interface-project-id")
 @click.argument("infra-project-id")
 @click.pass_context
-def ldap_users(ctx, infra_project_id, app_interface_project_id):
+def ldap_users(
+    ctx: click.Context, infra_project_id: str, app_interface_project_id: str
+) -> None:
     import reconcile.ldap_users
 
     run_integration(
-        reconcile.ldap_users, ctx.obj, app_interface_project_id, infra_project_id
+        reconcile.ldap_users, ctx, app_interface_project_id, infra_project_id
     )
 
 
@@ -2007,7 +2050,7 @@ def ldap_users(ctx, infra_project_id, app_interface_project_id):
     default="it-cloud-aws",
 )
 @click.pass_context
-def ldap_groups(ctx, aws_sso_namespace):
+def ldap_groups(ctx: click.Context, aws_sso_namespace: str) -> None:
     from reconcile.ldap_groups.integration import (
         LdapGroupsIntegration,
         LdapGroupsIntegrationParams,
@@ -2017,7 +2060,7 @@ def ldap_groups(ctx, aws_sso_namespace):
         integration=LdapGroupsIntegration(
             LdapGroupsIntegrationParams(aws_sso_namespace=aws_sso_namespace)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2048,12 +2091,12 @@ def ldap_groups(ctx, aws_sso_namespace):
 )
 @click.pass_context
 def aws_version_sync(
-    ctx,
-    aws_resource_exporter_clusters,
-    clusters,
-    supported_providers,
-    prometheus_timeout,
-):
+    ctx: click.Context,
+    aws_resource_exporter_clusters: str,
+    clusters: str | None,
+    supported_providers: str | None,
+    prometheus_timeout: str | None,
+) -> None:
     from reconcile.aws_version_sync.integration import (
         AVSIntegration,
         AVSIntegrationParams,
@@ -2074,7 +2117,7 @@ def aws_version_sync(
                 else 10,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2087,7 +2130,12 @@ def aws_version_sync(
 @click.argument("gitlab-project-id", required=False)
 @click.argument("gitlab-merge-request-id", required=False)
 @click.pass_context
-def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id):
+def terraform_repo(
+    ctx: click.Context,
+    output_file: str | None,
+    gitlab_project_id: str | None,
+    gitlab_merge_request_id: str | None,
+) -> None:
     from reconcile import terraform_repo
 
     run_class_integration(
@@ -2099,18 +2147,18 @@ def terraform_repo(ctx, output_file, gitlab_project_id, gitlab_merge_request_id)
                 gitlab_merge_request_id=gitlab_merge_request_id,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Test app-interface templates.")
 @click.pass_context
-def template_validator(ctx):
+def template_validator(ctx: click.Context) -> None:
     from reconcile.templating import validator
 
     run_class_integration(
         integration=validator.TemplateValidatorIntegration(PydanticRunParams()),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2134,8 +2182,11 @@ def template_validator(ctx):
 )
 @click.pass_context
 def template_renderer(
-    ctx, app_interface_data_path, clone_repo, template_collection_name
-):
+    ctx: click.Context,
+    app_interface_data_path: str | None,
+    clone_repo: bool,
+    template_collection_name: str | None,
+) -> None:
     from reconcile.templating.renderer import (
         TemplateRendererIntegration,
         TemplateRendererIntegrationParams,
@@ -2149,7 +2200,7 @@ def template_renderer(
                 template_collection_name=template_collection_name,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2175,27 +2226,27 @@ def template_renderer(
 )
 @click.pass_context
 def terraform_resources(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    light,
-    vault_output_path,
-    account_name,
-    exclude_accounts,
-    enable_extended_early_exit,
-    extended_early_exit_cache_ttl_seconds,
-    log_cached_log_output,
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    light: bool,
+    vault_output_path: str,
+    account_name: Iterable[str] | None,
+    exclude_accounts: Iterable[str],
+    enable_extended_early_exit: bool,
+    extended_early_exit_cache_ttl_seconds: int,
+    log_cached_log_output: bool,
+) -> None:
     import reconcile.terraform_resources
 
     if print_to_file and is_file_in_git_repo(print_to_file):
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_resources,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2223,20 +2274,20 @@ def terraform_resources(
 @internal()
 @click.pass_context
 def terraform_cloudflare_resources(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    thread_pool_size,
-    account_name,
-    vault_output_path,
-    internal,
-    use_jump_host,
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    account_name: str | None,
+    vault_output_path: str,
+    internal: bool,
+    use_jump_host: bool,
+) -> None:
     import reconcile.terraform_cloudflare_resources
 
     run_integration(
         reconcile.terraform_cloudflare_resources,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2257,8 +2308,13 @@ def terraform_cloudflare_resources(
 @cloudflare_zone_name
 @click.pass_context
 def terraform_cloudflare_dns(
-    ctx, print_to_file, enable_deletion, thread_pool_size, account_name, zone_name
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    account_name: str | None,
+    zone_name: str | None,
+) -> None:
     from reconcile import terraform_cloudflare_dns
 
     run_class_integration(
@@ -2271,7 +2327,7 @@ def terraform_cloudflare_dns(
                 selected_zone=zone_name,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2284,8 +2340,12 @@ def terraform_cloudflare_dns(
 @enable_deletion(default=True)
 @click.pass_context
 def terraform_cloudflare_users(
-    ctx, print_to_file, account_name, thread_pool_size, enable_deletion
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    account_name: str | None,
+    thread_pool_size: int,
+    enable_deletion: bool,
+) -> None:
     from reconcile.terraform_cloudflare_users import (
         TerraformCloudflareUsers,
         TerraformCloudflareUsersParams,
@@ -2300,28 +2360,7 @@ def terraform_cloudflare_users(
                 enable_deletion=enable_deletion,
             )
         ),
-        ctx.obj,
-    )
-
-
-@integration.command(
-    short_help="Manage Cloud Resources using Cloud Native Assets (CNA)."
-)
-@enable_deletion(default=False)
-@threaded()
-@click.pass_context
-def cna_resources(
-    ctx,
-    enable_deletion,
-    thread_pool_size,
-):
-    import reconcile.cna.integration
-
-    run_integration(
-        reconcile.cna.integration,
-        ctx.obj,
-        enable_deletion,
-        thread_pool_size,
+        ctx,
     )
 
 
@@ -2331,16 +2370,16 @@ def cna_resources(
 @click.option("--app-name", default=None, help="app to filter saas files by.")
 @click.pass_context
 def saas_auto_promotions_manager(
-    ctx,
-    thread_pool_size,
-    env_name,
-    app_name,
-):
+    ctx: click.Context,
+    thread_pool_size: int,
+    env_name: str | None,
+    app_name: str | None,
+) -> None:
     import reconcile.saas_auto_promotions_manager.integration
 
     run_integration(
         reconcile.saas_auto_promotions_manager.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         env_name=env_name,
         app_name=app_name,
@@ -2357,20 +2396,20 @@ def saas_auto_promotions_manager(
 @account_name
 @click.pass_context
 def terraform_users(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    thread_pool_size,
-    send_mails,
-    account_name,
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    send_mails: bool,
+    account_name: str | None,
+) -> None:
     import reconcile.terraform_users
 
     if print_to_file and is_file_in_git_repo(print_to_file):
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_users,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2388,8 +2427,12 @@ def terraform_users(
 @enable_deletion(default=False)
 @click.pass_context
 def terraform_vpc_resources(
-    ctx, account_name, print_to_file, thread_pool_size, enable_deletion
-):
+    ctx: click.Context,
+    account_name: str | None,
+    print_to_file: str | None,
+    thread_pool_size: int,
+    enable_deletion: bool,
+) -> None:
     from reconcile.terraform_vpc_resources.integration import (
         TerraformVpcResources,
         TerraformVpcResourcesParams,
@@ -2404,7 +2447,7 @@ def terraform_vpc_resources(
                 enable_deletion=enable_deletion,
             )
         ),
-        ctx.obj,
+        ctx,
     )
 
 
@@ -2422,22 +2465,22 @@ def terraform_vpc_resources(
 @log_cached_log_output
 @click.pass_context
 def terraform_vpc_peerings(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    thread_pool_size,
-    account_name,
-    enable_extended_early_exit,
-    extended_early_exit_cache_ttl_seconds,
-    log_cached_log_output,
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    account_name: str | None,
+    enable_extended_early_exit: bool,
+    extended_early_exit_cache_ttl_seconds: int,
+    log_cached_log_output: bool,
+) -> None:
     import reconcile.terraform_vpc_peerings
 
     if print_to_file and is_file_in_git_repo(print_to_file):
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_vpc_peerings,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2452,12 +2495,12 @@ def terraform_vpc_peerings(
     short_help="Validates that VPC peerings do not exist between public and internal clusters."
 )
 @click.pass_context
-def vpc_peerings_validator(ctx):
+def vpc_peerings_validator(ctx: click.Context) -> None:
     import reconcile.vpc_peerings_validator
 
     run_integration(
         reconcile.vpc_peerings_validator,
-        ctx.obj,
+        ctx,
     )
 
 
@@ -2473,22 +2516,22 @@ def vpc_peerings_validator(ctx):
 @account_name
 @click.pass_context
 def terraform_tgw_attachments(
-    ctx,
-    print_to_file,
-    enable_deletion,
-    thread_pool_size,
-    account_name,
-    enable_extended_early_exit,
-    extended_early_exit_cache_ttl_seconds,
-    log_cached_log_output,
-):
+    ctx: click.Context,
+    print_to_file: str | None,
+    enable_deletion: bool,
+    thread_pool_size: int,
+    account_name: str | None,
+    enable_extended_early_exit: bool,
+    extended_early_exit_cache_ttl_seconds: int,
+    log_cached_log_output: bool,
+) -> None:
     import reconcile.terraform_tgw_attachments
 
     if print_to_file and is_file_in_git_repo(print_to_file):
         raise PrintToFileInGitRepositoryError(print_to_file)
     run_integration(
         reconcile.terraform_tgw_attachments,
-        ctx.obj,
+        ctx,
         print_to_file,
         enable_deletion,
         thread_pool_size,
@@ -2503,44 +2546,44 @@ def terraform_tgw_attachments(
     short_help="Accept GitHub repository invitations for known repositories."
 )
 @click.pass_context
-def github_repo_invites(ctx):
+def github_repo_invites(ctx: click.Context) -> None:
     import reconcile.github_repo_invites
 
-    run_integration(reconcile.github_repo_invites, ctx.obj)
+    run_integration(reconcile.github_repo_invites, ctx)
 
 
 @integration.command(short_help="Validates permissions in github repositories.")
 @click.argument("instance-name")
 @click.pass_context
-def github_repo_permissions_validator(ctx, instance_name):
+def github_repo_permissions_validator(ctx: click.Context, instance_name: str) -> None:
     import reconcile.github_repo_permissions_validator
 
-    run_integration(reconcile.github_repo_permissions_validator, ctx.obj, instance_name)
+    run_integration(reconcile.github_repo_permissions_validator, ctx, instance_name)
 
 
 @integration.command(short_help="Manage GitLab group members.")
 @click.pass_context
-def gitlab_members(ctx):
+def gitlab_members(ctx: click.Context) -> None:
     import reconcile.gitlab_members
 
-    run_integration(reconcile.gitlab_members, ctx.obj)
+    run_integration(reconcile.gitlab_members, ctx)
 
 
 @integration.command(short_help="Create GitLab projects.")
 @click.pass_context
-def gitlab_projects(ctx):
+def gitlab_projects(ctx: click.Context) -> None:
     import reconcile.gitlab_projects
 
-    run_integration(reconcile.gitlab_projects, ctx.obj)
+    run_integration(reconcile.gitlab_projects, ctx)
 
 
 @integration.command(short_help="Manage membership in OpenShift groups via OCM.")
 @threaded()
 @click.pass_context
-def ocm_groups(ctx, thread_pool_size):
+def ocm_groups(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.ocm_groups
 
-    run_integration(reconcile.ocm_groups, ctx.obj, thread_pool_size)
+    run_integration(reconcile.ocm_groups, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Manages clusters via OCM.")
@@ -2578,7 +2621,7 @@ def ocm_groups(ctx, thread_pool_size):
 )
 @click.pass_context
 def ocm_clusters(
-    ctx,
+    ctx: click.Context,
     gitlab_project_id: str | None,
     thread_pool_size: int,
     job_controller_cluster: str | None,
@@ -2586,7 +2629,7 @@ def ocm_clusters(
     rosa_job_service_account: str | None,
     rosa_role: str | None,
     rosa_job_image: str | None,
-):
+) -> None:
     from reconcile.ocm_clusters import (
         OcmClusters,
         OcmClustersParams,
@@ -2604,78 +2647,52 @@ def ocm_clusters(
                 rosa_role=rosa_role,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
-
-
-def vault_creds_path(function):
-    function = click.option(
-        "--vault-creds-path",
-        help="path in Vault to store creds.",
-        default="app-sre/creds/kube-configs",
-    )(function)
-
-    return function
-
-
-def dedicated_admin_namespace(function):
-    function = click.option(
-        "--dedicated-admin-namespace",
-        default="dedicated-admin",
-        help="namespace for the dedicated-admin bot",
-    )(function)
-    return function
-
-
-def dedicated_admin_service_account(function):
-    function = click.option(
-        "--dedicated-admin-service-account",
-        default="app-sre",
-        help="service account name for the dedicated-admin bot",
-    )(function)
-    return function
-
-
-def cluster_admin_namespace(function):
-    function = click.option(
-        "--cluster-admin-namespace",
-        default="app-sre",
-        help="namespace for the cluster-admin bot",
-    )(function)
-    return function
-
-
-def cluster_admin_service_account(function):
-    function = click.option(
-        "--cluster-admin-service-account",
-        default="app-sre-cluster-admin-bot",
-        help="service account name for the cluster-admin bot",
-    )(function)
-    return function
 
 
 @integration.command(short_help="Manages dedicated-admin and cluster-admin creds.")
 @gitlab_project_id
-@vault_creds_path
-@dedicated_admin_namespace
-@dedicated_admin_service_account
-@cluster_admin_namespace
-@cluster_admin_service_account
+@click.option(
+    "--vault-creds-path",
+    help="path in Vault to store creds.",
+    default="app-sre/creds/kube-configs",
+)
+@click.option(
+    "--dedicated-admin-namespace",
+    default="dedicated-admin",
+    help="namespace for the dedicated-admin bot",
+)
+@click.option(
+    "--dedicated-admin-service-account",
+    default="app-sre",
+    help="service account name for the dedicated-admin bot",
+)
+@click.option(
+    "--cluster-admin-namespace",
+    default="app-sre",
+    help="namespace for the cluster-admin bot",
+)
+@click.option(
+    "--cluster-admin-service-account",
+    default="app-sre-cluster-admin-bot",
+    help="service account name for the cluster-admin bot",
+)
 @click.pass_context
 def openshift_cluster_bots(
-    ctx,
-    gitlab_project_id,
-    vault_creds_path,
-    dedicated_admin_namespace,
-    dedicated_admin_service_account,
-    cluster_admin_namespace,
-    cluster_admin_service_account,
-):
+    ctx: click.Context,
+    gitlab_project_id: str | None,
+    vault_creds_path: str,
+    dedicated_admin_namespace: str,
+    dedicated_admin_service_account: str,
+    cluster_admin_namespace: str,
+    cluster_admin_service_account: str,
+) -> None:
     import reconcile.openshift_cluster_bots
 
     run_integration(
         reconcile.openshift_cluster_bots,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         vault_creds_path,
         dedicated_admin_ns=dedicated_admin_namespace,
@@ -2688,28 +2705,28 @@ def openshift_cluster_bots(
 @integration.command(short_help="Manage External Configuration labels in OCM.")
 @threaded()
 @click.pass_context
-def ocm_external_configuration_labels(ctx, thread_pool_size):
+def ocm_external_configuration_labels(
+    ctx: click.Context, thread_pool_size: int
+) -> None:
     import reconcile.ocm_external_configuration_labels
 
-    run_integration(
-        reconcile.ocm_external_configuration_labels, ctx.obj, thread_pool_size
-    )
+    run_integration(reconcile.ocm_external_configuration_labels, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Trigger jenkins jobs following Addon upgrades.")
 @click.pass_context
-def ocm_addons_upgrade_tests_trigger(ctx):
+def ocm_addons_upgrade_tests_trigger(ctx: click.Context) -> None:
     import reconcile.ocm_addons_upgrade_tests_trigger
 
-    run_integration(reconcile.ocm_addons_upgrade_tests_trigger, ctx.obj)
+    run_integration(reconcile.ocm_addons_upgrade_tests_trigger, ctx)
 
 
 @integration.command(short_help="Manage Machine Pools in OCM.")
 @click.pass_context
-def ocm_machine_pools(ctx):
+def ocm_machine_pools(ctx: click.Context) -> None:
     import reconcile.ocm_machine_pools
 
-    run_integration(reconcile.ocm_machine_pools, ctx.obj)
+    run_integration(reconcile.ocm_machine_pools, ctx)
 
 
 @integration.command(short_help="Manage Upgrade Policy schedules in OCM organizations.")
@@ -2717,7 +2734,7 @@ def ocm_machine_pools(ctx):
 @exclude_org_id
 @click.pass_context
 def ocm_upgrade_scheduler_org(
-    ctx, org_id: Iterable[str], exclude_org_id: Iterable[str]
+    ctx: click.Context, org_id: Iterable[str], exclude_org_id: Iterable[str]
 ) -> None:
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
     from reconcile.aus.ocm_upgrade_scheduler_org import (
@@ -2731,19 +2748,19 @@ def ocm_upgrade_scheduler_org(
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Update Upgrade Policy schedules in OCM organizations.")
 @gitlab_project_id
 @click.pass_context
-def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
+def ocm_upgrade_scheduler_org_updater(
+    ctx: click.Context, gitlab_project_id: str | None
+) -> None:
     import reconcile.ocm_upgrade_scheduler_org_updater
 
-    run_integration(
-        reconcile.ocm_upgrade_scheduler_org_updater, ctx.obj, gitlab_project_id
-    )
+    run_integration(reconcile.ocm_upgrade_scheduler_org_updater, ctx, gitlab_project_id)
 
 
 @integration.command(
@@ -2759,7 +2776,7 @@ def ocm_upgrade_scheduler_org_updater(ctx, gitlab_project_id):
 @exclude_org_id
 @click.pass_context
 def ocm_addons_upgrade_scheduler_org(
-    ctx,
+    ctx: click.Context,
     ocm_env: str,
     org_id: Iterable[str],
     exclude_org_id: Iterable[str],
@@ -2777,7 +2794,7 @@ def ocm_addons_upgrade_scheduler_org(
                 excluded_ocm_organization_ids=set(exclude_org_id),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2800,7 +2817,7 @@ def ocm_addons_upgrade_scheduler_org(
 )
 @click.pass_context
 def advanced_upgrade_scheduler(
-    ctx,
+    ctx: click.Context,
     ocm_env: str,
     org_id: Iterable[str],
     exclude_org_id: Iterable[str],
@@ -2818,7 +2835,7 @@ def advanced_upgrade_scheduler(
                 ignore_sts_clusters=ignore_sts_clusters,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2855,7 +2872,7 @@ def advanced_upgrade_scheduler(
 )
 @click.pass_context
 def version_gate_approver(
-    ctx,
+    ctx: click.Context,
     job_controller_cluster: str,
     job_controller_namespace: str,
     rosa_job_service_account: str,
@@ -2877,14 +2894,14 @@ def version_gate_approver(
                 rosa_role=rosa_role,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Manage Databases and Database Users.")
 @vault_output_path
 @click.pass_context
-def database_access_manager(ctx, vault_output_path: str):
+def database_access_manager(ctx: click.Context, vault_output_path: str) -> None:
     from reconcile.database_access_manager import (
         DatabaseAccessManagerIntegration,
         DBAMIntegrationParams,
@@ -2894,7 +2911,7 @@ def database_access_manager(ctx, vault_output_path: str):
         integration=DatabaseAccessManagerIntegration(
             DBAMIntegrationParams(vault_output_path=vault_output_path)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -2902,52 +2919,43 @@ def database_access_manager(ctx, vault_output_path: str):
     short_help="Export Product and Application informnation to Status Board."
 )
 @click.pass_context
-def status_board_exporter(ctx):
+def status_board_exporter(ctx: click.Context) -> None:
     from reconcile.status_board import StatusBoardExporterIntegration
 
     run_class_integration(
         integration=StatusBoardExporterIntegration(PydanticRunParams()),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Update recommended version for OCM orgs")
 @gitlab_project_id
 @click.pass_context
-def ocm_update_recommended_version(ctx, gitlab_project_id):
+def ocm_update_recommended_version(
+    ctx: click.Context, gitlab_project_id: str | None
+) -> None:
     import reconcile.ocm_update_recommended_version
 
-    run_integration(
-        reconcile.ocm_update_recommended_version, ctx.obj, gitlab_project_id
-    )
+    run_integration(reconcile.ocm_update_recommended_version, ctx, gitlab_project_id)
 
 
 @integration.command(short_help="Manages cluster Addons in OCM.")
 @threaded()
 @click.pass_context
-def ocm_addons(ctx, thread_pool_size):
+def ocm_addons(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.ocm_addons
 
-    run_integration(reconcile.ocm_addons, ctx.obj, thread_pool_size)
+    run_integration(reconcile.ocm_addons, ctx, thread_pool_size)
 
 
 @integration.command(
     short_help="Grants AWS infrastructure access to members in AWS groups via OCM."
 )
 @click.pass_context
-def ocm_aws_infrastructure_access(ctx):
+def ocm_aws_infrastructure_access(ctx: click.Context) -> None:
     import reconcile.ocm_aws_infrastructure_access
 
-    run_integration(reconcile.ocm_aws_infrastructure_access, ctx.obj)
-
-
-@integration.command(short_help="Manage GitHub Identity Providers in OCM.")
-@vault_input_path
-@click.pass_context
-def ocm_github_idp(ctx, vault_input_path):
-    import reconcile.ocm_github_idp
-
-    run_integration(reconcile.ocm_github_idp, ctx.obj, vault_input_path)
+    run_integration(reconcile.ocm_aws_infrastructure_access, ctx)
 
 
 @integration.command(
@@ -2980,12 +2988,12 @@ def ocm_github_idp(ctx, vault_input_path):
 )
 @click.pass_context
 def ocm_oidc_idp(
-    ctx,
-    ocm_env,
-    default_auth_name,
-    default_auth_issuer_url,
-    vault_input_path,
-):
+    ctx: click.Context,
+    ocm_env: str | None,
+    default_auth_name: str,
+    default_auth_issuer_url: str,
+    vault_input_path: str,
+) -> None:
     from reconcile.rhidp.ocm_oidc_idp.integration import (
         OCMOidcIdp,
         OCMOidcIdpParams,
@@ -3000,7 +3008,7 @@ def ocm_oidc_idp(
                 default_auth_issuer_url=default_auth_issuer_url,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3045,14 +3053,14 @@ def ocm_oidc_idp(
 )
 @click.pass_context
 def rhidp_sso_client(
-    ctx,
-    keycloak_instance_vault_paths,
-    contact_emails,
-    vault_input_path,
-    ocm_env,
-    default_auth_name,
-    default_auth_issuer_url,
-):
+    ctx: click.Context,
+    keycloak_instance_vault_paths: str,
+    contact_emails: str,
+    vault_input_path: str,
+    ocm_env: str | None,
+    default_auth_name: str,
+    default_auth_issuer_url: str,
+) -> None:
     from reconcile.rhidp.sso_client.integration import (
         SSOClient,
         SSOClientParams,
@@ -3071,7 +3079,7 @@ def rhidp_sso_client(
                 contacts=list(set(contact_emails.split(","))),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3079,7 +3087,7 @@ def rhidp_sso_client(
     short_help="Manages the OCM subscription labels for clusters with RHIDP authentication. Part of RHIDP."
 )
 @click.pass_context
-def cluster_auth_rhidp(ctx):
+def cluster_auth_rhidp(ctx: click.Context) -> None:
     from reconcile.cluster_auth_rhidp.integration import (
         ClusterAuthRhidpIntegration,
         ClusterAuthRhidpIntegrationParams,
@@ -3087,7 +3095,7 @@ def cluster_auth_rhidp(ctx):
 
     run_class_integration(
         integration=ClusterAuthRhidpIntegration(ClusterAuthRhidpIntegrationParams()),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3095,58 +3103,71 @@ def cluster_auth_rhidp(ctx):
     short_help="Automatically provide dedicated Dynatrace tokens to management clusters"
 )
 @click.pass_context
-def dynatrace_token_provider(ctx):
+def dynatrace_token_provider(ctx: click.Context) -> None:
     from reconcile.dynatrace_token_provider.integration import (
         DynatraceTokenProviderIntegration,
     )
 
     run_class_integration(
         integration=DynatraceTokenProviderIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
+    )
+
+
+@integration.command(short_help="Manage labels across cluster fleets in OCM")
+@click.pass_context
+def fleet_labeler(ctx: click.Context) -> None:
+    from reconcile.fleet_labeler.integration import (
+        FleetLabelerIntegration,
+    )
+
+    run_class_integration(
+        integration=FleetLabelerIntegration(),
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Manage additional routers in OCM.")
 @click.pass_context
-def ocm_additional_routers(ctx):
+def ocm_additional_routers(ctx: click.Context) -> None:
     import reconcile.ocm_additional_routers
 
-    run_integration(reconcile.ocm_additional_routers, ctx.obj)
+    run_integration(reconcile.ocm_additional_routers, ctx)
 
 
 @integration.command(short_help="Send email notifications to app-interface audience.")
 @click.pass_context
-def email_sender(ctx):
+def email_sender(ctx: click.Context) -> None:
     import reconcile.email_sender
 
-    run_integration(reconcile.email_sender, ctx.obj)
+    run_integration(reconcile.email_sender, ctx)
 
 
 @integration.command(
     short_help="Send emails to users based on requests submitted to app-interface."
 )
 @click.pass_context
-def requests_sender(ctx):
+def requests_sender(ctx: click.Context) -> None:
     import reconcile.requests_sender
 
-    run_integration(reconcile.requests_sender, ctx.obj)
+    run_integration(reconcile.requests_sender, ctx)
 
 
 @integration.command(short_help="Validate dependencies are defined for each service.")
 @click.pass_context
-def service_dependencies(ctx):
+def service_dependencies(ctx: click.Context) -> None:
     import reconcile.service_dependencies
 
-    run_integration(reconcile.service_dependencies, ctx.obj)
+    run_integration(reconcile.service_dependencies, ctx)
 
 
 @integration.command(short_help="Runs SQL Queries against app-interface RDS resources.")
 @enable_deletion(default=False)
 @click.pass_context
-def sql_query(ctx, enable_deletion):
+def sql_query(ctx: click.Context, enable_deletion: bool) -> None:
     import reconcile.sql_query
 
-    run_integration(reconcile.sql_query, ctx.obj, enable_deletion)
+    run_integration(reconcile.sql_query, ctx, enable_deletion)
 
 
 @integration.command(
@@ -3154,10 +3175,10 @@ def sql_query(ctx, enable_deletion):
 )
 @threaded()
 @click.pass_context
-def gitlab_owners(ctx, thread_pool_size):
+def gitlab_owners(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.gitlab_owners
 
-    run_integration(reconcile.gitlab_owners, ctx.obj, thread_pool_size)
+    run_integration(reconcile.gitlab_owners, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Ensures that forks of App Interface are compliant.")
@@ -3166,29 +3187,20 @@ def gitlab_owners(ctx, thread_pool_size):
 @click.argument("gitlab-maintainers-group", required=False)
 @click.pass_context
 def gitlab_fork_compliance(
-    ctx, gitlab_project_id, gitlab_merge_request_id, gitlab_maintainers_group
-):
+    ctx: click.Context,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: str,
+    gitlab_maintainers_group: str | None,
+) -> None:
     import reconcile.gitlab_fork_compliance
 
     run_integration(
         reconcile.gitlab_fork_compliance,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         gitlab_merge_request_id,
         gitlab_maintainers_group,
     )
-
-
-@integration.command(
-    short_help="Collects the ImageManifestVuln CRs from all the clusters "
-    "and posts them to Dashdotdb."
-)
-@threaded(default=2)
-@click.pass_context
-def dashdotdb_cso(ctx, thread_pool_size):
-    import reconcile.dashdotdb_cso
-
-    run_integration(reconcile.dashdotdb_cso, ctx.obj, thread_pool_size)
 
 
 @integration.command(
@@ -3198,10 +3210,12 @@ def dashdotdb_cso(ctx, thread_pool_size):
 @threaded(default=2)
 @click.pass_context
 @cluster_name
-def dashdotdb_dvo(ctx, thread_pool_size, cluster_name):
+def dashdotdb_dvo(
+    ctx: click.Context, thread_pool_size: int, cluster_name: Iterable[str] | None
+) -> None:
     import reconcile.dashdotdb_dvo
 
-    run_integration(reconcile.dashdotdb_dvo, ctx.obj, thread_pool_size, cluster_name)
+    run_integration(reconcile.dashdotdb_dvo, ctx, thread_pool_size, cluster_name)
 
 
 @integration.command(
@@ -3210,22 +3224,22 @@ def dashdotdb_dvo(ctx, thread_pool_size, cluster_name):
 )
 @threaded(default=2)
 @click.pass_context
-def dashdotdb_slo(ctx, thread_pool_size):
+def dashdotdb_slo(ctx: click.Context, thread_pool_size: int) -> None:
     import reconcile.dashdotdb_slo
 
-    run_integration(reconcile.dashdotdb_slo, ctx.obj, thread_pool_size)
+    run_integration(reconcile.dashdotdb_slo, ctx, thread_pool_size)
 
 
 @integration.command(short_help="Collects dora metrics.")
 @gitlab_project_id
 @threaded(default=5)
 @click.pass_context
-def dashdotdb_dora(ctx, gitlab_project_id, thread_pool_size):
+def dashdotdb_dora(
+    ctx: click.Context, gitlab_project_id: str | None, thread_pool_size: int
+) -> None:
     import reconcile.dashdotdb_dora
 
-    run_integration(
-        reconcile.dashdotdb_dora, ctx.obj, gitlab_project_id, thread_pool_size
-    )
+    run_integration(reconcile.dashdotdb_dora, ctx, gitlab_project_id, thread_pool_size)
 
 
 @integration.command(short_help="Tests prometheus rules using promtool.")
@@ -3234,12 +3248,14 @@ def dashdotdb_dora(ctx, gitlab_project_id, thread_pool_size):
 @binary_version("promtool", ["--version"], PROMTOOL_VERSION_REGEX, PROMTOOL_VERSION)
 @cluster_name
 @click.pass_context
-def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
+def prometheus_rules_tester(
+    ctx: click.Context, thread_pool_size: int, cluster_name: Iterable[str] | None
+) -> None:
     import reconcile.prometheus_rules_tester.integration
 
     run_integration(
         reconcile.prometheus_rules_tester.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         cluster_names=cluster_name,
     )
@@ -3247,37 +3263,37 @@ def prometheus_rules_tester(ctx, thread_pool_size, cluster_name):
 
 @integration.command(short_help="Tests templating of resources.")
 @click.pass_context
-def resource_template_tester(ctx):
+def resource_template_tester(ctx: click.Context) -> None:
     import reconcile.resource_template_tester
 
-    run_integration(reconcile.resource_template_tester, ctx.obj)
+    run_integration(reconcile.resource_template_tester, ctx)
 
 
 @integration.command(
     short_help="Validate queries to maintain consumer schema compatibility."
 )
 @click.pass_context
-def query_validator(ctx):
+def query_validator(ctx: click.Context) -> None:
     import reconcile.query_validator
 
-    run_integration(reconcile.query_validator, ctx.obj)
+    run_integration(reconcile.query_validator, ctx)
 
 
 @integration.command(short_help="Manages SendGrid teammates for a given account.")
 @click.pass_context
-def sendgrid_teammates(ctx):
+def sendgrid_teammates(ctx: click.Context) -> None:
     import reconcile.sendgrid_teammates
 
-    run_integration(reconcile.sendgrid_teammates, ctx.obj)
+    run_integration(reconcile.sendgrid_teammates, ctx)
 
 
 @integration.command(short_help="Maps ClusterDeployment resources to Cluster IDs.")
 @vault_output_path
 @click.pass_context
-def cluster_deployment_mapper(ctx, vault_output_path):
+def cluster_deployment_mapper(ctx: click.Context, vault_output_path: str) -> None:
     import reconcile.cluster_deployment_mapper
 
-    run_integration(reconcile.cluster_deployment_mapper, ctx.obj, vault_output_path)
+    run_integration(reconcile.cluster_deployment_mapper, ctx, vault_output_path)
 
 
 @integration.command(short_help="Get resources from clusters and store in Vault.")
@@ -3285,12 +3301,17 @@ def cluster_deployment_mapper(ctx, vault_output_path):
 @resource_kind
 @vault_output_path
 @click.pass_context
-def resource_scraper(ctx, namespace_name, resource_kind, vault_output_path):
+def resource_scraper(
+    ctx: click.Context,
+    namespace_name: str | None,
+    resource_kind: str | None,
+    vault_output_path: str,
+) -> None:
     import reconcile.resource_scraper
 
     run_integration(
         reconcile.resource_scraper,
-        ctx.obj,
+        ctx,
         namespace_name,
         resource_kind,
         vault_output_path,
@@ -3304,12 +3325,14 @@ def resource_scraper(ctx, namespace_name, resource_kind, vault_output_path):
 @internal()
 @use_jump_host()
 @click.pass_context
-def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
+def gabi_authorized_users(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.gabi_authorized_users
 
     run_integration(
         reconcile.gabi_authorized_users,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3320,24 +3343,24 @@ def gabi_authorized_users(ctx, thread_pool_size, internal, use_jump_host):
     short_help="Manages components on statuspage.io hosted status pages."
 )
 @click.pass_context
-def status_page_components(ctx):
+def status_page_components(ctx: click.Context) -> None:
     from reconcile.statuspage.integrations.components import (
         StatusPageComponentsIntegration,
     )
 
-    run_class_integration(StatusPageComponentsIntegration(), ctx.obj)
+    run_class_integration(StatusPageComponentsIntegration(), ctx)
 
 
 @integration.command(
     short_help="Manages maintenances on statuspage.io hosted status pages."
 )
 @click.pass_context
-def status_page_maintenances(ctx):
+def status_page_maintenances(ctx: click.Context) -> None:
     from reconcile.statuspage.integrations.maintenances import (
         StatusPageMaintenancesIntegration,
     )
 
-    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx.obj)
+    run_class_integration(StatusPageMaintenancesIntegration(NoParams()), ctx)
 
 
 @integration.command(
@@ -3362,7 +3385,12 @@ def status_page_maintenances(ctx):
     multiple=True,
 )
 @click.pass_context
-def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
+def ocm_standalone_user_management(
+    ctx: click.Context,
+    ocm_env: str | None,
+    ocm_org_ids: str | None,
+    group_provider: Iterable[str] | None,
+) -> None:
     from reconcile.oum.base import OCMUserManagementIntegrationParams
     from reconcile.oum.standalone import OCMStandaloneUserManagementIntegration
 
@@ -3375,7 +3403,7 @@ def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
                 group_provider_specs=group_provider,
             ),
         ),
-        ctx.obj,
+        ctx,
     )
 
 
@@ -3387,13 +3415,13 @@ def ocm_standalone_user_management(ctx, ocm_env, ocm_org_ids, group_provider):
 @use_jump_host()
 @click.pass_context
 def blackbox_exporter_endpoint_monitoring(
-    ctx, thread_pool_size, internal, use_jump_host
-):
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.blackbox_exporter_endpoint_monitoring
 
     run_integration(
         reconcile.blackbox_exporter_endpoint_monitoring,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3408,20 +3436,22 @@ def blackbox_exporter_endpoint_monitoring(
 @use_jump_host()
 @click.pass_context
 def signalfx_prometheus_endpoint_monitoring(
-    ctx, thread_pool_size, internal, use_jump_host
-):
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.signalfx_endpoint_monitoring
 
     run_integration(
         reconcile.signalfx_endpoint_monitoring,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
     )
 
 
-def parse_image_tag_from_ref(ctx, param, value) -> dict[str, str] | None:
+def parse_image_tag_from_ref(
+    ctx: click.Context | None, param: Any, value: Iterable[str]
+) -> dict[str, str] | None:
     if value:
         result = {}
         for v in value:
@@ -3438,10 +3468,10 @@ def parse_image_tag_from_ref(ctx, param, value) -> dict[str, str] | None:
 
 @integration.command(short_help="Allow vault to replicate secrets to other instances.")
 @click.pass_context
-def vault_replication(ctx):
+def vault_replication(ctx: click.Context) -> None:
     import reconcile.vault_replication
 
-    run_integration(reconcile.vault_replication, ctx.obj)
+    run_integration(reconcile.vault_replication, ctx)
 
 
 @integration.command(short_help="Manages Qontract Reconcile integrations.")
@@ -3475,20 +3505,20 @@ def vault_replication(ctx):
 )
 @click.pass_context
 def integrations_manager(
-    ctx,
-    environment_name,
-    thread_pool_size,
-    internal,
-    use_jump_host,
-    image_tag_from_ref,
-    upstream,
-    image,
-):
+    ctx: click.Context,
+    environment_name: str | None,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    image_tag_from_ref: dict[str, str] | None,
+    upstream: str | None,
+    image: str | None,
+) -> None:
     import reconcile.integrations_manager
 
     run_integration(
         reconcile.integrations_manager,
-        ctx.obj,
+        ctx,
         environment_name,
         get_integration_cli_meta(),
         thread_pool_size,
@@ -3523,18 +3553,18 @@ def integrations_manager(
 )
 @click.pass_context
 def change_owners(
-    ctx,
-    gitlab_project_id,
-    gitlab_merge_request_id,
-    comparison_sha,
-    change_type_processing_mode,
-    mr_management,
-):
+    ctx: click.Context,
+    gitlab_project_id: str,
+    gitlab_merge_request_id: str,
+    comparison_sha: str | None,
+    change_type_processing_mode: str,
+    mr_management: bool,
+) -> None:
     import reconcile.change_owners.change_owners
 
     run_integration(
         reconcile.change_owners.change_owners,
-        ctx.obj,
+        ctx,
         gitlab_project_id,
         gitlab_merge_request_id,
         comparison_sha,
@@ -3552,7 +3582,12 @@ def change_owners(
 )
 @click.option("--commit", help="Reconcile just this commit.", default=None)
 @click.pass_context
-def change_log_tracking(ctx, gitlab_project_id, process_existing, commit):
+def change_log_tracking(
+    ctx: click.Context,
+    gitlab_project_id: str | None,
+    process_existing: bool,
+    commit: str | None,
+) -> None:
     from reconcile.change_owners.change_log_tracking import (
         ChangeLogIntegration,
         ChangeLogIntegrationParams,
@@ -3566,7 +3601,7 @@ def change_log_tracking(ctx, gitlab_project_id, process_existing, commit):
                 commit=commit,
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3575,16 +3610,16 @@ def change_log_tracking(ctx, gitlab_project_id, process_existing, commit):
 )
 @click.option("--instance", help="Reconcile just this instance.", default=None)
 @click.pass_context
-def glitchtip(ctx, instance):
+def glitchtip(ctx: click.Context, instance: str | None) -> None:
     import reconcile.glitchtip.integration
 
-    run_integration(reconcile.glitchtip.integration, ctx.obj, instance)
+    run_integration(reconcile.glitchtip.integration, ctx, instance)
 
 
 @integration.command(short_help="Configure Glitchtip project alerts.")
 @click.option("--instance", help="Reconcile just this instance.", default=None)
 @click.pass_context
-def glitchtip_project_alerts(ctx, instance):
+def glitchtip_project_alerts(ctx: click.Context, instance: str | None) -> None:
     from reconcile.glitchtip_project_alerts.integration import (
         GlitchtipProjectAlertsIntegration,
         GlitchtipProjectAlertsIntegrationParams,
@@ -3594,7 +3629,7 @@ def glitchtip_project_alerts(ctx, instance):
         integration=GlitchtipProjectAlertsIntegration(
             GlitchtipProjectAlertsIntegrationParams(instance=instance)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3606,12 +3641,18 @@ def glitchtip_project_alerts(ctx, instance):
 @use_jump_host()
 @click.option("--instance", help="Reconcile just this instance.", default=None)
 @click.pass_context
-def glitchtip_project_dsn(ctx, thread_pool_size, internal, use_jump_host, instance):
+def glitchtip_project_dsn(
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    instance: str | None,
+) -> None:
     import reconcile.glitchtip_project_dsn.integration
 
     run_integration(
         reconcile.glitchtip_project_dsn.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3626,12 +3667,14 @@ def glitchtip_project_dsn(ctx, thread_pool_size, internal, use_jump_host, instan
 @internal()
 @use_jump_host()
 @click.pass_context
-def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
+def skupper_network(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
     import reconcile.skupper_network.integration
 
     run_integration(
         reconcile.skupper_network.integration,
-        ctx.obj,
+        ctx,
         thread_pool_size,
         internal,
         use_jump_host,
@@ -3654,7 +3697,9 @@ def skupper_network(ctx, thread_pool_size, internal, use_jump_host):
     default="sre-capabilities.rhidp",
 )
 @click.pass_context
-def ocm_labels(ctx, managed_label_prefixes, ignored_label_prefixes):
+def ocm_labels(
+    ctx: click.Context, managed_label_prefixes: str, ignored_label_prefixes: str
+) -> None:
     from reconcile.ocm_labels.integration import (
         OcmLabelsIntegration,
         OcmLabelsIntegrationParams,
@@ -3667,7 +3712,7 @@ def ocm_labels(ctx, managed_label_prefixes, ignored_label_prefixes):
                 ignored_label_prefixes=list(set(ignored_label_prefixes.split(","))),
             )
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3675,54 +3720,43 @@ def ocm_labels(ctx, managed_label_prefixes, ignored_label_prefixes):
     short_help="Notifications to internal Red Hat users based on conditions in OCM."
 )
 @click.pass_context
-def ocm_internal_notifications(ctx):
+def ocm_internal_notifications(ctx: click.Context) -> None:
     from reconcile.ocm_internal_notifications.integration import (
         OcmInternalNotifications,
     )
 
     run_class_integration(
         integration=OcmInternalNotifications(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Manages RHACS rbac configuration")
 @click.pass_context
-def acs_rbac(ctx):
+def acs_rbac(ctx: click.Context) -> None:
     from reconcile import acs_rbac
 
     run_class_integration(
         integration=acs_rbac.AcsRbacIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Manages RHACS security policy configurations")
 @click.pass_context
-def acs_policies(ctx):
+def acs_policies(ctx: click.Context) -> None:
     from reconcile import acs_policies
 
     run_class_integration(
         integration=acs_policies.AcsPoliciesIntegration(),
-        ctx=ctx.obj,
-    )
-
-
-@integration.command(short_help="Manages RHACS notifier configurations")
-@click.pass_context
-def acs_notifiers(ctx):
-    from reconcile import acs_notifiers
-
-    run_class_integration(
-        integration=acs_notifiers.AcsNotifiersIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Manage Unleash feature toggles.")
 @click.option("--instance", help="Reconcile just this Unlash instance.", default=None)
 @click.pass_context
-def unleash_feature_toggles(ctx, instance):
+def unleash_feature_toggles(ctx: click.Context, instance: str | None) -> None:
     from reconcile.unleash_feature_toggles.integration import (
         UnleashTogglesIntegration,
         UnleashTogglesIntegrationParams,
@@ -3732,18 +3766,18 @@ def unleash_feature_toggles(ctx, instance):
         integration=UnleashTogglesIntegration(
             UnleashTogglesIntegrationParams(instance=instance)
         ),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
 @integration.command(short_help="Automate Deadmanssnitch Creation/Deletion")
 @click.pass_context
-def deadmanssnitch(ctx):
+def deadmanssnitch(ctx: click.Context) -> None:
     from reconcile import deadmanssnitch
 
     run_class_integration(
         integration=deadmanssnitch.DeadMansSnitchIntegration(),
-        ctx=ctx.obj,
+        ctx=ctx,
     )
 
 
@@ -3766,17 +3800,17 @@ def deadmanssnitch(ctx):
     default="",
 )
 def external_resources(
-    ctx,
+    ctx: click.Context,
     dry_run_job_suffix: str,
     thread_pool_size: int,
     workers_cluster: str,
     workers_namespace: str,
-):
+) -> None:
     import reconcile.external_resources.integration
 
     run_integration(
         reconcile.external_resources.integration,
-        ctx.obj,
+        ctx,
         dry_run_job_suffix=dry_run_job_suffix,
         thread_pool_size=thread_pool_size,
         workers_cluster=workers_cluster,
@@ -3790,15 +3824,40 @@ def external_resources(
 @click.pass_context
 @threaded(default=5)
 def external_resources_secrets_sync(
-    ctx,
+    ctx: click.Context,
     thread_pool_size: int,
-):
+) -> None:
     import reconcile.external_resources.integration_secrets_sync
 
     run_integration(
         reconcile.external_resources.integration_secrets_sync,
-        ctx.obj,
+        ctx,
         thread_pool_size,
+    )
+
+
+@integration.command(short_help="Deploy the Automated Actions Config")
+@threaded()
+@internal()
+@use_jump_host()
+@click.pass_context
+def automated_actions_config(
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+) -> None:
+    from reconcile.automated_actions.config.integration import (
+        AutomatedActionsConfigIntegration,
+        AutomatedActionsConfigIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=AutomatedActionsConfigIntegration(
+            AutomatedActionsConfigIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                use_jump_host=use_jump_host,
+                internal=internal,
+            )
+        ),
+        ctx=ctx,
     )
 
 

@@ -13,6 +13,7 @@ from reconcile.saas_auto_promotions_manager.publisher import (
     DeploymentInfo,
     Publisher,
 )
+from reconcile.utils.slo_document_manager import SLODocumentManager
 
 CONTENT_HASH_LENGTH = 32
 
@@ -47,7 +48,9 @@ class Subscriber:
         uid: str,
         soak_days: int,
         blocked_versions: set[str],
+        hotfix_versions: set[str],
         schedule: str,
+        slo_document_manager: SLODocumentManager | None = None,
     ):
         self.saas_name = saas_name
         self.template_name = template_name
@@ -64,6 +67,8 @@ class Subscriber:
         self._content_hash = ""
         self._use_target_config_hash = use_target_config_hash
         self._blocked_versions = blocked_versions
+        self._hotfix_versions = hotfix_versions
+        self.slo_document_manager = slo_document_manager
 
     def has_diff(self) -> bool:
         current_hashes = {
@@ -192,6 +197,10 @@ class Subscriber:
             return
 
         desired_ref = next(iter(publisher_refs))
+        # validate slo gatekeeping
+        if self._has_breached_slos(desired_ref=desired_ref):
+            return
+
         if desired_ref in self._blocked_versions:
             logging.info(
                 "Subscriber at path %s promotion stopped because of blocked ref: %s",
@@ -202,6 +211,25 @@ class Subscriber:
 
         # Passed all gates -> lets promote desired ref
         self.desired_ref = desired_ref
+
+    def _has_breached_slos(self, desired_ref: str) -> bool:
+        if self.slo_document_manager and desired_ref not in self._hotfix_versions:
+            breached_slos = self.slo_document_manager.get_breached_slos()
+            if breached_slos:
+                logging.info(
+                    "Subscriber at path %s promotion stopped because following breached SLOs",
+                    self.target_file_path,
+                )
+                for slo in breached_slos:
+                    logging.info(
+                        "SLO:%s of document %s is breached. Current value:%f Expected:%f ",
+                        slo.slo.name,
+                        slo.slo_document_name,
+                        slo.current_slo_value,
+                        slo.slo.slo_target,
+                    )
+                return True
+        return False
 
     def _compute_desired_config_hashes(self) -> None:
         """

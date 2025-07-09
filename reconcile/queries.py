@@ -124,50 +124,6 @@ def get_app_interface_settings():
     return None
 
 
-APP_INTERFACE_EMAILS_QUERY = """
-{
-  emails: app_interface_emails_v1 {
-    name
-    subject
-    to {
-      aliases
-      services {
-        serviceOwners {
-          email
-        }
-      }
-      clusters {
-        name
-      }
-      namespaces {
-        name
-      }
-      aws_accounts {
-        accountOwners {
-          email
-        }
-      }
-      roles {
-        users {
-          org_username
-        }
-      }
-      users {
-        org_username
-      }
-    }
-    body
-  }
-}
-"""
-
-
-def get_app_interface_emails():
-    """Returns Email resources defined in app-interface"""
-    gqlapi = gql.get_api()
-    return gqlapi.query(APP_INTERFACE_EMAILS_QUERY)["emails"]
-
-
 CREDENTIALS_REQUESTS_QUERY = """
 {
   credentials_requests: credentials_requests_v1 {
@@ -493,7 +449,6 @@ AWS_ACCOUNTS_QUERY = """
       version
       format
     }
-    garbageCollection
     enableDeletion
     deletionApprovals {
       type
@@ -739,6 +694,7 @@ CLUSTERS_QUERY = """
       }
       sectors {
         name
+        maxParallelUpgrades
         dependencies {
           name
         }
@@ -1348,6 +1304,7 @@ OCM_QUERY = """
     }
     sectors {
       name
+      maxParallelUpgrades
       dependencies {
         name
         ocm {
@@ -2110,6 +2067,7 @@ PIPELINES_PROVIDERS_QUERY = """
       }
       namespace {
         name
+        delete
         cluster {
           name
           serverUrl
@@ -2177,62 +2135,6 @@ def get_pipelines_providers():
                 pp[k] = v
 
     return pipelines_providers
-
-
-JIRA_BOARDS_QUERY = """
-{
-  jira_boards: jira_boards_v1 {
-    path
-    name
-    server {
-      serverUrl
-      token {
-        path
-        field
-        version
-        format
-      }
-    }
-    {% if with_slack %}
-    slack {
-      workspace {
-        name
-        integrations {
-          name
-          token {
-            path
-            field
-            version
-            format
-          }
-          channel
-          icon_emoji
-          username
-        }
-        api_client {
-          global {
-            max_retries
-            timeout
-          }
-          methods {
-            name
-            args
-          }
-        }
-      }
-      channel
-    }
-    {% endif %}
-  }
-}
-"""
-
-
-def get_jira_boards(with_slack: bool | None = True):
-    """Returns Jira boards resources defined in app-interface"""
-    gqlapi = gql.get_api()
-    query = Template(JIRA_BOARDS_QUERY).render(with_slack=with_slack)
-    return gqlapi.query(query)["jira_boards"]
 
 
 # Use APATH as the place holder because Python formatting interferes

@@ -1,17 +1,20 @@
 import datetime
+import os
 from functools import cache
 from typing import Any, Self
 
 import jinja2
+from github import Github
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile import queries
 from reconcile.checkpoint import url_makes_sense
-from reconcile.github_users import init_github
+from reconcile.github_org import get_default_config
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.helpers import flatten
 from reconcile.utils.jinja2.extensions import B64EncodeExtension, RaiseErrorExtension
 from reconcile.utils.jinja2.filters import (
@@ -96,6 +99,14 @@ def compile_jinja2_template(
     return jinja_env.from_string(body)
 
 
+GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
+
+
+def init_github() -> Github:
+    token = get_default_config()["token"]
+    return Github(token, base_url=GH_BASE_URL)
+
+
 def lookup_github_file_content(
     repo: str,
     path: str,
@@ -116,8 +127,12 @@ def lookup_github_file_content(
         )
 
     gh = init_github()
-    c = gh.get_repo(repo).get_contents(path, ref).decoded_content
-    return c.decode("utf-8")
+    content = GithubRepositoryApi.get_raw_file(
+        repo=gh.get_repo(repo),
+        path=path,
+        ref=ref,
+    )
+    return content.decode("utf-8")
 
 
 def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[Any]:

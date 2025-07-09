@@ -1,6 +1,7 @@
 import time
 from collections.abc import (
     Callable,
+    Generator,
     Iterable,
     Mapping,
     MutableMapping,
@@ -13,6 +14,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 from pytest_httpserver import HTTPServer
+from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.test.fixtures import Fixtures
@@ -22,12 +24,12 @@ from reconcile.utils.state import State
 
 
 @pytest.fixture
-def patch_sleep(mocker):
+def patch_sleep(mocker: MockerFixture) -> Generator[MagicMock, None, None]:
     yield mocker.patch.object(time, "sleep")
 
 
 @pytest.fixture
-def secret_reader(mocker) -> None:
+def secret_reader(mocker: MockerFixture) -> MagicMock:
     mock_secretreader = mocker.patch(
         "reconcile.utils.secret_reader.SecretReader", autospec=True
     )
@@ -59,7 +61,7 @@ def s3_state_builder() -> Callable[[Mapping], State]:
     """
 
     def builder(data: Mapping) -> State:
-        def get(key: str, *args) -> dict:
+        def get(key: str, *args: Any) -> dict:
             try:
                 return data["get"][key]
             except KeyError:
@@ -67,7 +69,7 @@ def s3_state_builder() -> Callable[[Mapping], State]:
                     return args[0]
                 raise
 
-        def __getitem__(self, key: str) -> dict:
+        def __getitem__(self: Any, key: str) -> dict:
             return get(key)
 
         state = create_autospec(spec=State)
@@ -81,7 +83,7 @@ def s3_state_builder() -> Callable[[Mapping], State]:
 
 
 @pytest.fixture
-def vault_secret():
+def vault_secret() -> VaultSecret:
     return VaultSecret(
         path="path/test",
         field="key",

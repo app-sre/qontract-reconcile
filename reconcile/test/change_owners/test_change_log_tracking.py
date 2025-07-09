@@ -1,8 +1,8 @@
 from collections.abc import Callable
-from dataclasses import asdict
 from typing import Any
 from unittest.mock import create_autospec
 
+import pytest
 from gitlab.v4.objects import (
     Project,
     ProjectCommit,
@@ -20,12 +20,10 @@ from reconcile.gql_definitions.change_owners.queries.change_types import (
     ChangeTypesQueryData,
 )
 from reconcile.gql_definitions.common.apps import AppV1
-from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.gql import GqlApi
 
 APP_PATH = "/services/a/app.yml"
 MERGED_AT = "2024-01-01T00:00:00Z"
-DESCRIPTION = "c"
 COMMIT_SHA = "commit_sha"
 
 
@@ -35,6 +33,7 @@ def setup_mocks(
     gql_class_factory: Callable[..., ChangeTypesQueryData],
     apps: list[AppV1],
     datafiles: dict[str, Any],
+    commit_message: str,
 ) -> dict[str, Any]:
     data = gql_class_factory(ChangeTypesQueryData, {})
     mocked_gql_api = gql_api_builder(data.dict(by_alias=True))
@@ -70,15 +69,11 @@ def setup_mocks(
     project = create_autospec(Project)
     project.default_branch = "master"
     project.commits = create_autospec(ProjectCommitManager)
-    commit = create_autospec(ProjectCommit)
-    commit.merge_requests.return_value = [
-        {
-            "merged_at": MERGED_AT,
-            "state": MRState.MERGED,
-            "target_branch": "master",
-        }
-    ]
-    commit.message = f"a\nb\n{DESCRIPTION}"
+    commit = create_autospec(
+        ProjectCommit,
+        committed_date=MERGED_AT,
+        message=commit_message,
+    )
     project.commits.get.return_value = commit
     mocked_gl.project = project
 
@@ -88,10 +83,20 @@ def setup_mocks(
     }
 
 
+@pytest.mark.parametrize(
+    ["commit_message", "expected_description"],
+    [
+        ("Merge branch 'dev' into 'master'\n\nmy title", "my title"),
+        ("my title (!123)\n\nother messages", "my title (!123)"),
+        ("my title", "my title"),
+    ],
+)
 def test_change_log_tracking_with_deleted_app(
     mocker: MockerFixture,
     gql_api_builder: Callable[..., GqlApi],
     gql_class_factory: Callable[..., ChangeTypesQueryData],
+    commit_message: str,
+    expected_description: str,
 ) -> None:
     mocks = setup_mocks(
         mocker,
@@ -110,6 +115,7 @@ def test_change_log_tracking_with_deleted_app(
                 },
             }
         },
+        commit_message=commit_message,
     )
     expected_change_log = ChangeLog(
         items=[
@@ -117,7 +123,7 @@ def test_change_log_tracking_with_deleted_app(
                 apps=[APP_PATH],
                 change_types=[],
                 commit=COMMIT_SHA,
-                description=DESCRIPTION,
+                description=expected_description,
                 error=False,
                 merged_at=MERGED_AT,
             ),
@@ -135,6 +141,6 @@ def test_change_log_tracking_with_deleted_app(
 
     mocks["state"].add.assert_called_once_with(
         "bundle-diffs.json",
-        asdict(expected_change_log),
+        expected_change_log.dict(),
         force=True,
     )

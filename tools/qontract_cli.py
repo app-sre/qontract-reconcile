@@ -10,7 +10,7 @@ import sys
 import tempfile
 import textwrap
 from collections import defaultdict
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from datetime import (
     UTC,
     datetime,
@@ -27,6 +27,7 @@ import click
 import click.core
 import requests
 import yaml
+from gitlab.const import PipelineStatus
 from rich import box
 from rich import print as rich_print
 from rich.console import Console, Group
@@ -83,6 +84,12 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
 )
 from reconcile.gql_definitions.common.clusters import ClusterSpecROSAV1
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
+    query as glitchtip_instance_query,
+)
+from reconcile.gql_definitions.glitchtip.glitchtip_project import (
+    query as glitchtip_project_query,
+)
 from reconcile.gql_definitions.integrations import integrations as integrations_gql
 from reconcile.gql_definitions.maintenance import maintenances as maintenances_gql
 from reconcile.jenkins_job_builder import init_jjb
@@ -133,6 +140,8 @@ from reconcile.utils.gitlab_api import (
     MRState,
     MRStatus,
 )
+from reconcile.utils.glitchtip.client import GlitchtipClient
+from reconcile.utils.glitchtip.models import Project, ProjectStatistics
 from reconcile.utils.gql import GqlApiSingleton
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.keycloak import (
@@ -156,6 +165,7 @@ from reconcile.utils.ocm import OCM_PRODUCT_ROSA, OCMMap
 from reconcile.utils.ocm.upgrades import get_upgrade_policies
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 from reconcile.utils.output import print_output
+from reconcile.utils.rest_api_base import BearerTokenAuth
 from reconcile.utils.saasherder.models import TargetSpec
 from reconcile.utils.saasherder.saasherder import SaasHerder
 from reconcile.utils.secret_reader import (
@@ -790,6 +800,11 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
 
 @get.command()
 @click.option(
+    "--channel",
+    help="Specifies the channel that alerts stores",
+    type=str,
+)
+@click.option(
     "--days",
     help="Days to consider for the report. Cannot be used with timestamp options.",
     type=int,
@@ -807,13 +822,14 @@ def ocm_addon_upgrade_policies(ctx: click.core.Context) -> None:
     type=int,
 )
 @click.pass_context
-def sd_app_sre_alert_report(
+def alert_report(
     ctx: click.core.Context,
+    channel: str | None,
     days: int | None,
     from_timestamp: int | None,
     to_timestamp: int | None,
 ) -> None:
-    import tools.sd_app_sre_alert_report as report
+    import tools.alert_report as report
 
     if days:
         if from_timestamp or to_timestamp:
@@ -836,7 +852,9 @@ def sd_app_sre_alert_report(
             sys.exit(1)
 
     slack = slackapi_from_queries(
-        integration_name=report.QONTRACT_INTEGRATION, init_usergroups=False
+        integration_name=report.QONTRACT_INTEGRATION,
+        init_usergroups=False,
+        channel=channel,
     )
     alerts = report.group_alerts(
         slack.get_flat_conversation_history(
@@ -1768,6 +1786,8 @@ def rds(ctx: click.Context) -> None:
     accounts = {a["name"]: a for a in queries.get_aws_accounts()}
     results = []
     for namespace in namespaces:
+        if namespace.delete:
+            continue
         specs = [
             s
             for s in get_external_resource_specs(
@@ -1789,9 +1809,6 @@ def rds(ctx: click.Context) -> None:
                 "engine_version": rds_attr("engine_version", overrides, defaults),
                 "instance_class": rds_attr("instance_class", overrides, defaults),
                 "storage_type": rds_attr("storage_type", overrides, defaults),
-                "ca_cert_identifier": rds_attr(
-                    "ca_cert_identifier", overrides, defaults
-                ),
             }
             results.append(item)
 
@@ -1807,7 +1824,6 @@ def rds(ctx: click.Context) -> None:
                 {"key": "engine_version", "sortable": True},
                 {"key": "instance_class", "sortable": True},
                 {"key": "storage_type", "sortable": True},
-                {"key": "ca_cert_identifier", "sortable": True},
             ],
             "items": results,
         }
@@ -1833,7 +1849,6 @@ You can view the source of this Markdown to extract the JSON data.
             "engine_version",
             "instance_class",
             "storage_type",
-            "ca_cert_identifier",
         ]
         ctx.obj["options"]["sort"] = False
         print_output(ctx.obj["options"], results, columns)
@@ -2098,12 +2113,40 @@ def quay_mirrors(ctx: click.Context) -> None:
 
                 mirrors.append({
                     "repo": f"quay.io/{org_name}/{name}",
-                    "public": public,
                     "upstream": url,
+                    "public": public,
                 })
 
-    columns = ["repo", "upstream", "public"]
-    print_output(ctx.obj["options"], mirrors, columns)
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "repo", "sortable": True},
+                {"key": "upstream", "sortable": True},
+                {"key": "public", "sortable": True},
+            ],
+            "items": mirrors,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(mirrors)} mirror images found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "repo",
+            "upstream",
+            "public",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], mirrors, columns)
 
 
 @get.command()
@@ -2289,15 +2332,17 @@ def app_interface_review_queue(ctx: click.Context) -> None:
             pipelines = gl.get_merge_request_pipelines(mr)
             if not pipelines:
                 continue
-            running_pipelines = [p for p in pipelines if p["status"] == "running"]
+            running_pipelines = [
+                p for p in pipelines if p.status == PipelineStatus.RUNNING
+            ]
             if running_pipelines:
                 continue
-            last_pipeline_result = pipelines[0]["status"]
-            if last_pipeline_result != "success":
+            last_pipeline_result = pipelines[0].status
+            if last_pipeline_result != PipelineStatus.SUCCESS:
                 continue
 
             author = mr.author["username"]
-            app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+            app_sre_team_members = {u.username for u in gl.get_app_sre_group_users()}
             if author in app_sre_team_members:
                 continue
 
@@ -2315,7 +2360,7 @@ def app_interface_review_queue(ctx: click.Context) -> None:
                 if (
                     last_comment
                     and trigger_phrases_regex
-                    and not re.fullmatch(trigger_phrases_regex, last_comment["body"])
+                    and not re.fullmatch(trigger_phrases_regex, last_comment.body)
                 ):
                     continue
 
@@ -2375,7 +2420,7 @@ def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
 
         # skip MRs where AppSRE is involved already (author or assignee)
         author = mr.author["username"]
-        app_sre_team_members = [u.username for u in gl.get_app_sre_group_users()]
+        app_sre_team_members = {u.username for u in gl.get_app_sre_group_users()}
         if author in app_sre_team_members:
             continue
         is_assigned_by_app_sre = gl.is_assigned_by_team(mr, app_sre_team_members)
@@ -2386,11 +2431,11 @@ def app_interface_open_selfserviceable_mr_queue(ctx: click.Context) -> None:
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
-        running_pipelines = [p for p in pipelines if p["status"] == "running"]
+        running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
         if running_pipelines:
             continue
-        last_pipeline_result = pipelines[0]["status"]
-        if last_pipeline_result != "success":
+        last_pipeline_result = pipelines[0].status
+        if last_pipeline_result != PipelineStatus.SUCCESS:
             continue
 
         item = {
@@ -2504,7 +2549,7 @@ def selectorsyncset_managed_resources(ctx: click.Context, use_jump_host: bool) -
             try:
                 for resource in sss["spec"]["resources"]:
                     kind = resource["kind"]
-                    namespace = resource["metadata"].get("namespace")
+                    namespace = resource["metadata"].get("namespace", "")
                     name = resource["metadata"]["name"]
                     item = {
                         "cluster": c_name,
@@ -2976,7 +3021,8 @@ def hcp_migration_status(ctx: click.Context) -> None:
                     continue
                 if t.delete:
                     continue
-                assert t.namespace.cluster.labels
+                if not t.namespace.cluster.labels:
+                    continue
                 if hcp_migration := t.namespace.cluster.labels.get("hcp_migration"):
                     app = sf.app.parent_app.name if sf.app.parent_app else sf.app.name
                     counts.setdefault(app, MigrationStatusCount(app))
@@ -3127,8 +3173,6 @@ def container_image_details(ctx: click.Context) -> None:
         for org_items in app.quay_repos or []:
             org_name = org_items.org.name
             for repo in org_items.items or []:
-                if repo.mirror:
-                    continue
                 repository = f"quay.io/{org_name}/{repo.name}"
                 item: dict[str, str | list[str]] = {
                     "app": app_name,
@@ -3137,8 +3181,39 @@ def container_image_details(ctx: click.Context) -> None:
                     "slack": slack,
                 }
                 data.append(item)
-    columns = ["app", "repository", "email", "slack"]
-    print_output(ctx.obj["options"], data, columns)
+
+    if ctx.obj["options"]["output"] == "md":
+        json_table = {
+            "filter": True,
+            "fields": [
+                {"key": "app", "sortable": True},
+                {"key": "repository", "sortable": True},
+                {"key": "email", "sortable": True},
+                {"key": "slack", "sortable": True},
+            ],
+            "items": data,
+        }
+
+        print(
+            f"""
+You can view the source of this Markdown to extract the JSON data.
+
+{len(data)} container images found.
+
+```json:table
+{json.dumps(json_table)}
+```
+            """
+        )
+    else:
+        columns = [
+            "app",
+            "repository",
+            "email",
+            "slack",
+        ]
+        ctx.obj["options"]["sort"] = False
+        print_output(ctx.obj["options"], data, columns)
 
 
 @get.command
@@ -4270,6 +4345,29 @@ def get_input(ctx: click.Context) -> None:
     print(erv2cli.input_data)
 
 
+def _get_external_resources_credentials(
+    secret_reader: SecretReader,
+    provisioner: str,
+) -> str:
+    return secret_reader.read_with_parameters(
+        path=f"app-sre/external-resources/{provisioner}",
+        field="credentials",
+        format=None,
+        version=None,
+    )
+
+
+@external_resources.command()
+@click.pass_context
+def get_credentials(ctx: click.Context) -> None:
+    """Gets credentials file used in external-resources as AWS_SHARED_CREDENTIALS_FILE"""
+    credentials = _get_external_resources_credentials(
+        secret_reader=ctx.obj["secret_reader"],
+        provisioner=ctx.obj["provisioner"],
+    )
+    print(credentials)
+
+
 @external_resources.command()
 @click.pass_context
 def request_reconciliation(ctx: click.Context) -> None:
@@ -4332,11 +4430,9 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
             # prepare AWS credentials for CDKTF and local terraform
             credentials_file = tempdir / "credentials"
             credentials_file.write_text(
-                ctx.obj["secret_reader"].read_with_parameters(
-                    path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
-                    field="credentials",
-                    format=None,
-                    version=None,
+                _get_external_resources_credentials(
+                    secret_reader=ctx.obj["secret_reader"],
+                    provisioner=ctx.obj["provisioner"],
                 )
             )
         os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
@@ -4353,8 +4449,10 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
 
         with task(progress, "(erv2) Building the terraform configuration"):
             if not skip_build:
-                # build the CDKTF output
-                erv2cli.build_cdktf(credentials_file)
+                if erv2cli.module_type == "cdktf":
+                    erv2cli.build_cdktf(credentials_file)
+                else:
+                    erv2cli.build_terraform(credentials_file)
             erv2_tf_cli = TerraformCli(
                 temp_erv2, dry_run=dry_run, progress_spinner=progress
             )
@@ -4414,11 +4512,9 @@ def debug_shell(ctx: click.Context) -> None:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"
                 credentials_file.write_text(
-                    ctx.obj["secret_reader"].read_with_parameters(
-                        path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
-                        field="credentials",
-                        format=None,
-                        version=None,
+                    _get_external_resources_credentials(
+                        secret_reader=ctx.obj["secret_reader"],
+                        provisioner=ctx.obj["provisioner"],
                     )
                 )
             os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
@@ -4455,11 +4551,9 @@ def force_unlock(ctx: click.Context, lock_id: str) -> None:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"
                 credentials_file.write_text(
-                    ctx.obj["secret_reader"].read_with_parameters(
-                        path=f"app-sre/external-resources/{ctx.obj['provisioner']}",
-                        field="credentials",
-                        format=None,
-                        version=None,
+                    _get_external_resources_credentials(
+                        secret_reader=ctx.obj["secret_reader"],
+                        provisioner=ctx.obj["provisioner"],
                     )
                 )
             os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(credentials_file)
@@ -4510,6 +4604,7 @@ def container_images(
             "fields": [
                 {"key": "name", "sortable": True},
                 {"key": "namespaces", "sortable": True},
+                {"key": "namespace_apps", "sortable": True},
                 {"key": "count", "sortable": True},
             ],
             "items": results,
@@ -4530,6 +4625,7 @@ You can view the source of this Markdown to extract the JSON data.
         columns = [
             "name",
             "namespaces",
+            "namespace_apps",
             "count",
         ]
         ctx.obj["options"]["sort"] = False
@@ -4613,6 +4709,141 @@ def log_group_usage(ctx: click.Context, aws_account: str) -> None:
                 if group["storedBytes"] != 0
             )
     print_output(ctx.obj["options"], results, columns)
+
+
+@root.group()
+@click.option(
+    "--instance",
+    required=True,
+    help="Glitchtip Instance Name",
+    default="glitchtip-production",
+)
+@click.pass_context
+def glitchtip(ctx: click.Context, instance: str) -> None:
+    """Glitchtip commands"""
+
+    gqlapi = gql.get_api()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    for glitchtip_instance in (
+        glitchtip_instance_query(query_func=gqlapi.query).instances or []
+    ):
+        if glitchtip_instance.name.lower() == instance.lower():
+            ctx.obj["client"] = GlitchtipClient(
+                host=glitchtip_instance.console_url,
+                auth=BearerTokenAuth(
+                    secret_reader.read_secret(glitchtip_instance.automation_token)
+                ),
+                read_timeout=glitchtip_instance.read_timeout,
+                max_retries=glitchtip_instance.max_retries,
+            )
+    if "client" not in ctx.obj:
+        print(f"Glitchtip instance {instance} not found")
+        sys.exit(1)
+
+
+@glitchtip.command()
+@click.option(
+    "--id",
+    "ids",
+    type=int,
+    help="Glitchtip Project ID. Can be specified multiple times.",
+    multiple=True,
+)
+@click.option(
+    "--name",
+    "names",
+    help="Glitchtip Project Name. Can be specified multiple times.",
+    multiple=True,
+)
+@click.pass_context
+def projects(ctx: click.Context, ids: Iterable[int], names: Iterable[str]) -> None:
+    """Display Glitchtip project information
+
+    This command will display the project metadata for the specified project IDs or names.
+    If no IDs or names are provided, all projects will be displayed.
+    """
+    console = Console()
+    table = Table("ID", "Organization", "Name", "Throttle Rate")
+    glitchtip_client: GlitchtipClient = ctx.obj["client"]
+    with glitchtip_client as client:
+        for project in client.all_projects():
+            if (
+                (ids or names)
+                and (project.pk and project.pk not in ids)
+                and (project.name not in names)
+            ):
+                continue
+
+            assert project.organization  # make mypy happy
+
+            table.add_row(
+                str(project.pk),
+                project.organization.name,
+                project.name,
+                str(project.event_throttle_rate),
+            )
+    console.print(table)
+
+
+@glitchtip.command()
+@click.option(
+    "--top",
+    type=int,
+    help="Display the top N projects with the most events in the last 24 hours",
+    default=10,
+)
+@click.pass_context
+def top_talkers(ctx: click.Context, top: int) -> None:
+    """Get the projects with the most events in the last 24 hours."""
+    console = Console()
+    table = Table("ID", "Organization", "Name", "Jira Board", "# Events in last 24h")
+
+    glitchtip_client: GlitchtipClient = ctx.obj["client"]
+    stats: list[tuple[Project, ProjectStatistics]] = []
+    app_interface_glitchtip_projects = {
+        p.name: p
+        for p in glitchtip_project_query(
+            query_func=gql.get_api().query
+        ).glitchtip_projects
+        or []
+    }
+
+    with glitchtip_client as client:
+        for project in client.all_projects():
+            assert project.organization  # make mypy happy
+            assert project.pk  # make mypy happy
+
+            stat = client.project_statistics(
+                organization_slug=project.organization.slug,
+                project_pk=project.pk,
+                start=datetime.now(tz=UTC) - timedelta(hours=24),
+                end=datetime.now(tz=UTC),
+            )
+            stats.append((project, stat))
+
+    # sort by event count
+    stats.sort(key=lambda x: x[1].events, reverse=True)
+
+    for project, stat in stats[:top]:
+        assert project.organization  # make mypy happy
+        assert project.pk  # make mypy happy
+
+        jira_boards = [
+            board.name
+            for board in app_interface_glitchtip_projects[
+                project.name
+            ].app.escalation_policy.channels.jira_board
+        ]
+
+        table.add_row(
+            str(project.pk),
+            project.organization.name,
+            project.name,
+            ", ".join(jira_boards),
+            str(stat.events),
+        )
+    console.print(table)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 from unittest.mock import (
     MagicMock,
+    Mock,
     create_autospec,
 )
 
@@ -10,13 +11,16 @@ from reconcile.dynatrace_token_provider.integration import (
     QONTRACT_INTEGRATION,
     QONTRACT_INTEGRATION_VERSION,
 )
-from reconcile.dynatrace_token_provider.model import K8sSecret
-from reconcile.dynatrace_token_provider.ocm import Cluster, OCMClient
+from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
+from reconcile.dynatrace_token_provider.ocm import OCMClient, OCMCluster
 from reconcile.utils.dynatrace.client import DynatraceAPITokenCreated, DynatraceClient
 from reconcile.utils.openshift_resource import (
     QONTRACT_ANNOTATION_INTEGRATION,
     QONTRACT_ANNOTATION_INTEGRATION_VERSION,
 )
+
+REGIONAL_TENANT_KEY = "sre-capabilities.dtp.v3.regional.tenant"
+SLO_TENANT_KEY = "sre-capabilities.dtp.v3.slo.tenant"
 
 
 def tobase64(s: str) -> str:
@@ -27,12 +31,11 @@ def tobase64(s: str) -> str:
 
 def _build_secret_data(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
 ) -> list[dict[str, Any]]:
     secrets_data: list[dict[str, Any]] = []
     for secret in secrets:
         data: dict[str, str] = {
-            "apiUrl": tobase64(f"https://{tenant_id}.live.dynatrace.com/api"),
+            "apiUrl": tobase64(secret.dt_api_url),
         }
         for token in secret.tokens:
             data[token.secret_key] = tobase64(token.token)
@@ -53,14 +56,26 @@ def _build_secret_data(
     return secrets_data
 
 
+def build_k8s_secret(
+    tokens: Iterable[DynatraceAPIToken],
+    tenant_id: str = "dt_tenant_a",
+    secret_name: str = "dynatrace-token-dtp",
+    namespace_name: str = "dynatrace",
+) -> K8sSecret:
+    return K8sSecret(
+        secret_name=secret_name,
+        namespace_name=namespace_name,
+        tokens=tokens,
+        dt_api_url=f"https://{tenant_id}.live.dynatrace.com/api",
+    )
+
+
 def build_syncset(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
     with_id: bool,
 ) -> dict:
     secrets_data = _build_secret_data(
         secrets=secrets,
-        tenant_id=tenant_id,
     )
     syncset = {
         "kind": "SyncSet",
@@ -73,12 +88,10 @@ def build_syncset(
 
 def build_manifest(
     secrets: Iterable[K8sSecret],
-    tenant_id: str,
     with_id: bool,
 ) -> dict:
     secrets_data = _build_secret_data(
         secrets=secrets,
-        tenant_id=tenant_id,
     )
     manifest = {
         "kind": "Manifest",
@@ -90,10 +103,10 @@ def build_manifest(
 
 
 def build_ocm_client(
-    discover_clusters_by_labels: Iterable[Cluster],
+    discover_clusters_by_labels: Iterable[OCMCluster],
     get_syncset: Mapping[str, Mapping],
     get_manifest: Mapping[str, Mapping],
-) -> OCMClient:
+) -> Mock:
     ocm_client = create_autospec(spec=OCMClient)
     ocm_client.discover_clusters_by_labels.return_value = discover_clusters_by_labels
 
@@ -115,7 +128,7 @@ def build_ocm_client(
 def build_dynatrace_client(
     create_api_token: Mapping[str, DynatraceAPITokenCreated],
     existing_token_ids: dict[str, str],
-) -> DynatraceClient:
+) -> Mock:
     dynatrace_client = create_autospec(spec=DynatraceClient)
 
     def create_api_token_side_effect(

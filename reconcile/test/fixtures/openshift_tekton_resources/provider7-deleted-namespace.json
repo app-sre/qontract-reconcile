@@ -1,0 +1,48 @@
+{
+  "name": "provider7-deleted-namespace",
+  "provider": "tekton",
+  "defaults": {
+    "retention": {
+      "days": 7,
+      "minimum": 100
+    },
+    "taskTemplates": [
+      {
+        "name": "openshift-saas-deploy",
+        "type": "onePerSaasFile",
+        "path": "openshift-saas-deploy.task.yaml.j2",
+        "variables": "{\"qontract_reconcile_image_tag\":\"latest\"}"
+      },
+      {
+        "name": "push-gateway-openshift-saas-deploy-task-status-metric",
+        "type": "onePerNamespace",
+        "path": "push-gateway-task-status-metric.task.yaml.j2",
+        "variables": "{\"ubi8_ubi_minimal_image_tag\":\"latest\"}"
+      }
+    ],
+    "pipelineTemplates": {
+      "openshiftSaasDeploy": {
+        "name": "saas-deploy",
+        "type": "onePerSaasFile",
+        "path": "saas-deploy.pipeline.yaml.j2",
+        "variables": null
+      }
+    }
+  },
+  "namespace": {
+    "name": "provider1",
+    "delete": true,
+    "cluster": {
+      "name": "appsres03ue1",
+      "serverUrl": "",
+      "jumpHost": null,
+      "automationToken": {
+        "path": "",
+        "field": "token",
+        "format": null
+      },
+      "internal": true,
+      "disable": null
+    }
+  }
+}

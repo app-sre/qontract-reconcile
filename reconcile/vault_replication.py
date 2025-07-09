@@ -122,7 +122,12 @@ def copy_vault_secret(
     except SecretAccessForbidden:
         # Raise exception if we can't read the secret from the source vault.
         # This is likely to be related to the approle permissions.
-        raise SecretAccessForbidden("Cannot read secret from source vault") from None
+        logging.error([
+            "replicate_vault_secret",
+            "Cannot read secret from source vault",
+            path,
+        ])
+        raise
     except SecretNotFound:
         # If the secret is present in vault, but there are no versions of it
         # we want to be aware of it, but not cause a failure of the complete

@@ -29,6 +29,7 @@ PERMISSION_SET_NAMES = {
     "admin": "Admin",
     "analyst": "Analyst",
     "vuln-admin": "Vulnerability Management Admin",
+    "vuln-report-creator": "Vulnerability Report Creator",
 }
 
 

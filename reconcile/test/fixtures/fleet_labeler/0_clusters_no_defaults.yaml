@@ -1,0 +1,33 @@
+$schema: /openshift/fleet-labels-spec-1.yml
+
+name: hypershift-cluster-subscription-labels-integration
+ocmEnv:
+  $ref: /dependencies/ocm/environments/integration.yml
+
+managedSubscriptionLabelPrefix: sre-capabilities.dtp.spec
+
+labelDefaults:
+- name: first
+  matchSubscriptionLabels:
+    sre-capabilities.dtp.managed-labels: "true"
+  subscriptionLabelTemplate:
+    path: /dynatrace-token-provider-labels-1.yaml.j2
+    type: jinja2
+    variables:
+      tenants:
+        other: tenantdef
+      tokenSpecs:
+        other: hypershift-service-cluster-v1
+- name: second
+  matchSubscriptionLabels:
+    sre-capabilities.dtp.other-label: "true"
+  subscriptionLabelTemplate:
+    path: /dynatrace-token-provider-labels-2.yaml.j2
+    type: jinja2
+    variables:
+      tenants:
+        other: tenantother2
+      tokenSpecs:
+        other: specother2
+
+clusters: []

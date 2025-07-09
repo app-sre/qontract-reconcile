@@ -94,6 +94,7 @@ class SaasAutoPromotionsManager:
 
 def init_external_dependencies(
     dry_run: bool,
+    thread_pool_size: int,
     env_name: str | None = None,
     app_name: str | None = None,
 ) -> tuple[
@@ -139,7 +140,11 @@ def init_external_dependencies(
         renderer=Renderer(),
     )
     saas_files = get_saas_files(env_name=env_name, app_name=app_name)
-    saas_inventory = SaasFilesInventory(saas_files=saas_files)
+    saas_inventory = SaasFilesInventory(
+        saas_files=saas_files,
+        secret_reader=secret_reader,
+        thread_pool_size=thread_pool_size,
+    )
     saas_deploy_state = init_state(
         integration=OPENSHIFT_SAAS_DEPLOY, secret_reader=secret_reader
     )
@@ -181,7 +186,10 @@ def run(
         saas_deploy_state,
         sapm_state,
     ) = init_external_dependencies(
-        dry_run=dry_run, env_name=env_name, app_name=app_name
+        dry_run=dry_run,
+        env_name=env_name,
+        app_name=app_name,
+        thread_pool_size=thread_pool_size,
     )
     if defer:
         defer(vcs.cleanup)

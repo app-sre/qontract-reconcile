@@ -1,9 +1,30 @@
-from typing import Any
+from typing import Any, TypedDict
 
 from reconcile.utils.ocm.base import OCMVersionGate
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
-UPGRADE_POLICY_DESIRED_KEYS = {"id", "schedule_type", "schedule", "next_run", "version"}
+
+class UpgradePolicy(TypedDict):
+    id: str | None
+    next_run: str | None
+    schedule: str | None
+    schedule_type: str
+    state: str | None
+    version: str
+
+
+def _build_upgrade_policy(
+    response: dict,
+    state: str | None,
+) -> UpgradePolicy:
+    return UpgradePolicy(
+        id=response.get("id"),
+        schedule_type=response["schedule_type"],
+        schedule=response.get("schedule"),
+        next_run=response.get("next_run"),
+        version=response["version"],
+        state=state,
+    )
 
 
 def build_cluster_url(cluster_id: str) -> str:
@@ -16,30 +37,25 @@ def build_cluster_url(cluster_id: str) -> str:
 
 
 def get_upgrade_policies(
-    ocm_api: OCMBaseClient, cluster_id: str, schedule_type: str | None = None
-) -> list[dict[str, Any]]:
+    ocm_api: OCMBaseClient,
+    cluster_id: str,
+) -> list[UpgradePolicy]:
     """Returns a list of details of Upgrade Policies
 
-    :param cluster: cluster name
+    :param ocm_api: OCM API client
+    :param cluster_id: cluster id
 
-    :type cluster: string
+    :return: list of UpgradePolicy
     """
-    results: list[dict[str, Any]] = []
-
-    for policy in ocm_api.get_paginated(
-        f"{build_cluster_url(cluster_id)}/upgrade_policies"
-    ):
-        if schedule_type and policy["schedule_type"] != schedule_type:
-            continue
-        policy_data = {
-            k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS
-        }
-        policy_data["state"] = get_upgrade_policy_state(
-            ocm_api, cluster_id, policy["id"]
+    return [
+        _build_upgrade_policy(
+            policy,
+            state=get_upgrade_policy_state(ocm_api, cluster_id, policy["id"]),
         )
-        results.append(policy_data)
-
-    return results
+        for policy in ocm_api.get_paginated(
+            f"{build_cluster_url(cluster_id)}/upgrade_policies"
+        )
+    ]
 
 
 def get_upgrade_policy_state(
@@ -76,23 +92,21 @@ def delete_upgrade_policy(
 
 
 def get_control_plane_upgrade_policies(
-    ocm_api: OCMBaseClient, cluster_id: str, schedule_type: str | None = None
-) -> list[dict[str, Any]]:
+    ocm_api: OCMBaseClient,
+    cluster_id: str,
+) -> list[UpgradePolicy]:
     """
     Returns a list of details of Upgrade Policies
     """
-    results: list[dict[str, Any]] = []
-    for policy in ocm_api.get_paginated(
-        f"{build_cluster_url(cluster_id)}/control_plane/upgrade_policies"
-    ):
-        if schedule_type and policy["schedule_type"] != schedule_type:
-            continue
-        policy_data = {
-            k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS
-        }
-        policy_data["state"] = policy.get("state", {}).get("value")
-        results.append(policy_data)
-    return results
+    return [
+        _build_upgrade_policy(
+            policy,
+            state=policy.get("state", {}).get("value"),
+        )
+        for policy in ocm_api.get_paginated(
+            f"{build_cluster_url(cluster_id)}/control_plane/upgrade_policies"
+        )
+    ]
 
 
 def create_control_plane_upgrade_policy(
@@ -124,18 +138,19 @@ def delete_control_plane_upgrade_policy(
 
 def get_node_pool_upgrade_policies(
     ocm_api: OCMBaseClient, cluster_id: str, node_pool: str
-) -> list[dict[str, Any]]:
+) -> list[UpgradePolicy]:
     """
     Returns a list of details of Upgrade Policies
     """
-    results: list[dict[str, Any]] = []
-    for policy in ocm_api.get_paginated(
-        f"{build_cluster_url(cluster_id)}/node_pools/{node_pool}/upgrade_policies"
-    ):
-        results.append({  # noqa: PERF401
-            k: v for k, v in policy.items() if k in UPGRADE_POLICY_DESIRED_KEYS
-        })
-    return results
+    return [
+        _build_upgrade_policy(
+            policy,
+            state=policy.get("state", {}).get("value"),
+        )
+        for policy in ocm_api.get_paginated(
+            f"{build_cluster_url(cluster_id)}/node_pools/{node_pool}/upgrade_policies"
+        )
+    ]
 
 
 def create_node_pool_upgrade_policy(

@@ -68,9 +68,7 @@ def get_current_state(
     """Get current gitlab group members for all managed groups."""
     return {
         g: CurrentStateSpec(
-            members={
-                u.username: u for u in gl.get_group_members(gitlab_groups_map.get(g))
-            },
+            members={u.username: u for u in gl.get_group_members(gitlab_groups_map[g])},
         )
         for g in instance.managed_groups
     }
@@ -218,7 +216,7 @@ def reconcile_gitlab_members(
                 gl.get_access_level_string(gitlab_user.access_level),
             ])
             if not dry_run:
-                gl.add_group_member(group, gitlab_user)
+                gl.add_group_member(group, gitlab_user.user, gitlab_user.access_level)
         for key, group_member in diff_data.delete.items():
             logging.info([
                 key,

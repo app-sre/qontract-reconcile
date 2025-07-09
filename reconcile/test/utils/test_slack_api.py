@@ -404,8 +404,12 @@ def test_update_usergroups_users_raise(slack_api: SlackApiMock) -> None:
 
 
 def test_get_flat_conversation_history_no_messages(
-    slack_api: SlackApiMock, conversation_history: SlackResponse
+    slack_api: SlackApiMock, mocker: MockerFixture, conversation_history: SlackResponse
 ) -> None:
+    mocker.patch(
+        "reconcile.utils.slack_api.SlackApi.get_channels_by_names",
+        return_value={"123": "channel"},
+    )
     fixture_messages = conversation_history["messages"]
     first_ts = fixture_messages[0]["ts"]
 
@@ -422,8 +426,12 @@ def test_get_flat_conversation_history_no_messages(
 
 
 def test_get_flat_conversation_history(
-    slack_api: SlackApiMock, conversation_history: SlackResponse
+    slack_api: SlackApiMock, mocker: MockerFixture, conversation_history: SlackResponse
 ) -> None:
+    mocker.patch(
+        "reconcile.utils.slack_api.SlackApi.get_channels_by_names",
+        return_value={"123": "channel"},
+    )
     fixture_messages = conversation_history["messages"]
     first_ts = fixture_messages[0]["ts"]
     last_ts = fixture_messages[-1]["ts"]

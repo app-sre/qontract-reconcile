@@ -14,7 +14,7 @@ from collections.abc import (
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
-from functools import wraps
+from functools import cache, wraps
 from subprocess import Popen
 from threading import Lock
 from typing import Any
@@ -37,7 +37,10 @@ from kubernetes.dynamic.exceptions import (
     ResourceNotUniqueError,
     ServerTimeoutError,
 )
-from kubernetes.dynamic.resource import ResourceList
+from kubernetes.dynamic.resource import (
+    Resource,
+    ResourceList,
+)
 from prometheus_client import Counter
 from sretoolbox.utils import (
     retry,
@@ -1241,6 +1244,7 @@ class OCNative(OCCli):
             insecure_skip_tls_verify=insecure_skip_tls_verify,
             connection_parameters=connection_parameters,
         )
+        self._get_obj_client = cache(self.__get_obj_client)
 
         if connection_parameters:
             token = connection_parameters.automation_token
@@ -1256,7 +1260,6 @@ class OCNative(OCCli):
         else:
             raise Exception("A method relies on client/api_kind_version to be set")
 
-        self.object_clients: dict[Any, Any] = {}
         self.projects = set()
         self.init_projects = init_projects
         if self.init_projects:
@@ -1308,13 +1311,8 @@ class OCNative(OCCli):
         except urllib3.exceptions.MaxRetryError as e:
             raise StatusCodeError(f"[{self.server}]: {e}") from None
 
-    def _get_obj_client(self, kind, group_version):
-        key = f"{kind}.{group_version}"
-        if key not in self.object_clients:
-            self.object_clients[key] = self.client.resources.get(
-                api_version=group_version, kind=kind
-            )
-        return self.object_clients[key]
+    def __get_obj_client(self, kind: str, group_version: str) -> Resource:
+        return self.client.resources.get(api_version=group_version, kind=kind)
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind, **kwargs):

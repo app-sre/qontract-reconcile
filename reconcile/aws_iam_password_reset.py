@@ -1,6 +1,7 @@
 import logging
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -44,12 +45,13 @@ class AwsAccountWithResets(BaseModel):
 
 
 @defer
-def run(dry_run, defer=None):
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     accounts = queries.get_aws_accounts(reset_passwords=True)
     settings = queries.get_app_interface_settings()
     roles = queries.get_roles(aws=True, saas_files=False)
     state = init_state(integration=QONTRACT_INTEGRATION)
-    defer(state.cleanup)
+    if defer:
+        defer(state.cleanup)
 
     accounts_to_reset: list[AwsAccountWithResets] = []
 

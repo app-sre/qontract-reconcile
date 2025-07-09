@@ -1,6 +1,7 @@
 import logging
 import os
 
+import github
 from github import Github
 from sretoolbox.utils import retry
 
@@ -40,10 +41,10 @@ ROLES_QUERY = """
 QONTRACT_INTEGRATION = "github-owners"
 
 
-def fetch_desired_state():
-    desired_state = {}
+def fetch_desired_state() -> dict[str, list[str]]:
+    desired_state: dict[str, list[str]] = {}
     gqlapi = gql.get_api()
-    roles = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
+    roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     for role in roles:
         permissions = [
             p
@@ -67,7 +68,9 @@ def fetch_desired_state():
 
 
 @retry()
-def get_current_github_usernames(github_org_name, github, raw_github):
+def get_current_github_usernames(
+    github_org_name: str, github: Github, raw_github: RawGithubApi
+) -> tuple[github.Organization.Organization, list[str]]:
     gh_org = github.get_organization(github_org_name)
     gh_org_members = gh_org.get_members(role="admin")
     current_github_usernames = [m.login for m in gh_org_members]
@@ -77,7 +80,7 @@ def get_current_github_usernames(github_org_name, github, raw_github):
     return gh_org, current_github_usernames
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     base_url = os.environ.get("GITHUB_API", "https://api.github.com")
     config = get_config()
     desired_state = fetch_desired_state()

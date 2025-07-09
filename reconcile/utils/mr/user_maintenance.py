@@ -1,5 +1,8 @@
+from collections.abc import Iterable
+from enum import Enum
 from pathlib import Path
 
+from pydantic import BaseModel, validator
 from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -7,7 +10,7 @@ from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 
 
-class PathTypes:
+class PathTypes(Enum):
     USER = 0
     REQUEST = 1
     QUERY = 2
@@ -16,10 +19,19 @@ class PathTypes:
     SCHEDULE = 5
 
 
+class PathSpec(BaseModel):
+    type: PathTypes
+    path: str
+
+    @validator("path")
+    def prepend_data_to_path(cls, v):
+        return "data" + v
+
+
 class CreateDeleteUserAppInterface(MergeRequestBase):
     name = "create_delete_user_mr"
 
-    def __init__(self, username, paths):
+    def __init__(self, username, paths: Iterable[PathSpec]):
         self.username = username
         self.paths = paths
 
@@ -37,15 +49,19 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         for path_spec in self.paths:
-            path_type = path_spec["type"]
-            path = path_spec["path"]
+            path_type = path_spec.type
+            path = path_spec.path
             if path_type in {PathTypes.USER, PathTypes.REQUEST, PathTypes.QUERY}:
                 gitlab_cli.delete_file(
                     branch_name=self.branch, file_path=path, commit_message=self.title
                 )
             elif path_type == PathTypes.GABI:
-                raw_file = gitlab_cli.project.files.get(file_path=path, ref=self.branch)
-                content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+                raw_file = gitlab_cli.get_raw_file(
+                    project=gitlab_cli.project,
+                    path=path,
+                    ref=self.branch,
+                )
+                content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
                 for gabi_user in content["users"][:]:
                     if self.username in gabi_user["$ref"]:
                         content["users"].remove(gabi_user)
@@ -58,8 +74,12 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                     content=new_content,
                 )
             elif path_type == PathTypes.AWS_ACCOUNTS:
-                raw_file = gitlab_cli.project.files.get(file_path=path, ref=self.branch)
-                content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+                raw_file = gitlab_cli.get_raw_file(
+                    project=gitlab_cli.project,
+                    path=path,
+                    ref=self.branch,
+                )
+                content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
                 for reset_record in content["resetPasswords"]:
                     if self.username in reset_record["user"]["$ref"]:
                         content["resetPasswords"].remove(reset_record)
@@ -72,8 +92,12 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                             content=new_content,
                         )
             elif path_type == PathTypes.SCHEDULE:
-                raw_file = gitlab_cli.project.files.get(file_path=path, ref=self.branch)
-                content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+                raw_file = gitlab_cli.get_raw_file(
+                    project=gitlab_cli.project,
+                    path=path,
+                    ref=self.branch,
+                )
+                content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
                 delete_indexes: list[tuple[int, int]] = []
                 for schedule_index, schedule_record in enumerate(content["schedule"]):
                     for user_index, user in enumerate(schedule_record["users"]):
@@ -112,10 +136,12 @@ class CreateDeleteUserInfra(MergeRequestBase):
         return "delete user(s)"
 
     def process(self, gitlab_cli):
-        raw_file = gitlab_cli.project.files.get(
-            file_path=self.PLAYBOOK, ref=self.branch
+        raw_file = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=self.PLAYBOOK,
+            ref=self.branch,
         )
-        content = yaml.load(raw_file.decode(), Loader=yaml.RoundTripLoader)
+        content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
 
         new_list = []
         for user in content[0]["vars"]["users"]:

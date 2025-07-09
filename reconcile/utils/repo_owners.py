@@ -120,7 +120,7 @@ class RepoOwners:
         aliases = self._get_aliases()
 
         if self._recursive:
-            repo_tree = self._git_cli.get_repository_tree(ref=self._ref)
+            repo_tree = self._git_cli.get_repository_tree(ref=self._ref, recursive=True)
             owner_files = [item for item in repo_tree if item["name"] == "OWNERS"]
         else:
             owner_files = [{"path": "OWNERS"}]
@@ -131,7 +131,7 @@ class RepoOwners:
                 _LOG.warning(f"{self._git_cli!s}:{owner_file['path']} not found")
                 continue
             try:
-                owners = yaml.safe_load(raw_owners.decode())
+                owners = yaml.safe_load(raw_owners)
             except yaml.parser.ParserError:
                 owners = None
             if owners is None:
@@ -184,7 +184,7 @@ class RepoOwners:
         if raw_aliases is None:
             return {}
 
-        aliases = yaml.safe_load(raw_aliases.decode())
+        aliases = yaml.safe_load(raw_aliases)
         if aliases is None:
             return {}
 

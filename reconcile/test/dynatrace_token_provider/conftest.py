@@ -7,7 +7,7 @@ from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
 )
 from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
-from reconcile.dynatrace_token_provider.ocm import Cluster
+from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
@@ -57,6 +57,78 @@ def default_token_spec(
 
 
 @pytest.fixture
+def regional_token_spec(
+    gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
+) -> DynatraceTokenProviderTokenSpecV1:
+    return gql_class_factory(
+        DynatraceTokenProviderTokenSpecV1,
+        {
+            "name": "regional-spec",
+            "ocm_org_ids": ["ocm_org_id_a"],
+            "secrets": [
+                {
+                    "name": "dynatrace-token-dtp",
+                    "namespace": "dynatrace",
+                    "tokens": [
+                        {
+                            "name": "ingestion-token",
+                            "keyNameInSecret": "dataIngestToken",
+                            "scopes": [
+                                "metrics.ingest",
+                                "logs.ingest",
+                                "events.ingest",
+                            ],
+                        },
+                        {
+                            "name": "operator-token",
+                            "keyNameInSecret": "apiToken",
+                            "scopes": [
+                                "activeGateTokenManagement.create",
+                                "entities.read",
+                                "settings.write",
+                                "settings.read",
+                                "DataExport",
+                                "InstallerDownload",
+                            ],
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+
+
+@pytest.fixture
+def slo_token_spec(
+    gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecV1],
+) -> DynatraceTokenProviderTokenSpecV1:
+    return gql_class_factory(
+        DynatraceTokenProviderTokenSpecV1,
+        {
+            "name": "slo-spec",
+            "ocm_org_ids": ["ocm_org_id_a"],
+            "secrets": [
+                {
+                    "name": "dynatrace-slo-token-dtp",
+                    "namespace": "dynatrace",
+                    "tokens": [
+                        {
+                            "name": "ingestion-token",
+                            "keyNameInSecret": "dataIngestToken",
+                            "scopes": [
+                                "metrics.ingest",
+                                "logs.ingest",
+                                "events.ingest",
+                            ],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+
+@pytest.fixture
 def default_integration() -> DynatraceTokenProviderIntegration:
     return DynatraceTokenProviderIntegration()
 
@@ -92,24 +164,47 @@ def default_ingestion_token() -> DynatraceAPIToken:
 
 
 @pytest.fixture
-def default_cluster() -> Cluster:
-    return Cluster(
+def default_cluster() -> OCMCluster:
+    return OCMCluster(
         id="cluster_a",
         external_id="external_id_a",
         organization_id="ocm_org_id_a",
-        dt_tenant="dt_tenant_a",
-        token_spec_name="default",
+        subscription_id="sub_id",
         is_hcp=False,
+        labels={
+            "sre-capabilities.dtp.v2.tenant": "dt_tenant_a",
+            "sre-capabilities.dtp.v2.token-spec": "default",
+        },
     )
 
 
 @pytest.fixture
-def default_hcp_cluster() -> Cluster:
-    return Cluster(
+def default_cluster_v3() -> OCMCluster:
+    return OCMCluster(
         id="cluster_a",
         external_id="external_id_a",
         organization_id="ocm_org_id_a",
-        dt_tenant="dt_tenant_a",
-        token_spec_name="default",
+        subscription_id="sub_id",
+        is_hcp=False,
+        labels={
+            "sre-capabilities.dtp.v3.regional.tenant": "regional-tenant",
+            "sre-capabilities.dtp.v3.regional.token-spec": "regional-spec",
+            "sre-capabilities.dtp.v3.slo.tenant": "slo-tenant",
+            "sre-capabilities.dtp.v3.slo.token-spec": "slo-spec",
+        },
+    )
+
+
+@pytest.fixture
+def default_hcp_cluster() -> OCMCluster:
+    return OCMCluster(
+        id="cluster_a",
+        external_id="external_id_a",
+        organization_id="ocm_org_id_a",
+        subscription_id="sub_id",
         is_hcp=True,
+        labels={
+            "sre-capabilities.dtp.v2.tenant": "dt_tenant_a",
+            "sre-capabilities.dtp.v2.token-spec": "default",
+        },
     )

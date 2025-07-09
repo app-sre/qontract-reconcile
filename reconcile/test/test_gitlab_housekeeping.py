@@ -2,7 +2,9 @@ from datetime import (
     datetime,
     timedelta,
 )
+from typing import Any
 from unittest.mock import (
+    MagicMock,
     Mock,
     create_autospec,
     patch,
@@ -16,6 +18,7 @@ from gitlab.v4.objects import (
     ProjectCommitManager,
     ProjectIssue,
     ProjectMergeRequest,
+    ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
 )
 from pytest_mock import MockerFixture
@@ -31,7 +34,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 fixture = Fixtures("gitlab_housekeeping").get_anymarkup("api.yml")
 
 
-def get_mock(path, query_data=None, streamed=False, raw=False, **kwargs):
+def get_mock(path: str, **kwargs: Any) -> dict:
     path = path[1:]
     data = fixture.get("gitlab").get(path)
     return data
@@ -42,7 +45,9 @@ class TestGitLabHousekeeping:
     @patch.object(SecretReader, "read")
     @patch.object(Gitlab, "http_get")
     @patch.object(Gitlab, "http_post")
-    def test_clean_pipelines_happy_path(http_post, http_get, secret_read):
+    def test_clean_pipelines_happy_path(
+        http_post: MagicMock, http_get: MagicMock, _: MagicMock
+    ) -> None:
         http_get.side_effect = get_mock
         now = datetime.utcnow()
 
@@ -50,39 +55,42 @@ class TestGitLabHousekeeping:
         two_hours_ago = now - timedelta(minutes=120)
 
         pipelines = [
-            {
-                "id": 46,
-                "iid": 11,
-                "project_id": 1,
-                "status": "canceled",
-                "ref": "new-pipeline",
-                "sha": "dddd9c1e5c9015edee04321e423429d2f8924609",
-                "web_url": "https://example.com/foo/bar/pipelines/46",
-                "created_at": two_hours_ago.strftime(DATE_FORMAT),
-                "updated_at": two_hours_ago.strftime(DATE_FORMAT),
-            },
-            {
-                "id": 47,
-                "iid": 12,
-                "project_id": 1,
-                "status": "pending",
-                "ref": "new-pipeline",
-                "sha": "a91957a858320c0e17f3a0eca7cfacbff50ea29a",
-                "web_url": "https://example.com/foo/bar/pipelines/47",
-                "created_at": two_hours_ago.strftime(DATE_FORMAT),
-                "updated_at": two_hours_ago.strftime(DATE_FORMAT),
-            },
-            {
-                "id": 48,
-                "iid": 13,
-                "project_id": 1,
-                "status": "running",
-                "ref": "new-pipeline",
-                "sha": "eb94b618fb5865b26e80fdd8ae531b7a63ad851a",
-                "web_url": "https://example.com/foo/bar/pipelines/48",
-                "created_at": ten_minutes_ago.strftime(DATE_FORMAT),
-                "updated_at": ten_minutes_ago.strftime(DATE_FORMAT),
-            },
+            create_autospec(
+                ProjectMergeRequestPipeline,
+                id=46,
+                iid=11,
+                project_id=1,
+                status="canceled",
+                ref="new-pipeline",
+                sha="dddd9c1e5c9015edee04321e423429d2f8924609",
+                web_url="https://example.com/foo/bar/pipelines/46",
+                created_at=two_hours_ago.strftime(DATE_FORMAT),
+                updated_at=two_hours_ago.strftime(DATE_FORMAT),
+            ),
+            create_autospec(
+                ProjectMergeRequestPipeline,
+                id=47,
+                iid=12,
+                project_id=1,
+                status="pending",
+                ref="new-pipeline",
+                sha="a91957a858320c0e17f3a0eca7cfacbff50ea29a",
+                web_url="https://example.com/foo/bar/pipelines/47",
+                created_at=two_hours_ago.strftime(DATE_FORMAT),
+                updated_at=two_hours_ago.strftime(DATE_FORMAT),
+            ),
+            create_autospec(
+                ProjectMergeRequestPipeline,
+                id=48,
+                iid=13,
+                project_id=1,
+                status="running",
+                ref="new-pipeline",
+                sha="eb94b618fb5865b26e80fdd8ae531b7a63ad851a",
+                web_url="https://example.com/foo/bar/pipelines/48",
+                created_at=ten_minutes_ago.strftime(DATE_FORMAT),
+                updated_at=ten_minutes_ago.strftime(DATE_FORMAT),
+            ),
         ]
         gl = GitLabApi({
             "url": "http://localhost",
@@ -94,13 +102,13 @@ class TestGitLabHousekeeping:
         timeout = 60
 
         timeout_pipelines = gl_h.get_timed_out_pipelines(pipelines, timeout)
-        gl_h.clean_pipelines(dry_run, gl, "1", timeout_pipelines)
+        gl_h.clean_pipelines(dry_run, gl, 1, timeout_pipelines)
 
         # Test if mock have this exact calls
         http_post.assert_called_once_with("/projects/1/pipelines/47/cancel")
 
 
-def test_calculate_time_since_approval():
+def test_calculate_time_since_approval() -> None:
     one_hour_ago = (datetime.utcnow() - timedelta(minutes=60)).strftime(DATE_FORMAT)
 
     time_since_merge = gl_h._calculate_time_since_approval(one_hour_ago)
@@ -108,7 +116,7 @@ def test_calculate_time_since_approval():
     assert round(time_since_merge) == 60
 
 
-def test_is_rebase():
+def test_is_rebase() -> None:
     expected_ref = "master"
     mr = create_autospec(ProjectMergeRequest)
     mr.target_branch = expected_ref
@@ -205,19 +213,38 @@ def add_lgtm_merge_request_resource_label_event() -> (
 
 
 @pytest.fixture
-def success_merge_request_pipeline() -> dict:
-    return {
-        "status": "success",
-    }
+def success_merge_request_pipeline() -> ProjectMergeRequestPipeline:
+    return create_autospec(
+        ProjectMergeRequestPipeline,
+        status="success",
+    )
 
 
+@pytest.mark.parametrize(
+    ["project_squash_option", "merge_request_squash", "expected_squash"],
+    [
+        ("never", True, True),
+        ("never", False, False),
+        ("always", True, True),
+        ("always", False, True),
+        ("default_on", True, True),
+        ("default_on", False, False),
+        ("default_off", True, True),
+        ("default_off", False, False),
+    ],
+)
 def test_merge_merge_requests(
+    state: Mock,
     project: Project,
     can_be_merged_merge_request: Mock,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
-    success_merge_request_pipeline: dict,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+    project_squash_option: str,
+    merge_request_squash: bool,
+    expected_squash: bool,
 ) -> None:
     mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = project_squash_option
     mocked_gl.project = project
     mocked_gl.get_merge_request_label_events.return_value = [
         add_lgtm_merge_request_resource_label_event
@@ -225,33 +252,37 @@ def test_merge_merge_requests(
     mocked_gl.get_merge_request_pipelines.return_value = [
         success_merge_request_pipeline
     ]
+    can_be_merged_merge_request.squash = merge_request_squash
 
     gl_h.merge_merge_requests(
-        False,
-        mocked_gl,
-        [can_be_merged_merge_request],
-        gl_h.ReloadToggle(reload=False),
-        1,
-        False,
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
         app_sre_usernames=set(),
+        state=state,
         pipeline_timeout=None,
         insist=True,
         wait_for_pipeline=False,
         users_allowed_to_label=None,
     )
 
-    can_be_merged_merge_request.merge.assert_called_once()
+    can_be_merged_merge_request.merge.assert_called_once_with(squash=expected_squash)
 
 
 @pytest.fixture
-def running_merge_request_pipeline() -> dict:
-    return {
-        "status": "running",
-    }
+def running_merge_request_pipeline() -> ProjectMergeRequestPipeline:
+    return create_autospec(
+        ProjectMergeRequestPipeline,
+        status="running",
+    )
 
 
 def test_merge_merge_requests_with_retry(
     mocker: MockerFixture,
+    state: Mock,
     project: Project,
     can_be_merged_merge_request: ProjectMergeRequest,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
@@ -277,6 +308,7 @@ def test_merge_merge_requests_with_retry(
             1,
             False,
             app_sre_usernames=set(),
+            state=state,
             pipeline_timeout=None,
             insist=True,
             wait_for_pipeline=True,
@@ -363,8 +395,8 @@ def state() -> Mock:
     return state
 
 
-class StatusMock:
-    def __init__(self, name, status):
+class StatusMock:  # noqa: B903
+    def __init__(self, name: str, status: str) -> None:
         self.name = name
         self.status = status
 
@@ -376,7 +408,12 @@ def test_verify_ondemend_tests_running(
 ) -> None:
     must_pass = ["pr-check", "e2e"]
     state.get.return_value = {"pr-check": "success"}
-    gitlab_api.get_merge_request_pipelines.return_value = [{"status": "running"}]
+    gitlab_api.get_merge_request_pipelines.return_value = [
+        create_autospec(
+            ProjectMergeRequestPipeline,
+            status="running",
+        )
+    ]
 
     assert not gl_h.verify_on_demand_tests(
         False, merge_request, must_pass, gitlab_api, state

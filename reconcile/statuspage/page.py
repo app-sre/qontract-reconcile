@@ -52,6 +52,16 @@ class StatusComponent(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, StatusComponent):
+            raise NotImplementedError("Cannot compare to non StatusComponent objects.")
+        return (
+            self.name == other.name
+            and self.display_name == other.display_name
+            and self.description == other.description
+            and self.group_name == other.group_name
+        )
+
     @classmethod
     def init_from_page_component(
         cls, component: StatusPageComponentV1, name_override: str | None = None
@@ -171,4 +181,18 @@ class StatusMaintenance(BaseModel):
             schedule_end=maintenance.scheduled_end,
             components=affected_components,
             announcements=statuspage_announcements[0],
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, StatusMaintenance):
+            raise NotImplementedError(
+                "Cannot compare to non StatusMaintenance objects."
+            )
+        return (
+            self.name == other.name
+            and self.message == other.message
+            and self.schedule_start == other.schedule_start
+            and self.schedule_end == other.schedule_end
+            and self.components == other.components
+            and self.announcements == other.announcements
         )

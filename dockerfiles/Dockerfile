@@ -1,8 +1,8 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-builder:0.7.0 AS build-image
-COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.0.0-1 AS build-image
+COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 WORKDIR /work
 
@@ -24,37 +24,37 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --pytho
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 AS dev-image
-COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS dev-image
+COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile && \
     chown -R reconcile /.terraform.d
 
-WORKDIR /work
+# Use a different workdir so venv can't be overwritten by volume mount
+WORKDIR /opt/app-root/src
 
 COPY --from=build-image --chown=reconcile:root /work/ ./
 RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-cache --group debugger --no-group dev
-# Move .venv out of the workdir so it can't be overwritten by volume mount
-RUN mv .venv /venv
 
+WORKDIR /work
 USER reconcile
 VOLUME ["/work", "/config"]
 # Set the PATH to include the virtualenv
-ENV PATH="/venv/bin:${PATH}"
+ENV PATH="/opt/app-root/src/.venv/bin:${PATH}"
 ENTRYPOINT ["/work/dev/run.sh"]
 
 
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/app-sre/qontract-reconcile-base:0.14.0 AS prod-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
 
 # Tini
-ENV TINI_VERSION v0.19.0
+ENV TINI_VERSION=v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
@@ -90,7 +90,7 @@ COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1 \
 # STAGE 5 - unittest image
 ###############################################################################
 FROM prod-image AS test-image
-COPY --from=ghcr.io/astral-sh/uv:0.5.7@sha256:23272999edd22e78195509ea3fe380e7632ab39a4c69a340bedaba7555abe20a /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
 
 RUN microdnf install -y make
 

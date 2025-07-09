@@ -23,4 +23,5 @@ fragment AWSAccountManaged on AWSAccount_v1 {
     email
     phoneNumber
   }
+  supportedDeploymentRegions
 }

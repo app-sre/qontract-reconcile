@@ -1,3 +1,4 @@
+---
 
 jira_boards:
 - name: jira-board-default
@@ -9,13 +10,21 @@ jira_boards:
   issueType: null
   issueResolveState: Closed
   issueReopenState: null
-  issueSecurityId: null
+  issueFields: null
   severityPriorityMappings:
     name: major-major
     mappings:
     - priority: Minor
     - priority: Major
     - priority: Critical
+  escalationPolicies:
+  - name: escalation-1
+    channels:
+      jiraComponents: null
+  - name: escalation-2
+    channels:
+      jiraComponents: null
+
 - name: jira-board-custom
   server:
     serverUrl: 'https://jira-server.com'
@@ -25,7 +34,9 @@ jira_boards:
   issueType: bug
   issueResolveState: Closed
   issueReopenState: Open
-  issueSecurityId: "32168"
+  issueFields:
+  - name: Security Level
+    value: "fake"
   severityPriorityMappings:
     name: major-major
     mappings:
@@ -33,6 +44,16 @@ jira_boards:
     - priority: Major
     - priority: Major
     - priority: Critical
+  escalationPolicies:
+  - name: escalation-1
+    channels:
+      jiraComponents:
+      - component-1
+      - component-2
+  - name: escalation-2
+    channels:
+      jiraComponents: null
+
 - name: disabled
   server:
     serverUrl: 'https://jira-server.com'
@@ -42,7 +63,9 @@ jira_boards:
   issueType: bug
   issueResolveState: Closed
   issueReopenState: Open
-  issueSecurityId: "32168"
+  issueFields:
+  - name: Security Level
+    value: "fake"
   severityPriorityMappings:
     name: major-major
     mappings:

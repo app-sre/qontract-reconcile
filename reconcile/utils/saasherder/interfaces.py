@@ -7,6 +7,7 @@ from typing import (
     runtime_checkable,
 )
 
+from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.utils import oc_connection_parameters
 from reconcile.utils.secret_reader import HasSecret
 
@@ -244,6 +245,8 @@ class SaasResourceTemplateTargetPromotion(Protocol):
     @property
     def promotion_data(self) -> Sequence[SaasPromotionData] | None: ...
 
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+
 
 class Channel(Protocol):
     name: str
@@ -288,6 +291,8 @@ class SaasResourceTemplateTargetUpstream(Protocol):
     @property
     def instance(self) -> SaasJenkinsInstance: ...
 
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+
 
 class SaasQuayInstance(Protocol):
     url: str
@@ -305,6 +310,8 @@ class SaasResourceTemplateTargetImage(Protocol):
 
     @property
     def org(self) -> SaasQuayOrg: ...
+
+    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
@@ -324,10 +331,10 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
     def upstream(self) -> SaasResourceTemplateTargetUpstream | None: ...
 
     @property
-    def image(self) -> SaasResourceTemplateTargetImage | None: ...
+    def images(self) -> Sequence[SaasResourceTemplateTargetImage] | None: ...
 
     @property
-    def images(self) -> Sequence[SaasResourceTemplateTargetImage] | None: ...
+    def slos(self) -> list[SLODocument] | None: ...
 
     def uid(
         self, parent_saas_file_name: str, parent_resource_template_name: str
@@ -369,6 +376,8 @@ SaasPipelinesProviders = SaasPipelinesProviderTekton | SaasPipelinesProvider
 class ManagedResourceName(Protocol):
     resource: str
     resource_names: list[str]
+
+    def dict(self) -> dict[str, str]: ...
 
 
 class SaasFile(HasParameters, HasSecretParameters, Protocol):

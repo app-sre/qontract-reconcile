@@ -83,7 +83,7 @@ class MergeRequestManagerV2:
             if sub.target_file_path not in content_by_path:
                 try:
                     content_by_path[sub.target_file_path] = (
-                        self._vcs.get_file_content_from_app_interface_master(
+                        self._vcs.get_file_content_from_app_interface_ref(
                             file_path=sub.target_file_path
                         )
                     )

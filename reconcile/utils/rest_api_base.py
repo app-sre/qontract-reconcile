@@ -74,8 +74,10 @@ class ApiBase:
     def cleanup(self) -> None:
         self.session.close()
 
-    def _get(self, url: str) -> dict[str, Any]:
-        response = self.session.get(urljoin(self.host, url), timeout=self.read_timeout)
+    def _get(self, url: str, params: dict | None = None) -> dict[str, Any]:
+        response = self.session.get(
+            urljoin(self.host, url), params=params, timeout=self.read_timeout
+        )
         response.raise_for_status()
         try:
             return response.json()

@@ -5,6 +5,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from collections import defaultdict
 from collections.abc import Callable, Sequence
 from datetime import (
     datetime,
@@ -34,6 +35,7 @@ from reconcile.aus.metrics import (
     UPGRADE_SCHEDULED_METRIC_VALUE,
     UPGRADE_STARTED_METRIC_VALUE,
     AUSClusterHealthStateGauge,
+    AUSClusterMissingVersionGateAgreementsGauge,
     AUSClusterUpgradePolicyInfoMetric,
     AUSOCMEnvironmentError,
     AUSOrganizationErrorRate,
@@ -604,21 +606,27 @@ def fetch_current_state(
                 ocm_api, spec.cluster.id
             )
             for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = spec.cluster
-                current_state.append(ControlPlaneUpgradePolicy(**upgrade_policy))
+                policy = upgrade_policy | {
+                    "cluster": spec.cluster,
+                }
+                current_state.append(ControlPlaneUpgradePolicy(**policy))
             for node_pool in spec.node_pools:
                 node_upgrade_policies = get_node_pool_upgrade_policies(
                     ocm_api, spec.cluster.id, node_pool.id
                 )
                 for upgrade_policy in node_upgrade_policies:
-                    upgrade_policy["cluster"] = spec.cluster
-                    upgrade_policy["node_pool"] = node_pool.id
-                    current_state.append(NodePoolUpgradePolicy(**upgrade_policy))
+                    policy = upgrade_policy | {
+                        "cluster": spec.cluster,
+                        "node_pool": node_pool.id,
+                    }
+                    current_state.append(NodePoolUpgradePolicy(**policy))
         else:
             upgrade_policies = get_upgrade_policies(ocm_api, spec.cluster.id)
             for upgrade_policy in upgrade_policies:
-                upgrade_policy["cluster"] = spec.cluster
-                current_state.append(ClusterUpgradePolicy(**upgrade_policy))
+                policy = upgrade_policy | {
+                    "cluster": spec.cluster,
+                }
+                current_state.append(ClusterUpgradePolicy(**policy))
 
     return current_state
 
@@ -969,16 +977,54 @@ def verify_schedule_should_skip(
     return next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def verify_lock_should_skip(
-    desired: ClusterUpgradeSpec, locked: dict[str, str]
+def verify_max_upgrades_should_skip(
+    desired: ClusterUpgradeSpec,
+    locked: dict[str, str],
+    sector_mutex_upgrades: dict[tuple[str, str], set[str]],
+    sector: Sector | None,
 ) -> bool:
     mutexes = desired.effective_mutexes
-    if any(lock in locked for lock in mutexes):
-        locking = {lock: locked[lock] for lock in mutexes if lock in locked}
-        logging.debug(
-            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: locked out by {locking}"
-        )
-        return True
+
+    # if sector.max_parallel_upgrades is not set, we allow 1 upgrade per mutex, across the whole org
+    if sector is None or sector.max_parallel_upgrades is None:
+        if any(lock in locked for lock in mutexes):
+            locking = {lock: locked[lock] for lock in mutexes if lock in locked}
+            logging.debug(
+                f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: locked out by {locking}"
+            )
+            return True
+        return False
+
+    current_upgrades_count_per_mutex = {
+        mutex: len(sector_mutex_upgrades[sector.name, mutex]) for mutex in mutexes
+    }
+
+    current_upgrades_total_count = sum(current_upgrades_count_per_mutex.values())
+    if current_upgrades_total_count == 0:
+        return False
+
+    for mutex in mutexes:
+        cluster_count = len([s for s in sector.specs if mutex in s.effective_mutexes])
+        if sector.max_parallel_upgrades.endswith("%"):
+            max_parallel_upgrades_percent = int(sector.max_parallel_upgrades[:-1])
+            max_parallel_upgrades = round(
+                cluster_count * max_parallel_upgrades_percent / 100
+            )
+        else:
+            max_parallel_upgrades = int(sector.max_parallel_upgrades)
+
+        # we allow at least one upgrade
+        if max_parallel_upgrades == 0:
+            max_parallel_upgrades = 1
+
+        if current_upgrades_count_per_mutex.get(mutex, 0) >= max_parallel_upgrades:
+            logging.debug(
+                f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster: "
+                f"sector '{sector.name}' has reached max parallel upgrades {sector.max_parallel_upgrades} "
+                f"for mutex '{mutex}'"
+            )
+            return True
+
     return False
 
 
@@ -1027,6 +1073,7 @@ def calculate_diff(
     ocm_api: OCMBaseClient,
     version_data: VersionData,
     addon_id: str = "",
+    integration: str = "",
 ) -> list[UpgradePolicyHandler]:
     """Check available upgrades for each cluster in the desired state
     according to upgrade conditions
@@ -1042,35 +1089,44 @@ def calculate_diff(
         list: upgrade policies to be applied
     """
 
-    def set_mutex(
-        locked: dict[str, str], cluster_id: str, mutexes: set[str] | None = None
+    locked: dict[str, str] = {}
+    sector_mutex_upgrades: dict[tuple[str, str], set[str]] = defaultdict(set)
+
+    def set_upgrading(
+        cluster_id: str, mutexes: set[str], sector_name: str | None
     ) -> None:
-        for mutex in mutexes or set():
+        for mutex in mutexes:
             locked[mutex] = cluster_id
+            if sector_name:
+                sector_mutex_upgrades[sector_name, mutex].add(cluster_id)
 
     diffs: list[UpgradePolicyHandler] = []
 
     # all clusters IDs with a current upgradePolicy are considered locked
-    locked: dict[str, str] = {}
     for spec in desired_state.specs:
         if spec.cluster.id in [s.cluster.id for s in current_state]:
-            for mutex in spec.effective_mutexes:
-                locked[mutex] = spec.cluster.id
+            sector_name = spec.upgrade_policy.conditions.sector
+            set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
 
     addon_service = init_addon_service(desired_state.org.environment)
     now = datetime.utcnow()
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
+        sector_name = spec.upgrade_policy.conditions.sector
+        sector = desired_state.sectors[sector_name] if sector_name else None
+
         # Upgrading node pools, only required for Hypershift clusters
         # do this in the same loop, to skip cluster on node pool upgrade
         if spec.cluster.is_rosa_hypershift():
-            if verify_lock_should_skip(spec, locked):
+            if verify_max_upgrades_should_skip(
+                spec, locked, sector_mutex_upgrades, sector
+            ):
                 continue
 
             node_pool_update = _calculate_node_pool_diffs(spec, now)
             if node_pool_update:  # node pool update policy not yet created
                 diffs.append(node_pool_update)
-                set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
+                set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
                 continue
 
         # ignore clusters with an existing upgrade policy
@@ -1086,13 +1142,9 @@ def calculate_diff(
         if not next_schedule:
             continue
 
-        if verify_lock_should_skip(spec, locked):
+        if verify_max_upgrades_should_skip(spec, locked, sector_mutex_upgrades, sector):
             continue
 
-        sector_name = spec.upgrade_policy.conditions.sector
-        sector = None
-        if sector_name:
-            sector = desired_state.sectors[sector_name]
         version = upgradeable_version(spec, version_data, sector)
         if version:
             if addon_id:
@@ -1125,13 +1177,25 @@ def calculate_diff(
                     },
                 )
                 if gates_with_missing_agreements:
-                    missing_gate_ids = [
-                        gate.id for gate in gates_with_missing_agreements
+                    missing_gate_labels = [
+                        gate.label for gate in gates_with_missing_agreements
                     ]
                     logging.info(
-                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates with missing agreements for {target_version_prefix} - {missing_gate_ids} "
+                        f"[{spec.org.org_id}/{spec.org.name}/{spec.cluster.name}] found gates with missing agreements for {target_version_prefix} - {missing_gate_labels} "
                         "Skip creation of an upgrade policy until all of them have been acked by the version-gate-approver integration or a user."
                     )
+
+                    metrics.set_gauge(
+                        AUSClusterMissingVersionGateAgreementsGauge(
+                            integration=integration,
+                            ocm_env=spec.org.environment.name,
+                            org_id=spec.org.org_id,
+                            cluster_uuid=spec.cluster.id,
+                            version_prefix=target_version_prefix,
+                        ),
+                        len(gates_with_missing_agreements),
+                    )
+
                     continue
                 diffs.append(
                     UpgradePolicyHandler(
@@ -1139,7 +1203,7 @@ def calculate_diff(
                         policy=_create_upgrade_policy(next_schedule, spec, version),
                     )
                 )
-            set_mutex(locked, spec.cluster.id, spec.effective_mutexes)
+            set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
 
     return diffs
 

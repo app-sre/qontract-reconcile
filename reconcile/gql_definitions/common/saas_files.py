@@ -18,6 +18,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.oc_connection_cluster import OcConnectionCluster
+from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.gql_definitions.fragments.saas_target_namespace import SaasTargetNamespace
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -51,6 +52,50 @@ fragment OcConnectionCluster on Cluster_v1 {
   disable {
     integrations
   }
+}
+
+fragment SLODocument on SLODocument_v1 {
+    name
+    namespaces {
+      prometheusAccess {
+         url
+         username {
+         ... VaultSecret
+         }
+         password {
+           ... VaultSecret
+         }
+      }
+      namespace {
+        name
+        app {
+          name
+        }
+        cluster {
+          name
+          automationToken {
+          ... VaultSecret
+          }
+          prometheusUrl
+          spec {
+            private
+          }
+        }
+      }
+      SLONamespace {
+        name
+      }
+    }
+    slos {
+      name
+      expr
+      SLIType
+      SLOParameters {
+        window
+      }
+      SLOTarget
+      SLOTargetUnit
+    }
 }
 
 fragment SaasTargetNamespace on Namespace_v1 {
@@ -253,6 +298,9 @@ query SaasFiles {
         namespace {
           ...SaasTargetNamespace
         }
+        slos {
+         ...SLODocument 
+        }
         namespaceSelector {
           jsonPathSelectors {
             include
@@ -290,15 +338,6 @@ query SaasFiles {
           instance {
             name
             serverUrl
-          }
-          name
-        }
-        image {
-          org {
-            name
-            instance {
-              url
-            }
           }
           name
         }
@@ -517,24 +556,11 @@ class SaasResourceTemplateTargetImageV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
-class SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1_QuayInstanceV1(ConfiguredBaseModel):
-    url: str = Field(..., alias="url")
-
-
-class SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    instance: SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1_QuayInstanceV1 = Field(..., alias="instance")
-
-
-class SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1(ConfiguredBaseModel):
-    org: SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1_QuayOrgV1 = Field(..., alias="org")
-    name: str = Field(..., alias="name")
-
-
 class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     path: Optional[str] = Field(..., alias="path")
     name: Optional[str] = Field(..., alias="name")
     namespace: Optional[SaasTargetNamespace] = Field(..., alias="namespace")
+    slos: Optional[list[SLODocument]] = Field(..., alias="slos")
     namespace_selector: Optional[SaasResourceTemplateTargetNamespaceSelectorV1] = Field(..., alias="namespaceSelector")
     provider: Optional[str] = Field(..., alias="provider")
     ref: str = Field(..., alias="ref")
@@ -542,8 +568,7 @@ class SaasResourceTemplateTargetV2(ConfiguredBaseModel):
     parameters: Optional[Json] = Field(..., alias="parameters")
     secret_parameters: Optional[list[SaasResourceTemplateTargetV2_SaasSecretParametersV1]] = Field(..., alias="secretParameters")
     upstream: Optional[SaasResourceTemplateTargetUpstreamV1] = Field(..., alias="upstream")
-    image: Optional[SaasResourceTemplateTargetImageV1] = Field(..., alias="image")
-    images: Optional[list[SaasResourceTemplateTargetV2_SaasResourceTemplateTargetImageV1]] = Field(..., alias="images")
+    images: Optional[list[SaasResourceTemplateTargetImageV1]] = Field(..., alias="images")
     disable: Optional[bool] = Field(..., alias="disable")
     delete: Optional[bool] = Field(..., alias="delete")
 

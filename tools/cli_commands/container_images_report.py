@@ -6,11 +6,11 @@ from typing import Any
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
 
-from reconcile.gql_definitions.common.namespaces_minimal import NamespaceV1
+from reconcile.gql_definitions.common.namespaces import NamespaceV1
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
-from reconcile.typed_queries.namespaces_minimal import get_namespaces_minimal
+from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_namespaces
 from reconcile.utils.secret_reader import create_secret_reader
@@ -22,6 +22,7 @@ IMAGE_NAME_REGEX = re.compile(
 
 class NamespaceImages(BaseModel):
     namespace_name: str
+    app_name: str
     image_names: list[str] | None = None
     error_message: str | None = None
 
@@ -40,7 +41,7 @@ def get_all_pods_images(
       * namespaces:  a comma separated list of namespaces where the instance is used
       * count: number of uses of the image
     """
-    all_namespaces = get_namespaces_minimal()
+    all_namespaces = get_namespaces()
     namespaces = filter_namespaces_by_cluster_and_namespace(
         namespaces=all_namespaces,
         cluster_names=cluster_name,
@@ -89,6 +90,7 @@ def fetch_pods_images_from_namespaces(
 
         for name in ni.image_names or []:
             result[name]["namespaces"].add(ni.namespace_name)
+            result[name]["namespace_apps"].add(ni.app_name)
             result[name]["count"] += 1
 
     exclude_pattern_compiled: re.Pattern | None = None
@@ -109,6 +111,7 @@ def fetch_pods_images_from_namespaces(
         result_filtered_flattened.append({
             "name": name,
             "namespaces": ",".join(sorted(value["namespaces"])),
+            "namespace_apps": ",".join(sorted(value["namespace_apps"])),
             "count": value["count"],
         })
 
@@ -119,6 +122,7 @@ def fetch_pods_images_from_namespaces(
             result_filtered_flattened.append({
                 "name": "error",
                 "namespaces": message,
+                "namespace_apps": "",
                 "count": count,
             })
 
@@ -126,7 +130,7 @@ def fetch_pods_images_from_namespaces(
 
 
 def _get_all_images_default() -> dict[str, Any]:
-    return {"namespaces": set(), "count": 0}
+    return {"namespaces": set(), "namespace_apps": set(), "count": 0}
 
 
 def _get_namespace_images(ns: NamespaceV1, oc_map: OCMap) -> NamespaceImages:
@@ -145,10 +149,12 @@ def _get_namespace_images(ns: NamespaceV1, oc_map: OCMap) -> NamespaceImages:
     except Exception as exc:
         return NamespaceImages(
             namespace_name=ns.name,
+            app_name=ns.app.name,
             error_message=str(exc),
         )
 
     return NamespaceImages(
         namespace_name=ns.name,
+        app_name=ns.app.name,
         image_names=image_names,
     )

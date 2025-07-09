@@ -104,18 +104,13 @@ class OutputSecretsFormatter:
     def __init__(self, secret_reader: SecretReaderBase) -> None:
         self.secret_reader = secret_reader
 
-    def _key_must_be_populated(self, key: str) -> bool:
-        "Only keys containing '__' must be populated to Secrets"
-        return "__" in key
-
     def _format_key(self, key: str) -> str:
-        if "__" not in key:
-            return key
-        k_split = key.split("__")
-        output_key = k_split[1]
-        if output_key.startswith("db"):
-            output_key = output_key.replace("db_", "db.")
-        return output_key
+        # The "__" separator is a legacy feature of terraform resources
+        # This should be removed once all modules don't have outputs with this format.
+        if "__" in key:
+            _, key = key.split("__", 1)
+
+        return key.replace("db_", "db.", 1) if key.startswith("db_") else key
 
     def _format_value(self, value: str) -> str:
         decoded_value = base64.b64decode(value).decode("utf-8")
@@ -130,7 +125,6 @@ class OutputSecretsFormatter:
         return {
             self._format_key(key): self._format_value(value)
             for key, value in data.items()
-            if self._key_must_be_populated(key)
         }
 
 

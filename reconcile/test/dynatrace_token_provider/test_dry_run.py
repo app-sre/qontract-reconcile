@@ -2,13 +2,14 @@ from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
     DynatraceTokenProviderIntegration,
 )
-from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
-from reconcile.dynatrace_token_provider.ocm import Cluster
+from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
+from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
 from reconcile.test.dynatrace_token_provider.fixtures import (
     build_dynatrace_client,
+    build_k8s_secret,
     build_ocm_client,
     build_syncset,
 )
@@ -26,21 +27,25 @@ def test_dry_run(
     In this case we have 2 clusters, one that needs a new (create)
     syncset and one that needs a patch for an existing syncset.
     """
-    cluster_a = Cluster(
+    cluster_a = OCMCluster(
         id="cluster_a",
         external_id="external_id_a",
         organization_id="ocm_org_id_a",
+        subscription_id="sub_id",
         dt_tenant="dt_tenant_a",
         token_spec_name="default",
         is_hcp=False,
+        labels={},
     )
-    cluster_b = Cluster(
+    cluster_b = OCMCluster(
         id="cluster_b",
         external_id="external_id_b",
         organization_id="ocm_org_id_a",
+        subscription_id="sub_id",
         dt_tenant="dt_tenant_a",
         token_spec_name="default",
         is_hcp=False,
+        labels={},
     )
     given_clusters = [cluster_a, cluster_b]
     ocm_client = build_ocm_client(
@@ -49,16 +54,14 @@ def test_dry_run(
         get_syncset={
             cluster_b.id: build_syncset(
                 secrets=[
-                    K8sSecret(
-                        secret_name="dynatrace-tokens-dtp",
-                        namespace_name="dynatrace",
+                    build_k8s_secret(
                         tokens=[
-                            default_operator_token,
                             default_ingestion_token,
+                            default_operator_token,
                         ],
+                        tenant_id="dt_tenant_a",
                     )
                 ],
-                tenant_id="dt_tenant_a",
                 with_id=True,
             )
         },
@@ -89,9 +92,9 @@ def test_dry_run(
 
     default_integration.reconcile(dry_run=True, dependencies=dependencies)
 
-    ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.create_syncset.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
-    dynatrace_client.create_api_token.assert_not_called()  # type: ignore[attr-defined]
-    dynatrace_client.update_token.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_syncset.assert_not_called()
+    ocm_client.patch_manifest.assert_not_called()
+    ocm_client.create_syncset.assert_not_called()
+    ocm_client.create_manifest.assert_not_called()
+    dynatrace_client.create_api_token.assert_not_called()
+    dynatrace_client.update_token.assert_not_called()

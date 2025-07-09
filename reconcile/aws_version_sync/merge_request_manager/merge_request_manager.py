@@ -116,7 +116,7 @@ class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
             return None
 
         try:
-            content = self._vcs.get_file_content_from_app_interface_master(
+            content = self._vcs.get_file_content_from_app_interface_ref(
                 file_path=namespace_file
             )
         except GitlabGetError as e:

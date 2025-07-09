@@ -1,8 +1,10 @@
 import contextlib
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 from terrascript.resource import (
+    aws_lb,
     aws_s3_bucket,
     aws_s3_bucket_notification,
     aws_s3_bucket_policy,
@@ -14,6 +16,7 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
+from reconcile.utils.ocm.ocm import OCM
 from reconcile.utils.terrascript_aws_client import ProviderExcludedError
 
 
@@ -314,7 +317,7 @@ class MockProjectCommit:
     "repo_info, expected",
     [
         ({"url": "http://fake", "ref": 40 * "1"}, 40 * "1"),
-        ({"url": "http://github.com/foo/bar", "ref": "main"}, "sha-12345"),
+        ({"url": "https://github.com/foo/bar", "ref": "main"}, "sha-12345"),
         (
             {"url": "http://gitlab.com/foo/bar", "ref": "master"},
             "sha-67890",
@@ -715,6 +718,198 @@ def test_s3_bucket_event_notifications(
     identifier, tf_resources = mocked_add_resources.call_args.args
     assert identifier == "a"
     assert expected_s3_bucket_notification in tf_resources
+
+
+@pytest.fixture
+def ts_for_alb(mocker: MockerFixture):
+    mock_awsh = mocker.patch("reconcile.utils.terrascript_aws_client.awsh")
+    mock_awsh.get_tf_secrets.return_value = (
+        "a",
+        {
+            "aws_access_key_id": "TOTALLYRANDOMKEYID",
+            "aws_provider_version'": "3.22.0",
+            "aws_secret_access_key": "even_more_random_string_key",
+            "key": "qontract-reconcile.tfstate",
+        },
+    )
+    mock_awsh.get_account.return_value = {
+        "resourcesDefaultRegion": "us-east-1",
+        "supportedDeploymentRegions": ["us-east-1", "us-east-2"],
+        "terraformState": {
+            "provider": "s3",
+            "bucket": "test-state-bucket",
+            "region": "us-east-1",
+            "integrations": [
+                {
+                    "key": "qontract-reconcile.tfstate",
+                    "integration": "terraform-resources",
+                }
+            ],
+        },
+    }
+
+    return tsclient.TerrascriptClient(
+        integration="terraform_resources",
+        integration_prefix="qrtf",
+        thread_pool_size=1,
+        accounts=[
+            {
+                "terraformUsername": "terraform",
+                "uid": "0123456789012",
+                "name": "a",
+                "automationToken": {
+                    "path": "some/path",
+                    "field": "all",
+                },
+                "providerVersion": "5.39.1",
+                "resourcesDefaultRegion": "us-east-1",
+            }
+        ],
+    )
+
+
+def build_alb_spec(
+    resource: dict,
+) -> ExternalResourceSpec:
+    provider = "aws"
+    provisioner = {"name": "a"}
+    namespace = {
+        "name": "n",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": provider,
+                "provisioner": provisioner,
+                "resources": [resource],
+            },
+        ],
+        "cluster": {"name": "c", "spec": {"region": "us-east-1"}},
+        "environment": {
+            "name": "e",
+        },
+        "app": {"name": "app"},
+    }
+    return ExternalResourceSpec(
+        provision_provider=provider,
+        provisioner=provisioner,
+        resource=resource,
+        namespace=namespace,
+    )
+
+
+@pytest.fixture()
+def alb_spec() -> ExternalResourceSpec:
+    alb_spec = {
+        "identifier": "alb-resource",
+        "provider": "alb",
+        "vpc": {
+            "vpc_id": "vpc-id",
+            "cidr_block": "10.0.0.1/16",
+            "subnets": [{"id": "subnet-id-1"}, {"id": "subnet-id-2"}],
+        },
+        "ingress_cidr_blocks": ["0.0.0.0/0"],
+        "certificate_arn": "arn:aws:acm:us-east-1:0123456789012:certificate/some-uid",
+        "targets": [
+            {
+                "name": "registry-proxy-stage",
+                "default": False,
+                "openshift_service": "registry-proxy-stage",
+                "protocol": "HTTP",
+            },
+            {
+                "name": "registry-proxy-https",
+                "default": True,
+                "openshift_service": "registry-proxy-stage",
+                "protocol": "HTTPS",
+            },
+            {
+                "name": "registry-proxy-pull",
+                "default": False,
+                "openshift_service": "registry-proxy-stage",
+            },
+        ],
+        "rules": [
+            {
+                "condition": [{"type": "path-pattern", "path_pattern": ["/"]}],
+                "action": {
+                    "type": "redirect",
+                    "redirect": {
+                        "host": "example.com",
+                        "status_code": "HTTP_301",
+                    },
+                },
+            },
+            {
+                "condition": [{"type": "path-pattern", "path_pattern": ["/metrics"]}],
+                "action": {
+                    "type": "fixed-response",
+                    "fixed_response": {
+                        "status_code": 401,
+                        "content_type": "application/json",
+                        "message_body": '{"errors":[{"code":"UNAUTHORIZED","detail":{},"message":"access to the requested resource is not authorized"}]}',
+                    },
+                },
+            },
+        ],
+    }
+
+    return build_alb_spec(alb_spec)
+
+
+@pytest.fixture()
+def expected_alb_resource() -> aws_lb:
+    return aws_lb(
+        "alb-resource",
+        **{
+            "depends_on": ["aws_security_group.alb-resource"],
+            "internal": False,
+            "ip_address_type": "ipv4",
+            "load_balancer_type": "application",
+            "name": "alb-resource",
+            "provider": "aws.us-east-1",
+            "security_groups": ["${aws_security_group.alb-resource.id}"],
+            "subnets": ["subnet-id-1", "subnet-id-2"],
+            "tags": {
+                "managed_by_integration": "terraform_resources",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+
+def test_populate_tf_resource_alb(
+    mocker: MockerFixture,
+    ts_for_alb: tsclient.TerrascriptClient,
+    alb_spec: ExternalResourceSpec,
+    expected_alb_resource: aws_lb,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts_for_alb, "add_resources")
+    mocker.patch.object(ts_for_alb, "_multiregion_account", return_value=True)
+    mock_awsapi = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
+    mock_awsapi.get_alb_network_interface_ips.return_value = {
+        "10.0.0.1",
+        "10.0.0.2",
+        "10.0.0.3",
+    }
+
+    ocm_mock = mocker.patch.object(
+        OCM,
+        "get_aws_infrastructure_access_terraform_assume_role",
+        autospec=True,
+    )
+    ocm_mock.return_value = "arn:aws:iam::0123456789012:role/network-mgmt-2tgm4m"
+    ocmmap_mock = MagicMock()
+    ocmmap_mock.__getitem__.return_value = ocm_mock
+
+    ts_for_alb.populate_tf_resource_alb(spec=alb_spec, ocm_map=ocmmap_mock)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+    assert expected_alb_resource in tf_resources
 
 
 def test_get_resource_lifecycle_none(

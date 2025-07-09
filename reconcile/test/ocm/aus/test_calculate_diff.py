@@ -1,4 +1,6 @@
+from collections import defaultdict
 from datetime import datetime
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -22,6 +24,7 @@ from reconcile.aus.models import NodePoolSpec
 from reconcile.test.ocm.aus.fixtures import (
     build_cluster_health,
     build_cluster_upgrade_spec,
+    build_organization,
     build_organization_upgrade_spec,
     build_upgrade_policy,
 )
@@ -491,6 +494,302 @@ def test_calculate_diff_implicit_mutex_set(
         ),
     )
     assert not diffs
+
+
+@pytest.mark.parametrize(
+    "max_parallel_upgrades, total_cluster_count, ongoing_cluster_upgrades, expected_skip",
+    [
+        # max_parallel_upgrades not set, only the mutex counts, we skip if there is at least one ongoing upgrade
+        (None, 5, 0, False),
+        (None, 5, 1, True),
+        (None, 5, 4, True),
+        ("1", 5, 0, False),  # 0 ongoing upgrade over 5 clusters, allow a new one
+        ("1", 5, 1, True),  # 1 ongoing upgrade over 5 clusters, skip a new one
+        ("1", 5, 2, True),  # 2 ongoing upgrades over 5 clusters, skip a new one
+        ("2", 5, 0, False),  # 0 ongoing upgrade over 5 clusters, allow a new one
+        ("2", 5, 1, False),  # 1 ongoing upgrade over 5 clusters, allow a new one
+        ("2", 5, 2, True),  # 2 ongoing upgrades over 5 clusters, skip a new one
+        ("2", 5, 3, True),  # 3 ongoing upgrades over 5 clusters, skip a new one
+        ("2%", 5, 1, True),  # 1 ongoing upgrade over 5 clusters, skip a new one
+        ("33%", 5, 0, False),  # 0 ongoing upgrade over 5 clusters, allow a new one
+        ("33%", 5, 1, False),  # 1 ongoing upgrade over 5 clusters, allow a new one
+        ("33%", 5, 2, True),  # 2 ongoing upgrade over 5 clusters, skip a new one
+        ("33%", 5, 3, True),  # 3 ongoing upgrade over 5 clusters, skip a new one
+        ("33%", 5, 4, True),  # 4 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 5, 1, False),  # 1 ongoing upgrades over 5 clusters, allow a new one
+        ("50%", 5, 2, True),  # 2 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 5, 3, True),  # 3 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 5, 4, True),  # 4 ongoing upgrades over 5 clusters, skip a new one
+        ("50%", 6, 1, False),  # 1 ongoing upgrades over 6 clusters, allow a new one
+        ("50%", 6, 2, False),  # 2 ongoing upgrades over 6 clusters, allow a new one
+        ("50%", 6, 3, True),  # 3 ongoing upgrades over 6 clusters, skip a new one
+        ("50%", 6, 4, True),  # 4 ongoing upgrades over 6 clusters, skip a new one
+        ("100%", 6, 5, False),  # 5 ongoing upgrades over 6 clusters, allow a new one
+    ],
+)
+def test_calculate_diff_max_parallel_upgrades_set(
+    max_parallel_upgrades: str,
+    total_cluster_count: int,
+    ongoing_cluster_upgrades: int,
+    expected_skip: bool,
+) -> None:
+    workload = "wl"
+    sector = "sector-1"
+    mutex = "common-mutex"
+    org = build_organization(
+        sector_max_parallel_upgrades={sector: max_parallel_upgrades},
+        sector_dependencies={sector: []},
+    )
+    clusters = [
+        build_ocm_cluster(name=f"cluster-{id}") for id in range(total_cluster_count)
+    ]
+    upgrading_cluster_names = {
+        f"cluster-{id}" for id in range(ongoing_cluster_upgrades)
+    }
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                cluster,
+                build_upgrade_policy(
+                    workloads=[workload], soak_days=1, sector=sector, mutexes=[mutex]
+                ),
+                build_cluster_health(),
+                [],
+            )
+            for cluster in clusters
+        ],
+        org=org,
+    )
+
+    desired = org_upgrade_spec.specs[-1]
+
+    # the cluster always has 1 effective mutex which corresponds to the cluster itself
+    # no other cluster is in the mutex set
+    sector_mutex_upgrades: dict[tuple[str, str], set[str]] = {
+        (sector, desired.cluster.id): set(),
+        (sector, mutex): upgrading_cluster_names,
+    }
+
+    skip = base.verify_max_upgrades_should_skip(
+        desired=desired,
+        locked={mutex: "cluster-0"} if ongoing_cluster_upgrades else {},
+        sector_mutex_upgrades=sector_mutex_upgrades,
+        sector=org_upgrade_spec.sectors[sector],
+    )
+    assert skip == expected_skip
+
+
+# test to verify that base.verify_max_upgrades_should_skip behaves correctly
+# when there are no mutexes but max_parallel_upgrades is set
+# In this case, each cluster effectively only has its own mutex
+# and can be upgraded independently of the others.
+# max_parallel_upgrades is effectively ignored
+@pytest.mark.parametrize(
+    "max_parallel_upgrades, total_cluster_count, ongoing_cluster_upgrades, expected_skip",
+    [
+        ("1", 5, 0, False),
+        ("1", 5, 1, False),
+        ("1", 5, 2, False),
+        ("2", 5, 0, False),
+        ("2", 5, 1, False),
+        ("2", 5, 2, False),
+        ("2", 5, 3, False),
+        ("2", 5, 4, False),
+        ("2%", 5, 1, False),
+        ("33%", 5, 1, False),
+        ("33%", 5, 2, False),
+        ("33%", 5, 3, False),
+        ("33%", 5, 4, False),
+        ("50%", 5, 1, False),
+        ("50%", 5, 2, False),
+        ("50%", 5, 3, False),
+        ("50%", 5, 4, False),
+        ("50%", 6, 1, False),
+        ("50%", 6, 2, False),
+        ("50%", 6, 3, False),
+        ("50%", 6, 4, False),
+        ("100%", 6, 5, False),
+    ],
+)
+def test_calculate_diff_max_parallel_upgrades_set_no_mutex(
+    max_parallel_upgrades: str,
+    total_cluster_count: int,
+    ongoing_cluster_upgrades: int,
+    expected_skip: bool,
+) -> None:
+    workload = "wl"
+    sector = "sector-1"
+    org = build_organization(
+        sector_max_parallel_upgrades={sector: max_parallel_upgrades},
+        sector_dependencies={sector: []},
+    )
+    clusters = [
+        build_ocm_cluster(name=f"cluster-{id}") for id in range(total_cluster_count)
+    ]
+    upgrading_cluster_names = {
+        f"cluster-{id}" for id in range(ongoing_cluster_upgrades)
+    }
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                cluster,
+                build_upgrade_policy(
+                    workloads=[workload], soak_days=1, sector=sector, mutexes=None
+                ),
+                build_cluster_health(),
+                [],
+            )
+            for cluster in clusters
+        ],
+        org=org,
+    )
+
+    desired = org_upgrade_spec.specs[-1]
+
+    locked = {cid: cid for cid in upgrading_cluster_names}
+
+    # the cluster always has 1 effective mutex which corresponds to the cluster itself
+    # no other cluster is in the mutex set
+    sector_mutex_upgrades: dict[tuple[str, str], set[str]] = {
+        (sector, desired.cluster.id): set()
+    }
+
+    skip = base.verify_max_upgrades_should_skip(
+        desired=desired,
+        locked=locked,
+        sector_mutex_upgrades=sector_mutex_upgrades,
+        sector=org_upgrade_spec.sectors[sector],
+    )
+    assert skip == expected_skip
+
+
+# test to verify that base.verify_max_upgrades_should_skip behaves correctly
+# when the cluster has multiple mutexes in common with other clusters in the sector
+# In this case, max_parallel_upgrades is applied to each sector/mutex pair.
+# The cluster is not allowed to upgrade if the number of ongoing upgrades
+# over the sector/mutex pair is greater than max_parallel_upgrades
+@pytest.mark.parametrize(
+    "max_parallel_upgrades, clusters_info, expected_skip",
+    [
+        ("50%", {"c0": {"mutexes": ["m1"], "upgrading": False}}, False),
+        ("50%", {"c0": {"mutexes": ["m1"], "upgrading": True}}, True),
+        (
+            "50%",
+            {
+                "c0": {"mutexes": ["m1"], "upgrading": False},
+                "c1": {"mutexes": ["m2"], "upgrading": True},
+            },
+            True,
+        ),
+        (
+            "50%",
+            {
+                "c0": {"mutexes": ["m1"], "upgrading": True},
+                "c1": {"mutexes": ["m2"], "upgrading": True},
+            },
+            True,
+        ),
+        (
+            "50%",
+            {
+                "c0": {"mutexes": ["m1"], "upgrading": True},
+                "c1": {"mutexes": ["m2"], "upgrading": True},
+                "c2": {"mutexes": ["m1", "m2"], "upgrading": False},
+            },
+            False,
+        ),
+        (
+            "50%",
+            {
+                "c0": {"mutexes": ["m1"], "upgrading": True},
+                "c1": {"mutexes": ["m2"], "upgrading": True},
+                "c2": {"mutexes": ["m1", "m2"], "upgrading": True},
+            },
+            True,
+        ),
+        (
+            "50%",
+            {
+                "c0": {"mutexes": ["m1"], "upgrading": False},
+                "c1": {"mutexes": ["m2"], "upgrading": True},
+                "c2": {"mutexes": ["m1", "m2"], "upgrading": True},
+            },
+            True,
+        ),
+        (
+            "50%",
+            {
+                "c0": {"mutexes": ["m1"], "upgrading": False},
+                "c1": {"mutexes": ["m2"], "upgrading": False},
+                "c2": {"mutexes": ["m1", "m2"], "upgrading": True},
+            },
+            False,
+        ),
+    ],
+)
+def test_calculate_diff_max_parallel_upgrades_set_multiple_mutexes(
+    max_parallel_upgrades: str,
+    clusters_info: dict[str, dict[str, Any]],
+    expected_skip: bool,
+) -> None:
+    workload = "wl"
+    sector = "sector-1"
+    mutexes = ["m1", "m2"]
+    org = build_organization(
+        sector_max_parallel_upgrades={sector: max_parallel_upgrades},
+        sector_dependencies={sector: []},
+    )
+    # add our cluster to the list of clusters
+    clusters_info["mycluster"] = {"mutexes": mutexes, "upgrading": False}
+    clusters = {
+        cluster_name: build_ocm_cluster(name=cluster_name)
+        for cluster_name in clusters_info
+    }
+    org_upgrade_spec = build_organization_upgrade_spec(
+        specs=[
+            (
+                clusters[cluster_name],
+                build_upgrade_policy(
+                    workloads=[workload],
+                    soak_days=1,
+                    sector=sector,
+                    mutexes=info["mutexes"],
+                ),
+                build_cluster_health(),
+                [],
+            )
+            for cluster_name, info in clusters_info.items()
+        ],
+        org=org,
+    )
+
+    # get the spec of our cluster
+    desired = next(s for s in org_upgrade_spec.specs if s.cluster.name == "mycluster")
+
+    # maps mutexes to one of the clusters that is upgrading (holding the mutex)
+    locked = {}
+    for mutex in mutexes:
+        for cluster_name, info in clusters_info.items():
+            if info["upgrading"] and mutex in info["mutexes"]:
+                locked[mutex] = cluster_name
+                break
+
+    # maps sector+mutex to the clusters that are upgrading within them
+    sector_mutex_upgrades: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for cluster_name, info in clusters_info.items():
+        if info["upgrading"]:
+            for mutex in info["mutexes"]:
+                sector_mutex_upgrades.setdefault((sector, mutex), set()).add(
+                    cluster_name
+                )
+
+    skip = base.verify_max_upgrades_should_skip(
+        desired=desired,
+        locked=locked,
+        sector_mutex_upgrades=sector_mutex_upgrades,
+        sector=org_upgrade_spec.sectors[sector],
+    )
+    assert skip == expected_skip
 
 
 def test__calculate_node_pool_diffs(

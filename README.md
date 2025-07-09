@@ -1,11 +1,11 @@
+# qontract-reconcile
+
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![PyPI](https://img.shields.io/pypi/v/qontract-reconcile)][pypi-link]
 [![PyPI platforms][pypi-platforms]][pypi-link]
 ![PyPI - License](https://img.shields.io/pypi/l/qontract-reconcile)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
-
-# qontract-reconcile
 
 A tool to reconcile services with their desired state as defined in app-interface.
 Additional tools that use the libraries created by the reconciliations are also hosted here.
@@ -34,7 +34,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
 `qontract-reconcile` includes the following integrations:
 
 ```text
-  acs-notifiers                   Manages RHACS notifier configurations
   acs-policies                    Manages RHACS security policy configurations
   acs-rbac                        Manages RHACS rbac configuration
   advanced-upgrade-scheduler      Manage Cluster Upgrade Policy schedules in
@@ -45,7 +44,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   aws-cloudwatch-log-retention    Set up retention period for Cloudwatch logs.
   aws-ecr-image-pull-secrets      Generate AWS ECR image pull secrets and
                                   store them in Vault.
-  aws-garbage-collector           Delete orphan AWS resources.
   aws-iam-keys                    Delete IAM access keys by access key ID.
   aws-iam-password-reset          Reset IAM user password by user reference.
   aws-saml-idp                    Manage the SAML IDP config for all AWS
@@ -67,10 +65,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   RHIDP.
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
-  cna-resources                   Manage Cloud Resources using Cloud Native
-                                  Assets (CNA).
-  dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
-                                  the clusters and posts them to Dashdotdb.
   dashdotdb-dora                  Collects dora metrics.
   dashdotdb-dvo                   Collects the DeploymentValidations from all
                                   the clusters and posts them to Dashdotdb.
@@ -98,7 +92,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   github-repo-permissions-validator
                                   Validates permissions in github
                                   repositories.
-  github-users                    Validate compliance of GitHub user profiles.
   github-validator                Validates GitHub organization settings.
   gitlab-fork-compliance          Ensures that forks of App Interface are
                                   compliant.
@@ -121,8 +114,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   jenkins-job-builder             Manage Jenkins jobs configurations using
                                   jenkins-jobs.
   jenkins-job-builds-cleaner      Clean up jenkins job history.
-  jenkins-job-cleaner             Delete Jenkins jobs in multiple tenant
-                                  instances.
   jenkins-roles                   Manage Jenkins roles association via REST
                                   API.
   jenkins-webhooks                Manage web hooks to Jenkins jobs.
@@ -130,8 +121,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   instances.
   jenkins-worker-fleets           Manage Jenkins worker fleets via JCasC.
   jira-permissions-validator      Validate permissions in Jira.
-  jira-watcher                    Watch for changes in Jira boards and notify
-                                  on Slack.
   ldap-groups                     Manages LDAP groups based on App-Interface
                                   roles.
   ldap-users                      Removes users which are not found in LDAP
@@ -149,7 +138,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   ocm-clusters                    Manages clusters via OCM.
   ocm-external-configuration-labels
                                   Manage External Configuration labels in OCM.
-  ocm-github-idp                  Manage GitHub Identity Providers in OCM.
   ocm-groups                      Manage membership in OpenShift groups via
                                   OCM.
   ocm-internal-notifications      Notifications to internal Red Hat users
@@ -357,29 +345,25 @@ For more flexible way to run in container, please see [qontract-development-cli]
 Make sure the file `./config.dev.toml` exists and contains your current configuration.
 Your `config.dev.toml` should point to the following qontract-server address:
 
-```
-
+```toml
 [graphql]
-server = "<http://host.docker.internal:4000/graphql>"
-
+server = "http://host.docker.internal:4000/graphql"
 ```
 
 ### Run qontract-server
 
 Start the [qontract-server](https://github.com/app-sre/qontract-server) in a different window, e.g., via:
 
-```
+Run this in the root dir of `qontract-server` repo:
 
-qontract-server$ make dev
-
+```shell
+make dev
 ```
 
 ### Trigger integration
 
-```
-
-make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run INTEGRATION_EXTRA_ARGS=--light SLEEP_DURATION_SECS=100
-
+```shell
+make dev-reconcile-loop INTEGRATION_NAME=terraform-resources DRY_RUN=--dry-run LOG_LEVEL=DEBUG INTEGRATION_EXTRA_ARGS=--light SLEEP_DURATION_SECS=100
 ```
 
 ## Query Classes
@@ -403,7 +387,7 @@ GQL definitions and generated classes can be found [here](reconcile/gql_definiti
 ## Code style guide
 
 Qontract-reconcile uses [PEP8](https://peps.python.org/pep-0008/) as the code style guide.
-The style is enforced via [PR checks](#ci-tooling) with the help of the following utilities:
+The style is enforced via PR checks (`make test`) with the help of the following utilities:
 
 - [Ruff - An extremely fast Python linter and code formatter, written in Rust.](https://docs.astral.sh/ruff/)
 - [Mypy](https://mypy.readthedocs.io/en/stable/)
@@ -417,7 +401,7 @@ Release version are calculated from git tags of the form X.Y.Z.
 - If the current commit has such a tag, it will be used as is
 - Otherwise the latest tag of that format is used and:
   - the patch label (Z) is incremented
-  - the string `.pre<count>+<commitid>` is appended. `<count>` is the number of commits since the X.Y.Z tag. `<commitid> is... the current commitid.
+  - the string `.pre<count>+<commitid>` is appended. `<count>` is the number of commits since the X.Y.Z tag. `<commitid>` is... the current commit id.
 
 After the PR is merged, a CI job will be triggered that will publish the package to pypi: <https://pypi.org/project/qontract-reconcile>.
 

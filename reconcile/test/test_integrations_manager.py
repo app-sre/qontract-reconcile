@@ -8,10 +8,11 @@ from collections.abc import (
 from typing import Any
 
 import pytest
+from pytest_mock import MockerFixture
 
 import reconcile.integrations_manager as intop
 from reconcile.gql_definitions.common.clusters_minimal import ClusterV1
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
     MinimalOCMOrganization,
 )
@@ -122,7 +123,7 @@ def test_collect_parameters_os_env_strongest() -> None:
     assert parameters == expected
 
 
-def test_collect_parameters_image_tag_from_ref(mocker) -> None:
+def test_collect_parameters_image_tag_from_ref(mocker: MockerFixture) -> None:
     template = {
         "parameters": [
             {
@@ -146,7 +147,9 @@ def test_collect_parameters_image_tag_from_ref(mocker) -> None:
     assert parameters == expected
 
 
-def test_collect_parameters_namespace_environment_parameter(mocker) -> None:
+def test_collect_parameters_namespace_environment_parameter(
+    mocker: MockerFixture,
+) -> None:
     upstream = "https://github.com/some-upstream-repo"
     template = {
         "parameters": [
@@ -249,7 +252,7 @@ def helm_integration_spec(
     )
 
 
-def test_build_helm_values_empty():
+def test_build_helm_values_empty() -> None:
     integrations_specs: list[HelmIntegrationSpec] = []
     expected: dict[str, list] = {
         "integrations": [],
@@ -325,7 +328,7 @@ def aws_account_sharding_strategy(
 
 
 @pytest.fixture
-def cloudflare_records():
+def cloudflare_records() -> list[CloudflareDnsRecordV1]:
     return [
         CloudflareDnsRecordV1(
             identifier="id",
@@ -341,7 +344,7 @@ def cloudflare_records():
 
 
 @pytest.fixture
-def aws_account_for_cloudflare():
+def aws_account_for_cloudflare() -> AWSAccountV1_CloudFlare:
     return AWSAccountV1_CloudFlare(
         name="foo",
         consoleUrl="url",
@@ -352,7 +355,9 @@ def aws_account_for_cloudflare():
 
 
 @pytest.fixture
-def cloudflare_account(aws_account_for_cloudflare):
+def cloudflare_account(
+    aws_account_for_cloudflare: AWSAccountV1_CloudFlare,
+) -> CloudflareAccountV1:
     return CloudflareAccountV1(
         name="fakeaccount",
         type="free",
@@ -368,7 +373,10 @@ def cloudflare_account(aws_account_for_cloudflare):
 
 
 @pytest.fixture
-def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
+def cloudflare_dns_zones(
+    cloudflare_account: CloudflareAccountV1,
+    cloudflare_records: list[CloudflareDnsRecordV1],
+) -> list[CloudflareDnsZoneV1]:
     return [
         CloudflareDnsZoneV1(
             identifier="zone1",
@@ -1220,7 +1228,7 @@ def integrations(basic_integration: IntegrationV1) -> list[IntegrationV1]:
 
 def test_collect_ingegrations_environment(
     integrations: list[IntegrationV1], shard_manager: IntegrationShardManager
-):
+) -> None:
     ie = intop.collect_integrations_environment(integrations, "test2", shard_manager)
     assert len(ie[0].integration_specs) == 2
     assert ie[0].namespace.environment.name == "test2"
@@ -1228,12 +1236,12 @@ def test_collect_ingegrations_environment(
 
 def test_collect_ingegrations_environment_no_env(
     integrations: list[IntegrationV1], shard_manager: IntegrationShardManager
-):
+) -> None:
     ie = intop.collect_integrations_environment(integrations, "", shard_manager)
     assert len(ie[0].integration_specs) == 4
 
 
-def test_filter_with_upstream(integrations: list[IntegrationV1]):
+def test_filter_with_upstream(integrations: list[IntegrationV1]) -> None:
     upstream = "an-upstream"
     if integrations:
         integrations[0].name = "integ-with-upstream"
@@ -1246,7 +1254,7 @@ def test_filter_with_upstream(integrations: list[IntegrationV1]):
     assert filtered_integrations[0].name == "integ-with-upstream"
 
 
-def test_filter_with_upstream_none(integrations: Iterable[IntegrationV1]):
+def test_filter_with_upstream_none(integrations: Iterable[IntegrationV1]) -> None:
     filtered_integrations = intop.filter_integrations(integrations, None)
 
     assert filtered_integrations == integrations

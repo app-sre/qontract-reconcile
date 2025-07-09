@@ -105,7 +105,7 @@ def test_merge_request_manager_create_avs_merge_request_renderer_called(
     renderer_mock.render_merge_request_content.return_value = "new-content"
     renderer_mock.render_description.return_value = "render_description"
     renderer_mock.render_title.return_value = "title"
-    vcs_mock.get_file_content_from_app_interface_master.return_value = (
+    vcs_mock.get_file_content_from_app_interface_ref.return_value = (
         "namespace-file-content"
     )
 

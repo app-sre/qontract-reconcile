@@ -70,7 +70,7 @@ class SmtpClient:
             self.send_mail([name], subject, body)
 
     @retry()
-    def send_mail(self, names: str, subject: str, body: str) -> None:
+    def send_mail(self, names: Iterable[str], subject: str, body: str) -> None:
         msg = MIMEMultipart()
         from_name = str(Header("App SRE team automation", "utf-8"))
         msg["From"] = formataddr((from_name, self.user))

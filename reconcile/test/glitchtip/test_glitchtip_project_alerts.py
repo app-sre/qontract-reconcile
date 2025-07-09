@@ -205,7 +205,7 @@ def test_glitchtip_project_alerts_get_projects(
                                 disable=None,
                             )
                         ],
-                        jiraComponent="jira-component",
+                        jiraComponents=["jira-component"],
                         jiraLabels=["escalation-label-1", "escalation-label-2"],
                     )
                 ),
@@ -247,7 +247,7 @@ def test_glitchtip_project_alerts_get_projects(
                                 ),
                             )
                         ],
-                        jiraComponent=None,
+                        jiraComponents=None,
                         jiraLabels=None,
                     )
                 ),
@@ -275,7 +275,7 @@ def test_glitchtip_project_alerts_get_projects(
                                 ),
                             )
                         ],
-                        jiraComponent=None,
+                        jiraComponents=None,
                         jiraLabels=None,
                     )
                 ),

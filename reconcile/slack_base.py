@@ -14,12 +14,12 @@ from reconcile.utils.slack_api import (
 
 
 def slackapi_from_queries(
-    integration_name: str, init_usergroups: bool = True
+    integration_name: str, init_usergroups: bool = True, channel: str | None = None
 ) -> SlackApi:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
     slack_workspace = {"workspace": queries.get_slack_workspace()}
     return slackapi_from_slack_workspace(
-        slack_workspace, secret_reader, integration_name, init_usergroups
+        slack_workspace, secret_reader, integration_name, init_usergroups, channel
     )
 
 

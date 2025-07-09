@@ -25,17 +25,3 @@ def is_in_shard(value):
         LOG.debug("IN_SHARD FALSE: %s", value)
 
     return in_shard
-
-
-def is_in_shard_round_robin(value, index):
-    if SHARDS == 1:
-        return True
-
-    in_shard = index % SHARDS == SHARD_ID
-
-    if in_shard:
-        LOG.debug("IN_SHARD TRUE: %s", value)
-    else:
-        LOG.debug("IN_SHARD FALSE: %s", value)
-
-    return in_shard

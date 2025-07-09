@@ -278,6 +278,7 @@ def _trigger_tekton(
         integration_version,
         saasherder.include_trigger_trace,
         spec.reason,
+        spec.target_ref,
     )
 
     error = False
@@ -334,6 +335,7 @@ def _construct_tekton_trigger_resource(
     integration_version: str,
     include_trigger_trace: bool,
     reason: str | None,
+    target_ref: str,
 ) -> tuple[OR, str]:
     """Construct a resource (PipelineRun) to trigger a deployment via Tekton.
 
@@ -348,6 +350,7 @@ def _construct_tekton_trigger_resource(
         integration_version (string): Version of calling integration
         include_trigger_trace (bool): Should include traces of the triggering integration and reason
         reason (string): The reason this trigger was created
+        target_ref (string): the ref of the target, can be a branch or a commit hash.
 
     Returns:
         OpenshiftResource: OpenShift resource to be applied
@@ -376,7 +379,18 @@ def _construct_tekton_trigger_resource(
     body: dict[str, Any] = {
         "apiVersion": "tekton.dev/v1",
         "kind": "PipelineRun",
-        "metadata": {"generateName": f"{name}-"},
+        "metadata": {
+            "generateName": f"{name}-",
+            "annotations": {
+                "qontract.trigger_integration": integration,
+                "qontract.trigger_reason": reason or "",
+            },
+            "labels": {
+                "qontract.saas_file_name": saas_file_name,
+                "qontract.env_name": env_name,
+                "qontract.target_ref": target_ref,
+            },
+        },
         "spec": {
             "pipelineRef": {"name": tkn_pipeline_name},
             "params": parameters,

@@ -67,6 +67,7 @@ fragment DeployResourcesFields on DeployResources_v1 {
 
 fragment ExternalResourcesModuleOverrides on ExternalResourcesModuleOverrides_v1 {
   module_type
+  channel
   image
   version
   reconcile_timeout_minutes
@@ -98,6 +99,9 @@ query ExternalResourcesNamespaces {
             name
             resourcesDefaultRegion
             supportedDeploymentRegions
+            externalResources {
+                channel
+            }
         }
         resources {
             output_format {
@@ -114,6 +118,21 @@ query ExternalResourcesNamespaces {
                 availability_zone
                 parameter_group
                 old_parameter_group
+                blue_green_deployment {
+                    enabled
+                    switchover
+                    switchover_timeout
+                    delete
+                    target {
+                        allocated_storage
+                        engine_version
+                        instance_class
+                        iops
+                        parameter_group
+                        storage_throughput
+                        storage_type
+                    }
+                }
                 overrides
                 output_resource_name
                 enhanced_monitoring
@@ -205,6 +224,7 @@ query ExternalResourcesNamespaces {
                 output_resource_name
                 annotations
                 managed_by_erv2
+                max_session_duration
             }
             ... on NamespaceTerraformResourceSQS_v1 {
                 region
@@ -286,6 +306,11 @@ query ExternalResourcesNamespaces {
                 defaults
                 es_identifier
                 filter_pattern
+                managed_by_erv2
+                delete
+                module_overrides {
+                   ... ExternalResourcesModuleOverrides
+                }
                 output_resource_name
                 annotations
             }
@@ -561,10 +586,15 @@ class NamespaceExternalResourceV1(ConfiguredBaseModel):
     provider: str = Field(..., alias="provider")
 
 
+class ExternalResourcesAccountSettingsV1(ConfiguredBaseModel):
+    channel: Optional[str] = Field(..., alias="channel")
+
+
 class AWSAccountV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
+    external_resources: Optional[ExternalResourcesAccountSettingsV1] = Field(..., alias="externalResources")
 
 
 class NamespaceTerraformResourceOutputFormatV1(ConfiguredBaseModel):
@@ -578,6 +608,24 @@ class NamespaceTerraformResourceGenericSecretOutputFormatV1(NamespaceTerraformRe
 class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
     output_format: Optional[Union[NamespaceTerraformResourceGenericSecretOutputFormatV1, NamespaceTerraformResourceOutputFormatV1]] = Field(..., alias="output_format")
     provider: str = Field(..., alias="provider")
+
+
+class RDSBlueGreenDeploymentTargetV1(ConfiguredBaseModel):
+    allocated_storage: Optional[int] = Field(..., alias="allocated_storage")
+    engine_version: Optional[str] = Field(..., alias="engine_version")
+    instance_class: Optional[str] = Field(..., alias="instance_class")
+    iops: Optional[int] = Field(..., alias="iops")
+    parameter_group: Optional[str] = Field(..., alias="parameter_group")
+    storage_throughput: Optional[str] = Field(..., alias="storage_throughput")
+    storage_type: Optional[str] = Field(..., alias="storage_type")
+
+
+class RDSBlueGreenDeploymentV1(ConfiguredBaseModel):
+    enabled: Optional[bool] = Field(..., alias="enabled")
+    switchover: Optional[bool] = Field(..., alias="switchover")
+    switchover_timeout: Optional[int] = Field(..., alias="switchover_timeout")
+    delete: Optional[bool] = Field(..., alias="delete")
+    target: Optional[RDSBlueGreenDeploymentTargetV1] = Field(..., alias="target")
 
 
 class AWSRDSEventNotificationV1(ConfiguredBaseModel):
@@ -597,6 +645,7 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     availability_zone: Optional[str] = Field(..., alias="availability_zone")
     parameter_group: Optional[str] = Field(..., alias="parameter_group")
     old_parameter_group: Optional[str] = Field(..., alias="old_parameter_group")
+    blue_green_deployment: Optional[RDSBlueGreenDeploymentV1] = Field(..., alias="blue_green_deployment")
     overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     enhanced_monitoring: Optional[bool] = Field(..., alias="enhanced_monitoring")
@@ -689,6 +738,7 @@ class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    max_session_duration: Optional[int] = Field(..., alias="max_session_duration")
 
 
 class KeyValueV1(ConfiguredBaseModel):
@@ -788,6 +838,9 @@ class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
     defaults: str = Field(..., alias="defaults")
     es_identifier: Optional[str] = Field(..., alias="es_identifier")
     filter_pattern: Optional[str] = Field(..., alias="filter_pattern")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    delete: Optional[bool] = Field(..., alias="delete")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
 
@@ -1057,7 +1110,11 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     provisioner: AWSAccountV1 = Field(..., alias="provisioner")
+<<<<<<< HEAD
     resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+=======
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+>>>>>>> upstream/master
 
 
 class EnvironmentV1(ConfiguredBaseModel):

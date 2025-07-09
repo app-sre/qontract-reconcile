@@ -1,8 +1,11 @@
+from datetime import datetime
+
 from reconcile.utils.glitchtip.models import (
     Organization,
     Project,
     ProjectAlert,
     ProjectKey,
+    ProjectStatistics,
     Team,
     User,
 )
@@ -56,6 +59,40 @@ class GlitchtipClient(ApiBase):
                 params={"limit": 100},
             )
         ]
+
+    def all_projects(self) -> list[Project]:
+        """List all projects."""
+        return [
+            Project(**r) for r in self._list("/api/0/projects/", params={"limit": 100})
+        ]
+
+    def project_statistics(
+        self,
+        organization_slug: str,
+        project_pk: int,
+        start: datetime,
+        end: datetime,
+    ) -> ProjectStatistics:
+        """Get project statistics."""
+        field = "sum(quantity)"
+        timeseries = self._get(
+            f"/api/0/organizations/{organization_slug}/stats_v2/",
+            params={
+                "category": "error",
+                "interval": "1h",
+                "field": field,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "project": [project_pk],
+            },
+        )
+        return ProjectStatistics(
+            start=start,
+            end=end,
+            events=sum(
+                i for i in timeseries["groups"][0]["series"][field] if i is not None
+            ),
+        )
 
     def create_project(
         self, organization_slug: str, team_slug: str, name: str, platform: str | None

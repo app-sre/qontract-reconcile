@@ -85,7 +85,7 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
         return {
             "provision_provider": self.reconciliation.key.provision_provider,
             "provisioner": self.reconciliation.key.provisioner_name,
-            "provider": self.reconciliation.key.provision_provider,
+            "provider": self.reconciliation.key.provider,
             "identifier": self.reconciliation.key.identifier,
         }
 
@@ -130,6 +130,10 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
             name="outputs",
             image=self.reconciliation.module_configuration.outputs_secret_image_version,
             image_pull_policy="Always",
+            resources=V1ResourceRequirements(
+                requests={"memory": "128Mi"},
+                limits={"memory": "128Mi"},
+            ),
             env=[
                 V1EnvVar(
                     name="NAMESPACE",

@@ -24,7 +24,7 @@ from reconcile.utils.state import State
         ("testtest", 100, ["testtest"]),
     ],
 )
-def test_split_long_query(q, size, expected):
+def test_split_long_query(q: str, size: int, expected: list[str]) -> None:
     assert split_long_query(q, size) == expected
 
 
@@ -109,7 +109,8 @@ def setup_mocks(
     mocked_state = create_autospec(State)
     mocked_state.ls.return_value = [f"/{k}" for k in state]
     mocked_state.__getitem__.side_effect = lambda x: state[x]
-    mocked_secret_reader = mocker.patch("reconcile.sql_query.SecretReader")
+    mocker.patch("reconcile.sql_query.get_app_interface_vault_settings")
+    mocked_secret_reader = mocker.patch("reconcile.sql_query.create_secret_reader")
     mocked_secret_reader.return_value.read_all_secret.return_value = (
         smtp_server_connection_info
     )

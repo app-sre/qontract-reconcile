@@ -1,0 +1,39 @@
+---
+namespaces:
+- name: with-openshift-rhcs-certs
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+  openshiftResources:
+  - provider: rhcs-cert
+    secret_name: test-cert-1
+    service_account_name: app-sre-rhcs-dev
+    service_account_password:
+      path: app-sre/creds/app-sre-rhcs-dev
+      field: password
+      version: 1
+    auto_renew_threshold_days: 7
+  - provider: rhcs-cert
+    secret_name: test-cert-2
+    service_account_name: app-sre-rhcs-dev
+    service_account_password:
+      path: app-sre/creds/app-sre-rhcs-dev
+      field: password
+      version: 1
+    auto_renew_threshold_days: 14
+
+- name: integration-disabled
+  delete: true
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+    disable:
+      integrations:
+      - openshift-rhcs-certs
+
+- name: with-different-openshift-resource-providers
+  cluster:
+    name: cluster
+    serverUrl: 'https://cluster.com'
+  openshiftResources: 
+  - provider: vault-secret

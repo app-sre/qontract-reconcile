@@ -24,10 +24,15 @@ from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetPromotionV1,
     SaasResourceTemplateTargetV2_SaasSecretParametersV1,
 )
+from reconcile.gql_definitions.fragments.saas_slo_document import (
+    SLODocumentSLOSLOParametersV1,
+    SLODocumentSLOV1,
+)
 from reconcile.typed_queries.saas_files import (
     SaasFile,
     SaasResourceTemplate,
 )
+from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.promotion_state import PromotionData
@@ -36,11 +41,13 @@ from reconcile.utils.saasherder.interfaces import SaasFile as SaasFileInterface
 from reconcile.utils.saasherder.models import (
     Channel,
     Promotion,
+    TriggerSpecConfig,
     TriggerSpecContainerImage,
     TriggerSpecMovingCommit,
     TriggerSpecUpstreamJob,
 )
 from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.slo_document_manager import SLODetails
 
 from .fixtures import Fixtures
 
@@ -257,12 +264,12 @@ class TestSaasFileValid(TestCase):
         self.assertFalse(saasherder.valid)
 
     def test_check_saas_file_upstream_used_with_image(self) -> None:
-        self.saas_file.resource_templates[0].targets[
-            0
-        ].image = SaasResourceTemplateTargetImageV1(**{
-            "name": "image",
-            "org": {"name": "org", "instance": {"url": "url"}},
-        })
+        self.saas_file.resource_templates[0].targets[0].images = [
+            SaasResourceTemplateTargetImageV1(**{
+                "name": "image",
+                "org": {"name": "org", "instance": {"url": "url"}},
+            })
+        ]
         saasherder = SaasHerder(
             [self.saas_file],
             secret_reader=MockSecretReader(),
@@ -280,12 +287,12 @@ class TestSaasFileValid(TestCase):
         self.saas_file.resource_templates[0].targets[
             0
         ].ref = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
-        self.saas_file.resource_templates[0].targets[
-            0
-        ].image = SaasResourceTemplateTargetImageV1(**{
-            "name": "image",
-            "org": {"name": "org", "instance": {"url": "url"}},
-        })
+        self.saas_file.resource_templates[0].targets[0].images = [
+            SaasResourceTemplateTargetImageV1(**{
+                "name": "image",
+                "org": {"name": "org", "instance": {"url": "url"}},
+            })
+        ]
         saasherder = SaasHerder(
             [self.saas_file],
             secret_reader=MockSecretReader(),
@@ -491,6 +498,7 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 state_content="abcd4242",
                 ref="main",
                 reason=None,
+                target_ref="abcd4242",
             )
         ]
 
@@ -528,11 +536,13 @@ class TestGetMovingCommitsDiffSaasFile(TestCase):
                 state_content="abcd4242",
                 ref="main",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242",
+                target_ref="abcd4242",
             ),
         ]
+        actual = saasherder.get_moving_commits_diff_saas_file(self.saas_file, True)
 
         self.assertEqual(
-            saasherder.get_moving_commits_diff_saas_file(self.saas_file, True),
+            actual,
             expected,
         )
 
@@ -566,7 +576,11 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
         self.maxDiff = None
 
     def test_get_upstream_jobs_diff_saas_file_all_fine(self) -> None:
-        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        state_content = JobBuildState(
+            number=2,
+            result="SUCCESS",
+            commit_sha="abcd4242",
+        )
         current_state = {"ci": {"job": [state_content]}}
         saasherder = SaasHerder(
             [self.saas_file],
@@ -596,6 +610,7 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
                 job_name="job",
                 state_content=state_content,
                 reason=None,
+                target_ref="abcd4242",
             )
         ]
 
@@ -609,7 +624,11 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
     def test_get_upstream_jobs_diff_saas_file_all_fine_include_trigger_trace(
         self,
     ) -> None:
-        state_content = {"number": 2, "result": "SUCCESS", "commit_sha": "abcd4242"}
+        state_content = JobBuildState(
+            number=2,
+            result="SUCCESS",
+            commit_sha="abcd4242",
+        )
         current_state = {"ci": {"job": [state_content]}}
         saasherder = SaasHerder(
             [self.saas_file],
@@ -640,6 +659,7 @@ class TestGetUpstreamJobsDiffSaasFile(TestCase):
                 job_name="job",
                 state_content=state_content,
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 via https://jenkins.com/job/job/2",
+                target_ref="abcd4242",
             )
         ]
 
@@ -713,6 +733,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424",
+                target_ref="abcd4242",
             ),
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
@@ -725,6 +746,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos", "quay.io/fedora/fedora"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424, quay.io/fedora/fedora:abcd424",
+                target_ref="abcd4242",
             ),
         ])
 
@@ -755,6 +777,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
             images=images,
             state_content="abcd424",
             reason=None,
+            target_ref="abcd4242",
         )
         b = TriggerSpecContainerImage(
             saas_file_name=self.saas_file.name,
@@ -767,6 +790,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
             images=images[::-1],
             state_content="abcd424",
             reason=None,
+            target_ref="abcd4242",
         )
         expected_key = "test-saas-deployments-deploy/test-saas-deployments/appsres03ue1/test-image-trigger-v2/App-SRE-stage/quay.io/centos/centos/quay.io/fedora/fedora"
 
@@ -808,6 +832,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424",
+                target_ref="abcd4242",
             ),
             TriggerSpecContainerImage(
                 saas_file_name=self.saas_file.name,
@@ -820,6 +845,7 @@ class TestGetContainerImagesDiffSaasFile(TestCase):
                 images=["quay.io/centos/centos", "quay.io/fedora/fedora"],
                 state_content="abcd424",
                 reason="https://github.com/app-sre/test-saas-deployments/commit/abcd4242 build quay.io/centos/centos:abcd424, quay.io/fedora/fedora:abcd424",
+                target_ref="abcd4242",
             ),
         ])
 
@@ -1497,12 +1523,249 @@ class TestConfigHashTrigger(TestCase):
             1
         ].promotion.promotion_data[0].data[0].target_config_hash = "Changed"
         trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
-        self.assertEqual(len(trigger_specs), 1)
+        expected_trigger_specs = [
+            TriggerSpecConfig(
+                saas_file_name=self.saas_file.name,
+                env_name="App-SRE",
+                timeout=None,
+                pipelines_provider=self.saas_file.pipelines_provider,
+                resource_template_name="test-saas-deployments",
+                cluster_name="appsres03ue1",
+                namespace_name="test-ns-subscriber",
+                state_content={
+                    "delete": None,
+                    "disable": None,
+                    "images": None,
+                    "name": None,
+                    "namespace": {
+                        "app": {"name": "test-saas-deployments"},
+                        "cluster": {
+                            "name": "appsres03ue1",
+                            "serverUrl": "https://api.appsres03ue1.5nvu.p1.openshiftapps.com:6443",
+                        },
+                        "name": "test-ns-subscriber",
+                    },
+                    "parameters": None,
+                    "path": "/openshift/deploy-template.yml",
+                    "promotion": {
+                        "auto": True,
+                        "promotion_data": [
+                            {
+                                "channel": "test-saas-deployments-deploy",
+                                "data": [
+                                    {
+                                        "parent_saas": "test-saas-deployments-deploy",
+                                        "target_config_hash": "Changed",
+                                        "type": "parent_saas_config",
+                                    }
+                                ],
+                            }
+                        ],
+                        "publish": None,
+                        "redeployOnPublisherConfigChange": None,
+                        "schedule": None,
+                        "soakDays": None,
+                        "subscribe": ["test-saas-deployments-deploy"],
+                    },
+                    "ref": "1234567890123456789012345678901234567890",
+                    "rt_parameters": '{"PARAM":"test"}',
+                    "saas_file_managed_resource_types": ["Job"],
+                    "saas_file_parameters": None,
+                    "secretParameters": None,
+                    "slos": None,
+                    "upstream": None,
+                    "url": "https://github.com/app-sre/test-saas-deployments",
+                },
+                reason=None,
+                target_ref="1234567890123456789012345678901234567890",
+                resource_template_url="https://github.com/app-sre/test-saas-deployments",
+                slos=None,
+                target_name=None,
+            )
+        ]
+        self.assertEqual(trigger_specs, expected_trigger_specs)
 
     def test_non_existent_config_triggers(self) -> None:
         self.state_mock.get.side_effect = [self.deploy_current_state_fxt, None]
         trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
         self.assertEqual(len(trigger_specs), 1)
+
+
+@pytest.mark.usefixtures("inject_gql_class_factory")
+class TestSLOGatekeeping(TestCase):
+    cluster: str
+    namespace: str
+    fxt: Any
+    template: Any
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.fxt = Fixtures("saasherder")
+        cls.cluster = "test-cluster"
+
+    def setUp(self) -> None:
+        self.saas_file = self.gql_class_factory(  # type: ignore[attr-defined] # it's set in the fixture
+            SaasFile,
+            Fixtures("saasherder").get_anymarkup("saas-slos-gate.gql.yml"),
+        )
+        self.state_patcher = patch("reconcile.utils.state.State", autospec=True)
+        self.mock_get_breached_slos_patcher = patch(
+            "reconcile.utils.slo_document_manager.SLODocumentManager.get_breached_slos"
+        )
+        self.mock_get_breached_slo = self.mock_get_breached_slos_patcher.start()
+        self.state_mock = self.state_patcher.start().return_value
+        self.deploy_current_state_fxt = self.fxt.get_anymarkup("saas_deploy.state.json")
+
+        self.post_deploy_current_state_fxt = self.fxt.get_anymarkup(
+            "saas_post_deploy.state.json"
+        )
+
+        self.state_mock.get.side_effect = [
+            self.deploy_current_state_fxt,
+            self.post_deploy_current_state_fxt,
+        ]
+        self.saasherder = SaasHerder(
+            [self.saas_file],
+            secret_reader=MockSecretReader(),
+            thread_pool_size=1,
+            state=self.state_mock,
+            integration="",
+            integration_version="",
+            hash_length=7,
+            repo_url="https://repo-url.com",
+        )
+
+    def tearDown(self) -> None:
+        self.state_patcher.stop()
+        self.mock_get_breached_slos_patcher.stop()
+
+    def test_slo_not_breached(self) -> None:
+        self.mock_get_breached_slo.return_value = []
+        self.saasherder.saas_files[0].resource_templates[0].targets[1].ref = "Changed"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        self.assertEqual(len(trigger_specs), 1)
+
+    def test_slo_breached(self) -> None:
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have applied slos
+        self.saasherder.saas_files[0].resource_templates[0].targets[1].ref = "Changed"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertListEqual(filtered_target_specs, [])
+
+    def test_slo_breached_but_hotfix(self) -> None:
+        code_component_url = "https://github.com/app-sre/test-saas-deployments"
+        hotfix_version = "valid_hotfix_version"
+        self.saasherder.hotfix_versions[code_component_url] = {hotfix_version}
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have breached slos and "hotfix" as a patch
+        self.saasherder.saas_files[0].resource_templates[0].targets[
+            1
+        ].ref = "valid_hotfix_version"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertEqual(len(filtered_target_specs), 1)
+
+    def test_slo_breached_but_hotfix_mismatch(self) -> None:
+        code_component_url = "https://github.com/app-sre/test-saas-deployments"
+        hotfix_version = "valid_hotfix_version"
+        self.saasherder.hotfix_versions[code_component_url] = {hotfix_version}
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have breached slos and "hotfix" as a patch
+        self.saasherder.saas_files[0].resource_templates[0].targets[
+            1
+        ].ref = "invalid_hotfix_version"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertListEqual(filtered_target_specs, [])
+
+    def test_slo_breached_but_in_different_namespace(self) -> None:
+        self.mock_get_breached_slo.return_value = [
+            SLODetails(
+                namespace_name="test-slo-gate-ns2",
+                slo_document_name="test-slo-doc",
+                cluster_name="appsres03ue1",
+                slo=SLODocumentSLOV1(
+                    name="test_slo_name",
+                    expr="some_test_expr",
+                    SLIType="availability",
+                    SLOParameters=SLODocumentSLOSLOParametersV1(
+                        window="28d",
+                    ),
+                    SLOTarget=0.90,
+                    SLOTargetUnit="percent_0_1",
+                ),
+                service_name="test",
+                current_slo_value=0.89,
+            )
+        ]
+        # creating diff for second target where we have breached slos and "hotfix" as a patch
+        self.saasherder.saas_files[0].resource_templates[0].targets[1].ref = "Changed"
+        trigger_specs = self.saasherder.get_configs_diff_saas_file(self.saas_file)
+        filtered_target_specs = self.saasherder.filter_slo_breached_triggers(
+            trigger_specs
+        )
+        self.assertEqual(len(filtered_target_specs), 1)
 
 
 class TestRemoveNoneAttributes(TestCase):

@@ -32,6 +32,7 @@
   },
   "namespace": {
     "name": "provider2-with-resources",
+    "delete": null,
     "cluster": {
       "name": "appsres03ue1",
       "serverUrl": "",

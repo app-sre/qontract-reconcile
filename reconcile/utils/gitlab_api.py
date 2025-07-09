@@ -1,28 +1,28 @@
+import io
 import logging
 import os
 import re
+import tarfile
 from collections.abc import (
-    Callable,
     Iterable,
     Mapping,
-    Set,
 )
+from dataclasses import dataclass
 from functools import cached_property
-from operator import (
-    attrgetter,
-    itemgetter,
-)
+from operator import attrgetter
 from typing import (
     Any,
-    Protocol,
     Self,
-    TypedDict,
     cast,
 )
 from urllib.parse import urlparse
 
-import gitlab
 import urllib3
+from gitlab import (
+    Gitlab,
+    GitlabCreateError,
+    GitlabGetError,
+)
 from gitlab.const import (
     DEVELOPER_ACCESS,
     GUEST_ACCESS,
@@ -37,18 +37,20 @@ from gitlab.v4.objects import (
     GroupMember,
     PersonalAccessToken,
     Project,
-    ProjectFile,
     ProjectHook,
     ProjectIssue,
     ProjectIssueManager,
     ProjectMergeRequest,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
+    ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
     User,
 )
+from requests import Session
 from sretoolbox.utils import retry
 
+from reconcile.utils.instrumented_wrappers import InstrumentedSession
 from reconcile.utils.metrics import gitlab_request
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 
@@ -59,9 +61,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 MR_DESCRIPTION_COMMENT_ID = 0
 
-# The default value is there for unit test
-INTEGRATION_NAME = os.getenv("INTEGRATION_NAME", "")
 DEFAULT_MAIN_BRANCH = "master"
+MAX_PER_PAGE = 100
 
 
 class MRState:
@@ -93,15 +94,19 @@ class MRStatus:
 GROUP_BOT_NAME_REGEX = re.compile(r"group_.+_bot_.+")
 
 
-class GLGroupMember(TypedDict):
-    id: str
-    user: str
-    access_level: str
+@dataclass(frozen=True)
+class Assignment:
+    author: str
+    assignee: str
 
 
-class GitlabUser(Protocol):
-    user: str
-    access_level: int
+@dataclass(frozen=True)
+class Comment:
+    id: int
+    username: str
+    body: str
+    created_at: str
+    note: ProjectMergeRequestNote | None = None
 
 
 class GitLabApi:
@@ -113,19 +118,26 @@ class GitLabApi:
         secret_reader: SecretReaderBase | None = None,
         project_url: str | None = None,
         timeout: float = 30,
+        session: Session | None = None,
     ):
         self.server = instance["url"]
         if not secret_reader:
             secret_reader = SecretReader(settings=settings)
         token = secret_reader.read(instance["token"])
-        self.ssl_verify = instance["sslVerify"]
-        if self.ssl_verify is None:
-            self.ssl_verify = True
-        self.gl = gitlab.Gitlab(
+        self.ssl_verify = (
+            instance["sslVerify"] if instance["sslVerify"] is not None else True
+        )
+        self.session = session or InstrumentedSession(
+            gitlab_request.labels(integration=os.getenv("INTEGRATION_NAME", ""))
+        )
+        self.gl = Gitlab(
             self.server,
             private_token=token,
             ssl_verify=self.ssl_verify,
             timeout=timeout,
+            session=self.session,
+            per_page=MAX_PER_PAGE,
+            pagination="keyset",
         )
         self._auth()
         assert self.gl.user
@@ -136,10 +148,8 @@ class GitLabApi:
             if project_url is not None:
                 parsed_project_url = urlparse(project_url)
                 name_with_namespace = parsed_project_url.path.strip("/")
-                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
                 self.project = self.gl.projects.get(name_with_namespace)
         else:
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             self.project = self.gl.projects.get(project_id)
 
     @cached_property
@@ -164,22 +174,19 @@ class GitLabApi:
 
     def cleanup(self) -> None:
         """
-        Close gl session.
+        Close session.
         """
-        self.gl.session.close()
+        self.session.close()
 
     @retry()
     def _auth(self) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.gl.auth()
 
     def create_branch(self, new_branch: str, source_branch: str) -> None:
         data = {"branch": new_branch, "ref": source_branch}
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.branches.create(data)
 
     def delete_branch(self, branch: str) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.branches.delete(branch)
 
     def create_commit(
@@ -191,7 +198,6 @@ class GitLabApi:
                          #create-a-commit-with-multiple-files-and-actions
         """
 
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create({
             "branch": branch_name,
             "commit_message": commit_message,
@@ -208,7 +214,6 @@ class GitLabApi:
                 {"action": "create", "file_path": file_path, "content": content}
             ],
         }
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create(data)
 
     def delete_file(
@@ -219,7 +224,6 @@ class GitLabApi:
             "commit_message": commit_message,
             "actions": [{"action": "delete", "file_path": file_path}],
         }
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create(data)
 
     def update_file(
@@ -232,7 +236,6 @@ class GitLabApi:
                 {"action": "update", "file_path": file_path, "content": content}
             ],
         }
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.commits.create(data)
 
     def create_mr(
@@ -252,8 +255,7 @@ class GitLabApi:
             "remove_source_branch": str(remove_source_branch),
             "labels": labels,
         }
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        return cast(ProjectMergeRequest, self.project.mergerequests.create(data))
+        return self.project.mergerequests.create(data)
 
     def mr_exists(self, title: str) -> bool:
         mrs = self.get_merge_requests(state=MRState.OPENED)
@@ -268,22 +270,17 @@ class GitLabApi:
         project = self.project if repo_url is None else self.get_project(repo_url)
         if project is None:
             return None
-        if query:
-            members = self.get_items(project.members_all.list, query_parameters=query)
-        else:
-            members = self.get_items(project.members_all.list)
+        members = project.members_all.list(iterator=True, query_parameters=query or {})
         return [m.username for m in members if m.access_level >= 40]
 
     def get_app_sre_group_users(self) -> list[GroupMember]:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         app_sre_group = self.gl.groups.get("app-sre")
-        return self.get_items(app_sre_group.members.list)
+        return app_sre_group.members.list(get_all=True)
 
     def get_group_if_exists(self, group_name: str) -> Group | None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         try:
             return self.gl.groups.get(group_name)
-        except gitlab.exceptions.GitlabGetError:
+        except GitlabGetError:
             return None
 
     def share_project_with_group(
@@ -294,36 +291,29 @@ class GitLabApi:
         reshare: bool = False,
     ) -> None:
         if reshare:
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             project.unshare(group_id)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project.share(group_id, access_level)
 
     @staticmethod
     def _is_bot_username(username: str) -> bool:
-        """crudely checking for the username
+        """
+        Checks if a given username matches the pattern for an internal GitLab bot user.
 
-        as gitlab-python require a major upgrade to use the billable members apis
-        https://python-gitlab.readthedocs.io/en/stable/gl_objects/groups.html#id11 lists the api
-        billable_membersis the attribute that provides billable members of groups
+        This method uses a regular expression (GROUP_BOT_NAME_REGEX) to determine
+        if the username conforms to the naming convention for internal GitLab bots,
+        as described in the GitLab documentation.
 
-        the second api is https://python-gitlab.readthedocs.io/en/stable/gl_objects/group_access_tokens.html
-        which provides a list of access tokens as well as their assigned users
-
-        those apis are not avaliable in python-gitlab v1.x
+        Reference:
+            - GitLab Internal Users Documentation: https://docs.gitlab.com/administration/internal_users/
         """
         return GROUP_BOT_NAME_REGEX.match(username) is not None
 
-    def get_group_members(self, group: Group | None) -> list[GroupMember]:
-        if group is None:
-            logging.error("no group provided")
-            return []
-        else:
-            return [
-                m
-                for m in self.get_items(group.members.list)
-                if not self._is_bot_username(m.username)
-            ]
+    def get_group_members(self, group: Group) -> list[GroupMember]:
+        return [
+            m
+            for m in group.members.list(iterator=True)
+            if not self._is_bot_username(m.username)
+        ]
 
     def add_project_member(
         self, repo_url: str, user: GroupMember, access: str = "maintainer"
@@ -334,33 +324,29 @@ class GitLabApi:
         access_level = self.get_access_level(access)
         try:
             project.members.create({"user_id": user.id, "access_level": access_level})
-        except gitlab.exceptions.GitlabCreateError:
+        except GitlabCreateError:
             member = project.members.get(user.id)
             member.access_level = access_level
             member.save()
 
-    def add_group_member(self, group: Group, user: GitlabUser) -> None:
-        gitlab_user = self.get_user(user.user)
+    def add_group_member(self, group: Group, username: str, access_level: int) -> None:
+        gitlab_user = self.get_user(username)
         if gitlab_user is not None:
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
             try:
                 group.members.create({
                     "user_id": gitlab_user.id,
-                    "access_level": user.access_level,
+                    "access_level": access_level,
                 })
-            except gitlab.exceptions.GitlabCreateError:
-                gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-                member = group.members.get(user.user)
-                member.access_level = user.access_level
+            except GitlabCreateError:
+                member = group.members.get(gitlab_user.id)
+                member.access_level = access_level
                 member.save()
 
     def remove_group_member(self, group: Group, user_id: str) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         group.members.delete(user_id)
 
     def change_access(self, member: GroupMember, access_level: int) -> None:
         member.access_level = access_level
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         member.save()
 
     @staticmethod
@@ -383,17 +369,14 @@ class GitLabApi:
             case _:
                 raise ValueError(f"Invalid access level: {access}")
 
-    def get_group_id_and_projects(self, group_name: str) -> tuple[str, list[str]]:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+    def get_group_id_and_projects(self, group_name: str) -> tuple[str, set[str]]:
         group = self.gl.groups.get(group_name)
-        return group.id, [p.name for p in self.get_items(group.projects.list)]
+        return group.id, {p.name for p in group.projects.list(iterator=True)}
 
     def get_group(self, group_name: str) -> Group:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.gl.groups.get(group_name)
 
     def create_project(self, group_id: str, project: str) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.gl.projects.create({"name": project, "namespace_id": group_id})
 
     def get_project_url(self, group: str, project: str) -> str:
@@ -401,41 +384,39 @@ class GitLabApi:
 
     @retry()
     def get_project(self, repo_url: str) -> Project | None:
-        repo = repo_url.replace(self.server + "/", "")
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        repo = repo_url.removeprefix(self.server).strip("/")
         try:
             project = self.gl.projects.get(repo)
-        except gitlab.exceptions.GitlabGetError:
+        except GitlabGetError:
             logging.warning(f"{repo_url} not found")
             project = None
         return project
 
     def get_project_by_id(self, project_id: int) -> Project:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.gl.projects.get(project_id)
 
     def get_issues(self, state: str) -> list[ProjectIssue]:
-        return self.get_items(self.project.issues.list, state=state)
+        return self.project.issues.list(state=state, get_all=True)
 
     def get_merge_request(self, mr_id: str | int) -> ProjectMergeRequest:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         return self.project.mergerequests.get(mr_id)
 
     def get_merge_requests(self, state: str) -> list[ProjectMergeRequest]:
-        return self.get_items(self.project.mergerequests.list, state=state)
+        return self.project.mergerequests.list(state=state, get_all=True)
 
+    @staticmethod
     def get_merge_request_label_events(
-        self, mr: ProjectMergeRequest
+        mr: ProjectMergeRequest,
     ) -> list[ProjectMergeRequestResourceLabelEvent]:
-        return self.get_items(mr.resourcelabelevents.list)
+        return mr.resourcelabelevents.list(get_all=True)
 
-    def get_merge_request_pipelines(self, mr: ProjectMergeRequest) -> list[dict]:
-        # TODO: use typed object in return
-        # TODO: use server side order_by
-        items = self.get_items(mr.pipelines.list)
+    @staticmethod
+    def get_merge_request_pipelines(
+        mr: ProjectMergeRequest,
+    ) -> list[ProjectMergeRequestPipeline]:
         return sorted(
-            [i.asdict() for i in items],
-            key=itemgetter("created_at"),
+            mr.pipelines.list(iterator=True),
+            key=attrgetter("created_at"),
             reverse=True,
         )
 
@@ -443,7 +424,6 @@ class GitLabApi:
     def get_merge_request_changed_paths(
         merge_request: ProjectMergeRequest,
     ) -> list[str]:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         result = merge_request.changes()
         changes = cast(dict, result)["changes"]
         changed_paths = set()
@@ -464,30 +444,32 @@ class GitLabApi:
     def get_merge_request_comments(
         merge_request: ProjectMergeRequest,
         include_description: bool = False,
-    ) -> list[dict[str, Any]]:
+    ) -> list[Comment]:
         comments = []
         if include_description:
-            comments.append({
-                "username": merge_request.author["username"],
-                "body": merge_request.description,
-                "created_at": merge_request.created_at,
-                "id": MR_DESCRIPTION_COMMENT_ID,
-            })
-        for note in GitLabApi.get_items(merge_request.notes.list):
-            if note.system:
-                continue
-            comments.append({
-                "username": note.author["username"],
-                "body": note.body,
-                "created_at": note.created_at,
-                "id": note.id,
-                "note": note,
-            })
+            comments.append(
+                Comment(
+                    id=MR_DESCRIPTION_COMMENT_ID,
+                    username=merge_request.author["username"],
+                    body=merge_request.description or "",
+                    created_at=merge_request.created_at,
+                )
+            )
+        comments.extend(
+            Comment(
+                id=note.id,
+                username=note.author["username"],
+                body=note.body or "",
+                created_at=note.created_at,
+                note=note,
+            )
+            for note in merge_request.notes.list(iterator=True)
+            if not note.system
+        )
         return comments
 
     @staticmethod
     def delete_comment(note: ProjectMergeRequestNote) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         note.delete()
 
     def delete_merge_request_comments(
@@ -497,13 +479,16 @@ class GitLabApi:
     ) -> None:
         comments = self.get_merge_request_comments(merge_request)
         for c in comments:
-            body = c["body"] or ""
-            if c["username"] == self.user.username and body.startswith(startswith):
-                self.delete_comment(c["note"])
+            if (
+                c.username == self.user.username
+                and c.body.startswith(startswith)
+                and c.note is not None
+            ):
+                self.delete_comment(c.note)
 
     @retry()
-    def get_project_labels(self) -> Set[str]:
-        return {ln.name for ln in self.get_items(self.project.labels.list)}
+    def get_project_labels(self) -> set[str]:
+        return {label.name for label in self.project.labels.list(iterator=True)}
 
     @staticmethod
     def add_label_to_merge_request(
@@ -517,7 +502,6 @@ class GitLabApi:
         if label in labels:
             return
         labels.append(label)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.save()
 
     @staticmethod
@@ -533,7 +517,6 @@ class GitLabApi:
         if not new_labels:
             return
         merge_request.labels.extend(new_labels)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.save()
 
     @staticmethod
@@ -562,7 +545,6 @@ class GitLabApi:
             return
 
         merge_request.labels = list(new_desired_labels)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.save()
 
     @staticmethod
@@ -570,31 +552,13 @@ class GitLabApi:
         merge_request: ProjectMergeRequest,
         body: str,
     ) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         merge_request.notes.create({"body": body})
 
-    # TODO: deprecated this method as new support of list(get_all=True), and figure out request counter metrics
-    @staticmethod
-    def get_items(method: Callable, **kwargs: Any) -> list:
-        all_items = []
-        page = 1
-        while True:
-            gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-            items = method(page=page, per_page=100, **kwargs)
-            all_items.extend(items)
-            if len(items) < 100:
-                break
-            page += 1
-
-        return all_items
-
     def create_label(self, label_text: str, label_color: str) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         self.project.labels.create({"name": label_text, "color": label_color})
 
     @staticmethod
     def refresh_labels(item: ProjectMergeRequest | ProjectIssue) -> None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         manager: ProjectMergeRequestManager | ProjectIssueManager
         match item:
             case ProjectMergeRequest():
@@ -622,9 +586,7 @@ class GitLabApi:
             return
         labels.append(label)
         note_body = f"item has been marked as {label}. to remove say `/{label} cancel`"
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.notes.create({"body": note_body})
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.save()
 
     @staticmethod
@@ -639,7 +601,6 @@ class GitLabApi:
         if label not in labels:
             return
         labels.remove(label)
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.save()
 
     @staticmethod
@@ -656,19 +617,15 @@ class GitLabApi:
         if not to_be_removed:
             return
         item.labels = list(current_labels - to_be_removed)
-
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.save()
 
     @staticmethod
     def close(item: ProjectIssue | ProjectMergeRequest) -> None:
         item.state_event = "close"
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         item.save()
 
     def get_user(self, username: str) -> User | None:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        user = cast(list[User], self.gl.users.list(search=username, page=1, per_page=1))
+        user = self.gl.users.list(search=username, page=1, per_page=1)
         if not user:
             logging.error(f"{username} user not found")
             return None
@@ -676,12 +633,9 @@ class GitLabApi:
 
     @retry()
     def get_project_hooks(self, repo_url: str) -> list[ProjectHook]:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         p = self.get_project(repo_url)
         if p is None:
             return []
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        # TODO: get_all may send multiple requests, update metrics accordingly
         return p.hooks.list(per_page=100, get_all=True)
 
     def create_project_hook(self, repo_url: str, data: Mapping) -> None:
@@ -697,24 +651,64 @@ class GitLabApi:
             "push_events": int("push" in trigger),
             "merge_requests_events": int("mr" in trigger),
         }
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         p.hooks.create(hook)
 
-    def get_repository_tree(self, ref: str = "master") -> list[dict]:
+    def get_repository_tree(
+        self,
+        *,
+        ref: str = "master",
+        recursive: bool = False,
+    ) -> list[dict]:
         """
-        Wrapper around Gitlab.repository_tree() with pagination enabled.
-        """
-        return self.get_items(self.project.repository_tree, ref=ref, recursive=True)
+        Get a list of repository files and directories in a project.
 
-    def get_file(self, path: str, ref: str = "master") -> ProjectFile | None:
+        :param ref: The name of a repository branch or tag or, if not given, the default branch.
+        :param recursive: Boolean value used to get a recursive tree. Default is false.
+
+        :return: list of tree objects
         """
-        Wrapper around Gitlab.files.get() with exception handling.
+        return cast(
+            list[dict],
+            self.project.repository_tree(
+                ref=ref,
+                recursive=recursive,
+                pagination="keyset",
+                per_page=MAX_PER_PAGE,
+                get_all=True,
+            ),
+        )
+
+    @staticmethod
+    def get_raw_file(
+        project: Project,
+        path: str,
+        ref: str,
+    ) -> bytes:
+        file_path = path.lstrip("/")
+        return project.files.raw(
+            file_path=file_path,
+            ref=ref,
+        )
+
+    def get_file(
+        self,
+        path: str,
+        ref: str = "master",
+    ) -> bytes | None:
         """
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
+        Get the raw content of a file in a project.
+
+        :param path: The path to the file in the repository.
+        :param ref: The name of branch, tag or commit.
+        :return: The content of the file as bytes, or None if the file does not exist.
+        """
         try:
-            path = path.lstrip("/")
-            return self.project.files.get(file_path=path, ref=ref)
-        except gitlab.exceptions.GitlabGetError:
+            return self.get_raw_file(
+                project=self.project,
+                path=path,
+                ref=ref,
+            )
+        except GitlabGetError:
             return None
 
     def initiate_saas_bundle_repo(self, repo_url: str) -> None:
@@ -732,27 +726,22 @@ class GitLabApi:
         self.create_branch("production", "master")
 
     def is_last_action_by_team(
-        self, mr: ProjectMergeRequest, team_usernames: list[str], hold_labels: list[str]
+        self, mr: ProjectMergeRequest, team_usernames: set[str], hold_labels: list[str]
     ) -> bool:
         # what is the time of the last app-sre response?
         last_action_by_team = None
         # comments
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=itemgetter("created_at"), reverse=True)
+        comments.sort(key=attrgetter("created_at"), reverse=True)
         for comment in comments:
-            username = comment["username"]
+            username = comment.username
             if username == self.user.username:
                 continue
             if username in team_usernames:
-                last_action_by_team = comment["created_at"]
+                last_action_by_team = comment.created_at
                 break
         # labels
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
-        # TODO: this may send multiple requests, update metrics accordingly
-        label_events = cast(
-            list[ProjectMergeRequestResourceLabelEvent],
-            mr.resourcelabelevents.list(get_all=True),
-        )
+        label_events = mr.resourcelabelevents.list(get_all=True)
         for label in reversed(label_events):
             if label.action == "add" and label.label["name"] in hold_labels:
                 username = label.user["username"]
@@ -769,7 +758,6 @@ class GitLabApi:
         # possible responses from tenants (ignore the bot)
         last_action_not_by_team = None
         # commits
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         commits = list(mr.commits())
         commits.sort(key=attrgetter("created_at"), reverse=True)
         for commit in commits:
@@ -777,11 +765,11 @@ class GitLabApi:
             break
         # comments
         for comment in comments:
-            username = comment["username"]
+            username = comment.username
             if username == self.user.username:
                 continue
             if username not in team_usernames:
-                last_action_not_by_team = comment["created_at"]
+                last_action_not_by_team = comment.created_at
                 break
 
         if not last_action_not_by_team:
@@ -790,48 +778,54 @@ class GitLabApi:
         return last_action_not_by_team < last_action_by_team
 
     def is_assigned_by_team(
-        self, mr: ProjectMergeRequest, team_usernames: list[str]
+        self, mr: ProjectMergeRequest, team_usernames: set[str]
     ) -> bool:
         if not mr.assignee:
             return False
         last_assignment = self.last_assignment(mr)
-        if not last_assignment:
+        if last_assignment is None:
             return False
+        return (
+            last_assignment.author in team_usernames
+            and mr.assignee["username"] == last_assignment.assignee
+        )
 
-        author, assignee = last_assignment[0], last_assignment[1]
-        return author in team_usernames and mr.assignee["username"] == assignee
-
-    def last_assignment(self, mr: ProjectMergeRequest) -> tuple[str, str] | None:
+    @staticmethod
+    def last_assignment(mr: ProjectMergeRequest) -> Assignment | None:
+        """
+        Get the last assignment of a merge request.
+        :param mr: merge request
+        :return: tuple of author name and assignee name or None
+        """
         body_format = "assigned to @"
-        notes = self.get_items(mr.notes.list)
-
-        for note in notes:
-            if not note.system:
-                continue
-            body = note.body
-            if not body.startswith(body_format):
-                continue
-            assignee = body.replace(body_format, "")
-            author = note.author["username"]
-
-            return author, assignee
-
-        return None
+        notes = mr.notes.list(sort="desc", order_by="created_at", iterator=True)
+        return next(
+            (
+                Assignment(
+                    author=note.author["username"],
+                    assignee=note.body.removeprefix(body_format),
+                )
+                for note in notes
+                if note.system and note.body.startswith(body_format)
+            ),
+            None,
+        )
 
     def last_comment(
         self, mr: ProjectMergeRequest, exclude_bot: bool = True
-    ) -> dict[str, Any] | None:
+    ) -> Comment | None:
         comments = self.get_merge_request_comments(mr)
-        comments.sort(key=itemgetter("created_at"), reverse=True)
-        for comment in comments:
-            username = comment["username"]
-            if username == self.user.username and exclude_bot:
-                continue
-            return comment
-        return None
+        comments.sort(key=attrgetter("created_at"), reverse=True)
+        return next(
+            (
+                comment
+                for comment in comments
+                if not (exclude_bot and comment.username == self.user.username)
+            ),
+            None,
+        )
 
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
-        gitlab_request.labels(integration=INTEGRATION_NAME).inc()
         project = self.get_project(repo_url)
         commits = project.commits.list(ref_name=ref, per_page=1, page=1)
         return commits[0].id
@@ -844,4 +838,30 @@ class GitLabApi:
         return response.get("commits", [])
 
     def get_personal_access_tokens(self) -> list[PersonalAccessToken]:
-        return self.get_items(self.gl.personal_access_tokens.list)
+        return self.gl.personal_access_tokens.list(get_all=True)
+
+    @staticmethod
+    def get_directory_contents(
+        project: Project,
+        ref: str | None = None,
+        path: str | None = None,
+    ) -> dict[str, bytes]:
+        """
+        Get the contents of a directory in a project.
+
+        :param project: The project to get the contents from.
+        :param ref: The commit SHA to download. A tag, branch reference, or SHA can be used. If not specified, defaults to the tip of the default branch.
+        :param path: The subpath of the repository to download. If an empty string, defaults to the whole repository.
+        :return: A dictionary with the file path as keys and the file content bytes as values.
+        """
+        archive = project.repository_archive(format="tar.gz", sha=ref, path=path)
+        tar_bytes = io.BytesIO(archive)
+        with tarfile.open(fileobj=tar_bytes, mode="r:gz") as tar:
+            return {
+                file_path: file.read()
+                for member in tar.getmembers()
+                if member.isfile()
+                # skip leading prefix xxx/
+                and (file_path := member.name.split("/", 1)[-1])
+                and (file := tar.extractfile(member))
+            }

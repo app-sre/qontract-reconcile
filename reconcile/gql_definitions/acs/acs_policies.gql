@@ -2,50 +2,19 @@
 
 query AcsPolicy {
   acs_policies: acs_policy_v1 {
-   	name
+    name
     description
     severity
-    integrations {
-      notifiers {
-        jira {
-          escalationPolicy {
-            name
-            channels {
-              jiraBoard {
-                name
-                server {
-                  serverUrl
-                }
-                severityPriorityMappings {
-                  name
-                  mappings {
-                    severity
-                    priority
-                  }
-                }
-                issueType
-                issueSecurityId
-                disable {
-                  integrations
-                }
-              }
-              jiraComponent
-              jiraLabels
-            }
-          }
-        }
-      }
-    }
     categories
     scope {
       level
       ... on AcsPolicyScopeCluster_v1 {
-				clusters {
+        clusters {
           name
-        }        
+        }
       }
       ... on AcsPolicyScopeNamespace_v1 {
-       	namespaces {
+        namespaces {
           name
           cluster {
             name
@@ -53,7 +22,7 @@ query AcsPolicy {
         }
       }
     }
-	  conditions {
+    conditions {
       policyField
       ... on AcsPolicyConditionsCvss_v1 {
         comparison

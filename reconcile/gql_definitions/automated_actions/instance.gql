@@ -1,0 +1,95 @@
+# qenerate: plugin=pydantic_v1
+
+query AutomatedActionsInstances {
+  automated_actions_instances_v1 {
+    name
+    deployment {
+      name
+      clusterAdmin
+      delete
+      cluster {
+        ...OcConnectionCluster
+      }
+    }
+    actions {
+      type
+      permissions {
+        roles {
+          name
+          users {
+            org_username
+          }
+          bots {
+            org_username
+          }
+          expirationDate
+        }
+      }
+      maxOps
+      ... on AutomatedActionActionList_v1 {
+        action_list_arguments: arguments {
+          action_user
+          max_age_minutes
+        }
+      }
+      ... on AutomatedActionExternalResourceFlushElastiCache_v1 {
+        external_resource_flush_elasticache_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
+      ... on AutomatedActionExternalResourceRdsReboot_v1 {
+        external_resource_rds_reboot_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
+      ... on AutomatedActionExternalResourceRdsSnapshot_v1 {
+        external_resource_rds_snapshot_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
+      ... on AutomatedActionOpenshiftWorkloadRestart_v1 {
+        openshift_workload_restart_arguments: arguments {
+          namespace {
+            name
+            delete
+            cluster {
+              name
+              disable {
+                integrations
+              }
+            }
+          }
+          kind
+          name
+        }
+      }
+    }
+  }
+}

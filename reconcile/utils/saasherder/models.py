@@ -4,7 +4,7 @@ import logging
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 from github import Github
 from pydantic import (
@@ -12,6 +12,10 @@ from pydantic import (
     Field,
 )
 
+from reconcile.gql_definitions.fragments.saas_slo_document import (
+    SLODocument,
+)
+from reconcile.utils.jenkins_api import JobBuildState
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
@@ -50,7 +54,7 @@ class UpstreamJob:
         return self.__str__()
 
 
-@dataclass
+@dataclass(frozen=True)
 class TriggerSpecBase:
     saas_file_name: str
     env_name: str
@@ -60,16 +64,71 @@ class TriggerSpecBase:
     cluster_name: str
     namespace_name: str
     state_content: Any
+    reason: str | None
+    target_ref: str
 
     @property
     def state_key(self) -> str:
         raise NotImplementedError("implement this function in inheriting classes")
 
 
-@dataclass
+@dataclass(frozen=True)
+class SLOKey:
+    slo_document_name: str
+    namespace_name: str
+    cluster_name: str
+
+
+class TriggerSpecConfigStateContentNamespaceApp(TypedDict):
+    name: str
+
+
+class TriggerSpecConfigStateContentNamespaceCluster(TypedDict):
+    name: str
+    serverUrl: str
+
+
+class TriggerSpecConfigStateContentNamespace(TypedDict):
+    name: str
+    cluster: TriggerSpecConfigStateContentNamespaceCluster
+    app: TriggerSpecConfigStateContentNamespaceApp
+
+
+class TriggerSpecConfigStateContent(TypedDict):
+    """
+    dict representation of reconcile.typed_queries.saas_files.SaasResourceTemplateTarget
+    with some additional fields.
+    """
+
+    path: str | None
+    name: str | None
+    namespace: TriggerSpecConfigStateContentNamespace
+    ref: str | None
+    promotion: dict | None
+    parameters: str | None
+    secretParameters: list[dict] | None
+    slos: list[Any] | None
+    upstream: Any | None
+    images: list[Any] | None
+    disable: bool | None
+    delete: bool | None
+
+    # additional fields
+    saas_file_parameters: str | None
+    saas_file_managed_resource_types: list[str]
+    saas_file_managed_resource_names: NotRequired[list[Any]]
+    url: str
+    rt_parameters: str | None
+    rt_secretparameters: NotRequired[list[dict]]
+    saas_file_secretparameters: NotRequired[list[dict]]
+
+
+@dataclass(frozen=True)
 class TriggerSpecConfig(TriggerSpecBase):
+    state_content: TriggerSpecConfigStateContent | None
+    resource_template_url: str
+    slos: list[SLODocument] | None = None
     target_name: str | None = None
-    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -81,11 +140,24 @@ class TriggerSpecConfig(TriggerSpecBase):
             key += f"/{self.target_name}"
         return key
 
+    def extract_slo_keys(self) -> list[SLOKey]:
+        return [
+            SLOKey(
+                slo_document_name=slo_document.name,
+                namespace_name=namespace.namespace.name,
+                cluster_name=namespace.namespace.cluster.name,
+            )
+            for slo_document in self.slos or []
+            for namespace in slo_document.namespaces
+            if namespace.namespace.name == self.namespace_name
+            and namespace.namespace.cluster.name == self.cluster_name
+        ]
 
-@dataclass
+
+@dataclass(frozen=True)
 class TriggerSpecMovingCommit(TriggerSpecBase):
+    state_content: str
     ref: str
-    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -96,11 +168,11 @@ class TriggerSpecMovingCommit(TriggerSpecBase):
         return key
 
 
-@dataclass
+@dataclass(frozen=True)
 class TriggerSpecUpstreamJob(TriggerSpecBase):
+    state_content: JobBuildState
     instance_name: str
     job_name: str
-    reason: str | None = None
 
     @property
     def state_key(self) -> str:
@@ -111,10 +183,10 @@ class TriggerSpecUpstreamJob(TriggerSpecBase):
         return key
 
 
-@dataclass
+@dataclass(frozen=True)
 class TriggerSpecContainerImage(TriggerSpecBase):
+    state_content: str
     images: Sequence[str]
-    reason: str | None = None
 
     @property
     def state_key(self) -> str:

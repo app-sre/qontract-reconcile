@@ -68,7 +68,13 @@ class ClusterUpgradeSpec(BaseModel):
         return any(re.search(b, version) for b in self.blocked_versions)
 
     def get_available_upgrades(self) -> list[str]:
-        return self.cluster.available_upgrades()
+        cluster_available_upgrades = self.cluster.available_upgrades()
+        if (
+            self.oldest_current_version != self.current_version
+            and self.current_version not in cluster_available_upgrades
+        ):
+            return [self.current_version, *cluster_available_upgrades]
+        return cluster_available_upgrades
 
     @property
     def effective_mutexes(self) -> set[str]:
@@ -77,8 +83,18 @@ class ClusterUpgradeSpec(BaseModel):
         return mutexes
 
 
+# TODO: Addon not is-a Cluster, extract a common base to inherit
 class ClusterAddonUpgradeSpec(ClusterUpgradeSpec):
     addon: OCMAddonInstallation
+
+    def version_blocked(self, version: str) -> bool:
+        addon_id = self.addon.id
+        v = f"{addon_id}/{version}"
+        return any(
+            re.search(b, v)
+            for b in self.blocked_versions
+            if b.startswith(f"{addon_id}/") or b.startswith(f"^{addon_id}/")
+        )
 
     def get_available_upgrades(self) -> list[str]:
         return self.addon.addon_version.available_upgrades
@@ -127,7 +143,11 @@ class OrganizationUpgradeSpec(BaseModel):
 
         # extract sectors
         self._sectors = {
-            s.name: Sector(org_id=self.org.org_id, name=s.name)
+            s.name: Sector(
+                org_id=self.org.org_id,
+                name=s.name,
+                max_parallel_upgrades=s.max_parallel_upgrades,
+            )
             for s in self.org.sectors or []
         }
 
@@ -213,6 +233,7 @@ class SectorConfigError(Exception):
 
 class Sector(BaseModel):
     name: str
+    max_parallel_upgrades: str | None
     dependencies: list[Sector] = Field(default_factory=list)
     _specs: dict[str, ClusterUpgradeSpec] = PrivateAttr(default_factory=dict)
 

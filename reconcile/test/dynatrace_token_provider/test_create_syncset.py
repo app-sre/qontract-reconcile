@@ -1,14 +1,16 @@
 from reconcile.dynatrace_token_provider.dependencies import Dependencies
 from reconcile.dynatrace_token_provider.integration import (
+    DTP_TENANT_V2_LABEL,
     DynatraceTokenProviderIntegration,
 )
-from reconcile.dynatrace_token_provider.model import DynatraceAPIToken, K8sSecret
-from reconcile.dynatrace_token_provider.ocm import Cluster
+from reconcile.dynatrace_token_provider.model import DynatraceAPIToken
+from reconcile.dynatrace_token_provider.ocm import OCMCluster
 from reconcile.gql_definitions.dynatrace_token_provider.token_specs import (
     DynatraceTokenProviderTokenSpecV1,
 )
 from reconcile.test.dynatrace_token_provider.fixtures import (
     build_dynatrace_client,
+    build_k8s_secret,
     build_ocm_client,
     build_syncset,
 )
@@ -21,13 +23,14 @@ def test_single_non_hcp_cluster_create_tokens(
     default_token_spec: DynatraceTokenProviderTokenSpecV1,
     default_operator_token: DynatraceAPIToken,
     default_ingestion_token: DynatraceAPIToken,
-    default_cluster: Cluster,
+    default_cluster: OCMCluster,
     default_integration: DynatraceTokenProviderIntegration,
 ) -> None:
     """
     We have a single non-HCP cluster that does not have a syncset/token yet.
     New tokens in a new syncset should be created.
     """
+    tenant_id = default_cluster.labels[DTP_TENANT_V2_LABEL]
     ocm_client = build_ocm_client(
         discover_clusters_by_labels=[default_cluster],
         get_syncset={},
@@ -71,16 +74,13 @@ def test_single_non_hcp_cluster_create_tokens(
 
     default_integration.reconcile(dry_run=False, dependencies=dependencies)
 
-    ocm_client.patch_syncset.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.patch_manifest.assert_not_called()  # type: ignore[attr-defined]
-    ocm_client.create_manifest.assert_not_called()  # type: ignore[attr-defined]
-    dynatrace_client.update_token.assert_not_called()  # type: ignore[attr-defined]
+    ocm_client.patch_syncset.assert_not_called()
+    ocm_client.patch_manifest.assert_not_called()
+    ocm_client.create_manifest.assert_not_called()
+    dynatrace_client.update_token.assert_not_called()
 
-    assert (
-        len(dynatrace_client.create_api_token.mock_calls)  # type: ignore[attr-defined]
-        == 2
-    )
-    dynatrace_client.create_api_token.assert_any_call(  # type: ignore[attr-defined]
+    assert len(dynatrace_client.create_api_token.mock_calls) == 2
+    dynatrace_client.create_api_token.assert_any_call(
         name="dtp_operator-token_external_id_a_1b6c3b9a7248",
         scopes=[
             "activeGateTokenManagement.create",
@@ -91,24 +91,22 @@ def test_single_non_hcp_cluster_create_tokens(
             "InstallerDownload",
         ],
     )
-    dynatrace_client.create_api_token.assert_any_call(  # type: ignore[attr-defined]
+    dynatrace_client.create_api_token.assert_any_call(
         name="dtp_ingestion-token_external_id_a_f6e7fac64719",
         scopes=["metrics.ingest", "logs.ingest", "events.ingest"],
     )
-    ocm_client.create_syncset.assert_called_once_with(  # type: ignore[attr-defined]
+    ocm_client.create_syncset.assert_called_once_with(
         cluster_id="cluster_a",
         syncset_map=build_syncset(
             secrets=[
-                K8sSecret(
-                    secret_name="dynatrace-token-dtp",
-                    namespace_name="dynatrace",
+                build_k8s_secret(
                     tokens=[
-                        default_operator_token,
                         default_ingestion_token,
+                        default_operator_token,
                     ],
+                    tenant_id=tenant_id,
                 )
             ],
-            tenant_id=default_cluster.dt_tenant,
             with_id=True,
         ),
     )

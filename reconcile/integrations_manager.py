@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
     Sequence,
@@ -47,6 +48,7 @@ from reconcile.utils.runtime.sharding import (
     StaticShardingStrategy,
 )
 from reconcile.utils.semver_helper import make_semver
+from reconcile.utils.vcs import GITHUB_BASE_URL
 
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -58,8 +60,7 @@ INTEGRATION_UPSTREAM_REPOS_PARAM = "INTEGRATION_UPSTREAM_REPOS"
 
 
 def get_image_tag_from_ref(ref: str, upstream: str) -> str:
-    gh_prefix = "https://github.com/"
-    upstream = upstream.removeprefix(gh_prefix)
+    upstream = upstream.removeprefix(GITHUB_BASE_URL)
     settings = queries.get_app_interface_settings()
     gh_token = get_default_config()["token"]
     github = Github(gh_token, base_url=GH_BASE_URL)
@@ -119,7 +120,7 @@ def _build_helm_integration_spec(
     integration_name: str,
     managed: IntegrationManagedV1,
     shard_manager: IntegrationShardManager,
-):
+) -> HelmIntegrationSpec:
     integration_spec = managed.spec.dict(by_alias=True)
     shard_specs = shard_manager.build_integration_shards(integration_name, managed)
     his = HelmIntegrationSpec(
@@ -151,7 +152,7 @@ class IntegrationsEnvironment(BaseModel):
 
 def collect_integrations_environment(
     integrations: Iterable[IntegrationV1],
-    environment_name: str,
+    environment_name: str | None,
     shard_manager: IntegrationShardManager,
 ) -> list[IntegrationsEnvironment]:
     int_envs: dict[str, IntegrationsEnvironment] = {}
@@ -210,7 +211,7 @@ def fetch_desired_state(
     upstream: str,
     image: str,
     image_tag_from_ref: Mapping[str, str] | None,
-):
+) -> None:
     for ie in integrations_environments:
         oc_resources = construct_oc_resources(ie, upstream, image, image_tag_from_ref)
         for r in oc_resources:
@@ -230,17 +231,17 @@ def filter_integrations(
 
 @defer
 def run(
-    dry_run,
-    environment_name,
+    dry_run: bool,
+    environment_name: str | None,
     integration_runtime_meta: dict[str, IntegrationMeta],
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    image_tag_from_ref=None,
-    upstream=None,
-    image=None,
-    defer=None,
-):
+    thread_pool_size: int = 10,
+    internal: bool = False,
+    use_jump_host: bool = True,
+    image_tag_from_ref: dict[str, str] | None = None,
+    upstream: str | None = None,
+    image: str | None = None,
+    defer: Callable | None = None,
+) -> None:
     # Beware, environment_name can be empty! It's optional to set it!
     # If not set, all environments should be considered.
 
@@ -269,41 +270,31 @@ def run(
         logging.debug("Nothing to do, exiting.")
         sys.exit(ExitCodes.SUCCESS)
 
-    fetch_args = {
-        "namespaces": [
+    ri, oc_map = ob.fetch_current_state(
+        namespaces=[
             ie.namespace.dict(by_alias=True) for ie in integration_environments
         ],
-        "thread_pool_size": thread_pool_size,
-        "integration": QONTRACT_INTEGRATION,
-        "integration_version": QONTRACT_INTEGRATION_VERSION,
-        "override_managed_types": ["Deployment", "StatefulSet", "CronJob", "Service"],
-        "internal": internal,
-        "use_jump_host": use_jump_host,
-    }
-
-    if not image:
-        image = IMAGE_DEFAULT
-
-    if upstream:
-        use_upstream = True
-        fetch_args["caller"] = upstream
-    else:
-        # Not set to fetch_args on purpose, fallback for cases where caller is not yet set
-        use_upstream = False
-        upstream = UPSTREAM_DEFAULT
-
-    ri, oc_map = ob.fetch_current_state(**fetch_args)
-    defer(oc_map.cleanup)
+        thread_pool_size=thread_pool_size,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        override_managed_types=["Deployment", "StatefulSet", "CronJob", "Service"],
+        internal=internal,
+        use_jump_host=use_jump_host,
+        caller=upstream,
+    )
+    if defer:
+        defer(oc_map.cleanup)
 
     fetch_desired_state(
-        integration_environments, ri, upstream, image, image_tag_from_ref
+        integration_environments,
+        ri,
+        upstream or UPSTREAM_DEFAULT,
+        image or IMAGE_DEFAULT,
+        image_tag_from_ref,
     )
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
-    if use_upstream:
-        ob.realize_data(dry_run, oc_map, ri, thread_pool_size, caller=upstream)
-    else:
-        ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+    ob.realize_data(dry_run, oc_map, ri, thread_pool_size, caller=upstream)
 
     if ri.has_error_registered():
         sys.exit(ExitCodes.ERROR)

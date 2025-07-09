@@ -1,0 +1,7 @@
+# qenerate: plugin=pydantic_v1
+
+fragment EmailServiceOwners on App_v1 {
+  serviceOwners {
+    email
+  }
+}

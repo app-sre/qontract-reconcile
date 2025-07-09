@@ -29,6 +29,16 @@ def mock_early_exit_cache(mocker: MockerFixture) -> Mock:
     return mocker.patch("tools.qontract_cli.EarlyExitCache", autospec=True)
 
 
+@pytest.fixture
+def mock_get_app_interface_vault_settings(mocker: MockerFixture) -> Mock:
+    return mocker.patch("tools.qontract_cli.get_app_interface_vault_settings")
+
+
+@pytest.fixture
+def mock_create_secret_reader(mocker: MockerFixture) -> Mock:
+    return mocker.patch("tools.qontract_cli.create_secret_reader")
+
+
 def test_state_ls_with_integration(
     env_vars: None, mock_queries: None, mock_state: Mock
 ) -> None:
@@ -218,3 +228,27 @@ def test_get_openshift_cost_optimization_report(
         thread_pool_size=5
     )
     mock_openshift_cost_optimization_report_command.create.return_value.execute.assert_called_once_with()
+
+
+def test_external_resources_get_credentials(
+    mock_get_app_interface_vault_settings: Mock,
+    mock_create_secret_reader: Mock,
+) -> None:
+    mock_secret_read = mock_create_secret_reader.return_value.read_with_parameters
+    mock_secret_read.return_value = "expected"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        qontract_cli.external_resources,
+        "--provisioner provisioner --provider elasticache --identifier i get-credentials",
+        obj={},
+    )
+
+    assert result.exit_code == 0
+    assert result.output == "expected\n"
+    mock_secret_read.assert_called_once_with(
+        path="app-sre/external-resources/provisioner",
+        field="credentials",
+        format=None,
+        version=None,
+    )

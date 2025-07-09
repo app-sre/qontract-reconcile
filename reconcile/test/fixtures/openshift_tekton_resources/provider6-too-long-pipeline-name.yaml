@@ -31,6 +31,7 @@
   },
   "namespace": {
     "name": "provider1",
+    "delete": null,
     "cluster": {
       "name": "appsres03ue1",
       "serverUrl": "",

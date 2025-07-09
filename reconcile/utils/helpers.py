@@ -4,6 +4,7 @@ import re
 import string
 from collections import Counter
 from collections.abc import (
+    Generator,
     Iterable,
     Mapping,
 )
@@ -17,11 +18,12 @@ DEFAULT_TOGGLE_LEVEL = logging.ERROR
 
 
 @contextmanager
-def toggle_logger(log_level: int = DEFAULT_TOGGLE_LEVEL):
+def toggle_logger(log_level: int = DEFAULT_TOGGLE_LEVEL) -> Generator[logging.Logger]:
     logger = logging.getLogger()
     default_level = logger.level
     try:
-        yield logger.setLevel(log_level)  # type: ignore[func-returns-value]
+        logger.setLevel(log_level)
+        yield logger
     finally:
         logger.setLevel(default_level)
 

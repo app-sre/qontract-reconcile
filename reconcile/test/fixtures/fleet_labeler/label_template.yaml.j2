@@ -1,0 +1,2 @@
+tenant: {{ tenants[labels['cluster-sector']] | default(tenants['default']) }}
+tokenSpec: {{ tokenSpecs[labels['cluster-type']] | default(tokenSpecs['default']) }}

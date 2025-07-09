@@ -143,6 +143,9 @@ def run(
     workers_cluster: str | None = None,
     workers_namespace: str | None = None,
 ) -> None:
+    if dry_run and not dry_run_job_suffix:
+        raise RuntimeError("dry_run needs a dry_run_job_suffix")
+
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     er_settings = get_settings()

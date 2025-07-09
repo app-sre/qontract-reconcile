@@ -30,8 +30,8 @@ from reconcile.typed_queries.app_interface_repo_url import get_app_interface_rep
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
-from reconcile.utils.git import clone
-from reconcile.utils.gql import GqlApi, init_from_config
+from reconcile.utils.git import checkout, clone
+from reconcile.utils.gql import GqlApi
 from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
@@ -333,7 +333,6 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
     def reconcile(
         self, persistence: FilePersistence, ruamel_instance: yaml.YAML
     ) -> None:
-        gql_api = init_from_config(validate_schemas=False)
         for collection in get_template_collections(
             name=self.params.template_collection_name
         ):
@@ -351,7 +350,7 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 for item in for_each_items:
                     self.reconcile_template_collection(
                         collection=collection,
-                        gql_api=gql_api,
+                        gql_api=gql.get_api(),
                         persistence=p,
                         ruamel_instance=ruamel_instance,
                         each=item,
@@ -398,6 +397,8 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
             ) as temp_dir:
                 logging.debug(f"Cloning {url} to {temp_dir}")
                 clone(url, temp_dir, depth=1, verify=ssl_verify)
+                logging.debug(f"Checking out commit {gql.get_api().commit}")
+                checkout(str(gql.get_api().commit), temp_dir, verify=bool(ssl_verify))
                 persistence = ClonedRepoGitlabPersistence(
                     dry_run=dry_run,
                     local_path=temp_dir,

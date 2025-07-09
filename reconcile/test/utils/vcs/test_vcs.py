@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.mock import create_autospec
 
 import pytest
-from gitlab.v4.objects import ProjectMergeRequest
+from gitlab.v4.objects import ProjectMergeRequest, ProjectMergeRequestPipeline
 
 from reconcile.utils.vcs import VCS, Commit, MRCheckStatus, VCSMissingSourceBranchError
 
@@ -24,7 +24,9 @@ def test_gitlab_mr_check_status(
     expected_status: MRCheckStatus,
 ) -> None:
     vcs = vcs_builder({
-        "MR_PIPELINES": pipelines,
+        "MR_PIPELINES": [
+            create_autospec(ProjectMergeRequestPipeline, **p) for p in pipelines
+        ],
     })
 
     mr = create_autospec(spec=ProjectMergeRequest)
@@ -109,3 +111,58 @@ def test_close_mr_error(vcs_builder: Callable[[Mapping], VCS]) -> None:
         vcs.close_app_interface_mr(mr=mr, comment="test")
     vcs._app_interface_api.close.assert_not_called()  # type: ignore[attr-defined]
     vcs._app_interface_api.delete_branch.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_get_file_content_from_app_interface_ref_defaults(
+    vcs_builder: Callable[[Mapping], VCS],
+) -> None:
+    vcs = vcs_builder({})
+    vcs.get_file_content_from_app_interface_ref(file_path="/file.yaml")
+
+    vcs._app_interface_api.get_raw_file.assert_called_once_with(  # type: ignore[attr-defined]
+        project=vcs._app_interface_api.project,
+        path="data/file.yaml",
+        ref="master",
+    )
+
+
+def test_get_file_content_from_app_interface_ref_overrides(
+    vcs_builder: Callable[[Mapping], VCS],
+) -> None:
+    vcs = vcs_builder({})
+    vcs.get_file_content_from_app_interface_ref(
+        file_path="/file.yaml", is_data=False, ref="ref"
+    )
+
+    vcs._app_interface_api.get_raw_file.assert_called_once_with(  # type: ignore[attr-defined]
+        project=vcs._app_interface_api.project,
+        path="/file.yaml",
+        ref="ref",
+    )
+
+
+@pytest.mark.parametrize(
+    ["repo_url", "expected_platform", "expected_name"],
+    [
+        ("https://github.com/foo/bar", "github", "foo/bar"),
+        ("https://github.com/foo/bar.git", "github", "foo/bar"),
+        ("https://github.com/foo/bar/", "github", "foo/bar"),
+        ("http://github.com/foo/bar", "github", "foo/bar"),
+        ("https://github.ee.com/foo/bar", "github", "foo/bar"),
+        ("https://gitlab.com/foo/bar", "gitlab", "foo/bar"),
+        ("https://gitlab.com/foo/bar.git", "gitlab", "foo/bar"),
+        ("https://gitlab.com/foo/bar/", "gitlab", "foo/bar"),
+        ("http://gitlab.com/foo/bar", "gitlab", "foo/bar"),
+        ("https://gitlab.ee.com/foo/bar", "gitlab", "foo/bar"),
+        ("https://some-other-platform.com/foo/bar", None, "foo/bar"),
+    ],
+)
+def test_parse_repo_url(
+    repo_url: str,
+    expected_platform: str | None,
+    expected_name: str,
+) -> None:
+    repo_info = VCS.parse_repo_url(repo_url)
+
+    assert repo_info.platform == expected_platform
+    assert repo_info.name == expected_name

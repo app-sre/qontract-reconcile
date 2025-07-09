@@ -122,7 +122,7 @@ def guess_labels(
     return guesses
 
 
-def run(dry_run, gitlab_project_id=None, gitlab_merge_request_id=None) -> None:
+def run(dry_run: bool, gitlab_project_id: str, gitlab_merge_request_id: str) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     with GitLabApi(instance, project_id=gitlab_project_id, settings=settings) as gl:

@@ -5,8 +5,6 @@ query ExternalResourcesModules {
         provision_provider
         provider
         module_type
-        image
-        version
         reconcile_drift_interval_minutes
         reconcile_timeout_minutes
         outputs_secret_sync
@@ -14,6 +12,12 @@ query ExternalResourcesModules {
         outputs_secret_version
         resources {
           ... DeployResourcesFields
+        }
+        default_channel
+        channels {
+          name
+          image
+          version
         }
     }
 }

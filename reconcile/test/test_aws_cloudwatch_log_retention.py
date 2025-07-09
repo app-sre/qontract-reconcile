@@ -1,11 +1,11 @@
 import string
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
 )
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import boto3
 import pytest
@@ -16,6 +16,10 @@ from reconcile.aws_cloudwatch_log_retention.integration import (
     get_desired_cleanup_options_by_region,
     run,
 )
+from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
+    AWSAccountV1,
+)
+from reconcile.utils.gql import GqlApi
 
 if TYPE_CHECKING:
     from mypy_boto3_logs import CloudWatchLogsClient
@@ -55,35 +59,56 @@ def log_group_tf_tag(
 
 
 @pytest.fixture
-def test_cloudwatch_account() -> dict[str, Any]:
-    return {
-        "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
-        "cleanup": [
-            {
-                "provider": "cloudwatch",
-                "regex": "some-path*",
-                "retention_in_days": 30,
-                "delete_empty_log_group": None,
-                "region": None,
+def test_cloudwatch_account(
+    gql_class_factory: Callable[..., AWSAccountV1],
+) -> AWSAccountV1:
+    return gql_class_factory(
+        AWSAccountV1,
+        {
+            "path": "/aws/some/path/account.yml",
+            "name": "some-account-name",
+            "uid": string.digits,
+            "terraformUsername": None,
+            "consoleUrl": "https://some-url.com/console",
+            "resourcesDefaultRegion": "us-east-1",
+            "supportedDeploymentRegions": None,
+            "providerVersion": "3.14.159",
+            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
+            "automationToken": {
+                "path": "app-sre/some/path/config",
+                "field": "all",
+                "version": None,
+                "format": None,
             },
-            {
-                "provider": "cloudwatch",
-                "regex": "some-other-path*",
-                "retention_in_days": 60,
-                "delete_empty_log_group": True,
-                "region": "us-east-1",
-            },
-        ],
-        "consoleUrl": "https://some-url.com/console",
-        "name": "some-account-name",
-        "uid": string.digits,
-        "resourcesDefaultRegion": "us-east-1",
-        "disable": None,
-    }
+            "enableDeletion": None,
+            "deletionApprovals": None,
+            "disable": None,
+            "deleteKeys": None,
+            "premiumSupport": True,
+            "ecrs": None,
+            "partition": None,
+            "cleanup": [
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some-path*",
+                    "retention_in_days": 30,
+                    "delete_empty_log_group": None,
+                    "region": None,
+                },
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some-other-path*",
+                    "retention_in_days": 60,
+                    "delete_empty_log_group": True,
+                    "region": "us-east-1",
+                },
+            ],
+        },
+    )
 
 
 def test_get_desired_cleanup_options(
-    test_cloudwatch_account: dict,
+    test_cloudwatch_account: AWSAccountV1,
 ) -> None:
     desired_cleanup_options_by_region = get_desired_cleanup_options_by_region(
         test_cloudwatch_account
@@ -94,11 +119,15 @@ def test_get_desired_cleanup_options(
 
 def setup_mocks(
     mocker: MockerFixture,
-    aws_accounts: list[dict],
+    aws_accounts: Iterable[AWSAccountV1],
     log_groups: list[dict],
     tags: dict[str, Any],
     utcnow: datetime = datetime.now(UTC),  # noqa: B008
 ) -> MagicMock:
+    mocked_gql_api = create_autospec(GqlApi)
+    mocker.patch(
+        "reconcile.aws_cloudwatch_log_retention.integration.gql"
+    ).get_api.return_value = mocked_gql_api
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.get_aws_accounts",
         return_value=aws_accounts,
@@ -153,7 +182,7 @@ def managed_by_terraform_resources_tags() -> dict[str, str]:
 
 def test_run_with_unset_retention_log_group_and_default_cleanup(
     mocker: MockerFixture,
-    test_cloudwatch_account: dict[str, Any],
+    test_cloudwatch_account: AWSAccountV1,
     log_group_with_unset_retention: dict[str, Any],
     empty_tags: dict[str, Any],
 ) -> None:
@@ -167,20 +196,20 @@ def test_run_with_unset_retention_log_group_and_default_cleanup(
     run(dry_run=False, thread_pool_size=1)
 
     mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_unset_retention["arn"],
         "us-east-1",
     )
 
     mocked_aws_api.create_cloudwatch_tag.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_unset_retention["arn"],
         {"managed_by_integration": "aws_cloudwatch_log_retention"},
         "us-east-1",
     )
 
     mocked_aws_api.set_cloudwatch_log_retention.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         "group-without-retention",
         90,
         "us-east-1",
@@ -199,7 +228,7 @@ def log_group_with_unset_retention_and_matching_name() -> dict[str, Any]:
 
 def test_run_with_unset_retention_log_group_and_matching_cleanup(
     mocker: MockerFixture,
-    test_cloudwatch_account: dict[str, Any],
+    test_cloudwatch_account: AWSAccountV1,
     log_group_with_unset_retention_and_matching_name: dict[str, Any],
     empty_tags: dict[str, Any],
 ) -> None:
@@ -213,20 +242,20 @@ def test_run_with_unset_retention_log_group_and_matching_cleanup(
     run(dry_run=False, thread_pool_size=1)
 
     mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_unset_retention_and_matching_name["arn"],
         "us-east-1",
     )
 
     mocked_aws_api.create_cloudwatch_tag.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_unset_retention_and_matching_name["arn"],
         {"managed_by_integration": "aws_cloudwatch_log_retention"},
         "us-east-1",
     )
 
     mocked_aws_api.set_cloudwatch_log_retention.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         "some-path-group-without-retention",
         30,
         "us-east-1",
@@ -246,7 +275,7 @@ def log_group_with_desired_retention() -> dict[str, Any]:
 
 def test_run_with_matching_retention_log_group(
     mocker: MockerFixture,
-    test_cloudwatch_account: dict[str, Any],
+    test_cloudwatch_account: AWSAccountV1,
     log_group_with_desired_retention: dict[str, Any],
     managed_by_aws_cloudwatch_log_retention_tags: dict[str, Any],
 ) -> None:
@@ -266,7 +295,7 @@ def test_run_with_matching_retention_log_group(
 
 def test_run_with_log_group_managed_by_terraform_resources(
     mocker: MockerFixture,
-    test_cloudwatch_account: dict[str, Any],
+    test_cloudwatch_account: AWSAccountV1,
     log_group_with_unset_retention: dict[str, Any],
     managed_by_terraform_resources_tags: dict[str, Any],
 ) -> None:
@@ -280,7 +309,7 @@ def test_run_with_log_group_managed_by_terraform_resources(
     run(dry_run=False, thread_pool_size=1)
 
     mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_unset_retention["arn"],
         "us-east-1",
     )
@@ -302,7 +331,7 @@ def log_group_with_empty_stored_bytes() -> dict[str, Any]:
 
 def test_run_with_empty_log_group_after_retention_in_days(
     mocker: MockerFixture,
-    test_cloudwatch_account: dict[str, Any],
+    test_cloudwatch_account: AWSAccountV1,
     log_group_with_empty_stored_bytes: dict[str, Any],
     managed_by_aws_cloudwatch_log_retention_tags: dict[str, Any],
 ) -> None:
@@ -320,12 +349,12 @@ def test_run_with_empty_log_group_after_retention_in_days(
     run(dry_run=False, thread_pool_size=1)
 
     mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_empty_stored_bytes["arn"],
         "us-east-1",
     )
     mocked_aws_api.delete_cloudwatch_log_group.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_empty_stored_bytes["logGroupName"],
         "us-east-1",
     )
@@ -335,7 +364,7 @@ def test_run_with_empty_log_group_after_retention_in_days(
 
 def test_run_with_empty_log_group_before_retention_in_days(
     mocker: MockerFixture,
-    test_cloudwatch_account: dict[str, Any],
+    test_cloudwatch_account: AWSAccountV1,
     log_group_with_empty_stored_bytes: dict[str, Any],
     managed_by_aws_cloudwatch_log_retention_tags: dict[str, Any],
 ) -> None:
@@ -353,14 +382,14 @@ def test_run_with_empty_log_group_before_retention_in_days(
     run(dry_run=False, thread_pool_size=1)
 
     mocked_aws_api.get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         log_group_with_empty_stored_bytes["arn"],
         "us-east-1",
     )
     mocked_aws_api.delete_cloudwatch_log_group.assert_not_called()
     mocked_aws_api.create_cloudwatch_tag.assert_not_called()
     mocked_aws_api.set_cloudwatch_log_retention.assert_called_once_with(
-        test_cloudwatch_account["name"],
+        test_cloudwatch_account.name,
         "some-other-path-empty-group",
         60,
         "us-east-1",
@@ -368,18 +397,59 @@ def test_run_with_empty_log_group_before_retention_in_days(
 
 
 @pytest.fixture
-def account_with_disabled_integration() -> dict[str, Any]:
-    return {
-        "name": "disabled-account-name",
-        "disable": {
-            "integrations": ["aws-cloudwatch-log-retention"],
+def account_with_disabled_integration(
+    gql_class_factory: Callable[..., AWSAccountV1],
+) -> AWSAccountV1:
+    return gql_class_factory(
+        AWSAccountV1,
+        {
+            "path": "/aws/some/path/account.yml",
+            "name": "some-account-name",
+            "uid": string.digits,
+            "terraformUsername": None,
+            "consoleUrl": "https://some-url.com/console",
+            "resourcesDefaultRegion": "us-east-1",
+            "supportedDeploymentRegions": None,
+            "providerVersion": "3.14.159",
+            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
+            "automationToken": {
+                "path": "app-sre/some/path/config",
+                "field": "all",
+                "version": None,
+                "format": None,
+            },
+            "enableDeletion": None,
+            "deletionApprovals": None,
+            "disable": {
+                "integrations": ["aws-cloudwatch-log-retention"],
+            },
+            "deleteKeys": None,
+            "premiumSupport": True,
+            "ecrs": None,
+            "partition": None,
+            "cleanup": [
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some-path*",
+                    "retention_in_days": 30,
+                    "delete_empty_log_group": None,
+                    "region": None,
+                },
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some-other-path*",
+                    "retention_in_days": 60,
+                    "delete_empty_log_group": True,
+                    "region": "us-east-1",
+                },
+            ],
         },
-    }
+    )
 
 
 def test_run_with_disabled_integration_account(
     mocker: MockerFixture,
-    account_with_disabled_integration: dict[str, Any],
+    account_with_disabled_integration: AWSAccountV1,
 ) -> None:
     mocked_aws_api = setup_mocks(
         mocker,
@@ -394,33 +464,45 @@ def test_run_with_disabled_integration_account(
 
 
 @pytest.fixture
-def test_cloudwatch_account_with_multiple_regions() -> dict[str, Any]:
-    return {
-        "cleanup": [
-            {
-                "provider": "cloudwatch",
-                "regex": "some-path*",
-                "retention_in_days": 30,
-                "delete_empty_log_group": None,
-                "region": None,
+def test_cloudwatch_account_with_multiple_regions(
+    gql_class_factory: Callable[..., AWSAccountV1],
+) -> AWSAccountV1:
+    return gql_class_factory(
+        AWSAccountV1,
+        {
+            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
+            "automationToken": {
+                "path": "app-sre/some/path/config",
+                "field": "all",
+                "version": None,
+                "format": None,
             },
-            {
-                "provider": "cloudwatch",
-                "regex": "some-other-path*",
-                "retention_in_days": 60,
-                "delete_empty_log_group": True,
-                "region": "us-west-2",
-            },
-        ],
-        "name": "account-name-with-multiple_regions",
-        "uid": string.digits,
-        "resourcesDefaultRegion": "us-east-1",
-    }
+            "cleanup": [
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some-path*",
+                    "retention_in_days": 30,
+                    "delete_empty_log_group": None,
+                    "region": None,
+                },
+                {
+                    "provider": "cloudwatch",
+                    "regex": "some-other-path*",
+                    "retention_in_days": 60,
+                    "delete_empty_log_group": True,
+                    "region": "us-west-2",
+                },
+            ],
+            "name": "account-name-with-multiple_regions",
+            "uid": string.digits,
+            "resourcesDefaultRegion": "us-east-1",
+        },
+    )
 
 
 def test_run_with_multiple_regions_account(
     mocker: MockerFixture,
-    test_cloudwatch_account_with_multiple_regions: dict[str, Any],
+    test_cloudwatch_account_with_multiple_regions: AWSAccountV1,
 ) -> None:
     mocked_aws_api = setup_mocks(
         mocker,

@@ -62,7 +62,7 @@ from reconcile.utils.openshift_resource import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
@@ -402,9 +402,16 @@ def fetch_provider_vault_secret(
     validate_alertmanager_config: bool = False,
     alertmanager_config_key: str = "alertmanager.yaml",
     settings: Mapping[str, Any] | None = None,
+    secret_reader: SecretReaderBase | None = None,
 ) -> OR:
-    # get the fields from vault
-    secret_reader = SecretReader(settings)
+    if not secret_reader and not settings:
+        raise Exception(
+            "Parameter settings or secret_reader must be provided to run fetch_provider_vault_secret."
+        )
+
+    if not secret_reader:
+        # get the fields from vault
+        secret_reader = SecretReader(settings)
     raw_data = {
         k: v
         for k, v in secret_reader.read_all({"path": path, "version": version}).items()
@@ -660,6 +667,25 @@ def fetch_current_state(
         openshift_resource = OR(
             item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION
         )
+        labels = openshift_resource.body.get("metadata", {}).get("labels", {})
+        # Skip resources managed by the ArgoCD Operator (not ArgoCD Application CRs).
+        # This is determined by the presence of the label:
+        #   app.kubernetes.io/part-of=argocd
+        #
+        # Details:
+        # - The ArgoCD Operator sets this label on resources it manages directly.
+        # - ArgoCD Application CRs do NOT set this label.
+        # - See:
+        #     https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/
+        #     https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
+        #     https://github.com/argoproj-labs/argocd-operator/blob/master/common/keys.go#L98
+        if labels.get("app.kubernetes.io/part-of") == "argocd":
+            _locked_debug_log(
+                f"Skipping {openshift_resource.kind} {openshift_resource.name} in current state "
+                f"for cluster '{cluster}' namespace '{namespace}' because it is managed by the ArgoCD Operator "
+                "(not by an ArgoCD Application CR)."
+            )
+            continue
         ri.add_current(
             cluster,
             namespace,
@@ -691,7 +717,6 @@ def fetch_desired_state(
         msg = f"[{cluster}/{namespace}] {e!s}"
         _locked_error_log(msg)
         return
-
     # add to inventory
     try:
         ri.add_desired_resource(

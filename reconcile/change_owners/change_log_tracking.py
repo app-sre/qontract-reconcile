@@ -1,7 +1,11 @@
 import logging
 from collections import defaultdict
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+
+from gitlab.v4.objects import (
+    ProjectCommit,
+)
+from pydantic import BaseModel
 
 from reconcile.change_owners.bundle import (
     NoOpFileDiffResolver,
@@ -22,7 +26,6 @@ from reconcile.typed_queries.jenkins import get_jenkins_configs
 from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.gitlab_api import MRState
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -31,21 +34,20 @@ from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
+DEFAULT_MERGE_COMMIT_PREFIX = "Merge branch '"
 
 
-@dataclass
-class ChangeLogItem:
+class ChangeLogItem(BaseModel):
     commit: str
     merged_at: str
-    change_types: list[str] = field(default_factory=list)
+    change_types: list[str] = []
     error: bool = False
-    apps: list[str] = field(default_factory=list)
+    apps: list[str] = []
     description: str = ""
 
 
-@dataclass
-class ChangeLog:
-    items: list[ChangeLogItem] = field(default_factory=list)
+class ChangeLog(BaseModel):
+    items: list[ChangeLogItem] = []
 
     @property
     def apps(self) -> set[str]:
@@ -66,6 +68,25 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
+
+    @staticmethod
+    def _get_description_from_commit(commit: ProjectCommit) -> str:
+        """
+        Extracts the description from a commit message.
+        Skip the default merge commit template.
+        Merge branch '%{source_branch}' into '%{target_branch}'
+        https://gitlab.cee.redhat.com/help/user/project/merge_requests/commit_templates#default-template-for-merge-commits
+
+        :param commit: ProjectCommit object from GitLab API
+        :return: Extracted description or an empty string if not found
+        """
+        for message in commit.message.splitlines():
+            trimmed_message = message.strip()
+            if trimmed_message and not trimmed_message.startswith(
+                DEFAULT_MERGE_COMMIT_PREFIX
+            ):
+                return trimmed_message
+        return ""
 
     @defer
     def run(
@@ -89,28 +110,19 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             app = ns.app.name
             app_names_by_cluster_name[cluster].add(app)
         jenkins_configs = get_jenkins_configs()
+        integration_state = init_state(integration=self.name)
+        gl = init_gitlab(self.params.gitlab_project_id)
+        diff_state = init_state(integration=self.name)
+        diff_state.state_path = "bundle-archive/diff"
 
-        integration_state = init_state(
-            integration=self.name,
-        )
         if defer:
             defer(integration_state.cleanup)
-        diff_state = init_state(
-            integration=self.name,
-        )
-        if defer:
             defer(diff_state.cleanup)
-        diff_state.state_path = "bundle-archive/diff"
+            defer(gl.cleanup)
 
         if not self.params.process_existing:
             existing_change_log = ChangeLog(**integration_state.get(BUNDLE_DIFFS_OBJ))
-            existing_change_log_items = [
-                ChangeLogItem(**i)  # type: ignore[arg-type]
-                for i in existing_change_log.items
-            ]
-        gl = init_gitlab(self.params.gitlab_project_id)
-        if defer:
-            defer(gl.cleanup)
+
         change_log = ChangeLog()
         for item in diff_state.ls():
             key = item.lstrip("/")
@@ -119,7 +131,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 continue
             if not self.params.process_existing:
                 existing_change_log_item = next(
-                    (i for i in existing_change_log_items if i.commit == commit), None
+                    (i for i in existing_change_log.items if i.commit == commit), None
                 )
                 if existing_change_log_item:
                     logging.debug(f"Found existing commit {commit}")
@@ -128,16 +140,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
 
             logging.info(f"Processing commit {commit}")
             gl_commit = gl.project.commits.get(commit)
-            merged_at = max(
-                mr["merged_at"]
-                for mr in gl_commit.merge_requests()
-                if mr["state"] == MRState.MERGED
-                and mr["target_branch"] == gl.project.default_branch
-            )
             change_log_item = ChangeLogItem(
                 commit=commit,
-                merged_at=merged_at,
-                description=gl_commit.message.split("\n")[2],
+                merged_at=gl_commit.committed_date,
+                description=self._get_description_from_commit(gl_commit),
             )
             change_log.items.append(change_log_item)
             obj = diff_state.get(key, None)
@@ -233,4 +239,4 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             change_log.items, key=lambda i: i.merged_at, reverse=True
         )
         if not dry_run:
-            integration_state.add(BUNDLE_DIFFS_OBJ, asdict(change_log), force=True)
+            integration_state.add(BUNDLE_DIFFS_OBJ, change_log.dict(), force=True)

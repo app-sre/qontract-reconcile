@@ -7,7 +7,7 @@ from collections.abc import ItemsView, Iterable, Iterator, MutableMapping
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from reconcile.external_resources.meta import (
     FLAG_DELETE_RESOURCE,
@@ -20,6 +20,7 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
     NamespaceTerraformResourceDynamoDBV1,
+    NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
@@ -32,7 +33,7 @@ from reconcile.gql_definitions.external_resources.external_resources_settings im
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
     ExternalResourcesModuleOverrides,
 )
-from reconcile.gql_definitions.fragments.deplopy_resources import DeployResourcesFields
+from reconcile.gql_definitions.fragments.deploy_resources import DeployResourcesFields
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
@@ -59,6 +60,10 @@ class ExternalResourceOutputResourceNameDuplications(Exception):
             "\n".join(map(str, duplicates)),
         ]
         super().__init__("".join(msg))
+
+
+class ExternalResourceModuleConfigurationError(Exception):
+    pass
 
 
 class ExternalResourceValidationError(Exception):
@@ -100,6 +105,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceElastiCacheV1
     | NamespaceTerraformResourceDynamoDBV1
     | NamespaceTerraformResourceKMSV1
+    | NamespaceTerraformResourceCloudWatchV1
 )
 
 
@@ -260,11 +266,12 @@ class Resources(BaseModel, frozen=True):
 class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     image: str = ""
     version: str = ""
-    reconcile_drift_interval_minutes: int = -1000
-    reconcile_timeout_minutes: int = -1000
+    reconcile_drift_interval_minutes: int = 1440
+    reconcile_timeout_minutes: int = 1440  # same as https://developer.hashicorp.com/terraform/enterprise/application-administration/general#terraform-run-timeout-settings
     outputs_secret_image: str = ""
     outputs_secret_version: str = ""
     resources: Resources = Resources()
+    overridden: bool = Field(default=False, exclude=True)
 
     @property
     def image_version(self) -> str:
@@ -280,21 +287,50 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
         spec: ExternalResourceSpec,
         settings: ExternalResourcesSettingsV1,
     ) -> "ExternalResourceModuleConfiguration":
-        module_overrides = spec.metadata.get(
-            "module_overrides"
-        ) or ExternalResourcesModuleOverrides(
-            module_type=None,
-            image=None,
-            version=None,
-            reconcile_timeout_minutes=None,
-            outputs_secret_image=None,
-            outputs_secret_version=None,
-            resources=None,
+        """Resolve the module configuration for a given ExternalResourceSpec.
+        Priority:
+        1.- Module_overrides from the spec
+        2.- Provisioner (AWS account) channel
+        3.- Module default channel
+        """
+
+        module_overrides = spec.metadata.get("module_overrides")
+        overridden = module_overrides is not None
+
+        if module_overrides is None:
+            module_overrides = ExternalResourcesModuleOverrides(
+                module_type=None,
+                image=None,
+                version=None,
+                channel=None,
+                reconcile_timeout_minutes=None,
+                outputs_secret_image=None,
+                outputs_secret_version=None,
+                resources=None,
+            )
+
+        provisioner_channel = (spec.provisioner.get("external_resources") or {}).get(
+            "channel"
+        ) or None
+
+        channel_name = (
+            module_overrides.channel or provisioner_channel or module.default_channel
         )
 
+        channel = next(
+            (c for c in module.channels if c.name == channel_name),
+            None,
+        )
+
+        if channel is None:
+            raise ExternalResourceModuleConfigurationError(
+                f"Module {module.provision_provider}/{module.provider} does not have the channel {channel_name}. "
+                f"Resource spec: {spec.id_object()}"
+            )
+
         return ExternalResourceModuleConfiguration(
-            image=module_overrides.image or module.image,
-            version=module_overrides.version or module.version,
+            image=module_overrides.image or channel.image,
+            version=module_overrides.version or channel.version,
             reconcile_drift_interval_minutes=module.reconcile_drift_interval_minutes,
             reconcile_timeout_minutes=module_overrides.reconcile_timeout_minutes
             or module.reconcile_timeout_minutes,
@@ -309,6 +345,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
                 or module.resources
                 or settings.module_default_resources
             ),
+            overridden=overridden,
         )
 
 
@@ -360,6 +397,7 @@ class ReconcileAction(StrEnum):
     APPLY_SPEC_CHANGED = "Resource spec has changed"
     APPLY_DRIFT_DETECTION = "Resource drift detection run"
     APPLY_USER_REQUESTED = "Resource reconciliation requested"
+    APPLY_MODULE_CONFIG_OVERRIDDEN = "Module configuration overridden"
     DESTROY_CREATED = "Resource no longer exists in the configuration"
     DESTROY_ERROR = "Resource status in ERROR state"
 

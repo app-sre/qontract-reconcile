@@ -189,19 +189,21 @@ def test_gitlab_members_reconcile_gitlab_members(
         dry_run=False,
         gl=gl_mock,
     )
-    gl_mock.add_group_member.assert_called_once_with(group, new_user)
+    gl_mock.add_group_member.assert_called_once_with(
+        group, new_user.user, new_user.access_level
+    )
     gl_mock.change_access.assert_called_once_with(all_users[2], 50)
     gl_mock.remove_group_member.assert_called_once_with(group, all_users[3].id)
 
 
-def test_add_or_update_user_add():
+def test_add_or_update_user_add() -> None:
     desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
     gu = GitlabUser(user="u", access_level=50, id="1234")
     add_or_update_user(desired_state_spec, gu)
     assert desired_state_spec == DesiredStateSpec(members={"u": gu})
 
 
-def test_add_or_update_user_update_higher():
+def test_add_or_update_user_update_higher() -> None:
     desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
     gu1 = GitlabUser(user="u", access_level=40)
     gu2 = GitlabUser(user="u", access_level=50)
@@ -210,7 +212,7 @@ def test_add_or_update_user_update_higher():
     assert desired_state_spec == DesiredStateSpec(members={"u": gu2})
 
 
-def test_add_or_update_user_update_lower():
+def test_add_or_update_user_update_lower() -> None:
     desired_state_spec: DesiredStateSpec = DesiredStateSpec(members={})
     gu1 = GitlabUser(user="u", access_level=50)
     gu2 = GitlabUser(user="u", access_level=40)

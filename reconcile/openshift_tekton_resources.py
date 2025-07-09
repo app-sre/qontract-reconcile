@@ -139,6 +139,9 @@ def fetch_desired_resources(
     while we are migrating from the current system to this integration"""
     desired_resources = []
     for tknp in tkn_providers.values():
+        if tknp["namespace"]["delete"]:
+            continue
+
         namespace = tknp["namespace"]["name"]
         cluster = tknp["namespace"]["cluster"]["name"]
         deploy_resources = tknp.get("deployResources") or DEFAULT_DEPLOY_RESOURCES
