@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Callable
 
 from sretoolbox.utils import threaded
@@ -18,12 +20,10 @@ from reconcile.saas_auto_promotions_manager.publisher import Publisher
 from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils.defer import defer
-from reconcile.utils.promotion_state import PromotionState
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.vcs import VCS
 
 
 class SaasAutoPromotionsManagerParams(PydanticRunParams):
@@ -35,50 +35,69 @@ class SaasAutoPromotionsManagerParams(PydanticRunParams):
 class SaasAutoPromotionsManager(
     QontractReconcileIntegration[SaasAutoPromotionsManagerParams]
 ):
+    @classmethod
+    def create(
+        cls,
+        dry_run: bool,
+        thread_pool_size: int,
+        env_name: str | None = None,
+        app_name: str | None = None,
+    ) -> SaasAutoPromotionsManager:
+        dependencies = Dependencies.create(
+            dry_run=dry_run,
+            thread_pool_size=thread_pool_size,
+            env_name=env_name,
+            app_name=app_name,
+        )
+        params = SaasAutoPromotionsManagerParams(
+            thread_pool_size=thread_pool_size,
+            env_name=env_name,
+            app_name=app_name,
+        )
+        return cls(dependencies=dependencies, params=params)
+
+    def __init__(
+        self, dependencies: Dependencies, params: SaasAutoPromotionsManagerParams
+    ):
+        super().__init__(params)
+        self._dependencies = dependencies
+
     def _fetch_publisher_state(
         self,
         publisher: Publisher,
-        vcs: VCS,
-        deployment_state: PromotionState,
     ) -> None:
         publisher.fetch_commit_shas_and_deployment_info(
-            vcs=vcs,
-            deployment_state=deployment_state,
+            vcs=self._dependencies.vcs,
+            deployment_state=self._dependencies.deployment_state,
         )
 
-    def _fetch_publisher_real_world_states(
-        self, dependencies: Dependencies, thread_pool_size: int
-    ) -> None:
+    def _fetch_publisher_real_world_states(self, thread_pool_size: int) -> None:
         threaded.run(
-            lambda publisher: self._fetch_publisher_state(
-                publisher,
-                dependencies.vcs,
-                dependencies.deployment_state,
-            ),
-            dependencies.saas_file_inventory.publishers,
+            self._fetch_publisher_state,
+            self._dependencies.saas_file_inventory.publishers,
             thread_pool_size=thread_pool_size,
         )
 
-    def _compute_desired_subscriber_states(self, dependencies: Dependencies) -> None:
-        for subscriber in dependencies.saas_file_inventory.subscribers:
+    def _compute_desired_subscriber_states(self) -> None:
+        for subscriber in self._dependencies.saas_file_inventory.subscribers:
             subscriber.compute_desired_state()
 
-    def _get_subscribers_with_diff(
-        self, dependencies: Dependencies
-    ) -> list[Subscriber]:
-        return [s for s in dependencies.saas_file_inventory.subscribers if s.has_diff()]
+    def _get_subscribers_with_diff(self) -> list[Subscriber]:
+        return [
+            s
+            for s in self._dependencies.saas_file_inventory.subscribers
+            if s.has_diff()
+        ]
 
-    def reconcile(
-        self, dependencies: Dependencies, thread_pool_size: int, dry_run: bool
-    ) -> None:
-        dependencies.deployment_state.cache_commit_shas_from_s3()
-        self._fetch_publisher_real_world_states(dependencies, thread_pool_size)
-        self._compute_desired_subscriber_states(dependencies)
-        subscribers_with_diff = self._get_subscribers_with_diff(dependencies)
+    def reconcile(self, thread_pool_size: int, dry_run: bool) -> None:
+        self._dependencies.deployment_state.cache_commit_shas_from_s3()
+        self._fetch_publisher_real_world_states(thread_pool_size)
+        self._compute_desired_subscriber_states()
+        subscribers_with_diff = self._get_subscribers_with_diff()
 
-        mr_parser = MRParser(vcs=dependencies.vcs)
+        mr_parser = MRParser(vcs=self._dependencies.vcs)
         merge_request_manager_v2 = MergeRequestManagerV2(
-            vcs=dependencies.vcs,
+            vcs=self._dependencies.vcs,
             reconciler=Batcher(),
             mr_parser=mr_parser,
             renderer=Renderer(),
@@ -86,11 +105,11 @@ class SaasAutoPromotionsManager(
         merge_request_manager_v2.reconcile(subscribers=subscribers_with_diff)
 
         s3_exporter = S3Exporter(
-            state=dependencies.sapm_state,
+            state=self._dependencies.sapm_state,
             dry_run=dry_run,
         )
         s3_exporter.export_publisher_data(
-            publishers=dependencies.saas_file_inventory.publishers
+            publishers=self._dependencies.saas_file_inventory.publishers
         )
 
     @property
@@ -103,16 +122,8 @@ class SaasAutoPromotionsManager(
         dry_run: bool,
         defer: Callable | None = None,
     ) -> None:
-        deps = Dependencies.create(
-            dry_run=dry_run,
-            thread_pool_size=self.params.thread_pool_size,
-            env_name=self.params.env_name,
-            app_name=self.params.app_name,
-        )
         if defer:
-            defer(deps.vcs.cleanup)
-            defer(deps.saas_deploy_state.cleanup)
-            defer(deps.sapm_state.cleanup)
-        self.reconcile(
-            deps, thread_pool_size=self.params.thread_pool_size, dry_run=dry_run
-        )
+            defer(self._dependencies.vcs.cleanup)
+            defer(self._dependencies.saas_deploy_state.cleanup)
+            defer(self._dependencies.sapm_state.cleanup)
+        self.reconcile(thread_pool_size=self.params.thread_pool_size, dry_run=dry_run)

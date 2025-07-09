@@ -34,11 +34,11 @@ def test_sapm_reconcile_empty_states_no_change(secret_reader: SecretReaderBase) 
             thread_pool_size=1,
             env_name=None,
             app_name=None,
-        )
+        ),
+        dependencies=dependencies,
     )
 
     integration.reconcile(
-        dependencies=dependencies,
         thread_pool_size=1,
         dry_run=False,
     )
