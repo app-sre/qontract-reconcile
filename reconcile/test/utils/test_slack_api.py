@@ -280,6 +280,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
             },
             ["ID_A"],
             {"ID_A": "user_a"},
@@ -288,6 +289,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ENTERPRISE_ID_A"],
@@ -297,6 +299,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ID_A"],
@@ -306,6 +309,7 @@ def test_create_usergroup(slack_api: SlackApiMock) -> None:
             {
                 "id": "ID_A",
                 "name": "user_a",
+                "profile": {"email": "user_a@example.com"},
                 "enterprise_user": {"id": "ENTERPRISE_ID_A"},
             },
             ["ID_NOT_FOUND"],
@@ -323,6 +327,82 @@ def test_get_users_by_ids(
     slack_api.mock_slack_client.return_value.api_call.return_value = slack_response
 
     assert slack_api.client.get_users_by_ids(ids) == expected
+
+
+@pytest.mark.parametrize(
+    "user_data, input_names, expected_output",
+    [
+        (
+            {
+                "ID_A": {
+                    "deleted": False,
+                    "name": "not_user_a",
+                    "profile": {"email": "user_a@example.com"},
+                }
+            },
+            ["user_a"],
+            {"ID_A": "user_a"},
+        ),
+        (
+            {
+                "ID_A": {
+                    "deleted": True,
+                    "name": "user_a",
+                    "profile": {"email": "user_a@example.com"},
+                }
+            },
+            ["user_a"],
+            {},
+        ),
+        (
+            {
+                "ID_A": {
+                    "deleted": False,
+                    "name": "user_a",
+                    "profile": {},
+                }
+            },
+            ["user_a"],
+            {},
+        ),
+        (
+            {
+                "ID_A": {
+                    "deleted": False,
+                    "name": "user_a",
+                    "profile": {"email": "other@example.com"},
+                }
+            },
+            ["user_a"],
+            {},
+        ),
+        (
+            {
+                "ID_A": {
+                    "deleted": False,
+                    "name": "testuser_1",
+                    "profile": {"email": "testuser@redhat.com"},
+                },
+                "ID_B": {
+                    "deleted": False,
+                    "name": "testuser_2",
+                    "profile": {"email": "testuser@gmail.com"},
+                },
+            },
+            ["testuser"],
+            {"ID_A": "testuser", "ID_B": "testuser"},
+        ),
+    ],
+)
+def test_get_active_users_by_names(
+    slack_api: SlackApiMock,
+    user_data: dict[str, dict[str, Any]],
+    input_names: list[str],
+    expected_output: dict[str, str],
+) -> None:
+    slack_api.client._results["users"] = user_data
+    result = slack_api.client.get_active_users_by_names(input_names)
+    assert result == expected_output
 
 
 def test_update_usergroup_users(slack_api: SlackApiMock) -> None:
