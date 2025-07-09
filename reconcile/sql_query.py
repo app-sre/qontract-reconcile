@@ -11,6 +11,7 @@ from textwrap import indent
 from typing import Any
 
 import jinja2
+from sretoolbox.container.image import Image
 
 from reconcile import (
     openshift_base,
@@ -81,35 +82,36 @@ spec:
     metadata:
       name: {{ JOB_NAME }}
     spec:
-      {% if PULL_SECRET is not none %}
+      {%- if PULL_SECRET is not none %}
       imagePullSecrets:
       - name: {{ PULL_SECRET }}
-      {% endif %}
+      {%- endif %}
       restartPolicy: Never
       serviceAccountName: {{ SVC_NAME }}
       containers:
       - name: {{ JOB_NAME }}
         image: {{ JOB_IMAGE }}
+        imagePullPolicy: {{ JOB_IMAGE_PULL_POLICY }}
         command:
           - /bin/bash
         args:
           - '-c'
           - '{{ COMMAND }}'
         env:
-          {% for key, value in DB_CONN.items() %}
-          {% if value is none %}
+          {%- for key, value in DB_CONN.items() %}
+          {%- if value is none %}
           # When value is not provided, we get it from the secret
           - name: {{ key }}
             valueFrom:
               secretKeyRef:
                 name: {{ SECRET_NAME }}
                 key: {{ key }}
-          {% else %}
+          {%- else %}
           # When value is provided, we get just use it
           - name: {{ key }}
             value: {{ value }}
-          {% endif %}
-          {% endfor %}
+          {%- endif %}
+          {%- endfor %}
         resources:
           requests:
             memory: "{{ REQUESTS_MEM }}"
@@ -125,10 +127,10 @@ spec:
         - name: configs
           projected:
             sources:
-            {% for cm in CONFIG_MAPS %}
+            {%- for cm in CONFIG_MAPS %}
             - configMap:
                 name: {{ cm }}
-          {% endfor %}
+            {%- endfor %}
 """
 
 
@@ -450,6 +452,9 @@ def process_template(
     command += engine_cmd_map[engine](sqlqueries_file="/tmp/queries")
     command += make_output_cmd(output=output, recipient=query.get("recipient", ""))
 
+    job_image_tag = Image(job_image).tag
+    job_image_pull_policy = "Always" if job_image_tag == "latest" else "IfNotPresent"
+
     template_to_render = JOB_TEMPLATE
     render_kwargs = {
         "JOB_NAME": query["name"],
@@ -457,6 +462,7 @@ def process_template(
         "QUERY_NAME": query["name"],
         "QONTRACT_INTEGRATION": QONTRACT_INTEGRATION,
         "JOB_IMAGE": job_image,
+        "JOB_IMAGE_PULL_POLICY": job_image_pull_policy,
         "SECRET_NAME": query["output_resource_name"],
         "DB_CONN": query["db_conn"],
         "CONFIG_MAPS": config_map_names,
@@ -852,7 +858,7 @@ def run(
         mail_address=smtp_settings.mail_address,
         timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
     )
-    job_image = "quay.io/app-sre/debug-container"
+    job_image = "quay.io/app-sre/debug-container:latest"
 
     sql_query_settings = settings.get("sqlQuery")
     pull_secret: dict[str, Any] = {}

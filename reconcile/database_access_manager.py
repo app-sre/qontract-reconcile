@@ -13,6 +13,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from sretoolbox.container.image import Image
 
 from reconcile import openshift_base, queries
 from reconcile import openshift_resources_base as orb
@@ -237,8 +238,11 @@ class JobData(BaseModel):
 def get_job_spec(job_data: JobData) -> OpenshiftResource:
     job_name = f"dbam-{job_data.name_suffix}"
 
+    image_tag = Image(job_data.image).tag
+    image_pull_policy = "Always" if image_tag == "latest" else "IfNotPresent"
+
     if job_data.engine == "postgres":
-        command = "/usr/local/bin/psql"
+        command = "/usr/bin/psql"
 
     job = {
         "apiVersion": "batch/v1",
@@ -268,6 +272,7 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                         {
                             "name": job_name,
                             "image": f"{job_data.image}",
+                            "imagePullPolicy": image_pull_policy,
                             "command": [
                                 command,
                             ],
@@ -618,7 +623,8 @@ def _process_db_access(
             raise KeyError("sqlQuery settings are required")
 
         job_image = (
-            sql_query_settings.get("jobImage") or "quay.io/app-sre/debug-container"
+            sql_query_settings.get("jobImage")
+            or "quay.io/app-sre/debug-container:latest"
         )
 
         managed_resources = _populate_resources(
