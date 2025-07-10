@@ -2375,14 +2375,18 @@ def saas_auto_promotions_manager(
     env_name: str | None,
     app_name: str | None,
 ) -> None:
-    import reconcile.saas_auto_promotions_manager.integration
+    from reconcile.saas_auto_promotions_manager.integration import (
+        SaasAutoPromotionsManager,
+    )
 
-    run_integration(
-        reconcile.saas_auto_promotions_manager.integration,
-        ctx,
-        thread_pool_size,
-        env_name=env_name,
-        app_name=app_name,
+    run_class_integration(
+        integration=SaasAutoPromotionsManager.create(
+            env_name=env_name,
+            app_name=app_name,
+            thread_pool_size=thread_pool_size,
+            dry_run=ctx.obj["dry_run"],
+        ),
+        ctx=ctx,
     )
 
 
