@@ -36,8 +36,13 @@ from reconcile.utils.state import init_state
 from reconcile.utils.unleash import get_feature_toggle_state
 
 QONTRACT_INTEGRATION = "openshift-saas-deploy"
+INSCOPE_URL = "https://inscope.corp.redhat.com/catalog/default/component/"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
+def compose_rollout_url(saas_file: SaasFile) -> str:
+    return (
+        f"{INSCOPE_URL}{saas_file.app.namel}/rollout/"
+    )
 
 def compose_console_url(saas_file: SaasFile, env_name: str) -> str:
     if not isinstance(saas_file.pipelines_provider, PipelinesProviderTektonV1):
@@ -67,6 +72,7 @@ def slack_notify(
     slack: SlackApi,
     ri: ResourceInventory,
     console_url: str,
+    rollout_url: str,
     in_progress: bool,
     trigger_integration: str | None = None,
     trigger_reason: str | None = None,
@@ -95,7 +101,7 @@ def slack_notify(
     message = (
         f"{icon} SaaS file *{saas_file_name}* "
         + f"deployment to environment *{env_name}*: "
-        + f"{description} (<{console_url}|Open>)"
+        + f"{description} (<{console_url}|Console> | <{rollout_url}|Rollout>)"
     )
     if trigger_reason:
         message += f". Reason: {trigger_reason}"
@@ -116,6 +122,7 @@ def run(
     env_name: str | None = None,
     trigger_integration: str | None = None,
     trigger_reason: str | None = None,
+    rollout_url: str | None = None,
     saas_file_list: SaasFileList | None = None,
     defer: Callable | None = None,
 ) -> None:
@@ -155,6 +162,7 @@ def run(
                 init_usergroups=False,
             )
             ri = ResourceInventory()
+            rollout_url = compose_rollout_url(saas_file)
             console_url = compose_console_url(saas_file, env_name)
             if (
                 defer
@@ -167,6 +175,7 @@ def run(
                         slack,
                         ri,
                         console_url,
+                        rollout_url=rollout_url,
                         in_progress=False,
                         trigger_integration=trigger_integration,
                         trigger_reason=trigger_reason,
@@ -181,6 +190,7 @@ def run(
                     slack,
                     ri,
                     console_url,
+                    rollout_url=rollout_url,
                     in_progress=True,
                     trigger_integration=trigger_integration,
                     trigger_reason=trigger_reason,
