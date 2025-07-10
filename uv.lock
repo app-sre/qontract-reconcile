@@ -750,24 +750,22 @@ wheels = [
 
 [[package]]
 name = "moto"
-version = "2.3.2"
+version = "5.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
     { name = "botocore" },
     { name = "cryptography" },
     { name = "jinja2" },
-    { name = "markupsafe" },
     { name = "python-dateutil" },
-    { name = "pytz" },
     { name = "requests" },
     { name = "responses" },
     { name = "werkzeug" },
     { name = "xmltodict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ce/a3/672bd625693576763080e077dce34bdd45f8cc9e35136486a9ba38c98418/moto-2.3.2.tar.gz", hash = "sha256:eaaed229742adbd1387383d113350ecd9222fc1e8f5611a9395a058c1eee4377", size = 2095242, upload-time = "2022-01-15T23:22:02.299Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/c0/eb2c997ffb22af6878a5d369284ad0bf2356d6b22686b5350f749d7a7db7/moto-5.1.6.tar.gz", hash = "sha256:baf7afa9d4a92f07277b29cf466d0738f25db2ed2ee12afcb1dc3f2c540beebd", size = 6964053, upload-time = "2025-06-15T22:11:39.372Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/d8/ad1592ec7505bf9eca410f33fae8564f8a55ed5df5b51acd53b576f5b860/moto-2.3.2-py2.py3-none-any.whl", hash = "sha256:0c29f5813d4db69b2f99c5538909a5aba0ba1cb91a74c19eddd9bfdc39ed2ff3", size = 1524988, upload-time = "2022-01-15T23:21:59.367Z" },
+    { url = "https://files.pythonhosted.org/packages/f9/2f/62f959b7412dc87c545b8139249f0cb97cd133777e56405d54581114507f/moto-5.1.6-py3-none-any.whl", hash = "sha256:e4a3092bc8fe9139caa77cd34cdcbad804de4d9671e2270ea3b4d53f5c645047", size = 5046471, upload-time = "2025-06-15T22:11:37.207Z" },
 ]
 
 [[package]]
@@ -1647,7 +1645,7 @@ dev = [
     { name = "boto3-stubs", extras = ["account", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.34.94" },
     { name = "kubernetes-stubs", specifier = "==22.6.0" },
     { name = "markupsafe", specifier = "~=2.1.1" },
-    { name = "moto", specifier = "~=2.2" },
+    { name = "moto", specifier = "~=5.1" },
     { name = "mypy", specifier = "~=1.13.0" },
     { name = "pyfakefs", specifier = "~=5.1" },
     { name = "pytest", specifier = "~=8.3" },
