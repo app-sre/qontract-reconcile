@@ -23,7 +23,7 @@ EMAIL_TEMPLATE = PROJ_ROOT / "templates" / "email.yml.j2"
 LOG = logging.getLogger(__name__)
 
 
-class CancelMergeRequest(Exception):
+class CancelMergeRequestError(Exception):
     """
     Used when the Merge Request processing is canceled.
     """
@@ -64,7 +64,7 @@ class MergeRequestBase(ABC):
 
     def cancel(self, message: str) -> None:
         self.cancelled = True
-        raise CancelMergeRequest(
+        raise CancelMergeRequestError(
             f"{self.name} MR canceled for branch {self.branch}. Reason: {message}"
         )
 
@@ -185,7 +185,7 @@ class MergeRequestBase(ABC):
             return gitlab_cli.project.mergerequests.create(
                 self.gitlab_data(target_branch=gitlab_cli.main_branch)
             )
-        except CancelMergeRequest as mr_cancel:
+        except CancelMergeRequestError as mr_cancel:
             # cancellation is a valid behaviour. it indicates, that the
             # operation is not required, therefore we will not signal
             # a problem back to the caller

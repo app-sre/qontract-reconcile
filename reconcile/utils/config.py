@@ -6,11 +6,11 @@ import toml
 _config: dict = {}
 
 
-class ConfigNotFound(Exception):
+class ConfigNotFoundError(Exception):
     pass
 
 
-class SecretNotFound(Exception):
+class SecretNotFoundError(Exception):
     pass
 
 
@@ -38,7 +38,9 @@ def read(secret: Mapping[str, Any]) -> str:
             config = config[t]
         return config[field]
     except Exception as e:
-        raise SecretNotFound(f"key not found in config file {path}: {e!s}") from None
+        raise SecretNotFoundError(
+            f"key not found in config file {path}: {e!s}"
+        ) from None
 
 
 def read_all(secret: Mapping[str, Any]) -> dict:
@@ -50,4 +52,6 @@ def read_all(secret: Mapping[str, Any]) -> dict:
             config = config[t]
         return config
     except Exception as e:
-        raise SecretNotFound(f"secret {path} not found in config file: {e!s}") from None
+        raise SecretNotFoundError(
+            f"secret {path} not found in config file: {e!s}"
+        ) from None

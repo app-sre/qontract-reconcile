@@ -12,7 +12,7 @@ from sretoolbox.utils import threaded
 
 from reconcile.utils.secret_reader import (
     HasSecret,
-    SecretNotFound,
+    SecretNotFoundError,
     SecretReaderBase,
 )
 
@@ -142,7 +142,7 @@ class OCConnectionParameters:
                             cluster,
                         )
                     )
-                except SecretNotFound:
+                except SecretNotFoundError:
                     logging.error(
                         f"[{cluster.name}] admin token {cluster.cluster_admin_automation_token} not found"
                     )
@@ -157,7 +157,7 @@ class OCConnectionParameters:
                 automation_token = OCConnectionParameters._get_automation_token(
                     secret_reader, cluster.automation_token, cluster
                 )
-            except SecretNotFound:
+            except SecretNotFoundError:
                 logging.error(
                     f"[{cluster.name}] automation token {cluster.automation_token} not found"
                 )
@@ -186,7 +186,7 @@ class OCConnectionParameters:
 
             try:
                 jumphost_key = secret_reader.read_secret(cluster.jump_host.identity)
-            except SecretNotFound as e:
+            except SecretNotFoundError as e:
                 logging.error(
                     f"[{cluster.name}] jumphost secret {cluster.jump_host.identity} not found"
                 )

@@ -1769,13 +1769,13 @@ class TestSLOGatekeeping(TestCase):
 
 
 class TestRemoveNoneAttributes(TestCase):
-    def testSimpleDict(self) -> None:
+    def test_simple_dict(self) -> None:
         input = {"a": 1, "b": {}, "d": None, "e": {"aa": "aa", "bb": None}}
         expected = {"a": 1, "b": {}, "e": {"aa": "aa"}}
         res = SaasHerder.remove_none_values(input)
         self.assertEqual(res, expected)
 
-    def testNoneValue(self) -> None:
+    def test_none_value(self) -> None:
         input = None
         expected: dict[Any, Any] = {}
         res = SaasHerder.remove_none_values(input)

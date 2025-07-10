@@ -14,11 +14,11 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
 
 
-class SaasPromotionStateException(Exception):
+class SaasPromotionStateError(Exception):
     pass
 
 
-class SaasPromotionStateMissingException(Exception):
+class SaasPromotionStateMissingError(Exception):
     pass
 
 
@@ -72,12 +72,12 @@ class SaasPromotionState:
         )
 
         if not current_data:
-            raise SaasPromotionStateMissingException(
+            raise SaasPromotionStateMissingError(
                 f"No promotion state in S3 for given {publisher_uid=} {sha=} {channel=}"
             )
 
         if current_data.success:
-            raise SaasPromotionStateException(
+            raise SaasPromotionStateError(
                 f"The current promotion state is already marked successful for given {publisher_uid=} {sha=} {channel=}",
                 current_data,
             )

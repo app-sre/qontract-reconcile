@@ -15,7 +15,7 @@ from typing import Any
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.status import ExitCodes
-from reconcile.utils.aggregated_list import RunnerException
+from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import get_external_resource_specs
@@ -66,7 +66,7 @@ def fetch_desired_state(
     for g in gabi_instances:
         expiration_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
         if (expiration_date - date.today()).days > EXPIRATION_DAYS_MAX:
-            raise RunnerException(
+            raise RunnerError(
                 f"The maximum expiration date of {g['name']} shall not "
                 f"exceed {EXPIRATION_DAYS_MAX} days from today"
             )
@@ -91,7 +91,7 @@ def fetch_desired_state(
                     found = True
                     break
             if not found:
-                raise RunnerException(
+                raise RunnerError(
                     f"[gabi:{g['name']} (path: {g['path']})] Could not find RDS identifier {identifier} "
                     f"for account {account} in namespace {namespace['name']}. "
                     "If this is a removed read only instance, consider updating the identifier to the source replica."

@@ -18,9 +18,9 @@ from reconcile.utils import (
 from reconcile.utils.aggregated_list import (
     AggregatedDiffRunner,
     AggregatedList,
-    RunnerException,
+    RunnerError,
 )
-from reconcile.utils.quay_api import QuayTeamNotFoundException
+from reconcile.utils.quay_api import QuayTeamNotFoundError
 
 QONTRACT_INTEGRATION = "quay-membership"
 
@@ -63,7 +63,7 @@ def fetch_current_state(quay_api_store):
         for team in teams:
             try:
                 members = quay_api.list_team_members(team)
-            except QuayTeamNotFoundException:
+            except QuayTeamNotFoundError:
                 logging.warning(
                     "Attempted to list members for team %s in "
                     "org %s/%s, but it doesn't exist",
@@ -149,7 +149,7 @@ class RunnerAction:
             # Ensure all quay org/teams are declared as dependencies in a
             # `/dependencies/quay-org-1.yml` datafile.
             if team not in self.quay_api_store[org]["teams"]:
-                raise RunnerException(
+                raise RunnerError(
                     f"Quay team {team} is not defined as a "
                     f"managedTeam in the {org} org."
                 )

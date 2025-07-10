@@ -159,7 +159,7 @@ def test_get_usernames_from_pagerduty_bad_target(
         )
     ]
 
-    with pytest.raises(pagerduty_api.PagerDutyTargetException):
+    with pytest.raises(pagerduty_api.PagerDutyTargetError):
         pagerduty_api.get_usernames_from_pagerduty(
             pagerduties=pagerduties,
             users=[user],

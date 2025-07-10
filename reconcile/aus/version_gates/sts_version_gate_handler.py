@@ -4,7 +4,7 @@ from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.ocm.base import OCMCluster, OCMVersionGate
 from reconcile.utils.ocm_base_client import OCMBaseClient
-from reconcile.utils.rosa.rosa_cli import RosaCliException
+from reconcile.utils.rosa.rosa_cli import RosaCliError
 from reconcile.utils.rosa.session import RosaSession
 
 GATE_LABEL = "api.openshift.com/gate-sts"
@@ -93,7 +93,7 @@ class STSGateHandler(GateHandler):
                 cluster_id=cluster.id,
                 dry_run=dry_run,
             )
-        except RosaCliException as e:
+        except RosaCliError as e:
             logging.error(f"Failed to upgrade roles for cluster {cluster.name}: {e}")
             e.write_logs_to_logger(logging.error)
             return False

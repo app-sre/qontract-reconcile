@@ -21,7 +21,7 @@ from reconcile.status import (
     RunningState,
 )
 from reconcile.utils import gql
-from reconcile.utils.aggregated_list import RunnerException
+from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.amtool import AMTOOL_VERSION, AMTOOL_VERSION_REGEX
 from reconcile.utils.binary import (
     binary,
@@ -533,7 +533,7 @@ def register_faulthandler(fileobj: TextIOWrapper | None = sys.__stderr__) -> Non
                 logging.debug("faulthandler enabled.")
                 faulthandler.register(SIGUSR1, file=fileobj, all_threads=True)
                 logging.debug("SIGUSR1 registered with faulthandler.")
-            except RunnerException:
+            except RunnerError:
                 logging.warning("Failed to register USR1 or enable faulthandler.")
         else:
             logging.debug("Skipping, faulthandler already enabled")
@@ -591,13 +591,13 @@ def run_class_integration(
                 print_url=ctx.obj["gql_url_print"],
             )
         )
-    except gql.GqlApiIntegrationNotFound as e:
+    except gql.GqlApiIntegrationNotFoundError as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
-    except RunnerException as e:
+    except RunnerError as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
-    except gql.GqlApiErrorForbiddenSchema as e:
+    except gql.GqlApiErrorForbiddenSchemaError as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
     except Exception:

@@ -55,7 +55,6 @@ class RoleUser(BaseModel):
     org_username: str
     github_username: str | None
     quay_username: str | None
-    slack_username: str | None
     pagerduty_username: str | None
     aws_username: str | None
     cloudflare_user: str | None

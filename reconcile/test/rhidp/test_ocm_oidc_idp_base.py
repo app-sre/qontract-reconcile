@@ -110,7 +110,7 @@ def test_ocm_oidc_idp_act(
     clusters: Sequence[Cluster],
     dry_run: bool,
 ) -> None:
-    MANAGED_OIDC_NAME = "oidc-auth"
+    managed_oidc_name = "oidc-auth"
     cluster_auth_enabled = clusters[0]
     cluster_auth_disabled = clusters[1]
     cluster_auth_disabled.auth.status = StatusValue.DISABLED.value
@@ -118,7 +118,7 @@ def test_ocm_oidc_idp_act(
     cluster_auth_enforced.auth.status = StatusValue.ENFORCED.value
 
     idp = OCMOIdentityProviderOidc(
-        name=MANAGED_OIDC_NAME,
+        name=managed_oidc_name,
         open_id=OCMOIdentityProviderOidcOpenId(
             client_id="client_id",
             client_secret="client_secret",
@@ -161,7 +161,7 @@ def test_ocm_oidc_idp_act(
         ocm_api=ocm_base_client,
         current_state=current_state,
         desired_state=desired_state,
-        managed_idps=[MANAGED_OIDC_NAME],
+        managed_idps=[managed_oidc_name],
     )
     if dry_run:
         add_identity_provider_mock.assert_not_called()

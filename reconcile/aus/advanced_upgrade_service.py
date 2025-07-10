@@ -358,7 +358,7 @@ def _build_org_upgrade_spec(
 
     org_labelset = build_labelset(org_labels, OrganizationLabelSet)
     final_org = org.copy(deep=True)
-    final_org.blocked_versions = org_labelset.blocked_versions
+    final_org.blocked_versions = org_labelset.blocked_versions  # type: ignore
     final_org.sectors = org_labelset.sector_dependencies()
     final_org.inherit_version_data = inherit_version_data
     org_upgrade_spec = OrganizationUpgradeSpec(org=final_org)

@@ -714,7 +714,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
         )
 
-        encounteredErrors: list[Exception] = []
+        encountered_errors: list[Exception] = []
 
         namespaces = get_database_access_namespaces()
         for namespace in namespaces:
@@ -748,9 +748,9 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                 vault_client,
                             )
                         except (JobFailedError, ValueError) as e:
-                            encounteredErrors.append(e)
+                            encountered_errors.append(e)
 
-            if encounteredErrors:
-                for err in encounteredErrors:
+            if encountered_errors:
+                for err in encountered_errors:
                     logging.error(err)
                 raise JobFailedError("One or more jobs failed to complete")

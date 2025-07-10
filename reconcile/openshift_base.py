@@ -39,7 +39,7 @@ from reconcile.utils.oc import (
     OCLogMsg,
     PrimaryClusterIPCanNotBeUnsetError,
     RequestEntityTooLargeError,
-    StatefulSetUpdateForbidden,
+    StatefulSetUpdateForbiddenError,
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
@@ -52,13 +52,19 @@ from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
+AUTH_METHOD_USER_KEY = {
+    "github-org": "github_username",
+    "github-org-team": "github_username",
+    "oidc": "org_username",
+    "rhidp": "org_username",
+}
 
 
 class ValidationError(Exception):
     pass
 
 
-class ValidationErrorJobFailed(Exception):
+class ValidationErrorJobFailedError(Exception):
     pass
 
 
@@ -498,7 +504,7 @@ def apply(
 
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
-        except StatefulSetUpdateForbidden:
+        except StatefulSetUpdateForbiddenError:
             if resource_type != "StatefulSet":
                 raise
 
@@ -1228,7 +1234,7 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap
                         for c in conditions:
                             if c.get("type") == "Failed":
                                 msg = f"{name}: {c.get('reason')}"
-                                raise ValidationErrorJobFailed(msg)
+                                raise ValidationErrorJobFailedError(msg)
                     raise ValidationError(name)
             elif kind == "ClowdApp":
                 deployments = status.get("deployments")
@@ -1256,7 +1262,7 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap
                         if job_state == "Failed":
                             failed_jobs.append(job_name)
                     if failed_jobs:
-                        raise ValidationErrorJobFailed(
+                        raise ValidationErrorJobFailedError(
                             f"CJI {name} failed jobs: {failed_jobs}"
                         )
                 else:
@@ -1413,12 +1419,7 @@ def determine_user_keys_for_access(
     enforced_user_keys: list[str] | None = None,
 ) -> list[str]:
     """Return user keys based on enabled cluster authentication methods."""
-    AUTH_METHOD_USER_KEY = {
-        "github-org": "github_username",
-        "github-org-team": "github_username",
-        "oidc": "org_username",
-        "rhidp": "org_username",
-    }
+
     user_keys: list[str] = []
 
     if enforced_user_keys:

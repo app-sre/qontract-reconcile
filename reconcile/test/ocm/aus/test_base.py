@@ -918,18 +918,18 @@ def orgs_query_func() -> Callable:
         return {
             "organizations": [
                 build_organization(
-                    org_id="org1", env_name="env1", addonManagedUpgrades=False
+                    org_id="org1", env_name="env1", addon_managed_upgrades=False
                 ).dict(by_alias=True),
                 build_organization(
-                    org_id="org2", env_name="env1", addonManagedUpgrades=True
+                    org_id="org2", env_name="env1", addon_managed_upgrades=True
                 ).dict(by_alias=True),
                 build_organization(
-                    org_id="org3", env_name="env2", addonManagedUpgrades=False
+                    org_id="org3", env_name="env2", addon_managed_upgrades=False
                 ).dict(by_alias=True),
                 build_organization(
                     org_id="org4",
                     env_name="env2",
-                    addonManagedUpgrades=False,
+                    addon_managed_upgrades=False,
                     disabled_integrations=["integration"],
                 ).dict(by_alias=True),
             ]

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from jinja2 import Template
 from ruamel import yaml
-from ruamel.yaml.scalarstring import PreservedScalarString as pss
+from ruamel.yaml.scalarstring import PreservedScalarString
 
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
@@ -68,7 +68,10 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
         email_name = f"{self.account}-{self.key}"
         ref = self.path.removeprefix("data")
         content = app_interface_email(
-            name=email_name, subject=self.title, aws_accounts=[ref], body=pss(body)
+            name=email_name,
+            subject=self.title,
+            aws_accounts=[ref],
+            body=PreservedScalarString(body),
         )
 
         email_path = Path("data") / "app-interface" / "emails" / f"{email_name}.yml"

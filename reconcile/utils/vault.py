@@ -18,27 +18,27 @@ LOG = logging.getLogger(__name__)
 VAULT_AUTO_REFRESH_INTERVAL = int(os.getenv("VAULT_AUTO_REFRESH_INTERVAL") or 600)
 
 
-class PathAccessForbidden(Exception):
+class PathAccessForbiddenError(Exception):
     pass
 
 
-class SecretNotFound(Exception):
+class SecretNotFoundError(Exception):
     pass
 
 
-class SecretAccessForbidden(Exception):
+class SecretAccessForbiddenError(Exception):
     pass
 
 
-class SecretVersionIsNone(Exception):
+class SecretVersionIsNoneError(Exception):
     pass
 
 
-class SecretVersionNotFound(Exception):
+class SecretVersionNotFoundError(Exception):
     pass
 
 
-class SecretFieldNotFound(Exception):
+class SecretFieldNotFoundError(Exception):
     pass
 
 
@@ -189,7 +189,7 @@ class _VaultClient:
             data = secret_data
 
         if data is None:
-            raise SecretNotFound
+            raise SecretNotFoundError
 
         return data, version
 
@@ -223,7 +223,7 @@ class _VaultClient:
         read_path = "/".join(path_split[1:])
         if version is None:
             msg = f"version can not be null for secret with path '{path}'."
-            raise SecretVersionIsNone(msg)
+            raise SecretVersionIsNoneError(msg)
         if version == SECRET_VERSION_LATEST:
             # https://github.com/hvac/hvac/blob/
             # ec048ded30d21c13c21cfa950d148c8bfc1467b0/
@@ -237,12 +237,12 @@ class _VaultClient:
             )
         except InvalidPath:
             msg = f"version '{version}' not found for secret with path '{path}'."
-            raise SecretVersionNotFound(msg) from None
+            raise SecretVersionNotFoundError(msg) from None
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg) from None
+            raise SecretAccessForbiddenError(msg) from None
         if secret is None or "data" not in secret or "data" not in secret["data"]:
-            raise SecretNotFound(path)
+            raise SecretNotFoundError(path)
 
         data = secret["data"]["data"]
         secret_version = secret["data"]["metadata"]["version"]
@@ -253,10 +253,10 @@ class _VaultClient:
             secret = self._client.read(path)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg) from None
+            raise SecretAccessForbiddenError(msg) from None
 
         if secret is None or "data" not in secret:
-            raise SecretNotFound(path)
+            raise SecretNotFoundError(path)
 
         return secret["data"]
 
@@ -285,7 +285,7 @@ class _VaultClient:
             data = self._read_v1(secret_path, secret_field)
 
         if data is None:
-            raise SecretNotFound
+            raise SecretNotFoundError
 
         return (
             base64.b64decode(data).decode("utf-8")
@@ -298,7 +298,7 @@ class _VaultClient:
         try:
             secret_field = data[field]
         except KeyError:
-            raise SecretFieldNotFound(f"{path}/{field} ({version})") from None
+            raise SecretFieldNotFoundError(f"{path}/{field} ({version})") from None
         return secret_field
 
     def _read_v1(self, path, field):
@@ -306,7 +306,7 @@ class _VaultClient:
         try:
             secret_field = data[field]
         except KeyError:
-            raise SecretFieldNotFound(f"{path}/{field}") from None
+            raise SecretFieldNotFoundError(f"{path}/{field}") from None
         return secret_field
 
     @retry()
@@ -345,7 +345,7 @@ class _VaultClient:
             if current_data == data and not force:
                 logging.debug(f"current data is up-to-date, skipping {path}")
                 return
-        except SecretVersionNotFound:
+        except SecretVersionNotFoundError:
             # if the secret is not found we need to write it
             logging.debug(f"secret not found in {path}, will create it")
 
@@ -358,14 +358,14 @@ class _VaultClient:
             self._read_all_v2.cache_clear()
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg) from None
+            raise SecretAccessForbiddenError(msg) from None
 
     def _write_v1(self, path, data):
         try:
             self._client.write(path, **data)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg) from None
+            raise SecretAccessForbiddenError(msg) from None
 
     def _list_kv2(self, path: str) -> dict:
         try:
@@ -376,14 +376,14 @@ class _VaultClient:
             return response
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
-            raise PathAccessForbidden(msg) from None
+            raise PathAccessForbiddenError(msg) from None
 
     def _list(self, path: str) -> dict:
         try:
             return self._client.list(path)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
-            raise PathAccessForbidden(msg) from None
+            raise PathAccessForbiddenError(msg) from None
 
     def list(self, path: str) -> list[str]:
         """Returns a list of secrets in a given path."""
@@ -420,7 +420,7 @@ class _VaultClient:
             self._client.delete(path)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
-            raise SecretAccessForbidden(msg) from None
+            raise SecretAccessForbiddenError(msg) from None
 
 
 class VaultClient:

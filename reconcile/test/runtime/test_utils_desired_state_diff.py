@@ -16,8 +16,8 @@ from reconcile.test.runtime.fixtures import (
 )
 from reconcile.utils.runtime import desired_state_diff
 from reconcile.utils.runtime.desired_state_diff import (
-    DiffDetectionFailure,
-    DiffDetectionTimeout,
+    DiffDetectionFailureError,
+    DiffDetectionTimeoutError,
     build_desired_state_diff,
     extract_diffs_with_timeout,
 )
@@ -124,7 +124,7 @@ def test_desired_state_diff_building_time(
     extract_diffs_with_timeout_mock = mocker.patch.object(
         desired_state_diff, "extract_diffs_with_timeout"
     )
-    extract_diffs_with_timeout_mock.side_effect = DiffDetectionTimeout()
+    extract_diffs_with_timeout_mock.side_effect = DiffDetectionTimeoutError()
     diff = build_desired_state_diff(
         shardable_test_integration.get_desired_state_shard_config(),
         previous_desired_state={
@@ -166,7 +166,7 @@ def test_extract_diffs_with_timeout():
     }
 
     # the timeout is lower than the extraction duration -> TIMEOUT
-    with pytest.raises(DiffDetectionTimeout):
+    with pytest.raises(DiffDetectionTimeoutError):
         extract_diffs_with_timeout(
             diff_extration_with_3_second_sleep,
             previous_desired_state=previous_desired_state,
@@ -189,7 +189,7 @@ def test_extract_diffs_with_recursion_issue():
     """
     test if a max recursion issue is caught properly
     """
-    with pytest.raises(DiffDetectionFailure):
+    with pytest.raises(DiffDetectionFailureError):
         extract_diffs_with_timeout(
             diff_extration_with_endless_recursion,
             previous_desired_state={},
@@ -202,7 +202,7 @@ def test_extract_diffs_with_exception():
     """
     test with exception
     """
-    with pytest.raises(DiffDetectionFailure):
+    with pytest.raises(DiffDetectionFailureError):
         extract_diffs_with_timeout(
             diff_extration_with_exception,
             previous_desired_state={},

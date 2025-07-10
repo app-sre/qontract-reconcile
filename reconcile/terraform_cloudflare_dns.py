@@ -44,8 +44,8 @@ from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript.cloudflare_client import (
     DEFAULT_PROVIDER_RPS,
     DNSZoneShardingStrategy,
-    IntegrationUndefined,
-    InvalidTerraformState,
+    IntegrationUndefinedError,
+    InvalidTerraformStateError,
     TerrascriptCloudflareClientFactory,
 )
 from reconcile.utils.terrascript.models import (
@@ -312,9 +312,9 @@ def build_cloudflare_terraform_config_collection(
         integrations = tf_state.integrations
 
         if not bucket:
-            raise InvalidTerraformState("Terraform state must have bucket defined")
+            raise InvalidTerraformStateError("Terraform state must have bucket defined")
         if not region:
-            raise InvalidTerraformState("Terraform state must have region defined")
+            raise InvalidTerraformStateError("Terraform state must have region defined")
 
         integration = None
         for i in integrations:
@@ -323,7 +323,7 @@ def build_cloudflare_terraform_config_collection(
                 break
 
         if not integration:
-            raise IntegrationUndefined(
+            raise IntegrationUndefinedError(
                 f"Must declare integration name under Terraform state in {zone.account.terraform_state_account.name} AWS account for {cf_account.name} Cloudflare account in app-interface"
             )
 
