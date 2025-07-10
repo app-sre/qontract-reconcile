@@ -52,7 +52,7 @@ def test_skupper_network_intg_get_skupper_networks(
     assert len(skupper_networks[1].namespaces) == 9
 
 
-@pytest.mark.xfail(raises=intg.SkupperNetworkExcpetion, strict=True)
+@pytest.mark.xfail(raises=intg.SkupperNetworkError, strict=True)
 def test_skupper_network_intg_compile_skupper_sites_island(
     fx: Fixtures, fake_get_resource: MagicMock
 ) -> None:

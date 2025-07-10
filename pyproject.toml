@@ -189,8 +189,12 @@ extend-select = [
     "PERF",
     # refurb
     "FURB",
+    # PEP8
+    "N",
 ]
 ignore = [
+    "N811",    # Constant `xxx` imported as non-constant `xxx`
+    "N817",    # CamelCase `xxx` imported as acronym `xxx`
     "PLR0904", # Too many public methods
     "PLR0911", # Too many return statements
     "PLR0912", # Too many branches

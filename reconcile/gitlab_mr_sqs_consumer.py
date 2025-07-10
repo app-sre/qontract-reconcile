@@ -59,7 +59,7 @@ def run(dry_run: str, gitlab_project_id: str, defer: Callable | None = None) -> 
                     merge_request = mr.init_from_sqs_message(body)
                     merge_request.submit_to_gitlab(gitlab_cli=gitlab_cli)
                     sqs_cli.delete_message(str(receipt_handle))
-                except mr.UnknownMergeRequestType as ex:
+                except mr.UnknownMergeRequestTypeError as ex:
                     # Received an unknown MR type.
                     # This could be a producer being on a newer version
                     # of qontract-reconcile than the consumer.

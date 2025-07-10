@@ -58,7 +58,7 @@ class AwsSamlRolesIntegrationParams(PydanticRunParams):
     log_cached_log_output: bool = False
 
     @validator("max_session_duration_hours")
-    def max_session_duration_range(cls, v: str | int) -> int:
+    def max_session_duration_range(cls, v: str | int) -> int:  # noqa: N805
         if 1 <= int(v) <= 12:
             return int(v)
         raise ValueError("max_session_duration_hours must be between 1 and 12 hours")
@@ -69,7 +69,7 @@ class CustomPolicy(BaseModel):
     policy: dict[str, Any]
 
     @validator("name")
-    def name_size(cls, v: str) -> str:
+    def name_size(cls, v: str) -> str:  # noqa: N805
         """Check the policy name size.
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
@@ -81,7 +81,7 @@ class CustomPolicy(BaseModel):
         return v
 
     @validator("policy")
-    def policy_size(cls, v: dict[str, Any]) -> dict[str, Any]:
+    def policy_size(cls, v: dict[str, Any]) -> dict[str, Any]:  # noqa: N805
         """Check the policy size.
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
@@ -104,7 +104,7 @@ class AwsRole(BaseModel):
     managed_policies: list[ManagedPolicy]
 
     @validator("name")
-    def name_size(cls, v: str) -> str:
+    def name_size(cls, v: str) -> str:  # noqa: N805
         """Check the role name size.
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
@@ -116,7 +116,7 @@ class AwsRole(BaseModel):
         return v
 
     @root_validator
-    def validate_policies(cls, values: dict[str, Any]) -> dict[str, Any]:
+    def validate_policies(cls, values: dict[str, Any]) -> dict[str, Any]:  # noqa: N805
         """Check the policies.
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html

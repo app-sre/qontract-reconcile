@@ -66,8 +66,8 @@ from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
-    SecretVersionIsNone,
-    SecretVersionNotFound,
+    SecretVersionIsNoneError,
+    SecretVersionNotFoundError,
 )
 
 # +-----------------------+-------------------------+-------------+
@@ -602,7 +602,7 @@ def fetch_openshift_resource(
                 alertmanager_config_key=alertmanager_config_key,
                 settings=settings,
             )
-        except (SecretVersionNotFound, SecretVersionIsNone) as e:
+        except (SecretVersionNotFoundError, SecretVersionIsNoneError) as e:
             raise FetchSecretError(e) from None
     elif provider == "route":
         path = resource["resource"]["path"]

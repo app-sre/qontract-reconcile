@@ -11,7 +11,7 @@ import pytest
 
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.ldap_groups.integration import LdapGroupsIntegration
-from reconcile.utils.internal_groups.client import NotFound
+from reconcile.utils.internal_groups.client import NotFoundError
 from reconcile.utils.internal_groups.models import (
     Entity,
     EntityType,
@@ -336,7 +336,7 @@ def test_ldap_groups_integration_get_desired_groups_for_aws_roles(
 def test_ldap_groups_integration_fetch_current_state(
     intg: LdapGroupsIntegration, internal_groups_client: Mock, group: Group
 ) -> None:
-    internal_groups_client.group.side_effect = [group, NotFound()]
+    internal_groups_client.group.side_effect = [group, NotFoundError()]
     assert intg.fetch_current_state(
         internal_groups_client=internal_groups_client, group_names=["group1"]
     ) == [group]

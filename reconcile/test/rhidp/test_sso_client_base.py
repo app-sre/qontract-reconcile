@@ -130,13 +130,13 @@ def test_sso_client_create_sso_client(
 ) -> None:
     cluster = clusters[0]
 
-    SSO_CLIENT_ID = "new-one-foo-bar-org-id-what-ever"
-    REDIRECT_URIS = ["https://console.foobar.com/oauth2callback/oidc-auth"]
-    REQUEST_URIS = [cluster.console_url]
-    CONTACTS = ["contact-1", "contact-2"]
-    VAULT_INPUT_PATH = "vault-input-path"
+    sso_client_id = "new-one-foo-bar-org-id-what-ever"
+    redirect_uris = ["https://console.foobar.com/oauth2callback/oidc-auth"]
+    request_uris = [cluster.console_url]
+    contacts = ["contact-1", "contact-2"]
+    vault_input_path = "vault-input-path"
     secret = VaultSecret(
-        path=f"{VAULT_INPUT_PATH}/{SSO_CLIENT_ID}",
+        path=f"{vault_input_path}/{sso_client_id}",
         field="field",
         version=None,
         format=None,
@@ -144,12 +144,12 @@ def test_sso_client_create_sso_client(
     sso_client = SSOClient(
         client_id="uid-1",
         client_id_issued_at=0,
-        client_name=SSO_CLIENT_ID,
+        client_name=sso_client_id,
         client_secret="secret-1",
         client_secret_expires_at=0,
         grant_types=["foobar"],
-        redirect_uris=REDIRECT_URIS,
-        request_uris=REQUEST_URIS,
+        redirect_uris=redirect_uris,
+        request_uris=request_uris,
         registration_access_token="foobar-tken",
         registration_client_uri="https://client-uri.com",
         response_types=["foobar"],
@@ -165,20 +165,20 @@ def test_sso_client_create_sso_client(
 
     create_sso_client(
         keycloak_map=keycloak_map_mock,
-        sso_client_id=SSO_CLIENT_ID,
+        sso_client_id=sso_client_id,
         cluster=cluster,
-        contacts=CONTACTS,
+        contacts=contacts,
         secret_reader=secret_reader,
-        vault_input_path=VAULT_INPUT_PATH,
+        vault_input_path=vault_input_path,
     )
 
     keycloak_map_mock.get.assert_called_once_with("https://issuer.com")
     keycloak_api_mock.register_client.assert_called_once_with(
-        client_name=SSO_CLIENT_ID,
-        redirect_uris=REDIRECT_URIS,
+        client_name=sso_client_id,
+        redirect_uris=redirect_uris,
         initiate_login_uri=cluster.console_url,
-        request_uris=REQUEST_URIS,
-        contacts=CONTACTS,
+        request_uris=request_uris,
+        contacts=contacts,
     )
 
     secret_reader.vault_client.write.assert_called_once_with(
@@ -193,12 +193,12 @@ def test_sso_client_create_sso_client(
 def test_sso_client_delete_sso_client(
     mocker: MockerFixture, secret_reader: Mock
 ) -> None:
-    SSO_CLIENT_ID = "new-one-foo-bar-org-id-what-ever"
-    VAULT_INPUT_PATH = "vault-input-path"
-    ISSUER = "https://issuer.com"
+    sso_client_id = "new-one-foo-bar-org-id-what-ever"
+    vault_input_path = "vault-input-path"
+    issuer = "https://issuer.com"
 
     secret = VaultSecret(
-        path=f"{VAULT_INPUT_PATH}/{SSO_CLIENT_ID}",
+        path=f"{vault_input_path}/{sso_client_id}",
         field="field",
         version=None,
         format=None,
@@ -206,7 +206,7 @@ def test_sso_client_delete_sso_client(
     sso_client_data = {
         "client_id": "",
         "client_id_issued_at": 0,
-        "client_name": SSO_CLIENT_ID,
+        "client_name": sso_client_id,
         "client_secret": "",
         "client_secret_expires_at": 0,
         "grant_types": [],
@@ -218,7 +218,7 @@ def test_sso_client_delete_sso_client(
         "subject_type": "",
         "tls_client_certificate_bound_access_tokens": False,
         "token_endpoint_auth_method": "",
-        "issuer": ISSUER,
+        "issuer": issuer,
     }
 
     keycloak_map_mock = mocker.create_autospec(KeycloakMap)
@@ -228,9 +228,9 @@ def test_sso_client_delete_sso_client(
 
     delete_sso_client(
         keycloak_map=keycloak_map_mock,
-        sso_client_id=SSO_CLIENT_ID,
+        sso_client_id=sso_client_id,
         secret_reader=secret_reader,
-        vault_input_path=VAULT_INPUT_PATH,
+        vault_input_path=vault_input_path,
     )
 
     keycloak_map_mock.get.assert_called_once_with("https://issuer.com")

@@ -20,7 +20,7 @@ class AWSUser(BaseModel):
     path: str = Field(..., alias="Path")
 
 
-class AWSEntityAlreadyExistsException(Exception):
+class AWSEntityAlreadyExistsError(Exception):
     """Raised when the user already exists in IAM."""
 
 
@@ -41,7 +41,7 @@ class AWSApiIam:
             user = self.client.create_user(UserName=user_name)
             return AWSUser(**user["User"])
         except self.client.exceptions.EntityAlreadyExistsException:
-            raise AWSEntityAlreadyExistsException(
+            raise AWSEntityAlreadyExistsError(
                 f"User {user_name} already exists"
             ) from None
 

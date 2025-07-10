@@ -97,13 +97,13 @@ def _extract_diffs_task(
         return_value[EXTRACT_TASK_RESULT_KEY_ERROR] = e
 
 
-class DiffDetectionTimeout(Exception):
+class DiffDetectionTimeoutError(Exception):
     """
     Raised when the fine grained diff detection takes too long.
     """
 
 
-class DiffDetectionFailure(Exception):
+class DiffDetectionFailureError(Exception):
     """
     Raised when the fine grained diff detection fails.
     """
@@ -155,20 +155,20 @@ def extract_diffs_with_timeout(
         )
         process.terminate()
         process.join()
-        raise DiffDetectionTimeout()
+        raise DiffDetectionTimeoutError()
 
     if EXTRACT_TASK_RESULT_KEY_DIFFS in result_value:
         return result_value[EXTRACT_TASK_RESULT_KEY_DIFFS]
 
     original_error = result_value.get(EXTRACT_TASK_RESULT_KEY_ERROR)
     if original_error:
-        raise DiffDetectionFailure() from original_error
+        raise DiffDetectionFailureError() from original_error
 
     # not every error situation of the diff extraction process
     # will result in an exception. the lack of a result is an error
     # indicator as well. in those cases, we raise at least
     # a generic exception to indicate that something went wrong
-    raise DiffDetectionFailure("unknown error during fine grained diff detection")
+    raise DiffDetectionFailureError("unknown error during fine grained diff detection")
 
 
 def build_desired_state_diff(
@@ -211,12 +211,12 @@ def build_desired_state_diff(
                     ShardedRunProposal(proposed_shards=changed_shards)
                 ):
                     shards = changed_shards
-    except DiffDetectionTimeout:
+    except DiffDetectionTimeoutError:
         logging.warning(
             f"unable to extract fine grained diffs for shard extraction "
             f"within {exract_diff_timeout_seconds} seconds. continue without sharding"
         )
-    except DiffDetectionFailure as e:
+    except DiffDetectionFailureError as e:
         logging.warning(
             f"unable to extract fine grained diffs for shard extraction: {e}"
         )

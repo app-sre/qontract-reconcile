@@ -6,7 +6,7 @@ import reconcile.utils.secret_reader
 from reconcile.utils import vault
 from reconcile.utils.secret_reader import (
     ConfigSecretReader,
-    SecretNotFound,
+    SecretNotFoundError,
     SecretReader,
     VaultSecretReader,
 )
@@ -71,10 +71,10 @@ def test_vault_secret_reader_parameters_read_all(vault_mock, vault_secret):
 
 
 def test_vault_secret_reader_raises(vault_mock, vault_secret, patch_sleep):
-    vault_mock.read.side_effect = [vault.SecretNotFound] * 100
+    vault_mock.read.side_effect = [vault.SecretNotFoundError] * 100
     vault_secret_reader = VaultSecretReader(vault_client=vault_mock)
 
-    with pytest.raises(SecretNotFound):
+    with pytest.raises(SecretNotFoundError):
         vault_secret_reader.read_secret(vault_secret)
 
     vault_mock.read.assert_called_with(SecretReader.to_dict(vault_secret))
@@ -84,7 +84,7 @@ def test_vault_secret_reader_raises(vault_mock, vault_secret, patch_sleep):
 def test_config_secret_reader_raises(vault_secret, patch_sleep):
     config_secret_reader = ConfigSecretReader()
 
-    with pytest.raises(SecretNotFound):
+    with pytest.raises(SecretNotFoundError):
         config_secret_reader.read_secret(vault_secret)
 
 
@@ -97,11 +97,11 @@ def test_read_vault_raises(mocker, patch_sleep):
         reconcile.utils.secret_reader, "VaultClient", autospec=_VaultClient
     )
     settings = {"vault": True}
-    mock_vault_client.return_value.read.side_effect = vault.SecretNotFound
+    mock_vault_client.return_value.read.side_effect = vault.SecretNotFoundError
 
     secret_reader = SecretReader(settings=settings)
 
-    with pytest.raises(SecretNotFound):
+    with pytest.raises(SecretNotFoundError):
         secret_reader.read({"path": "test", "field": "some-field"})
 
 
@@ -116,7 +116,7 @@ def test_read_config_raises(mocker, patch_sleep):
 
     secret_reader = SecretReader()
 
-    with pytest.raises(SecretNotFound):
+    with pytest.raises(SecretNotFoundError):
         secret_reader.read({"path": "test", "field": "some-field"})
 
 
@@ -130,11 +130,11 @@ def test_read_all_vault_raises(mocker, patch_sleep):
     )
 
     settings = {"vault": True}
-    mock_vault_client.return_value.read_all.side_effect = vault.SecretNotFound
+    mock_vault_client.return_value.read_all.side_effect = vault.SecretNotFoundError
 
     secret_reader = SecretReader(settings=settings)
 
-    with pytest.raises(SecretNotFound):
+    with pytest.raises(SecretNotFoundError):
         secret_reader.read_all({"path": "test", "field": "some-field"})
 
 
@@ -149,5 +149,5 @@ def test_read_all_config_raises(mocker, patch_sleep):
 
     secret_reader = SecretReader()
 
-    with pytest.raises(SecretNotFound):
+    with pytest.raises(SecretNotFoundError):
         secret_reader.read_all({"path": "test", "field": "some-field"})

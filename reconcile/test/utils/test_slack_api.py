@@ -20,7 +20,7 @@ from reconcile.utils.slack_api import (
     TIMEOUT,
     SlackApi,
     SlackApiConfig,
-    UserNotFoundException,
+    UserNotFoundError,
 )
 
 SlackApiMock = namedtuple("SlackApiMock", "client mock_slack_client")
@@ -437,7 +437,7 @@ def test_get_user_id_by_name_user_not_found(slack_api: SlackApiMock) -> None:
         SlackApiError("Some error message", {"error": "users_not_found"})
     )
 
-    with pytest.raises(UserNotFoundException):
+    with pytest.raises(UserNotFoundError):
         slack_api.client.get_user_id_by_name("someuser", "redhat.com")
 
 

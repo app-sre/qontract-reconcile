@@ -62,7 +62,7 @@ DTP_V3_SPEC_SUFFIX = "token-spec"
 DTP_V3_TENANT_SUFFIX = "tenant"
 
 
-class ReconcileErrorSummary(Exception):
+class ReconcileError(Exception):
     def __init__(self, exceptions: Iterable[str]) -> None:
         self.exceptions = exceptions
 
@@ -279,7 +279,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
                 self._expose_token_metrics()
 
         if unhandled_exceptions:
-            raise ReconcileErrorSummary(unhandled_exceptions)
+            raise ReconcileError(unhandled_exceptions)
 
     def process_cluster(
         self,

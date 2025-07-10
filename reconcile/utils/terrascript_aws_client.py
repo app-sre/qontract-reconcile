@@ -1,3 +1,4 @@
+# ruff: noqa: N801
 import base64
 import enum
 import json
@@ -303,7 +304,7 @@ AWS_US_GOV_ELB_ACCOUNT_IDS = {
 }
 
 
-class OutputResourceNameNotUniqueException(Exception):
+class OutputResourceNameNotUniqueError(Exception):
     def __init__(self, namespace, duplicates):
         self.namespace, self.duplicates = namespace, duplicates
         super().__init__(
@@ -319,7 +320,7 @@ class RDSParameterGroupValidationError(Exception):
     pass
 
 
-class StateInaccessibleException(Exception):
+class StateInaccessibleError(Exception):
     pass
 
 
@@ -1659,7 +1660,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             name_counter = Counter(spec.output_resource_name for spec in specs)
             duplicates = [name for name, count in name_counter.items() if count > 1]
             if duplicates:
-                raise OutputResourceNameNotUniqueException(
+                raise OutputResourceNameNotUniqueError(
                     namespace_info.get("name"), duplicates
                 )
             for spec in specs:
@@ -4566,7 +4567,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         publishing_options blocks which will be further used
         by the consumer.
         """
-        ES_LOG_GROUP_RETENTION_DAYS = 90
+        es_log_group_retention_days = 90
         tf_resources = []
         publishing_options = []
 
@@ -4590,7 +4591,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             log_group_values = {
                 "name": log_type_identifier,
                 "tags": values["tags"],
-                "retention_in_days": ES_LOG_GROUP_RETENTION_DAYS,
+                "retention_in_days": es_log_group_retention_days,
             }
             region = values.get("region") or self.default_regions.get(account)
             if self._multiregion_account(account):
@@ -5066,12 +5067,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     + "does not have required key [certificate]"
                 )
 
-            caCertificate = secret_data.get("caCertificate", None)
+            ca_certificate = secret_data.get("caCertificate", None)
+            if ca_certificate is not None:
+                values["certificate_chain"] = ca_certificate
 
             values["private_key"] = key
             values["certificate_body"] = certificate
-            if caCertificate is not None:
-                values["certificate_chain"] = caCertificate
 
         domain = common_values.get("domain", None)
         if domain is not None:
@@ -5115,9 +5116,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             output_name = output_prefix + "__certificate"
             output_value = certificate
             tf_resources.append(Output(output_name, value=output_value, sensitive=True))
-            if caCertificate is not None:
+            if ca_certificate is not None:
                 output_name = output_prefix + "__caCertificate"
-                output_value = caCertificate
+                output_value = ca_certificate
                 tf_resources.append(
                     Output(output_name, value=output_value, sensitive=True)
                 )
@@ -6016,7 +6017,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             try:
                 s3_client.head_bucket(Bucket=bucket_name)
             except ClientError as details:
-                raise StateInaccessibleException(
+                raise StateInaccessibleError(
                     f"Bucket {bucket_name} is not accessible - {details!s}"
                 ) from None
 

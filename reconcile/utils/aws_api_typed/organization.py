@@ -61,11 +61,11 @@ class AWSAccount(BaseModel):
     state: str = Field(..., alias="Status")
 
 
-class AWSAccountCreationException(Exception):
+class AWSAccountCreationError(Exception):
     """Exception raised when account creation failed."""
 
 
-class AWSAccountNotFoundException(Exception):
+class AWSAccountNotFoundError(Exception):
     """Exception raised when the account cannot be found in the specified OU."""
 
 
@@ -102,7 +102,7 @@ class AWSApiOrganizations:
         )
         status = AWSAccountStatus(**resp["CreateAccountStatus"])
         if status.state == "FAILED":
-            raise AWSAccountCreationException(
+            raise AWSAccountCreationError(
                 f"Account creation failed: {status.failure_reason}"
             )
         return status
@@ -122,7 +122,7 @@ class AWSApiOrganizations:
         for p in resp.get("Parents", []):
             if p["Type"] in {"ORGANIZATIONAL_UNIT", "ROOT"}:
                 return p["Id"]
-        raise AWSAccountNotFoundException(f"Account {uid} not found!")
+        raise AWSAccountNotFoundError(f"Account {uid} not found!")
 
     def move_account(self, uid: str, destination_parent_id: str) -> None:
         """Move an account to a different organizational unit."""

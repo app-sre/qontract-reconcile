@@ -50,7 +50,7 @@ class ExternalResourceOrphanedResourcesError(Exception):
         super().__init__("".join(msg))
 
 
-class ExternalResourceOutputResourceNameDuplications(Exception):
+class ExternalResourceOutputResourceNameDuplicationsError(Exception):
     def __init__(self, duplicates: Iterable[tuple[str, str, str]]) -> None:
         msg = [
             "There are output_resource_name attribute duplications. ",

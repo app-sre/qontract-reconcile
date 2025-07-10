@@ -28,11 +28,11 @@ MAX_RETRIES = 5
 TIMEOUT = 30
 
 
-class UserNotFoundException(Exception):
+class UserNotFoundError(Exception):
     pass
 
 
-class UsergroupNotFoundException(Exception):
+class UsergroupNotFoundError(Exception):
     pass
 
 
@@ -296,7 +296,7 @@ class SlackApi:
     def get_usergroup_id(self, handle: str) -> str | None:
         try:
             return self.get_usergroup(handle)["id"]
-        except UsergroupNotFoundException:
+        except UsergroupNotFoundError:
             return None
 
     def _initiate_usergroups(self) -> None:
@@ -317,7 +317,7 @@ class SlackApi:
             self._initiate_usergroups()
         usergroup = [g for g in self.usergroups if g["handle"] == handle]
         if len(usergroup) != 1:
-            raise UsergroupNotFoundException(handle)
+            raise UsergroupNotFoundError(handle)
         return usergroup[0]
 
     def create_usergroup(self, handle: str) -> str:
@@ -398,7 +398,7 @@ class SlackApi:
             result = self._sc.users_lookupByEmail(email=f"{user_name}@{mail_address}")
         except SlackApiError as e:
             if e.response["error"] == "users_not_found":
-                raise UserNotFoundException(e.response["error"]) from None
+                raise UserNotFoundError(e.response["error"]) from None
             raise
 
         return result["user"]["id"]

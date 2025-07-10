@@ -39,6 +39,9 @@ from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.secret_reader import SecretReaderBase
 
+UP = "\x1b[1A"
+CLEAR = "\x1b[2K"
+
 
 def progress_spinner() -> Progress:
     """Display shiny progress spinner."""
@@ -56,8 +59,6 @@ def pause_progress_spinner(progress: Progress | None) -> Iterator:
     """Pause the progress spinner."""
     if progress:
         progress.stop()
-        UP = "\x1b[1A"
-        CLEAR = "\x1b[2K"
         for task in progress.tasks:
             if task.finished:
                 continue

@@ -6,8 +6,8 @@ from pytest_mock import MockerFixture
 from reconcile.utils.gql import (
     GqlApi,
     GqlApiError,
-    GqlApiErrorForbiddenSchema,
-    GqlApiIntegrationNotFound,
+    GqlApiErrorForbiddenSchemaError,
+    GqlApiIntegrationNotFoundError,
 )
 
 TEST_QUERY = """
@@ -73,7 +73,7 @@ def test_gqlapi_throws_gqlapiintegrationnotfound_exception(
         "data": {"integrations": [{"name": "INTEGRATION", "schemas": "TEST_SCHEMA"}]}
     }
 
-    with pytest.raises(GqlApiIntegrationNotFound):
+    with pytest.raises(GqlApiIntegrationNotFoundError):
         gql_api = GqlApi(
             "test_url", "test_token", "INTEGRATION_NOT_FOUND", validate_schemas=True
         )
@@ -89,6 +89,6 @@ def test_gqlapi_throws_gqlapierrorforbiddenschema_exception(
         "extensions": {"schemas": ["TEST_SCHEMA", "FORBIDDEN_TEST_SCHEMA"]},
     }
 
-    with pytest.raises(GqlApiErrorForbiddenSchema):
+    with pytest.raises(GqlApiErrorForbiddenSchemaError):
         gql_api = GqlApi("test_url", "test_token", "INTEGRATION", validate_schemas=True)
         gql_api.query.__wrapped__(gql_api, TEST_QUERY)
