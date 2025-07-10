@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 from functools import cache
 from typing import Any, Self
 
@@ -183,6 +184,16 @@ def list_s3_objects(
         )
 
 
+def get_slo_doc_timeseries(slo_doc_name: str) -> dict[str, list[str]]:
+    slo_to_timeseries = {}
+    # Regex to match: metric_name{label filters}
+    timeseries_pattern = r'\b[a-zA-Z_:][a-zA-Z0-9_:]*\{[^{}]*\}'
+    for slo_doc in queries.get_slo_doc_alerts(slo_doc_name):
+        for slo in slo_doc["slos"]:
+            slo_to_timeseries[slo["name"]] = re.findall(timeseries_pattern, slo["expr"])
+    return slo_to_timeseries
+
+
 @retry()
 def lookup_secret(
     path: str,
@@ -253,6 +264,7 @@ def process_jinja2_template(
         "s3": lookup_s3_object,
         "s3_ls": list_s3_objects,
         "flatten_dict": flatten,
+        "slo_timeseries": get_slo_doc_timeseries,
         "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
             "%Y-%m-%d"
         ),
