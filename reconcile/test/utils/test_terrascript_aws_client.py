@@ -985,7 +985,7 @@ def test_output_resource_name_not_unique_raises_exception(
     }
     namespaces = [namespace_1]
 
-    with pytest.raises(tsclient.OutputResourceNameNotUniqueException):
+    with pytest.raises(tsclient.OutputResourceNameNotUniqueError):
         ts.init_populate_specs(namespaces, "account")
 
 

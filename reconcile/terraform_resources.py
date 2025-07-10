@@ -200,20 +200,20 @@ def get_aws_accounts(
     if exclude_accounts and not dry_run:
         message = "--exclude-accounts is only supported in dry-run mode"
         logging.error(message)
-        raise ExcludeAccountsAndDryRunException(message)
+        raise ExcludeAccountsAndDryRunError(message)
 
     if (exclude_accounts and include_accounts) and any(
         a in exclude_accounts for a in include_accounts
     ):
         message = "Using --exclude-accounts and --account-name with the same account is not allowed"
         logging.error(message)
-        raise ExcludeAccountsAndAccountNameException(message)
+        raise ExcludeAccountsAndAccountNameError(message)
 
     # If we are not running in dry run we don't want to run with more than one account
     if include_accounts and len(include_accounts) > 1 and not dry_run:
         message = "Running with multiple accounts is only supported in dry-run mode"
         logging.error(message)
-        raise MultipleAccountNamesInDryRunException(message)
+        raise MultipleAccountNamesInDryRunError(message)
 
     accounts = queries.get_aws_accounts(terraform_state=True)
 
@@ -345,15 +345,15 @@ def populate_desired_state(
             )
 
 
-class ExcludeAccountsAndDryRunException(Exception):
+class ExcludeAccountsAndDryRunError(Exception):
     pass
 
 
-class ExcludeAccountsAndAccountNameException(Exception):
+class ExcludeAccountsAndAccountNameError(Exception):
     pass
 
 
-class MultipleAccountNamesInDryRunException(Exception):
+class MultipleAccountNamesInDryRunError(Exception):
     pass
 
 

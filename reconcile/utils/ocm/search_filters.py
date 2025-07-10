@@ -182,7 +182,7 @@ class InvalidFilterError(Exception):
     pass
 
 
-class InvalidChunkRequest(Exception):
+class InvalidChunkRequestError(Exception):
     """
     Is raised for various reasons, when a chunk request on a filter is invalid
     """
@@ -344,7 +344,7 @@ class Filter:
         if ignore_missing:
             return [self]
 
-        raise InvalidChunkRequest(
+        raise InvalidChunkRequestError(
             f"cannot chunk by {key} because it is not a list condition"
         )
 

@@ -53,7 +53,7 @@ class GqlApiError(Exception):
     pass
 
 
-class GqlApiIntegrationNotFound(Exception):
+class GqlApiIntegrationNotFoundError(Exception):
     def __init__(self, integration: str):
         msg = f"""
         Integration not found: {integration}
@@ -64,7 +64,7 @@ class GqlApiIntegrationNotFound(Exception):
         super().__init__(textwrap.dedent(msg).strip())
 
 
-class GqlApiErrorForbiddenSchema(Exception):
+class GqlApiErrorForbiddenSchemaError(Exception):
     def __init__(self, schemas: list):
         msg = f"""
         Forbidden schemas: {schemas}
@@ -115,7 +115,7 @@ class GqlApi:
                     break
 
             if validate_schemas and not self._valid_schemas:
-                raise GqlApiIntegrationNotFound(int_name)
+                raise GqlApiIntegrationNotFoundError(int_name)
 
     def _init_gql_client(self) -> Client:
         req_headers = None
@@ -170,7 +170,7 @@ class GqlApi:
                 schema for schema in query_schemas if schema not in self._valid_schemas
             ]
             if forbidden_schemas:
-                raise GqlApiErrorForbiddenSchema(forbidden_schemas)
+                raise GqlApiErrorForbiddenSchemaError(forbidden_schemas)
 
         # This is to appease mypy. This exception won't be thrown as this condition
         # is already handled above with AssertionError

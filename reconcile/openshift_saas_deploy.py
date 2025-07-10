@@ -345,4 +345,4 @@ def run(
         if image_auth.auth_server:
             json_file = os.path.join(io_dir, "dockerconfigjson")
             with open(json_file, "w", encoding="locale") as f:
-                f.write(json.dumps(image_auth.getDockerConfigJson(), indent=2))
+                f.write(json.dumps(image_auth.get_docker_config_json(), indent=2))

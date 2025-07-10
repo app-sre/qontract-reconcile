@@ -6,7 +6,7 @@ from requests import HTTPError
 
 from reconcile.utils.quay_api import (
     QuayApi,
-    QuayTeamNotFoundException,
+    QuayTeamNotFoundError,
 )
 
 ORG = "some-org"
@@ -69,7 +69,7 @@ def test_list_team_members_raises_team_doesnt_exist(quay_api):
         status=404,
     )
 
-    with pytest.raises(QuayTeamNotFoundException):
+    with pytest.raises(QuayTeamNotFoundError):
         quay_api.list_team_members(TEAM_NAME)
 
 

@@ -23,7 +23,7 @@ from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.slack_api import UserNotFoundException
+from reconcile.utils.slack_api import UserNotFoundError
 
 QONTRACT_INTEGRATION = "ocm-internal-notifications"
 
@@ -52,7 +52,7 @@ class OcmInternalNotifications(QontractReconcileIntegration[NoParams]):
             return self.slack.get_user_id_by_name(
                 user_name=user_name, mail_address=mail_address
             )
-        except UserNotFoundException:
+        except UserNotFoundError:
             return None
 
     def run(self, dry_run: bool) -> None:

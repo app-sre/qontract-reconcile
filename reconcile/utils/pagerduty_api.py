@@ -20,11 +20,11 @@ from reconcile.utils.secret_reader import (
 )
 
 
-class PagerDutyTargetException(Exception):
+class PagerDutyTargetError(Exception):
     """This exception is raised when PagerDutyTarget is not configured correctly."""
 
 
-class PagerDutyApiException(Exception):
+class PagerDutyApiError(Exception):
     """This exception is raised when PagerDuty API call fails."""
 
 
@@ -89,7 +89,7 @@ class PagerDutyApi:
                 users = self.get_escalation_policy_users(resource_id, now)
         except requests.exceptions.HTTPError as e:
             logging.error(str(e))
-            raise PagerDutyApiException(str(e)) from e
+            raise PagerDutyApiError(str(e)) from e
 
         return users
 
@@ -189,7 +189,7 @@ def get_pagerduty_name(user: PagerDutyUser) -> str:
     return user.pagerduty_username or user.org_username
 
 
-@retry(no_retry_exceptions=PagerDutyTargetException)
+@retry(no_retry_exceptions=PagerDutyTargetError)
 def get_usernames_from_pagerduty(
     pagerduties: Iterable[PagerDutyTarget],
     users: Iterable[PagerDutyUser],
@@ -202,7 +202,7 @@ def get_usernames_from_pagerduty(
     all_pagerduty_names = [get_pagerduty_name(u) for u in users]
     for pagerduty in pagerduties:
         if pagerduty.schedule_id is None and pagerduty.escalation_policy_id is None:
-            raise PagerDutyTargetException(
+            raise PagerDutyTargetError(
                 f"pagerduty {pagerduty.name}: Either schedule_id or escalation_policy_id must be set!"
             )
         if pagerduty.schedule_id is not None:

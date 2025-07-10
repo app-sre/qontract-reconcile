@@ -48,9 +48,9 @@ def init_tf_working_dirs(
     thread_pool_size: int,
     settings: Mapping[str, Any],
 ) -> dict[str, str]:
-    # copied here to avoid circular dependency
-    QONTRACT_INTEGRATION = "terraform_resources"
-    QONTRACT_TF_PREFIX = "qrtf"
+    # Avoid circular import
+    import reconcile.terraform_resources  # noqa: PLC0415
+
     # if the terraform-resources integration is disabled
     # for an account, it means that Terrascript will not
     # initiate that account's config and will not create
@@ -59,8 +59,8 @@ def init_tf_working_dirs(
     # created by terraform-resources, but it is disabled
     # tl;dr - we are good. how cool is this alignment...
     ts = Terrascript(
-        QONTRACT_INTEGRATION,
-        QONTRACT_TF_PREFIX,
+        reconcile.terraform_resources.QONTRACT_INTEGRATION,
+        reconcile.terraform_resources.QONTRACT_TF_PREFIX,
         thread_pool_size,
         accounts,
         settings=settings,

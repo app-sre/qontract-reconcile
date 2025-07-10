@@ -26,7 +26,7 @@ from reconcile.utils.ocm.products import (
     IGNORE_NETWORK_TYPE_ATTR,
     OCMProduct,
     OCMProductPortfolio,
-    OCMValidationException,
+    OCMValidationError,
     build_product_portfolio,
 )
 from reconcile.utils.rosa.session import RosaSessionBuilder
@@ -448,7 +448,7 @@ class OcmClusters(QontractReconcileIntegration[OcmClustersParams]):
                         "its manifest to app-interface"
                     )
                     error = True
-                except OCMValidationException as e:
+                except OCMValidationError as e:
                     logging.error("[%s] Error creating cluster: %s", cluster_name, e)
                     error = True
 

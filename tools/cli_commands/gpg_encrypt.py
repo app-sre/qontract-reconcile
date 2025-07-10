@@ -23,15 +23,15 @@ class GPGEncryptCommandData:
     target_user: str = ""
 
 
-class UserException(Exception):
+class UserError(Exception):
     pass
 
 
-class ArgumentException(Exception):
+class ArgumentError(Exception):
     pass
 
 
-class OpenshiftException(Exception):
+class OpenshiftError(Exception):
     pass
 
 
@@ -51,7 +51,7 @@ class GPGEncryptCommand:
     def _fetch_oc_secret(self) -> str:
         parts = self._command_data.openshift_path.split("/")
         if len(parts) != 3:
-            raise ArgumentException(
+            raise ArgumentError(
                 f"Wrong format! --openshift-path must be of format {{cluster}}/{{namespace}}/{{secret}}. Got {self._command_data.openshift_path}"
             )
         cluster_name, namespace, secret = parts
@@ -62,7 +62,7 @@ class GPGEncryptCommand:
         )
 
         if not clusters:
-            raise ArgumentException(f"No cluster found with name '{cluster_name}'")
+            raise ArgumentError(f"No cluster found with name '{cluster_name}'")
 
         settings = queries.get_app_interface_settings()
         data = {}
@@ -81,7 +81,7 @@ class GPGEncryptCommand:
                 "data"
             ]
         except Exception as e:
-            raise OpenshiftException(
+            raise OpenshiftError(
                 f"Could not fetch secret from Openshift cluster {cluster_name}"
             ) from e
 
@@ -107,7 +107,7 @@ class GPGEncryptCommand:
             return self._fetch_local_file_secret()
         if self._command_data.openshift_path:
             return self._fetch_oc_secret()
-        raise ArgumentException(
+        raise ArgumentError(
             f"No argument given which defines how to fetch the secret {self._command_data}"
         )
 
@@ -120,13 +120,13 @@ class GPGEncryptCommand:
             ),
         )
         if len(users) != 1:
-            raise UserException(
+            raise UserError(
                 f"Expected to find exactly one user for '{target_user}', but found {len(users)}."
             )
         user = users[0]
 
         if "public_gpg_key" not in user:
-            raise UserException(
+            raise UserError(
                 f"User '{target_user}' does not have an associated GPG key."
             )
 

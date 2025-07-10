@@ -52,7 +52,7 @@ from reconcile.utils.extended_early_exit import (
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (
-    PagerDutyApiException,
+    PagerDutyApiError,
     PagerDutyMap,
     get_pagerduty_map,
 )
@@ -64,7 +64,7 @@ from reconcile.utils.secret_reader import (
 from reconcile.utils.slack_api import (
     SlackApi,
     SlackApiError,
-    UsergroupNotFoundException,
+    UsergroupNotFoundError,
 )
 from reconcile.utils.vcs import VCS
 
@@ -204,7 +204,7 @@ def get_current_state(
                 continue
             try:
                 users, channels, description = spec.slack.describe_usergroup(ug)
-            except UsergroupNotFoundException:
+            except UsergroupNotFoundError:
                 continue
             current_state.setdefault(workspace, {})[ug] = State(
                 workspace=workspace,
@@ -249,7 +249,7 @@ def get_usernames_from_pagerduty(
         pd = pagerduty_map.get(pagerduty.instance.name)
         try:
             pagerduty_names = pd.get_pagerduty_users(pd_resource_type, pd_resource_id)
-        except PagerDutyApiException as e:
+        except PagerDutyApiError as e:
             logging.error(
                 f"[{usergroup}] PagerDuty API error: {e} "
                 "(hint: check that pagerduty schedule_id/escalation_policy_id is correct)"

@@ -91,7 +91,7 @@ class RosaCliResult:
             self.log_handle.cleanup()
 
 
-class RosaCliException(Exception, RosaCliResult):
+class RosaCliError(Exception, RosaCliResult):
     """
     Represents an exception that occurred during a ROSA CLI execution.
     """

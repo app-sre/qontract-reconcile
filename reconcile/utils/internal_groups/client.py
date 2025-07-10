@@ -17,7 +17,7 @@ from reconcile.utils.internal_groups.models import Group
 REQUEST_TIMEOUT = 30
 
 
-class NotFound(Exception):
+class NotFoundError(Exception):
     """Not found exception."""
 
 
@@ -48,7 +48,7 @@ class InternalGroupsApi:
             resp.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
-                raise NotFound(e.response.text) from e
+                raise NotFoundError(e.response.text) from e
             raise
 
     def __enter__(self) -> Self:

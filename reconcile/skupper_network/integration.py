@@ -41,7 +41,7 @@ SITE_CONTROLLER_LABELS = {
 CONFIG_NAME = "skupper-site"
 
 
-class SkupperNetworkExcpetion(Exception):
+class SkupperNetworkError(Exception):
     """Base exception for Skupper Network integration."""
 
 
@@ -55,7 +55,7 @@ def load_site_controller_template(
             resource["content"], undefined=jinja2.StrictUndefined
         ).render(variables)
     except jinja2.exceptions.UndefinedError as e:
-        raise SkupperNetworkExcpetion(
+        raise SkupperNetworkError(
             f"Failed to render template {path}: {e.message}"
         ) from None
     return yaml.safe_load(body)
@@ -113,7 +113,7 @@ def compile_skupper_sites(
         # we don't support skupper installations with just one site
         for site in network_sites:
             if site.is_island(network_sites):
-                raise SkupperNetworkExcpetion(
+                raise SkupperNetworkError(
                     f"{site}: Site is not connected to any other skupper site in the network."
                 )
 

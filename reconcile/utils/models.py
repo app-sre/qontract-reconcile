@@ -1,3 +1,4 @@
+from collections import UserList
 from collections.abc import (
     Callable,
     Generator,
@@ -81,7 +82,7 @@ def data_default_none(
     return data
 
 
-class CSV(list[str]):
+class CSV(UserList[str]):
     """
     A pydantic custom type that converts a CSV into a list of strings. It
     also supports basic validation of length constraints.

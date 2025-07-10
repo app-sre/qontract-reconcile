@@ -277,7 +277,7 @@ def handle_stale_items(
     items: Iterable[ProjectIssue | ProjectMergeRequest],
     item_type: str,
 ) -> None:
-    LABEL = "stale"
+    LABEL = "stale"  # noqa: N806
 
     now = datetime.utcnow()
     for item in items:

@@ -14,7 +14,7 @@ from reconcile.utils.oc_connection_parameters import (
     get_oc_connection_parameters_from_namespaces,
 )
 from reconcile.utils.secret_reader import (
-    SecretNotFound,
+    SecretNotFoundError,
     SecretReaderBase,
 )
 
@@ -357,8 +357,8 @@ def test_from_namespaces(
             "username": "foo",
         }
     else:
-        secret_reader.read_all_secret.side_effect = SecretNotFound("secret")
-        secret_reader.read_secret.side_effect = SecretNotFound("secret")
+        secret_reader.read_all_secret.side_effect = SecretNotFoundError("secret")
+        secret_reader.read_secret.side_effect = SecretNotFoundError("secret")
 
     def _sort(items: Iterable[OCConnectionParameters]) -> list[OCConnectionParameters]:
         return sorted(items, key=lambda x: (x.cluster_name, str(x.automation_token)))

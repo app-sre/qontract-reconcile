@@ -24,15 +24,15 @@ DEFAULT_RETRIES = 3
 DEFAULT_THREAD_POOL_SIZE = 10
 
 
-class EmptySLOResult(Exception):
+class EmptySLOResultError(Exception):
     pass
 
 
-class EmptySLOValue(Exception):
+class EmptySLOValueError(Exception):
     pass
 
 
-class InvalidSLOValue(Exception):
+class InvalidSLOValueError(Exception):
     pass
 
 
@@ -104,13 +104,13 @@ class PrometheusClient(ApiBase):
     def _extract_current_slo_value(self, data: dict[str, Any]) -> float:
         result = data["data"]["result"]
         if not result:
-            raise EmptySLOResult("prometheus returned empty result")
+            raise EmptySLOResultError("prometheus returned empty result")
         slo_value = result[0]["value"]
         if not slo_value:
-            raise EmptySLOValue("prometheus returned empty SLO value")
+            raise EmptySLOValueError("prometheus returned empty SLO value")
         slo_value = float(slo_value[1])
         if isnan(slo_value):
-            raise InvalidSLOValue("slo value should be a number")
+            raise InvalidSLOValueError("slo value should be a number")
         return slo_value
 
 

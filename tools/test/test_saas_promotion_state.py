@@ -13,8 +13,8 @@ from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.promotion_state import PromotionData, PromotionState
 from tools.saas_promotion_state.saas_promotion_state import (
     SaasPromotionState,
-    SaasPromotionStateException,
-    SaasPromotionStateMissingException,
+    SaasPromotionStateError,
+    SaasPromotionStateMissingError,
 )
 
 
@@ -140,7 +140,7 @@ def test_set_saas_promotion_state_missing(
         promotion_state=promotion_state, saas_files=saas_files
     )
 
-    with raises(SaasPromotionStateMissingException):
+    with raises(SaasPromotionStateMissingError):
         saas_promotion_state.set_successful(
             channel="test-channel", sha="test-sha", publisher_uid="test-uid"
         )
@@ -172,7 +172,7 @@ def test_set_saas_promotion_state_already_successful(
         promotion_state=promotion_state, saas_files=saas_files
     )
 
-    with raises(SaasPromotionStateException):
+    with raises(SaasPromotionStateError):
         saas_promotion_state.set_successful(
             channel="test-channel", sha="test-sha", publisher_uid="test-uid"
         )

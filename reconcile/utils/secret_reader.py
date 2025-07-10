@@ -18,11 +18,11 @@ from reconcile.utils import (
 from reconcile.utils.vault import VaultClient
 
 
-class VaultForbidden(Exception):
+class VaultForbiddenError(Exception):
     pass
 
 
-class SecretNotFound(Exception):
+class SecretNotFoundError(Exception):
     pass
 
 
@@ -162,11 +162,11 @@ class VaultSecretReader(SecretReaderBase):
                 )
             )
         except Forbidden:
-            raise VaultForbidden(
+            raise VaultForbiddenError(
                 f"permission denied reading vault secret at {path}"
             ) from None
-        except vault.SecretNotFound as e:
-            raise SecretNotFound(*e.args) from e
+        except vault.SecretNotFoundError as e:
+            raise SecretNotFoundError(*e.args) from e
         return data
 
     def _read(
@@ -181,8 +181,8 @@ class VaultSecretReader(SecretReaderBase):
                     version=version,
                 )
             )
-        except vault.SecretNotFound as e:
-            raise SecretNotFound(*e.args) from e
+        except vault.SecretNotFoundError as e:
+            raise SecretNotFoundError(*e.args) from e
         return data
 
 
@@ -203,8 +203,8 @@ class ConfigSecretReader(SecretReaderBase):
                     version=version,
                 )
             )
-        except config.SecretNotFound as e:
-            raise SecretNotFound(*e.args) from e
+        except config.SecretNotFoundError as e:
+            raise SecretNotFoundError(*e.args) from e
         return data
 
     def _read_all(
@@ -219,8 +219,8 @@ class ConfigSecretReader(SecretReaderBase):
                     version=version,
                 )
             )
-        except config.SecretNotFound as e:
-            raise SecretNotFound(*e.args) from e
+        except config.SecretNotFoundError as e:
+            raise SecretNotFoundError(*e.args) from e
         return data
 
 
@@ -279,13 +279,13 @@ class SecretReader(SecretReaderBase):
         if self.settings and self.settings.get("vault"):
             try:
                 data = self.vault_client.read(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
-            except vault.SecretNotFound as e:
-                raise SecretNotFound(*e.args) from e
+            except vault.SecretNotFoundError as e:
+                raise SecretNotFoundError(*e.args) from e
         else:
             try:
                 data = config.read(params)
-            except config.SecretNotFound as e:
-                raise SecretNotFound(*e.args) from e
+            except config.SecretNotFoundError as e:
+                raise SecretNotFoundError(*e.args) from e
 
         return data
 
@@ -314,15 +314,15 @@ class SecretReader(SecretReaderBase):
             try:
                 data = self.vault_client.read_all(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
             except Forbidden:
-                raise VaultForbidden(
+                raise VaultForbiddenError(
                     f"permission denied reading vault secret at {path}"
                 ) from None
-            except vault.SecretNotFound as e:
-                raise SecretNotFound(*e.args) from e
+            except vault.SecretNotFoundError as e:
+                raise SecretNotFoundError(*e.args) from e
         else:
             try:
                 data = config.read_all(params)
-            except config.SecretNotFound as e:
-                raise SecretNotFound(*e.args) from e
+            except config.SecretNotFoundError as e:
+                raise SecretNotFoundError(*e.args) from e
 
         return data

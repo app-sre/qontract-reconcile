@@ -11,7 +11,7 @@ BASE_URL = "https://api.deadmanssnitch.com/v1/snitches"
 REQUEST_TIMEOUT = 60
 
 
-class DeadManssnitchException(Exception):
+class DeadManssnitchError(Exception):
     pass
 
 
@@ -61,9 +61,7 @@ class DeadMansSnitchApi:
 
     def create_snitch(self, payload: dict) -> Snitch:
         if payload.get("name") is None or payload.get("interval") is None:
-            raise DeadManssnitchException(
-                "Invalid payload,name and interval are mandatory"
-            )
+            raise DeadManssnitchError("Invalid payload,name and interval are mandatory")
         headers = {"Content-Type": "application/json"}
         logging.debug("Creating new snitch with name:: %s ", payload["name"])
         response = self.session.post(

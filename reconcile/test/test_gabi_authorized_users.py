@@ -9,7 +9,7 @@ from pytest_mock import MockerFixture
 import reconcile.gabi_authorized_users as gabi_u
 import reconcile.openshift_base as ob
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.aggregated_list import RunnerException
+from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
@@ -61,12 +61,12 @@ def test_gabi_authorized_users_exceed() -> None:
     gabi_instance = fixture["gql_response"][0]
     gabi_instance["expirationDate"] = str(expiration_date)
     ri = ResourceInventory()
-    with pytest.raises(RunnerException):
+    with pytest.raises(RunnerError):
         gabi_u.fetch_desired_state([gabi_instance], ri)
 
 
 def test_gabi_authorized_users_rds_not_found() -> None:
     gabi_instance = fixture["gql_response"][1]
     ri = ResourceInventory()
-    with pytest.raises(RunnerException):
+    with pytest.raises(RunnerError):
         gabi_u.fetch_desired_state([gabi_instance], ri)

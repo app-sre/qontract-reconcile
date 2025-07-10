@@ -1,3 +1,4 @@
+# ruff: noqa: N815
 import json
 import logging
 from collections import defaultdict
