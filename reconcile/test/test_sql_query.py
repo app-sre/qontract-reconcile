@@ -2,11 +2,13 @@ from collections.abc import Callable
 from unittest.mock import create_autospec
 
 import pytest
+import yaml
 from pytest_mock import MockFixture
 
 import reconcile.sql_query as intg
 from reconcile.gql_definitions.common.smtp_client_settings import SmtpSettingsV1
 from reconcile.sql_query import split_long_query
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import OCCli
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.state import State
@@ -92,6 +94,28 @@ def sql_query() -> dict:
         "overrides": None,
         "output": "stdout",
     }
+
+
+@pytest.fixture
+def query_dict() -> dict:
+    return {
+        "name": "test-query",
+        "engine": "postgres",
+        "output": "stdout",
+        "db_conn": {
+            "db.host": "db_host",
+            "db.name": "db_name",
+            "db.password": "db_password",
+            "db.port": "db_port",
+            "db.user": "db_user",
+        },
+        "output_resource_name": "secret-name",
+    }
+
+
+@pytest.fixture
+def fxt() -> Fixtures:
+    return Fixtures("sql_query")
 
 
 def setup_mocks(
@@ -315,3 +339,32 @@ def test_run_with_active_sql_query(
         ("some-cluster", "some-namespace", "Secret", "desired"): 0,
     }
     _verify_publish_metrics(ri, integration, expected_metrics)
+
+
+def test_job_template(query_dict: dict, fxt: Fixtures) -> None:
+    job_template = yaml.safe_load(
+        intg.process_template(
+            query=query_dict,
+            job_image="quay.io/app-sre/debug-container:mytag",
+            use_pull_secret=True,
+            config_map_names=["query1", "query2"],
+            service_account_name="sql-query",
+        )
+    )
+
+    assert job_template == fxt.get_anymarkup("job.yaml")
+
+
+def test_cronjob_template(query_dict: dict, fxt: Fixtures) -> None:
+    schedule_query_dict = {**query_dict, "schedule": "0 5 1 * 0"}
+    cronjob_template = yaml.safe_load(
+        intg.process_template(
+            query=schedule_query_dict,
+            job_image="quay.io/app-sre/debug-container:mytag",
+            use_pull_secret=True,
+            config_map_names=["query1", "query2"],
+            service_account_name="sql-query",
+        )
+    )
+
+    assert cronjob_template == fxt.get_anymarkup("cronjob.yaml")

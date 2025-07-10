@@ -1,0 +1,68 @@
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: test-query
+  labels:
+    app: qontract-reconcile
+    integration: sql-query
+    query-name: test-query
+spec:
+  schedule: "0 5 1 * 0"
+  concurrencyPolicy: "Forbid"
+  jobTemplate:
+    
+    spec:
+      template:
+        metadata:
+          name: test-query
+        spec:
+          imagePullSecrets:
+          - name: test-query
+          restartPolicy: Never
+          serviceAccountName: sql-query
+          containers:
+          - name: test-query
+            image: quay.io/app-sre/debug-container:mytag
+            imagePullPolicy: IfNotPresent
+            command:
+              - /bin/bash
+            args:
+              - '-c'
+              - 'cat ''/configs''/q* > ''/tmp/queries'';(time PGPASSWORD=''$(db.password)'' psql --host=$(db.host) --port=$(db.port) --username=$(db.user) --dbname=$(db.name) --file="/tmp/queries");'
+            env:
+              # When value is provided, we get just use it
+              - name: db.host
+                value: db_host
+              # When value is provided, we get just use it
+              - name: db.name
+                value: db_name
+              # When value is provided, we get just use it
+              - name: db.password
+                value: db_password
+              # When value is provided, we get just use it
+              - name: db.port
+                value: db_port
+              # When value is provided, we get just use it
+              - name: db.user
+                value: db_user
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "1"
+            volumeMounts:
+            - name: configs
+              mountPath: /configs
+              readOnly: true
+          volumes:
+            - name: configs
+              projected:
+                sources:
+                - configMap:
+                    name: query1
+                - configMap:
+                    name: query2
+
