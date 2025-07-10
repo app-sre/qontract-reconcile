@@ -12,7 +12,6 @@ BUILD_TARGET := prod-image
 
 .EXPORT_ALL_VARIABLES:
 # TWINE_USERNAME & TWINE_PASSWORD are available in jenkins job
-UV_PUBLISH_TOKEN = $(TWINE_PASSWORD)
 
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
@@ -90,6 +89,10 @@ pypi-release:
 	@$(CONTAINER_ENGINE) build --progress=plain --build-arg TWINE_USERNAME --build-arg TWINE_PASSWORD --target pypi -f dockerfiles/Dockerfile .
 
 pypi:
+	uv build --sdist --wheel
+	UV_PUBLISH_TOKEN=$(TWINE_PASSWORD) uv publish
+
+pypi-konflux:
 	uv build --sdist --wheel
 	uv publish
 
