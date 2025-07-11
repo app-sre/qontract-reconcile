@@ -108,8 +108,7 @@ class ExternalResource(BaseModel):
 
     @validator("resource_engine_version", pre=True)
     def parse_resource_engine_version(
-        cls,  # noqa: N805
-        v: str | semver.VersionInfo,
+        cls, v: str | semver.VersionInfo
     ) -> semver.VersionInfo:
         if isinstance(v, semver.VersionInfo):
             return v
