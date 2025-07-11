@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.ocm_addons",
     "reconcile.ocm_aws_infrastructure_access",
     "reconcile.ocm_clusters",
     "reconcile.ocm_external_configuration_labels",
