@@ -394,6 +394,12 @@ You can then analyze the profile using `snakeviz`:
 snakeviz /tmp/profile.prof
 ```
 
+> :information_source: Note
+>
+> `cProfile` doesn't support multithreading, but it can still highlight performance issues on the main thread.
+> If you need to profile multithreaded code, consider using [py-spy](https://github.com/benfred/py-spy) or similar tools that support sampling profiling.
+> Also [memray](https://github.com/bloomberg/memray) could be beneficial for memory profiling.
+
 ## Code style guide
 
 Qontract-reconcile uses [PEP8](https://peps.python.org/pep-0008/) as the code style guide.
