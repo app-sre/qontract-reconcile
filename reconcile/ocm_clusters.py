@@ -40,7 +40,7 @@ QONTRACT_INTEGRATION = "ocm-clusters"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
+def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]) -> None:
     """Cluster account (aws) attribute from app-interface differs from the OCMSpec.
     app-interface's account includes the details for all the OCM environments
     but the cluster only needs the target OCM environment where it belongs.
@@ -78,8 +78,7 @@ def _set_rosa_ocm_attrs(cluster: Mapping[str, Any]):
 
     # doing this allows to exclude account fields which can be queried in graphql
     rosa_cluster_aws_account = ROSAClusterAWSAccount(
-        uid=uid,
-        rosa=rosa,
+        uid=uid, rosa=rosa, billing_account_id=None
     )
     if billing_account := account.get("billingAccount"):
         rosa_cluster_aws_account.billing_account_id = billing_account["uid"]
@@ -293,7 +292,7 @@ def get_cluster_ocm_update_spec(
 
 def _app_interface_updates_mr(
     clusters_updates: Mapping[str, Any], gitlab_project_id: str | None, dry_run: bool
-):
+) -> None:
     """Creates an MR to app-interface with the necessary cluster manifest updates
 
     :param clusters_updates: Updates to perform. Format required by the MR utils code

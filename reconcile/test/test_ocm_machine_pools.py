@@ -3,7 +3,10 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from unittest.mock import create_autospec
+from unittest.mock import (
+    Mock,
+    create_autospec,
+)
 
 import pytest
 from pytest_mock import MockerFixture
@@ -62,24 +65,25 @@ def test_pool() -> PoolStub:
         taints=None,
         cluster="cluster1",
         cluster_type=ClusterType.OSD,
+        autoscaling=None,
     )
 
 
 @pytest.fixture
 def current_with_pool() -> Mapping[str, list[AbstractPool]]:
-    return {
-        "cluster1": [
-            MachinePool(
-                id="pool1",
-                instance_type="m5.xlarge",
-                replicas=2,
-                labels=None,
-                taints=None,
-                cluster="cluster1",
-                cluster_type=ClusterType.OSD,
-            )
-        ]
-    }
+    pools: list[AbstractPool] = [
+        MachinePool(
+            id="pool1",
+            instance_type="m5.xlarge",
+            replicas=2,
+            labels=None,
+            taints=None,
+            cluster="cluster1",
+            cluster_type=ClusterType.OSD,
+            autoscaling=None,
+        )
+    ]
+    return {"cluster1": pools}
 
 
 @pytest.fixture
@@ -95,6 +99,7 @@ def node_pool() -> NodePool:
         aws_node_pool=AWSNodePool(
             instance_type="m5.xlarge",
         ),
+        autoscaling=None,
     )
 
 
@@ -108,6 +113,7 @@ def machine_pool() -> MachinePool:
         cluster="cluster1",
         cluster_type=ClusterType.OSD,
         instance_type="m5.xlarge",
+        autoscaling=None,
     )
 
 
@@ -125,12 +131,20 @@ def cluster_machine_pool() -> ClusterMachinePoolV1:
 
 
 @pytest.fixture
-def ocm_mock():
+def ocm_mock() -> Mock:
     return create_autospec(OCM)
 
 
-def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
-    pool = PoolStub(id="pool1", cluster="cluster1", cluster_type=ClusterType.OSD)
+def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1) -> None:
+    pool = PoolStub(
+        id="pool1",
+        cluster="cluster1",
+        cluster_type=ClusterType.OSD,
+        replicas=None,
+        labels=None,
+        taints=None,
+        autoscaling=None,
+    )
 
     assert cluster_machine_pool.autoscale is None
     assert not pool._has_diff_autoscale(cluster_machine_pool)
@@ -159,7 +173,7 @@ def test_diff__has_diff_autoscale(cluster_machine_pool: ClusterMachinePoolV1):
     assert pool._has_diff_autoscale(cluster_machine_pool)
 
 
-def test_calculate_diff_create():
+def test_calculate_diff_create() -> None:
     current: Mapping[str, list[AbstractPool]] = {
         "cluster1": [],
     }
@@ -187,7 +201,9 @@ def test_calculate_diff_create():
     assert not error
 
 
-def test_calculate_diff_noop(current_with_pool):
+def test_calculate_diff_noop(
+    current_with_pool: Mapping[str, list[AbstractPool]],
+) -> None:
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
@@ -210,7 +226,9 @@ def test_calculate_diff_noop(current_with_pool):
     assert not error
 
 
-def test_calculate_diff_update(current_with_pool):
+def test_calculate_diff_update(
+    current_with_pool: Mapping[str, list[AbstractPool]],
+) -> None:
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
@@ -237,31 +255,34 @@ def test_calculate_diff_update(current_with_pool):
 
 @pytest.fixture
 def current_with_2_pools() -> Mapping[str, list[AbstractPool]]:
-    return {
-        "cluster1": [
-            MachinePool(
-                id="pool1",
-                instance_type="m5.xlarge",
-                replicas=2,
-                labels=None,
-                taints=None,
-                cluster="cluster1",
-                cluster_type=ClusterType.OSD,
-            ),
-            MachinePool(
-                id="workers",
-                instance_type="m5.xlarge",
-                replicas=2,
-                labels=None,
-                taints=None,
-                cluster="cluster1",
-                cluster_type=ClusterType.OSD,
-            ),
-        ]
-    }
+    pools: list[AbstractPool] = [
+        MachinePool(
+            id="pool1",
+            instance_type="m5.xlarge",
+            replicas=2,
+            labels=None,
+            taints=None,
+            cluster="cluster1",
+            cluster_type=ClusterType.OSD,
+            autoscaling=None,
+        ),
+        MachinePool(
+            id="workers",
+            instance_type="m5.xlarge",
+            replicas=2,
+            labels=None,
+            taints=None,
+            cluster="cluster1",
+            cluster_type=ClusterType.OSD,
+            autoscaling=None,
+        ),
+    ]
+    return {"cluster1": pools}
 
 
-def test_calculate_diff_delete(current_with_2_pools):
+def test_calculate_diff_delete(
+    current_with_2_pools: Mapping[str, list[AbstractPool]],
+) -> None:
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
@@ -286,7 +307,9 @@ def test_calculate_diff_delete(current_with_2_pools):
     assert not error
 
 
-def test_calculate_diff_delete_all_fail_validation(current_with_pool):
+def test_calculate_diff_delete_all_fail_validation(
+    current_with_pool: Mapping[str, list[AbstractPool]],
+) -> None:
     desired = {
         "cluster1": DesiredMachinePool(
             cluster_name="cluster1",
@@ -300,7 +323,7 @@ def test_calculate_diff_delete_all_fail_validation(current_with_pool):
     assert len(error) == 1
 
 
-def test_act_dry_run(test_pool, ocm_mock):
+def test_act_dry_run(test_pool: PoolStub, ocm_mock: Mock) -> None:
     handler = PoolHandler(action="create", pool=test_pool)
     handler.act(ocm=ocm_mock, dry_run=True)
     assert not test_pool.created
@@ -308,47 +331,57 @@ def test_act_dry_run(test_pool, ocm_mock):
     assert not test_pool.updated
 
 
-def test_act_create(test_pool, ocm_mock):
+def test_act_create(test_pool: PoolStub, ocm_mock: Mock) -> None:
     handler = PoolHandler(action="create", pool=test_pool)
     handler.act(ocm=ocm_mock, dry_run=False)
     assert test_pool.created
 
 
-def test_act_update(test_pool, ocm_mock):
+def test_act_update(test_pool: PoolStub, ocm_mock: Mock) -> None:
     handler = PoolHandler(action="update", pool=test_pool)
     handler.act(ocm=ocm_mock, dry_run=False)
     assert test_pool.updated
 
 
-def test_act_delete(test_pool, ocm_mock):
+def test_act_delete(test_pool: PoolStub, ocm_mock: Mock) -> None:
     handler = PoolHandler(action="delete", pool=test_pool)
     handler.act(ocm=ocm_mock, dry_run=False)
     assert test_pool.deleted
 
 
-def test_pool_node_pool_has_diff(node_pool, cluster_machine_pool):
+def test_pool_node_pool_has_diff(
+    node_pool: NodePool, cluster_machine_pool: ClusterMachinePoolV1
+) -> None:
     assert node_pool.has_diff(cluster_machine_pool)
     cluster_machine_pool.replicas = 2
     assert not node_pool.has_diff(cluster_machine_pool)
 
 
-def test_pool_node_pool_invalid_diff_subnet(node_pool, cluster_machine_pool):
+def test_pool_node_pool_invalid_diff_subnet(
+    node_pool: NodePool, cluster_machine_pool: ClusterMachinePoolV1
+) -> None:
     cluster_machine_pool.subnet = "foo"
     assert node_pool.invalid_diff(cluster_machine_pool)
 
 
-def test_pool_node_pool_invalid_diff_instance_type(node_pool, cluster_machine_pool):
+def test_pool_node_pool_invalid_diff_instance_type(
+    node_pool: NodePool, cluster_machine_pool: ClusterMachinePoolV1
+) -> None:
     cluster_machine_pool.instance_type = "foo"
     assert node_pool.invalid_diff(cluster_machine_pool)
 
 
-def test_pool_machine_pool_has_diff(machine_pool, cluster_machine_pool):
+def test_pool_machine_pool_has_diff(
+    machine_pool: MachinePool, cluster_machine_pool: ClusterMachinePoolV1
+) -> None:
     assert machine_pool.has_diff(cluster_machine_pool)
     cluster_machine_pool.replicas = 2
     assert not machine_pool.has_diff(cluster_machine_pool)
 
 
-def test_pool_machine_pool_has_new_auto_scale(machine_pool, cluster_machine_pool):
+def test_pool_machine_pool_has_new_auto_scale(
+    machine_pool: MachinePool, cluster_machine_pool: ClusterMachinePoolV1
+) -> None:
     machine_pool.replicas = None
     cluster_machine_pool.replicas = None
     assert not machine_pool.has_diff(cluster_machine_pool)
@@ -358,7 +391,9 @@ def test_pool_machine_pool_has_new_auto_scale(machine_pool, cluster_machine_pool
     assert machine_pool.has_diff(cluster_machine_pool)
 
 
-def test_pool_node_pool_has_new_auto_scale(node_pool, cluster_machine_pool):
+def test_pool_node_pool_has_new_auto_scale(
+    node_pool: NodePool, cluster_machine_pool: ClusterMachinePoolV1
+) -> None:
     node_pool.replicas = None
     cluster_machine_pool.replicas = None
     assert not node_pool.has_diff(cluster_machine_pool)
@@ -369,13 +404,13 @@ def test_pool_node_pool_has_new_auto_scale(node_pool, cluster_machine_pool):
 
 
 def test_pool_machine_pool_invalid_diff_instance_type(
-    machine_pool, cluster_machine_pool
-):
+    machine_pool: MachinePool, cluster_machine_pool: ClusterMachinePoolV1
+) -> None:
     cluster_machine_pool.instance_type = "foo"
     assert machine_pool.invalid_diff(cluster_machine_pool)
 
 
-def test_machine_pool_update(machine_pool, ocm_mock):
+def test_machine_pool_update(machine_pool: MachinePool, ocm_mock: Mock) -> None:
     machine_pool.update(ocm=ocm_mock)
 
     ocm_mock.update_machine_pool.assert_called_once_with(
@@ -397,7 +432,7 @@ def test_machine_pool_update(machine_pool, ocm_mock):
     )
 
 
-def test_node_pool_update(node_pool, ocm_mock):
+def test_node_pool_update(node_pool: NodePool, ocm_mock: Mock) -> None:
     node_pool.update(ocm=ocm_mock)
 
     ocm_mock.update_node_pool.assert_called_once_with(
@@ -515,7 +550,7 @@ def default_worker_machine_pool() -> dict:
 
 @pytest.fixture
 def osd_cluster_with_default_machine_pool(
-    osd_cluster_builder,
+    osd_cluster_builder: Callable[..., ClusterV1],
     default_worker_machine_pool: dict,
 ) -> ClusterV1:
     return osd_cluster_builder([default_worker_machine_pool])
@@ -523,7 +558,7 @@ def osd_cluster_with_default_machine_pool(
 
 @pytest.fixture
 def rosa_cluster_with_default_machine_pool(
-    rosa_cluster_builder,
+    rosa_cluster_builder: Callable[..., ClusterV1],
     default_worker_machine_pool: dict,
 ) -> ClusterV1:
     return rosa_cluster_builder([default_worker_machine_pool])
@@ -540,7 +575,7 @@ def new_workers_machine_pool() -> dict:
 
 @pytest.fixture
 def osd_cluster_with_default_and_new_machine_pools(
-    osd_cluster_builder,
+    osd_cluster_builder: Callable[..., ClusterV1],
     default_worker_machine_pool: dict,
     new_workers_machine_pool: dict,
 ) -> ClusterV1:
@@ -552,7 +587,7 @@ def osd_cluster_with_default_and_new_machine_pools(
 
 @pytest.fixture
 def rosa_cluster_with_default_and_new_machine_pools(
-    rosa_cluster_builder,
+    rosa_cluster_builder: Callable[..., ClusterV1],
     default_worker_machine_pool: dict,
     new_workers_machine_pool: dict,
 ) -> ClusterV1:
@@ -776,14 +811,14 @@ def test_run_delete_machine_pool_for_rosa_cluster(
 
 @pytest.fixture
 def osd_cluster_without_machine_pools(
-    osd_cluster_builder,
+    osd_cluster_builder: Callable[..., ClusterV1],
 ) -> ClusterV1:
     return osd_cluster_builder([])
 
 
 @pytest.fixture
 def rosa_cluster_without_machine_pools(
-    rosa_cluster_builder,
+    rosa_cluster_builder: Callable[..., ClusterV1],
 ) -> ClusterV1:
     return rosa_cluster_builder([])
 
@@ -826,7 +861,7 @@ def test_run_delete_machine_pool_fail_validation_for_rosa_cluster(
 
 @pytest.fixture
 def osd_cluster_with_new_machine_pool(
-    osd_cluster_builder,
+    osd_cluster_builder: Callable[..., ClusterV1],
     new_workers_machine_pool: dict,
 ) -> ClusterV1:
     return osd_cluster_builder([new_workers_machine_pool])
@@ -834,7 +869,7 @@ def osd_cluster_with_new_machine_pool(
 
 @pytest.fixture
 def rosa_cluster_with_new_machine_pool(
-    rosa_cluster_builder,
+    rosa_cluster_builder: Callable[..., ClusterV1],
     new_workers_machine_pool: dict,
 ) -> ClusterV1:
     return rosa_cluster_builder([new_workers_machine_pool])

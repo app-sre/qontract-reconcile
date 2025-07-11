@@ -27,14 +27,19 @@ MR_GW_QUERY = """
 def get_mr_gateway_settings() -> Mapping[str, Any]:
     """Returns SecretReader settings"""
     gqlapi = gql.get_api()
-    settings = gqlapi.query(MR_GW_QUERY)["settings"]
+    data = gqlapi.query(MR_GW_QUERY)
+    if not data:
+        raise ValueError("no app-interface-settings found from gql query")
+    settings = data.get("settings")
     if settings:
         # assuming a single settings file for now
         return settings[0]
     raise ValueError("no app-interface-settings found")
 
 
-def init(gitlab_project_id=None, sqs_or_gitlab=None):
+def init(
+    gitlab_project_id: str | int | None = None, sqs_or_gitlab: str | None = None
+) -> GitLabApi | SQSGateway:
     """
     Creates the Merge Request client to of a given type.
 
