@@ -22,7 +22,9 @@ QONTRACT_INTEGRATION = "ocm-aws-infrastructure-access"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
-def fetch_current_state(clusters):
+def fetch_current_state(
+    clusters: list[dict[str, Any]],
+) -> tuple[OCMMap, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     current_state = []
     current_failed = []
     current_deleting = []
@@ -52,7 +54,7 @@ def fetch_current_state(clusters):
     return ocm_map, current_state, current_failed, current_deleting
 
 
-def fetch_desired_state(clusters):
+def fetch_desired_state(clusters: list[dict[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
 
     for cluster_info in clusters:
@@ -129,8 +131,13 @@ def fetch_desired_state(clusters):
 
 
 def act(
-    dry_run, ocm_map, current_state, current_failed, desired_state, current_deleting
-):
+    dry_run: bool,
+    ocm_map: OCMMap,
+    current_state: list[dict[str, Any]],
+    current_failed: list[dict[str, Any]],
+    desired_state: list[dict[str, Any]],
+    current_deleting: list[dict[str, Any]],
+) -> None:
     to_delete = [c for c in current_state if c not in desired_state]
     to_delete += current_failed
     for item in to_delete:
@@ -173,7 +180,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     )
 
 
-def get_clusters():
+def get_clusters() -> list[dict[str, Any]]:
     return [
         c
         for c in queries.get_clusters(aws_infrastructure_access=True)
@@ -181,7 +188,7 @@ def get_clusters():
     ]
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     clusters = get_clusters()
     if not clusters:
         logging.debug(
