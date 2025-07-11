@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.ocm_groups",
     "reconcile.ocm_machine_pools",
     "reconcile.ocm_upgrade_scheduler_org_updater",
     "reconcile.openshift_base",
