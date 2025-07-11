@@ -115,7 +115,7 @@ class ExternalResource(BaseModel):
         return parse_semver(str(v), optional_minor_and_patch=True)
 
     @root_validator(pre=True)
-    def set_resource_engine_version_format(cls, values: dict) -> dict:  # noqa: N805
+    def set_resource_engine_version_format(cls, values: dict) -> dict:
         resource_engine_version, resource_engine_version_format = (
             str(values.get("resource_engine_version")),
             values.get("resource_engine_version_format"),
