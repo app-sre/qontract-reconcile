@@ -84,6 +84,7 @@ dev = [
     "responses ~=0.25.0",
     "ruff ~=0.12.2",
     "smtpdfix ~=0.3.3",
+    "snakeviz ~=2.2.2",
     "testslide ~=2.7",
     "typeguard ~=2.13.3",
     "types-click",
