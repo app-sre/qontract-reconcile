@@ -3,7 +3,7 @@ import pytest
 from reconcile.test.utils.rosa.conftest import ROSA_CLI_IMAGE
 from reconcile.utils.jobcontroller.controller import K8sJobController
 from reconcile.utils.jobcontroller.models import JobStatus
-from reconcile.utils.rosa.rosa_cli import RosaCliException
+from reconcile.utils.rosa.rosa_cli import RosaCliError
 from reconcile.utils.rosa.session import RosaSession
 
 #
@@ -23,7 +23,7 @@ def test_rosa_session_cli_execute_fail(
     job_controller: K8sJobController,
 ) -> None:
     job_controller.enqueue_job_and_wait_for_completion.return_value = JobStatus.ERROR  # type: ignore[attr-defined]
-    with pytest.raises(RosaCliException):
+    with pytest.raises(RosaCliError):
         rosa_session.cli_execute("rosa whoami")
 
 

@@ -271,7 +271,7 @@ class ImageAuth:
     auth_server: str | None = None
     docker_config: dict[str, dict[str, dict[str, str]]] | None = None
 
-    def getDockerConfigJson(self) -> dict:
+    def get_docker_config_json(self) -> dict:
         if self.docker_config:
             return self.docker_config
         else:

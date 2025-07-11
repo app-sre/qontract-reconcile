@@ -29,8 +29,12 @@ from reconcile.utils.jinja2.filters import (
     urlunescape,
     yaml_to_dict,
 )
-from reconcile.utils.secret_reader import SecretNotFound, SecretReader, SecretReaderBase
-from reconcile.utils.vault import SecretFieldNotFound
+from reconcile.utils.secret_reader import (
+    SecretNotFoundError,
+    SecretReader,
+    SecretReaderBase,
+)
+from reconcile.utils.vault import SecretFieldNotFoundError
 
 
 class Jinja2TemplateError(Exception):
@@ -209,7 +213,7 @@ def lookup_secret(
         if not secret_reader:
             secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
-    except (SecretNotFound, SecretFieldNotFound) as e:
+    except (SecretNotFoundError, SecretFieldNotFoundError) as e:
         if allow_not_found:
             return None
         raise FetchSecretError(e) from None

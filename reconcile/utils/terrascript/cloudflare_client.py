@@ -302,9 +302,9 @@ def _get_terraform_s3_state_key_name(
     return sharding_strategy.get_object_key(integration)
 
 
-class IntegrationUndefined(Exception):
+class IntegrationUndefinedError(Exception):
     pass
 
 
-class InvalidTerraformState(Exception):
+class InvalidTerraformStateError(Exception):
     pass

@@ -82,7 +82,7 @@ dev = [
     "pytest-mock ~=3.6",
     "qenerate==0.7.0",
     "responses ~=0.25.0",
-    "ruff ~=0.9.0",
+    "ruff ~=0.12.2",
     "smtpdfix ~=0.3.3",
     "testslide ~=2.7",
     "typeguard ~=2.13.3",
@@ -189,8 +189,12 @@ extend-select = [
     "PERF",
     # refurb
     "FURB",
+    # PEP8
+    "N",
 ]
 ignore = [
+    "N811",    # Constant `xxx` imported as non-constant `xxx`
+    "N817",    # CamelCase `xxx` imported as acronym `xxx`
     "PLR0904", # Too many public methods
     "PLR0911", # Too many return statements
     "PLR0912", # Too many branches
@@ -287,7 +291,6 @@ module = [
     "reconcile.terraform_cloudflare_resources",
     "reconcile.terraform_users",
     "reconcile.utils.gpg",
-    "reconcile.utils.gql",
     "reconcile.utils.imap_client",
     "reconcile.utils.jjb_client",
     "reconcile.utils.ldap_client",
@@ -406,7 +409,6 @@ module = [
     "reconcile.test.utils.test_external_resource_spec",
     "reconcile.test.utils.test_external_resources",
     "reconcile.test.utils.test_gpg",
-    "reconcile.test.utils.test_gql",
     "reconcile.test.utils.test_grouping",
     "reconcile.test.utils.test_helm",
     "reconcile.test.utils.test_imap_client",

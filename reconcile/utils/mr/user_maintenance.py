@@ -24,7 +24,7 @@ class PathSpec(BaseModel):
     path: str
 
     @validator("path")
-    def prepend_data_to_path(cls, v):
+    def prepend_data_to_path(cls, v):  # noqa: N805
         return "data" + v
 
 

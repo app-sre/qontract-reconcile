@@ -61,8 +61,9 @@ class ClusterAuth(BaseModel):
     status: str
 
     @root_validator
-    def name_no_spaces(  # pylint: disable=no-self-argument
-        cls, values: MutableMapping[str, Any]
+    def name_no_spaces(
+        cls,  # noqa: N805
+        values: MutableMapping[str, Any],
     ) -> MutableMapping[str, Any]:
         values["name"] = values["name"].replace(" ", "-")
         return values

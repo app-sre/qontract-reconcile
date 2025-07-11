@@ -21,7 +21,7 @@ from reconcile.typed_queries.rhcs_provider_settings import RhcsProviderSettingsV
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.rhcsv2_certs import RhcsV2Cert
-from reconcile.utils.vault import SecretNotFound
+from reconcile.utils.vault import SecretNotFoundError
 
 
 @pytest.fixture
@@ -125,7 +125,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
 ) -> None:
     mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
     vault_instance = mock_vault.return_value
-    vault_instance.read_all.side_effect = SecretNotFound("not found")
+    vault_instance.read_all.side_effect = SecretNotFoundError("not found")
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
 
@@ -172,7 +172,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs_dry_run(
 ) -> None:
     mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
     vault_instance = mock_vault.return_value
-    vault_instance.read_all.side_effect = SecretNotFound("not found")
+    vault_instance.read_all.side_effect = SecretNotFoundError("not found")
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
 

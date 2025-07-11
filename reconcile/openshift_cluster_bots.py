@@ -111,7 +111,7 @@ def sa_secret_name(sa: str) -> str:
     return f"{sa}-token"
 
 
-class TokenNotReadyException(Exception):
+class TokenNotReadyError(Exception):
     pass
 
 
@@ -120,7 +120,7 @@ class TokenNotReadyException(Exception):
 def retrieve_token(kubeconfig: str, namespace: str, sa: str) -> str:
     secret = oc(kubeconfig, namespace, ["get", "secret", sa_secret_name(sa)])
     if not secret or "token" not in secret.get("data", {}):
-        raise TokenNotReadyException()
+        raise TokenNotReadyError()
     b64_token = secret["data"]["token"]
     return base64.b64decode(b64_token).decode()
 

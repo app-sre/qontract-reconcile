@@ -18,9 +18,9 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
 from reconcile.gql_definitions.vault_policies import vault_policies
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.vault import (
-    SecretAccessForbidden,
-    SecretNotFound,
-    SecretVersionNotFound,
+    SecretAccessForbiddenError,
+    SecretNotFoundError,
+    SecretVersionNotFoundError,
     VaultClient,
     _VaultClient,
 )
@@ -100,7 +100,7 @@ def test_policy_contais_path_false():
 def test_check_invalid_paths_ko():
     path_list = ["path1", "path3"]
     policy_paths = ["path1", "path2"]
-    with pytest.raises(integ.VaultInvalidPaths):
+    with pytest.raises(integ.VaultInvalidPathsError):
         integ.check_invalid_paths(path_list, policy_paths)
 
 
@@ -163,7 +163,7 @@ def test_get_vault_credentials_invalid_auth_method(
     )
     mock_vault_client.return_value.read.side_effect = ["a", "b"]
 
-    with pytest.raises(integ.VaultInvalidAuthMethod):
+    with pytest.raises(integ.VaultInvalidAuthMethodError):
         integ.get_vault_credentials(
             vault_instance_data_invalid_auth, "http://vault.com"
         )
@@ -334,7 +334,7 @@ def test_deep_copy_versions_exception(
         "reconcile.vault_replication.write_dummy_versions", autospec=True
     )
 
-    vault_client.read_all_with_version.side_effect = SecretVersionNotFound()
+    vault_client.read_all_with_version.side_effect = SecretVersionNotFoundError()
 
     integ.deep_copy_versions(
         dry_run=dry_run,
@@ -358,9 +358,9 @@ def test_deep_copy_versions_exception(
 def test_copy_vault_secret_forbidden_access(mocker):
     dry_run = True
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
-    vault_client.read_all_with_version.side_effect = SecretAccessForbidden()
+    vault_client.read_all_with_version.side_effect = SecretAccessForbiddenError()
 
-    with pytest.raises(SecretAccessForbidden):
+    with pytest.raises(SecretAccessForbiddenError):
         integ.copy_vault_secret(
             dry_run=dry_run,
             source_vault=vault_client,
@@ -373,7 +373,10 @@ def test_copy_vault_secret_not_found_v2(mocker):
     dry_run = True
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
-    vault_client.read_all_with_version.side_effect = [["secret", 2], SecretNotFound()]
+    vault_client.read_all_with_version.side_effect = [
+        ["secret", 2],
+        SecretNotFoundError(),
+    ]
     deep_copy_versions = mocker.patch(
         "reconcile.vault_replication.deep_copy_versions", autospec=True
     )
@@ -391,7 +394,7 @@ def test_copy_vault_secret_not_found_v1(dry_run, path, mocker):
 
     vault_client.read_all_with_version.side_effect = [
         ["secret", None],
-        SecretNotFound(),
+        SecretNotFoundError(),
         ["secret", None],
     ]
     deep_copy_versions = mocker.patch(
@@ -530,5 +533,5 @@ def test_get_policy_secret_list(mocker):
 )
 def test_get_policy_secret_list_failure(paths, mocker):
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
-    with pytest.raises(integ.VaultInvalidPaths):
+    with pytest.raises(integ.VaultInvalidPathsError):
         integ.get_policy_secret_list(vault_client, paths)

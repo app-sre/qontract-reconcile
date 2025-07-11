@@ -1066,14 +1066,14 @@ def network_reservations(ctx: click.Context) -> None:
         return url
 
     for network in get_networks():
-        parentAddress = "none"
+        parent_address = "none"
         if network.parent_network:
-            parentAddress = network.parent_network.network_address
+            parent_address = network.parent_network.network_address
         if network.in_use_by and network.in_use_by.vpc:
             network_table.append({
                 "name": network.name,
                 "network Address": network.network_address,
-                "parent Network": parentAddress,
+                "parent Network": parent_address,
                 "Account Name": network.in_use_by.vpc.account.name,
                 "Account UID": network.in_use_by.vpc.account.uid,
                 "Console Login URL": md_link(network.in_use_by.vpc.account.console_url),
@@ -1082,7 +1082,7 @@ def network_reservations(ctx: click.Context) -> None:
             network_table.append({
                 "name": network.name,
                 "network Address": network.network_address,
-                "parent Network": parentAddress,
+                "parent Network": parent_address,
                 "Account Name": "Unclaimed network",
                 "Account UID": "Unclaimed network",
                 "Console Login URL": "Unclaimed network",
@@ -1857,8 +1857,8 @@ You can view the source of this Markdown to extract the JSON data.
 @get.command
 @click.pass_context
 def rds_recommendations(ctx: click.Context) -> None:
-    IGNORED_STATUSES = ("resolved",)
-    IGNORED_SEVERITIES = ("informational",)
+    ignored_statuses = ("resolved",)
+    ignored_severities = ("informational",)
 
     settings = queries.get_app_interface_settings()
 
@@ -1919,8 +1919,8 @@ def rds_recommendations(ctx: click.Context) -> None:
                         "Description": rec["Description"].replace("\n", " "),
                     }
                     for rec in db_recommendations
-                    if rec.get("Status") not in IGNORED_STATUSES
-                    and rec.get("Severity") not in IGNORED_SEVERITIES
+                    if rec.get("Status") not in ignored_statuses
+                    and rec.get("Severity") not in ignored_severities
                 ]
                 # If we have no recommendations to show, skip
                 if not recommendations:
@@ -2678,7 +2678,6 @@ def ec2_jenkins_workers(
     ec2 = boto3.resource("ec2")
     results = []
     now = datetime.now(UTC)
-    DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     columns = [
         "type",
         "id",
@@ -2723,7 +2722,7 @@ def ec2_jenkins_workers(
                 "id": f"[{instance.id}]({url})",
                 "IP": instance.private_ip_address,
                 "instance type": instance.instance_type,
-                "launch time (utc)": f"{instance.launch_time.strftime(DATE_FORMAT)} {launch_emoji}",
+                "launch time (utc)": f"{instance.launch_time.strftime('%Y-%m-%d %H:%M:%S')} {launch_emoji}",
                 "OS": os,
                 "AMI": f"[{image.name}]({commit_url})",
             }
@@ -2801,12 +2800,12 @@ def slo_document_services(ctx: click.Context, status_board_instance: str) -> Non
 @click.argument("file_path")
 @click.pass_context
 def alerts(ctx: click.Context, file_path: str) -> None:
-    BIG_NUMBER = 10
+    big_number = 10
 
     def sort_by_threshold(item: dict[str, str]) -> int:
         threshold = item["threshold"]
         if not threshold:
-            return BIG_NUMBER * 60 * 24
+            return big_number * 60 * 24
         value = int(threshold[:-1])
         unit = threshold[-1]
         match unit:
@@ -2817,7 +2816,7 @@ def alerts(ctx: click.Context, file_path: str) -> None:
             case "d":
                 return value * 60 * 24
             case _:
-                return BIG_NUMBER * 60 * 24
+                return big_number * 60 * 24
 
     def sort_by_severity(item: dict[str, str]) -> int:
         match item["severity"].lower():
@@ -2828,7 +2827,7 @@ def alerts(ctx: click.Context, file_path: str) -> None:
             case "info":
                 return 2
             case _:
-                return BIG_NUMBER
+                return big_number
 
     with open(file_path, encoding="locale") as f:
         content = json.loads(f.read())

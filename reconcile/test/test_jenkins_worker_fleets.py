@@ -32,8 +32,8 @@ def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
         "jenkins-worker-fleets", "", 1, accounts=[], settings=None
     )
     current_state = get_current_state(jenkins)
-    workerFleets = instance.get("workerFleets", [])
-    desired_state = get_desired_state(terrascript, workerFleets)
+    worker_fleets = instance.get("workerFleets", [])
+    desired_state = get_desired_state(terrascript, worker_fleets)
     with caplog.at_level(logging.INFO):
         act(False, instance["name"], current_state, desired_state, jenkins)
     mock_apply.assert_called_with(fixture.get_anymarkup("jcasc-apply.yml"))
@@ -52,6 +52,6 @@ def test_jenkins_worker_fleets_error():
     terrascript = Terrascript(
         "jenkins-worker-fleets", "", 1, accounts=[], settings=None
     )
-    workerFleets = instance.get("workerFleets", [])
+    worker_fleets = instance.get("workerFleets", [])
     with pytest.raises(ValueError):
-        get_desired_state(terrascript, workerFleets)
+        get_desired_state(terrascript, worker_fleets)

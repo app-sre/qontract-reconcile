@@ -107,15 +107,16 @@ class ExternalResource(BaseModel):
         )
 
     @validator("resource_engine_version", pre=True)
-    def parse_resource_engine_version(  # pylint: disable=no-self-argument
-        cls, v: str | semver.VersionInfo
+    def parse_resource_engine_version(
+        cls,  # noqa: N805
+        v: str | semver.VersionInfo,
     ) -> semver.VersionInfo:
         if isinstance(v, semver.VersionInfo):
             return v
         return parse_semver(str(v), optional_minor_and_patch=True)
 
     @root_validator(pre=True)
-    def set_resource_engine_version_format(cls, values: dict) -> dict:
+    def set_resource_engine_version_format(cls, values: dict) -> dict:  # noqa: N805
         resource_engine_version, resource_engine_version_format = (
             str(values.get("resource_engine_version")),
             values.get("resource_engine_version_format"),

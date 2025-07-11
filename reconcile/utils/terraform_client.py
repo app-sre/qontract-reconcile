@@ -913,13 +913,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             )
 
 
-class TerraformPlanFailed(Exception):
+class TerraformPlanFailedError(Exception):
     pass
 
 
-class TerraformApplyFailed(Exception):
+class TerraformApplyFailedError(Exception):
     pass
 
 
-class TerraformDeletionDetected(Exception):
+class TerraformDeletionDetectedError(Exception):
     pass

@@ -65,10 +65,13 @@ HANDLERS = [STREAM_HANDLER]
 # Messages to the log file
 if LOG_FILE is not None:
     FILE_HANDLER = logging.FileHandler(LOG_FILE)
-    logFileFormat = "%(message)s"
-    if PREFIX_LOG_LEVEL == "true":
-        logFileFormat = "[%(levelname)s] %(message)s"
-    FILE_HANDLER.setFormatter(logging.Formatter(fmt=logFileFormat))
+    FILE_HANDLER.setFormatter(
+        logging.Formatter(
+            fmt="[%(levelname)s] %(message)s"
+            if PREFIX_LOG_LEVEL == "true"
+            else "%(message)s"
+        )
+    )
     HANDLERS.append(FILE_HANDLER)  # type: ignore
 
 # Setting up the root logger

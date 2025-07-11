@@ -416,10 +416,10 @@ class RunnerAction:
 
     @staticmethod
     def raise_exception(msg: str) -> Callable:
-        def raiseException(params: dict, items: dict) -> None:
+        def _raise_exception(params: dict, items: dict) -> None:
             raise Exception(msg)
 
-        return raiseException
+        return _raise_exception
 
 
 def service_is(service: str) -> Callable:

@@ -726,7 +726,7 @@ class SaasHerder:  # pylint: disable=too-many-public-methods
         saas_file: SaasFile,
         trigger_reason: str,
     ) -> tuple[str, str]:
-        [url, sha] = trigger_reason.split(" ")[0].split("/commit/")
+        [url, sha] = trigger_reason.split(" ")[0].split("/commit/")  # noqa: PLC0207
         repo_info = VCS.parse_repo_url(url)
         repo_name = repo_info.name
         file_name = f"{repo_name.replace('/', '-')}-{sha}.tar.gz"

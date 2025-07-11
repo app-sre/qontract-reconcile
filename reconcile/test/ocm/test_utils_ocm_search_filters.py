@@ -9,7 +9,7 @@ from pytest_mock import MockerFixture
 from reconcile.utils.ocm.search_filters import (
     DateRangeCondition,
     Filter,
-    InvalidChunkRequest,
+    InvalidChunkRequestError,
     InvalidFilterError,
 )
 
@@ -212,7 +212,7 @@ def test_search_filter_chunk_like() -> None:
 
 def test_search_filter_chunk_unknown_field() -> None:
     list_filter = Filter().is_in("some_field", ["a", "b"])
-    with pytest.raises(InvalidChunkRequest):
+    with pytest.raises(InvalidChunkRequestError):
         list_filter.chunk_by("some_other_field", chunk_size=2)
 
 

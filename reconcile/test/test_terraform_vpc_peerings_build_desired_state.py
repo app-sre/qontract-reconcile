@@ -141,7 +141,7 @@ def test_c2c_one_cluster_failing_recoverable(mocker: MockerFixture) -> None:
     build_desired_state_single_cluster = mocker.patch.object(
         sut, "build_desired_state_single_cluster"
     )
-    build_desired_state_single_cluster.side_effect = sut.BadTerraformPeeringState(
+    build_desired_state_single_cluster.side_effect = sut.BadTerraformPeeringStateError(
         "something bad"
     )
 
@@ -164,8 +164,8 @@ def test_c2c_one_cluster_failing_weird(mocker: MockerFixture) -> None:
     build_desired_state_single_cluster = mocker.patch.object(
         sut, "build_desired_state_single_cluster"
     )
-    SOMETHING_UNEXPECTED = "nobody expects the spanish inquisition"
-    build_desired_state_single_cluster.side_effect = ValueError(SOMETHING_UNEXPECTED)
+    something_unexpected = "nobody expects the spanish inquisition"
+    build_desired_state_single_cluster.side_effect = ValueError(something_unexpected)
 
     with pytest.raises(ValueError) as ex:
         sut.build_desired_state_all_clusters(
@@ -175,7 +175,7 @@ def test_c2c_one_cluster_failing_weird(mocker: MockerFixture) -> None:
             account_filter=None,
         )
 
-    assert str(ex.value) == SOMETHING_UNEXPECTED
+    assert str(ex.value) == something_unexpected
 
 
 @pytest.mark.parametrize(
@@ -462,7 +462,7 @@ def test_c2c_no_matches() -> None:
         ],
     )
 
-    with pytest.raises(sut.BadTerraformPeeringState) as ex:
+    with pytest.raises(sut.BadTerraformPeeringStateError) as ex:
         sut.build_desired_state_single_cluster(
             requester_cluster,
             MockOCM(),  # type: ignore
@@ -539,7 +539,7 @@ def test_c2c_no_peer_account() -> None:
     ocm = MockOCM()
     awsapi = MockAWSAPI()
 
-    with pytest.raises(sut.BadTerraformPeeringState) as ex:
+    with pytest.raises(sut.BadTerraformPeeringStateError) as ex:
         sut.build_desired_state_single_cluster(
             requester_cluster,
             ocm,  # type: ignore
@@ -713,7 +713,7 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
 
     def test_cluster_raises(self) -> None:
         self.vpc_mesh_single_cluster.to_raise(
-            sut.BadTerraformPeeringState("This is wrong")
+            sut.BadTerraformPeeringStateError("This is wrong")
         )
         rs = sut.build_desired_state_vpc_mesh(
             self.clusters,
@@ -1132,7 +1132,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
 
     def test_cluster_fails(self) -> None:
         self.build_single_cluster.to_raise(
-            sut.BadTerraformPeeringState("I have failed")
+            sut.BadTerraformPeeringStateError("I have failed")
         )
 
         self.assertEqual(
@@ -1154,7 +1154,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
             self.ocm,
             self.awsapi,
             None,
-        ).to_raise(sut.BadTerraformPeeringState("Fail!")).and_assert_called_once()
+        ).to_raise(sut.BadTerraformPeeringStateError("Fail!")).and_assert_called_once()
 
         self.assertEqual(
             sut.build_desired_state_vpc(

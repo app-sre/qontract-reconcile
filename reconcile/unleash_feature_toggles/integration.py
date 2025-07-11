@@ -44,7 +44,7 @@ def feature_toggle_equal(c: FeatureToggle, d: FeatureToggleUnleashV1) -> bool:
     )
 
 
-class UnleashFeatureToggleException(Exception):
+class UnleashFeatureToggleError(Exception):
     """Raised when a feature toggle is manually created."""
 
 
