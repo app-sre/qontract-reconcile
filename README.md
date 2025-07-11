@@ -384,6 +384,16 @@ GQL definitions and generated classes can be found [here](reconcile/gql_definiti
 
 `faulthandler` is enabled for this project and SIGUSR1 is registered to dump the traceback. To do so, you can use `kill -USR1 pid` where pid is the ID of the qontract-reconcile process.
 
+## Profiling
+
+Enable the Python cProfile module by setting the environment variable `ENABLE_PROFILING=1` before running the integration. This will generate a profile file `/tmp/profile.prof`.
+
+You can then analyze the profile using `snakeviz`:
+
+```sh
+snakeviz /tmp/profile.prof
+```
+
 ## Code style guide
 
 Qontract-reconcile uses [PEP8](https://peps.python.org/pep-0008/) as the code style guide.
