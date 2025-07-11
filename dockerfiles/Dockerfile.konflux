@@ -50,9 +50,6 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image-pre-test
 
-ARG quay_expiration=never
-LABEL quay.expires-after=${quay_expiration}
-
 # Tini
 ENV TINI_VERSION=v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
