@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import contextlib
+import cProfile
 import logging
 import os
 import sys
@@ -76,6 +78,15 @@ if LOG_FILE is not None:
 
 # Setting up the root logger
 logging.basicConfig(level=LOG_LEVEL, handlers=HANDLERS)
+
+
+PROFILE_DUMP_FILE = os.environ.get("PROFILE_DUMP_FILE", "/tmp/profile.prof")
+profiling_enabled = os.environ.get("ENABLE_PROFILING", "").lower() in {
+    "true",
+    "1",
+    "yes",
+}
+profiler = cProfile.Profile() if profiling_enabled else contextlib.nullcontext()
 
 
 class PushgatewayBadConfigError(Exception):
@@ -238,7 +249,11 @@ def main() -> None:
         try:
             with command.make_context(info_name=COMMAND_NAME, args=args) as ctx:  # type: ignore
                 ctx.ensure_object(dict)
-                command.invoke(ctx)
+                with profiler as pr:
+                    command.invoke(ctx)
+                    if pr:
+                        LOG.info(f"Profiling data written to {PROFILE_DUMP_FILE}")
+                        pr.dump_stats(PROFILE_DUMP_FILE)
                 return_code = 0
         # This is for when the integration explicitly
         # calls sys.exit(N)
