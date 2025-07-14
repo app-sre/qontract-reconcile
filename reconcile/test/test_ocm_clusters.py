@@ -1,6 +1,10 @@
 # ruff: noqa: SIM117
-import typing
-from unittest.mock import patch
+from collections.abc import Generator
+from typing import Any
+from unittest.mock import (
+    Mock,
+    patch,
+)
 
 import pytest
 from pydantic import ValidationError
@@ -42,37 +46,37 @@ fxt = Fixtures("clusters")
 
 
 @pytest.fixture
-def ocm_osd_cluster_raw_spec():
+def ocm_osd_cluster_raw_spec() -> dict[str, Any]:
     return fxt.get_anymarkup("osd_spec.json")
 
 
 @pytest.fixture
-def ocm_osd_cluster_ai_spec():
+def ocm_osd_cluster_ai_spec() -> dict[str, Any]:
     return fxt.get_anymarkup("osd_spec_ai.yml")
 
 
 @pytest.fixture
-def ocm_osd_cluster_post_spec():
+def ocm_osd_cluster_post_spec() -> dict[str, Any]:
     return fxt.get_anymarkup("osd_spec_post.json")
 
 
 @pytest.fixture
-def ocm_rosa_cluster_raw_spec():
+def ocm_rosa_cluster_raw_spec() -> dict[str, Any]:
     return fxt.get_anymarkup("rosa_spec.json")
 
 
 @pytest.fixture
-def ocm_rosa_cluster_ai_spec():
+def ocm_rosa_cluster_ai_spec() -> dict[str, Any]:
     return fxt.get_anymarkup("rosa_spec_ai.yml")
 
 
 @pytest.fixture
-def ocm_rosa_cluster_post_spec():
+def ocm_rosa_cluster_post_spec() -> dict[str, Any]:
     return fxt.get_anymarkup("rosa_spec_post.json")
 
 
 @pytest.fixture
-def ocm_osd_cluster_spec():
+def ocm_osd_cluster_spec() -> Generator[OCMSpec, None, None]:
     n = OCMClusterNetwork(
         type="OpenShiftSDN",
         vpc="10.112.0.0/16",
@@ -93,27 +97,35 @@ def ocm_osd_cluster_spec():
         load_balancers=5,
         storage=1100,
         provider="aws",
+        autoscale=None,
+        instance_type=None,
+        nodes=None,
+        initial_version=None,
+        hypershift=None,
     )
     machine_pools = [
         ClusterMachinePool(
             id="worker",
             instance_type="m5.xlarge",
             replicas=5,
+            autoscale=None,
         )
     ]
     obj = OCMSpec(
         spec=spec,
-        machine_pools=machine_pools,
+        machinePools=machine_pools,
         network=n,
         domain="devshift.net",
-        server_url="https://api.test-cluster.0000.p1.openshiftapps.com:6443",
-        console_url="https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com",
+        serverUrl="https://api.test-cluster.0000.p1.openshiftapps.com:6443",
+        consoleUrl="https://console-openshift-console.test-cluster.0000.p1.openshiftapps.com",
+        path=None,
+        elbFQDN="",
     )
     yield obj
 
 
 @pytest.fixture
-def osd_cluster_fxt():
+def osd_cluster_fxt() -> dict[str, Any]:
     return {
         "spec": {
             "product": "osd",
@@ -181,7 +193,7 @@ def osd_cluster_fxt():
 
 
 @pytest.fixture
-def rosa_cluster_fxt():
+def rosa_cluster_fxt() -> dict[str, Any]:
     return {
         "spec": {
             "product": "rosa",
@@ -259,7 +271,7 @@ def rosa_cluster_fxt():
 
 
 @pytest.fixture
-def rosa_hosted_cp_cluster_fxt():
+def rosa_hosted_cp_cluster_fxt() -> dict[str, Any]:
     return {
         "spec": {
             "product": "rosa",
@@ -324,7 +336,9 @@ def rosa_hosted_cp_cluster_fxt():
 
 
 @pytest.fixture
-def queries_mock(osd_cluster_fxt):
+def queries_mock(
+    osd_cluster_fxt: dict[str, Any],
+) -> Generator[tuple[Mock, Mock], None, None]:
     with patch.object(queries, "get_app_interface_settings", autospec=True) as s:
         with patch.object(queries, "get_clusters", autospec=True) as gc:
             s.return_value = {}
@@ -333,7 +347,9 @@ def queries_mock(osd_cluster_fxt):
 
 
 @pytest.fixture
-def ocmmap_mock(ocm_osd_cluster_spec, ocm_mock):
+def ocmmap_mock(
+    ocm_osd_cluster_spec: OCMSpec, ocm_mock: tuple[Mock, Mock]
+) -> Generator[tuple[Mock, Mock], None, None]:
     with patch.object(OCMMap, "get", autospec=True) as get:
         with patch.object(OCMMap, "init_ocm_client_from_cluster", autospec=True):
             with patch.object(OCMMap, "cluster_specs", autospec=True) as cs:
@@ -343,7 +359,7 @@ def ocmmap_mock(ocm_osd_cluster_spec, ocm_mock):
 
 
 @pytest.fixture
-def ocm_mock(mocker: MockerFixture):
+def ocm_mock(mocker: MockerFixture) -> Generator[tuple[Mock, Mock], None, None]:
     with patch.object(ocm, "init_ocm_base_client") as ioc:
         ocm_api_mock = mocker.Mock(OCMBaseClient)
         ioc.return_value = ocm_api_mock
@@ -355,27 +371,27 @@ def ocm_mock(mocker: MockerFixture):
 
 
 @pytest.fixture
-def cluster_updates_mr_mock():
+def cluster_updates_mr_mock() -> Generator[Mock, None, None]:
     with patch.object(mr_client_gateway, "init", autospec=True):
         with patch.object(CreateClustersUpdates, "submit", autospec=True) as ccu:
             yield ccu
 
 
 @pytest.fixture
-def get_json_mock():
+def get_json_mock() -> Generator[Mock, None, None]:
     with patch.object(OCM, "_get_json", autospec=True) as get_json:
         yield get_json
 
 
 @pytest.fixture
-def osd_product() -> typing.Generator[OCMProductOsd, None, None]:
+def osd_product() -> Generator[OCMProductOsd, None, None]:
     with patch.object(products, "get_provisioning_shard_id") as g:
         g.return_value = "provision_shard_id"
         yield OCMProductOsd()
 
 
 @pytest.fixture
-def rosa_product() -> typing.Generator[OCMProductRosa, None, None]:
+def rosa_product() -> Generator[OCMProductRosa, None, None]:
     with patch.object(products, "get_provisioning_shard_id") as g:
         g.return_value = "provision_shard_id"
         yield OCMProductRosa(None)
@@ -396,7 +412,7 @@ def product_portfolio(
 @pytest.fixture
 def integration(
     product_portfolio: OCMProductPortfolio,
-) -> typing.Generator[occ.OcmClusters, None, None]:
+) -> Generator[occ.OcmClusters, None, None]:
     integration = occ.OcmClusters(
         params=occ.OcmClustersParams(
             job_controller_cluster="cluster",
@@ -414,24 +430,28 @@ def integration(
         yield integration
 
 
-def test_ocm_spec_population_rosa(rosa_cluster_fxt):
+def test_ocm_spec_population_rosa(rosa_cluster_fxt: dict[str, Any]) -> None:
     n = OCMSpec(**rosa_cluster_fxt)
     assert isinstance(n.spec, ROSAClusterSpec)
 
 
-def test_ocm_spec_population_hcp(rosa_hosted_cp_cluster_fxt):
+def test_ocm_spec_population_hcp(
+    rosa_hosted_cp_cluster_fxt: dict[str, Any],
+) -> None:
     n = OCMSpec(**rosa_hosted_cp_cluster_fxt)
     assert isinstance(n.spec, ROSAClusterSpec)
 
 
-def test_ocm_spec_population_osd(osd_cluster_fxt):
+def test_ocm_spec_population_osd(osd_cluster_fxt: dict[str, Any]) -> None:
     n = OCMSpec(**osd_cluster_fxt)
     assert isinstance(n.spec, OSDClusterSpec)
     assert n.server_url == osd_cluster_fxt[SPEC_ATTR_SERVER_URL]
     assert n.console_url == osd_cluster_fxt[SPEC_ATTR_CONSOLE_URL]
 
 
-def test_ocm_spec_population_osd_with_extra(osd_cluster_fxt):
+def test_ocm_spec_population_osd_with_extra(
+    osd_cluster_fxt: dict[str, Any],
+) -> None:
     osd_cluster_fxt["spec"]["extra_attribute"] = True
     with pytest.raises(ValidationError):
         OCMSpec(**osd_cluster_fxt)
@@ -439,7 +459,7 @@ def test_ocm_spec_population_osd_with_extra(osd_cluster_fxt):
 
 def test_get_ocm_cluster_update_spec_no_changes(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
-):
+) -> None:
     current_spec = ocm_osd_cluster_spec
     desired_spec = ocm_osd_cluster_spec
     upd, err = occ.get_cluster_ocm_update_spec(
@@ -450,7 +470,7 @@ def test_get_ocm_cluster_update_spec_no_changes(
 
 def test_get_ocm_cluster_update_spec_network_banned(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
-):
+) -> None:
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.network.vpc = "0.0.0.0/0"
@@ -462,7 +482,7 @@ def test_get_ocm_cluster_update_spec_network_banned(
 
 def test_get_ocm_cluster_update_spec_network_type_ignored(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
-):
+) -> None:
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.network.type = "OVNKubernetes"
@@ -472,13 +492,12 @@ def test_get_ocm_cluster_update_spec_network_type_ignored(
     assert (upd, err) == ({}, False)
 
 
-@typing.no_type_check
 def test_get_ocm_cluster_update_spec_allowed_change(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
-):
+) -> None:
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
-    desired_spec.spec.storage = 2000
+    desired_spec.spec.storage = 2000  # type: ignore
     upd, err = occ.get_cluster_ocm_update_spec(
         osd_product, "cluster1", current_spec, desired_spec
     )
@@ -487,7 +506,7 @@ def test_get_ocm_cluster_update_spec_allowed_change(
 
 def test_get_ocm_cluster_update_spec_not_allowed_change(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
-):
+) -> None:
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.spec.multi_az = not desired_spec.spec.multi_az
@@ -502,7 +521,7 @@ def test_get_ocm_cluster_update_spec_not_allowed_change(
 
 def test_get_ocm_cluster_update_spec_disable_uwm(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
-):
+) -> None:
     current_spec = ocm_osd_cluster_spec
     desired_spec = current_spec.copy(deep=True)
     desired_spec.spec.disable_user_workload_monitoring = (
@@ -521,10 +540,10 @@ def test_get_ocm_cluster_update_spec_disable_uwm(
 
 def test_noop_dry_run(
     integration: occ.OcmClusters,
-    queries_mock,
-    ocmmap_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
+    queries_mock: tuple[Mock, Mock],
+    ocmmap_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
 ) -> None:
     with pytest.raises(SystemExit):
         integration.run(False)
@@ -537,12 +556,12 @@ def test_noop_dry_run(
 
 def test_changed_id(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    ocm_osd_cluster_raw_spec,
-    ocm_osd_cluster_ai_spec,
-    cluster_updates_mr_mock,
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    ocm_osd_cluster_raw_spec: dict[str, Any],
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+    cluster_updates_mr_mock: Mock,
 ) -> None:
     # App Interface attributes are only considered if are null or blank
     # Won't be better to update them if have changed?
@@ -560,13 +579,13 @@ def test_changed_id(
 
 def test_ocm_osd_create_cluster(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_osd_cluster_ai_spec,
-    ocm_osd_cluster_post_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+    ocm_osd_cluster_post_spec: dict[str, Any],
+) -> None:
     get_json_mock.return_value = {"items": []}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
 
@@ -586,13 +605,13 @@ def test_ocm_osd_create_cluster(
 
 def test_ocm_osd_create_cluster_without_machine_pools(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_osd_cluster_ai_spec,
-    ocm_osd_cluster_post_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+    ocm_osd_cluster_post_spec: dict[str, Any],
+) -> None:
     get_json_mock.return_value = {"items": []}
     bad_spec = ocm_osd_cluster_ai_spec | {"machinePools": []}
     queries_mock[1].return_value = [bad_spec]
@@ -609,13 +628,13 @@ def test_ocm_osd_create_cluster_without_machine_pools(
 
 def test_ocm_rosa_update_cluster(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_rosa_cluster_raw_spec,
-    ocm_rosa_cluster_ai_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_rosa_cluster_raw_spec: dict[str, Any],
+    ocm_rosa_cluster_ai_spec: dict[str, Any],
+) -> None:
     ocm_rosa_cluster_ai_spec["spec"]["channel"] = "rapid"
     get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
@@ -629,13 +648,13 @@ def test_ocm_rosa_update_cluster(
 
 def test_ocm_rosa_update_cluster_dont_update_ocm_on_oidc_drift(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_rosa_cluster_raw_spec,
-    ocm_rosa_cluster_ai_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_rosa_cluster_raw_spec: dict[str, Any],
+    ocm_rosa_cluster_ai_spec: dict[str, Any],
+) -> None:
     ocm_rosa_cluster_ai_spec["spec"]["oidc_endpoint_url"] = "some-other-oidc-url"
     get_json_mock.return_value = {"items": [ocm_rosa_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_rosa_cluster_ai_spec]
@@ -649,13 +668,13 @@ def test_ocm_rosa_update_cluster_dont_update_ocm_on_oidc_drift(
 
 def test_ocm_rosa_update_cluster_with_machine_pools_change(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_rosa_cluster_raw_spec,
-    ocm_rosa_cluster_ai_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_rosa_cluster_raw_spec: dict[str, Any],
+    ocm_rosa_cluster_ai_spec: dict[str, Any],
+) -> None:
     new_spec = ocm_rosa_cluster_ai_spec | {
         "machinePools": [
             {
@@ -679,13 +698,13 @@ def test_ocm_rosa_update_cluster_with_machine_pools_change(
 
 def test_ocm_osd_update_cluster(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_osd_cluster_raw_spec,
-    ocm_osd_cluster_ai_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_osd_cluster_raw_spec: dict[str, Any],
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+) -> None:
     ocm_osd_cluster_ai_spec["spec"]["storage"] = 40000
     get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
     queries_mock[1].return_value = [ocm_osd_cluster_ai_spec]
@@ -699,13 +718,13 @@ def test_ocm_osd_update_cluster(
 
 def test_ocm_osd_update_cluster_with_machine_pools_change(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_osd_cluster_raw_spec,
-    ocm_osd_cluster_ai_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_osd_cluster_raw_spec: dict[str, Any],
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+) -> None:
     new_spec = ocm_osd_cluster_ai_spec | {
         "machinePools": [
             {
@@ -729,14 +748,14 @@ def test_ocm_osd_update_cluster_with_machine_pools_change(
 
 def test_ocm_returns_a_rosa_cluster(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    cluster_updates_mr_mock,
-    ocm_osd_cluster_raw_spec,
-    ocm_rosa_cluster_raw_spec,
-    ocm_osd_cluster_ai_spec,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    cluster_updates_mr_mock: Mock,
+    ocm_osd_cluster_raw_spec: dict[str, Any],
+    ocm_rosa_cluster_raw_spec: dict[str, Any],
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+) -> None:
     get_json_mock.return_value = {
         "items": [ocm_osd_cluster_raw_spec, ocm_rosa_cluster_raw_spec]
     }
@@ -751,13 +770,13 @@ def test_ocm_returns_a_rosa_cluster(
 
 def test_changed_ocm_spec_disable_uwm(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    ocm_osd_cluster_raw_spec,
-    ocm_osd_cluster_ai_spec,
-    cluster_updates_mr_mock,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    ocm_osd_cluster_raw_spec: dict[str, Any],
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+    cluster_updates_mr_mock: Mock,
+) -> None:
     ocm_osd_cluster_ai_spec["spec"][
         "disable_user_workload_monitoring"
     ] = not ocm_osd_cluster_ai_spec["spec"]["disable_user_workload_monitoring"]
@@ -776,13 +795,13 @@ def test_changed_ocm_spec_disable_uwm(
 
 def test_console_url_changes_ai(
     integration: occ.OcmClusters,
-    get_json_mock,
-    queries_mock,
-    ocm_mock,
-    ocm_osd_cluster_raw_spec,
-    ocm_osd_cluster_ai_spec,
-    cluster_updates_mr_mock,
-):
+    get_json_mock: Mock,
+    queries_mock: tuple[Mock, Mock],
+    ocm_mock: tuple[Mock, Mock],
+    ocm_osd_cluster_raw_spec: dict[str, Any],
+    ocm_osd_cluster_ai_spec: dict[str, Any],
+    cluster_updates_mr_mock: Mock,
+) -> None:
     ocm_osd_cluster_ai_spec["consoleUrl"] = "old-console-url"
 
     get_json_mock.return_value = {"items": [ocm_osd_cluster_raw_spec]}
