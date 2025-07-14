@@ -3,6 +3,7 @@ import sys
 from collections.abc import (
     Callable,
     Generator,
+    Sequence,
 )
 from threading import Lock
 from typing import Any
@@ -151,7 +152,7 @@ class LabelInventory:
         else:
             upd_managed.append(key)
 
-    def reconcile(self):
+    def reconcile(self) -> None:
         """
         Finds new/old/modify labels and sets them in in the inventory under the
         CHANGED key. The managed key store updates are recorded under the
@@ -162,9 +163,21 @@ class LabelInventory:
                 continue
 
             desired = types[DESIRED]
-            managed = self.get(cluster, ns, MANAGED, [])
+            if not isinstance(desired, dict):
+                raise TypeError(
+                    f"Expected dict for desired labels, got {type(desired)}"
+                )
+            managed = self.get(cluster, ns, MANAGED) or []
             current = self.get(cluster, ns, CURRENT, {})
+            if not isinstance(current, dict):
+                raise TypeError(
+                    f"Expected dict for current labels, got {type(current)}"
+                )
             changed = self.setdefault(cluster, ns, CHANGED, {})  # noqa: B909
+            if not isinstance(changed, dict):
+                raise TypeError(
+                    f"Expected dict for changed labels, got {type(changed)}"
+                )
 
             # cleanup managed items
             for k in managed:
@@ -221,7 +234,7 @@ def get_gql_namespaces_in_shard() -> list[NamespaceV1]:
 
 
 def get_desired(
-    inventory: LabelInventory, oc_map: OCMap, namespaces: list[NamespaceV1]
+    inventory: LabelInventory, oc_map: OCMap, namespaces: Sequence[NamespaceV1]
 ) -> None:
     """
     Fill the provided label inventory with every desired info from the
@@ -289,7 +302,9 @@ def get_managed(inventory: LabelInventory, state: State) -> None:
         inventory.set(cluster=cluster, namespace=ns_name, type=MANAGED, labels=managed)
 
 
-def lookup_namespaces(cluster: str, oc_map: OCMap) -> tuple[str, dict[str, Any] | None]:
+def lookup_namespaces(
+    cluster: str, oc_map: OCMap
+) -> tuple[str, list[dict[str, Any]] | None]:
     """
     Retrieve all namespaces from the given cluster
     """
