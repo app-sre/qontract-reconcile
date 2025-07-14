@@ -259,7 +259,7 @@ def run(
         all_callers=[sf.name for sf in all_saas_files if not sf.deprecated],
         wait_for_namespace=True,
         no_dry_run_skip_compare=(not saasherder.compare),
-        take_over=saasherder.take_over,
+        take_over=bool(saasherder.take_over),
     )
 
     if not dry_run:
