@@ -1,6 +1,6 @@
 import logging
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from reconcile import queries
@@ -23,7 +23,7 @@ SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
 def fetch_current_state(
-    clusters: list[dict[str, Any]],
+    clusters: Iterable[dict[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     current_state = []
     current_failed = []
@@ -54,7 +54,7 @@ def fetch_current_state(
     return ocm_map, current_state, current_failed, current_deleting
 
 
-def fetch_desired_state(clusters: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def fetch_desired_state(clusters: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
 
     for cluster_info in clusters:
@@ -134,8 +134,8 @@ def act(
     dry_run: bool,
     ocm_map: OCMMap,
     current_state: list[dict[str, Any]],
-    current_failed: list[dict[str, Any]],
-    desired_state: list[dict[str, Any]],
+    current_failed: Iterable[dict[str, Any]],
+    desired_state: Iterable[dict[str, Any]],
     current_deleting: list[dict[str, Any]],
 ) -> None:
     to_delete = [c for c in current_state if c not in desired_state]

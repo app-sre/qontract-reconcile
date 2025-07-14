@@ -48,7 +48,7 @@ def get_cluster_state(
 
 
 def fetch_current_state(
-    clusters: list[Mapping[str, Any]], thread_pool_size: int
+    clusters: Iterable[Mapping[str, Any]], thread_pool_size: int
 ) -> tuple[OCMMap, list[dict[str, str]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(

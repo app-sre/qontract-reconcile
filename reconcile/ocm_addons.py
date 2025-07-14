@@ -1,6 +1,6 @@
 import logging
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from operator import itemgetter
 from typing import Any
 
@@ -37,7 +37,7 @@ def fetch_current_state(
     return ocm_map, current_state
 
 
-def fetch_desired_state(clusters: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def fetch_desired_state(clusters: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -58,7 +58,7 @@ def sort_parameters(addon: dict[str, Any]) -> None:
 
 
 def calculate_diff(
-    current_state: list[dict[str, Any]], desired_state: list[dict[str, Any]]
+    current_state: Iterable[dict[str, Any]], desired_state: Iterable[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     diffs = []
     for d in desired_state:
@@ -70,7 +70,7 @@ def calculate_diff(
     return diffs
 
 
-def act(dry_run: bool, diffs: list[dict[str, Any]], ocm_map: OCMMap) -> bool:
+def act(dry_run: bool, diffs: Iterable[dict[str, Any]], ocm_map: OCMMap) -> bool:
     err = False
     for diff in diffs:
         action = diff.pop("action")

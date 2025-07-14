@@ -1,7 +1,7 @@
 import json
 import logging
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from reconcile import queries
@@ -20,7 +20,7 @@ def get_allowed_labels_for_cluster(cluster: dict[str, Any]) -> set[str]:
 
 
 def fetch_current_state(
-    clusters: list[dict[str, Any]],
+    clusters: Iterable[dict[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
@@ -63,7 +63,7 @@ def fetch_desired_state(clusters: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def calculate_diff(
-    current_state: list[dict[str, Any]], desired_state: list[dict[str, Any]]
+    current_state: Iterable[dict[str, Any]], desired_state: Iterable[dict[str, Any]]
 ) -> tuple[list[dict[str, Any]], bool]:
     diffs = []
     err = False
