@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.ocm_upgrade_scheduler_org_updater",
     "reconcile.openshift_base",
     "reconcile.openshift_clusterrolebindings",
     "reconcile.openshift_limitranges",
@@ -364,7 +363,6 @@ module = [
     "reconcile.test.test_jump_host",
     "reconcile.test.test_make",
     "reconcile.test.test_ocm_update_recommended_version",
-    "reconcile.test.test_ocm_upgrade_scheduler_org_updater",
     "reconcile.test.test_openshift_base",
     "reconcile.test.test_openshift_namespace_labels",
     "reconcile.test.test_openshift_namespaces",

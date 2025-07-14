@@ -1,5 +1,6 @@
 import datetime
 import os
+from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
 
@@ -116,7 +117,7 @@ def lookup_github_file_content(
     path: str,
     ref: str,
     tvars: dict[str, Any] | None = None,
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
 ) -> str:
     if tvars is not None:
@@ -194,7 +195,7 @@ def lookup_secret(
     version: str | None = None,
     tvars: dict[str, Any] | None = None,
     allow_not_found: bool = False,
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
 ) -> str | None:
     if tvars is not None:
@@ -225,7 +226,7 @@ def process_jinja2_template(
     body: str,
     vars: dict[str, Any] | None = None,
     extra_curly: bool = False,
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
     template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
@@ -276,7 +277,7 @@ def process_extracurlyjinja2_template(
     body: str,
     vars: dict[str, Any] | None = None,
     extra_curly: bool = True,  # ignored. Just to be compatible with process_jinja2_template
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
     template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:

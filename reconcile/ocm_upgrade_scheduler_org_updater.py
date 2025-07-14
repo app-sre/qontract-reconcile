@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import yaml
@@ -19,10 +20,10 @@ QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
 
 
 def render_policy(
-    template: dict[str, Any],
+    template: Mapping[str, Any],
     cluster_spec: OCMSpec,
-    labels: dict[str, str],
-    settings: dict[str, Any] | None = None,
+    labels: Mapping[str, str],
+    settings: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     body = template["path"]["content"]
     type = template.get("type") or "jinja2"
@@ -36,7 +37,7 @@ def render_policy(
     return yaml.safe_load(rendered)
 
 
-def run(dry_run, gitlab_project_id):
+def run(dry_run: bool, gitlab_project_id: str | None) -> None:
     settings = queries.get_app_interface_settings()
     ocms = queries.get_openshift_cluster_managers()
     for ocm_info in ocms:
@@ -55,7 +56,7 @@ def run(dry_run, gitlab_project_id):
         )
         ocm_name = ocm_info["name"]
         ocm_path = ocm_info["path"]
-        ocm = ocm_map[ocm_name]
+        ocm = ocm_map.get(ocm_name)
 
         for ocm_cluster_name, ocm_cluster_spec in ocm.clusters.items():
             found = [
