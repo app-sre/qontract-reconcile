@@ -1,10 +1,14 @@
 import logging
 import sys
+from collections.abc import Callable, Mapping, MutableMapping, Sequence
+from typing import Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils.defer import defer
+from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift-limitranges"
@@ -20,7 +24,9 @@ SUPPORTED_LIMITRANGE_TYPES = (
 )
 
 
-def construct_resources(namespaces):
+def construct_resources(
+    namespaces: Sequence[MutableMapping[str, Any]],
+) -> Sequence[MutableMapping[str, Any]]:
     for namespace in namespaces:
         if "limitRanges" not in namespace:
             logging.warning(
@@ -32,7 +38,7 @@ def construct_resources(namespaces):
         # Get the linked limitRanges schema settings
         limitranges = namespace.get("limitRanges", {})
 
-        body = {
+        body: MutableMapping[str, Any] = {
             "apiVersion": "v1",
             "kind": "LimitRange",
             "metadata": {
@@ -62,7 +68,9 @@ def construct_resources(namespaces):
     return namespaces
 
 
-def add_desired_state(namespaces, ri, oc_map):
+def add_desired_state(
+    namespaces: Sequence[Mapping[str, Any]], ri: ResourceInventory, oc_map: OC_Map
+) -> None:
     for namespace in namespaces:
         cluster = namespace["cluster"]["name"]
         if not oc_map.get(cluster):
@@ -81,14 +89,14 @@ def add_desired_state(namespaces, ri, oc_map):
 
 @defer
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    take_over=True,
-    defer=None,
-):
-    namespaces = [
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    take_over: bool = True,
+    defer: Callable | None = None,
+) -> None:
+    namespaces: Sequence[MutableMapping[str, Any]] = [
         namespace_info
         for namespace_info in queries.get_namespaces()
         if namespace_info.get("limitRanges")
@@ -110,7 +118,8 @@ def run(
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
 
     add_desired_state(namespaces, ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
