@@ -5,7 +5,7 @@ from abc import (
 )
 from collections.abc import Iterable, Mapping
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 
 from pydantic import (
     BaseModel,
@@ -202,7 +202,7 @@ class MachinePool(AbstractPool):
         pool: ClusterMachinePoolV1,
         cluster: str,
         cluster_type: ClusterType,
-    ) -> "MachinePool":
+    ) -> Self:
         autoscaling: MachinePoolAutoscaling | None = None
         if pool.autoscale:
             autoscaling = MachinePoolAutoscaling(
@@ -282,7 +282,7 @@ class NodePool(AbstractPool):
         pool: ClusterMachinePoolV1,
         cluster: str,
         cluster_type: ClusterType,
-    ) -> "NodePool":
+    ) -> Self:
         autoscaling: NodePoolAutoscaling | None = None
         if pool.autoscale:
             autoscaling = NodePoolAutoscaling(
