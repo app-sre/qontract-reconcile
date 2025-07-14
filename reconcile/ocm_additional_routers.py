@@ -1,7 +1,7 @@
 import json
 import logging
 import sys
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from typing import Any
 
 from reconcile import queries
@@ -18,7 +18,7 @@ SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
 def fetch_current_state(
-    clusters: list[dict[str, Any]],
+    clusters: list[Mapping[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
@@ -37,7 +37,7 @@ def fetch_current_state(
     return ocm_map, current_state
 
 
-def fetch_desired_state(clusters: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -53,8 +53,9 @@ def fetch_desired_state(clusters: Iterable[dict[str, Any]]) -> list[dict[str, An
 
 
 def calculate_diff(
-    current_state: Iterable[dict[str, Any]], desired_state: Iterable[dict[str, Any]]
-) -> list[dict[str, Any]]:
+    current_state: Iterable[MutableMapping[str, Any]],
+    desired_state: Iterable[MutableMapping[str, Any]],
+) -> list[MutableMapping[str, Any]]:
     diffs = []
     for d_item in desired_state:
         c_items = [c for c in current_state if d_item.items() <= c.items()]
@@ -71,14 +72,14 @@ def calculate_diff(
     return diffs
 
 
-def sort_diffs(diff: dict[str, Any]) -> int:
+def sort_diffs(diff: Mapping[str, Any]) -> int:
     """Sort diffs so we delete first and create later"""
     if diff["action"] == "delete":
         return 1
     return 2
 
 
-def act(dry_run: bool, diffs: list[dict[str, Any]], ocm_map: OCMMap) -> None:
+def act(dry_run: bool, diffs: list[MutableMapping[str, Any]], ocm_map: OCMMap) -> None:
     diffs.sort(key=sort_diffs)
     for diff in diffs:
         action = diff.pop("action")

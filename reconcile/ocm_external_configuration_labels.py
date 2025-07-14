@@ -12,7 +12,7 @@ from reconcile.utils.ocm import OCMMap
 QONTRACT_INTEGRATION = "ocm-external-configuration-labels"
 
 
-def get_allowed_labels_for_cluster(cluster: dict[str, Any]) -> set[str]:
+def get_allowed_labels_for_cluster(cluster: Mapping[str, Any]) -> set[str]:
     allowed_labels = cluster.get("ocm", {}).get(
         "allowedClusterExternalConfigLabels", []
     )
@@ -20,7 +20,7 @@ def get_allowed_labels_for_cluster(cluster: dict[str, Any]) -> set[str]:
 
 
 def fetch_current_state(
-    clusters: Iterable[dict[str, Any]],
+    clusters: Iterable[Mapping[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
@@ -45,7 +45,7 @@ def fetch_current_state(
     return ocm_map, current_state
 
 
-def fetch_desired_state(clusters: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -63,7 +63,8 @@ def fetch_desired_state(clusters: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def calculate_diff(
-    current_state: Iterable[dict[str, Any]], desired_state: Iterable[dict[str, Any]]
+    current_state: Iterable[dict[str, Any]],
+    desired_state: Iterable[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], bool]:
     diffs = []
     err = False
@@ -82,7 +83,7 @@ def calculate_diff(
     return diffs, err
 
 
-def sort_diffs(diff: dict[str, Any]) -> int:
+def sort_diffs(diff: Mapping[str, Any]) -> int:
     """Sort diffs so we delete first and create later"""
     if diff["action"] == "delete":
         return 1

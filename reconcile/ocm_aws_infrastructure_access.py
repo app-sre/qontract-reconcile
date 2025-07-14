@@ -23,7 +23,7 @@ SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
 def fetch_current_state(
-    clusters: Iterable[dict[str, Any]],
+    clusters: Iterable[Mapping[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     current_state = []
     current_failed = []
@@ -54,7 +54,7 @@ def fetch_current_state(
     return ocm_map, current_state, current_failed, current_deleting
 
 
-def fetch_desired_state(clusters: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
 
     for cluster_info in clusters:

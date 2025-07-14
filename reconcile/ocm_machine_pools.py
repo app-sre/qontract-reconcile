@@ -62,7 +62,7 @@ class MachinePoolAutoscaling(AbstractAutoscaling):
     max_replicas: int
 
     @root_validator()
-    def max_greater_min(cls, field_values: dict[str, Any]) -> dict[str, Any]:
+    def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         min_replicas = field_values.get("min_replicas")
         max_replicas = field_values.get("max_replicas")
         if min_replicas is None or max_replicas is None:
@@ -83,7 +83,7 @@ class NodePoolAutoscaling(AbstractAutoscaling):
     max_replica: int
 
     @root_validator()
-    def max_greater_min(cls, field_values: dict[str, Any]) -> dict[str, Any]:
+    def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         min_replica = field_values.get("min_replica")
         max_replica = field_values.get("max_replica")
         if min_replica is None or max_replica is None:
@@ -111,7 +111,7 @@ class AbstractPool(ABC, BaseModel):
     autoscaling: AbstractAutoscaling | None
 
     @root_validator()
-    def validate_scaling(cls, field_values: dict[str, Any]) -> dict[str, Any]:
+    def validate_scaling(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         if field_values.get("autoscaling") and field_values.get("replicas"):
             raise ValueError("autoscaling and replicas are mutually exclusive")
         return field_values

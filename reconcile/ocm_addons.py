@@ -1,6 +1,6 @@
 import logging
 import sys
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from operator import itemgetter
 from typing import Any
 
@@ -13,7 +13,7 @@ QONTRACT_INTEGRATION = "ocm-addons"
 
 
 def fetch_current_state(
-    clusters: list[dict[str, Any]],
+    clusters: Iterable[Mapping[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
@@ -37,7 +37,7 @@ def fetch_current_state(
     return ocm_map, current_state
 
 
-def fetch_desired_state(clusters: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -51,15 +51,16 @@ def fetch_desired_state(clusters: Iterable[dict[str, Any]]) -> list[dict[str, An
     return desired_state
 
 
-def sort_parameters(addon: dict[str, Any]) -> None:
+def sort_parameters(addon: MutableMapping[str, Any]) -> None:
     addon_parameters = addon.get("parameters")
     if addon_parameters:
         addon["parameters"] = sorted(addon_parameters, key=itemgetter("id"))
 
 
 def calculate_diff(
-    current_state: Iterable[dict[str, Any]], desired_state: Iterable[dict[str, Any]]
-) -> list[dict[str, Any]]:
+    current_state: Iterable[Mapping[str, Any]],
+    desired_state: Iterable[MutableMapping[str, Any]],
+) -> list[MutableMapping[str, Any]]:
     diffs = []
     for d in desired_state:
         c = [c for c in current_state if d.items() <= c.items()]
@@ -70,7 +71,9 @@ def calculate_diff(
     return diffs
 
 
-def act(dry_run: bool, diffs: Iterable[dict[str, Any]], ocm_map: OCMMap) -> bool:
+def act(
+    dry_run: bool, diffs: Iterable[MutableMapping[str, Any]], ocm_map: OCMMap
+) -> bool:
     err = False
     for diff in diffs:
         action = diff.pop("action")
