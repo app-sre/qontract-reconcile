@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.openshift_clusterrolebindings",
     "reconcile.openshift_limitranges",
     "reconcile.openshift_namespace_labels",
     "reconcile.openshift_network_policies",

@@ -1,5 +1,6 @@
 import contextlib
 import sys
+from collections.abc import Callable
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -9,7 +10,10 @@ from reconcile.utils import (
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.openshift_resource import ResourceKeyExistsError
+from reconcile.utils.openshift_resource import (
+    ResourceInventory,
+    ResourceKeyExistsError,
+)
 from reconcile.utils.semver_helper import make_semver
 
 ROLES_QUERY = """
@@ -42,7 +46,7 @@ QONTRACT_INTEGRATION = "openshift-clusterrolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def construct_user_oc_resource(role, user):
+def construct_user_oc_resource(role: str, user: str) -> tuple[OR, str]:
     name = f"{role}-{user}"
     # Note: In OpenShift 4.x this resource is in rbac.authorization.k8s.io/v1
     body = {
@@ -60,7 +64,7 @@ def construct_user_oc_resource(role, user):
     )
 
 
-def construct_sa_oc_resource(role, namespace, sa_name):
+def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[OR, str]:
     name = f"{role}-{namespace}-{sa_name}"
     # Note: In OpenShift 4.x this resource is in rbac.authorization.k8s.io/v1
     body = {
@@ -80,7 +84,9 @@ def construct_sa_oc_resource(role, namespace, sa_name):
     )
 
 
-def fetch_desired_state(ri, oc_map):
+def fetch_desired_state(
+    ri: ResourceInventory | None, oc_map: ob.ClusterMap
+) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
     roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
     users_desired_state = []
@@ -153,7 +159,13 @@ def fetch_desired_state(ri, oc_map):
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+def run(
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    defer: Callable | None = None,
+) -> None:
     clusters = [
         cluster_info
         for cluster_info in queries.get_clusters()
@@ -169,7 +181,8 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     fetch_desired_state(ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
