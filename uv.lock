@@ -750,24 +750,22 @@ wheels = [
 
 [[package]]
 name = "moto"
-version = "2.3.2"
+version = "5.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
     { name = "botocore" },
     { name = "cryptography" },
     { name = "jinja2" },
-    { name = "markupsafe" },
     { name = "python-dateutil" },
-    { name = "pytz" },
     { name = "requests" },
     { name = "responses" },
     { name = "werkzeug" },
     { name = "xmltodict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ce/a3/672bd625693576763080e077dce34bdd45f8cc9e35136486a9ba38c98418/moto-2.3.2.tar.gz", hash = "sha256:eaaed229742adbd1387383d113350ecd9222fc1e8f5611a9395a058c1eee4377", size = 2095242, upload-time = "2022-01-15T23:22:02.299Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/e8/986b38d3459124168e21b8ea3311a9a26e930bc84b1e9ede16e5bccd574c/moto-5.1.8.tar.gz", hash = "sha256:5c2f63c051b7c13224cb1483917c85a796468d7e37dcd5d1a5b8de66729de3f4", size = 7039961, upload-time = "2025-07-06T21:51:01.943Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/d8/ad1592ec7505bf9eca410f33fae8564f8a55ed5df5b51acd53b576f5b860/moto-2.3.2-py2.py3-none-any.whl", hash = "sha256:0c29f5813d4db69b2f99c5538909a5aba0ba1cb91a74c19eddd9bfdc39ed2ff3", size = 1524988, upload-time = "2022-01-15T23:21:59.367Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/a9/7dc06460777b2c1e7a91bb485e9dd600a88331aeac73ca88a8a6d437900f/moto-5.1.8-py3-none-any.whl", hash = "sha256:12f3a15100da7de019c671a516dbba33b14072faba103f16ca79a39b8c803b7d", size = 5108867, upload-time = "2025-07-06T21:50:59.911Z" },
 ]
 
 [[package]]
@@ -1648,7 +1646,7 @@ dev = [
     { name = "boto3-stubs", extras = ["account", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.34.94" },
     { name = "kubernetes-stubs", specifier = "==22.6.0" },
     { name = "markupsafe", specifier = "~=2.1.1" },
-    { name = "moto", specifier = "~=2.2" },
+    { name = "moto", specifier = "~=5.1" },
     { name = "mypy", specifier = "~=1.13.0" },
     { name = "pyfakefs", specifier = "~=5.1" },
     { name = "pytest", specifier = "~=8.3" },
@@ -1659,7 +1657,7 @@ dev = [
     { name = "responses", specifier = "~=0.25.0" },
     { name = "ruff", specifier = "~=0.12.2" },
     { name = "smtpdfix", specifier = "~=0.3.3" },
-    { name = "snakeviz", specifier = ">=2.2.2" },
+    { name = "snakeviz", specifier = "~=2.2.2" },
     { name = "testslide", specifier = "~=2.7" },
     { name = "typeguard", specifier = "~=2.13.3" },
     { name = "types-click" },
