@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+from typing import Any
 from unittest import TestCase
 from unittest.mock import (
     Mock,
@@ -74,7 +76,7 @@ class TestOCMAdditionalRouters(TestCase):
         fixture = fxt.get_anymarkup("state.yml")
 
         ocm_api = fixture["ocm_api"]
-        clusters = [{"name": c} for c in ocm_api]
+        clusters: list[Mapping[str, Any]] = [{"name": c} for c in ocm_api]
         ocm = get.return_value
         ocm.get_additional_routers.side_effect = lambda x: fixture["ocm_api"][x]
 
