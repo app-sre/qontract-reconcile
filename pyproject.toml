@@ -86,7 +86,7 @@ dev = [
     "smtpdfix ~=0.3.3",
     "snakeviz ~=2.2.2",
     "testslide ~=2.7",
-    "typeguard ~=2.13.3",
+    "typeguard ~=4.4.4",
     "types-click",
     "types-croniter",
     "types-dateparser",
