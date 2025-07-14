@@ -228,6 +228,13 @@ preview = true
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]
 
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = [
+    "classmethod",
+    "pydantic.validator",
+    "pydantic.root_validator",
+]
+
 [tool.coverage.run]
 branch = true
 omit = ["*/test/*"]
