@@ -28,6 +28,7 @@ from reconcile.cli import (
     threaded,
 )
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
@@ -179,7 +180,9 @@ class Report:
 
 
 def get_apps_data(
-    date: datetime, month_delta: int = 1, thread_pool_size: int = 10
+    date: datetime,
+    month_delta: int = 1,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> list[dict]:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings)

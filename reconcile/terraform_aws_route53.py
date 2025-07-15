@@ -10,6 +10,7 @@ from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils import dnsutils
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
@@ -205,7 +206,7 @@ def run(
     dry_run: bool = False,
     print_to_file: str | None = None,
     enable_deletion: bool = True,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
     defer=None,
 ):

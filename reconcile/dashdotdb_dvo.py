@@ -19,6 +19,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -254,7 +255,7 @@ class DashdotdbDVO(DashdotdbBase):
 
 def run(
     dry_run: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     cluster_name: str | None = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()

@@ -9,6 +9,7 @@ from reconcile.gql_definitions.openshift_serviceaccount_tokens.tokens import (
     query as serviceaccount_tokens_query,
 )
 from reconcile.utils import gql
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.oc import OC_Map
@@ -204,7 +205,7 @@ def get_namespaces_with_serviceaccount_tokens(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     vault_output_path: str = "",

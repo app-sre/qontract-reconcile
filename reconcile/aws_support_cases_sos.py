@@ -8,6 +8,7 @@ from reconcile import (
     queries,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.mr import CreateDeleteAwsAccessKey
 
@@ -71,7 +72,9 @@ def act(
 
 
 def run(
-    dry_run: bool, gitlab_project_id: str | None = None, thread_pool_size: int = 10
+    dry_run: bool,
+    gitlab_project_id: str | None = None,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> None:
     accounts = filter_accounts(queries.get_aws_accounts())
     settings = queries.get_app_interface_settings()

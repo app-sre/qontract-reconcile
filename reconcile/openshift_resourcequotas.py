@@ -5,6 +5,7 @@ from typing import Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.helpers import flatten
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -56,7 +57,7 @@ def fetch_desired_state(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     take_over: bool = True,

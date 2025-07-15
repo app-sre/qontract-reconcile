@@ -7,6 +7,7 @@ from gitlab.v4.objects import ProjectMergeRequest
 from sretoolbox.utils import threaded
 
 from reconcile import queries
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import (
     GitLabApi,
@@ -412,7 +413,7 @@ def act(
         ])
 
 
-def run(dry_run: bool, thread_pool_size: int = 10) -> None:
+def run(dry_run: bool, thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
     repos = queries.get_repos_gitlab_owner(server=instance["url"])

@@ -37,6 +37,7 @@ from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
 )
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.extended_early_exit import (
@@ -423,7 +424,7 @@ def setup(
     account_name: str | None,
     desired_state_data_source: DesiredStateDataSource,
     tgw_accounts: list[dict[str, Any]],
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     print_to_file: str | None = None,
 ) -> tuple[SecretReaderBase, AWSApi, Terraform, Terrascript]:
     tgw_clusters = desired_state_data_source.clusters
@@ -500,7 +501,7 @@ def run(
     dry_run: bool,
     print_to_file: str | None = None,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
     defer: Callable | None = None,
     enable_extended_early_exit: bool = False,

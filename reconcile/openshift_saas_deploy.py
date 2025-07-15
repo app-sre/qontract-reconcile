@@ -25,6 +25,7 @@ from reconcile.typed_queries.saas_files import (
     SaasFileList,
     get_saasherder_settings,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.openshift_resource import ResourceInventory
@@ -109,7 +110,7 @@ def slack_notify(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     io_dir: str = "throughput/",
     use_jump_host: bool = True,
     saas_file_name: str | None = None,

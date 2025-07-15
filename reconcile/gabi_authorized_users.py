@@ -16,6 +16,7 @@ import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.aggregated_list import RunnerError
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import get_external_resource_specs
@@ -110,7 +111,7 @@ def fetch_desired_state(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     defer: Callable | None = None,
