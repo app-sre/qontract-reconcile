@@ -9,17 +9,28 @@ import yaml
 from reconcile.utils.defer import defer
 from reconcile.utils.structs import CommandExecutionResult
 
-PROMTOOL_VERSION = ["2.55.1"]
+PROMTOOL_VERSION = ["2.55.1", "3.2.1"]
 PROMTOOL_VERSION_REGEX = r"^promtool,\sversion\s([\d]+\.[\d]+\.[\d]+).+$"
 
 
-def check_rule(yaml_spec: Mapping) -> CommandExecutionResult:
+def _bin(version: str | None = None) -> str:
+    return f"promtool-{version}" if version else "promtool"
+
+
+def check_rule(
+    yaml_spec: Mapping,
+    promtool_version: str | None = None,
+) -> CommandExecutionResult:
     """Run promtool check rules on the given yaml spec given as dict"""
-    return _run_yaml_spec_cmd(cmd=["promtool", "check", "rules"], yaml_spec=yaml_spec)
+    return _run_yaml_spec_cmd(
+        cmd=[_bin(promtool_version), "check", "rules"], yaml_spec=yaml_spec
+    )
 
 
 def run_test(
-    test_yaml_spec: MutableMapping, rule_files: Mapping[str, Mapping]
+    test_yaml_spec: MutableMapping,
+    rule_files: Mapping[str, Mapping],
+    promtool_version: str | None = None,
 ) -> CommandExecutionResult:
     """Run promtool test rules
 
@@ -52,7 +63,7 @@ def run_test(
     defer(lambda: _cleanup(temp_rule_files.values()))
 
     return _run_yaml_spec_cmd(
-        cmd=["promtool", "test", "rules"], yaml_spec=temp_test_yaml_spec
+        cmd=[_bin(promtool_version), "test", "rules"], yaml_spec=temp_test_yaml_spec
     )
 
 
