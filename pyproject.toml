@@ -73,7 +73,7 @@ dev = [
     "boto3-stubs[account,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.34.94",
     "kubernetes-stubs==22.6.0",
     "MarkupSafe ~=2.1.1",
-    "moto ~=2.2",
+    "moto ~=5.1",
     "mypy ~=1.13.0",
     "pyfakefs ~=5.1",
     "pytest ~=8.3",
