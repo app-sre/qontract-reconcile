@@ -501,14 +501,14 @@ wheels = [
 
 [[package]]
 name = "hvac"
-version = "0.7.2"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/13/a97470552dbcc2ff5ca18ba67cd5f6e5dc1954c647a943634cb890f60adb/hvac-0.7.2.tar.gz", hash = "sha256:773775fa827c74299abd96079eeeeb0cefbb23b484195c03cff27d04716539ba", size = 62074, upload-time = "2019-01-01T23:30:02.771Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/a4/c0b698a7250b7a5c2956427406560701862215c646e079a7907846608f44/hvac-2.3.0.tar.gz", hash = "sha256:1b85e3320e8642dd82f234db63253cda169a817589e823713dc5fca83119b1e2", size = 332660, upload-time = "2024-06-18T14:46:09.748Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/dd/49f4e316369e492d728983a1774367fddc5bb9975d32661247466cfea67c/hvac-0.7.2-py2.py3-none-any.whl", hash = "sha256:001978c8e8778b6eda78bceba5781ba444f9f5f0d94634f9631e5a6a47ebb3c7", size = 167505, upload-time = "2019-01-01T23:30:00.63Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/34/56facf52e2ea14ce640f434ccf00311af6f3a1df0019d4682ba28ea09948/hvac-2.3.0-py3-none-any.whl", hash = "sha256:a3afc5710760b6ee9b3571769df87a0333da45da05a5f9f963e1d3925a84be7d", size = 155860, upload-time = "2024-06-18T14:46:05.399Z" },
 ]
 
 [[package]]
@@ -1601,7 +1601,7 @@ requires-dist = [
     { name = "dt", specifier = "==1.1.73" },
     { name = "filetype", specifier = "~=1.2.0" },
     { name = "gql", specifier = "==3.1.0" },
-    { name = "hvac", specifier = ">=0.7.0,<0.8.0" },
+    { name = "hvac", specifier = ">=2.3.0,<2.4.0" },
     { name = "jenkins-job-builder", specifier = "~=4.3.0" },
     { name = "jinja2", specifier = ">=2.10.1,<3.2.0" },
     { name = "jira", specifier = "~=3.1" },
@@ -1659,7 +1659,7 @@ dev = [
     { name = "responses", specifier = "~=0.25.0" },
     { name = "ruff", specifier = "~=0.12.2" },
     { name = "smtpdfix", specifier = "~=0.3.3" },
-    { name = "snakeviz", specifier = ">=2.2.2" },
+    { name = "snakeviz", specifier = "~=2.2.2" },
     { name = "testslide", specifier = "~=2.7" },
     { name = "typeguard", specifier = "~=2.13.3" },
     { name = "types-click" },
