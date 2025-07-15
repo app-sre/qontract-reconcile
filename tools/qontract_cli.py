@@ -869,6 +869,7 @@ def alert_report(
         "Triggered",
         "Resolved",
         "Median time to resolve (h:mm:ss)",
+        "Response Rate",
     ]
     table_data: list[dict[str, str]] = []
     for alert_name, data in sorted(
@@ -884,6 +885,7 @@ def alert_report(
             "Triggered": str(data.triggered_alerts),
             "Resolved": str(data.resolved_alerts),
             "Median time to resolve (h:mm:ss)": median_elapsed,
+            "Response Rate": f"{data.responsed_alerts / data.triggered_alerts * 100:.2f}%",
         })
 
     # TODO(mafriedm, rporres): Fix this
