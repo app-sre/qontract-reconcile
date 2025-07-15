@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Callable
 from typing import Any
 
 from deepdiff import DeepHash
@@ -13,14 +14,14 @@ PROVIDERS = ["vault-secret"]
 
 
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    cluster_name=None,
-    namespace_name=None,
-    defer=None,
-):
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    cluster_name: str | None = None,
+    namespace_name: str | None = None,
+    defer: Callable | None = None,
+) -> None:
     orb.QONTRACT_INTEGRATION = QONTRACT_INTEGRATION
     orb.QONTRACT_INTEGRATION_VERSION = QONTRACT_INTEGRATION_VERSION
 
@@ -35,7 +36,7 @@ def run(
     )
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     namespaces, _ = orb.get_namespaces(PROVIDERS)
 
     state_for_clusters = defaultdict(list)
