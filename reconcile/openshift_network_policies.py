@@ -1,12 +1,15 @@
 import logging
 import sys
+from collections.abc import Callable, Iterable, Mapping
 from textwrap import indent
+from typing import Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
@@ -54,7 +57,7 @@ QONTRACT_INTEGRATION = "openshift-network-policies"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def construct_oc_resource(name, source_ns):
+def construct_oc_resource(name: str, source_ns: str) -> OR:
     body = {
         "apiVersion": "networking.k8s.io/v1",
         "kind": "NetworkPolicy",
@@ -82,13 +85,17 @@ def construct_oc_resource(name, source_ns):
     )
 
 
-def fetch_desired_state(namespaces, ri, oc_map):
+def fetch_desired_state(
+    namespaces: Iterable[Mapping[str, Any]],
+    ri: ResourceInventory,
+    oc_map: ob.ClusterMap,
+) -> None:
     for namespace_info in namespaces:
         namespace = namespace_info["name"]
         cluster = namespace_info["cluster"]["name"]
         if not oc_map.get(cluster):
             continue
-        source_namespaces = namespace_info["networkPoliciesAllow"]
+        source_namespaces = namespace_info.get("networkPoliciesAllow") or []
         for source_namespace_info in source_namespaces:
             source_namespace = source_namespace_info["name"]
             source_cluster = source_namespace_info["cluster"]["name"]
@@ -110,11 +117,21 @@ def fetch_desired_state(namespaces, ri, oc_map):
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+def run(
+    dry_run: bool,
+    thread_pool_size: int = 10,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    defer: Callable | None = None,
+) -> None:
     gqlapi = gql.get_api()
 
     namespaces = []
-    for namespace_info in gqlapi.query(NAMESPACES_QUERY)["namespaces"]:
+    namespaces_query_result = gqlapi.query(NAMESPACES_QUERY)
+    if not namespaces_query_result:
+        return
+
+    for namespace_info in namespaces_query_result["namespaces"]:
         if not namespace_info.get("networkPoliciesAllow"):
             continue
         if ob.is_namespace_deleted(namespace_info):
@@ -136,7 +153,8 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     fetch_desired_state(namespaces, ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
