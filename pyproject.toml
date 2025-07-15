@@ -355,8 +355,6 @@ module = [
     "reconcile.test.test_make",
     "reconcile.test.test_ocm_update_recommended_version",
     "reconcile.test.test_openshift_namespaces",
-    "reconcile.test.test_openshift_resource",
-    "reconcile.test.test_openshift_resources_base",
     "reconcile.test.test_openshift_saas_deploy_change_tester",
     "reconcile.test.test_openshift_saas_deploy",
     "reconcile.test.test_openshift_upgrade_watcher",

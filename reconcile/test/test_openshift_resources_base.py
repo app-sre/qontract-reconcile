@@ -1,17 +1,23 @@
 import copy
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import (
+    Any,
+)
 from unittest.mock import (
+    MagicMock,
     Mock,
-    patch,
 )
 
 import pytest
 from kubernetes.dynamic import Resource
+from pytest_mock import MockerFixture
 
 from reconcile import openshift_resources_base as orb
 from reconcile.openshift_base import CurrentStateSpec
 from reconcile.openshift_resources_base import (
     CheckClusterScopedResourceDuplicates,
+    CheckError,
+    SecretKeyFormatError,
     canonicalize_namespaces,
     ob,
 )
@@ -28,15 +34,14 @@ def namespaces() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-@patch("reconcile.utils.oc.OCNative")
-def oc_cs1(self) -> oc.OCClient:
-    client = oc.OCNative(cluster_name="cs1", server="s", token="t", local=True)
+def oc_cs1(mocker: MockerFixture) -> oc.OCClient:
+    client = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     client.init_api_resources = True
     client.api_resources = {
         "Template": ["template.openshift.io/v1"],
         "Subscription": ["apps.open-cluster-management.io/v1", "operators.coreos.com"],
     }
-    client.get_items = lambda kind, **kwargs: []
+    client.get_items.return_value = []
     return client
 
 
@@ -56,7 +61,7 @@ def current_state_spec(oc_cs1: oc.OCNative) -> CurrentStateSpec:
     )
 
 
-def test_secret(namespaces: list[dict[str, Any]], mocker):
+def test_secret(namespaces: list[dict[str, Any]], mocker: MockerFixture) -> None:
     mocker.patch.object(ob, "aggregate_shared_resources", autospec=True)
     expected = (
         [
@@ -79,7 +84,7 @@ def test_secret(namespaces: list[dict[str, Any]], mocker):
     assert (ns, override) == expected
 
 
-def test_route(namespaces: list[dict[str, Any]], mocker):
+def test_route(namespaces: list[dict[str, Any]], mocker: MockerFixture) -> None:
     mocker.patch.object(ob, "aggregate_shared_resources", autospec=True)
     expected = (
         [
@@ -98,7 +103,7 @@ def test_route(namespaces: list[dict[str, Any]], mocker):
     assert (ns, override) == expected
 
 
-def test_no_overrides(namespaces: list[dict[str, Any]], mocker):
+def test_no_overrides(namespaces: list[dict[str, Any]], mocker: MockerFixture) -> None:
     mocker.patch.object(ob, "aggregate_shared_resources", autospec=True)
     expected = (
         [
@@ -119,12 +124,11 @@ def test_no_overrides(namespaces: list[dict[str, Any]], mocker):
 
 
 @pytest.fixture
-@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_ri_not_initialized(
-    oc_cs1: oc.OCClient, tmpl1: dict[str, Any]
-):
+    oc_cs1: MagicMock, tmpl1: dict[str, Any]
+) -> None:
     ri = ResourceInventory()
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
+    oc_cs1.get_items.return_value = [tmpl1]
     ri.initialize_resource_type("cs1", "wrong_namespace", "Template")
     ri.initialize_resource_type("wrong_cluster", "ns1", "Template")
     ri.initialize_resource_type("cs1", "ns1", "wrong_kind")
@@ -142,10 +146,12 @@ def test_fetch_current_state_ri_not_initialized(
         assert len(resource["current"]) == 0
 
 
-def test_fetch_current_state_ri_initialized(oc_cs1: oc.OCClient, tmpl1: dict[str, Any]):
+def test_fetch_current_state_ri_initialized(
+    oc_cs1: MagicMock, tmpl1: dict[str, Any]
+) -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
+    oc_cs1.get_items.return_value = [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -162,13 +168,12 @@ def test_fetch_current_state_ri_initialized(oc_cs1: oc.OCClient, tmpl1: dict[str
 
 
 @pytest.fixture
-@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_kind_not_supported(
-    oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
-):
+    oc_cs1: MagicMock, tmpl1: dict[str, Any]
+) -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "AnUnsupportedKind")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]
+    oc_cs1.get_items.return_value = [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -182,10 +187,12 @@ def test_fetch_current_state_kind_not_supported(
     assert len(resource["current"]) == 0
 
 
-def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any]):
+def test_fetch_current_state_long_kind(
+    oc_cs1: MagicMock, tmpl1: dict[str, Any]
+) -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template.template.openshift.io")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore
+    oc_cs1.get_items.return_value = [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -202,13 +209,12 @@ def test_fetch_current_state_long_kind(oc_cs1: oc.OCClient, tmpl1: dict[str, Any
 
 
 @pytest.fixture
-@patch("reconcile.utils.oc.OCNative")
 def test_fetch_current_state_long_kind_not_supported(
-    oc_cs1: oc.OCNative, tmpl1: dict[str, Any]
-):
+    oc_cs1: MagicMock, tmpl1: dict[str, Any]
+) -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "UnknownKind.mysterious.io")
-    oc_cs1.get_items = lambda kind, **kwargs: [tmpl1]
+    oc_cs1.get_items.return_value = [tmpl1]
     orb.fetch_current_state(
         oc=oc_cs1,
         ri=ri,
@@ -222,7 +228,9 @@ def test_fetch_current_state_long_kind_not_supported(
     assert len(resource["current"]) == 0
 
 
-def test_fetch_states(current_state_spec: CurrentStateSpec, tmpl1: dict[str, Any]):
+def test_fetch_states(
+    current_state_spec: CurrentStateSpec, tmpl1: dict[str, Any]
+) -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template")
     current_state_spec.oc.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
@@ -233,7 +241,7 @@ def test_fetch_states(current_state_spec: CurrentStateSpec, tmpl1: dict[str, Any
     assert resource["current"]["tmpl1"].kind == "Template"
 
 
-def test_fetch_states_unknown_kind(current_state_spec: CurrentStateSpec):
+def test_fetch_states_unknown_kind(current_state_spec: CurrentStateSpec) -> None:
     current_state_spec.kind = "UnknownKind"
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "UnknownKind")
@@ -242,7 +250,7 @@ def test_fetch_states_unknown_kind(current_state_spec: CurrentStateSpec):
     assert len(resource["current"]) == 0
 
 
-def test_fetch_states_oc_error(current_state_spec: CurrentStateSpec):
+def test_fetch_states_oc_error(current_state_spec: CurrentStateSpec) -> None:
     current_state_spec.oc.get_items = Mock(  # type: ignore[method-assign]
         side_effect=oc.StatusCodeError("something wrong with openshift")
     )
@@ -260,7 +268,7 @@ def nss_csr_overrides() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def api_resources():
+def api_resources() -> dict[str, list[Resource]]:
     p1 = Resource(
         prefix="",
         kind="Project",
@@ -293,7 +301,9 @@ def api_resources():
 
 
 @pytest.fixture
-def oc_api_resources(mocker, api_resources):
+def oc_api_resources(
+    mocker: MockerFixture, api_resources: Mapping[str, Sequence[Resource]]
+) -> oc.OCNative:
     mock = mocker.patch("reconcile.utils.oc.OCNative", autospec=True).return_value
     mock.get_api_resources.return_value = api_resources
     mock.is_kind_namespaced.side_effect = lambda k: k == "Deployment"
@@ -301,7 +311,9 @@ def oc_api_resources(mocker, api_resources):
 
 
 @pytest.fixture
-def oc_map_api_resources(mocker, oc_api_resources):
+def oc_map_api_resources(
+    mocker: MockerFixture, oc_api_resources: oc.OCNative
+) -> oc.OC_Map:
     ocmap = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
     ocmap.get_cluster.return_value = oc_api_resources
     ocmap.clusters.side_effect = (
@@ -311,8 +323,8 @@ def oc_map_api_resources(mocker, oc_api_resources):
 
 
 def test_get_namespace_cluster_scoped_resources(
-    oc_map_api_resources, nss_csr_overrides
-):
+    oc_map_api_resources: oc.OC_Map, nss_csr_overrides: Sequence[dict[str, Any]]
+) -> None:
     expected = (
         "cs1",
         "ns1",
@@ -329,7 +341,9 @@ def test_get_namespace_cluster_scoped_resources(
     assert result == expected
 
 
-def test_get_cluster_scoped_resources(oc_map_api_resources, nss_csr_overrides):
+def test_get_cluster_scoped_resources(
+    oc_map_api_resources: oc.OC_Map, nss_csr_overrides: Sequence[dict[str, Any]]
+) -> None:
     expected = {
         "cs1": {
             "ns1": {
@@ -344,8 +358,8 @@ def test_get_cluster_scoped_resources(oc_map_api_resources, nss_csr_overrides):
     assert result == expected
 
 
-def test_find_resource_duplicates(oc_map_api_resources):
-    input = {
+def test_find_resource_duplicates(oc_map_api_resources: oc.OC_Map) -> None:
+    resource_map = {
         "cs1": {
             "ns1": {
                 "ClusterRole": ["cr1"],
@@ -370,12 +384,12 @@ def test_find_resource_duplicates(oc_map_api_resources):
         ("cs2", "ClusterRoleBinding", "crb1", ["ns3", "ns4"]),
     ]
     c = CheckClusterScopedResourceDuplicates(oc_map_api_resources)
-    result = c._find_resource_duplicates(input)
+    result = c._find_resource_duplicates(resource_map)
     assert result == expected
 
 
 @pytest.fixture
-def resource_inventory_csr_tests():
+def resource_inventory_csr_tests() -> ResourceInventory:
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "ClusterRole")
     ri.initialize_resource_type("cs1", "ns1", "Project.config.openshift.io")
@@ -390,8 +404,10 @@ def resource_inventory_csr_tests():
 
 
 def test_check_cluster_scoped_resources_ok(
-    oc_map_api_resources, resource_inventory_csr_tests, nss_csr_overrides
-):
+    oc_map_api_resources: oc.OC_Map,
+    resource_inventory_csr_tests: ResourceInventory,
+    nss_csr_overrides: Sequence[dict[str, Any]],
+) -> None:
     error = orb.check_cluster_scoped_resources(
         oc_map_api_resources,
         resource_inventory_csr_tests,
@@ -403,8 +419,10 @@ def test_check_cluster_scoped_resources_ok(
 
 
 def test_check_cluster_scoper_resources_non_declared(
-    oc_map_api_resources, resource_inventory_csr_tests, nss_csr_overrides
-):
+    oc_map_api_resources: oc.OC_Map,
+    resource_inventory_csr_tests: ResourceInventory,
+    nss_csr_overrides: Sequence[dict[str, Any]],
+) -> None:
     resource_inventory_csr_tests.add_desired(
         "cs1", "ns1", "ClusterRole", "cr3", "dummy_value", True
     )
@@ -419,9 +437,11 @@ def test_check_cluster_scoper_resources_non_declared(
 
 
 def test_check_cluster_scoped_resources_duplicated(
-    oc_map_api_resources, resource_inventory_csr_tests, nss_csr_overrides
-):
-    ns2 = copy.deepcopy(nss_csr_overrides[0])
+    oc_map_api_resources: oc.OC_Map,
+    resource_inventory_csr_tests: ResourceInventory,
+    nss_csr_overrides: Sequence[dict[str, Any]],
+) -> None:
+    ns2: dict[str, Any] = copy.deepcopy(nss_csr_overrides[0])
     ns2["name"] = "ns3"
 
     all_namespaces = [nss_csr_overrides[0], ns2]
@@ -435,12 +455,12 @@ def test_check_cluster_scoped_resources_duplicated(
     assert error is True
 
 
-def test_check_error():
-    e = orb.CheckError("message")
+def test_check_error() -> None:
+    e = CheckError("message")
     print(e)
 
 
-def test_cluster_params():
+def test_cluster_params() -> None:
     with pytest.raises(RuntimeError):
         orb.run(dry_run=False, exclude_cluster=["test-cluster"])
 
@@ -456,21 +476,24 @@ def test_cluster_params():
 @pytest.mark.parametrize(
     "test_parameters, exception_expected",
     [
-        ({" leading_space": "test"}, orb.SecretKeyFormatError),
-        ({" space_padding ": "test"}, orb.SecretKeyFormatError),
-        ({"trailing_space ": "test"}, orb.SecretKeyFormatError),
-        ({"&invalidkey": "test"}, orb.SecretKeyFormatError),
-        ({"!invalidkey": "test"}, orb.SecretKeyFormatError),
-        ({"space issues": "test"}, orb.SecretKeyFormatError),
-        ({"/etc/passwd": "test"}, orb.SecretKeyFormatError),
-        ({"": "test"}, orb.SecretKeyFormatError),
+        ({" leading_space": "test"}, SecretKeyFormatError),
+        ({" space_padding ": "test"}, SecretKeyFormatError),
+        ({"trailing_space ": "test"}, SecretKeyFormatError),
+        ({"&invalidkey": "test"}, SecretKeyFormatError),
+        ({"!invalidkey": "test"}, SecretKeyFormatError),
+        ({"space issues": "test"}, SecretKeyFormatError),
+        ({"/etc/passwd": "test"}, SecretKeyFormatError),
+        ({"": "test"}, SecretKeyFormatError),
         ({".": "test"}, None),
         ({"0validkey": "test"}, None),
         ({"no_spacing": "test"}, None),
         ({"-": "test"}, None),
     ],
 )
-def test_secret_keys(test_parameters, exception_expected):
+def test_secret_keys(
+    test_parameters: dict[str, str],
+    exception_expected: type[SecretKeyFormatError] | None,
+) -> None:
     if exception_expected is not None:
         with pytest.raises(exception_expected):
             orb.assert_valid_secret_keys(test_parameters)
@@ -478,7 +501,7 @@ def test_secret_keys(test_parameters, exception_expected):
         orb.assert_valid_secret_keys(test_parameters)
 
 
-def test_fetch_current_state_skips_argocd_managed(oc_cs1: oc.OCClient):
+def test_fetch_current_state_skips_argocd_managed(oc_cs1: oc.OCClient) -> None:
     """Resources labeled as managed by ArgoCD should be skipped in current state."""
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Deployment")
