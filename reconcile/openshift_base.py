@@ -28,6 +28,7 @@ from reconcile.utils import (
     differ,
     metrics,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -330,7 +331,7 @@ def populate_current_state(
 def fetch_current_state(
     namespaces: Iterable[Mapping] | None = None,
     clusters: Iterable[Mapping] | None = None,
-    thread_pool_size: int = 1,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     integration: str | None = None,
     integration_version: str | None = None,
     override_managed_types: Iterable[str] | None = None,

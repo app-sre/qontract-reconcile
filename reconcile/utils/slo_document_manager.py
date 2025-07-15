@@ -14,6 +14,7 @@ from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLOExternalPrometheusAccessV1,
     SLONamespacesV1,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 from reconcile.utils.secret_reader import SecretReaderBase
 
@@ -21,7 +22,6 @@ PROM_QUERY_URL = "api/v1/query"
 
 DEFAULT_READ_TIMEOUT = 30
 DEFAULT_RETRIES = 3
-DEFAULT_THREAD_POOL_SIZE = 10
 
 
 class EmptySLOResultError(Exception):
