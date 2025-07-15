@@ -84,6 +84,7 @@ dev = [
     "responses ~=0.25.0",
     "ruff ~=0.12.2",
     "smtpdfix ~=0.3.3",
+    "snakeviz ~=2.2.2",
     "testslide ~=2.7",
     "typeguard ~=2.13.3",
     "types-click",
@@ -227,6 +228,13 @@ preview = true
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]
 
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = [
+    "classmethod",
+    "pydantic.validator",
+    "pydantic.root_validator",
+]
+
 [tool.coverage.run]
 branch = true
 omit = ["*/test/*"]
@@ -254,14 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.mr_client_gateway",
-    "reconcile.ocm_additional_routers",
-    "reconcile.ocm_addons",
-    "reconcile.ocm_aws_infrastructure_access",
-    "reconcile.ocm_clusters",
-    "reconcile.ocm_external_configuration_labels",
-    "reconcile.ocm_groups",
-    "reconcile.ocm_machine_pools",
     "reconcile.ocm_upgrade_scheduler_org_updater",
     "reconcile.openshift_base",
     "reconcile.openshift_clusterrolebindings",
@@ -363,10 +363,6 @@ module = [
     "reconcile.test.test_jenkins_worker_fleets",
     "reconcile.test.test_jump_host",
     "reconcile.test.test_make",
-    "reconcile.test.test_ocm_additional_routers",
-    "reconcile.test.test_ocm_clusters_manifest_updates",
-    "reconcile.test.test_ocm_clusters",
-    "reconcile.test.test_ocm_machine_pools",
     "reconcile.test.test_ocm_update_recommended_version",
     "reconcile.test.test_ocm_upgrade_scheduler_org_updater",
     "reconcile.test.test_openshift_base",

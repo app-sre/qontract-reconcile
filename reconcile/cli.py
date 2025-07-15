@@ -2944,12 +2944,11 @@ def ocm_update_recommended_version(
 
 
 @integration.command(short_help="Manages cluster Addons in OCM.")
-@threaded()
 @click.pass_context
-def ocm_addons(ctx: click.Context, thread_pool_size: int) -> None:
+def ocm_addons(ctx: click.Context) -> None:
     import reconcile.ocm_addons
 
-    run_integration(reconcile.ocm_addons, ctx, thread_pool_size)
+    run_integration(reconcile.ocm_addons, ctx)
 
 
 @integration.command(

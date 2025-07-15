@@ -5,6 +5,7 @@ from abc import (
 )
 from collections.abc import Iterable, Mapping
 from enum import Enum
+from typing import Any, Self
 
 from pydantic import (
     BaseModel,
@@ -48,11 +49,11 @@ class AbstractAutoscaling(BaseModel):
         )
 
     @abstractmethod
-    def get_min(self):
+    def get_min(self) -> int:
         pass
 
     @abstractmethod
-    def get_max(self):
+    def get_max(self) -> int:
         pass
 
 
@@ -61,9 +62,12 @@ class MachinePoolAutoscaling(AbstractAutoscaling):
     max_replicas: int
 
     @root_validator()
-    @classmethod
-    def max_greater_min(cls, field_values):
-        if field_values.get("min_replicas") > field_values.get("max_replicas"):
+    def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
+        min_replicas = field_values.get("min_replicas")
+        max_replicas = field_values.get("max_replicas")
+        if min_replicas is None or max_replicas is None:
+            raise ValueError("min_replicas and max_replicas must be set")
+        if min_replicas > max_replicas:
             raise ValueError("max_replicas must be greater than min_replicas")
         return field_values
 
@@ -79,10 +83,13 @@ class NodePoolAutoscaling(AbstractAutoscaling):
     max_replica: int
 
     @root_validator()
-    @classmethod
-    def max_greater_min(cls, field_values):
-        if field_values.get("min_replica") > field_values.get("max_replica"):
-            raise ValueError("max_replicas must be greater than min_replicas")
+    def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
+        min_replica = field_values.get("min_replica")
+        max_replica = field_values.get("max_replica")
+        if min_replica is None or max_replica is None:
+            raise ValueError("min_replica and max_replica must be set")
+        if min_replica > max_replica:
+            raise ValueError("max_replica must be greater than min_replica")
         return field_values
 
     def get_min(self) -> int:
@@ -104,8 +111,7 @@ class AbstractPool(ABC, BaseModel):
     autoscaling: AbstractAutoscaling | None
 
     @root_validator()
-    @classmethod
-    def validate_scaling(cls, field_values):
+    def validate_scaling(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         if field_values.get("autoscaling") and field_values.get("replicas"):
             raise ValueError("autoscaling and replicas are mutually exclusive")
         return field_values
@@ -134,14 +140,12 @@ class AbstractPool(ABC, BaseModel):
     def deletable(self) -> bool:
         pass
 
-    def _has_diff_autoscale(self, pool):
-        match (self.autoscaling, pool.autoscale):
-            case (None, None):
-                return False
-            case (None, _) | (_, None):
-                return True
-            case _:
-                return self.autoscaling.has_diff(pool.autoscale)
+    def _has_diff_autoscale(self, pool: ClusterMachinePoolV1) -> bool:
+        if self.autoscaling is None and pool.autoscale is None:
+            return False
+        if self.autoscaling is None or pool.autoscale is None:
+            return True
+        return self.autoscaling.has_diff(pool.autoscale)
 
 
 class MachinePool(AbstractPool):
@@ -198,7 +202,7 @@ class MachinePool(AbstractPool):
         pool: ClusterMachinePoolV1,
         cluster: str,
         cluster_type: ClusterType,
-    ):
+    ) -> Self:
         autoscaling: MachinePoolAutoscaling | None = None
         if pool.autoscale:
             autoscaling = MachinePoolAutoscaling(
@@ -278,7 +282,7 @@ class NodePool(AbstractPool):
         pool: ClusterMachinePoolV1,
         cluster: str,
         cluster_type: ClusterType,
-    ):
+    ) -> Self:
         autoscaling: NodePoolAutoscaling | None = None
         if pool.autoscale:
             autoscaling = NodePoolAutoscaling(
@@ -369,7 +373,7 @@ def _classify_cluster_type(cluster: ClusterV1) -> ClusterType:
             raise ValueError(f"unknown cluster type for cluster {cluster.name}")
 
 
-def fetch_current_state_for_cluster(cluster, ocm):
+def fetch_current_state_for_cluster(cluster: ClusterV1, ocm: OCM) -> list[AbstractPool]:
     cluster_type = _classify_cluster_type(cluster)
     if cluster_type == ClusterType.ROSA_HCP:
         return [
@@ -505,14 +509,15 @@ def act(dry_run: bool, diffs: Iterable[PoolHandler], ocm_map: OCMMap) -> None:
         logging.info([diff.action, diff.pool.cluster, diff.pool.id])
         if not dry_run:
             ocm = ocm_map.get(diff.pool.cluster)
-            diff.act(dry_run, ocm)
+            if ocm is not None:
+                diff.act(dry_run, ocm)
 
 
 def _cluster_is_compatible(cluster: ClusterV1) -> bool:
     return cluster.ocm is not None and cluster.machine_pools is not None
 
 
-def run(dry_run: bool):
+def run(dry_run: bool) -> None:
     clusters = get_clusters()
 
     filtered_clusters = [
