@@ -330,7 +330,7 @@ def populate_current_state(
 def fetch_current_state(
     namespaces: Iterable[Mapping] | None = None,
     clusters: Iterable[Mapping] | None = None,
-    thread_pool_size: int | None = None,
+    thread_pool_size: int = 1,
     integration: str | None = None,
     integration_version: str | None = None,
     override_managed_types: Iterable[str] | None = None,
@@ -350,7 +350,7 @@ def fetch_current_state(
         settings=settings,
         internal=internal,
         use_jump_host=use_jump_host,
-        thread_pool_size=thread_pool_size or 1,
+        thread_pool_size=thread_pool_size,
         init_api_resources=init_api_resources,
         cluster_admin=cluster_admin,
         init_projects=init_projects,
@@ -366,7 +366,7 @@ def fetch_current_state(
     threaded.run(
         populate_current_state,
         state_specs,
-        thread_pool_size or 1,
+        thread_pool_size,
         ri=ri,
         integration=integration,
         integration_version=integration_version,
