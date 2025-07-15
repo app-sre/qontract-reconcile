@@ -102,7 +102,7 @@ class Product(AbstractStatusBoard):
     def update(self, ocm: OCMBaseClient) -> None:
         err_msg = "Called update on StatusBoardHandler that doesn't have update method"
         logging.error(err_msg)
-        raise UpdateNotSupported(err_msg)
+        raise UpdateNotSupportedError(err_msg)
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
@@ -228,7 +228,7 @@ Application.update_forward_refs()
 Service.update_forward_refs()
 
 
-class UpdateNotSupported(Exception):
+class UpdateNotSupportedError(Exception):
     pass
 
 

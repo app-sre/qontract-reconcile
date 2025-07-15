@@ -69,7 +69,7 @@ def s3_state_builder() -> Callable[[Mapping], State]:
                     return args[0]
                 raise
 
-        def __getitem__(self: Any, key: str) -> dict:
+        def __getitem__(self: Any, key: str) -> dict:  # noqa: N807
             return get(key)
 
         state = create_autospec(spec=State)

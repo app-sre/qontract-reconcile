@@ -39,7 +39,7 @@ from reconcile.utils.secret_reader import (
 )
 
 
-class StateInaccessibleException(Exception):
+class StateInaccessibleError(Exception):
     pass
 
 
@@ -180,7 +180,7 @@ def acquire_state_settings(
             state_bucket_account_name, query_func=query_func
         )
         if not account:
-            raise StateInaccessibleException(
+            raise StateInaccessibleError(
                 f"The AWS account {state_bucket_account_name} that holds the state bucket can't be found in app-interface."
             )
         secret = secret_reader.read_all_secret(account.automation_token)
@@ -203,11 +203,11 @@ def acquire_state_settings(
                 access_key_id=secret["aws_access_key_id"],
                 secret_access_key=secret["aws_secret_access_key"],
             )
-        raise StateInaccessibleException(
+        raise StateInaccessibleError(
             f"The app-interface state provider {ai_settings.provider} is not supported."
         )
 
-    raise StateInaccessibleException(
+    raise StateInaccessibleError(
         "app-interface state must be configured to use stateful integrations. "
         "use one of the following options to provide state config: "
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_AWS_PROFILE and AWS_CONFIG (hosting the requested profile) \n"
@@ -218,7 +218,7 @@ def acquire_state_settings(
     )
 
 
-class AbortStateTransaction(Exception):
+class AbortStateTransactionError(Exception):
     """Raise to abort a state transaction."""
 
 
@@ -249,7 +249,7 @@ class State:
         try:
             self.client.head_bucket(Bucket=self.bucket)
         except ClientError as details:
-            raise StateInaccessibleException(
+            raise StateInaccessibleError(
                 f"Bucket {self.bucket} is not accessible - {details!s}"
             ) from None
 
@@ -299,7 +299,7 @@ class State:
             if error_code == "404":
                 return False, {}
 
-            raise StateInaccessibleException(
+            raise StateInaccessibleError(
                 f"Can not access state key {key_path} "
                 f"in bucket {self.bucket} - {details!s}"
             ) from None
@@ -436,7 +436,7 @@ class State:
         state_obj = TransactionStateObj(key, value=current_value)
         try:
             yield state_obj
-        except AbortStateTransaction:
+        except AbortStateTransactionError:
             return
         else:
             if state_obj.changed and state_obj.value != current_value:

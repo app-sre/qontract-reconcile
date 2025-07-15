@@ -1,6 +1,6 @@
 import logging
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from operator import itemgetter
 from typing import Any
 
@@ -12,7 +12,9 @@ from reconcile.utils.ocm import OCMMap
 QONTRACT_INTEGRATION = "ocm-addons"
 
 
-def fetch_current_state(clusters):
+def fetch_current_state(
+    clusters: Iterable[Mapping[str, Any]],
+) -> tuple[OCMMap, list[dict[str, Any]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
         clusters=clusters,
@@ -35,7 +37,7 @@ def fetch_current_state(clusters):
     return ocm_map, current_state
 
 
-def fetch_desired_state(clusters):
+def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -49,13 +51,16 @@ def fetch_desired_state(clusters):
     return desired_state
 
 
-def sort_parameters(addon):
+def sort_parameters(addon: MutableMapping[str, Any]) -> None:
     addon_parameters = addon.get("parameters")
     if addon_parameters:
         addon["parameters"] = sorted(addon_parameters, key=itemgetter("id"))
 
 
-def calculate_diff(current_state, desired_state):
+def calculate_diff(
+    current_state: Iterable[Mapping[str, Any]],
+    desired_state: Iterable[MutableMapping[str, Any]],
+) -> list[MutableMapping[str, Any]]:
     diffs = []
     for d in desired_state:
         c = [c for c in current_state if d.items() <= c.items()]
@@ -66,7 +71,9 @@ def calculate_diff(current_state, desired_state):
     return diffs
 
 
-def act(dry_run, diffs, ocm_map):
+def act(
+    dry_run: bool, diffs: Iterable[MutableMapping[str, Any]], ocm_map: OCMMap
+) -> bool:
     err = False
     for diff in diffs:
         action = diff.pop("action")
@@ -95,7 +102,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     return cluster.get("ocm") is not None and cluster.get("addons") is not None
 
 
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
+def run(dry_run: bool) -> None:
     clusters = queries.get_clusters()
     clusters = [
         c

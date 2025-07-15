@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    ignore-check.kube-linter.io/unset-cpu-requirements: no cpu limits
+  labels:
+    app: qontract-reconcile
+    integration: database-access-manager
+  name: dbam-test-database
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      name: dbam-test-database
+    spec:
+      activeDeadlineSeconds: 60
+      containers:
+      - args:
+        - -b
+        - --host=$(db.host)
+        - --port=$(db.port)
+        - --username=$(db.user)
+        - --dbname=$(db.name)
+        - --file=/tmp/scripts/script.sql
+        command:
+        - /usr/bin/psql
+        env:
+        - name: db.host
+          valueFrom:
+            secretKeyRef:
+              key: db.host
+              name: rds-admin-secret-name
+        - name: db.name
+          valueFrom:
+            secretKeyRef:
+              key: db.name
+              name: rds-admin-secret-name
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: db.password
+              name: rds-admin-secret-name
+        - name: db.port
+          valueFrom:
+            secretKeyRef:
+              key: db.port
+              name: rds-admin-secret-name
+        - name: db.user
+          valueFrom:
+            secretKeyRef:
+              key: db.user
+              name: rds-admin-secret-name
+        image: quay.io/app-sre/yet-another-debug-container
+        imagePullPolicy: Always
+        name: dbam-test-database
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /tmp/scripts/
+          name: configs
+          readOnly: true
+      imagePullSecrets:
+      - name: pull-secret
+      restartPolicy: Never
+      serviceAccountName: service-account-name
+      volumes:
+      - name: configs
+        projected:
+          sources:
+          - secret:
+              name: script-secret-name
+

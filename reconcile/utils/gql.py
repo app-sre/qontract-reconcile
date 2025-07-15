@@ -7,7 +7,7 @@ from datetime import (
     datetime,
 )
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import requests
 from gql import (
@@ -38,7 +38,7 @@ INTEGRATIONS_QUERY = """
 requests_logger.setLevel(logging.WARNING)
 
 
-def capture_and_forget(error):
+def capture_and_forget(error: BaseException) -> None:
     """fire-and-forget an exception to sentry
 
     :param error: exception to be captured and sent to sentry
@@ -53,8 +53,8 @@ class GqlApiError(Exception):
     pass
 
 
-class GqlApiIntegrationNotFound(Exception):
-    def __init__(self, integration):
+class GqlApiIntegrationNotFoundError(Exception):
+    def __init__(self, integration: str):
         msg = f"""
         Integration not found: {integration}
 
@@ -64,8 +64,8 @@ class GqlApiIntegrationNotFound(Exception):
         super().__init__(textwrap.dedent(msg).strip())
 
 
-class GqlApiErrorForbiddenSchema(Exception):
-    def __init__(self, schemas):
+class GqlApiErrorForbiddenSchemaError(Exception):
+    def __init__(self, schemas: list):
         msg = f"""
         Forbidden schemas: {schemas}
 
@@ -76,7 +76,7 @@ class GqlApiErrorForbiddenSchema(Exception):
 
 
 class GqlGetResourceError(Exception):
-    def __init__(self, path, msg):
+    def __init__(self, path: str, msg: str):
         super().__init__(f"Error getting resource from path {path}: {msg!s}")
 
 
@@ -88,8 +88,8 @@ class GqlApi:
         self,
         url: str,
         token: str | None = None,
-        int_name=None,
-        validate_schemas=False,
+        int_name: str | None = None,
+        validate_schemas: bool = False,
         commit: str | None = None,
         commit_timestamp: str | None = None,
     ) -> None:
@@ -115,7 +115,7 @@ class GqlApi:
                     break
 
             if validate_schemas and not self._valid_schemas:
-                raise GqlApiIntegrationNotFound(int_name)
+                raise GqlApiIntegrationNotFoundError(int_name)
 
     def _init_gql_client(self) -> Client:
         req_headers = None
@@ -127,14 +127,21 @@ class GqlApi:
         )
         return Client(transport=transport)
 
-    def close(self):
+    def close(self) -> None:
         logging.debug("Closing GqlApi client")
-        if self.client.transport.session:
+        if (
+            self.client.transport is not None
+            and hasattr(self.client.transport, "session")
+            and self.client.transport.session
+        ):
             self.client.transport.session.close()
 
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
     def query(
-        self, query: str, variables=None, skip_validation=False
+        self,
+        query: str,
+        variables: dict[str, Any] | None = None,
+        skip_validation: bool = False,
     ) -> dict[str, Any] | None:
         try:
             result = self.client.execute(
@@ -163,7 +170,7 @@ class GqlApi:
                 schema for schema in query_schemas if schema not in self._valid_schemas
             ]
             if forbidden_schemas:
-                raise GqlApiErrorForbiddenSchema(forbidden_schemas)
+                raise GqlApiErrorForbiddenSchemaError(forbidden_schemas)
 
         # This is to appease mypy. This exception won't be thrown as this condition
         # is already handled above with AssertionError
@@ -237,7 +244,7 @@ class GqlApi:
         resources = self.query(query, {"schema": schema}, skip_validation=True)
         return resources["resources"]
 
-    def get_queried_schemas(self):
+    def get_queried_schemas(self) -> list:
         return list(self._queried_schemas)
 
     @property
@@ -252,7 +259,7 @@ class GqlApiSingleton:
     gqlapi_lock = threading.Lock()
 
     @classmethod
-    def create(cls, *args, **kwargs) -> GqlApi:
+    def create(cls, *args: Any, **kwargs: Any) -> GqlApi:
         with cls.gqlapi_lock:
             if cls.gql_api:
                 logging.debug("Resestting GqlApi instance")
@@ -261,8 +268,9 @@ class GqlApiSingleton:
         return cls.gql_api
 
     @classmethod
-    def close_gqlapi(cls):
-        cls.gql_api.close()
+    def close_gqlapi(cls) -> None:
+        if cls.gql_api is not None:
+            cls.gql_api.close()
 
     @classmethod
     def instance(cls) -> GqlApi:
@@ -281,11 +289,11 @@ class GqlApiSingleton:
 def init(
     url: str,
     token: str | None = None,
-    integration=None,
-    validate_schemas=False,
+    integration: str | None = None,
+    validate_schemas: bool = False,
     commit: str | None = None,
     commit_timestamp: str | None = None,
-):
+) -> GqlApi:
     return GqlApiSingleton.create(
         url,
         token,
@@ -336,7 +344,7 @@ class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
         # can't directly assign, due to mypy type checking
         self.session = session  # type: ignore
 
-    def connect(self):
+    def connect(self) -> None:
         pass
 
     def close(self) -> None:
@@ -344,7 +352,7 @@ class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
-def get_sha(server, token=None):
+def get_sha(server: ParseResult, token: str | None = None) -> str:
     sha_endpoint = server._replace(path="/sha256")
     headers = {"Authorization": token} if token else None
     response = requests.get(sha_endpoint.geturl(), headers=headers, timeout=60)
@@ -354,7 +362,9 @@ def get_sha(server, token=None):
 
 
 @retry(exceptions=requests.exceptions.HTTPError, max_attempts=5)
-def get_git_commit_info(sha, server, token=None):
+def get_git_commit_info(
+    sha: str, server: ParseResult, token: str | None = None
+) -> dict:
     git_commit_info_endpoint = server._replace(path=f"/git-commit-info/{sha}")
     headers = {"Authorization": token} if token else None
     response = requests.get(
@@ -367,12 +377,12 @@ def get_git_commit_info(sha, server, token=None):
 
 @retry(exceptions=requests.exceptions.ConnectionError, max_attempts=5)
 def init_from_config(
-    autodetect_sha=True,
-    sha=None,
-    integration=None,
-    validate_schemas=False,
-    print_url=True,
-):
+    autodetect_sha: bool = True,
+    sha: str | None = None,
+    integration: str | None = None,
+    validate_schemas: bool = False,
+    print_url: bool = True,
+) -> GqlApi:
     server, token, commit, timestamp = _get_gql_server_and_token(
         autodetect_sha=autodetect_sha, sha=sha
     )

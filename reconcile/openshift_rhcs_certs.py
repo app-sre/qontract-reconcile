@@ -35,7 +35,7 @@ from reconcile.utils.rhcsv2_certs import RhcsV2Cert, generate_cert
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.vault import SecretNotFound, VaultClient
+from reconcile.utils.vault import SecretNotFoundError, VaultClient
 
 QONTRACT_INTEGRATION = "openshift-rhcs-certs"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
@@ -124,7 +124,7 @@ def get_vault_cert_secret(
         vault_cert_secret = vault.read_all({  # type: ignore[attr-defined]
             "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         })
-    except SecretNotFound:
+    except SecretNotFoundError:
         logging.info(
             f"No existing cert found for cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}''"
         )

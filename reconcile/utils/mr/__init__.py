@@ -33,12 +33,12 @@ __all__ = [
     "MergeRequestProcessingError",
     "PromoteQontractReconcileCommercial",
     "PromoteQontractSchemas",
-    "UnknownMergeRequestType",
+    "UnknownMergeRequestTypeError",
     "init_from_sqs_message",
 ]
 
 
-class UnknownMergeRequestType(Exception):
+class UnknownMergeRequestTypeError(Exception):
     """
     Used when the message type from the SQS message is unknown
     """
@@ -68,7 +68,7 @@ def init_from_sqs_message(message) -> MergeRequestBase:
     # and fail early if that type is not on the map.
     msg_type = message.pop("pr_type")
     if msg_type not in types_map:
-        raise UnknownMergeRequestType(f"type {msg_type} no supported")
+        raise UnknownMergeRequestTypeError(f"type {msg_type} no supported")
 
     # Finally, get the class mapped to the type
     # and create an instance with all the remaining

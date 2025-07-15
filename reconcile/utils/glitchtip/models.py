@@ -48,7 +48,7 @@ class Team(BaseModel):
     users: list[User] = []
 
     @root_validator(pre=True)
-    def name_xor_slug_must_be_set(  # pylint: disable=no-self-argument
+    def name_xor_slug_must_be_set(
         cls, values: MutableMapping[str, Any]
     ) -> MutableMapping[str, Any]:
         assert ("name" in values or "slug" in values) and not (
@@ -57,9 +57,7 @@ class Team(BaseModel):
         return values
 
     @root_validator
-    def slugify(  # pylint: disable=no-self-argument
-        cls, values: MutableMapping[str, Any]
-    ) -> MutableMapping[str, Any]:
+    def slugify(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values.get("name", ""))
         values["name"] = slugify(values.get("name", "")) or values.get("slug")
         return values
@@ -96,9 +94,7 @@ class ProjectAlertRecipient(BaseModel):
         use_enum_values = True
 
     @validator("recipient_type")
-    def recipient_type_enforce_enum_type(  # pylint: disable=no-self-argument
-        cls, v: str | RecipientType
-    ) -> RecipientType:
+    def recipient_type_enforce_enum_type(cls, v: str | RecipientType) -> RecipientType:
         if isinstance(v, RecipientType):
             return v
         return RecipientType[v.upper()]
@@ -126,9 +122,7 @@ class ProjectAlert(BaseModel):
         allow_population_by_field_name = True
 
     @root_validator
-    def empty_name(  # pylint: disable=no-self-argument
-        cls, values: MutableMapping[str, Any]
-    ) -> MutableMapping[str, Any]:
+    def empty_name(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         # name is an empty string if the alert was created manually because it can't be set via UI
         # use the pk instead.
         values["name"] = values.get("name") or f"alert-{values.get('pk')}"
@@ -159,9 +153,7 @@ class Project(BaseModel):
         allow_population_by_field_name = True
 
     @root_validator
-    def slugify(  # pylint: disable=no-self-argument
-        cls, values: MutableMapping[str, Any]
-    ) -> MutableMapping[str, Any]:
+    def slugify(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values["name"])
         return values
 
@@ -202,9 +194,7 @@ class Organization(BaseModel):
     users: list[User] = []
 
     @root_validator
-    def slugify(  # pylint: disable=no-self-argument
-        cls, values: MutableMapping[str, Any]
-    ) -> MutableMapping[str, Any]:
+    def slugify(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values["name"])
         return values
 

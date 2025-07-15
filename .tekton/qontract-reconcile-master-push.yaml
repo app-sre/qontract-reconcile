@@ -29,6 +29,8 @@ spec:
     value: .
   - name: target-stage
     value: prod-image-post-pypi-push
+  - name: additional_secret
+    value: app-sre-pypi-credentials
   - name: fetchTags
     value: 'true'
   # Note, that we have to specify some depth here. Lets go with something we wont reach in a long time

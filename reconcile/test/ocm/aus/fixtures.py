@@ -99,7 +99,7 @@ def build_organization(
     blocked_versions: list[str] | None = None,
     sector_max_parallel_upgrades: dict[str, str | None] | None = None,
     sector_dependencies: dict[str, list[str] | None] | None = None,
-    addonManagedUpgrades: bool = False,
+    addon_managed_upgrades: bool = False,
     disabled_integrations: list[str] | None = None,
     health_checks: list[tuple[str, bool]] | None = None,
 ) -> AUSOCMOrganization:
@@ -140,7 +140,7 @@ def build_organization(
         accessTokenClientSecret=None,
         upgradePolicyClusters=None,
         upgradePolicyAllowedWorkloads=None,
-        addonManagedUpgrades=addonManagedUpgrades,
+        addonManagedUpgrades=addon_managed_upgrades,
         addonUpgradeTests=None,
         disable=disable,
         sectors=[

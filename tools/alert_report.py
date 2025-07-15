@@ -12,16 +12,21 @@ class Alert:
     message: str
     timestamp: float
     username: str
+    responsed: bool
 
 
 class AlertStat:
     def __init__(self) -> None:
         self._triggered_alerts = 0
         self._resolved_alerts = 0
+        self._responsed_alerts = 0
         self._elapsed_times: list[float] = []
 
     def add_triggered(self) -> None:
         self._triggered_alerts += 1
+
+    def add_responsed(self) -> None:
+        self._responsed_alerts += 1
 
     def add_resolved(self) -> None:
         self._resolved_alerts += 1
@@ -36,6 +41,10 @@ class AlertStat:
     @property
     def resolved_alerts(self) -> int:
         return self._resolved_alerts
+
+    @property
+    def responsed_alerts(self) -> int:
+        return self._responsed_alerts
 
     @property
     def elapsed_times(self) -> list[float]:
@@ -53,6 +62,8 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
             continue
 
         timestamp = float(m["ts"])
+        responsed = bool(m.get("reply_count", 0) or m.get("reactions", []))
+
         for at in m.get("attachments", []):
             if "title" not in at:
                 continue
@@ -79,6 +90,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                         message=alert_message,
                         timestamp=timestamp,
                         username=m["username"],
+                        responsed=responsed,
                     )
                 )
             else:
@@ -93,6 +105,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                             message="placeholder",
                             timestamp=timestamp,
                             username=m["username"],
+                            responsed=responsed,
                         )
                     )
                     continue
@@ -114,6 +127,7 @@ def group_alerts(messages: list[dict]) -> dict[str, list[Alert]]:
                                 message=alert_message,
                                 timestamp=timestamp,
                                 username=m["username"],
+                                responsed=responsed,
                             )
                         )
 
@@ -135,6 +149,8 @@ def gen_alert_stats(alerts: dict[str, list[Alert]]) -> dict[str, AlertStat]:
             if al.state == "FIRING":
                 alert_stats[alert_name].add_triggered()
                 temp[key] = al
+                if al.responsed:
+                    alert_stats[alert_name].add_responsed()
 
             if al.state == "RESOLVED":
                 alert_stats[alert_name].add_resolved()

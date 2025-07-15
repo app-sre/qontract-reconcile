@@ -27,7 +27,7 @@ def get_account_uid_from_arn(arn: str) -> str:
 
 def get_role_name_from_arn(arn: str) -> str:
     # arn:aws:iam::12345:role/role-1 --> role-1
-    return arn.split("/")[-1]
+    return arn.split("/")[-1]  # noqa: PLC0207
 
 
 def is_aws_managed_resource(arn: str) -> bool:

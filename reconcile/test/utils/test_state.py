@@ -24,11 +24,11 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
 )
 from reconcile.utils.state import (
-    AbortStateTransaction,
+    AbortStateTransactionError,
     S3CredsBasedStateConfiguration,
     S3ProfileBasedStateConfiguration,
     State,
-    StateInaccessibleException,
+    StateInaccessibleError,
     TransactionStateObj,
     acquire_state_settings,
 )
@@ -188,7 +188,7 @@ def test_exists_for_missing_key(integration_state: State) -> None:
 
 
 def test_exists_for_missing_bucket(s3_client: S3Client) -> None:
-    with pytest.raises(StateInaccessibleException, match=r".*404.*"):
+    with pytest.raises(StateInaccessibleError, match=r".*404.*"):
         State(
             integration="",
             bucket="does-not-exist",
@@ -262,7 +262,7 @@ def test_acquire_state_settings_env_missing_account(monkeypatch: MonkeyPatch) ->
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
-    with pytest.raises(StateInaccessibleException):
+    with pytest.raises(StateInaccessibleError):
         acquire_state_settings(
             secret_reader=ConfigSecretReader(),
             query_func=lambda gql_query, **kwargs: {"accounts": None},
@@ -335,7 +335,7 @@ def test_acquire_state_settings_no_settings(mocker: MockerFixture) -> None:
     )
     get_aws_account_by_name_mock.return_value = None
 
-    with pytest.raises(StateInaccessibleException):
+    with pytest.raises(StateInaccessibleError):
         acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
 
 
@@ -477,7 +477,7 @@ def test_state_transaction_abort(
 ) -> None:
     with integration_state.transaction("feature.foo.bar", "set") as state:
         assert not state.exists
-        raise AbortStateTransaction("We want to abort the transaction")
+        raise AbortStateTransactionError("We want to abort the transaction")
 
     with pytest.raises(KeyError):
         integration_state["feature.foo.bar"]

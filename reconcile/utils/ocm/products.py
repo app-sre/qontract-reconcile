@@ -23,7 +23,7 @@ from reconcile.ocm.types import (
 from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.ocm.clusters import get_provisioning_shard_id
 from reconcile.utils.ocm_base_client import OCMBaseClient
-from reconcile.utils.rosa.rosa_cli import RosaCliException
+from reconcile.utils.rosa.rosa_cli import RosaCliError
 from reconcile.utils.rosa.session import RosaSessionBuilder
 
 CS_API_BASE = "/api/clusters_mgmt"
@@ -61,7 +61,7 @@ OCM_PRODUCT_ROSA = "rosa"
 OCM_PRODUCT_HYPERSHIFT = "hypershift"
 
 
-class OCMValidationException(Exception):
+class OCMValidationError(Exception):
     pass
 
 
@@ -216,7 +216,7 @@ class OCMProductOsd(OCMProduct):
             None,
         )
         if default_machine_pool is None:
-            raise OCMValidationException(
+            raise OCMValidationError(
                 f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
             )
 
@@ -350,10 +350,10 @@ class OCMProductRosa(OCMProduct):
             )
             logging.info("cluster creation kicked off...")
             result.write_logs_to_logger(logging.info)
-        except RosaCliException as e:
+        except RosaCliError as e:
             logs = "".join(e.get_log_lines(max_lines=10, from_file_end=True))
             e.cleanup()
-            raise OCMValidationException(
+            raise OCMValidationError(
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
             ) from None
 
@@ -459,7 +459,7 @@ class OCMProductRosa(OCMProduct):
             None,
         )
         if default_machine_pool is None:
-            raise OCMValidationException(
+            raise OCMValidationError(
                 f"No default machine pool found, id: {DEFAULT_OCM_MACHINE_POOL_ID}"
             )
 
@@ -625,10 +625,10 @@ class OCMProductHypershift(OCMProduct):
             )
             logging.info("cluster creation kicked off...")
             result.write_logs_to_logger(logging.info)
-        except RosaCliException as e:
+        except RosaCliError as e:
             logs = "".join(e.get_log_lines(max_lines=10, from_file_end=True))
             e.cleanup()
-            raise OCMValidationException(
+            raise OCMValidationError(
                 f"last 10 lines from failed cluster creation job...\n\n{logs}"
             ) from None
 

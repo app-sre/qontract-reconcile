@@ -116,7 +116,7 @@ class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ignore_sts_clusters: bool = False
 
 
-class ReconcileErrorSummary(Exception):
+class ReconcileError(Exception):
     def __init__(self, exceptions: list[str]) -> None:
         self.exceptions = exceptions
 
@@ -150,7 +150,7 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                             )
 
         if unhandled_exceptions:
-            raise ReconcileErrorSummary(unhandled_exceptions)
+            raise ReconcileError(unhandled_exceptions)
         sys.exit(0)
 
     def get_orgs_for_environment(

@@ -11,11 +11,11 @@ import pytest
 from reconcile.utils import vault
 
 
-class SleepCalled(Exception):
+class SleepCalledError(Exception):
     pass
 
 
-class testVaultClient(vault._VaultClient):  # pylint: disable=W0223
+class TestVaultClient(vault._VaultClient):  # pylint: disable=W0223
     def __init__(self):  # pylint: disable=W0231
         pass
 
@@ -37,11 +37,11 @@ class TestVaultUtils:
     @staticmethod
     @patch.object(time, "sleep")
     def test_sleep_is_called(sleep):
-        sleep.side_effect = SleepCalled
+        sleep.side_effect = SleepCalledError
 
-        testVaultClient._refresh_client_auth = MagicMock()
+        TestVaultClient._refresh_client_auth = MagicMock()
 
-        client = testVaultClient()
+        client = TestVaultClient()
 
-        with pytest.raises(SleepCalled):
+        with pytest.raises(SleepCalledError):
             client._auto_refresh_client_auth()

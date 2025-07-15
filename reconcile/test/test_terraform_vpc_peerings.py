@@ -9,7 +9,7 @@ import reconcile.terraform_vpc_peerings as integ
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
 from reconcile import queries
-from reconcile.terraform_vpc_peerings import BadTerraformPeeringState
+from reconcile.terraform_vpc_peerings import BadTerraformPeeringStateError
 from reconcile.utils import (
     aws_api,
     ocm,
@@ -255,7 +255,7 @@ def test_c2c_vpc_peering_assume_role_acc_overwrite_fail() -> None:
         .register("r_c", "acc", "terraform", "arn:r_acc")
         .register("a_c", "acc", "terraform", "arn:a_acc")
     )
-    with pytest.raises(BadTerraformPeeringState) as ex:
+    with pytest.raises(BadTerraformPeeringStateError) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
             requester_connection,
             requester_cluster,
@@ -330,7 +330,7 @@ def test_c2c_vpc_peering_missing_ocm_assume_role() -> None:
 
     ocm = MockOCM()
 
-    with pytest.raises(BadTerraformPeeringState) as ex:
+    with pytest.raises(BadTerraformPeeringStateError) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
             requester_connection,
             requester_cluster,
@@ -352,7 +352,7 @@ def test_c2c_vpc_peering_missing_account() -> None:
 
     ocm = MockOCM()
 
-    with pytest.raises(BadTerraformPeeringState) as ex:
+    with pytest.raises(BadTerraformPeeringStateError) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
             requester_connection,
             requester_cluster,

@@ -1,3 +1,4 @@
+# ruff: noqa: N801
 from collections.abc import (
     Iterable,
     MutableMapping,

@@ -1,7 +1,7 @@
 import requests
 
 
-class QuayTeamNotFoundException(Exception):
+class QuayTeamNotFoundError(Exception):
     pass
 
 
@@ -34,7 +34,7 @@ class QuayApi:
 
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         if r.status_code == 404:
-            raise QuayTeamNotFoundException(
+            raise QuayTeamNotFoundError(
                 f"team {team} is not found in "
                 f"org {self.organization}. "
                 f"contact org owner to create the "

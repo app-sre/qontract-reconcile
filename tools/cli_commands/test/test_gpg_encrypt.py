@@ -11,10 +11,10 @@ from pytest_mock import MockerFixture
 from reconcile.queries import UserFilter
 from reconcile.utils.secret_reader import SecretReader
 from tools.cli_commands.gpg_encrypt import (
-    ArgumentException,
+    ArgumentError,
     GPGEncryptCommand,
     GPGEncryptCommandData,
-    UserException,
+    UserError,
 )
 
 SECRET = {"x": "y"}
@@ -141,7 +141,7 @@ def test_gpg_encrypt_oc_bad_path(
     get_users_by_mock.side_effect = [[user_query]]
     get_clusters_mock.side_effect = [[{"name": "cluster"}]]
 
-    with pytest.raises(ArgumentException) as exc:
+    with pytest.raises(ArgumentError) as exc:
         command.execute()
     assert "Wrong format!" in str(exc.value)
 
@@ -167,7 +167,7 @@ def test_gpg_encrypt_oc_cluster_not_exists(
     get_users_by_mock.side_effect = [[user_query]]
     get_clusters_mock.side_effect = [[]]
 
-    with pytest.raises(ArgumentException) as exc:
+    with pytest.raises(ArgumentError) as exc:
         command.execute()
     assert "No cluster found" in str(exc.value)
 
@@ -221,7 +221,7 @@ def test_gpg_encrypt_user_not_found(
     )
     get_users_by_mock.side_effect = [[]]
 
-    with pytest.raises(UserException) as exc:
+    with pytest.raises(UserError) as exc:
         command.execute()
     assert "Expected to find exactly one user" in str(exc.value)
 
@@ -240,7 +240,7 @@ def test_gpg_encrypt_user_no_gpg_key(
     )
     get_users_by_mock.side_effect = [[{"org_username": target_user}]]
 
-    with pytest.raises(UserException) as exc:
+    with pytest.raises(UserError) as exc:
         command.execute()
     assert "associated GPG key" in str(exc.value)
 
@@ -253,6 +253,6 @@ def test_gpg_encrypt_no_secret_specified(secret_reader: MagicMock) -> None:
         secret_reader=secret_reader,
     )
 
-    with pytest.raises(ArgumentException) as exc:
+    with pytest.raises(ArgumentError) as exc:
         command.execute()
     assert "No argument given" in str(exc.value)

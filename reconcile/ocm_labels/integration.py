@@ -63,9 +63,7 @@ class OcmLabelsIntegrationParams(PydanticRunParams):
     ignored_label_prefixes: list[str] = []
 
     @validator("managed_label_prefixes", "ignored_label_prefixes")
-    def must_end_with_dot(  # pylint: disable=no-self-argument
-        cls, v: list[str]
-    ) -> list[str]:
+    def must_end_with_dot(cls, v: list[str]) -> list[str]:
         return [prefix + "." if not prefix.endswith(".") else prefix for prefix in v]
 
 

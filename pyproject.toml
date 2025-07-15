@@ -82,8 +82,9 @@ dev = [
     "pytest-mock ~=3.6",
     "qenerate==0.7.0",
     "responses ~=0.25.0",
-    "ruff ~=0.9.0",
+    "ruff ~=0.12.2",
     "smtpdfix ~=0.3.3",
+    "snakeviz ~=2.2.2",
     "testslide ~=2.7",
     "typeguard ~=2.13.3",
     "types-click",
@@ -189,8 +190,12 @@ extend-select = [
     "PERF",
     # refurb
     "FURB",
+    # PEP8
+    "N",
 ]
 ignore = [
+    "N811",    # Constant `xxx` imported as non-constant `xxx`
+    "N817",    # CamelCase `xxx` imported as acronym `xxx`
     "PLR0904", # Too many public methods
     "PLR0911", # Too many return statements
     "PLR0912", # Too many branches
@@ -223,6 +228,13 @@ preview = true
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]
 
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = [
+    "classmethod",
+    "pydantic.validator",
+    "pydantic.root_validator",
+]
+
 [tool.coverage.run]
 branch = true
 omit = ["*/test/*"]
@@ -250,14 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.mr_client_gateway",
-    "reconcile.ocm_additional_routers",
-    "reconcile.ocm_addons",
-    "reconcile.ocm_aws_infrastructure_access",
-    "reconcile.ocm_clusters",
-    "reconcile.ocm_external_configuration_labels",
-    "reconcile.ocm_groups",
-    "reconcile.ocm_machine_pools",
     "reconcile.ocm_upgrade_scheduler_org_updater",
     "reconcile.openshift_base",
     "reconcile.openshift_clusterrolebindings",
@@ -287,7 +291,6 @@ module = [
     "reconcile.terraform_cloudflare_resources",
     "reconcile.terraform_users",
     "reconcile.utils.gpg",
-    "reconcile.utils.gql",
     "reconcile.utils.imap_client",
     "reconcile.utils.jjb_client",
     "reconcile.utils.ldap_client",
@@ -360,10 +363,6 @@ module = [
     "reconcile.test.test_jenkins_worker_fleets",
     "reconcile.test.test_jump_host",
     "reconcile.test.test_make",
-    "reconcile.test.test_ocm_additional_routers",
-    "reconcile.test.test_ocm_clusters_manifest_updates",
-    "reconcile.test.test_ocm_clusters",
-    "reconcile.test.test_ocm_machine_pools",
     "reconcile.test.test_ocm_update_recommended_version",
     "reconcile.test.test_ocm_upgrade_scheduler_org_updater",
     "reconcile.test.test_openshift_base",
@@ -406,7 +405,6 @@ module = [
     "reconcile.test.utils.test_external_resource_spec",
     "reconcile.test.utils.test_external_resources",
     "reconcile.test.utils.test_gpg",
-    "reconcile.test.utils.test_gql",
     "reconcile.test.utils.test_grouping",
     "reconcile.test.utils.test_helm",
     "reconcile.test.utils.test_imap_client",
