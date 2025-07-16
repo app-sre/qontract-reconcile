@@ -432,7 +432,7 @@ class ProviderExcludedError(Exception):
         )
 
 
-class TerrascriptClient:  # pylint: disable=too-many-public-methods
+class TerrascriptClient:
     """
     At a high-level, this class is responsible for generating Terraform configuration in
     JSON format from app-interface schemas/openshift/terraform-resource-1.yml objects.

@@ -111,7 +111,7 @@ class TriggerSpecContainerImageError(Exception):
     pass
 
 
-class SaasHerder:  # pylint: disable=too-many-public-methods
+class SaasHerder:
     """Wrapper around SaaS deployment actions."""
 
     def __init__(

@@ -71,9 +71,7 @@ class IntegrationRunConfiguration:
 
     def comparison_bundle_desired_state(self) -> dict[str, Any] | None:
         self.switch_to_comparison_bundle()
-        data = (  # pylint: disable=assignment-from-none
-            self.integration.get_early_exit_desired_state()
-        )
+        data = self.integration.get_early_exit_desired_state()
         self.switch_to_main_bundle()
         return data
 
