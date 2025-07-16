@@ -253,3 +253,27 @@ class QuayApi:
             url, json=body, headers=self.auth_header, timeout=self._timeout
         )
         r.raise_for_status()
+
+    def list_robot_accounts(self) -> list[dict[str, str | None]] | None:
+        url = f"{self.api_url}/organization/{self.organization}/robots"
+        r = requests.get(
+            url,
+            params={"token": "false", "permissions": "true"},
+            headers=self.auth_header,
+            timeout=self._timeout,
+        )
+        r.raise_for_status()
+        return r.json().get("robots", []) or None
+
+    def create_robot_account(self, robot_name, description):
+        url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}"
+        params = {"description": description}
+        r = requests.put(
+            url, json=params, headers=self.auth_header, timeout=self._timeout
+        )
+        r.raise_for_status()
+
+    def delete_robot_account(self, robot_name):
+        url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}"
+        r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
+        r.raise_for_status()
