@@ -15,8 +15,8 @@ class SleepCalledError(Exception):
     pass
 
 
-class TestVaultClient(vault._VaultClient):  # pylint: disable=W0223
-    def __init__(self):  # pylint: disable=W0231
+class TestVaultClient(vault._VaultClient):
+    def __init__(self):
         pass
 
 

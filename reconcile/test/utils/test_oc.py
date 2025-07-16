@@ -946,7 +946,6 @@ def test_get_replicaset_fail(
     oc__get_owned_replicasets.return_value = []
 
     with pytest.raises(ResourceNotFoundError):
-        # pylint: disable-next=expression-not-assigned
         oc_cli.get_replicaset("namespace", deployment)["metadata"]["name"]
     assert oc__get_owned_replicasets.call_count == GET_REPLICASET_MAX_ATTEMPTS
 

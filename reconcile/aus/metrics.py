@@ -100,7 +100,7 @@ class AUSClusterUpgradePolicyInfoMetric(AUSBaseMetric, InfoMetric):
         return "aus_cluster_upgrade_policy_info"
 
 
-class AUSAddonUpgradePolicyInfoMetric(AUSClusterUpgradePolicyInfoMetric):  # pylint: disable=R0901
+class AUSAddonUpgradePolicyInfoMetric(AUSClusterUpgradePolicyInfoMetric):
     "Info metric for cluster addons under AUS upgrade control"
 
     addon: str

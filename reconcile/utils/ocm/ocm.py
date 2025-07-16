@@ -64,7 +64,7 @@ CLUSTER_ADMIN_LABEL_KEY = "capability.cluster.manage_cluster_admin"
 REQUEST_TIMEOUT_SEC = 60
 
 
-class OCM:  # pylint: disable=too-many-public-methods
+class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
 
@@ -249,7 +249,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         switch_role_link = role_grants[0][-1]
         return awsh.get_account_uid_from_role_link(switch_role_link)
 
-    # pylint: disable=method-hidden
     def get_aws_infrastructure_access_role_grants(self, cluster):
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.
@@ -734,7 +733,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
 
 
-class OCMMap:  # pylint: disable=too-many-public-methods
+class OCMMap:
     """
     OCMMap gets a GraphQL query results list as input
     and initiates a dictionary of OCM clients per OCM.

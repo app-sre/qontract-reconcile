@@ -212,9 +212,7 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
         """
         Returns `True` if the params already contain sharding information.
         """
-        sharding_config = (  # pylint: disable=assignment-from-none
-            self.get_desired_state_shard_config()
-        )
+        sharding_config = self.get_desired_state_shard_config()
         if sharding_config:
             shard_arg_value = self.params.get(sharding_config.shard_arg_name)
             return bool(shard_arg_value)
@@ -227,9 +225,7 @@ class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
         Create an instegration instance for a specific shard, by patching the run parameters.
         If the integration does not support sharded runs, it raises an exception.
         """
-        sharding_config = (  # pylint: disable=assignment-from-none
-            self.get_desired_state_shard_config()
-        )
+        sharding_config = self.get_desired_state_shard_config()
         if sharding_config:
             sharded_params = self.params.copy_and_update({
                 sharding_config.shard_arg_name: [shard]

@@ -1,7 +1,3 @@
-# pylint does not consider frozen BaseModels as hashable and then complains that they cannot
-# be members of a set.
-# pylint: disable=unhashable-member
-
 from collections.abc import Generator
 from datetime import (
     datetime,

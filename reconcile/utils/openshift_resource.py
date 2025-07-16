@@ -70,7 +70,6 @@ QONTRACT_ANNOTATIONS = {
 }
 
 
-# pylint: disable=R0904
 class OpenshiftResource:
     def __init__(
         self,
