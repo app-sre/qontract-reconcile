@@ -25,6 +25,7 @@ from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import unique_sso_aws_accounts
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.extended_early_exit import (
@@ -45,7 +46,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
 
 
 class AwsSamlRolesIntegrationParams(PydanticRunParams):
-    thread_pool_size: int = 10
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE
     print_to_file: str | None = None
     enable_deletion: bool = False
     # integration specific parameters

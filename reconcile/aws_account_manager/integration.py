@@ -53,7 +53,7 @@ class AwsAccountMgmtIntegrationParams(PydanticRunParams):
     )
     # To avoid the accidental deletion of the resource file, explicitly set the
     # qontract.cli option in the integration extraArgs!
-    account_tmpl_resource: str = "/aws-account-manager/account-tmpl.yml"
+    account_tmpl_resource: str = "/aws-account-manager/account-tmpl.yml.j2"
     template_collection_root_path: str = "data/templating/collections/aws-account"
 
 

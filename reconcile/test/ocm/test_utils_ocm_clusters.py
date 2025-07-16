@@ -183,9 +183,7 @@ def test_discover_clusters_by_labels(
     get_clusters_for_subscriptions_mock.assert_called_once_with(
         ocm_api=ocm_api,
         subscription_filter=(
-            Filter().is_in(  # pylint: disable=unsupported-binary-operation
-                "id", ["sub_id", "sub_id_2"]
-            )
+            Filter().is_in("id", ["sub_id", "sub_id_2"])
             | Filter().is_in("organization_id", ["org_id"])
         ),
     )

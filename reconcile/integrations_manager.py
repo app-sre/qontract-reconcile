@@ -31,6 +31,7 @@ from reconcile.utils import (
     gql,
     helm,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.oc import oc_process
 from reconcile.utils.openshift_resource import (
@@ -234,7 +235,7 @@ def run(
     dry_run: bool,
     environment_name: str | None,
     integration_runtime_meta: dict[str, IntegrationMeta],
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool = False,
     use_jump_host: bool = True,
     image_tag_from_ref: dict[str, str] | None = None,

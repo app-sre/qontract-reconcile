@@ -4848,4 +4848,4 @@ def top_talkers(ctx: click.Context, top: int) -> None:
 
 
 if __name__ == "__main__":
-    root()  # pylint: disable=no-value-for-parameter
+    root()

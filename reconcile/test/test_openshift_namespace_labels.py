@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 from unittest import TestCase
 from unittest.mock import (
     Mock,
@@ -41,7 +42,7 @@ class NS:
     desired: dict[str, str]
     exists: bool = True
 
-    def data(self):
+    def data(self) -> NamespaceV1:
         """Get typed namespace data"""
         namespace = load_namespace(f"{self.name}.yml")
         namespace.name = self.name
@@ -50,16 +51,16 @@ class NS:
             namespace.labels = self.desired
         return namespace
 
-    def oc_get_all(self):
+    def oc_get_all(self) -> dict[str, Any] | None:
         """Get this namespace as an output of oc get namespace"""
         if not self.exists:
             return None
-        d = {"metadata": {"name": self.name}}
+        d: dict[str, Any] = {"metadata": {"name": self.name}}
         if self.current:
             d["metadata"]["labels"] = self.current
         return d
 
-    def state_key(self):
+    def state_key(self) -> str:
         """Get the managed state key for this namespace"""
         return state_key(self.cluster, self.name)
 
@@ -73,12 +74,12 @@ k1_k2_k3 = ["k1", "k2", "k3"]
 
 
 def run_integration(
-    dry_run=False,
-    thread_pool_size=1,
-    internal=None,
-    use_jump_host=True,
-    raise_errors=True,
-):
+    dry_run: bool = False,
+    thread_pool_size: int = 1,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    raise_errors: bool = True,
+) -> None:
     """Calls the integration with sensible overridable defaults"""
     openshift_namespace_labels.run(
         dry_run=dry_run,
@@ -97,15 +98,15 @@ class TestOpenshiftNamespaceLabels(TestCase):
     This allows to code teh mock logic only once.
     """
 
-    def _get_namespaces(self):
+    def _get_namespaces(self) -> list[NamespaceV1]:
         """Mock get_namespaces() by returning our test data"""
         return [ns.data() for ns in self.test_ns]
 
-    def _oc_map_clusters(self):
+    def _oc_map_clusters(self) -> list[str]:
         """Mock OCMap.clusters() by listing clusters in our test data"""
         return list({ns.cluster for ns in self.test_ns if ns.exists})
 
-    def _oc_map_get(self, cluster):
+    def _oc_map_get(self, cluster: str) -> Mock:
         """Mock OCMap.get() by getting namespaces from our test data"""
         oc = self.oc_clients.setdefault(cluster, Mock(name=f"oc_{cluster}"))
         ns = [
@@ -116,18 +117,18 @@ class TestOpenshiftNamespaceLabels(TestCase):
         oc.get_all.return_value = {"items": ns}
         return oc
 
-    def _state_ls(self):
+    def _state_ls(self) -> list[str]:
         """Mock State.ls() by getting state keys from our test data"""
         return [f"/{ns.state_key()}" for ns in self.test_ns if ns.managed is not None]
 
-    def _ns_from_key(self, key):
+    def _ns_from_key(self, key: str) -> NS | None:
         """Get a namespace from test data, matching the provided state key"""
         for ns in self.test_ns:
             if key == ns.state_key():
                 return ns
         return None
 
-    def _state_get(self, key, default):
+    def _state_get(self, key: str, default: Any) -> Any:
         """Mock State.get() by getting managed state from our test data"""
         ns = self._ns_from_key(key)
         if ns is not None:
@@ -136,16 +137,16 @@ class TestOpenshiftNamespaceLabels(TestCase):
 
     # We could avoid implementing this method.
     # We just ensure it is called with correct parameters
-    def _state_add(self, key, value=None, force=False):
+    def _state_add(self, key: str, value: Any = None, force: bool = False) -> None:
         """Mock State.add() by updating our test data"""
         ns = self._ns_from_key(key)
         self.assertIsNotNone(ns)
-        ns.managed = value
+        ns.managed = value  # type: ignore
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Setup GQL, State and Openshift mocks, using self.test_ns data"""
-        self.test_ns = []
-        self.oc_clients = {}
+        self.test_ns: list[NS] = []
+        self.oc_clients: dict[str, Mock] = {}
 
         module = "reconcile.openshift_namespace_labels"
 
@@ -187,7 +188,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
         self.create_secret_reader_patcher.stop()
         self.namespaces_patcher.stop()
 
-    def test_no_change(self):
+    def test_no_change(self) -> None:
         """No label change: nothing should be done"""
         self.test_ns = [
             NS(c1, "namespace", k1v1, k1, k1v1),
@@ -197,7 +198,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
         for oc in self.oc_clients.values():
             oc.label.assert_not_called()
 
-    def test_update(self):
+    def test_update(self) -> None:
         """single label value change"""
         self.test_ns = [
             NS(c1, "namespace", k1v1, k1, k1v2),
@@ -210,7 +211,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
             None, "Namespace", "namespace", k1v2, overwrite=True
         )
 
-    def test_add(self):
+    def test_add(self) -> None:
         """addition of a label"""
         self.test_ns = [
             NS(c1, "namespace", k1v1, k1, k1v1_k2v2),
@@ -224,7 +225,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
             None, "Namespace", "namespace", k2v2, overwrite=True
         )
 
-    def test_add_from_none(self):
+    def test_add_from_none(self) -> None:
         """addition of a label from none on the current namespace"""
         self.test_ns = [
             NS(c1, "namespace", {}, None, k1v1),
@@ -238,7 +239,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
             None, "Namespace", "namespace", k1v1, overwrite=True
         )
 
-    def test_remove_step1(self):
+    def test_remove_step1(self) -> None:
         """removal of a label step 1: remove label"""
         self.test_ns = [
             NS(c1, "namespace", k1v1_k2v2, k1_k2, k1v1),
@@ -250,7 +251,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
             None, "Namespace", "namespace", {"k2": None}, overwrite=True
         )
 
-    def test_remove_step2(self):
+    def test_remove_step2(self) -> None:
         """removal of a label step 2: remove key from managed state"""
         self.test_ns = [
             NS(c1, "namespace", k1v1, k1_k2, k1v1),
@@ -262,7 +263,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
         oc = self.oc_clients[c1]
         oc.label.assert_not_called()
 
-    def test_remove_add_modify_step1(self):
+    def test_remove_add_modify_step1(self) -> None:
         """Remove, add and modify labels all at once, step 1 (removals are in
         two steps)"""
         self.test_ns = [
@@ -278,7 +279,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
             None, "Namespace", "namespace", labels, overwrite=True
         )
 
-    def test_remove_add_modify_step2(self):
+    def test_remove_add_modify_step2(self) -> None:
         """Remove, add and modify labels all at once, step 2 (removals are in
         two steps)"""
         self.test_ns = [
@@ -291,7 +292,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
         oc = self.oc_clients[c1]
         oc.label.assert_not_called()
 
-    def test_namespace_not_exists(self):
+    def test_namespace_not_exists(self) -> None:
         """namespace does not exist (yet)"""
         self.test_ns = [
             NS(c1, "namespace", None, None, k1v1, exists=False),
@@ -300,7 +301,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
         self.state.add.assert_not_called()
         self.assertNotIn(c1, self.oc_clients.keys())
 
-    def test_duplicate_namespace(self):
+    def test_duplicate_namespace(self) -> None:
         """Namespace declared several times in a single cluster: ignored"""
         self.test_ns = [
             NS(c1, "namespace", k1v1, k1, k1v1),
@@ -312,7 +313,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
         for oc in self.oc_clients.values():
             oc.label.assert_not_called()
 
-    def test_multi_cluster(self):
+    def test_multi_cluster(self) -> None:
         """Namespace declared in several clusters. All get updated"""
         self.test_ns = [
             NS(c1, "namespace", k1v1, k1, k1v1_k2v2),
@@ -333,7 +334,7 @@ class TestOpenshiftNamespaceLabels(TestCase):
                 None, "Namespace", "namespace", k2v2, overwrite=True
             )
 
-    def test_dry_run(self):
+    def test_dry_run(self) -> None:
         """Ensures nothing is done in dry_run mode"""
         self.test_ns = [
             NS(c1, "namespace", k1v1_k2v2, k1_k2, k2v3_k3v3),

@@ -1,7 +1,7 @@
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -47,14 +47,15 @@ def namespaces() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-@patch("reconcile.utils.oc.OCNative")
-def oc_cs1(self) -> oc.OCClient:
-    return oc.OCNative(cluster_name="cs1", server="server", token="token", local=True)
+def oc_cs1(mocker: MockerFixture) -> oc.OCClient:
+    return mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
 
 
 @pytest.fixture
-def oc_map(mocker, oc_cs1: oc.OCNative) -> oc.OC_Map:
-    def get_cluster(cluster: str, privileged: bool = False):
+def oc_map(mocker: MockerFixture, oc_cs1: oc.OCNative) -> oc.OC_Map:
+    def get_cluster(
+        cluster: str, privileged: bool = False
+    ) -> oc.OCCli | tuple[oc.OCLogMsg]:
         if cluster == "cs1":
             return oc_cs1
 
@@ -64,9 +65,9 @@ def oc_map(mocker, oc_cs1: oc.OCNative) -> oc.OC_Map:
             ),
         )
 
-    oc_map = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
-    oc_map.get.side_effect = get_cluster
-    return oc_map
+    oc_map_mock = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
+    oc_map_mock.get_cluster.side_effect = get_cluster
+    return oc_map_mock
 
 
 #
@@ -131,6 +132,7 @@ def test_namespaces_managed_types(
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
             parent=namespace,
+            privileged=False,
         ),
     ]
 
@@ -181,6 +183,7 @@ def test_namespaces_managed_types_with_resoruce_type_overrides(
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
             parent=namespace,
+            privileged=False,
         ),
     ]
     rs = sut.init_specs_to_fetch(
@@ -223,6 +226,7 @@ def test_namespaces_managed_types_no_managed_resource_names(
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
             parent=namespace,
+            privileged=False,
         ),
     ]
     rs = sut.init_specs_to_fetch(
@@ -355,6 +359,7 @@ def test_namespaces_override_managed_type(
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
             parent=namespace,
+            privileged=False,
         ),
     ]
 
@@ -405,6 +410,7 @@ def test_namespaces_managed_fully_qualified_types(
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
             parent=namespace,
+            privileged=False,
         ),
     ]
 
@@ -452,6 +458,7 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
             parent=namespace,
+            privileged=False,
         ),
     ]
 
@@ -509,6 +516,7 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
             namespace="ns1",
             resource={"provider": "resource", "path": "/some/path.yml"},
             parent=namespace,
+            privileged=False,
         ),
     ]
 
@@ -529,7 +537,7 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
 
 
 @pytest.fixture
-def api_resources():
+def api_resources() -> dict[str, list[Resource]]:
     r1 = Resource(
         prefix="",
         kind="Kind",
@@ -548,8 +556,10 @@ def api_resources():
 
 
 def test_populate_current_state(
-    api_resources, resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative
-):
+    api_resources: dict[str, list[Resource]],
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: oc.OCNative,
+) -> None:
     """
     test that populate_current_state properly populates the resource inventory
     """
@@ -580,15 +590,12 @@ def test_populate_current_state(
 
 
 def test_populate_current_state_unknown_kind(
-    resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative, mocker
-):
+    resource_inventory: resource.ResourceInventory, oc_cs1: MagicMock
+) -> None:
     """
     test that a missing kind in the cluster is catched early on
     """
-    oc_cs1.init_api_resources = True
-    k1 = Resource(prefix="", group="some.other.group", api_version="v1", kind="Kind")
-    oc_cs1.api_resources = {"Kind": [k1]}
-    get_item_mock = mocker.patch.object(oc.OCNative, "get_items", autospec=True)
+    oc_cs1.is_kind_supported.return_value = False
 
     spec = sut.CurrentStateSpec(
         oc=oc_cs1,
@@ -600,12 +607,14 @@ def test_populate_current_state_unknown_kind(
     sut.populate_current_state(spec, resource_inventory, TEST_INT, TEST_INT_VER)
 
     assert len(list(iter(resource_inventory))) == 0
-    get_item_mock.assert_not_called()
+    oc_cs1.get_items.assert_not_called()
 
 
 def test_populate_current_state_resource_name_filtering(
-    resource_inventory: resource.ResourceInventory, oc_cs1: oc.OCNative, mocker
-):
+    resource_inventory: resource.ResourceInventory,
+    oc_cs1: MagicMock,
+    mocker: MockerFixture,
+) -> None:
     """
     test if the resource names are passed properly to the oc client when fetching items
     """
@@ -681,11 +690,13 @@ class OpenshiftBaseUser(BaseModel):
         ([], ["github_username"]),
     ],
 )
-def test_determine_user_keys_for_access(auth, expected):
+def test_determine_user_keys_for_access(
+    auth: Sequence[dict[str, str] | sut.HasService], expected: Sequence[str]
+) -> None:
     assert sut.determine_user_keys_for_access("cluster-name", auth) == expected
 
 
-def test_determine_user_keys_enforced_user_keys():
+def test_determine_user_keys_enforced_user_keys() -> None:
     assert sut.determine_user_keys_for_access(
         "cluster-name",
         [{"service": "github-org"}],
@@ -693,32 +704,32 @@ def test_determine_user_keys_enforced_user_keys():
     ) == ["my-enforced-key"]
 
 
-def test_determine_user_keys_for_access_not_implemented():
+def test_determine_user_keys_for_access_not_implemented() -> None:
     auth = {"service": "not-implemented"}
     with pytest.raises(NotImplementedError):
         sut.determine_user_keys_for_access("cluster-name", [auth])
 
 
-def test_is_namespace_deleted_true():
+def test_is_namespace_deleted_true() -> None:
     ns = {"delete": True}
     assert sut.is_namespace_deleted(ns) is True
 
 
-def test_is_namespace_deleted_false():
+def test_is_namespace_deleted_false() -> None:
     ns = {"delete": False}
     assert sut.is_namespace_deleted(ns) is False
 
 
-def test_is_namespace_deleted_none():
+def test_is_namespace_deleted_none() -> None:
     ns = {"delete": None}
     assert sut.is_namespace_deleted(ns) is False
 
 
-def test_is_namespace_deleted_empty():
+def test_is_namespace_deleted_empty() -> None:
     assert sut.is_namespace_deleted({}) is False
 
 
-def test_user_has_cluster_access(mocker: MockerFixture):
+def test_user_has_cluster_access(mocker: MockerFixture) -> None:
     mocker.patch.object(
         sut, "determine_user_keys_for_access", return_value=["org_username"]
     )
@@ -815,7 +826,7 @@ def test_handle_new_resources(
     resource_inventory: resource.ResourceInventory,
     diff_result: DiffResult,
     apply_options: sut.ApplyOptions,
-):
+) -> None:
     apply_mock = mocker.patch.object(sut, "apply", autospec=True)
     cluster = "test-cluster"
     namespace = "test-namespace"
@@ -928,7 +939,7 @@ def test_handle_modified_resources(
     apply_options: sut.ApplyOptions,
     should_apply: bool,
     should_error_ri: bool,
-):
+) -> None:
     apply_mock = mocker.patch.object(sut, "apply", autospec=True)
     cluster = "test-cluster"
     namespace = "test-namespace"
@@ -966,7 +977,7 @@ def test_handle_modified_resources(
         assert len(actions) == 0
 
     if should_error_ri:
-        assert resource_inventory._error_registered
+        assert resource_inventory.has_error_registered()
 
 
 @pytest.mark.parametrize(
@@ -1049,7 +1060,7 @@ def test_handle_identical_resources(
     apply_options: sut.ApplyOptions,
     should_take_over: bool,
     should_error_ri: bool,
-):
+) -> None:
     apply_mock = mocker.patch.object(sut, "apply", autospec=True)
     cluster = "test-cluster"
     namespace = "test-namespace"
@@ -1084,7 +1095,7 @@ def test_handle_identical_resources(
     else:
         assert len(actions) == 0
     if should_error_ri:
-        assert resource_inventory._error_registered
+        assert resource_inventory.has_error_registered()
 
 
 def test_handle_deleted_resources(
@@ -1093,7 +1104,7 @@ def test_handle_deleted_resources(
     resource_inventory: resource.ResourceInventory,
     diff_result: DiffResult,
     apply_options: sut.ApplyOptions,
-):
+) -> None:
     delete_mock = mocker.patch.object(sut, "delete", autospec=True)
 
     # mock has_qontract_annotations to own the resource
@@ -1178,7 +1189,7 @@ def test_realize_resource_data_3way_diff(
     len_actions: int,
     apply_calls: int,
     delete_calls: int,
-):
+) -> None:
     apply_mock = mocker.patch.object(sut, "apply", autospec=True)
     delete_mock = mocker.patch.object(sut, "delete", autospec=True)
     # Patch has_qontract_annotations to own the resource
@@ -1195,7 +1206,7 @@ def test_realize_resource_data_3way_diff(
     assert delete_mock.call_count == delete_calls
 
 
-def test_get_state_count_combinations():
+def test_get_state_count_combinations() -> None:
     state = [
         {"cluster": "c1"},
         {"cluster": "c2"},

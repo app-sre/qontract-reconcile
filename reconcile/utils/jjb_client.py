@@ -30,7 +30,7 @@ from reconcile.utils.vcs import GITHUB_BASE_URL
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 
 
-class JJB:  # pylint: disable=too-many-public-methods
+class JJB:
     """Wrapper around Jenkins Jobs"""
 
     def __init__(self, configs, ssl_verify=True, secret_reader=None, print_only=False):

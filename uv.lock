@@ -1659,7 +1659,7 @@ dev = [
     { name = "responses", specifier = "~=0.25.0" },
     { name = "ruff", specifier = "~=0.12.2" },
     { name = "smtpdfix", specifier = "~=0.3.3" },
-    { name = "snakeviz", specifier = ">=2.2.2" },
+    { name = "snakeviz", specifier = "~=2.2.2" },
     { name = "testslide", specifier = "~=2.7" },
     { name = "typeguard", specifier = "~=2.13.3" },
     { name = "types-click" },

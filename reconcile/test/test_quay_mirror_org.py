@@ -30,9 +30,7 @@ class TestControlFile:
 @patch("time.time", return_value=NOW)
 class TestIsCompareTags:
     def setup_method(self):
-        self.tmp_dir = (
-            tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        )
+        self.tmp_dir = tempfile.TemporaryDirectory()
         with open(
             os.path.join(self.tmp_dir.name, CONTROL_FILE_NAME), "w", encoding="locale"
         ) as fh:

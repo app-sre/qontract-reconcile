@@ -27,6 +27,7 @@ from reconcile.typed_queries.app_interface_repo_url import get_app_interface_rep
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.differ import diff_any_iterables
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -49,7 +50,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 1, 0)
 
 
 class EndpointsDiscoveryIntegrationParams(PydanticRunParams):
-    thread_pool_size: int = 10
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE
     internal: bool | None = None
     use_jump_host: bool = True
     cluster_name: set[str] | None = None

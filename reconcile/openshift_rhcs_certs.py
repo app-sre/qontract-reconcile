@@ -22,6 +22,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.rhcs_provider_settings import get_rhcs_provider_settings
 from reconcile.utils import gql, metrics
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.metrics import GaugeMetric, normalize_integration_name
@@ -243,7 +244,7 @@ def fetch_desired_state(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     cluster_name: Iterable[str] | None = None,

@@ -27,6 +27,7 @@ from reconcile.utils.binary import (
     binary,
     binary_version,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
@@ -192,7 +193,7 @@ def gql_url_print(function: Callable) -> Callable:
     return function
 
 
-def threaded(default: int = 10) -> Callable:
+def threaded(default: int = DEFAULT_THREAD_POOL_SIZE) -> Callable:
     def f(function: Callable) -> Callable:
         opt = "--thread-pool-size"
         msg = "number of threads to run in parallel."
@@ -969,7 +970,7 @@ def aws_saml_roles(
     "--account-tmpl-resource",
     help="Resource name of the account template-collection template in the app-interface.",
     required=True,
-    default="/aws-account-manager/account-tmpl.yml",
+    default="/aws-account-manager/account-tmpl.yml.j2",
 )
 @click.option(
     "--template-collection-root-path",

@@ -11,6 +11,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.namespaces import get_namespaces
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc_filters import filter_namespaces_by_cluster_and_namespace
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_namespaces
 from reconcile.utils.secret_reader import create_secret_reader
@@ -30,7 +31,7 @@ class NamespaceImages(BaseModel):
 def get_all_pods_images(
     cluster_name: Sequence[str] | None = None,
     namespace_name: Sequence[str] | None = None,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     use_jump_host: bool = True,
     include_pattern: str | None = None,
     exclude_pattern: str | None = None,
@@ -72,7 +73,7 @@ def fetch_pods_images_from_namespaces(
     oc_map: OCMap,
     include_pattern: str | None = None,
     exclude_pattern: str | None = None,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> list[dict[str, Any]]:
     all_namespace_images = threaded.run(
         func=_get_namespace_images,

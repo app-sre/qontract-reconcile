@@ -258,7 +258,7 @@ class OCCliApiResource:
         return self.api_version
 
 
-class OCCli:  # pylint: disable=too-many-public-methods
+class OCCli:
     def __init__(
         self,
         cluster_name: str | None,
@@ -1836,9 +1836,7 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
                 if result.group_version == kwargs["api_version"]
             ]
         # If there are multiple matches, prefer non-List kinds
-        if len(results) > 1 and not all(  # pylint: disable=R1729
-            isinstance(x, ResourceList) for x in results
-        ):
+        if len(results) > 1 and not all(isinstance(x, ResourceList) for x in results):
             results = [
                 result for result in results if not isinstance(result, ResourceList)
             ]

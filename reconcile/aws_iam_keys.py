@@ -6,6 +6,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.state import State, init_state
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -76,7 +77,7 @@ def cleanup(working_dirs: Mapping[str, str]) -> None:
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     disable_service_account_keys: bool = False,
     account_name: str | None = None,
     defer: Callable | None = None,

@@ -28,6 +28,7 @@ from reconcile.cli import (
     threaded,
 )
 from reconcile.jenkins_job_builder import init_jjb
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
@@ -179,7 +180,9 @@ class Report:
 
 
 def get_apps_data(
-    date: datetime, month_delta: int = 1, thread_pool_size: int = 10
+    date: datetime,
+    month_delta: int = 1,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> list[dict]:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings)
@@ -324,14 +327,14 @@ def get_apps_data(
                             slo_mx[cluster] = {}
                         if namespace not in slo_mx[cluster]:
                             slo_mx[cluster][namespace] = {}
-                        if slo_doc_name not in slo_mx[cluster][namespace]:  # pylint: disable=line-too-long
+                        if slo_doc_name not in slo_mx[cluster][namespace]:
                             slo_mx[cluster][namespace][slo_doc_name] = {}
                         if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:
                             slo_mx[cluster][namespace][slo_doc_name][slo_name] = {
                                 sample.labels["type"]: sample.value
                             }
                         else:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({  # pylint: disable=line-too-long
+                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({
                                 sample.labels["type"]: sample.value
                             })
         app["container_vulnerabilities"] = vuln_mx

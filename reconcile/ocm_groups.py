@@ -14,6 +14,7 @@ from reconcile import (
     queries,
 )
 from reconcile.status import ExitCodes
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 from reconcile.utils.ocm.base import OCMClusterGroupId
@@ -80,7 +81,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     return cluster.get("ocm") is not None
 
 
-def run(dry_run: bool, thread_pool_size: int = 10) -> None:
+def run(dry_run: bool, thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE) -> None:
     clusters = queries.get_clusters()
     if not clusters:
         logging.debug("No clusters found in app-interface")

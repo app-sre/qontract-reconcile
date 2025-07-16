@@ -12,6 +12,7 @@ from reconcile.utils import (
     ocm,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
@@ -566,7 +567,7 @@ def run(
     dry_run: bool,
     print_to_file: bool | None = None,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,
