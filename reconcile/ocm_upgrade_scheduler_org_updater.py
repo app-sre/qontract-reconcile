@@ -56,7 +56,7 @@ def run(dry_run: bool, gitlab_project_id: str | None) -> None:
         )
         ocm_name = ocm_info["name"]
         ocm_path = ocm_info["path"]
-        ocm = ocm_map.get(ocm_name)
+        ocm = ocm_map[ocm_name]
 
         for ocm_cluster_name, ocm_cluster_spec in ocm.clusters.items():
             found = [
