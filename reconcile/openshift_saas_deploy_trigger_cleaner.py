@@ -18,6 +18,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.typed_queries.tekton_pipeline_providers import (
     get_tekton_pipeline_providers,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
     OCLogMsg,
@@ -63,7 +64,7 @@ def get_pipeline_runs_to_delete(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     defer: Callable | None = None,

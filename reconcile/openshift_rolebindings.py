@@ -1,5 +1,7 @@
 import contextlib
 import sys
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
@@ -7,9 +9,13 @@ from reconcile.utils import (
     expiration,
     gql,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.openshift_resource import ResourceKeyExistsError
+from reconcile.utils.openshift_resource import (
+    ResourceInventory,
+    ResourceKeyExistsError,
+)
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
@@ -49,7 +55,7 @@ QONTRACT_INTEGRATION = "openshift-rolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
 
-def construct_user_oc_resource(role, user):
+def construct_user_oc_resource(role: str, user: str) -> tuple[OR, str]:
     name = f"{role}-{user}"
     body = {
         "apiVersion": "rbac.authorization.k8s.io/v1",
@@ -66,7 +72,7 @@ def construct_user_oc_resource(role, user):
     )
 
 
-def construct_sa_oc_resource(role, namespace, sa_name):
+def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[OR, str]:
     name = f"{role}-{namespace}-{sa_name}"
     body = {
         "apiVersion": "rbac.authorization.k8s.io/v1",
@@ -85,9 +91,16 @@ def construct_sa_oc_resource(role, namespace, sa_name):
     )
 
 
-def fetch_desired_state(ri, oc_map, enforced_user_keys=None):
+def fetch_desired_state(
+    ri: ResourceInventory | None,
+    oc_map: ob.ClusterMap | None,
+    enforced_user_keys: list[str] | None = None,
+) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
-    roles: list[dict] = expiration.filter(gqlapi.query(ROLES_QUERY)["roles"])
+    roles_query_result = gqlapi.query(ROLES_QUERY)
+    if not roles_query_result:
+        return []
+    roles: Sequence[Mapping[str, Any]] = expiration.filter(roles_query_result["roles"])
     users_desired_state = []
     for role in roles:
         permissions = [
@@ -124,11 +137,15 @@ def fetch_desired_state(ri, oc_map, enforced_user_keys=None):
 
             # get username keys based on used IDPs
             user_keys = ob.determine_user_keys_for_access(
-                cluster, cluster_info["auth"], enforced_user_keys=enforced_user_keys
+                cluster,
+                cluster_info.get("auth") or [],
+                enforced_user_keys=enforced_user_keys,
             )
             # create user rolebindings for user * user_keys
-            for user in role["users"]:
-                for username in {user[user_key] for user_key in user_keys}:
+            for user in role.get("users") or []:
+                for username in {user.get(key) for key in user_keys}:
+                    if not username:
+                        continue
                     # used by openshift-users and github integrations
                     # this is just to simplify things a bit on the their side
                     users_desired_state.append({"cluster": cluster, "user": username})
@@ -171,7 +188,13 @@ def fetch_desired_state(ri, oc_map, enforced_user_keys=None):
 
 
 @defer
-def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=None):
+def run(
+    dry_run: bool,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    defer: Callable | None = None,
+) -> None:
     namespaces = [
         namespace_info
         for namespace_info in queries.get_namespaces()
@@ -190,7 +213,8 @@ def run(dry_run, thread_pool_size=10, internal=None, use_jump_host=True, defer=N
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     fetch_desired_state(ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)

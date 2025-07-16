@@ -6,6 +6,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 
@@ -115,7 +116,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
 def run(
     dry_run: bool,
     gitlab_project_id: str | None = None,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> None:
     clusters = queries.get_clusters()
     clusters = [

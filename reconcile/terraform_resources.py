@@ -31,6 +31,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
@@ -367,7 +368,7 @@ def run(
     dry_run: bool,
     print_to_file: str | None = None,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     light: bool = False,
@@ -473,7 +474,7 @@ def runner(
     secret_reader: SecretReaderBase,
     dry_run: bool,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     light: bool = False,

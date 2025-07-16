@@ -20,6 +20,7 @@ from reconcile.ocm.types import (
     ROSAOcmAwsStsAttrs,
 )
 from reconcile.status import ExitCodes
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.jobcontroller.controller import build_job_controller
 from reconcile.utils.ocm.products import (
@@ -327,7 +328,7 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
 
 class OcmClustersParams(PydanticRunParams):
     gitlab_project_id: str | None = None
-    thread_pool_size: int = 10
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE
 
     # rosa job controller params
     job_controller_cluster: str | None = None
