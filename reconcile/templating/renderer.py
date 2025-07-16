@@ -216,16 +216,13 @@ def unpack_static_variables(
     rendered_vars = {}
     for k, v in (collection_variables.static or {}).items():
         template_val = process_jinja2_template(body=json.dumps(v), vars={"each": each})
-        try:
-            rendered_vars[k] = json.loads(template_val)
-        except json.JSONDecodeError as e:
-            # attempt to resolve json decoding issues related to string formatting
-            if not isinstance(template_val, str):
-                raise e
+        # treat as string literal and remove potential newlines
+        if template_val.startswith('"') and template_val.endswith('"'):
+            template_val = template_val[1:-1]
             template_val = template_val.replace("\n", "")
-            if template_val.startswith('"') and template_val.endswith('"'):
-                template_val = template_val[1:-1]
-            rendered_vars[k] = str(template_val)
+            rendered_vars[k] = template_val
+        else:
+            rendered_vars[k] = json.loads(template_val)
     return rendered_vars
 
 
