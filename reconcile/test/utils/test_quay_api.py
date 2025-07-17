@@ -170,3 +170,15 @@ def test_create_robot_account_raises_other_status_codes(quay_api):
     with pytest.raises(HTTPError):
         quay_api.create_robot_account("robot1", "robot1 description")
 
+@responses.activate
+def test_delete_robot_account(quay_api):
+    responses.add(
+        responses.DELETE,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1",
+        status=200,
+    )
+
+    quay_api.delete_robot_account("robot1")
+    assert responses.calls[0].request.method == "DELETE"
+    assert responses.calls[0].request.url == f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1"
+
