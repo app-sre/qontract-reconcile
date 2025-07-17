@@ -308,18 +308,19 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         on Status Board OCM API.
         """
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
-        for product, apps in desired_product_apps.items():
-            desired_abstract_status_board_map[product] = Product(
-                id=None, name=product, fullname=product, applications=[], metadata={}
+        for product_name, apps in desired_product_apps.items():
+            product = Product(
+                id=None, name=product_name, fullname=product_name, applications=[], metadata={}
             )
+            desired_abstract_status_board_map[product_name] = product
             for a in apps:
-                key = f"{product}/{a}"
+                key = f"{product_name}/{a}"
                 desired_abstract_status_board_map[key] = Application(
                     id=None,
                     name=a,
                     fullname=key,
                     services=[],
-                    product=desired_abstract_status_board_map[product],
+                    product=product,
                     metadata=apps[a]["metadata"],
                 )
         for slodoc in slodocs:
