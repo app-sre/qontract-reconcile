@@ -310,7 +310,11 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
         for product_name, apps in desired_product_apps.items():
             product = Product(
-                id=None, name=product_name, fullname=product_name, applications=[], metadata={}
+                id=None,
+                name=product_name,
+                fullname=product_name,
+                applications=[],
+                metadata={},
             )
             desired_abstract_status_board_map[product_name] = product
             for a in apps:
