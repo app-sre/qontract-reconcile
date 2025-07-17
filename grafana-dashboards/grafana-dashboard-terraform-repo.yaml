@@ -28,7 +28,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 995575,
+      "id": 1025848,
       "links": [],
       "panels": [
         {
@@ -46,8 +46,7 @@ data:
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -74,6 +73,12 @@ data:
           ],
           "options": {
             "displayMode": "lcd",
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
             "maxVizHeight": 300,
             "minVizHeight": 16,
             "minVizWidth": 8,
@@ -90,7 +95,7 @@ data:
             "sizing": "auto",
             "valueMode": "color"
           },
-          "pluginVersion": "10.4.1",
+          "pluginVersion": "11.6.3",
           "targets": [
             {
               "datasource": {
@@ -114,9 +119,9 @@ data:
           "type": "bargauge"
         },
         {
-          "datasource": {
-            "type": "cloudwatch",
-            "uid": "P1A97A9592CB7F392"
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
           },
           "gridPos": {
             "h": 4,
@@ -134,31 +139,7 @@ data:
             "content": "1. Find the name of your `PipelineRun` in [Slack](https://redhat.enterprise.slack.com/archives/C07F3A80H51)\n2. Select the matching name in the `pipelinerun` variable dropdown.\n3. Logs for that PLR will be displayed.",
             "mode": "markdown"
           },
-          "pluginVersion": "10.4.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "cloudwatch",
-                "uid": "P1A97A9592CB7F392"
-              },
-              "dimensions": {},
-              "expression": "",
-              "id": "",
-              "label": "",
-              "logGroups": [],
-              "matchExact": true,
-              "metricEditorMode": 0,
-              "metricName": "",
-              "metricQueryType": 0,
-              "namespace": "",
-              "period": "",
-              "queryMode": "Metrics",
-              "refId": "A",
-              "region": "default",
-              "sqlExpression": "",
-              "statistic": "Average"
-            }
-          ],
+          "pluginVersion": "11.6.3",
           "title": "How to use",
           "type": "text"
         },
@@ -166,6 +147,10 @@ data:
           "datasource": {
             "type": "cloudwatch",
             "uid": "P1A97A9592CB7F392"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
           },
           "gridPos": {
             "h": 26,
@@ -176,6 +161,7 @@ data:
           "id": 2,
           "options": {
             "dedupStrategy": "none",
+            "enableInfiniteScrolling": false,
             "enableLogDetails": true,
             "prettifyLogMessage": true,
             "showCommonLabels": false,
@@ -184,6 +170,7 @@ data:
             "sortOrder": "Ascending",
             "wrapLogMessage": true
           },
+          "pluginVersion": "11.6.3",
           "targets": [
             {
               "datasource": {
@@ -235,6 +222,7 @@ data:
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -265,8 +253,7 @@ data:
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -300,10 +287,12 @@ data:
               "showLegend": false
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "single",
               "sort": "none"
             }
           },
+          "pluginVersion": "11.6.3",
           "targets": [
             {
               "datasource": {
@@ -342,6 +331,7 @@ data:
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 25,
                 "gradientMode": "none",
@@ -372,8 +362,7 @@ data:
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -400,10 +389,12 @@ data:
               "showLegend": false
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "single",
               "sort": "none"
             }
           },
+          "pluginVersion": "11.6.3",
           "targets": [
             {
               "datasource": {
@@ -412,7 +403,7 @@ data:
               },
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "tekton_pipelines_controller_pipelinerun_taskrun_duration_seconds{namespace=~\"terraform-repo.+\", task=\"tf-executor\"}",
+              "expr": "tekton_pipelines_controller_pipelinerun_taskrun_duration_seconds{namespace=~\"terraform-repo.+\", task=\"run-terraform-operation\"}",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "instant": false,
@@ -426,33 +417,28 @@ data:
           "type": "timeseries"
         }
       ],
+      "preload": false,
       "refresh": "",
-      "schemaVersion": 39,
+      "schemaVersion": 41,
       "tags": [],
       "templating": {
         "list": [
           {
             "current": {
-              "selected": false,
               "text": "appsrep09ue1-prometheus",
               "value": "P7B77307D2CE073BC"
             },
-            "hide": 0,
             "includeAll": false,
-            "multi": false,
             "name": "datasource",
             "options": [],
             "query": "prometheus",
-            "queryValue": "",
             "refresh": 1,
             "regex": "appsrep09ue1-prometheus|appsres09ue1-prometheus",
-            "skipUrlSync": false,
             "type": "datasource"
           },
           {
             "allValue": ".+",
             "current": {
-              "selected": false,
               "text": "All",
               "value": "$__all"
             },
@@ -461,9 +447,7 @@ data:
               "uid": "${datasource}"
             },
             "definition": "label_values(kube_pod_info{namespace=\"terraform-repo-production\", pod=~\"tf-repo.+\"},pod)",
-            "hide": 0,
             "includeAll": true,
-            "multi": false,
             "name": "pipelinerun",
             "options": [],
             "query": {
@@ -473,7 +457,6 @@ data:
             },
             "refresh": 2,
             "regex": "/(tf-repo-push-deploy-pipelinerun.+)-tf-executor/",
-            "skipUrlSync": false,
             "sort": 1,
             "type": "query"
           }
@@ -487,6 +470,5 @@ data:
       "timezone": "browser",
       "title": "Terraform Repo",
       "uid": "de6murtyo59moa",
-      "version": 1,
-      "weekStart": ""
+      "version": 1
     }
