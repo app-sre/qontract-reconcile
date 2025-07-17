@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 else:
     AccountClient = AlternateContactTypeDef = object
 
-import botocore
 from pydantic import BaseModel
 
 
@@ -44,10 +43,7 @@ class AWSApiAccount:
                 Title=title,
                 PhoneNumber=phone_number,
             )
-        except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] != "AccessDenied":
-                raise
-
+        except self.client.exceptions.AccessDeniedException:
             # This exception is raised if the user does not have permission to perform this action.
             # Let's see if the current security contact is already set to the same values.
             current_contact = self.get_security_contact()

@@ -69,7 +69,7 @@ class AWSApiIam:
                     raise ValueError(
                         "Account alias already exists for another AWS account. Choose another one!"
                     ) from e
-            elif e.response["Error"]["Code"] == "AccessDenied":
+            elif e.response["Error"]["Code"] == "AccessDeniedException":
                 # AccessDeniedException can occur if the user does not have permission to create an account alias.
                 # This can happen if the alias is already set and we don't have permission to change it.
                 # If the existing alias is the one we want, we can ignore the error.

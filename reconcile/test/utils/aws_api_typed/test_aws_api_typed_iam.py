@@ -102,7 +102,7 @@ def test_aws_api_typed_iam_set_account_alias_permission_denied_by_already_set(
     iam_client.create_account_alias.side_effect = botocore.exceptions.ClientError(
         error_response={
             "Error": {
-                "Code": "AccessDenied",
+                "Code": "AccessDeniedException",
                 "Message": "User: arn:aws:iam::xxxxx:user/terraform is not authorized to perform: iam:CreateAccountAlias on resource: * with an explicit deny in a service control policy",
             }
         },
@@ -128,7 +128,7 @@ def test_aws_api_typed_iam_set_account_alias_permission_denied_and_not_set(
     iam_client.create_account_alias.side_effect = botocore.exceptions.ClientError(
         error_response={
             "Error": {
-                "Code": "AccessDenied",
+                "Code": "AccessDeniedException",
                 "Message": "User: arn:aws:iam::xxxxx:user/terraform is not authorized to perform: iam:CreateAccountAlias on resource: * with an explicit deny in a service control policy",
             }
         },

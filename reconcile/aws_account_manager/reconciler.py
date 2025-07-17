@@ -322,7 +322,7 @@ class AWSReconciler:
             if _state.exists and _state.value == security_contact:
                 return
 
-            logging.info(f"{name}: Setting security contact")
+            logging.info(f"{account}: Setting security contact")
             if self.dry_run:
                 raise AbortStateTransactionError("Dry run")
 
