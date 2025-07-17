@@ -102,20 +102,22 @@ def test_list_robot_accounts(quay_api):
         responses.GET,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/robots",
         status=200,
-        json=[
-            {
-                "name": "robot1",
-                "description": "robot1 description",
-                "created": "2021-01-01T00:00:00Z",
-                "last_accessed": None,
-            },
-            {
-                "name": "robot2",
-                "description": "robot2 description",
-                "created": "2021-01-01T00:00:00Z",
-                "last_accessed": None,
-            },
-        ],
+        json={
+            "robots": [
+                {
+                    "name": "robot1",
+                    "description": "robot1 description",
+                    "created": "2021-01-01T00:00:00Z",
+                    "last_accessed": None,
+                },
+                {
+                    "name": "robot2",
+                    "description": "robot2 description",
+                    "created": "2021-01-01T00:00:00Z",
+                    "last_accessed": None,
+                },
+            ]
+        },
     )
 
     assert quay_api.list_robot_accounts() == [
@@ -132,3 +134,15 @@ def test_list_robot_accounts(quay_api):
             "last_accessed": None,
         },
     ]
+
+@responses.activate
+def test_list_robot_accounts_raises_other_status_codes(quay_api):
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots",
+        status=400,
+    )
+
+    with pytest.raises(HTTPError):
+        quay_api.list_robot_accounts()
+
