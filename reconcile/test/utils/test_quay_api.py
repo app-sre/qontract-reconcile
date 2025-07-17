@@ -146,3 +146,16 @@ def test_list_robot_accounts_raises_other_status_codes(quay_api):
     with pytest.raises(HTTPError):
         quay_api.list_robot_accounts()
 
+@responses.activate
+def test_create_robot_account(quay_api):
+    responses.add(
+        responses.PUT,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1",
+        status=200,
+        json={"name": "robot1", "description": "robot1 description"},
+    )
+
+    quay_api.create_robot_account("robot1", "robot1 description")
+
+    assert responses.calls[0].request.body == b'{"description": "robot1 description"}'
+
