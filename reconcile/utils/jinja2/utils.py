@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
@@ -188,6 +189,32 @@ def list_s3_objects(
         )
 
 
+def extract_timeseries(expression: str) -> dict[str, str]:
+    """
+    Extracts labeled time series from a Prometheus expression and categorizes them for test generation.
+
+    Example expression:
+        sum(rate(qontract_reconcile_function_elapsed_seconds_since_bundle_commit_bucket{le="1200.0",integration!~"foo",namespace="production"}[{{window}}]))
+        /
+        sum(rate(qontract_reconcile_function_elapsed_seconds_since_bundle_commit_count{integration!~"foo",namespace="production"}[{{window}}]))
+
+    Output:
+        {
+            "success": "qontract_reconcile_function_elapsed_seconds_since_bundle_commit_bucket{le=\"1200.0\",integration!~\"foo\",namespace=\"production\"}",
+            "total": "qontract_reconcile_function_elapsed_seconds_since_bundle_commit_count{integration!~\"foo\",namespace=\"production\"}"
+        }
+    """
+    timeseries_pattern = r"\b[a-zA-Z_:][a-zA-Z0-9_:]*\{[^{}]*\}"
+    result = {}
+    parsed = re.findall(timeseries_pattern, expression)
+    if len(parsed) > 1:
+        result["success"] = parsed[0]
+        result["total"] = parsed[1]
+    else:
+        result["expr"] = parsed[0]
+    return result
+
+
 @retry()
 def lookup_secret(
     path: str,
@@ -258,6 +285,7 @@ def process_jinja2_template(
         "s3": lookup_s3_object,
         "s3_ls": list_s3_objects,
         "flatten_dict": flatten,
+        "extract_timeseries": extract_timeseries,
         "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
             "%Y-%m-%d"
         ),
