@@ -87,7 +87,7 @@ def get_desired_dependency_names(
     return required_dep_names
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     settings = queries.get_app_interface_settings()
     dependency_map = settings.get("dependencies")
     if not dependency_map:

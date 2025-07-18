@@ -91,7 +91,7 @@ class DictComponentBindingState:
         self.name_to_id_cache = name_to_id
         self._build_id_to_name_cache()
 
-    def _build_id_to_name_cache(self):
+    def _build_id_to_name_cache(self) -> None:
         self.id_to_name_cache: dict[str, str] = {
             v: k for k, v in self.name_to_id_cache.items()
         }
@@ -102,11 +102,11 @@ class DictComponentBindingState:
     def get_name_for_component_id(self, component_id: str) -> str | None:
         return self.id_to_name_cache.get(component_id)
 
-    def bind_component(self, component_name: str, component_id: str):
+    def bind_component(self, component_name: str, component_id: str) -> None:
         self.name_to_id_cache[component_name] = component_id
         self.id_to_name_cache[component_id] = component_name
 
-    def forget_component(self, component_name: str):
+    def forget_component(self, component_name: str) -> None:
         del self.name_to_id_cache[component_name]
         self._build_id_to_name_cache()
 
