@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 from reconcile.utils.aws_api import AWSApi
@@ -57,12 +58,16 @@ class SQSGateway:
         visibility_timeout=30,
         wait_time_seconds=20,
     ):
-        messages = self.sqs.receive_message(
-            QueueUrl=self.queue_url,
-            VisibilityTimeout=visibility_timeout,
-            WaitTimeSeconds=wait_time_seconds,
-        ).get("Messages", [])
-        return [(m["ReceiptHandle"], json.loads(m["Body"])) for m in messages]
+        try:
+            messages = self.sqs.receive_message(
+                QueueUrl=self.queue_url,
+                VisibilityTimeout=visibility_timeout,
+                WaitTimeSeconds=wait_time_seconds,
+            ).get("Messages", [])
+            return [(m["ReceiptHandle"], json.loads(m["Body"])) for m in messages]
+        except Exception as e:
+            logging.error(f"Error receiving messages from SQS: {messages=}")
+            raise e
 
     def delete_message(self, receipt_handle):
         self.sqs.delete_message(QueueUrl=self.queue_url, ReceiptHandle=receipt_handle)
