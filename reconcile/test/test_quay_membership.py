@@ -1,3 +1,5 @@
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import patch
 
 from reconcile import quay_membership
@@ -12,7 +14,9 @@ from .fixtures import Fixtures
 fxt = Fixtures("quay_membership")
 
 
-def get_items_by_params(state, params):
+def get_items_by_params(
+    state: list[dict[str, Any]], params: dict[str, str]
+) -> list[str] | bool:
     h = AggregatedList.hash_params(params)
     for group in state:
         this_h = AggregatedList.hash_params(group["params"])
@@ -23,21 +27,21 @@ def get_items_by_params(state, params):
 
 
 class QuayApiMock:
-    def __init__(self, list_team_members_response):
+    def __init__(self, list_team_members_response: dict[str, list[str]]):
         self.list_team_members_response = list_team_members_response
 
-    def list_team_members(self, team):
+    def list_team_members(self, team: str) -> list[str]:
         return self.list_team_members_response[team]
 
 
 class TestQuayMembership:
     @staticmethod
-    def setup_method(method):
+    def setup_method(method: Callable) -> None:
         config.init_from_toml(fxt.path("config.toml"))
         gql.init_from_config(autodetect_sha=False)
 
     @staticmethod
-    def do_current_state_test(path):
+    def do_current_state_test(path: str) -> None:
         fixture = fxt.get_anymarkup(path)
 
         quay_org_catalog = fixture["quay_org_catalog"]
@@ -51,8 +55,7 @@ class TestQuayMembership:
                 "teams": org_data["managedTeams"],
             }
 
-        current_state = quay_membership.fetch_current_state(store)
-        current_state = current_state.dump()
+        current_state = quay_membership.fetch_current_state(store).dump()
 
         expected_current_state = fixture["state"]
 
@@ -63,7 +66,7 @@ class TestQuayMembership:
             assert items == get_items_by_params(expected_current_state, params)
 
     @staticmethod
-    def do_desired_state_test(path):
+    def do_desired_state_test(path: str) -> None:
         fixture = fxt.get_anymarkup(path)
 
         with patch("reconcile.utils.gql.GqlApi.query") as m_gql:
@@ -79,8 +82,8 @@ class TestQuayMembership:
                 items = sorted(group["items"])
                 assert items == get_items_by_params(expected_desired_state, params)
 
-    def test_current_state_simple(self):
+    def test_current_state_simple(self) -> None:
         self.do_current_state_test("current_state_simple.yml")
 
-    def test_desired_state_simple(self):
+    def test_desired_state_simple(self) -> None:
         self.do_desired_state_test("desired_state_simple.yml")

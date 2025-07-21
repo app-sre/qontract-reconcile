@@ -290,7 +290,7 @@ class QuayMirrorOrg:
 
 
 def run(
-    dry_run,
+    dry_run: bool,
     control_file_dir: str | None,
     compare_tags: bool | None,
     compare_tags_interval: int,

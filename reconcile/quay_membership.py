@@ -1,6 +1,7 @@
 import logging
 import sys
 from collections.abc import Sequence
+from typing import Any
 
 from reconcile.gql_definitions.quay_membership import quay_membership
 from reconcile.gql_definitions.quay_membership.quay_membership import (
@@ -9,13 +10,14 @@ from reconcile.gql_definitions.quay_membership.quay_membership import (
     PermissionQuayOrgTeamV1,
     UserV1,
 )
-from reconcile.quay_base import get_quay_api_store
+from reconcile.quay_base import QuayApiStore, get_quay_api_store
 from reconcile.status import ExitCodes
 from reconcile.utils import (
     expiration,
     gql,
 )
 from reconcile.utils.aggregated_list import (
+    Action,
     AggregatedDiffRunner,
     AggregatedList,
     RunnerError,
@@ -33,7 +35,7 @@ def get_permissions_for_quay_membership() -> list[PermissionQuayOrgTeamV1]:
     return [p for p in query_data.permissions if isinstance(p, PermissionQuayOrgTeamV1)]
 
 
-def process_permission(permission: PermissionQuayOrgTeamV1):
+def process_permission(permission: PermissionQuayOrgTeamV1) -> dict[str, Any]:
     """Returns a new permission object with the right keys
 
     State needs these fields: service, org, team.
@@ -52,7 +54,7 @@ def process_permission(permission: PermissionQuayOrgTeamV1):
     }
 
 
-def fetch_current_state(quay_api_store):
+def fetch_current_state(quay_api_store: QuayApiStore) -> AggregatedList:
     state = AggregatedList()
 
     for org_key, org_data in quay_api_store.items():
@@ -85,7 +87,7 @@ def get_usernames(users: Sequence[UserV1 | BotV1 | ExternalUserV1]) -> list[str]
     return [u.quay_username for u in users if u.quay_username]
 
 
-def fetch_desired_state():
+def fetch_desired_state() -> AggregatedList:
     permissions = get_permissions_for_quay_membership()
     state = AggregatedList()
 
@@ -105,14 +107,14 @@ def fetch_desired_state():
 
 
 class RunnerAction:
-    def __init__(self, dry_run, quay_api_store):
+    def __init__(self, dry_run: bool, quay_api_store: QuayApiStore):
         self.dry_run = dry_run
         self.quay_api_store = quay_api_store
 
-    def add_to_team(self):
+    def add_to_team(self) -> Action:
         label = "add_to_team"
 
-        def action(params, items):
+        def action(params: dict, items: list) -> bool:
             org = params["org"]
             team = params["team"]
 
@@ -134,7 +136,7 @@ class RunnerAction:
 
         return action
 
-    def create_team(self):
+    def create_team(self) -> Action:
         """
         Create an empty team in Quay. This method avoids adding users to the
         new team. add_to_team() will handle updating the member list the
@@ -142,7 +144,7 @@ class RunnerAction:
         """
         label = "create_team"
 
-        def action(params, items):
+        def action(params: dict, items: list) -> bool:
             org = params["org"]
             team = params["team"]
 
@@ -164,10 +166,10 @@ class RunnerAction:
 
         return action
 
-    def del_from_team(self):
+    def del_from_team(self) -> Action:
         label = "del_from_team"
 
-        def action(params, items):
+        def action(params: dict, items: list) -> bool:
             org = params["org"]
             team = params["team"]
 
@@ -185,7 +187,7 @@ class RunnerAction:
         return action
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     quay_api_store = get_quay_api_store()
 
     current_state = fetch_current_state(quay_api_store)

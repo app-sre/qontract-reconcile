@@ -1,7 +1,10 @@
 import json
 from collections import Counter
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
+from pytest_mock import MockerFixture
 
 import reconcile.utils.external_resources as uer
 from reconcile.utils.external_resource_spec import (
@@ -10,9 +13,11 @@ from reconcile.utils.external_resource_spec import (
     ExternalResourceUniqueKey,
 )
 
+NamespaceInfo = Mapping[str, Any]
+
 
 @pytest.fixture
-def namespace_info():
+def namespace_info() -> NamespaceInfo:
     return {
         "managedExternalResources": True,
         "externalResources": [
@@ -54,7 +59,7 @@ def namespace_info():
 
 
 @pytest.fixture
-def expected(namespace_info):
+def expected(namespace_info: NamespaceInfo) -> list[ExternalResourceSpec]:
     return [
         ExternalResourceSpec(
             provision_provider=uer.PROVIDER_AWS,
@@ -71,7 +76,9 @@ def expected(namespace_info):
     ]
 
 
-def test_get_external_resource_specs(namespace_info, expected):
+def test_get_external_resource_specs(
+    namespace_info: NamespaceInfo, expected: list[ExternalResourceSpec]
+) -> None:
     results = uer.get_external_resource_specs(
         namespace_info, provision_provider=uer.PROVIDER_AWS
     )
@@ -79,7 +86,7 @@ def test_get_external_resource_specs(namespace_info, expected):
 
 
 @pytest.fixture
-def expected_other(namespace_info):
+def expected_other(namespace_info: NamespaceInfo) -> list[ExternalResourceSpec]:
     return [
         ExternalResourceSpec(
             provision_provider="other",
@@ -91,41 +98,45 @@ def expected_other(namespace_info):
 
 
 def test_get_external_resource_specs_no_filter(
-    namespace_info, expected, expected_other
-):
+    namespace_info: NamespaceInfo,
+    expected: list[ExternalResourceSpec],
+    expected_other: list[ExternalResourceSpec],
+) -> None:
     results = uer.get_external_resource_specs(namespace_info)
     assert results == expected + expected_other
 
 
-def test_get_external_resource_specs_filter_other(namespace_info, expected_other):
+def test_get_external_resource_specs_filter_other(
+    namespace_info: NamespaceInfo, expected_other: list[ExternalResourceSpec]
+) -> None:
     results = uer.get_external_resource_specs(
         namespace_info, provision_provider="other"
     )
     assert results == expected_other
 
 
-def test_get_provision_providers(namespace_info):
+def test_get_provision_providers(namespace_info: NamespaceInfo) -> None:
     results = uer.get_provision_providers(namespace_info)
     assert results == {uer.PROVIDER_AWS, "other"}
 
 
-def test_get_provision_providers_none():
+def test_get_provision_providers_none() -> None:
     namespace_info = {"managedExternalResources": False}
     results = uer.get_provision_providers(namespace_info)
     assert not results
 
 
-def test_managed_external_resources():
+def test_managed_external_resources() -> None:
     namespace_info = {"managedExternalResources": True}
     assert uer.managed_external_resources(namespace_info) is True
 
 
-def test_managed_external_resources_none():
+def test_managed_external_resources_none() -> None:
     namespace_info = {"managedExternalResources": False}
     assert uer.managed_external_resources(namespace_info) is False
 
 
-def test_resource_value_resolver_no_defaults_or_overrides():
+def test_resource_value_resolver_no_defaults_or_overrides() -> None:
     """Values are resolved properly when defaults and overrides are omitted."""
     spec = ExternalResourceSpec(
         provision_provider="other",
@@ -146,7 +157,7 @@ def test_resource_value_resolver_no_defaults_or_overrides():
     assert values == {"field_1": "data1", "field_2": "data2", "field_3": "data3"}
 
 
-def test_resource_value_resolver_identifier_as_value():
+def test_resource_value_resolver_identifier_as_value() -> None:
     """
     `identifier` is added to the resolved values if `identifier_as_value` is set. This
     is for compatibility when both our schemas and a Terraform provider both expect
@@ -176,7 +187,7 @@ def test_resource_value_resolver_identifier_as_value():
     }
 
 
-def test_resource_value_resolver_tags():
+def test_resource_value_resolver_tags() -> None:
     """`tags` is added to the resolved values if `integration_tag` is set."""
     spec = ExternalResourceSpec(
         provision_provider="other",
@@ -213,7 +224,7 @@ def test_resource_value_resolver_tags():
     }
 
 
-def test_resource_value_resolver_overrides_and_defaults(mocker):
+def test_resource_value_resolver_overrides_and_defaults(mocker: MockerFixture) -> None:
     """Values are resolved properly when overrides and defaults exist."""
     # The need to patch here will go away once we start using the resolveResource
     # schema option.
@@ -252,7 +263,7 @@ def test_resource_value_resolver_overrides_and_defaults(mocker):
     }
 
 
-def test_get_inventory_count_combinations():
+def test_get_inventory_count_combinations() -> None:
     inventory: ExternalResourceSpecInventory = {}
     inventory[ExternalResourceUniqueKey("pp1", "pn1", "id1", "rds")] = (
         ExternalResourceSpec("pp1", {}, {}, {})
