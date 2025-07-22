@@ -120,7 +120,7 @@ def build_entry_point_args(
     # we add it right before the extra_args
     if (
         integration_name
-        and isinstance(command, click.MultiCommand)
+        and isinstance(command, click.Group)
         and command.get_command(None, integration_name)  # type: ignore
     ):
         args.append(integration_name)
