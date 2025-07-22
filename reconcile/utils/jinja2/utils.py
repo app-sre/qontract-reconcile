@@ -1,6 +1,5 @@
 import datetime
 import os
-import re
 from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
