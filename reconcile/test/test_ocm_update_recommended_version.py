@@ -21,25 +21,25 @@ def versions() -> list[str]:
 
 
 @pytest.fixture
-def version_set(versions) -> set[str]:
+def version_set(versions: list[str]) -> set[str]:
     return set(versions)
 
 
-def test_get_highest(version_set):
+def test_get_highest(version_set: set[str]) -> None:
     highest = get_highest(version_set)
     assert highest == "1.1.1"
 
     assert get_highest({"1.1.1"}) == "1.1.1"
 
 
-def test_get_majority(versions, version_set):
+def test_get_majority(versions: list[str], version_set: set[str]) -> None:
     majority = get_majority(version_set, versions)
     assert majority == "1.1.0"
 
     assert get_majority({"1.1.1"}, ["1.1.1"]) == "1.1.1"
 
 
-def test_recommended_version(versions, version_set):
+def test_recommended_version(versions: list[str], version_set: set[str]) -> None:
     assert recommended_version(versions, high_weight=10, majority_weight=1) == "1.1.1"
     assert recommended_version(versions, high_weight=0, majority_weight=1) == "1.1.0"
     assert (
@@ -50,7 +50,7 @@ def test_recommended_version(versions, version_set):
     )
 
 
-def test_get_version_weights():
+def test_get_version_weights() -> None:
     assert get_version_weights({}) == (1, 1)
     assert get_version_weights({"recommendedVersionWeight": {"majority": 0}}) == (1, 0)
     assert get_version_weights({
@@ -60,7 +60,7 @@ def test_get_version_weights():
 
 def add_cluster(
     clusters: dict[str, OCMSpec], cluster_name: str, version: str, channel: str
-):
+) -> None:
     clusters[cluster_name] = OCMSpec(
         network=OCMClusterNetwork(vpc="", service="", pod=""),
         spec=OCMClusterSpec(
@@ -76,7 +76,7 @@ def add_cluster(
     )
 
 
-def test_get_updated_recommended_versions():
+def test_get_updated_recommended_versions() -> None:
     ocm_info = {
         "recommendedVersions": [],
         "upgradePolicyAllowedWorkloads": ["foo", "bar"],
@@ -97,7 +97,7 @@ def test_get_updated_recommended_versions():
     ]
 
 
-def test_get_updated_recommended_versions_multiple_channel():
+def test_get_updated_recommended_versions_multiple_channel() -> None:
     ocm_info = {
         "recommendedVersions": [
             {"recommendedVersion": "1.0.0", "workload": "foo"},
@@ -140,6 +140,6 @@ def test_get_updated_recommended_versions_multiple_channel():
     ]
 
 
-def test_format_initial_version():
+def test_format_initial_version() -> None:
     assert format_initial_version("2.0.0", "stable") == "openshift-v2.0.0"
     assert format_initial_version("2.0.0", "fast") == "openshift-v2.0.0-fast"

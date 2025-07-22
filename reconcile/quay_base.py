@@ -1,13 +1,15 @@
 from collections import namedtuple
+from typing import Any
 
 from reconcile import queries
 from reconcile.utils.quay_api import QuayApi
 from reconcile.utils.secret_reader import SecretReader
 
 OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
+QuayApiStore = dict[OrgKey, dict[str, Any]]
 
 
-def get_quay_api_store():
+def get_quay_api_store() -> QuayApiStore:
     """
     Returns a dictionary with a key for each Quay organization
     managed in app-interface.
