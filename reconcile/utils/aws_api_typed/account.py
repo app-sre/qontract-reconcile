@@ -1,14 +1,14 @@
+from __future__ import annotations
+
 import logging
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel
+
 if TYPE_CHECKING:
     from mypy_boto3_account import AccountClient
     from mypy_boto3_account.type_defs import AlternateContactTypeDef
-else:
-    AccountClient = AlternateContactTypeDef = object
-
-from pydantic import BaseModel
 
 
 class OptStatus(StrEnum):

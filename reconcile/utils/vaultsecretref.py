@@ -27,7 +27,7 @@ class VaultSecretRef:
         return secret_content.get(self.field, default)
 
     def _resolve_secret(self) -> dict[str, str]:
-        vault_client = cast(_VaultClient, VaultClient())
+        vault_client = cast("_VaultClient", VaultClient())
         if self.field == VaultSecretRef._ALL_FIELDS:
             return vault_client.read_all(self.__dict__)
         field_value = vault_client.read(self.__dict__)

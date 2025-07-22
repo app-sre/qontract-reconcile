@@ -1,4 +1,5 @@
-from collections.abc import Generator
+from __future__ import annotations
+
 from datetime import (
     datetime,
     timedelta,
@@ -18,15 +19,14 @@ from reconcile.aws_ami_cleanup.integration import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_ec2.type_defs import (
         CreateImageResultTypeDef,
         LaunchTemplateVersionTypeDef,
     )
-else:
-    EC2Client = object
-    CreateImageResultTypeDef = dict
-    LaunchTemplateVersionTypeDef = dict
+
 
 MOTO_DEFAULT_ACCOUNT = "123456789012"
 

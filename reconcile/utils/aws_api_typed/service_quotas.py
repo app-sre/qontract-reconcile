@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
@@ -6,7 +8,8 @@ if TYPE_CHECKING:
     from mypy_boto3_service_quotas import ServiceQuotasClient
     from mypy_boto3_service_quotas.literals import RequestStatusType
 else:
-    ServiceQuotasClient = RequestStatusType = object
+    # pydantic needs these types to be defined during runtime
+    RequestStatusType = str
 
 
 class AWSRequestedServiceQuotaChange(BaseModel):

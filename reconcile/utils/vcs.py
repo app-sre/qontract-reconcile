@@ -2,28 +2,32 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlparse
 
 from gitlab.const import PipelineStatus
-from gitlab.v4.objects import ProjectMergeRequest
 
-from reconcile.typed_queries.github_orgs import GithubOrgV1
-from reconcile.typed_queries.gitlab_instances import GitlabInstanceV1
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import (
     GitLabApi,
     MRState,
 )
-from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.secret_reader import (
-    HasSecret,
-    SecretReaderBase,
-)
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from gitlab.v4.objects import ProjectMergeRequest
+
+    from reconcile.typed_queries.github_orgs import GithubOrgV1
+    from reconcile.typed_queries.gitlab_instances import GitlabInstanceV1
+    from reconcile.utils.mr.base import MergeRequestBase
+    from reconcile.utils.secret_reader import (
+        HasSecret,
+        SecretReaderBase,
+    )
 
 GITHUB_BASE_URL = "https://github.com/"
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from collections.abc import Mapping
 from datetime import timedelta
 from typing import Any
@@ -25,9 +23,7 @@ from reconcile.utils.ocm.syncsets import (
     get_syncset,
     patch_syncset,
 )
-from reconcile.utils.ocm_base_client import (
-    OCMBaseClient,
-)
+from reconcile.utils.ocm_base_client import OCMBaseClient
 
 """
 Thin abstractions of reconcile.ocm module to reduce coupling.
@@ -43,7 +39,7 @@ class OCMCluster(BaseModel):
     labels: Mapping[str, str]
 
     @staticmethod
-    def from_cluster_details(cluster: ClusterDetails) -> OCMCluster | None:
+    def from_cluster_details(cluster: ClusterDetails) -> "OCMCluster | None":
         labels = {key: label.value for key, label in cluster.labels.labels.items()}
         return OCMCluster(
             id=cluster.ocm_cluster.id,

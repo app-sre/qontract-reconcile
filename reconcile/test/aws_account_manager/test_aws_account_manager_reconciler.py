@@ -1,4 +1,5 @@
-from collections.abc import Callable, Generator
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
@@ -7,10 +8,11 @@ import pytest
 from moto import mock_aws
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
-from pytest_mock import MockerFixture
+    from pytest_mock import MockerFixture
+
 
 from reconcile.aws_account_manager.reconciler import (
     TASK_ACCOUNT_ALIAS,

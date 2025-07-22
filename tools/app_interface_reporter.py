@@ -7,6 +7,7 @@ from datetime import (
     UTC,
     datetime,
 )
+from typing import TYPE_CHECKING
 
 import click
 import requests
@@ -29,10 +30,12 @@ from reconcile.cli import (
 )
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from reconcile.utils.jjb_client import JJB
 
 CONTENT_FORMAT_VERSION = "1.0.0"
 DASHDOTDB_SECRET = os.environ.get(

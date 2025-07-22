@@ -1,5 +1,4 @@
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import TestCase
 from unittest.mock import (
     Mock,
@@ -12,6 +11,9 @@ from reconcile import queries
 from reconcile.utils.ocm import OCMMap
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 fxt = Fixtures("ocm_additional_routers")
 

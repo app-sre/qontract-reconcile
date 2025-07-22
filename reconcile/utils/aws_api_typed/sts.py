@@ -5,8 +5,6 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from mypy_boto3_sts import STSClient
-else:
-    STSClient = object
 
 
 class AWSCredentials(BaseModel):
@@ -17,7 +15,7 @@ class AWSCredentials(BaseModel):
 
 
 class AWSApiSts:
-    def __init__(self, client: STSClient) -> None:
+    def __init__(self, client: "STSClient") -> None:
         self.client = client
 
     def assume_role(self, account_id: str, role: str) -> AWSCredentials:

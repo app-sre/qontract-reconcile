@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import click
 
@@ -24,6 +24,9 @@ from reconcile.utils.vcs import VCS
 from tools.saas_metrics_exporter.commit_distance.commit_distance import (
     CommitDistanceFetcher,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class SaasMetricsExporter:

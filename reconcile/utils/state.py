@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import contextlib
 import json
 import logging
 import os
 from abc import abstractmethod
-from collections.abc import Callable, Generator, Mapping
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -15,9 +16,10 @@ import boto3
 from botocore.errorfactory import ClientError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Mapping
+
     from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
+
 
 from pydantic import BaseModel
 
@@ -46,7 +48,7 @@ class StateInaccessibleError(Exception):
 def init_state(
     integration: str,
     secret_reader: SecretReaderBase | None = None,
-) -> "State":
+) -> State:
     if not secret_reader:
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -418,7 +420,7 @@ class State:
     @contextlib.contextmanager
     def transaction(
         self, key: str, value: Any = None
-    ) -> Generator["TransactionStateObj", None, None]:
+    ) -> Generator[TransactionStateObj, None, None]:
         """Get a context manager to set the key in the state if no exception occurs.
 
         You can set the value either via the value parameter or by setting the value attribute of the returned object.
