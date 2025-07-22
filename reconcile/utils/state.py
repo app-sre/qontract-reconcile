@@ -14,13 +14,6 @@ from typing import (
 
 import boto3
 from botocore.errorfactory import ClientError
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Mapping
-
-    from mypy_boto3_s3 import S3Client
-
-
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.app_interface_state_settings import (
@@ -39,6 +32,11 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Mapping
+
+    from mypy_boto3_s3 import S3Client
 
 
 class StateInaccessibleError(Exception):

@@ -22,6 +22,6 @@ def aws_api_dynamodb(dynamodb_client: DynamoDBClient) -> AWSApiDynamoDB:
 
 
 def test_aws_api_typed_dynamodb_boto3_client_returns_client(
-    aws_api_dynamodb: AWSApiDynamoDB,
+    aws_api_dynamodb: AWSApiDynamoDB, dynamodb_client: DynamoDBClient
 ) -> None:
-    assert isinstance(aws_api_dynamodb.boto3_client, DynamoDBClient)
+    assert isinstance(aws_api_dynamodb.boto3_client, type(dynamodb_client))

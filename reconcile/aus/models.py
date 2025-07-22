@@ -1,10 +1,9 @@
+# ruff: noqa: TC001 - pydantic needs those classes during runtime
+from __future__ import annotations
+
 import logging
 import re
-from collections.abc import (
-    Iterable,
-    Mapping,
-    Sequence,
-)
+from typing import TYPE_CHECKING
 
 from pydantic import (
     BaseModel,
@@ -14,12 +13,13 @@ from pydantic import (
 
 from reconcile.aus.healthchecks import AUSClusterHealth
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
-from reconcile.gql_definitions.fragments.upgrade_policy import (
-    ClusterUpgradePolicyV1,
-)
+from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.utils.ocm.addons import OCMAddonInstallation
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.semver_helper import parse_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 
 class NodePoolSpec(BaseModel):
@@ -132,7 +132,7 @@ class OrganizationUpgradeSpec(BaseModel):
         default_factory=dict
     )
     _org_errors: list[OrganizationValidationError] = PrivateAttr(default_factory=list)
-    _sectors: dict[str, "Sector"] = PrivateAttr(default_factory=dict)
+    _sectors: dict[str, Sector] = PrivateAttr(default_factory=dict)
 
     def __init__(
         self,
@@ -167,7 +167,7 @@ class OrganizationUpgradeSpec(BaseModel):
                 self.add_spec(spec)
 
     @property
-    def sectors(self) -> Mapping[str, "Sector"]:
+    def sectors(self) -> Mapping[str, Sector]:
         return self._sectors
 
     def add_spec(self, spec: ClusterUpgradeSpec) -> None:
@@ -234,7 +234,7 @@ class SectorConfigError(Exception):
 class Sector(BaseModel):
     name: str
     max_parallel_upgrades: str | None
-    dependencies: list["Sector"] = Field(default_factory=list)
+    dependencies: list[Sector] = Field(default_factory=list)
     _specs: dict[str, ClusterUpgradeSpec] = PrivateAttr(default_factory=dict)
 
     def __key(self) -> str:
@@ -256,7 +256,7 @@ class Sector(BaseModel):
     def set_specs(self, specs: Sequence[ClusterUpgradeSpec]) -> None:
         self._specs = {spec.name: spec for spec in specs}
 
-    def _iter_dependencies(self) -> Iterable["Sector"]:
+    def _iter_dependencies(self) -> Iterable[Sector]:
         """
         iterate recursively over all the sector dependencies
         """

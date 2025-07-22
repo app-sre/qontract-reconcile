@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from reconcile.gql_definitions.fragments.vault_secret import (
+    VaultSecret,  # noqa: TC001 - pydantic needs that during runtime
+)
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
@@ -18,10 +21,7 @@ from reconcile.utils.ocm.search_filters import Filter, FilterMode
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-    from reconcile.utils.ocm_base_client import (
-        OCMBaseClient,
-    )
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 """
 Thin abstractions of reconcile.ocm module to reduce coupling.

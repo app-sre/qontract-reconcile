@@ -1,7 +1,6 @@
 import logging
 import sys
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.status import ExitCodes
@@ -18,9 +17,6 @@ from reconcile.utils.defer import defer
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-
-if TYPE_CHECKING:
-    from reconcile.utils.jjb_client import JJB
 
 QONTRACT_INTEGRATION = "saas-file-validator"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -64,7 +60,7 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
     ]
     for p in missing_image_patterns:
         logging.error(f"image pattern is missing from quayOrgs: {p}")
-    jjb: JJB = init_jjb(secret_reader)
+    jjb = init_jjb(secret_reader)
     saasherder.validate_upstream_jobs(jjb)
     if not saasherder.valid or missing_repos or missing_image_patterns:
         sys.exit(ExitCodes.ERROR)

@@ -1,4 +1,6 @@
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import datetime  # noqa: TC003 - pydantic needs that during runtime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
@@ -15,7 +17,7 @@ class AWSCredentials(BaseModel):
 
 
 class AWSApiSts:
-    def __init__(self, client: "STSClient") -> None:
+    def __init__(self, client: STSClient) -> None:
         self.client = client
 
     def assume_role(self, account_id: str, role: str) -> AWSCredentials:

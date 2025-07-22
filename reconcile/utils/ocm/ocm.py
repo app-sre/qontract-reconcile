@@ -23,9 +23,7 @@ from reconcile.utils.secret_reader import SecretReader
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from reconcile.ocm.types import (
-        OCMSpec,
-    )
+    from reconcile.ocm.types import OCMSpec
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"

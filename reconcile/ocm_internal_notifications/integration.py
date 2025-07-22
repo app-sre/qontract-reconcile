@@ -23,9 +23,7 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.slack_api import UserNotFoundError
 
 if TYPE_CHECKING:
-    from collections.abc import (
-        Callable,
-    )
+    from collections.abc import Callable
 
     from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 

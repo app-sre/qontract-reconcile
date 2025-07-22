@@ -50,10 +50,7 @@ from reconcile.utils.runtime.integration import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import (
-        Callable,
-        Iterable,
-    )
+    from collections.abc import Callable, Iterable
 
     from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
     from reconcile.utils.secret_reader import SecretReaderBase
