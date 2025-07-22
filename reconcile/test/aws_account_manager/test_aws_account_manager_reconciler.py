@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -56,7 +56,7 @@ def s3_client(monkeypatch: pytest.MonkeyPatch) -> Generator[S3Client, None, None
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", "BUCKET")
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", "ACCOUNT")
 
-    with mock_s3():
+    with mock_aws():
         s3_client = boto3.client("s3", region_name="us-east-1")
         s3_client.create_bucket(Bucket="BUCKET")
         yield s3_client

@@ -781,6 +781,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/a9/7dc06460777b2c1e7a91bb485e9dd600a88331aeac73ca88a8a6d437900f/moto-5.1.8-py3-none-any.whl", hash = "sha256:12f3a15100da7de019c671a516dbba33b14072faba103f16ca79a39b8c803b7d", size = 5108867, upload-time = "2025-07-06T21:50:59.911Z" },
 ]
 
+[package.optional-dependencies]
+s3 = [
+    { name = "py-partiql-parser" },
+    { name = "pyyaml" },
+]
+
 [[package]]
 name = "multi-key-dict"
 version = "2.0.3"
@@ -1235,6 +1241,15 @@ wheels = [
 ]
 
 [[package]]
+name = "py-partiql-parser"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/58/a1/0a2867e48b232b4f82c4929ef7135f2a5d72c3886b957dccf63c70aa2fcb/py_partiql_parser-0.6.1.tar.gz", hash = "sha256:8583ff2a0e15560ef3bc3df109a7714d17f87d81d33e8c38b7fed4e58a63215d", size = 17120, upload-time = "2024-12-25T22:06:41.327Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/97/84/0e410c20bbe9a504fc56e97908f13261c2b313d16cbb3b738556166f044a/py_partiql_parser-0.6.1-py2.py3-none-any.whl", hash = "sha256:ff6a48067bff23c37e9044021bf1d949c83e195490c17e020715e927fe5b2456", size = 23520, upload-time = "2024-12-25T22:06:39.106Z" },
+]
+
+[[package]]
 name = "pyasn1"
 version = "0.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1587,7 +1602,7 @@ dev = [
     { name = "boto3-stubs", extra = ["account", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"] },
     { name = "kubernetes-stubs" },
     { name = "markupsafe" },
-    { name = "moto" },
+    { name = "moto", extra = ["s3"] },
     { name = "mypy" },
     { name = "pyfakefs" },
     { name = "pytest" },
@@ -1677,7 +1692,7 @@ dev = [
     { name = "boto3-stubs", extras = ["account", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.34.94" },
     { name = "kubernetes-stubs", specifier = "==22.6.0" },
     { name = "markupsafe", specifier = "~=2.1.1" },
-    { name = "moto", specifier = "~=5.1" },
+    { name = "moto", extras = ["ec2", "iam", "logs", "s3", "route53"], specifier = "~=5.1" },
     { name = "mypy", specifier = "~=1.17.0" },
     { name = "pyfakefs", specifier = "~=5.9" },
     { name = "pytest", specifier = "~=8.4" },
