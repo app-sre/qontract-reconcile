@@ -994,7 +994,8 @@ class TerrascriptClient:
             if lifecycle.ignore_changes is None:
                 lifecycle.ignore_changes = []
             if "all" in lifecycle.ignore_changes:
-                lifecycle.ignore_changes = "all"
+                # 'all' must be passed as a string! stupid terraform aws provider!
+                lifecycle.ignore_changes = "all"  # type: ignore[assignment]
             return lifecycle.dict(by_alias=True)
         return None
 

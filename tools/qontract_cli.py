@@ -1031,6 +1031,9 @@ def clusters_network(ctx: click.Context, name: str) -> None:
                 ocm_map.get(cluster_name),
                 provided_assume_role=None,
             )
+            assert account is not None, (
+                f"Failed to build assume role for cluster {cluster_name} in account {management_account['name']}"
+            )
             account["resourcesDefaultRegion"] = management_account[
                 "resourcesDefaultRegion"
             ]
