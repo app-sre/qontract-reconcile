@@ -1367,14 +1367,15 @@ wheels = [
 
 [[package]]
 name = "pyopenssl"
-version = "23.3.0"
+version = "25.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/a0/e667c3c43b65a188cc3041fa00c50655315b93be45182b2c94d185a2610e/pyOpenSSL-23.3.0.tar.gz", hash = "sha256:6b2cba5cc46e822750ec3e5a81ee12819850b11303630d575e98108a079c2b12", size = 183043, upload-time = "2023-10-26T03:06:53.373Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/8c/cd89ad05804f8e3c17dea8f178c3f40eeab5694c30e0c9f5bcd49f576fc3/pyopenssl-25.1.0.tar.gz", hash = "sha256:8d031884482e0c67ee92bf9a4d8cceb08d92aba7136432ffb0703c5280fc205b", size = 179937, upload-time = "2025-05-17T16:28:31.31Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/de/007b832ad7a95e6a73745609bbe123c407aa2c46bb0b8f765c8718294e7f/pyOpenSSL-23.3.0-py3-none-any.whl", hash = "sha256:6756834481d9ed5470f4a9393455154bc92fe7a64b7bc6ee2c804e78c52099b2", size = 58812, upload-time = "2023-10-26T03:06:51.836Z" },
+    { url = "https://files.pythonhosted.org/packages/80/28/2659c02301b9500751f8d42f9a6632e1508aa5120de5e43042b8b30f8d5d/pyopenssl-25.1.0-py3-none-any.whl", hash = "sha256:2b11f239acc47ac2e5aca04fd7fa829800aeee22a2eb30d744572a157bd8a1ab", size = 56771, upload-time = "2025-05-17T16:28:29.197Z" },
 ]
 
 [[package]]
@@ -1663,7 +1664,7 @@ requires-dist = [
     { name = "pydantic", specifier = "~=1.10.6" },
     { name = "pygithub", specifier = ">=1.58,<1.59" },
     { name = "pyjwt", specifier = "~=2.7" },
-    { name = "pyopenssl", specifier = "~=23.0" },
+    { name = "pyopenssl", specifier = "~=25.1" },
     { name = "pypd", specifier = ">=1.1.0,<1.2.0" },
     { name = "python-gitlab", specifier = "==6.0.0" },
     { name = "requests", specifier = "~=2.32" },
