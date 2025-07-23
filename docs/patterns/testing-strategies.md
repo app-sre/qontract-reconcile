@@ -80,3 +80,45 @@ def test_user_reconciliation_dry_run(mocker):
 ```
 
 By following these patterns, developers can create robust tests that verify the core logic of their integrations in isolation, leading to a more stable and reliable system.
+
+**4. Dependency Injection for Testability**
+
+A powerful pattern for creating highly testable integrations is to use dependency injection. Instead of having an integration create its own dependencies (like API clients), these dependencies are passed in from the outside. This makes it trivial to replace real dependencies with mocks during testing.
+
+A common way to implement this is to bundle all external dependencies into a single `Dependencies` class. The integration's main logic (e.g., the `reconcile` method) then accepts this `Dependencies` object as an argument.
+
+The `dynatrace_token_provider` integration is a great example of this pattern.
+
+*Example: Injecting mock dependencies in a test*
+
+The test sets up mock clients and data, bundles them into a `Dependencies` object, and passes it to the integration's `reconcile` method.
+
+```python
+# from reconcile/test/dynatrace_token_provider/test_create_syncset.py
+
+def test_single_non_hcp_cluster_create_tokens(
+    secret_reader: SecretReaderBase,
+    default_token_spec: DynatraceTokenProviderTokenSpecV1,
+    default_integration: DynatraceTokenProviderIntegration,
+    # ... other fixtures
+) -> None:
+    # 1. Build mock clients using test fixtures
+    ocm_client = build_ocm_client(...)
+    dynatrace_client = build_dynatrace_client(...)
+
+    # 2. Create the Dependencies object with mocks
+    dependencies = Dependencies(
+        secret_reader=secret_reader,
+        dynatrace_client_by_tenant_id={"dt_tenant_a": dynatrace_client},
+        ocm_client_by_env_name={"ocm_env_a": ocm_client},
+        token_spec_by_name={"default": default_token_spec},
+    )
+
+    # 3. Run the integration logic with the injected dependencies
+    default_integration.reconcile(dry_run=False, dependencies=dependencies)
+
+    # 4. Assert that the correct actions were taken on the mocks
+    ocm_client.create_syncset.assert_called_once_with(...)
+```
+
+This approach isolates the integration's logic from the complexities of creating and managing its dependencies, resulting in cleaner, more focused, and easier-to-maintain tests.
