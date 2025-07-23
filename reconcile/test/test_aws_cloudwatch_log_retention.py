@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, create_autospec
 
 import boto3
 import pytest
-from moto import mock_logs
+from moto import mock_aws
 from pytest_mock import MockerFixture
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
@@ -30,7 +30,7 @@ else:
 
 @pytest.fixture
 def cloudwatchlogs_client() -> Generator[CloudWatchLogsClient, None, None]:
-    with mock_logs():
+    with mock_aws():
         yield boto3.client("logs", region_name="us-east-1")
 
 

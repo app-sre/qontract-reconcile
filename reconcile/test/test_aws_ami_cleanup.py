@@ -10,7 +10,7 @@ from typing import (
 
 import boto3
 import pytest
-from moto import mock_ec2
+from moto import mock_aws
 
 from reconcile.aws_ami_cleanup.integration import (
     get_aws_amis,
@@ -46,7 +46,7 @@ def accounts() -> list[dict[str, Any]]:
 
 @pytest.fixture
 def ec2_client() -> Generator[EC2Client, None, None]:
-    with mock_ec2():
+    with mock_aws():
         yield boto3.client("ec2", region_name="us-east-1")
 
 

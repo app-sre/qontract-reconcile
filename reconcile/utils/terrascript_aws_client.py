@@ -993,9 +993,11 @@ class TerrascriptClient:
                 lifecycle.prevent_destroy = False
             if lifecycle.ignore_changes is None:
                 lifecycle.ignore_changes = []
-            if "all" in lifecycle.ignore_changes:
-                lifecycle.ignore_changes = "all"
-            return lifecycle.dict(by_alias=True)
+            # 'all' must be passed as a string for ignore_changes! stupid terraform aws provider!
+            ignore_changes = (
+                "all" if "all" in lifecycle.ignore_changes else lifecycle.ignore_changes
+            )
+            return lifecycle.dict(by_alias=True) | {"ignore_changes": ignore_changes}
         return None
 
     def populate_additional_providers(self, infra_account_name: str, accounts):

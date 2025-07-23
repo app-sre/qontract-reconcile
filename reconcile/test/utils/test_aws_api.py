@@ -3,11 +3,7 @@ from typing import TYPE_CHECKING, cast
 
 import boto3
 import pytest
-from moto import (
-    mock_ec2,
-    mock_iam,
-    mock_route53,
-)
+from moto import mock_aws
 from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api import AmiTag, AWSApi
@@ -58,7 +54,7 @@ def aws_api(accounts: list[dict], mocker: MockerFixture) -> AWSApi:
 
 @pytest.fixture
 def iam_client() -> Generator[IAMClient]:
-    with mock_iam():
+    with mock_aws():
         iam_client = boto3.client("iam")
         yield iam_client
 
@@ -159,7 +155,7 @@ def test_filter_amis_state(aws_api: AWSApi) -> None:
 
 @pytest.fixture
 def route53_client() -> Generator[Route53Client]:
-    with mock_route53():
+    with mock_aws():
         route53_client = boto3.client("route53")
         yield route53_client
 
@@ -209,7 +205,7 @@ def test_get_hosted_zone_record_sets_exists(
         HostedZoneId=zone_id, ChangeBatch=change_batch
     )
     results = aws_api._get_hosted_zone_record_sets(route53_client, zone_name)
-    assert results == [record_set]
+    assert record_set in results
 
 
 def test_filter_record_sets(aws_api: AWSApi) -> None:
@@ -235,7 +231,7 @@ def test_extract_records(aws_api: AWSApi) -> None:
 
 @pytest.fixture
 def ec2_client() -> Generator[EC2Client]:
-    with mock_ec2():
+    with mock_aws():
         yield boto3.client("ec2", region_name="us-east-1")
 
 

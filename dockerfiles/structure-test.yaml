@@ -71,8 +71,9 @@ fileExistenceTests:
   gid: 0
 
 commandTests:
-  - name: Qonctract-Reconcile
+  - name: Qontract-Reconcile
     command: qontract-reconcile
+    args: ["--help"]
     expectedOutput: ['Usage: qontract-reconcile']
 
   - name: run-integration

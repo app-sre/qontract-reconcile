@@ -1,7 +1,7 @@
 import os
+from importlib.metadata import version
 
 import packaging.version as pep440
-import pkg_resources
 import pytest
 import requests
 
@@ -11,7 +11,7 @@ import requests
     reason="This test is only for CI environments",
 )
 def test_version_bump():
-    current_version = pkg_resources.get_distribution("qontract-reconcile").version
+    current_version = version("qontract-reconcile")
     pypi_version = requests.get(
         "https://pypi.org/pypi/qontract-reconcile/json", timeout=60
     ).json()["info"]["version"]
