@@ -1,0 +1,91 @@
+# https://github.com/goss-org/goss/blob/master/docs/gossfile.md#file
+file:
+  /usr/local/bin/oc:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+  /usr/local/bin/kubectl:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+  /usr/local/bin/terraform:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+  /usr/local/bin/helm:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+  /usr/local/bin/promtool:
+    exists: true
+    mode: "0777"
+    owner: root
+    group: root
+  /usr/local/bin/amtool:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+  /usr/local/bin/git-secrets:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+  /usr/local/share/terraform/plugins/registry.terraform.io/hashicorp/aws:
+    exists: true
+    mode: "0755"
+    owner: root
+    group: root
+  /.terraform.d/plugin-cache:
+    exists: true
+    mode: "2775"
+    owner: root
+    group: root
+
+#https://github.com/goss-org/goss/blob/master/docs/gossfile.md#command
+command:
+  qontract-reconcile:
+    exit-status: 0
+    stdout:
+      - "Usage: qontract-reconcile"
+  run-integration --help:
+    exit-status: 0
+    stdout:
+      - "This entry point script expects certain env variables"
+  terraform:
+    exit-status: 127
+    stdout:
+      - "Usage: terraform"
+  oc:
+    exit-status: 0
+    stdout:
+      - "OpenShift Client"
+
+  kubectl:
+    exit-status: 0
+    stdout:
+      - "kubectl controls the Kubernetes cluster manager"
+
+  promtool:
+    exit-status: 0
+    stdout:
+      - "Tooling for the Prometheus monitoring system"
+
+  amtool:
+    exit-status: 0
+    stdout:
+      - "View and modify the current Alertmanager state"
+
+  skopeo --help:
+    exit-status: 0
+    stdout:
+      - "Various operations with container images and container image registries"
+
+  git-secrets:
+    exit-status: 0
+    stdout:
+      - "usage: git secrets --scan"

@@ -37,6 +37,8 @@ spec:
   # We need the depth to properly have uv infer version
   - name: cloneDepth
     value: '100000'
+  - name: goss-container-structure-test-file
+    value: dockerfiles/goss.yaml
   pipelineRef:
     params:
     - name: url
