@@ -287,7 +287,7 @@ parameters:
 - name: USE_NATIVE_CLIENT
   value: ""
 - name: INTERNAL_CERTIFICATES_IMAGE
-  value: quay.io/app-sre/internal-redhat-ca
+  value: quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master
 - name: INTERNAL_CERTIFICATES_IMAGE_TAG
   value: latest
 - name: INTERNAL_CERTIFICATES_IMAGE_PULL_POLICY
