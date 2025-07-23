@@ -258,12 +258,39 @@ query ExternalResourcesNamespaces {
                 identifier
                 output_resource_name
                 annotations
+                managed_by_erv2
+                delete
+                module_overrides {
+                    module_type
+                    image
+                    version
+                    reconcile_timeout_minutes
+                    outputs_secret_image
+                    outputs_secret_version
+                }
                 specs {
                     defaults
                     tables {
                         key
                         value
                     }
+                }
+            }
+            ... on NamespaceTerraformResourceDynamoDBTable_v1 {
+                provider
+                region
+                identifier
+                output_resource_name
+                dynamodbTableName: name
+                prefix
+                permissions
+                delete
+                defaults
+                annotations
+                overrides
+                managed_by_erv2
+                module_overrides {
+                   ... ExternalResourcesModuleOverrides
                 }
             }
             ... on NamespaceTerraformResourceECR_v1 {
@@ -461,7 +488,7 @@ query ExternalResourcesNamespaces {
             ... on NamespaceTerraformResourceRoute53Zone_v1 {
                 region
                 identifier
-                name
+                route53ZoneName: name
                 output_resource_name
                 annotations
                 records {
@@ -765,6 +792,15 @@ class NamespaceTerraformResourceSNSTopicV1(NamespaceTerraformResourceAWSV1):
     subscriptions: Optional[list[NamespaceTerraformResourceSNSSubscriptionV1]] = Field(..., alias="subscriptions")
 
 
+class NamespaceTerraformResourceDynamoDBV1_ExternalResourcesModuleOverridesV1(ConfiguredBaseModel):
+    module_type: Optional[str] = Field(..., alias="module_type")
+    image: Optional[str] = Field(..., alias="image")
+    version: Optional[str] = Field(..., alias="version")
+    reconcile_timeout_minutes: Optional[int] = Field(..., alias="reconcile_timeout_minutes")
+    outputs_secret_image: Optional[str] = Field(..., alias="outputs_secret_image")
+    outputs_secret_version: Optional[str] = Field(..., alias="outputs_secret_version")
+
+
 class DynamoDBTableSpecsV1_KeyValueV1(ConfiguredBaseModel):
     key: str = Field(..., alias="key")
     value: str = Field(..., alias="value")
@@ -780,7 +816,26 @@ class NamespaceTerraformResourceDynamoDBV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    delete: Optional[bool] = Field(..., alias="delete")
+    module_overrides: Optional[NamespaceTerraformResourceDynamoDBV1_ExternalResourcesModuleOverridesV1] = Field(..., alias="module_overrides")
     specs: list[DynamoDBTableSpecsV1] = Field(..., alias="specs")
+
+
+class NamespaceTerraformResourceDynamoDBTableV1(NamespaceTerraformResourceAWSV1):
+    provider: str = Field(..., alias="provider")
+    region: Optional[str] = Field(..., alias="region")
+    identifier: str = Field(..., alias="identifier")
+    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
+    dynamodb_table_name: Optional[str] = Field(..., alias="dynamodbTableName")
+    prefix: Optional[str] = Field(..., alias="prefix")
+    permissions: Optional[list[str]] = Field(..., alias="permissions")
+    delete: Optional[bool] = Field(..., alias="delete")
+    defaults: str = Field(..., alias="defaults")
+    annotations: Optional[str] = Field(..., alias="annotations")
+    overrides: Optional[str] = Field(..., alias="overrides")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
 class NamespaceTerraformResourceECRV1(NamespaceTerraformResourceAWSV1):
@@ -1035,7 +1090,7 @@ class DnsRecordV1(ConfiguredBaseModel):
 class NamespaceTerraformResourceRoute53ZoneV1(NamespaceTerraformResourceAWSV1):
     region: Optional[str] = Field(..., alias="region")
     identifier: str = Field(..., alias="identifier")
-    name: str = Field(..., alias="name")
+    route53_zone_name: str = Field(..., alias="route53ZoneName")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
     records: Optional[list[DnsRecordV1]] = Field(..., alias="records")
@@ -1088,7 +1143,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     provisioner: AWSAccountV1 = Field(..., alias="provisioner")
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceDynamoDBTableV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class EnvironmentV1(ConfiguredBaseModel):
