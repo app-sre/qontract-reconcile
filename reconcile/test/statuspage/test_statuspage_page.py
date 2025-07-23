@@ -4,7 +4,7 @@ from reconcile.statuspage.page import StatusPage
 
 def test_build_status_page_from_desired_state(
     status_page_v1: StatusPageV1,
-):
+) -> None:
     """
     Test the transformation from the GQL desired state into a
     StatusPage object

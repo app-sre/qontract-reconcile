@@ -47,5 +47,5 @@ def test_group_by(
     iterable: Iterable[ElementType],
     key: Callable[[ElementType], KeyType],
     expected: dict[KeyType, list[ElementType]],
-):
+) -> None:
     assert group_by(iterable, key) == expected

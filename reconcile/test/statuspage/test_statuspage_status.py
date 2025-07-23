@@ -15,12 +15,12 @@ from reconcile.statuspage.status import (
 )
 
 
-def test_manual_status_provider():
+def test_manual_status_provider() -> None:
     provider = ManualStatusProvider(component_status="operational")
     assert provider.get_status() == "operational"
 
 
-def test_manual_status_provider_active_period():
+def test_manual_status_provider_active_period() -> None:
     now = datetime.now(UTC)
     bounded_period = ManualStatusProvider(
         start=now,
@@ -44,7 +44,7 @@ def test_manual_status_provider_active_period():
     assert open_end_period.get_status() == "operational"
 
 
-def test_manual_status_provider_inactive_period():
+def test_manual_status_provider_inactive_period() -> None:
     now = datetime.now(UTC)
     past_period = ManualStatusProvider(
         start=None,
