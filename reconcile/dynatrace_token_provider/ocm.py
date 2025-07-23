@@ -4,14 +4,10 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from reconcile.utils.ocm.base import (
-    OCMClusterServiceLogCreateModel,
-)
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
 )
-from reconcile.utils.ocm.labels import Filter
 from reconcile.utils.ocm.manifests import (
     create_manifest,
     get_manifest,
@@ -28,6 +24,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from datetime import timedelta
 
+    from reconcile.utils.ocm.base import OCMClusterServiceLogCreateModel
+    from reconcile.utils.ocm.labels import Filter
     from reconcile.utils.ocm_base_client import OCMBaseClient
 
 """
