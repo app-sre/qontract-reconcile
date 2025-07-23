@@ -321,12 +321,25 @@ class AWSMskFactory(AWSDefaultResourceFactory):
                 )
 
 
-class AWSDynamodbFactory(AWSDefaultResourceFactory):
+class AWSDynamodbTableFactory(AWSDefaultResourceFactory):
     def validate(
         self,
         resource: ExternalResource,
         module_conf: ExternalResourceModuleConfiguration,
-    ) -> None: ...
+    ) -> None:
+        data = resource.data
+        
+        # Early return if either prefix or name is missing
+        prefix = data.get("prefix")
+        name = data.get("name")
+        if not prefix or not name:
+            return
+            
+        # Validate that prefix is a substring of name
+        if prefix not in name:
+            raise ValueError(
+                f"prefix '{prefix}' must be a substring of name '{name}'"
+            )
 
     def resolve(
         self,
@@ -336,13 +349,4 @@ class AWSDynamodbFactory(AWSDefaultResourceFactory):
         rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
         data = rvr.resolve()
         data["output_prefix"] = spec.output_prefix
-        if not data.get("specs"):
-            raise ValueError("specs cannot be empty")
-        # flatten dynamodb table specs
-        data["specs"] = [
-            {**table, **rvr._get_values(sp.get("defaults"))}
-            for sp in data.get("specs")
-            for table in sp.get("tables")
-        ]
-
         return data

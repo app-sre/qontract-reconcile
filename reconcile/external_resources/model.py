@@ -22,6 +22,7 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     NamespaceTerraformResourceDynamoDBV1,
     NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
+    NamespaceTerraformResourceDynamoDBTableV1,
     NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
     NamespaceTerraformResourceRDSV1,
@@ -106,6 +107,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceDynamoDBV1
     | NamespaceTerraformResourceKMSV1
     | NamespaceTerraformResourceCloudWatchV1
+    | NamespaceTerraformResourceDynamoDBTableV1
 )
 
 
@@ -119,7 +121,6 @@ class ExternalResourcesInventory(MutableMapping):
             for rp in ns.external_resources or []
             if isinstance(rp, SUPPORTED_RESOURCE_PROVIDERS) and rp.resources
         ]
-
         desired_specs = [
             self._build_external_resource_spec(ns, rp, r)
             for (rp, ns) in resource_providers

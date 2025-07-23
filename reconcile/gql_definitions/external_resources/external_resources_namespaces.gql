@@ -194,6 +194,23 @@ query ExternalResourcesNamespaces {
                     }
                 }
             }
+            ... on NamespaceTerraformResourceDynamoDBTable_v1 {
+                provider
+                region
+                identifier
+                output_resource_name
+                dynamodbTableName: name
+                prefix
+                permissions
+                delete
+                defaults
+                annotations
+                overrides
+                managed_by_erv2
+                module_overrides {
+                   ... ExternalResourcesModuleOverrides
+                }
+            }
             ... on NamespaceTerraformResourceECR_v1 {
                 identifier
                 region
@@ -389,7 +406,7 @@ query ExternalResourcesNamespaces {
             ... on NamespaceTerraformResourceRoute53Zone_v1 {
                 region
                 identifier
-                name
+                route53ZoneName: name
                 output_resource_name
                 annotations
                 records {
