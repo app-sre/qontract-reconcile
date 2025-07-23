@@ -4,9 +4,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from reconcile.gql_definitions.fragments.vault_secret import (
-    VaultSecret,  # noqa: TC001 - pydantic needs that during runtime
-)
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,

@@ -157,6 +157,9 @@ src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true
 
+[tool.ruff.format]
+preview = true
+
 [tool.ruff.lint]
 preview = true
 
@@ -215,8 +218,12 @@ ignore = [
     "FURB101", # Replace `open` with `pathlib.Path`
     "FURB103", # Replace `open` with `pathlib.Path`
 ]
-[tool.ruff.format]
-preview = true
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]

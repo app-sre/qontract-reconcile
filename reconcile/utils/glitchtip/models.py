@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime  # noqa: TC003 - pydantic needs it during runtime:
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 

@@ -1,4 +1,3 @@
-# ruff: noqa: TC001 - pydantic needs those classes during runtime
 from __future__ import annotations
 
 import logging

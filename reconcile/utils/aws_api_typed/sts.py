@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime  # noqa: TC003 - pydantic needs that during runtime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
