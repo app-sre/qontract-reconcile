@@ -1,13 +1,12 @@
+from __future__ import annotations
+
 import logging
 import re
 import typing
 from collections import defaultdict
-from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-)
+from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError
 from pydantic import BaseModel
@@ -24,9 +23,10 @@ from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from mypy_boto3_logs.type_defs import LogGroupTypeDef
-else:
-    LogGroupTypeDef = object
+
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
 MANAGED_BY_INTEGRATION_KEY = "managed_by_integration"

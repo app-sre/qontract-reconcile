@@ -157,6 +157,9 @@ src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true
 
+[tool.ruff.format]
+preview = true
+
 [tool.ruff.lint]
 preview = true
 
@@ -211,17 +214,16 @@ ignore = [
     "B017",    #`pytest.raises(Exception)` should be considered evil
     "RUF005",  # Consider "...."instead of concatenation
     "RUF012",  # Mutable class attributes should be annotated with "typing.ClassVar"
-    "TC001",   # Type-checking block
-    "TC002",   # Type-checking block
-    "TC003",   # Type-checking block
-    "TC004",   # Type-checking block
-    "TC006",   # quoted type expressions in `typing.cast()`
     # Review later
     "FURB101", # Replace `open` with `pathlib.Path`
     "FURB103", # Replace `open` with `pathlib.Path`
 ]
-[tool.ruff.format]
-preview = true
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]

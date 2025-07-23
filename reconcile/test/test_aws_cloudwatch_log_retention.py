@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import string
-from collections.abc import Callable, Generator, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import (
     TYPE_CHECKING,
@@ -10,7 +11,6 @@ from unittest.mock import MagicMock, create_autospec
 import boto3
 import pytest
 from moto import mock_aws
-from pytest_mock import MockerFixture
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
     get_desired_cleanup_options_by_region,
@@ -22,10 +22,11 @@ from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import 
 from reconcile.utils.gql import GqlApi
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Iterable
+
     from mypy_boto3_logs import CloudWatchLogsClient
     from mypy_boto3_logs.type_defs import LogGroupTypeDef
-else:
-    LogGroupTypeDef = CloudWatchLogsClient = object
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

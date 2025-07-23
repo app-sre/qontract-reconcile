@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.organization import (
     AWSAccountCreationError,
@@ -12,8 +13,7 @@ from reconcile.utils.aws_api_typed.organization import (
 
 if TYPE_CHECKING:
     from mypy_boto3_organizations import OrganizationsClient
-else:
-    OrganizationsClient = object
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

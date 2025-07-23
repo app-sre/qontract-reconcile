@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import re
-from collections.abc import MutableMapping
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import (
     BaseModel,
@@ -12,6 +11,9 @@ from pydantic import (
     root_validator,
     validator,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import MutableMapping
 
 
 def slugify(value: str) -> str:

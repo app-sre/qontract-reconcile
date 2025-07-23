@@ -225,7 +225,7 @@ class MergeRequestBase(ABC):
 
     def diffs(self, gitlab_cli: GitLabApi) -> Any:
         return cast(
-            dict,
+            "dict",
             gitlab_cli.project.repository_compare(
                 from_=gitlab_cli.main_branch, to=self.branch
             ),

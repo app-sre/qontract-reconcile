@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.openshift_saas_deploy import (
     QONTRACT_INTEGRATION as OPENSHIFT_SAAS_DEPLOY,
@@ -12,6 +12,9 @@ from reconcile.typed_queries.saas_files import SaasFile, get_saas_files
 from reconcile.utils.promotion_state import PromotionData, PromotionState
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class SaasPromotionStateError(Exception):

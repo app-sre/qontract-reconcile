@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
@@ -5,8 +7,6 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from mypy_boto3_support import SupportClient
-else:
-    SupportClient = object
 
 
 class AWSCase(BaseModel):

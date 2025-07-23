@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 
+from __future__ import annotations
+
 import base64
 import json
 import logging
@@ -10,7 +12,6 @@ import sys
 import tempfile
 import textwrap
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping
 from datetime import (
     UTC,
     datetime,
@@ -83,7 +84,6 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.gql_definitions.common.clusters import ClusterSpecROSAV1
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
 )
@@ -129,7 +129,6 @@ from reconcile.utils.early_exit_cache import (
     EarlyExitCache,
 )
 from reconcile.utils.environ import environ
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -141,9 +140,7 @@ from reconcile.utils.gitlab_api import (
     MRStatus,
 )
 from reconcile.utils.glitchtip.client import GlitchtipClient
-from reconcile.utils.glitchtip.models import Project, ProjectStatistics
 from reconcile.utils.gql import GqlApiSingleton
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.keycloak import (
     KeycloakAPI,
     SSOClient,
@@ -197,9 +194,14 @@ from tools.sre_checkpoints import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
+
     from mypy_boto3_s3.type_defs import CopySourceTypeDef
-else:
-    CopySourceTypeDef = object
+
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.utils.external_resource_spec import ExternalResourceSpec
+    from reconcile.utils.glitchtip.models import Project, ProjectStatistics
+    from reconcile.utils.jjb_client import JJB
 
 
 def output(function: Callable) -> Callable:
@@ -1489,7 +1491,7 @@ def copy_tfstate(
         session = aws.get_session(account["name"])
         s3_client = aws.get_session_client(session, "s3", region)
         copy_source = cast(
-            CopySourceTypeDef,
+            "CopySourceTypeDef",
             {
                 "Bucket": source_bucket,
                 "Key": source_object_path,

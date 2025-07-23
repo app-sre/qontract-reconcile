@@ -56,7 +56,7 @@ class GroupPermissionHandler:
         # get all projects shared with group
         shared_projects = self.group.shared_projects.list(iterator=True)
         current_state = {
-            project.web_url: self.extract_group_spec(cast(SharedProject, project))
+            project.web_url: self.extract_group_spec(cast("SharedProject", project))
             for project in shared_projects
         }
         self.reconcile(desired_state, current_state)

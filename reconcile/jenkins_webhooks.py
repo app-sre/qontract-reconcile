@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import copy
 import logging
-from collections.abc import Callable, MutableMapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, MutableMapping
+
 
 QONTRACT_INTEGRATION = "jenkins-webhooks"
 
@@ -50,7 +54,7 @@ def get_hooks_to_add(
 @defer
 def run(dry_run: bool, defer: Callable | None = None) -> None:
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    jjb: JJB = init_jjb(secret_reader)
+    jjb = init_jjb(secret_reader)
     gl = get_gitlab_api(secret_reader)
     if defer:
         defer(gl.cleanup)

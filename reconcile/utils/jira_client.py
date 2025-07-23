@@ -2,11 +2,8 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
 from typing import (
+    TYPE_CHECKING,
     Any,
     Protocol,
 )
@@ -21,6 +18,9 @@ from jira.resources import Resource
 from pydantic import BaseModel
 
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 
 class JiraWatcherSettings(Protocol):

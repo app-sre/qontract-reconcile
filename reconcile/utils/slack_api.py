@@ -2,12 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import (
-    Iterable,
-    Mapping,
-    Sequence,
-)
 from typing import (
+    TYPE_CHECKING,
     Any,
     Protocol,
 )
@@ -23,6 +19,9 @@ from slack_sdk.http_retry import (
 )
 
 from reconcile.utils.metrics import slack_request
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 MAX_RETRIES = 5
 TIMEOUT = 30

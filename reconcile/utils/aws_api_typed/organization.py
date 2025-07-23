@@ -1,26 +1,29 @@
+from __future__ import annotations
+
 import functools
-from collections.abc import Iterable, Mapping
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
     from mypy_boto3_organizations import OrganizationsClient
     from mypy_boto3_organizations.literals import CreateAccountFailureReasonType
 else:
-    OrganizationsClient = object
-    CreateAccountFailureReasonType = object
+    # pydantic needs these types to be defined during runtime
+    CreateAccountFailureReasonType = str
 
 
 class AwsOrganizationOU(BaseModel):
     id: str = Field(..., alias="Id")
     arn: str = Field(..., alias="Arn")
     name: str = Field(..., alias="Name")
-    children: list["AwsOrganizationOU"] = []
+    children: list[AwsOrganizationOU] = []
 
     def locate(
         self, path: list[str], ignore_case: bool = True
-    ) -> Optional["AwsOrganizationOU"]:
+    ) -> AwsOrganizationOU | None:
         name, *sub = path
         match = self.name.lower() == name.lower() if ignore_case else self.name == name
         if not match:
@@ -36,7 +39,7 @@ class AwsOrganizationOU(BaseModel):
             None,
         )
 
-    def find(self, path: str, ignore_case: bool = True) -> "AwsOrganizationOU":
+    def find(self, path: str, ignore_case: bool = True) -> AwsOrganizationOU:
         node = self.locate(path.strip("/").split("/"), ignore_case=ignore_case)
         if not node:
             raise KeyError(f"OU not found: {path}")
