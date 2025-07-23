@@ -77,15 +77,6 @@ def create_upgrade_policy(ocm_api: OCMBaseClient, cluster_id: str, spec: dict) -
     ocm_api.post(f"{build_cluster_url(cluster_id)}/upgrade_policies", spec)
 
 
-def delete_upgrade_policy(
-    ocm_api: OCMBaseClient, cluster_id: str, policy_id: str
-) -> None:
-    """
-    Deletes an existing Upgrade Policy
-    """
-    ocm_api.delete(f"{build_cluster_url(cluster_id)}/upgrade_policies/{policy_id}")
-
-
 #
 # CONTROL PLANE UPGRADE POLICIES
 #
@@ -117,17 +108,6 @@ def create_control_plane_upgrade_policy(
     """
     ocm_api.post(
         f"{build_cluster_url(cluster_id)}/control_plane/upgrade_policies", spec
-    )
-
-
-def delete_control_plane_upgrade_policy(
-    ocm_api: OCMBaseClient, cluster_id: str, upgrade_policy_id: str
-) -> None:
-    """
-    Deletes an existing Control Plane Upgrade Policy
-    """
-    ocm_api.delete(
-        f"{build_cluster_url(cluster_id)}/control_plane/upgrade_policies/{upgrade_policy_id}"
     )
 
 
