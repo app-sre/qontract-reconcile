@@ -1,13 +1,9 @@
+from __future__ import annotations
+
 import logging
 import operator
 import os
 import re
-from collections.abc import (
-    Iterable,
-    Iterator,
-    Mapping,
-    Sequence,
-)
 from functools import lru_cache
 from threading import Lock
 from typing import (
@@ -20,7 +16,6 @@ from typing import (
 )
 
 from boto3 import Session
-from botocore.client import BaseClient
 from botocore.config import Config
 from pydantic import BaseModel
 from sretoolbox.utils import threaded
@@ -30,6 +25,14 @@ import reconcile.utils.lean_terraform_client as terraform
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 
 if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Iterator,
+        Mapping,
+        Sequence,
+    )
+
+    from botocore.client import BaseClient
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import (
         EC2Client,
@@ -76,27 +79,6 @@ if TYPE_CHECKING:
     from mypy_boto3_sts import STSClient
     from mypy_boto3_support import SupportClient
     from mypy_boto3_support.type_defs import CaseDetailsTypeDef
-
-else:
-    AccessKeyMetadataTypeDef = CaseDetailsTypeDef = CloudWatchLogsClient = (
-        DBInstanceMessageTypeDef
-    ) = DBRecommendationsMessageTypeDef = DynamoDBClient = DynamoDBServiceResource = (
-        EC2Client
-    ) = EC2ServiceResource = ECRClient = ElasticLoadBalancingClient = FilterTypeDef = (
-        HostedZoneTypeDef
-    ) = IAMClient = IAMServiceResource = ImageTypeDef = (
-        LaunchPermissionModificationsTypeDef
-    ) = LogGroupTypeDef = OrganizationsClient = RDSClient = ResourceRecordSetTypeDef = (
-        ResourceRecordTypeDef
-    ) = Route53Client = RouteTableTypeDef = S3Client = S3ServiceResource = SQSClient = (
-        SQSServiceResource
-    ) = STSClient = SubnetTypeDef = SupportClient = TagTypeDef = (
-        TransitGatewayTypeDef
-    ) = TransitGatewayVpcAttachmentTypeDef = UpgradeTargetTypeDef = (
-        VpcEndpointTypeDef
-    ) = VpcTypeDef = NetworkInterfaceTypeDef = LoadBalancerDescriptionTypeDef = (
-        TagDescriptionTypeDef
-    ) = object
 
 
 class InvalidResourceTypeError(Exception):
@@ -461,7 +443,7 @@ class AWSApi:
         self, account_name: str, region_name: str | None = None
     ) -> S3Client:
         session = self.get_session(account_name)
-        return cast(S3Client, self.get_session_client(session, "s3", region_name))
+        return cast("S3Client", self.get_session_client(session, "s3", region_name))
 
     def init_users(self) -> None:
         self.users = {}
@@ -1452,7 +1434,7 @@ class AWSApi:
     @staticmethod
     def _get_vpc_endpoints(
         filters: Sequence[FilterTypeDef], ec2: EC2Client
-    ) -> list["VpcEndpointTypeDef"]:
+    ) -> list[VpcEndpointTypeDef]:
         atts = ec2.describe_vpc_endpoints(Filters=filters)
         return atts.get("VpcEndpoints", [])
 

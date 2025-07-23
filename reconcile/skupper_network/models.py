@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -13,6 +12,9 @@ from reconcile.gql_definitions.skupper_network.skupper_networks import (
     ClusterV1,
     NamespaceV1,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class SkupperCluster(BaseModel):

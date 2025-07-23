@@ -83,8 +83,6 @@ from reconcile.utils.ocm.upgrades import (
     create_control_plane_upgrade_policy,
     create_node_pool_upgrade_policy,
     create_upgrade_policy,
-    delete_control_plane_upgrade_policy,
-    delete_upgrade_policy,
     get_control_plane_upgrade_policies,
     get_node_pool_upgrade_policies,
     get_upgrade_policies,
@@ -467,7 +465,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 
 
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
-    """Class to create and delete ClusterUpgradePolicies in OCM"""
+    """Class to create ClusterUpgradePolicies in OCM"""
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         policy = {
@@ -478,11 +476,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         create_upgrade_policy(ocm_api, self.cluster.id, policy)
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
-        if not self.id:
-            raise ValueError(
-                "Cannot delete cluster upgrade policy without id (not created yet)"
-            )
-        delete_upgrade_policy(ocm_api, self.cluster.id, self.id)
+        raise NotImplementedError("ClusterUpgradePolicy.delete() not implemented")
 
     def summarize(self) -> str:
         details = {
@@ -509,11 +503,7 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
         create_control_plane_upgrade_policy(ocm_api, self.cluster.id, policy)
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
-        if not self.id:
-            raise ValueError(
-                "Cannot delete controlplane upgrade policy without id (not created yet)"
-            )
-        delete_control_plane_upgrade_policy(ocm_api, self.cluster.id, self.id)
+        raise NotImplementedError("ControlPlaneUpgradePolicy.delete() not implemented")
 
     def summarize(self) -> str:
         details = {
@@ -527,7 +517,7 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 
 class NodePoolUpgradePolicy(AbstractUpgradePolicy):
     node_pool: str
-    """Class to create and delete NodePoolUpgradePolicies in OCM"""
+    """Class to create NodePoolUpgradePolicies in OCM"""
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         policy = {
@@ -583,7 +573,7 @@ def fetch_current_state(
     addon_service = init_addon_service(org_upgrade_spec.org.environment)
     for spec in org_upgrade_spec.specs:
         if addons and isinstance(spec, ClusterAddonUpgradeSpec):
-            addon_spec = cast(ClusterAddonUpgradeSpec, spec)
+            addon_spec = cast("ClusterAddonUpgradeSpec", spec)
             addon_upgrade_policies = addon_service.get_addon_upgrade_policies(
                 ocm_api, spec.cluster.id, addon_id=addon_spec.addon.addon.id
             )
@@ -910,38 +900,21 @@ def upgradeable_version(
 def verify_current_should_skip(
     current_state: Sequence[AbstractUpgradePolicy],
     desired: ClusterUpgradeSpec,
-    now: datetime,
-    addon_id: str = "",
-) -> tuple[bool, UpgradePolicyHandler | None]:
+) -> bool:
     current_policies = [c for c in current_state if c.cluster.id == desired.cluster.id]
     if not current_policies:
-        return False, None
+        return False
 
     # there can only be one upgrade policy per cluster
     if len(current_policies) != 1:
         raise ValueError(
             f"[{desired.org.org_id}/{desired.cluster.name}] expected only one upgrade policy"
         )
-    current = current_policies[0]
-    version = current.version  # may not exist in automatic upgrades
-    if version and not addon_id and desired.version_blocked(version):
-        next_run = current.next_run
-        if next_run and datetime.strptime(next_run, "%Y-%m-%dT%H:%M:%SZ") < now:
-            logging.warning(
-                f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] currently upgrading to blocked version '{version}'"
-            )
-            return True, None
-        logging.debug(
-            f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] found planned upgrade policy "
-            + f"with blocked version {version}"
-        )
-        return False, UpgradePolicyHandler(action="delete", policy=current)
 
-    # else
     logging.debug(
         f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster with existing upgrade policy"
     )
-    return True, None
+    return True
 
 
 def verify_schedule_should_skip(
@@ -1129,14 +1102,8 @@ def calculate_diff(
                 set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
                 continue
 
-        # ignore clusters with an existing upgrade policy
-        skip, delete_policy = verify_current_should_skip(
-            current_state, spec, now, addon_id
-        )
-        if skip:
+        if verify_current_should_skip(current_state, spec):
             continue
-        if delete_policy:
-            diffs.append(delete_policy)
 
         next_schedule = verify_schedule_should_skip(spec, now, addon_id)
         if not next_schedule:

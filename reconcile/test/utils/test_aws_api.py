@@ -1,18 +1,16 @@
-from collections.abc import Generator
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import boto3
 import pytest
-from moto import (
-    mock_ec2,
-    mock_iam,
-    mock_route53,
-)
-from pytest_mock import MockerFixture
+from moto import mock_aws
 
 from reconcile.utils.aws_api import AmiTag, AWSApi
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_ec2.type_defs import ImageTypeDef
     from mypy_boto3_iam import IAMClient
@@ -23,11 +21,7 @@ if TYPE_CHECKING:
         ResourceRecordSetTypeDef,
         ResourceRecordTypeDef,
     )
-
-else:
-    EC2Client = IAMClient = ImageTypeDef = Route53Client = ResourceRecordTypeDef = (
-        HostedZoneTypeDef
-    ) = ChangeBatchTypeDef = ResourceRecordSetTypeDef = object
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture
@@ -58,7 +52,7 @@ def aws_api(accounts: list[dict], mocker: MockerFixture) -> AWSApi:
 
 @pytest.fixture
 def iam_client() -> Generator[IAMClient]:
-    with mock_iam():
+    with mock_aws():
         iam_client = boto3.client("iam")
         yield iam_client
 
@@ -112,11 +106,11 @@ def test_filter_amis_regex(aws_api: AWSApi) -> None:
     regex = "^match.*$"
     images = [
         cast(
-            ImageTypeDef,
+            "ImageTypeDef",
             {"Name": "match-regex", "ImageId": "id1", "State": "available", "Tags": []},
         ),
         cast(
-            ImageTypeDef,
+            "ImageTypeDef",
             {
                 "Name": "no-match-regex",
                 "ImageId": "id2",
@@ -134,7 +128,7 @@ def test_filter_amis_state(aws_api: AWSApi) -> None:
     regex = "^match.*$"
     images = [
         cast(
-            ImageTypeDef,
+            "ImageTypeDef",
             {
                 "Name": "match-regex-1",
                 "ImageId": "id1",
@@ -143,7 +137,7 @@ def test_filter_amis_state(aws_api: AWSApi) -> None:
             },
         ),
         cast(
-            ImageTypeDef,
+            "ImageTypeDef",
             {
                 "Name": "match-regex-2",
                 "ImageId": "id2",
@@ -159,7 +153,7 @@ def test_filter_amis_state(aws_api: AWSApi) -> None:
 
 @pytest.fixture
 def route53_client() -> Generator[Route53Client]:
-    with mock_route53():
+    with mock_aws():
         route53_client = boto3.client("route53")
         yield route53_client
 
@@ -167,7 +161,7 @@ def route53_client() -> Generator[Route53Client]:
 def test_get_hosted_zone_id(aws_api: AWSApi) -> None:
     zone_id = "THISISTHEZONEID"
     zone = cast(
-        HostedZoneTypeDef,
+        "HostedZoneTypeDef",
         {
             "Name": "test",
             "Id": f"/hostedzone/{zone_id}",
@@ -194,7 +188,7 @@ def test_get_hosted_zone_record_sets_exists(
     zones = route53_client.list_hosted_zones_by_name(DNSName=zone_name)["HostedZones"]
     zone_id = aws_api._get_hosted_zone_id(zones[0])
     record_set = cast(
-        ResourceRecordSetTypeDef,
+        "ResourceRecordSetTypeDef",
         {
             "Name": zone_name,
             "Type": "NS",
@@ -202,23 +196,23 @@ def test_get_hosted_zone_record_sets_exists(
         },
     )
     change_batch = cast(
-        ChangeBatchTypeDef,
+        "ChangeBatchTypeDef",
         {"Changes": [{"Action": "CREATE", "ResourceRecordSet": record_set}]},
     )
     route53_client.change_resource_record_sets(
         HostedZoneId=zone_id, ChangeBatch=change_batch
     )
     results = aws_api._get_hosted_zone_record_sets(route53_client, zone_name)
-    assert results == [record_set]
+    assert record_set in results
 
 
 def test_filter_record_sets(aws_api: AWSApi) -> None:
     zone_name = "a"
-    expected = cast(ResourceRecordSetTypeDef, {"Name": f"{zone_name}.", "Type": "NS"})
+    expected = cast("ResourceRecordSetTypeDef", {"Name": f"{zone_name}.", "Type": "NS"})
     record_sets = [
         expected,
-        cast(ResourceRecordSetTypeDef, {"Name": f"{zone_name}.", "Type": "SOA"}),
-        cast(ResourceRecordSetTypeDef, {"Name": f"not-{zone_name}.", "Type": "NS"}),
+        cast("ResourceRecordSetTypeDef", {"Name": f"{zone_name}.", "Type": "SOA"}),
+        cast("ResourceRecordSetTypeDef", {"Name": f"not-{zone_name}.", "Type": "NS"}),
     ]
     results = aws_api._filter_record_sets(record_sets, zone_name, "NS")
     assert results == [expected]
@@ -227,7 +221,7 @@ def test_filter_record_sets(aws_api: AWSApi) -> None:
 def test_extract_records(aws_api: AWSApi) -> None:
     record = "ns.example.com"
     resource_records = [
-        cast(ResourceRecordTypeDef, {"Value": f"{record}."}),
+        cast("ResourceRecordTypeDef", {"Value": f"{record}."}),
     ]
     results = aws_api._extract_records(resource_records)
     assert results == [record]
@@ -235,7 +229,7 @@ def test_extract_records(aws_api: AWSApi) -> None:
 
 @pytest.fixture
 def ec2_client() -> Generator[EC2Client]:
-    with mock_ec2():
+    with mock_aws():
         yield boto3.client("ec2", region_name="us-east-1")
 
 

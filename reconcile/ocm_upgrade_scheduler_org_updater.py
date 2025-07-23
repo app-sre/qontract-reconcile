@@ -10,11 +10,9 @@ from reconcile import (
     mr_client_gateway,
     queries,
 )
+from reconcile.ocm.types import OCMSpec
 from reconcile.utils.jinja2.utils import process_jinja2_template
-from reconcile.utils.ocm import (
-    OCMMap,
-    OCMSpec,
-)
+from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org-updater"
 

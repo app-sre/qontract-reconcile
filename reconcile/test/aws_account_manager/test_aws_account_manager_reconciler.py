@@ -1,16 +1,18 @@
-from collections.abc import Callable, Generator
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
-from pytest_mock import MockerFixture
+    from pytest_mock import MockerFixture
+
 
 from reconcile.aws_account_manager.reconciler import (
     TASK_ACCOUNT_ALIAS,
@@ -56,7 +58,7 @@ def s3_client(monkeypatch: pytest.MonkeyPatch) -> Generator[S3Client, None, None
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", "BUCKET")
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", "ACCOUNT")
 
-    with mock_s3():
+    with mock_aws():
         s3_client = boto3.client("s3", region_name="us-east-1")
         s3_client.create_bucket(Bucket="BUCKET")
         yield s3_client

@@ -3,10 +3,9 @@ from __future__ import annotations
 import textwrap
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from boto3 import Session
-from botocore.client import BaseClient
 from pydantic import BaseModel
 
 import reconcile.utils.aws_api_typed.account
@@ -25,6 +24,9 @@ from reconcile.utils.aws_api_typed.s3 import AWSApiS3
 from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 from reconcile.utils.aws_api_typed.sts import AWSApiSts
 from reconcile.utils.aws_api_typed.support import AWSApiSupport
+
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
 
 SubApi = TypeVar(
     "SubApi",

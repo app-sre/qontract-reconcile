@@ -29,7 +29,6 @@ from reconcile.cli import (
 )
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.secret_reader import SecretReader
@@ -188,7 +187,7 @@ def get_apps_data(
     secret_reader = SecretReader(settings)
 
     apps = queries.get_apps()
-    jjb: JJB = init_jjb(secret_reader)
+    jjb = init_jjb(secret_reader)
     jenkins_map = jenkins_base.get_jenkins_map()
     time_limit = date - relativedelta(months=month_delta)
     timestamp_limit = int(time_limit.replace(tzinfo=UTC).timestamp())

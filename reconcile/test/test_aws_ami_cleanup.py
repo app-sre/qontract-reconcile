@@ -1,4 +1,5 @@
-from collections.abc import Generator
+from __future__ import annotations
+
 from datetime import (
     datetime,
     timedelta,
@@ -10,7 +11,7 @@ from typing import (
 
 import boto3
 import pytest
-from moto import mock_ec2
+from moto import mock_aws
 
 from reconcile.aws_ami_cleanup.integration import (
     get_aws_amis,
@@ -18,15 +19,14 @@ from reconcile.aws_ami_cleanup.integration import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_ec2.type_defs import (
         CreateImageResultTypeDef,
         LaunchTemplateVersionTypeDef,
     )
-else:
-    EC2Client = object
-    CreateImageResultTypeDef = dict
-    LaunchTemplateVersionTypeDef = dict
+
 
 MOTO_DEFAULT_ACCOUNT = "123456789012"
 
@@ -46,7 +46,7 @@ def accounts() -> list[dict[str, Any]]:
 
 @pytest.fixture
 def ec2_client() -> Generator[EC2Client, None, None]:
-    with mock_ec2():
+    with mock_aws():
         yield boto3.client("ec2", region_name="us-east-1")
 
 

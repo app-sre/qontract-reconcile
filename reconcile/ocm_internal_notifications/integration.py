@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import (
-    Callable,
-)
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.typed_queries.app_interface_custom_messages import (
     get_app_interface_custom_message,
@@ -24,6 +21,11 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.slack_api import UserNotFoundError
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 QONTRACT_INTEGRATION = "ocm-internal-notifications"
 

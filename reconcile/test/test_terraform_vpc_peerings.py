@@ -101,7 +101,7 @@ def build_cluster(
 ) -> dict[str, Any]:
     if not vpc:
         vpc = name
-    cluster = {
+    cluster: dict[str, Any] = {
         "name": name,
         "spec": {
             "region": "region",
@@ -117,32 +117,28 @@ def build_cluster(
         cluster["awsInfrastructureManagementAccounts"] = []
         if read_only_accounts:
             for acc in read_only_accounts:
-                cluster["awsInfrastructureManagementAccounts"].append(  # type: ignore
-                    {
-                        "account": {
-                            "name": acc,
-                            "uid": acc,
-                            "terraformUsername": "terraform",
-                            "automationToken": {},
-                        },
-                        "accessLevel": "read-only",
-                        "default": None,
-                    }
-                )
+                cluster["awsInfrastructureManagementAccounts"].append({
+                    "account": {
+                        "name": acc,
+                        "uid": acc,
+                        "terraformUsername": "terraform",
+                        "automationToken": {},
+                    },
+                    "accessLevel": "read-only",
+                    "default": None,
+                })
         if network_mgmt_accounts:
             for idx, acc in enumerate(network_mgmt_accounts):
-                cluster["awsInfrastructureManagementAccounts"].append(  # type: ignore
-                    {
-                        "account": {
-                            "name": acc,
-                            "uid": acc,
-                            "terraformUsername": "terraform",
-                            "automationToken": {},
-                        },
-                        "accessLevel": "network-mgmt",
-                        "default": True if idx == 0 else None,
-                    }
-                )
+                cluster["awsInfrastructureManagementAccounts"].append({
+                    "account": {
+                        "name": acc,
+                        "uid": acc,
+                        "terraformUsername": "terraform",
+                        "automationToken": {},
+                    },
+                    "accessLevel": "network-mgmt",
+                    "default": True if idx == 0 else None,
+                })
     return cluster
 
 

@@ -993,9 +993,11 @@ class TerrascriptClient:
                 lifecycle.prevent_destroy = False
             if lifecycle.ignore_changes is None:
                 lifecycle.ignore_changes = []
-            if "all" in lifecycle.ignore_changes:
-                lifecycle.ignore_changes = "all"
-            return lifecycle.dict(by_alias=True)
+            # 'all' must be passed as a string for ignore_changes! stupid terraform aws provider!
+            ignore_changes = (
+                "all" if "all" in lifecycle.ignore_changes else lifecycle.ignore_changes
+            )
+            return lifecycle.dict(by_alias=True) | {"ignore_changes": ignore_changes}
         return None
 
     def populate_additional_providers(self, infra_account_name: str, accounts):
@@ -1090,7 +1092,7 @@ class TerrascriptClient:
             )
             if records_from_vault:
                 allowed_vault_secret_paths = (
-                    cast(set[str], zone.get("allowed_vault_secret_paths")) or set()
+                    cast("set[str]", zone.get("allowed_vault_secret_paths")) or set()
                 )
                 vault_values: list[str] = []
                 for rec in records_from_vault:
@@ -5752,7 +5754,7 @@ class TerrascriptClient:
             tags.update(json.loads(extra_tags))
         # common_values is untyped, so casting is necessary
         region = cast(
-            str, common_values.get("region") or self.default_regions.get(account)
+            "str", common_values.get("region") or self.default_regions.get(account)
         )
 
         template_values = {
@@ -5768,7 +5770,7 @@ class TerrascriptClient:
         }
 
         # common_values is untyped, so casting is necessary
-        image = cast(list[dict[str, Any]], common_values.get("image"))
+        image = cast("list[dict[str, Any]]", common_values.get("image"))
         image_id = self.get_asg_image_id(filters=image, account=account, region=region)
         if not image_id:
             if self._use_previous_image_id(image):

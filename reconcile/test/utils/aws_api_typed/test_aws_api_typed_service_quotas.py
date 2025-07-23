@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 
 if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
     from mypy_boto3_service_quotas import ServiceQuotasClient
-else:
-    ServiceQuotasClient = object
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

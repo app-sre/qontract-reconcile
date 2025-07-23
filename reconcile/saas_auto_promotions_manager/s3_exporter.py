@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from reconcile.saas_auto_promotions_manager.publisher import Publisher
-from reconcile.utils.state import State
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.saas_auto_promotions_manager.publisher import Publisher
+    from reconcile.utils.state import State
 
 
 class DeploymentState(Enum):

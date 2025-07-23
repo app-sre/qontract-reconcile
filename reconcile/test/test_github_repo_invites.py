@@ -1,14 +1,16 @@
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
 
 from reconcile import github_repo_invites
 from reconcile.utils.raw_github_api import RawGithubApi
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Iterable,
+        Mapping,
+    )
 
 
 def test_parse_null_code_components() -> None:

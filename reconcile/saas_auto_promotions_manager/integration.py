@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from sretoolbox.utils import threaded
 
@@ -16,14 +16,18 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.renderer impor
     Renderer,
 )
 from reconcile.saas_auto_promotions_manager.meta import QONTRACT_INTEGRATION
-from reconcile.saas_auto_promotions_manager.publisher import Publisher
 from reconcile.saas_auto_promotions_manager.s3_exporter import S3Exporter
-from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 from reconcile.utils.defer import defer
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from reconcile.saas_auto_promotions_manager.publisher import Publisher
+    from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
 
 
 class SaasAutoPromotionsManagerParams(PydanticRunParams):

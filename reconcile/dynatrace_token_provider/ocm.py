@@ -1,19 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from reconcile.utils.ocm.base import (
-    OCMClusterServiceLogCreateModel,
-)
 from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
 )
-from reconcile.utils.ocm.labels import Filter
 from reconcile.utils.ocm.manifests import (
     create_manifest,
     get_manifest,
@@ -25,9 +19,14 @@ from reconcile.utils.ocm.syncsets import (
     get_syncset,
     patch_syncset,
 )
-from reconcile.utils.ocm_base_client import (
-    OCMBaseClient,
-)
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from datetime import timedelta
+
+    from reconcile.utils.ocm.base import OCMClusterServiceLogCreateModel
+    from reconcile.utils.ocm.labels import Filter
+    from reconcile.utils.ocm_base_client import OCMBaseClient
 
 """
 Thin abstractions of reconcile.ocm module to reduce coupling.
@@ -40,7 +39,7 @@ class OCMCluster(BaseModel):
     organization_id: str
     subscription_id: str
     is_hcp: bool
-    labels: Mapping[str, str]
+    labels: dict[str, str]
 
     @staticmethod
     def from_cluster_details(cluster: ClusterDetails) -> OCMCluster | None:

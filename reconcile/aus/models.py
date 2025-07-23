@@ -2,11 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import (
-    Iterable,
-    Mapping,
-    Sequence,
-)
+from typing import TYPE_CHECKING
 
 from pydantic import (
     BaseModel,
@@ -20,6 +16,9 @@ from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePol
 from reconcile.utils.ocm.addons import OCMAddonInstallation
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.semver_helper import parse_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 
 class NodePoolSpec(BaseModel):

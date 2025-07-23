@@ -73,20 +73,19 @@ dev = [
     "boto3-stubs[account,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.34.94",
     "kubernetes-stubs==22.6.0",
     "MarkupSafe ~=2.1.1",
-    "moto ~=2.2",
-    "mypy ~=1.13.0",
-    "pyfakefs ~=5.1",
-    "pytest ~=8.3",
-    "pytest-cov ~=6.0",
-    "pytest-httpserver ~=1.0",
+    "moto[ec2,iam,logs,s3,route53] ~=5.1",
+    "mypy ~=1.17.0",
+    "pyfakefs ~=5.9",
+    "pytest ~=8.4",
+    "pytest-cov ~=6.2",
+    "pytest-httpserver ~=1.1",
     "pytest-mock ~=3.6",
-    "qenerate==0.7.0",
+    "qenerate==0.8.0",
     "responses ~=0.25.0",
-    "ruff ~=0.12.2",
-    "smtpdfix ~=0.3.3",
+    "ruff ~=0.12.4",
+    "smtpdfix ~=0.5.2",
     "snakeviz ~=2.2.2",
-    "testslide ~=2.7",
-    "typeguard ~=2.13.3",
+    "testslide ~=2.7.1",
     "types-click",
     "types-croniter",
     "types-dateparser",
@@ -100,7 +99,6 @@ dev = [
     "types-PyYAML",
     "types-requests-oauthlib",
     "types-requests",
-    "types-setuptools",
     "types-tabulate",
     "types-toml",
 ]
@@ -159,6 +157,9 @@ src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true
 
+[tool.ruff.format]
+preview = true
+
 [tool.ruff.lint]
 preview = true
 
@@ -213,17 +214,16 @@ ignore = [
     "B017",    #`pytest.raises(Exception)` should be considered evil
     "RUF005",  # Consider "...."instead of concatenation
     "RUF012",  # Mutable class attributes should be annotated with "typing.ClassVar"
-    "TC001",   # Type-checking block
-    "TC002",   # Type-checking block
-    "TC003",   # Type-checking block
-    "TC004",   # Type-checking block
-    "TC006",   # quoted type expressions in `typing.cast()`
     # Review later
     "FURB101", # Replace `open` with `pathlib.Path`
     "FURB103", # Replace `open` with `pathlib.Path`
 ]
-[tool.ruff.format]
-preview = true
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["reconcile", "tools"]
@@ -272,7 +272,6 @@ module = [
     "reconcile.sendgrid_teammates",
     "reconcile.status_page_components",
     "reconcile.status",
-    "reconcile.statuspage.atlassian",
     "reconcile.template_tester",
     "reconcile.terraform_aws_route53",
     "reconcile.terraform_cloudflare_resources",
@@ -301,8 +300,6 @@ module = [
     "reconcile.utils.runtime.meta",
     "reconcile.utils.sharding",
     "reconcile.utils.sqs_gateway",
-    "reconcile.utils.statuspage.atlassian",
-    "reconcile.utils.statuspage.models",
     "reconcile.utils.structs",
     "reconcile.utils.terraform_client",
     "reconcile.utils.terrascript_aws_client",
@@ -337,10 +334,6 @@ module = [
     "reconcile.test.saas_auto_promotions_manager.utils.saas_files_inventory.test_saas_files_use_target_config_hash",
     "reconcile.test.saas_auto_promotions_manager.utils.saas_files_inventory.test_saas_files_with_auto_promote",
     "reconcile.test.saas_auto_promotions_manager.utils.saas_files_inventory.test_saas_files_without_auto_promote",
-    "reconcile.test.statuspage.test_statuspage_atlassian",
-    "reconcile.test.statuspage.test_statuspage_page",
-    "reconcile.test.statuspage.test_statuspage_state",
-    "reconcile.test.statuspage.test_statuspage_status",
     "reconcile.test.test_acs_rbac",
     "reconcile.test.test_checkpoint",
     "reconcile.test.test_closedbox_endpoint_monitoring",
@@ -348,7 +341,6 @@ module = [
     "reconcile.test.test_database_access_manager",
     "reconcile.test.test_jenkins_worker_fleets",
     "reconcile.test.test_jump_host",
-    "reconcile.test.test_make",
     "reconcile.test.test_openshift_namespaces",
     "reconcile.test.test_openshift_saas_deploy_change_tester",
     "reconcile.test.test_openshift_saas_deploy",
@@ -376,13 +368,10 @@ module = [
     "reconcile.test.test_vault_utils",
     "reconcile.test.test_version_bump",
     "reconcile.test.test_vpc_peerings_validator",
-    "reconcile.test.test_wrong_region",
     "reconcile.test.utils.internal_groups.test_internal_groups_client",
     "reconcile.test.utils.test_aws_rds",
-    "reconcile.test.utils.test_expiration",
     "reconcile.test.utils.test_external_resource_spec",
     "reconcile.test.utils.test_gpg",
-    "reconcile.test.utils.test_grouping",
     "reconcile.test.utils.test_helm",
     "reconcile.test.utils.test_imap_client",
     "reconcile.test.utils.test_jira_client",
@@ -393,7 +382,6 @@ module = [
     "reconcile.test.utils.test_mr",
     "reconcile.test.utils.test_oc",
     "reconcile.test.utils.test_ocm",
-    "reconcile.test.utils.test_pagerduty_api",
     "reconcile.test.utils.test_parse_dhms_duration",
     "reconcile.test.utils.test_password_validator",
     "reconcile.test.utils.test_promotion_state",

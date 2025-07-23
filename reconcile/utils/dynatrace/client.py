@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from dynatrace import Dynatrace
 from dynatrace.environment_v2.tokens_api import ApiTokenUpdate
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class DynatraceTokenCreationError(Exception):

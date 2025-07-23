@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from reconcile import queries
 from reconcile.utils import (
@@ -11,6 +11,9 @@ from reconcile.utils import (
 )
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass

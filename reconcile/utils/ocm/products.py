@@ -4,8 +4,7 @@ import logging
 import random
 import string
 from abc import abstractmethod
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -22,9 +21,13 @@ from reconcile.ocm.types import (
 )
 from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.ocm.clusters import get_provisioning_shard_id
-from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.rosa.rosa_cli import RosaCliError
-from reconcile.utils.rosa.session import RosaSessionBuilder
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.utils.ocm_base_client import OCMBaseClient
+    from reconcile.utils.rosa.session import RosaSessionBuilder
 
 CS_API_BASE = "/api/clusters_mgmt"
 

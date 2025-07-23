@@ -1,16 +1,10 @@
-from collections.abc import Generator
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import boto3
 import pytest
-from moto import mock_s3
-
-if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
-from pytest import MonkeyPatch
-from pytest_mock import MockerFixture
+from moto import mock_aws
 
 from reconcile.gql_definitions.common.app_interface_state_settings import (
     AppInterfaceStateConfigurationS3V1,
@@ -32,6 +26,14 @@ from reconcile.utils.state import (
     TransactionStateObj,
     acquire_state_settings,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from mypy_boto3_s3 import S3Client
+    from pytest import MonkeyPatch
+    from pytest_mock import MockerFixture
+
 
 BUCKET = "some-bucket"
 ACCOUNT = "some-account"
@@ -57,7 +59,7 @@ def s3_client(monkeypatch: MonkeyPatch) -> Generator[S3Client, None, None]:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
-    with mock_s3():
+    with mock_aws():
         s3_client = boto3.client("s3", region_name="us-east-1")
         s3_client.create_bucket(Bucket=BUCKET)
         yield s3_client

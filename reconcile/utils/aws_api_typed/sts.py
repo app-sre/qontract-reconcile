@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -5,8 +7,6 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from mypy_boto3_sts import STSClient
-else:
-    STSClient = object
 
 
 class AWSCredentials(BaseModel):

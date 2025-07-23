@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import (
+    TYPE_CHECKING,
     Protocol,
     runtime_checkable,
 )
@@ -15,6 +15,9 @@ from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReaderBase,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class OCConnectionError(Exception):

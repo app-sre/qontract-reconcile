@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import retry
 
 import reconcile.utils.aws_helper as awsh
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.ocm.types import (
-    OCMSpec,
-)
 from reconcile.utils.ocm.clusters import get_node_pools
 from reconcile.utils.ocm.products import (
     OCMProduct,
@@ -23,6 +19,11 @@ from reconcile.utils.ocm_base_client import (
     init_ocm_base_client,
 )
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.ocm.types import OCMSpec
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"

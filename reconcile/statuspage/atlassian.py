@@ -170,7 +170,7 @@ class AtlassianStatusPageProvider:
         self._group_id_to_name: dict[str, str] = {}
         self._build_component_cache()
 
-    def _build_component_cache(self):
+    def _build_component_cache(self) -> None:
         self._components = self._api.list_components()
         self._components_by_id = {c.id: c for c in self._components}
         self._components_by_displayname = {c.name: c for c in self._components}
