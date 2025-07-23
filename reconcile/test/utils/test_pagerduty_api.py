@@ -42,7 +42,7 @@ class PDUser(BaseModel):
 
 
 @pytest.fixture()
-def pypd_user(mocker: Mock):
+def pypd_user(mocker: Mock) -> Mock:
     m = mocker.patch("pypd.User", autospec=True)
     m.find.return_value = [
         PDUser(id="user_id1", email="user1@foobar.com"),
@@ -53,7 +53,7 @@ def pypd_user(mocker: Mock):
 
 
 @pytest.fixture()
-def pypd_schedule(mocker: Mock):
+def pypd_schedule(mocker: Mock) -> Mock:
     m = mocker.patch("pypd.Schedule", autospec=True)
     m.fetch.return_value = {
         "final_schedule": {
@@ -68,7 +68,7 @@ def pypd_schedule(mocker: Mock):
 
 
 @pytest.fixture()
-def pypd_escalation_policy(mocker: Mock):
+def pypd_escalation_policy(mocker: Mock) -> Mock:
     m = mocker.patch("pypd.EscalationPolicy", autospec=True)
     m.fetch.return_value = {
         "escalation_rules": [
@@ -169,26 +169,26 @@ def test_get_usernames_from_pagerduty_bad_target(
         )
 
 
-def test_pagerduty_api_init_init_users(pypd_user: Mock):
+def test_pagerduty_api_init_init_users(pypd_user: Mock) -> None:
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=True)
     pypd_user.find.assert_called_once()
     assert len(pd_api.users) == 2
 
 
-def test_pagerduty_api_init_not_init_users(pypd_user: Mock):
+def test_pagerduty_api_init_not_init_users(pypd_user: Mock) -> None:
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=False)
     pypd_user.find.assert_not_called()
     assert len(pd_api.users) == 0
 
 
-def test_pagerduty_api_init_users(pypd_user: Mock):
+def test_pagerduty_api_init_users(pypd_user: Mock) -> None:
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=False)
     pd_api.init_users()
     pypd_user.find.assert_called_once()
     assert len(pd_api.users) == 2
 
 
-def test_pagerduty_api_get_user_not_cached(pypd_user: Mock):
+def test_pagerduty_api_get_user_not_cached(pypd_user: Mock) -> None:
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=False)
     user = pd_api.get_user("user_id1")
     pypd_user.fetch.assert_called_once()
@@ -196,7 +196,7 @@ def test_pagerduty_api_get_user_not_cached(pypd_user: Mock):
     assert user == "user1"
 
 
-def test_pagerduty_api_get_user_cached(pypd_user: Mock):
+def test_pagerduty_api_get_user_cached(pypd_user: Mock) -> None:
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=True)
     user = pd_api.get_user("user_id1")
     pypd_user.fetch.assert_not_called()
@@ -204,7 +204,9 @@ def test_pagerduty_api_get_user_cached(pypd_user: Mock):
     assert user == "user1"
 
 
-def test_get_pagerduty_users_resource_type_schedule(mocker: Mock, pypd_user: Mock):
+def test_get_pagerduty_users_resource_type_schedule(
+    mocker: Mock, pypd_user: Mock
+) -> None:
     mock_get_schedule_users = mocker.patch(
         "reconcile.utils.pagerduty_api.PagerDutyApi.get_schedule_users",
         return_value=["user1"],
@@ -218,7 +220,7 @@ def test_get_pagerduty_users_resource_type_schedule(mocker: Mock, pypd_user: Moc
 
 def test_get_pagerduty_users_resource_type_escalation_policy(
     mocker: Mock, pypd_user: Mock
-):
+) -> None:
     mock_get_escalation_policy_users = mocker.patch(
         "reconcile.utils.pagerduty_api.PagerDutyApi.get_escalation_policy_users",
         return_value=["user2"],
@@ -230,7 +232,7 @@ def test_get_pagerduty_users_resource_type_escalation_policy(
     mock_get_escalation_policy_users.assert_called_once()
 
 
-def test_get_schedule_users(mocker: Mock, pypd_schedule: Mock):
+def test_get_schedule_users(mocker: Mock, pypd_schedule: Mock) -> None:
     mocker.patch(
         "reconcile.utils.pagerduty_api.PagerDutyApi.get_user",
         return_value="username",
@@ -243,7 +245,9 @@ def test_get_schedule_users(mocker: Mock, pypd_schedule: Mock):
     ]
 
 
-def test_get_escalation_policy_users(mocker: Mock, pypd_escalation_policy: Mock):
+def test_get_escalation_policy_users(
+    mocker: Mock, pypd_escalation_policy: Mock
+) -> None:
     mocker.patch(
         "reconcile.utils.pagerduty_api.PagerDutyApi.get_user",
         return_value="username_get_user",

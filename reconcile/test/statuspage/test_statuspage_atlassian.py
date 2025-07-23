@@ -16,7 +16,7 @@ About the `atlassian_page` fixture:
 
 def test_atlassian_page_read_component_bindings(
     atlassian_page: AtlassianStatusPageProvider,
-):
+) -> None:
     """
     Tests that the component binding state is correctly initialized.
     """
@@ -27,7 +27,7 @@ def test_atlassian_page_read_component_bindings(
 
 def test_atlassian_page_lookup_bound_component(
     atlassian_page: AtlassianStatusPageProvider,
-):
+) -> None:
     """
     Test that a bound component can be found by its app-interface name.
 
@@ -56,7 +56,7 @@ def test_atlassian_page_lookup_bound_component(
 
 def test_atlassian_page_lookup_by_display_name(
     atlassian_page: AtlassianStatusPageProvider,
-):
+) -> None:
     """
     Test that an unbound component can still be looked up if its name matches
     the display name of an app-interface component.
@@ -82,7 +82,7 @@ def test_atlassian_page_lookup_by_display_name(
 
 def test_atlassian_page_fail_lookup_for_already_bound_component(
     atlassian_page: AtlassianStatusPageProvider,
-):
+) -> None:
     """
     Test that a lookup by display name fails if the respective component is
     already bound.
@@ -108,7 +108,7 @@ def test_atlassian_page_fail_lookup_for_already_bound_component(
 
 def test_atlassian_provider_get_current_page(
     atlassian_page: AtlassianStatusPageProvider,
-):
+) -> None:
     """
     Tests the construction of a StatusPage object from the current state of
     the Atlassian page.
@@ -131,7 +131,7 @@ def test_atlassian_page_bind_on_apply(
     dry_run: bool,
     atlassian_page: AtlassianStatusPageProvider,
     mocker: MockerFixture,
-):
+) -> None:
     """
     Tests that a component is bound to the page when it is applied.
     """
@@ -159,7 +159,7 @@ def test_atlassian_page_bind_on_apply(
 def test_atlassian_page_should_apply_on_status_update(
     atlassian_page: AtlassianStatusPageProvider,
     mocker: MockerFixture,
-):
+) -> None:
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
@@ -175,7 +175,7 @@ def test_atlassian_page_should_apply_on_status_update(
 
 def test_atlassian_page_should_apply_on_missing_group(
     atlassian_page: AtlassianStatusPageProvider,
-):
+) -> None:
     """
     The atlassian provider does not create missing groups. So a component
     validation should fail when a missing group is referenced.
@@ -191,7 +191,7 @@ def test_atlassian_page_should_apply_on_missing_group(
 
 def test_atlassian_page_should_apply_on_moving_outside_group(
     atlassian_page: AtlassianStatusPageProvider,
-):
+) -> None:
     """
     The atlassian provider does not support moving components out of a group.
     """
@@ -207,7 +207,7 @@ def test_atlassian_page_should_apply_on_moving_outside_group(
 def test_atlassian_page_should_apply_on_display_name_update(
     atlassian_page: AtlassianStatusPageProvider,
     mocker: MockerFixture,
-):
+) -> None:
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
@@ -222,7 +222,7 @@ def test_atlassian_page_should_apply_on_display_name_update(
 def test_atlassian_page_should_apply_on_no_update(
     atlassian_page: AtlassianStatusPageProvider,
     mocker: MockerFixture,
-):
+) -> None:
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
@@ -236,7 +236,7 @@ def test_atlassian_page_should_apply_on_no_update(
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_atlassian_page_apply_component_update(
     dry_run: bool, atlassian_page: AtlassianStatusPageProvider, mocker: MockerFixture
-):
+) -> None:
     component_id = "id-1"
     current = atlassian_page.get_raw_component_by_id(component_id)
     assert current
@@ -266,7 +266,7 @@ def test_atlassian_page_apply_component_update(
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_atlassian_page_delete_component(
     dry_run: bool, atlassian_page: AtlassianStatusPageProvider, mocker: MockerFixture
-):
+) -> None:
     component_to_delete = "ai-component-1"
     component_id_to_delete = "id-1"
     delete_component_mock = mocker.patch.object(atlassian_page._api, "delete_component")
@@ -291,7 +291,7 @@ def test_atlassian_page_delete_component(
 def test_atlassian_page_dont_update_status_when_no_status_provider(
     atlassian_page: AtlassianStatusPageProvider,
     mocker: MockerFixture,
-):
+) -> None:
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     current.status = "some-status"
