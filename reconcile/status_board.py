@@ -422,15 +422,27 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 if current_value != desired_value:
                     return False
             # Handle lists and tuples
-            elif isinstance(current_value, list | tuple) and isinstance(
-                desired_value, list | tuple
-            ):
+            elif isinstance(current_value, (list, tuple)) and isinstance(desired_value, (list, tuple)):
                 if len(current_value) != len(desired_value):
                     return False
-                if not all(
-                    c == d for c, d in zip(current_value, desired_value, strict=False)
-                ):
-                    return False
+
+                try:
+                    sorted_current = sorted(current_value, key=lambda x: repr(x))
+                    sorted_desired = sorted(desired_value, key=lambda x: repr(x))
+                except Exception:
+                    # Fallback: compare without sorting
+                    sorted_current = current_value
+                    sorted_desired = desired_value
+
+                for c, d in zip(sorted_current, sorted_desired, strict=True):
+                    if isinstance(c, dict) and isinstance(d, dict):
+                        if not StatusBoardExporterIntegration._compare_metadata(c, d):
+                            return False
+                    elif isinstance(c, (list, tuple)) and isinstance(d, (list, tuple)):
+                        if not StatusBoardExporterIntegration._compare_metadata({'x': c}, {'x': d}):
+                            return False
+                    elif c != d:
+                        return False
             # Handle nested dictionaries
             elif isinstance(current_value, dict) and isinstance(desired_value, dict):
                 if not StatusBoardExporterIntegration._compare_metadata(
