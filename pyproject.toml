@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.quay_permissions",
     "reconcile.quay_repos",
     "reconcile.queries",
     "reconcile.query_validator",
