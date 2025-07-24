@@ -250,7 +250,7 @@ objects:
           emptyDir: { }
 parameters:
 - name: IMAGE
-  value: quay.io/app-sre/qontract-reconcile
+  value: quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/qontract-reconcile-master
 - name: IMAGE_TAG
   value: latest
 - name: BUSYBOX_IMAGE
