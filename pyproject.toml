@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.queries",
     "reconcile.requests_sender",
     "reconcile.sendgrid_teammates",
     "reconcile.status_page_components",
