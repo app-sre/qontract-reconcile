@@ -48,7 +48,7 @@ file:
 
 #https://github.com/goss-org/goss/blob/master/docs/gossfile.md#command
 command:
-  qontract-reconcile:
+  qontract-reconcile --help:
     exit-status: 0
     stdout:
       - "Usage: qontract-reconcile"
