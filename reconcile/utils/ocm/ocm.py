@@ -403,7 +403,7 @@ class OCM:
         api = (
             f"{CS_API_BASE}/v1/clusters/{cluster_id}" + "/external_configuration/labels"
         )
-        items = self._get_json(api).get("items")
+        items = self._get_json(api).get("items", [])
         item = [item for item in items if label.items() <= item.items()]
         if not item:
             return
@@ -597,14 +597,14 @@ class OCM:
     def _init_addons(self):
         """Returns a list of Addons"""
         api = f"{CS_API_BASE}/v1/addons"
-        self.addons = self._get_json(api).get("items")
+        self.addons = self._get_json(api).get("items", [])
 
     def _init_version_gates(self):
         """Returns a list of version gates"""
         if self.version_gates:
             return
         api = f"{CS_API_BASE}/v1/version_gates"
-        self.version_gates = self._get_json(api).get("items")
+        self.version_gates = self._get_json(api).get("items", [])
 
     def get_addon(self, id):
         for addon in self.addons:
