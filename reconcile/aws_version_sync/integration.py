@@ -356,6 +356,15 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                         # AWS ElastiCache Redis 6 could use a version like 6.x. Then, we don't need to manage it
                         continue
 
+                    if (
+                        resource.provider == SupportedResourceProvider.RDS
+                        and EXTENDED_SUPPORT_VERSION_INDICATOR
+                        in values["engine_version"]
+                    ):
+                        # AWS RDS PostgreSQL 11 and 12 extended support versions are not supported by this integration
+                        # See https://aws.amazon.com/about-aws/whats-new/2025/04/amazon-rds-postgresql-extended-support-11-22-rds-20250220-12-22-rds-20250220/
+                        continue
+
                     external_resources.append(
                         ExternalResource(
                             namespace_file=ns.path,
