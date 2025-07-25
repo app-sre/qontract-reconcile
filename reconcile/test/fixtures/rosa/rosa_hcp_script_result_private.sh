@@ -39,6 +39,7 @@ rosa create cluster --cluster-name=cluster-1 \
     --replicas 1 \
     --compute-machine-type m5.xlarge \
     --private \
+    --default-ingress-private \
     --disable-workload-monitoring \
     --properties provision_shard_id:provision_shard_id \
     --channel-group stable

@@ -1587,11 +1587,16 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
             f"--billing-account {billing_account}",
             f"--cluster-name {cluster.name}",
             "--sts",
-            ("--private" if cluster.spec.private else ""),
             ("--hosted-cp" if cluster.spec.hypershift else ""),
+            ("--private" if cluster.spec.private else ""),
             (
                 "--private-link"
                 if cluster.spec.private and not cluster.spec.hypershift
+                else ""
+            ),
+            (
+                "--default-ingress-private"
+                if cluster.spec.private and cluster.spec.hypershift
                 else ""
             ),
             (
