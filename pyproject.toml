@@ -262,12 +262,7 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.quay_mirror_org",
-    "reconcile.quay_mirror",
-    "reconcile.quay_permissions",
-    "reconcile.quay_repos",
     "reconcile.queries",
-    "reconcile.query_validator",
     "reconcile.requests_sender",
     "reconcile.sendgrid_teammates",
     "reconcile.status_page_components",
@@ -346,9 +341,6 @@ module = [
     "reconcile.test.test_openshift_saas_deploy",
     "reconcile.test.test_openshift_upgrade_watcher",
     "reconcile.test.test_prometheus_rules_tester",
-    "reconcile.test.test_quay_mirror_org",
-    "reconcile.test.test_quay_mirror",
-    "reconcile.test.test_quay_repos",
     "reconcile.test.test_repo_owners",
     "reconcile.test.test_requests_sender",
     "reconcile.test.test_saasherder_allowed_secret_paths",
