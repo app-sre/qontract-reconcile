@@ -3507,6 +3507,18 @@ def vault_replication(ctx: click.Context) -> None:
     default=None,
     envvar="INTEGRATIONS_MANAGER_IMAGE",
 )
+@click.option(
+    "--integrations-fluentd-image-tag",
+    help="fluentd image tag to use for integrations",
+    default=None,
+    envvar="INTEGRATIONS_FLUENTD_IMAGE_TAG",
+)
+@click.option(
+    "--integrations-fluentd-image",
+    help="fluentd image to use for integrations",
+    default=None,
+    envvar="INTEGRATIONS_FLUENTD_IMAGE",
+)
 @click.pass_context
 def integrations_manager(
     ctx: click.Context,
@@ -3517,6 +3529,8 @@ def integrations_manager(
     image_tag_from_ref: dict[str, str] | None,
     upstream: str | None,
     image: str | None,
+    integrations_fluentd_image_tag: str | None,
+    integrations_fluentd_image: str | None,
 ) -> None:
     import reconcile.integrations_manager
 
@@ -3531,6 +3545,8 @@ def integrations_manager(
         image_tag_from_ref,
         upstream,
         image,
+        integrations_fluentd_image_tag,
+        integrations_fluentd_image,
     )
 
 
