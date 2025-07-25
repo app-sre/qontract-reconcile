@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+from functools import cached_property
 from io import StringIO
 from typing import Any, Protocol
 
@@ -33,6 +34,7 @@ class Template(Protocol):
     condition: str | None
     target_path: str
     template: str
+    overwrite: bool | None
 
     def dict(self) -> dict[str, str]: ...
 
@@ -77,14 +79,28 @@ class Renderer(ABC):
         """
         pass
 
+    @abstractmethod
+    def target_exist(self) -> bool:
+        """
+        if target (file or patch block) already exists.
+        """
+        pass
+
     def render_target_path(self) -> str:
         return self._render_template(self.template.target_path).strip()
 
     def render_condition(self) -> bool:
-        return self._render_template(self.template.condition or "True") == "True"
+        if self._render_template(self.template.condition or "True") != "True":
+            return False
+        if self.template.overwrite:
+            return True
+        return not self.target_exist()
 
 
 class FullRenderer(Renderer):
+    def target_exist(self) -> bool:
+        return self.data.current is not None
+
     def render_output(self) -> str:
         """
         Take the variables from Template Data and render the template with it.
@@ -95,6 +111,12 @@ class FullRenderer(Renderer):
 
 
 class PatchRenderer(Renderer):
+    def target_exist(self) -> bool:
+        if isinstance(self._matched_value, list):
+            dta_identifier = self._get_identifier(self._data_to_add)
+            return self._find_index(self._matched_value, dta_identifier) is not None
+        return True
+
     def render_output(self) -> str:
         """
         Takes the variables from Template Data and render the template with it.
@@ -105,69 +127,68 @@ class PatchRenderer(Renderer):
 
         This method returns the entire file as a string.
         """
-        if self.template.patch is None:  # here to satisfy mypy
-            raise ValueError("PatchRenderer requires a patch")
-
-        p = parse_jsonpath(self._render_template(self.template.patch.path))
-
-        matched_values = [match.value for match in p.find(self.data.current)]
-
-        if len(matched_values) != 1:
-            raise ValueError(
-                f"Expected exactly one match for {self.template.patch.path}, got {len(matched_values)}"
-            )
-        matched_value = matched_values[0]
-
-        data_to_add = self.ruamel_instance.load(
-            self._render_template(self.template.template)
-        )
-
-        if isinstance(matched_value, list):
-
-            def get_identifier(data: dict[str, Any]) -> Any:
-                assert self.template.patch is not None  # mypy
-                if not self.template.patch.identifier:
-                    raise ValueError(
-                        f"Expected identifier in patch for list at {self.template}"
-                    )
-                if self.template.patch.identifier.startswith(
-                    "$"
-                ) and not self.template.patch.identifier.startswith("$ref"):
-                    # jsonpath and list of strings support
-                    if matches := [
-                        match.value
-                        for match in parse_jsonpath(
-                            self.template.patch.identifier
-                        ).find(data)
-                    ]:
-                        return matches[0]
-                    return None
-                return data.get(self.template.patch.identifier)
-
-            dta_identifier = get_identifier(data_to_add)
+        if isinstance(self._matched_value, list):
+            dta_identifier = self._get_identifier(self._data_to_add)
             if not dta_identifier:
+                assert self.template.patch is not None  # mypy
                 raise ValueError(
                     f"Expected identifier {self.template.patch.identifier} in data to add"
                 )
-
-            index = next(
-                (
-                    index
-                    for index, data in enumerate(matched_value)
-                    if get_identifier(data) == dta_identifier
-                ),
-                None,
-            )
-            if index is None:
-                matched_value.append(data_to_add)
+            if (
+                index := self._find_index(self._matched_value, dta_identifier)
+            ) is not None:
+                self._matched_value[index] = self._data_to_add
             else:
-                matched_value[index] = data_to_add
+                self._matched_value.append(self._data_to_add)
         else:
-            matched_value.update(data_to_add)
+            self._matched_value.update(self._data_to_add)
 
         with StringIO() as s:
             self.ruamel_instance.dump(self.data.current, s)
             return s.getvalue()
+
+    @cached_property
+    def _matched_value(self) -> Any:
+        assert self.template.patch is not None  # mypy
+        p = parse_jsonpath(self._render_template(self.template.patch.path))
+        matched_values = [match.value for match in p.find(self.data.current)]
+        if len(matched_values) != 1:
+            raise ValueError(
+                f"Expected exactly one match for {self.template.patch.path}, got {len(matched_values)}"
+            )
+        return matched_values[0]
+
+    @cached_property
+    def _data_to_add(self) -> Any:
+        return self.ruamel_instance.load(self._render_template(self.template.template))
+
+    def _get_identifier(self, data: dict[str, Any]) -> Any:
+        assert self.template.patch is not None  # mypy
+        if not self.template.patch.identifier:
+            raise ValueError(
+                f"Expected identifier in patch for list at {self.template}"
+            )
+        if self.template.patch.identifier.startswith(
+            "$"
+        ) and not self.template.patch.identifier.startswith("$ref"):
+            # jsonpath and list of strings support
+            if matches := [
+                match.value
+                for match in parse_jsonpath(self.template.patch.identifier).find(data)
+            ]:
+                return matches[0]
+            return None
+        return data.get(self.template.patch.identifier)
+
+    def _find_index(
+        self,
+        matched_value: list,
+        dta_identifier: Any,
+    ) -> int | None:
+        for index, data in enumerate(matched_value):
+            if self._get_identifier(data) == dta_identifier:
+                return index
+        return None
 
 
 def create_renderer(
