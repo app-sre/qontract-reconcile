@@ -275,17 +275,17 @@ def get_apps_data(
                         cluster = sample.labels["cluster"]
                         if app_namespace["cluster"]["name"] != cluster:
                             continue
-                        namespace = sample.labels["namespace"]
-                        if app_namespace["name"] != namespace:
+                        sample_namespace = sample.labels["namespace"]
+                        if app_namespace["name"] != sample_namespace:
                             continue
                         severity = sample.labels["severity"]
                         if cluster not in vuln_mx:
                             vuln_mx[cluster] = {}
-                        if namespace not in vuln_mx[cluster]:
-                            vuln_mx[cluster][namespace] = {}
-                        if severity not in vuln_mx[cluster][namespace]:
+                        if sample_namespace not in vuln_mx[cluster]:
+                            vuln_mx[cluster][sample_namespace] = {}
+                        if severity not in vuln_mx[cluster][sample_namespace]:
                             value = int(sample.value)
-                            vuln_mx[cluster][namespace][severity] = value
+                            vuln_mx[cluster][sample_namespace][severity] = value
         for family in text_string_to_metric_families(validt_metrics):
             for sample in family.samples:
                 if sample.name == "deploymentvalidation_total":
@@ -293,8 +293,8 @@ def get_apps_data(
                         cluster = sample.labels["cluster"]
                         if app_namespace["cluster"]["name"] != cluster:
                             continue
-                        namespace = sample.labels["namespace"]
-                        if app_namespace["name"] != namespace:
+                        sample_namespace = sample.labels["namespace"]
+                        if app_namespace["name"] != sample_namespace:
                             continue
                         validation = sample.labels["validation"]
                         # dvo: fail == 1, pass == 0, py: true == 1, false == 0
@@ -302,14 +302,19 @@ def get_apps_data(
                         status = ("Passed", "Failed")[int(sample.labels["status"])]
                         if cluster not in validt_mx:
                             validt_mx[cluster] = {}
-                        if namespace not in validt_mx[cluster]:
-                            validt_mx[cluster][namespace] = {}
-                        if validation not in validt_mx[cluster][namespace]:
-                            validt_mx[cluster][namespace][validation] = {}
-                        if status not in validt_mx[cluster][namespace][validation]:
-                            validt_mx[cluster][namespace][validation][status] = {}
+                        if sample_namespace not in validt_mx[cluster]:
+                            validt_mx[cluster][sample_namespace] = {}
+                        if validation not in validt_mx[cluster][sample_namespace]:
+                            validt_mx[cluster][sample_namespace][validation] = {}
+                        if (
+                            status
+                            not in validt_mx[cluster][sample_namespace][validation]
+                        ):
+                            validt_mx[cluster][sample_namespace][validation][
+                                status
+                            ] = {}
                         value = int(sample.value)
-                        validt_mx[cluster][namespace][validation][status] = value
+                        validt_mx[cluster][sample_namespace][validation][status] = value
         for family in text_string_to_metric_families(slo_metrics):
             for sample in family.samples:
                 if sample.name == "serviceslometrics":
@@ -317,25 +322,28 @@ def get_apps_data(
                         cluster = sample.labels["cluster"]
                         if app_namespace["cluster"]["name"] != cluster:
                             continue
-                        namespace = sample.labels["namespace"]
-                        if app_namespace["name"] != namespace:
+                        sample_namespace = sample.labels["namespace"]
+                        if app_namespace["name"] != sample_namespace:
                             continue
                         slo_doc_name = sample.labels["slodoc"]
                         slo_name = sample.labels["name"]
                         if cluster not in slo_mx:
                             slo_mx[cluster] = {}
-                        if namespace not in slo_mx[cluster]:
-                            slo_mx[cluster][namespace] = {}
-                        if slo_doc_name not in slo_mx[cluster][namespace]:
-                            slo_mx[cluster][namespace][slo_doc_name] = {}
-                        if slo_name not in slo_mx[cluster][namespace][slo_doc_name]:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name] = {
-                                sample.labels["type"]: sample.value
-                            }
+                        if sample_namespace not in slo_mx[cluster]:
+                            slo_mx[cluster][sample_namespace] = {}
+                        if slo_doc_name not in slo_mx[cluster][sample_namespace]:
+                            slo_mx[cluster][sample_namespace][slo_doc_name] = {}
+                        if (
+                            slo_name
+                            not in slo_mx[cluster][sample_namespace][slo_doc_name]
+                        ):
+                            slo_mx[cluster][sample_namespace][slo_doc_name][
+                                slo_name
+                            ] = {sample.labels["type"]: sample.value}
                         else:
-                            slo_mx[cluster][namespace][slo_doc_name][slo_name].update({
-                                sample.labels["type"]: sample.value
-                            })
+                            slo_mx[cluster][sample_namespace][slo_doc_name][
+                                slo_name
+                            ].update({sample.labels["type"]: sample.value})
         app["container_vulnerabilities"] = vuln_mx
         app["deployment_validations"] = validt_mx
         app["service_slo"] = slo_mx

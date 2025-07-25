@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
 import sys
-from collections.abc import Iterable, Mapping, MutableMapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
@@ -12,13 +13,16 @@ from reconcile.utils.ocm import (
     OCMMap,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, MutableMapping, Sequence
+
 QONTRACT_INTEGRATION = "ocm-additional-routers"
 
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD]
 
 
 def fetch_current_state(
-    clusters: list[Mapping[str, Any]],
+    clusters: Sequence[Mapping[str, Any]],
 ) -> tuple[OCMMap, list[dict[str, Any]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
