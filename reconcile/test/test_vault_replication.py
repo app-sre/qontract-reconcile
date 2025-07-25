@@ -1,6 +1,7 @@
 from typing import cast
 
 import pytest
+from pytest_mock import MockerFixture
 
 import reconcile.vault_replication as integ
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -68,7 +69,7 @@ def vault_instance_data_invalid_auth() -> VaultReplicationConfigV1_VaultInstance
 
 
 @pytest.fixture(autouse=True)
-def reset_singletons():
+def reset_singletons() -> None:
     VaultClient._instance = None
 
 
@@ -85,32 +86,32 @@ def policy_query_data() -> vault_policies.VaultPoliciesQueryData:
     )
 
 
-def test_policy_contais_path():
+def test_policy_contais_path() -> None:
     policy_paths = ["path1", "path2"]
     path = "path1"
     assert integ._policy_contains_path(path, policy_paths) is True
 
 
-def test_policy_contais_path_false():
+def test_policy_contais_path_false() -> None:
     policy_paths = ["path2", "path3"]
     path = "path1"
     assert integ._policy_contains_path(path, policy_paths) is False
 
 
-def test_check_invalid_paths_ko():
+def test_check_invalid_paths_ko() -> None:
     path_list = ["path1", "path3"]
     policy_paths = ["path1", "path2"]
     with pytest.raises(integ.VaultInvalidPathsError):
         integ.check_invalid_paths(path_list, policy_paths)
 
 
-def test_check_invalid_paths_ok():
+def test_check_invalid_paths_ok() -> None:
     path_list = ["path1", "path2"]
     policy_paths = ["path1", "path2"]
     integ.check_invalid_paths(path_list, policy_paths)
 
 
-def test_list_invalid_paths():
+def test_list_invalid_paths() -> None:
     path_list = ["path1", "path3"]
     policy_paths = ["path1", "path2"]
     assert integ.list_invalid_paths(path_list, policy_paths) == ["path3"]
@@ -124,7 +125,7 @@ def vault_client_test() -> _VaultClient:
 def test_get_jenkins_secret_list_w_content(
     jenkins_config_query_data: JenkinsConfigsQueryData,
     vault_client_test: _VaultClient,
-):
+) -> None:
     assert integ.get_jenkins_secret_list(
         vault_client_test, "jenkins-instance", jenkins_config_query_data
     ) == [
@@ -156,8 +157,8 @@ def vault_instance_data() -> (
 
 def test_get_vault_credentials_invalid_auth_method(
     vault_instance_data_invalid_auth: VaultReplicationConfigV1_VaultInstanceAuthV1,
-    mocker,
-):
+    mocker: MockerFixture,
+) -> None:
     mock_vault_client = mocker.patch(
         "reconcile.utils.vault._VaultClient", autospec=True
     )
@@ -171,8 +172,8 @@ def test_get_vault_credentials_invalid_auth_method(
 
 def test_get_vault_credentials_app_role(
     vault_instance_data: VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
-    mocker,
-):
+    mocker: MockerFixture,
+) -> None:
     mock_vault_client = mocker.patch(
         "reconcile.utils.vault._VaultClient", autospec=True
     )
@@ -187,7 +188,9 @@ def test_get_vault_credentials_app_role(
     }
 
 
-def test_get_policy_paths(policy_query_data: vault_policies.VaultPoliciesQueryData):
+def test_get_policy_paths(
+    policy_query_data: vault_policies.VaultPoliciesQueryData,
+) -> None:
     assert integ.get_policy_paths(
         "test-policy", "vault-instance", policy_query_data
     ) == ["this/is/a/path/*"]
@@ -245,11 +248,13 @@ def test_get_policy_paths(policy_query_data: vault_policies.VaultPoliciesQueryDa
         ),
     ],
 )
-def test_get_secrets_from_templated_path(path, vault_list, return_value):
+def test_get_secrets_from_templated_path(
+    path: str, vault_list: list[str], return_value: list[str]
+) -> None:
     assert integ.get_secrets_from_templated_path(path, vault_list) == return_value
 
 
-def test_get_jenkins_secret_list_templating(mocker):
+def test_get_jenkins_secret_list_templating(mocker: MockerFixture) -> None:
     mock_vault_client = mocker.patch(
         "reconcile.utils.vault._VaultClient", autospec=True
     )
@@ -263,7 +268,7 @@ def test_get_jenkins_secret_list_templating(mocker):
     ) == ["path/test-1/secret", "path/test-2/secret"]
 
 
-def test_get_policy_paths_real_data():
+def test_get_policy_paths_real_data() -> None:
     test = fxt.get_anymarkup("vault_policies/vault_policies_query_data.yaml")
     assert integ.get_policy_paths(
         "vault-test-policy",
@@ -275,7 +280,9 @@ def test_get_policy_paths_real_data():
 @pytest.mark.parametrize(
     "dry_run, secret_version, path", [[False, 1, "path"], [True, 1, "path"]]
 )
-def test_write_dummy_version(dry_run, secret_version, path, mocker):
+def test_write_dummy_version(
+    dry_run: bool, secret_version: int, path: str, mocker: MockerFixture
+) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
     integ.write_dummy_versions(
@@ -297,8 +304,12 @@ def test_write_dummy_version(dry_run, secret_version, path, mocker):
     [[False, 1, 2, "path"], [True, 1, 2, "path"]],
 )
 def test_deep_copy_versions(
-    dry_run, current_dest_version, current_source_version, path, mocker
-):
+    dry_run: bool,
+    current_dest_version: int,
+    current_source_version: int,
+    path: str,
+    mocker: MockerFixture,
+) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
     vault_client.read_all_with_version.return_value = [{"test": "data"}, 2]
@@ -327,8 +338,12 @@ def test_deep_copy_versions(
     [[False, 1, 2, "path"], [True, 1, 2, "path"]],
 )
 def test_deep_copy_versions_exception(
-    dry_run, current_dest_version, current_source_version, path, mocker
-):
+    dry_run: bool,
+    current_dest_version: int,
+    current_source_version: int,
+    path: str,
+    mocker: MockerFixture,
+) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
     write_dummy_versions = mocker.patch(
         "reconcile.vault_replication.write_dummy_versions", autospec=True
@@ -355,7 +370,7 @@ def test_deep_copy_versions_exception(
         write_dummy_versions.assert_called()
 
 
-def test_copy_vault_secret_forbidden_access(mocker):
+def test_copy_vault_secret_forbidden_access(mocker: MockerFixture) -> None:
     dry_run = True
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
     vault_client.read_all_with_version.side_effect = SecretAccessForbiddenError()
@@ -369,7 +384,7 @@ def test_copy_vault_secret_forbidden_access(mocker):
         )
 
 
-def test_copy_vault_secret_not_found_v2(mocker):
+def test_copy_vault_secret_not_found_v2(mocker: MockerFixture) -> None:
     dry_run = True
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
@@ -389,7 +404,9 @@ def test_copy_vault_secret_not_found_v2(mocker):
 
 
 @pytest.mark.parametrize("dry_run, path", [[False, "path"], [True, "path"]])
-def test_copy_vault_secret_not_found_v1(dry_run, path, mocker):
+def test_copy_vault_secret_not_found_v1(
+    dry_run: bool, path: str, mocker: MockerFixture
+) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
     vault_client.read_all_with_version.side_effect = [
@@ -416,7 +433,7 @@ def test_copy_vault_secret_not_found_v1(dry_run, path, mocker):
         deep_copy_versions.assert_not_called()
 
 
-def test_copy_vault_secret_found_v2(mocker):
+def test_copy_vault_secret_found_v2(mocker: MockerFixture) -> None:
     dry_run = True
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
@@ -434,7 +451,7 @@ def test_copy_vault_secret_found_v2(mocker):
     )
 
 
-def test_copy_vault_secret_found_same_version_v2(mocker):
+def test_copy_vault_secret_found_same_version_v2(mocker: MockerFixture) -> None:
     dry_run = True
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
@@ -457,7 +474,12 @@ def test_copy_vault_secret_found_same_version_v2(mocker):
         [True, "path", [["secret2", None], ["secret", None], ["secret", None]]],
     ],
 )
-def test_copy_vault_secret_found_v1(dry_run, path, return_values, mocker):
+def test_copy_vault_secret_found_v1(
+    dry_run: bool,
+    path: str,
+    return_values: list[list[str | None]],
+    mocker: MockerFixture,
+) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
     vault_client.read_all_with_version.side_effect = return_values
@@ -486,7 +508,12 @@ def test_copy_vault_secret_found_v1(dry_run, path, return_values, mocker):
         [True, "path", [["secret", None], ["secret", None], ["secret", None]]],
     ],
 )
-def test_copy_vault_secret_found_v1_same_value(dry_run, path, return_values, mocker):
+def test_copy_vault_secret_found_v1_same_value(
+    dry_run: bool,
+    path: str,
+    return_values: list[list[str | None]],
+    mocker: MockerFixture,
+) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
 
     vault_client.read_all_with_version.side_effect = return_values
@@ -502,7 +529,7 @@ def test_copy_vault_secret_found_v1_same_value(dry_run, path, return_values, moc
         vault_client.write.assert_not_called()
 
 
-def test_get_policy_secret_list(mocker):
+def test_get_policy_secret_list(mocker: MockerFixture) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
     vault_client.list_all.side_effect = [
         ["policy/path/1/secret1", "policy/path/1/secret2"],
@@ -531,7 +558,9 @@ def test_get_policy_secret_list(mocker):
         ["policy/+/p*th"],
     ],
 )
-def test_get_policy_secret_list_failure(paths, mocker):
+def test_get_policy_secret_list_failure(
+    paths: list[str], mocker: MockerFixture
+) -> None:
     vault_client = mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
     with pytest.raises(integ.VaultInvalidPathsError):
         integ.get_policy_secret_list(vault_client, paths)
