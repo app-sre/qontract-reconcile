@@ -75,6 +75,8 @@ def collect_parameters(
     upstream: str,
     image: str,
     image_tag_from_ref: Mapping[str, str] | None,
+    integrations_fluentd_image: str | None = None,
+    integrations_fluentd_image_tag: str | None = None,
 ) -> dict[str, Any]:
     parameters: dict[str, Any] = {}
     if environment.parameters:
@@ -105,6 +107,10 @@ def collect_parameters(
                 parameters["IMAGE_TAG"] = get_image_tag_from_ref(r, upstream)
     if image:
         parameters["IMAGE"] = image
+    if integrations_fluentd_image:
+        parameters["FLUENTD_IMAGE"] = integrations_fluentd_image
+    if integrations_fluentd_image_tag:
+        parameters["FLUENTD_IMAGE_TAG"] = integrations_fluentd_image_tag
     return parameters
 
 
@@ -179,6 +185,8 @@ def construct_oc_resources(
     upstream: str,
     image: str,
     image_tag_from_ref: Mapping[str, str] | None,
+    integrations_fluentd_image: str | None = None,
+    integrations_fluentd_image_tag: str | None = None,
 ) -> list[OpenshiftResource]:
     # Generate the openshift template with the helm chart. The resulting template
     # contains all the integrations in the environment
@@ -191,6 +199,8 @@ def construct_oc_resources(
         upstream,
         image,
         image_tag_from_ref,
+        integrations_fluentd_image,
+        integrations_fluentd_image_tag,
     )
 
     resources = oc_process(template, parameters)
@@ -212,9 +222,18 @@ def fetch_desired_state(
     upstream: str,
     image: str,
     image_tag_from_ref: Mapping[str, str] | None,
+    integrations_fluentd_image: str | None = None,
+    integrations_fluentd_image_tag: str | None = None,
 ) -> None:
     for ie in integrations_environments:
-        oc_resources = construct_oc_resources(ie, upstream, image, image_tag_from_ref)
+        oc_resources = construct_oc_resources(
+            ie,
+            upstream,
+            image,
+            image_tag_from_ref,
+            integrations_fluentd_image,
+            integrations_fluentd_image_tag,
+        )
         for r in oc_resources:
             ri.add_desired(
                 ie.namespace.cluster.name, ie.namespace.name, r.kind, r.name, r
@@ -242,6 +261,8 @@ def run(
     upstream: str | None = None,
     image: str | None = None,
     defer: Callable | None = None,
+    integrations_fluentd_image_tag: str | None = None,
+    integrations_fluentd_image: str | None = None,
 ) -> None:
     # Beware, environment_name can be empty! It's optional to set it!
     # If not set, all environments should be considered.
@@ -292,6 +313,8 @@ def run(
         upstream or UPSTREAM_DEFAULT,
         image or IMAGE_DEFAULT,
         image_tag_from_ref,
+        integrations_fluentd_image,
+        integrations_fluentd_image_tag,
     )
 
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
