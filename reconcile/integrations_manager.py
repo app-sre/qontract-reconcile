@@ -54,7 +54,7 @@ from reconcile.utils.vcs import GITHUB_BASE_URL
 QONTRACT_INTEGRATION = "integrations-manager"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
-IMAGE_DEFAULT = "quay.io/app-sre/qontract-reconcile"
+IMAGE_DEFAULT = "quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/qontract-reconcile-master"
 UPSTREAM_DEFAULT = "https://github.com/app-sre/qontract-reconcile"
 
 INTEGRATION_UPSTREAM_REPOS_PARAM = "INTEGRATION_UPSTREAM_REPOS"
