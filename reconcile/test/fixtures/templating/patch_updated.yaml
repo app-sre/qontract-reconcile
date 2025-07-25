@@ -1,6 +1,8 @@
 template:
   name: update file
 
+  overwrite: true
+
   targetPath: /some/saas/deploy.yml
 
   patch:

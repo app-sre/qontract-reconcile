@@ -35,7 +35,30 @@ def test_patch_ref_update(
         secret_reader=secret_reader,
     )
 
+    assert r.render_condition()
     assert r.render_output().strip() == expected.strip()
+
+
+@pytest.mark.parametrize(
+    "fixture_file",
+    [
+        "patch_not_rendering.yaml",
+        "patch_not_overwrite.yaml",
+    ],
+)
+def test_patch_not_rendering(
+    get_fixture: Callable,
+    fixture_file: str,
+    secret_reader: SecretReader,
+) -> None:
+    template, current, _ = get_fixture(fixture_file).values()
+
+    r = PatchRenderer(
+        template,
+        TemplateData(variables={"bar": "bar", "foo": "foo"}, current=current),
+        secret_reader=secret_reader,
+    )
+    assert not r.render_condition()
 
 
 @pytest.mark.parametrize(

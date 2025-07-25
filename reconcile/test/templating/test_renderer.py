@@ -74,6 +74,20 @@ def template_simple(gql_class_factory: Callable) -> TemplateV1:
 
 
 @pytest.fixture
+def template_overwrite(gql_class_factory: Callable) -> TemplateV1:
+    return gql_class_factory(
+        TemplateV1,
+        {
+            "name": "test",
+            "condition": "{{1 == 1}}",
+            "targetPath": "/target_path",
+            "template": "template",
+            "overwrite": True,
+        },
+    )
+
+
+@pytest.fixture
 def template_patch(gql_class_factory: Callable) -> TemplateV1:
     return gql_class_factory(
         TemplateV1,
@@ -474,17 +488,34 @@ def test_process_template_simple(
     assert output.content == "template"
 
 
-def test_process_template_overwrite(
+def test_process_template_skip(
     template_simple: TemplateV1,
     local_file_persistence: LocalFilePersistence,
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
 ) -> None:
     local_file_persistence.write(TemplateOutput(path="/target_path", content="bar"))
+    local_file_persistence.flush()
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
     output = t.process_template(
         template_simple, {}, local_file_persistence, ruaml_instance
+    )
+    assert output is None
+
+
+def test_process_template_overwrite(
+    template_overwrite: TemplateV1,
+    local_file_persistence: LocalFilePersistence,
+    ruaml_instance: yaml.YAML,
+    secret_reader: SecretReader,
+) -> None:
+    local_file_persistence.write(TemplateOutput(path="/target_path", content="bar"))
+    local_file_persistence.flush()
+    t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
+    t._secret_reader = secret_reader
+    output = t.process_template(
+        template_overwrite, {}, local_file_persistence, ruaml_instance
     )
     assert output
     assert output.path == "/target_path"
@@ -547,6 +578,7 @@ def test_reconcile_simple(
             template="template",
             autoApproved=None,
             templateRenderOptions=None,
+            overwrite=None,
         ),
         {},
         ANY,
