@@ -85,13 +85,6 @@ clean: ## Clean up the local development environment
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
 
-pypi-release:
-	@$(CONTAINER_ENGINE) build --progress=plain --build-arg TWINE_USERNAME --build-arg TWINE_PASSWORD --target pypi -f dockerfiles/Dockerfile .
-
-pypi:
-	uv build --sdist --wheel
-	UV_PUBLISH_TOKEN=$(TWINE_PASSWORD) uv publish
-
 pypi-konflux:
 	uv build --sdist --wheel
 	uv publish

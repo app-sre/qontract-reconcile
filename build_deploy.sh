@@ -12,5 +12,3 @@ make test build push sqs
 
 # and a fips version
 make IMAGE_NAME=quay.io/app-sre/qontract-reconcile-fips BUILD_TARGET=fips-prod-image build push
-
-make pypi-release
