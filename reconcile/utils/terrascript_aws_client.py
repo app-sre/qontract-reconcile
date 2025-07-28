@@ -553,10 +553,10 @@ class TerrascriptClient:
         }
         self.logtoes_zip = ""
         self.logtoes_zip_lock = Lock()
-        self.rosa_authenticator_pre_signup_zip = ""
-        self.rosa_authenticator_pre_signup_zip_lock = Lock()
+        self.rosa_auth_pre_signup_zip = ""
+        self.rosa_auth_pre_signup_zip_lock = Lock()
         self.lambda_zip: dict[str, str] = {}
-        self.lambda_lock = Lock()
+        self.rosa_auth_kinesis_to_os_zip_lock = Lock()
         self.github: Github | None = None
         self.github_lock = Lock()
         self.gitlab: GitLabApi | None = None
@@ -615,7 +615,7 @@ class TerrascriptClient:
 
     def get_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
         if not self.lambda_zip.get(release_url):
-            with self.lambda_lock:
+            with self.rosa_auth_kinesis_to_os_zip_lock:
                 # this may have already happened, so we check again
                 if not self.lambda_zip.get(release_url):
                     self.lambda_zip[release_url] = self.download_rosa_auth_kinesis_to_os_zip(release_url)
@@ -668,22 +668,22 @@ class TerrascriptClient:
                 f.write(r.content)
         return zip_file
 
-    def get_rosa_authenticator_zip(self, release_url):
-        if not self.rosa_authenticator_pre_signup_zip:
-            with self.rosa_authenticator_pre_signup_zip_lock:
+    def get_rosa_auth_pre_signup_zip(self, release_url):
+        if not self.rosa_auth_pre_signup_zip:
+            with self.rosa_auth_pre_signup_zip_lock:
                 # this may have already happened, so we check again
-                if not self.rosa_authenticator_pre_signup_zip:
+                if not self.rosa_auth_pre_signup_zip:
                     self.token = get_default_config()["token"]
-                    self.rosa_authenticator_pre_signup_zip = (
-                        self.download_rosa_authenticator_zip(
+                    self.rosa_auth_pre_signup_zip = (
+                        self.download_rosa_auth_pre_signup_zip(
                             ROSA_AUTH_PRE_SIGNUP_RELEASE
                         )
                     )
         if release_url == ROSA_AUTH_PRE_SIGNUP_RELEASE:
-            return self.rosa_authenticator_pre_signup_zip
-        return self.download_rosa_authenticator_zip(release_url)
+            return self.rosa_auth_pre_signup_zip
+        return self.download_rosa_auth_pre_signup_zip(release_url)
 
-    def download_rosa_authenticator_zip(self, release_url):
+    def download_rosa_auth_pre_signup_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
         r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
         r.raise_for_status()
