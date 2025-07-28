@@ -551,11 +551,13 @@ class TerrascriptClient:
         self.partitions = {
             a["name"]: a.get("partition") or "aws" for a in filtered_accounts
         }
-        self.logtoes_zip = ""
-        self.logtoes_zip_lock = Lock()
+        self.rosa_auth_logtoes_zip = ""
+        self.rosa_auth_logtoes_zip_lock = Lock()
         self.rosa_auth_pre_signup_zip = ""
         self.rosa_auth_pre_signup_zip_lock = Lock()
-        self.lambda_zip: dict[str, str] = {}
+        self.rosa_auth_pre_token_zip = ""
+        self.rosa_auth_pre_token_zip_lock = Lock()
+        self.rosa_auth_kinesis_to_os_zip: dict[str, str] = {}
         self.rosa_auth_kinesis_to_os_zip_lock = Lock()
         self.github: Github | None = None
         self.github_lock = Lock()
@@ -614,12 +616,12 @@ class TerrascriptClient:
         raise ValueError(f"No bucket config found for account {account_name}")
 
     def get_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
-        if not self.lambda_zip.get(release_url):
+        if not self.rosa_auth_kinesis_to_os_zip.get(release_url):
             with self.rosa_auth_kinesis_to_os_zip_lock:
                 # this may have already happened, so we check again
-                if not self.lambda_zip.get(release_url):
-                    self.lambda_zip[release_url] = self.download_rosa_auth_kinesis_to_os_zip(release_url)
-        return self.lambda_zip[release_url]
+                if not self.rosa_auth_kinesis_to_os_zip.get(release_url):
+                    self.rosa_auth_kinesis_to_os_zip[release_url] = self.download_rosa_auth_kinesis_to_os_zip(release_url)
+        return self.rosa_auth_kinesis_to_os_zip[release_url]
 
     def download_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
         github = self.init_github()
@@ -644,14 +646,14 @@ class TerrascriptClient:
         return zip_file
 
     def get_logtoes_zip(self, release_url):
-        if not self.logtoes_zip:
-            with self.logtoes_zip_lock:
+        if not self.rosa_auth_logtoes_zip:
+            with self.rosa_auth_logtoes_zip_lock:
                 # this may have already happened, so we check again
-                if not self.logtoes_zip:
+                if not self.rosa_auth_logtoes_zip:
                     self.token = get_default_config()["token"]
-                    self.logtoes_zip = self.download_logtoes_zip(ROSA_AUTH_LOGTOES_RELEASE)
+                    self.rosa_auth_logtoes_zip = self.download_logtoes_zip(ROSA_AUTH_LOGTOES_RELEASE)
         if release_url == ROSA_AUTH_LOGTOES_RELEASE:
-            return self.logtoes_zip
+            return self.rosa_auth_logtoes_zip
         return self.download_logtoes_zip(release_url)
 
     def download_logtoes_zip(self, release_url):
@@ -689,7 +691,36 @@ class TerrascriptClient:
         r.raise_for_status()
         data = r.json()
         zip_url = data["assets"][0]["browser_download_url"]
-        zip_file = "/tmp/RosaAuthenticatorLambda-" + data["tag_name"] + ".zip"
+        zip_file = "/tmp/RosaAuthPreSignUp-" + data["tag_name"] + ".zip"
+        if not os.path.exists(zip_file):
+            r = requests.get(zip_url, timeout=60)
+            r.raise_for_status()
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
+        return zip_file
+
+    def get_rosa_auth_pre_token_zip(self, release_url):
+        if not self.rosa_auth_pre_token_zip:
+            with self.rosa_auth_pre_token_zip_lock:
+                # this may have already happened, so we check again
+                if not self.rosa_auth_pre_token_zip:
+                    self.token = get_default_config()["token"]
+                    self.rosa_auth_pre_token_zip = (
+                        self.download_rosa_auth_pre_token_zip(
+                            ROSA_AUTH_PRE_TOKEN_RELEASE
+                        )
+                    )
+        if release_url == ROSA_AUTH_PRE_TOKEN_RELEASE:
+            return self.rosa_auth_pre_token_zip
+        return self.download_rosa_auth_pre_token_zip(release_url)
+
+    def download_rosa_auth_pre_token_zip(self, release_url):
+        headers = {"Authorization": "token " + self.token}
+        r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
+        r.raise_for_status()
+        data = r.json()
+        zip_url = data["assets"][0]["browser_download_url"]
+        zip_file = "/tmp/RosaAuthPreToken-" + data["tag_name"] + ".zip"
         if not os.path.exists(zip_file):
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
