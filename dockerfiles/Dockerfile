@@ -1,4 +1,3 @@
-# TODO: decommission once we remove ci.ext job completely
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
@@ -117,5 +116,4 @@ ARG TWINE_PASSWORD
 # TODO: use --mount=source=.git,target=.git,type=bind
 # podman does not support --mount=type=bind
 # qontract-reconcile version depends on git tags!
-# Handled by konflux
-#RUN make pypi
+RUN make pypi
