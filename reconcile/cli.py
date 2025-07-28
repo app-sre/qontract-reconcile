@@ -3529,8 +3529,8 @@ def integrations_manager(
     image_tag_from_ref: dict[str, str] | None,
     upstream: str | None,
     image: str | None,
-    integrations_fluentd_image_tag: str | None,
     integrations_fluentd_image: str | None,
+    integrations_fluentd_image_tag: str | None,
 ) -> None:
     import reconcile.integrations_manager
 
