@@ -190,14 +190,16 @@ from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.vcs import VCS
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
-LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
-KINESIS_TO_OS_RELEASE = (
+ROSA_AUTH_LOGTOES_RELEASE = (
+    "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
+)
+ROSA_AUTH_KINESIS_TO_OS_RELEASE = (
     "https://github.com/app-sre/kinesis-to-opensearch-lambda/releases/latest"
 )
-ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = (
+ROSA_AUTH_PRE_SIGNUP_RELEASE = (
     "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
 )
-ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE = (
+ROSA_AUTH_PRE_TOKEN_RELEASE = (
     "repos/app-sre/cognito-pre-token-trigger/releases/latest"
 )
 # VARIABLE_KEYS are passed to common_values on instantiation of a provider
@@ -611,15 +613,15 @@ class TerrascriptClient:
             )
         raise ValueError(f"No bucket config found for account {account_name}")
 
-    def get_lambda_zip(self, release_url: str) -> str:
+    def get_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
         if not self.lambda_zip.get(release_url):
             with self.lambda_lock:
                 # this may have already happened, so we check again
                 if not self.lambda_zip.get(release_url):
-                    self.lambda_zip[release_url] = self.download_lambda_zip(release_url)
+                    self.lambda_zip[release_url] = self.download_rosa_auth_kinesis_to_os_zip(release_url)
         return self.lambda_zip[release_url]
 
-    def download_lambda_zip(self, release_url: str) -> str:
+    def download_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
         github = self.init_github()
         url = release_url.replace("https://", "").split("/")
         repo_name = f"{url[1]}/{url[2]}"
@@ -647,8 +649,8 @@ class TerrascriptClient:
                 # this may have already happened, so we check again
                 if not self.logtoes_zip:
                     self.token = get_default_config()["token"]
-                    self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
-        if release_url == LOGTOES_RELEASE:
+                    self.logtoes_zip = self.download_logtoes_zip(ROSA_AUTH_LOGTOES_RELEASE)
+        if release_url == ROSA_AUTH_LOGTOES_RELEASE:
             return self.logtoes_zip
         return self.download_logtoes_zip(release_url)
 
@@ -674,10 +676,10 @@ class TerrascriptClient:
                     self.token = get_default_config()["token"]
                     self.rosa_authenticator_pre_signup_zip = (
                         self.download_rosa_authenticator_zip(
-                            ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
+                            ROSA_AUTH_PRE_SIGNUP_RELEASE
                         )
                     )
-        if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
+        if release_url == ROSA_AUTH_PRE_SIGNUP_RELEASE:
             return self.rosa_authenticator_pre_signup_zip
         return self.download_rosa_authenticator_zip(release_url)
 
@@ -3700,7 +3702,7 @@ class TerrascriptClient:
                 data.aws_elasticsearch_domain(es_identifier, **es_domain)
             )
 
-            release_url = common_values.get("release_url", LOGTOES_RELEASE)
+            release_url = common_values.get("release_url", ROSA_AUTH_LOGTOES_RELEASE)
             zip_file = self.get_logtoes_zip(release_url)
 
             lambda_identifier = f"{identifier}-lambda"
@@ -4010,8 +4012,8 @@ class TerrascriptClient:
                 data.aws_elasticsearch_domain(es_identifier, **es_domain)
             )
 
-            release_url = common_values.get("release_url", KINESIS_TO_OS_RELEASE)
-            zip_file = self.get_lambda_zip(release_url)
+            release_url = common_values.get("release_url", ROSA_AUTH_KINESIS_TO_OS_RELEASE)
+            zip_file = self.get_rosa_auth_kinesis_to_os_zip(release_url)
 
             lambda_identifier = f"{identifier}-lambda"
             lambda_values = {
@@ -5989,7 +5991,7 @@ class TerrascriptClient:
 
         # pre-signup lambda
         release_url = common_values.get(
-            "release_url", ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
+            "release_url", ROSA_AUTH_PRE_SIGNUP_RELEASE
         )
         zip_file = self.get_rosa_auth_pre_signup_zip(release_url)
         cognito_pre_signup_lambda_resource = aws_lambda_function(
@@ -6006,7 +6008,7 @@ class TerrascriptClient:
 
         # pre-token lambda
         release_url = common_values.get(
-            "release_url", ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE
+            "release_url", ROSA_AUTH_PRE_TOKEN_RELEASE
         )
         zip_file = self.get_rosa_auth_pre_token_zip(release_url)
         cognito_pre_token_lambda_resource = aws_lambda_function(
