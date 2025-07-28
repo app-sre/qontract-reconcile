@@ -679,6 +679,7 @@ class TerrascriptClient:
         return self.download_rosa_authenticator_zip(release_url)
 
     def download_rosa_authenticator_zip(self, release_url):
+
         headers = {"Authorization": "token " + self.token}
         r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
         r.raise_for_status()
