@@ -197,6 +197,9 @@ KINESIS_TO_OS_RELEASE = (
 ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = (
     "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
 )
+ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE = (
+    "repos/app-sre/cognito-pre-token-trigger/releases/latest"
+)
 # VARIABLE_KEYS are passed to common_values on instantiation of a provider
 VARIABLE_KEYS = [
     "region",
@@ -679,7 +682,6 @@ class TerrascriptClient:
         return self.download_rosa_authenticator_zip(release_url)
 
     def download_rosa_authenticator_zip(self, release_url):
-
         headers = {"Authorization": "token " + self.token}
         r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
         r.raise_for_status()
@@ -5984,16 +5986,16 @@ class TerrascriptClient:
         tf_resources.append(lambda_iam_role_resource)
 
         # Setup + manage Lambda resources
+
         # pre-signup lambda
         release_url = common_values.get(
             "release_url", ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
         )
-        zip_file = self.get_rosa_authenticator_zip(release_url)
-
+        zip_file = self.get_rosa_auth_pre_signup_zip(release_url)
         cognito_pre_signup_lambda_resource = aws_lambda_function(
             "cognito_pre_signup",
             function_name=f"ocm-{identifier}-cognito-pre-signup",
-            runtime="nodejs14.x",
+            runtime="nodejs18.x",
             role=f"${{{lambda_iam_role_resource.arn}}}",
             handler="index.handler",
             filename=zip_file,
@@ -6001,6 +6003,23 @@ class TerrascriptClient:
             tracing_config={"mode": "PassThrough"},
         )
         tf_resources.append(cognito_pre_signup_lambda_resource)
+
+        # pre-token lambda
+        release_url = common_values.get(
+            "release_url", ROSA_AUTHENTICATOR_PRE_TOKEN_RELEASE
+        )
+        zip_file = self.get_rosa_auth_pre_token_zip(release_url)
+        cognito_pre_token_lambda_resource = aws_lambda_function(
+            "cognito_pre_token",
+            function_name=f"ocm-{identifier}-cognito-pre-token",
+            runtime="nodejs18.x",
+            role=f"${{{lambda_iam_role_resource.arn}}}",
+            handler="index.handler",
+            filename=zip_file,
+            source_code_hash='${filebase64sha256("' + zip_file + '")}',
+            tracing_config={"mode": "PassThrough"},
+        )
+        tf_resources.append(cognito_pre_token_lambda_resource)
 
         # setup s3_client
         # pattern followed from utils/state.py
@@ -6085,7 +6104,8 @@ class TerrascriptClient:
             "pool",
             name=f"ocm-{identifier}-pool",
             lambda_config={
-                "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}"
+                "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}",
+                "pre_token_generation": f"${{{cognito_pre_token_lambda_resource.arn}}}"
             },
             **pool_args,
         )
@@ -6100,6 +6120,16 @@ class TerrascriptClient:
             principal="cognito-idp.amazonaws.com",
         )
         tf_resources.append(cognito_pre_signup_lambda_permission_resource)
+
+        # Finish up lambda - pre token
+        cognito_pre_signup_lambda_permission_resource = aws_lambda_permission(
+            "cognito_pre_token_permission",
+            action="lambda:InvokeFunction",
+            function_name=cognito_pre_token_lambda_resource.function_name,
+            source_arn=f"${{{cognito_user_pool_resource.arn}}}",
+            principal="cognito-idp.amazonaws.com",
+        )
+        tf_resources.append(cognito_pre_token_lambda_permission_resource)
 
         # POOL DOMAIN
         cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
