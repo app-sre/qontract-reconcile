@@ -124,8 +124,7 @@ RUN echo "true" > /is_pypi_pushed
 
 # qontract-reconcile version depends on git tags!
 # The .git dir should already be part of the test image
-# TODO: re-enable to take over from ci.ext
-#RUN --mount=type=secret,id=app-sre-pypi-credentials/token export UV_PUBLISH_TOKEN=$(cat /run/secrets/app-sre-pypi-credentials/token); make pypi-konflux
+RUN --mount=type=secret,id=app-sre-pypi-credentials/token export UV_PUBLISH_TOKEN=$(cat /run/secrets/app-sre-pypi-credentials/token); make pypi-konflux
 
 ###############################################################################
 # STAGE 8 - tested and pypi pushed prod image
