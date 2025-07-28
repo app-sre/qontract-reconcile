@@ -190,18 +190,14 @@ from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.vcs import VCS
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
-ROSA_AUTH_LOGTOES_RELEASE = (
-    "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
-)
+ROSA_AUTH_LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
 ROSA_AUTH_KINESIS_TO_OS_RELEASE = (
     "https://github.com/app-sre/kinesis-to-opensearch-lambda/releases/latest"
 )
 ROSA_AUTH_PRE_SIGNUP_RELEASE = (
     "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
 )
-ROSA_AUTH_PRE_TOKEN_RELEASE = (
-    "repos/app-sre/cognito-pre-token-trigger/releases/latest"
-)
+ROSA_AUTH_PRE_TOKEN_RELEASE = "repos/app-sre/cognito-pre-token-trigger/releases/latest"
 # VARIABLE_KEYS are passed to common_values on instantiation of a provider
 VARIABLE_KEYS = [
     "region",
@@ -620,7 +616,9 @@ class TerrascriptClient:
             with self.rosa_auth_kinesis_to_os_zip_lock:
                 # this may have already happened, so we check again
                 if not self.rosa_auth_kinesis_to_os_zip.get(release_url):
-                    self.rosa_auth_kinesis_to_os_zip[release_url] = self.download_rosa_auth_kinesis_to_os_zip(release_url)
+                    self.rosa_auth_kinesis_to_os_zip[release_url] = (
+                        self.download_rosa_auth_kinesis_to_os_zip(release_url)
+                    )
         return self.rosa_auth_kinesis_to_os_zip[release_url]
 
     def download_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
@@ -651,7 +649,9 @@ class TerrascriptClient:
                 # this may have already happened, so we check again
                 if not self.rosa_auth_logtoes_zip:
                     self.token = get_default_config()["token"]
-                    self.rosa_auth_logtoes_zip = self.download_logtoes_zip(ROSA_AUTH_LOGTOES_RELEASE)
+                    self.rosa_auth_logtoes_zip = self.download_logtoes_zip(
+                        ROSA_AUTH_LOGTOES_RELEASE
+                    )
         if release_url == ROSA_AUTH_LOGTOES_RELEASE:
             return self.rosa_auth_logtoes_zip
         return self.download_logtoes_zip(release_url)
@@ -4043,7 +4043,9 @@ class TerrascriptClient:
                 data.aws_elasticsearch_domain(es_identifier, **es_domain)
             )
 
-            release_url = common_values.get("release_url", ROSA_AUTH_KINESIS_TO_OS_RELEASE)
+            release_url = common_values.get(
+                "release_url", ROSA_AUTH_KINESIS_TO_OS_RELEASE
+            )
             zip_file = self.get_rosa_auth_kinesis_to_os_zip(release_url)
 
             lambda_identifier = f"{identifier}-lambda"
@@ -6021,9 +6023,7 @@ class TerrascriptClient:
         # Setup + manage Lambda resources
 
         # pre-signup lambda
-        release_url = common_values.get(
-            "release_url", ROSA_AUTH_PRE_SIGNUP_RELEASE
-        )
+        release_url = common_values.get("release_url", ROSA_AUTH_PRE_SIGNUP_RELEASE)
         zip_file = self.get_rosa_auth_pre_signup_zip(release_url)
         cognito_pre_signup_lambda_resource = aws_lambda_function(
             "cognito_pre_signup",
@@ -6038,9 +6038,7 @@ class TerrascriptClient:
         tf_resources.append(cognito_pre_signup_lambda_resource)
 
         # pre-token lambda
-        release_url = common_values.get(
-            "release_url", ROSA_AUTH_PRE_TOKEN_RELEASE
-        )
+        release_url = common_values.get("release_url", ROSA_AUTH_PRE_TOKEN_RELEASE)
         zip_file = self.get_rosa_auth_pre_token_zip(release_url)
         cognito_pre_token_lambda_resource = aws_lambda_function(
             "cognito_pre_token",
@@ -6138,7 +6136,7 @@ class TerrascriptClient:
             name=f"ocm-{identifier}-pool",
             lambda_config={
                 "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}",
-                "pre_token_generation": f"${{{cognito_pre_token_lambda_resource.arn}}}"
+                "pre_token_generation": f"${{{cognito_pre_token_lambda_resource.arn}}}",
             },
             **pool_args,
         )
