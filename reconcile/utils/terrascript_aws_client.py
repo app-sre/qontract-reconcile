@@ -6152,6 +6152,7 @@ class TerrascriptClient:
         )
         tf_resources.append(cognito_pre_signup_lambda_permission_resource)
 
+
         # Finish up lambda - pre token
         cognito_pre_token_lambda_permission_resource = aws_lambda_permission(
             "cognito_pre_token_permission",
