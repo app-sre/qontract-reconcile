@@ -51,6 +51,7 @@ rosa create cluster --cluster-name={{ cluster_name }} \
     --compute-machine-type {{ cluster.machine_pools[0].instance_type }} \
     {% if cluster.spec.private -%}
     --private \
+    --default-ingress-private \
     {% endif -%}
     {% if cluster.spec.disable_user_workload_monitoring -%}
     --disable-workload-monitoring \
