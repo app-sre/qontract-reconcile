@@ -262,12 +262,7 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.quay_mirror_org",
-    "reconcile.quay_mirror",
-    "reconcile.quay_permissions",
-    "reconcile.quay_repos",
     "reconcile.queries",
-    "reconcile.query_validator",
     "reconcile.requests_sender",
     "reconcile.sendgrid_teammates",
     "reconcile.status_page_components",
@@ -305,7 +300,6 @@ module = [
     "reconcile.utils.terrascript_aws_client",
     "reconcile.utils.throughput",
     "reconcile.utils.vault",
-    "reconcile.utils.vaultsecretref",
     "reconcile.vpc_peerings_validator",
     "tools.sre_checkpoints.util",
     # untyped tests
@@ -346,9 +340,6 @@ module = [
     "reconcile.test.test_openshift_saas_deploy",
     "reconcile.test.test_openshift_upgrade_watcher",
     "reconcile.test.test_prometheus_rules_tester",
-    "reconcile.test.test_quay_mirror_org",
-    "reconcile.test.test_quay_mirror",
-    "reconcile.test.test_quay_repos",
     "reconcile.test.test_repo_owners",
     "reconcile.test.test_requests_sender",
     "reconcile.test.test_saasherder_allowed_secret_paths",
@@ -364,8 +355,6 @@ module = [
     "reconcile.test.test_typed_queries.conftest",
     "reconcile.test.test_typed_queries.test_clusters_with_peering",
     "reconcile.test.test_typed_queries.test_status_board",
-    "reconcile.test.test_vault_replication",
-    "reconcile.test.test_vault_utils",
     "reconcile.test.test_version_bump",
     "reconcile.test.test_vpc_peerings_validator",
     "reconcile.test.utils.internal_groups.test_internal_groups_client",

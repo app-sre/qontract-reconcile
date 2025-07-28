@@ -33,8 +33,6 @@ rosa create cluster -y --cluster-name={{ cluster_name }} \
     --sts \
     {% if cluster.spec.private -%}
     --private \
-    {% endif -%}
-    {% if cluster.spec.private -%}
     --private-link \
     {% endif -%}
     {% if cluster.spec.multi_az -%}

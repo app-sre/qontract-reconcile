@@ -15,20 +15,23 @@ class SleepCalledError(Exception):
     pass
 
 
-class TestVaultClient(vault._VaultClient):
-    def __init__(self):
+class VaultClientTest(vault._VaultClient):
+    def __init__(self) -> None:
+        pass
+
+    def _refresh_client_auth(self) -> None:
         pass
 
 
 class TestVaultUtils:
     @staticmethod
-    def test_vault_auto_refresh_env():
+    def test_vault_auto_refresh_env() -> None:
         os.environ["VAULT_AUTO_REFRESH_INTERVAL"] = "1"
         importlib.reload(vault)
         assert vault.VAULT_AUTO_REFRESH_INTERVAL == 1
 
     @staticmethod
-    def test_vault_auto_refresh_no_env():
+    def test_vault_auto_refresh_no_env() -> None:
         del os.environ["VAULT_AUTO_REFRESH_INTERVAL"]
         assert os.getenv("VAULT_AUTO_REFRESH_INTERVAL") is None
         importlib.reload(vault)
@@ -36,12 +39,10 @@ class TestVaultUtils:
 
     @staticmethod
     @patch.object(time, "sleep")
-    def test_sleep_is_called(sleep):
+    def test_sleep_is_called(sleep: MagicMock) -> None:
         sleep.side_effect = SleepCalledError
 
-        TestVaultClient._refresh_client_auth = MagicMock()
-
-        client = TestVaultClient()
+        client = VaultClientTest()
 
         with pytest.raises(SleepCalledError):
             client._auto_refresh_client_auth()

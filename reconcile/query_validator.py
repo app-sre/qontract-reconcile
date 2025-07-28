@@ -1,6 +1,7 @@
 import logging
 import sys
 from textwrap import indent
+from typing import Any
 
 from reconcile import queries
 from reconcile.openshift_resources_base import (
@@ -30,14 +31,17 @@ QUERY_VALIDATIONS_QUERY = """
 """ % (indent(OPENSHIFT_RESOURCE, 6 * " "),)
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     gqlapi = gql.get_api()
-    query_validations = gqlapi.query(QUERY_VALIDATIONS_QUERY)["validations"]
+    data = gqlapi.query(QUERY_VALIDATIONS_QUERY)
+    if not data:
+        return
+    query_validations: list[dict[str, Any]] = data.get("validations") or []
     settings = queries.get_secret_reader_settings()
     error = False
     for qv in query_validations:
         qv_name = qv["name"]
-        for q in qv["queries"]:
+        for q in qv.get("queries") or []:
             try:
                 gqlapi.query(gql.get_resource(q["path"])["content"])
             except (gql.GqlGetResourceError, gql.GqlApiError) as e:
