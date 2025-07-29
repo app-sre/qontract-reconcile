@@ -34,7 +34,7 @@ from reconcile.utils.oc import (
 )
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_clusters
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
-from reconcile.utils.secret_reader import SecretNotFound, SecretReaderBase
+from reconcile.utils.secret_reader import SecretNotFoundError, SecretReaderBase
 from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 from reconcile.utils.vault import (
     VaultClient,
@@ -455,5 +455,5 @@ class VaultSecretsReconciler(SecretsReconciler):
             spec.metadata[SECRET_UPDATED_AT] = data[SECRET_UPDATED_AT]
             del data[SECRET_UPDATED_AT]
             spec.secret = data
-        except SecretNotFound:
+        except SecretNotFoundError:
             logging.info("Error getting secret from vault, skipping. [%s]", secret_path)

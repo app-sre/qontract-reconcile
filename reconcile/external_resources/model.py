@@ -50,7 +50,7 @@ class ExternalResourceOrphanedResourcesError(Exception):
         super().__init__("".join(msg))
 
 
-class ExternalResourceOutputResourceNameDuplications(Exception):
+class ExternalResourceOutputResourceNameDuplicationsError(Exception):
     def __init__(self, duplicates: Iterable[tuple[str, str, str]]) -> None:
         msg = [
             "There are output_resource_name attribute duplications. ",
@@ -186,8 +186,8 @@ class ExternalResourcesInventory(MutableMapping):
 
 
 class Action(StrEnum):
-    DESTROY: str = "Destroy"
-    APPLY: str = "Apply"
+    DESTROY = "Destroy"
+    APPLY = "Apply"
 
 
 class ExternalResourceModuleKey(BaseModel, frozen=True):
@@ -348,15 +348,15 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
 
 
 class ResourceStatus(StrEnum):
-    CREATED: str = "CREATED"
-    DELETED: str = "DELETED"
-    ABANDONED: str = "ABANDONED"
-    NOT_EXISTS: str = "NOT_EXISTS"
-    IN_PROGRESS: str = "IN_PROGRESS"
-    DELETE_IN_PROGRESS: str = "DELETE_IN_PROGRESS"
-    ERROR: str = "ERROR"
-    PENDING_SECRET_SYNC: str = "PENDING_SECRET_SYNC"
-    RECONCILIATION_REQUESTED: str = "RECONCILIATION_REQUESTED"
+    CREATED = "CREATED"
+    DELETED = "DELETED"
+    ABANDONED = "ABANDONED"
+    NOT_EXISTS = "NOT_EXISTS"
+    IN_PROGRESS = "IN_PROGRESS"
+    DELETE_IN_PROGRESS = "DELETE_IN_PROGRESS"
+    ERROR = "ERROR"
+    PENDING_SECRET_SYNC = "PENDING_SECRET_SYNC"
+    RECONCILIATION_REQUESTED = "RECONCILIATION_REQUESTED"
 
     @property
     def does_not_exist(self) -> bool:

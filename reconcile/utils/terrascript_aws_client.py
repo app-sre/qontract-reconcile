@@ -1,3 +1,4 @@
+# ruff: noqa: N801
 import base64
 import enum
 import json
@@ -189,13 +190,14 @@ from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.vcs import VCS
 
 GH_BASE_URL = os.environ.get("GITHUB_API", "https://api.github.com")
-LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
-KINESIS_TO_OS_RELEASE = (
+ROSA_AUTH_LOGTOES_RELEASE = "repos/app-sre/logs-to-elasticsearch-lambda/releases/latest"
+ROSA_AUTH_KINESIS_TO_OS_RELEASE = (
     "https://github.com/app-sre/kinesis-to-opensearch-lambda/releases/latest"
 )
-ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE = (
+ROSA_AUTH_PRE_SIGNUP_RELEASE = (
     "repos/app-sre/cognito-pre-signup-trigger/releases/latest"
 )
+ROSA_AUTH_PRE_TOKEN_RELEASE = "repos/app-sre/cognito-pre-token-trigger/releases/latest"
 # VARIABLE_KEYS are passed to common_values on instantiation of a provider
 VARIABLE_KEYS = [
     "region",
@@ -303,7 +305,7 @@ AWS_US_GOV_ELB_ACCOUNT_IDS = {
 }
 
 
-class OutputResourceNameNotUniqueException(Exception):
+class OutputResourceNameNotUniqueError(Exception):
     def __init__(self, namespace, duplicates):
         self.namespace, self.duplicates = namespace, duplicates
         super().__init__(
@@ -319,7 +321,7 @@ class RDSParameterGroupValidationError(Exception):
     pass
 
 
-class StateInaccessibleException(Exception):
+class StateInaccessibleError(Exception):
     pass
 
 
@@ -431,7 +433,7 @@ class ProviderExcludedError(Exception):
         )
 
 
-class TerrascriptClient:  # pylint: disable=too-many-public-methods
+class TerrascriptClient:
     """
     At a high-level, this class is responsible for generating Terraform configuration in
     JSON format from app-interface schemas/openshift/terraform-resource-1.yml objects.
@@ -545,12 +547,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         self.partitions = {
             a["name"]: a.get("partition") or "aws" for a in filtered_accounts
         }
-        self.logtoes_zip = ""
-        self.logtoes_zip_lock = Lock()
-        self.rosa_authenticator_pre_signup_zip = ""
-        self.rosa_authenticator_pre_signup_zip_lock = Lock()
-        self.lambda_zip: dict[str, str] = {}
-        self.lambda_lock = Lock()
+        self.rosa_auth_logtoes_zip = ""
+        self.rosa_auth_logtoes_zip_lock = Lock()
+        self.rosa_auth_pre_signup_zip = ""
+        self.rosa_auth_pre_signup_zip_lock = Lock()
+        self.rosa_auth_pre_token_zip = ""
+        self.rosa_auth_pre_token_zip_lock = Lock()
+        self.rosa_auth_kinesis_to_os_zip: dict[str, str] = {}
+        self.rosa_auth_kinesis_to_os_zip_lock = Lock()
         self.github: Github | None = None
         self.github_lock = Lock()
         self.gitlab: GitLabApi | None = None
@@ -607,15 +611,17 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
         raise ValueError(f"No bucket config found for account {account_name}")
 
-    def get_lambda_zip(self, release_url: str) -> str:
-        if not self.lambda_zip.get(release_url):
-            with self.lambda_lock:
+    def get_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
+        if not self.rosa_auth_kinesis_to_os_zip.get(release_url):
+            with self.rosa_auth_kinesis_to_os_zip_lock:
                 # this may have already happened, so we check again
-                if not self.lambda_zip.get(release_url):
-                    self.lambda_zip[release_url] = self.download_lambda_zip(release_url)
-        return self.lambda_zip[release_url]
+                if not self.rosa_auth_kinesis_to_os_zip.get(release_url):
+                    self.rosa_auth_kinesis_to_os_zip[release_url] = (
+                        self.download_rosa_auth_kinesis_to_os_zip(release_url)
+                    )
+        return self.rosa_auth_kinesis_to_os_zip[release_url]
 
-    def download_lambda_zip(self, release_url: str) -> str:
+    def download_rosa_auth_kinesis_to_os_zip(self, release_url: str) -> str:
         github = self.init_github()
         url = release_url.replace("https://", "").split("/")
         repo_name = f"{url[1]}/{url[2]}"
@@ -638,14 +644,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         return zip_file
 
     def get_logtoes_zip(self, release_url):
-        if not self.logtoes_zip:
-            with self.logtoes_zip_lock:
+        if not self.rosa_auth_logtoes_zip:
+            with self.rosa_auth_logtoes_zip_lock:
                 # this may have already happened, so we check again
-                if not self.logtoes_zip:
+                if not self.rosa_auth_logtoes_zip:
                     self.token = get_default_config()["token"]
-                    self.logtoes_zip = self.download_logtoes_zip(LOGTOES_RELEASE)
-        if release_url == LOGTOES_RELEASE:
-            return self.logtoes_zip
+                    self.rosa_auth_logtoes_zip = self.download_logtoes_zip(
+                        ROSA_AUTH_LOGTOES_RELEASE
+                    )
+        if release_url == ROSA_AUTH_LOGTOES_RELEASE:
+            return self.rosa_auth_logtoes_zip
         return self.download_logtoes_zip(release_url)
 
     def download_logtoes_zip(self, release_url):
@@ -662,28 +670,57 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 f.write(r.content)
         return zip_file
 
-    def get_rosa_authenticator_zip(self, release_url):
-        if not self.rosa_authenticator_pre_signup_zip:
-            with self.rosa_authenticator_pre_signup_zip_lock:
+    def get_rosa_auth_pre_signup_zip(self, release_url):
+        if not self.rosa_auth_pre_signup_zip:
+            with self.rosa_auth_pre_signup_zip_lock:
                 # this may have already happened, so we check again
-                if not self.rosa_authenticator_pre_signup_zip:
+                if not self.rosa_auth_pre_signup_zip:
                     self.token = get_default_config()["token"]
-                    self.rosa_authenticator_pre_signup_zip = (
-                        self.download_rosa_authenticator_zip(
-                            ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
+                    self.rosa_auth_pre_signup_zip = (
+                        self.download_rosa_auth_pre_signup_zip(
+                            ROSA_AUTH_PRE_SIGNUP_RELEASE
                         )
                     )
-        if release_url == ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE:
-            return self.rosa_authenticator_pre_signup_zip
-        return self.download_rosa_authenticator_zip(release_url)
+        if release_url == ROSA_AUTH_PRE_SIGNUP_RELEASE:
+            return self.rosa_auth_pre_signup_zip
+        return self.download_rosa_auth_pre_signup_zip(release_url)
 
-    def download_rosa_authenticator_zip(self, release_url):
+    def download_rosa_auth_pre_signup_zip(self, release_url):
         headers = {"Authorization": "token " + self.token}
         r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
         r.raise_for_status()
         data = r.json()
         zip_url = data["assets"][0]["browser_download_url"]
-        zip_file = "/tmp/RosaAuthenticatorLambda-" + data["tag_name"] + ".zip"
+        zip_file = "/tmp/RosaAuthPreSignUp-" + data["tag_name"] + ".zip"
+        if not os.path.exists(zip_file):
+            r = requests.get(zip_url, timeout=60)
+            r.raise_for_status()
+            with open(zip_file, "wb") as f:
+                f.write(r.content)
+        return zip_file
+
+    def get_rosa_auth_pre_token_zip(self, release_url):
+        if not self.rosa_auth_pre_token_zip:
+            with self.rosa_auth_pre_token_zip_lock:
+                # this may have already happened, so we check again
+                if not self.rosa_auth_pre_token_zip:
+                    self.token = get_default_config()["token"]
+                    self.rosa_auth_pre_token_zip = (
+                        self.download_rosa_auth_pre_token_zip(
+                            ROSA_AUTH_PRE_TOKEN_RELEASE
+                        )
+                    )
+        if release_url == ROSA_AUTH_PRE_TOKEN_RELEASE:
+            return self.rosa_auth_pre_token_zip
+        return self.download_rosa_auth_pre_token_zip(release_url)
+
+    def download_rosa_auth_pre_token_zip(self, release_url):
+        headers = {"Authorization": "token " + self.token}
+        r = requests.get(GH_BASE_URL + "/" + release_url, headers=headers, timeout=60)
+        r.raise_for_status()
+        data = r.json()
+        zip_url = data["assets"][0]["browser_download_url"]
+        zip_file = "/tmp/RosaAuthPreToken-" + data["tag_name"] + ".zip"
         if not os.path.exists(zip_file):
             r = requests.get(zip_url, timeout=60)
             r.raise_for_status()
@@ -992,9 +1029,11 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 lifecycle.prevent_destroy = False
             if lifecycle.ignore_changes is None:
                 lifecycle.ignore_changes = []
-            if "all" in lifecycle.ignore_changes:
-                lifecycle.ignore_changes = "all"
-            return lifecycle.dict(by_alias=True)
+            # 'all' must be passed as a string for ignore_changes! stupid terraform aws provider!
+            ignore_changes = (
+                "all" if "all" in lifecycle.ignore_changes else lifecycle.ignore_changes
+            )
+            return lifecycle.dict(by_alias=True) | {"ignore_changes": ignore_changes}
         return None
 
     def populate_additional_providers(self, infra_account_name: str, accounts):
@@ -1089,7 +1128,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             )
             if records_from_vault:
                 allowed_vault_secret_paths = (
-                    cast(set[str], zone.get("allowed_vault_secret_paths")) or set()
+                    cast("set[str]", zone.get("allowed_vault_secret_paths")) or set()
                 )
                 vault_values: list[str] = []
                 for rec in records_from_vault:
@@ -1659,7 +1698,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             name_counter = Counter(spec.output_resource_name for spec in specs)
             duplicates = [name for name, count in name_counter.items() if count > 1]
             if duplicates:
-                raise OutputResourceNameNotUniqueException(
+                raise OutputResourceNameNotUniqueError(
                     namespace_info.get("name"), duplicates
                 )
             for spec in specs:
@@ -3694,7 +3733,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 data.aws_elasticsearch_domain(es_identifier, **es_domain)
             )
 
-            release_url = common_values.get("release_url", LOGTOES_RELEASE)
+            release_url = common_values.get("release_url", ROSA_AUTH_LOGTOES_RELEASE)
             zip_file = self.get_logtoes_zip(release_url)
 
             lambda_identifier = f"{identifier}-lambda"
@@ -4004,8 +4043,10 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                 data.aws_elasticsearch_domain(es_identifier, **es_domain)
             )
 
-            release_url = common_values.get("release_url", KINESIS_TO_OS_RELEASE)
-            zip_file = self.get_lambda_zip(release_url)
+            release_url = common_values.get(
+                "release_url", ROSA_AUTH_KINESIS_TO_OS_RELEASE
+            )
+            zip_file = self.get_rosa_auth_kinesis_to_os_zip(release_url)
 
             lambda_identifier = f"{identifier}-lambda"
             lambda_values = {
@@ -4566,7 +4607,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         publishing_options blocks which will be further used
         by the consumer.
         """
-        ES_LOG_GROUP_RETENTION_DAYS = 90
+        es_log_group_retention_days = 90
         tf_resources = []
         publishing_options = []
 
@@ -4590,7 +4631,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             log_group_values = {
                 "name": log_type_identifier,
                 "tags": values["tags"],
-                "retention_in_days": ES_LOG_GROUP_RETENTION_DAYS,
+                "retention_in_days": es_log_group_retention_days,
             }
             region = values.get("region") or self.default_regions.get(account)
             if self._multiregion_account(account):
@@ -5066,12 +5107,12 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
                     + "does not have required key [certificate]"
                 )
 
-            caCertificate = secret_data.get("caCertificate", None)
+            ca_certificate = secret_data.get("caCertificate", None)
+            if ca_certificate is not None:
+                values["certificate_chain"] = ca_certificate
 
             values["private_key"] = key
             values["certificate_body"] = certificate
-            if caCertificate is not None:
-                values["certificate_chain"] = caCertificate
 
         domain = common_values.get("domain", None)
         if domain is not None:
@@ -5115,9 +5156,9 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             output_name = output_prefix + "__certificate"
             output_value = certificate
             tf_resources.append(Output(output_name, value=output_value, sensitive=True))
-            if caCertificate is not None:
+            if ca_certificate is not None:
                 output_name = output_prefix + "__caCertificate"
-                output_value = caCertificate
+                output_value = ca_certificate
                 tf_resources.append(
                     Output(output_name, value=output_value, sensitive=True)
                 )
@@ -5756,7 +5797,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tags.update(json.loads(extra_tags))
         # common_values is untyped, so casting is necessary
         region = cast(
-            str, common_values.get("region") or self.default_regions.get(account)
+            "str", common_values.get("region") or self.default_regions.get(account)
         )
 
         template_values = {
@@ -5772,7 +5813,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         }
 
         # common_values is untyped, so casting is necessary
-        image = cast(list[dict[str, Any]], common_values.get("image"))
+        image = cast("list[dict[str, Any]]", common_values.get("image"))
         image_id = self.get_asg_image_id(filters=image, account=account, region=region)
         if not image_id:
             if self._use_previous_image_id(image):
@@ -5985,16 +6026,14 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
         tf_resources.append(lambda_iam_role_resource)
 
         # Setup + manage Lambda resources
-        # pre-signup lambda
-        release_url = common_values.get(
-            "release_url", ROSA_AUTHENTICATOR_PRE_SIGNUP_RELEASE
-        )
-        zip_file = self.get_rosa_authenticator_zip(release_url)
 
+        # pre-signup lambda
+        release_url = common_values.get("release_url", ROSA_AUTH_PRE_SIGNUP_RELEASE)
+        zip_file = self.get_rosa_auth_pre_signup_zip(release_url)
         cognito_pre_signup_lambda_resource = aws_lambda_function(
             "cognito_pre_signup",
             function_name=f"ocm-{identifier}-cognito-pre-signup",
-            runtime="nodejs14.x",
+            runtime="nodejs18.x",
             role=f"${{{lambda_iam_role_resource.arn}}}",
             handler="index.handler",
             filename=zip_file,
@@ -6002,6 +6041,21 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             tracing_config={"mode": "PassThrough"},
         )
         tf_resources.append(cognito_pre_signup_lambda_resource)
+
+        # pre-token lambda
+        release_url = common_values.get("release_url", ROSA_AUTH_PRE_TOKEN_RELEASE)
+        zip_file = self.get_rosa_auth_pre_token_zip(release_url)
+        cognito_pre_token_lambda_resource = aws_lambda_function(
+            "cognito_pre_token",
+            function_name=f"ocm-{identifier}-cognito-pre-token",
+            runtime="nodejs18.x",
+            role=f"${{{lambda_iam_role_resource.arn}}}",
+            handler="index.handler",
+            filename=zip_file,
+            source_code_hash='${filebase64sha256("' + zip_file + '")}',
+            tracing_config={"mode": "PassThrough"},
+        )
+        tf_resources.append(cognito_pre_token_lambda_resource)
 
         # setup s3_client
         # pattern followed from utils/state.py
@@ -6021,7 +6075,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             try:
                 s3_client.head_bucket(Bucket=bucket_name)
             except ClientError as details:
-                raise StateInaccessibleException(
+                raise StateInaccessibleError(
                     f"Bucket {bucket_name} is not accessible - {details!s}"
                 ) from None
 
@@ -6086,7 +6140,8 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             "pool",
             name=f"ocm-{identifier}-pool",
             lambda_config={
-                "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}"
+                "pre_sign_up": f"${{{cognito_pre_signup_lambda_resource.arn}}}",
+                "pre_token_generation": f"${{{cognito_pre_token_lambda_resource.arn}}}",
             },
             **pool_args,
         )
@@ -6101,6 +6156,16 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             principal="cognito-idp.amazonaws.com",
         )
         tf_resources.append(cognito_pre_signup_lambda_permission_resource)
+
+        # Finish up lambda - pre token
+        cognito_pre_token_lambda_permission_resource = aws_lambda_permission(
+            "cognito_pre_token_permission",
+            action="lambda:InvokeFunction",
+            function_name=cognito_pre_token_lambda_resource.function_name,
+            source_arn=f"${{{cognito_user_pool_resource.arn}}}",
+            principal="cognito-idp.amazonaws.com",
+        )
+        tf_resources.append(cognito_pre_token_lambda_permission_resource)
 
         # POOL DOMAIN
         cognito_user_pool_domain_resource = aws_cognito_user_pool_domain(
@@ -6584,7 +6649,7 @@ class TerrascriptClient:  # pylint: disable=too-many-public-methods
             response_parameters={
                 "method.response.header.Location": f"'{user_pool_url}/oauth2/authorize?client_id="
                 f"${{{cognito_user_pool_client.id}}}\u0026response_type=code"
-                f"\u0026scope=openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/"
+                f"\u0026scope=email+openid+gateway/AccessToken\u0026redirect_uri={bucket_url}/"
                 "token.html'",
             },
             depends_on=["aws_api_gateway_integration.gw_integration_auth"],

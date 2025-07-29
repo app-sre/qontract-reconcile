@@ -21,6 +21,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.oc_map import (
@@ -41,7 +42,7 @@ SITE_CONTROLLER_LABELS = {
 CONFIG_NAME = "skupper-site"
 
 
-class SkupperNetworkExcpetion(Exception):
+class SkupperNetworkError(Exception):
     """Base exception for Skupper Network integration."""
 
 
@@ -55,7 +56,7 @@ def load_site_controller_template(
             resource["content"], undefined=jinja2.StrictUndefined
         ).render(variables)
     except jinja2.exceptions.UndefinedError as e:
-        raise SkupperNetworkExcpetion(
+        raise SkupperNetworkError(
             f"Failed to render template {path}: {e.message}"
         ) from None
     return yaml.safe_load(body)
@@ -113,7 +114,7 @@ def compile_skupper_sites(
         # we don't support skupper installations with just one site
         for site in network_sites:
             if site.is_island(network_sites):
-                raise SkupperNetworkExcpetion(
+                raise SkupperNetworkError(
                     f"{site}: Site is not connected to any other skupper site in the network."
                 )
 
@@ -246,7 +247,7 @@ def get_skupper_networks(query_func: Callable) -> list[SkupperNetworkV1]:
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     defer: Callable | None = None,

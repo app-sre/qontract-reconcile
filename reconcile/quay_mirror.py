@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import sys
@@ -7,8 +9,8 @@ from collections import (
     defaultdict,
     namedtuple,
 )
-from collections.abc import Iterable
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
 )
@@ -32,6 +34,9 @@ from reconcile.utils.instrumented_wrappers import InstrumentedImage as Image
 from reconcile.utils.instrumented_wrappers import InstrumentedSkopeo as Skopeo
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 _LOG = logging.getLogger(__name__)
 
@@ -203,7 +208,7 @@ class QuayMirror:
                     })
         return summary
 
-    def process_sync_tasks(self):
+    def process_sync_tasks(self) -> defaultdict[OrgKey, list[dict[str, str | None]]]:
         if self.is_compare_tags:
             _LOG.warning("Making a compare-tags run. This is a slow operation.")
         summary = self.process_repos_query(
@@ -308,12 +313,12 @@ class QuayMirror:
                         pass
                     finally:
                         self.response_cache_hits.inc(
-                            upstream.response_cache_hits
-                            + downstream.response_cache_hits
+                            (upstream.response_cache_hits or 0)
+                            + (downstream.response_cache_hits or 0)
                         )
                         self.response_cache_misses.inc(
-                            upstream.response_cache_misses
-                            + downstream.response_cache_misses
+                            (upstream.response_cache_misses or 0)
+                            + (downstream.response_cache_misses or 0)
                         )
 
                     _LOG.debug(
@@ -346,7 +351,7 @@ class QuayMirror:
         return self._has_enough_time_passed_since_last_compare_tags
 
     @staticmethod
-    def check_compare_tags_elapsed_time(path, interval) -> bool:
+    def check_compare_tags_elapsed_time(path: str, interval: float) -> bool:
         try:
             with open(path, encoding="locale") as file_obj:
                 last_compare_tags = float(file_obj.read())
@@ -356,12 +361,15 @@ class QuayMirror:
         next_compare_tags = last_compare_tags + interval
         return time.time() >= next_compare_tags
 
-    def _get_push_creds(self):
+    def _get_push_creds(self) -> dict[OrgKey, str]:
         result = self.gqlapi.query(self.QUAY_ORG_CATALOG_QUERY)
 
-        creds = {}
-        for org_data in result["quay_orgs"]:
-            push_secret = org_data["pushCredentials"]
+        creds: dict[OrgKey, str] = {}
+        if not result:
+            return creds
+
+        for org_data in result.get("quay_orgs") or []:
+            push_secret = org_data.get("pushCredentials")
             if push_secret is None:
                 continue
 
@@ -375,13 +383,13 @@ class QuayMirror:
 
 
 def run(
-    dry_run,
+    dry_run: bool,
     control_file_dir: str | None,
     compare_tags: bool | None,
     compare_tags_interval: int,
     repository_urls: Iterable[str] | None,
     exclude_repository_urls: Iterable[str] | None,
-):
+) -> None:
     with QuayMirror(
         dry_run,
         control_file_dir,
@@ -393,7 +401,7 @@ def run(
         quay_mirror.run()
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     with QuayMirror(dry_run=True) as quay_mirror:
         return {
             "repos": quay_mirror.process_repos_query(session=quay_mirror.session),

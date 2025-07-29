@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 
+from __future__ import annotations
+
 import base64
 import json
 import logging
@@ -10,7 +12,6 @@ import sys
 import tempfile
 import textwrap
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Mapping
 from datetime import (
     UTC,
     datetime,
@@ -83,7 +84,6 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.gql_definitions.common.clusters import ClusterSpecROSAV1
-from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
 )
@@ -129,7 +129,6 @@ from reconcile.utils.early_exit_cache import (
     EarlyExitCache,
 )
 from reconcile.utils.environ import environ
-from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -141,9 +140,7 @@ from reconcile.utils.gitlab_api import (
     MRStatus,
 )
 from reconcile.utils.glitchtip.client import GlitchtipClient
-from reconcile.utils.glitchtip.models import Project, ProjectStatistics
 from reconcile.utils.gql import GqlApiSingleton
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.keycloak import (
     KeycloakAPI,
     SSOClient,
@@ -197,9 +194,14 @@ from tools.sre_checkpoints import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping
+
     from mypy_boto3_s3.type_defs import CopySourceTypeDef
-else:
-    CopySourceTypeDef = object
+
+    from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
+    from reconcile.utils.external_resource_spec import ExternalResourceSpec
+    from reconcile.utils.glitchtip.models import Project, ProjectStatistics
+    from reconcile.utils.jjb_client import JJB
 
 
 def output(function: Callable) -> Callable:
@@ -869,6 +871,7 @@ def alert_report(
         "Triggered",
         "Resolved",
         "Median time to resolve (h:mm:ss)",
+        "Response Rate",
     ]
     table_data: list[dict[str, str]] = []
     for alert_name, data in sorted(
@@ -884,6 +887,7 @@ def alert_report(
             "Triggered": str(data.triggered_alerts),
             "Resolved": str(data.resolved_alerts),
             "Median time to resolve (h:mm:ss)": median_elapsed,
+            "Response Rate": f"{data.responsed_alerts / data.triggered_alerts * 100:.2f}%",
         })
 
     # TODO(mafriedm, rporres): Fix this
@@ -1029,6 +1033,9 @@ def clusters_network(ctx: click.Context, name: str) -> None:
                 ocm_map.get(cluster_name),
                 provided_assume_role=None,
             )
+            assert account is not None, (
+                f"Failed to build assume role for cluster {cluster_name} in account {management_account['name']}"
+            )
             account["resourcesDefaultRegion"] = management_account[
                 "resourcesDefaultRegion"
             ]
@@ -1066,14 +1073,14 @@ def network_reservations(ctx: click.Context) -> None:
         return url
 
     for network in get_networks():
-        parentAddress = "none"
+        parent_address = "none"
         if network.parent_network:
-            parentAddress = network.parent_network.network_address
+            parent_address = network.parent_network.network_address
         if network.in_use_by and network.in_use_by.vpc:
             network_table.append({
                 "name": network.name,
                 "network Address": network.network_address,
-                "parent Network": parentAddress,
+                "parent Network": parent_address,
                 "Account Name": network.in_use_by.vpc.account.name,
                 "Account UID": network.in_use_by.vpc.account.uid,
                 "Console Login URL": md_link(network.in_use_by.vpc.account.console_url),
@@ -1082,7 +1089,7 @@ def network_reservations(ctx: click.Context) -> None:
             network_table.append({
                 "name": network.name,
                 "network Address": network.network_address,
-                "parent Network": parentAddress,
+                "parent Network": parent_address,
                 "Account Name": "Unclaimed network",
                 "Account UID": "Unclaimed network",
                 "Console Login URL": "Unclaimed network",
@@ -1484,7 +1491,7 @@ def copy_tfstate(
         session = aws.get_session(account["name"])
         s3_client = aws.get_session_client(session, "s3", region)
         copy_source = cast(
-            CopySourceTypeDef,
+            "CopySourceTypeDef",
             {
                 "Bucket": source_bucket,
                 "Key": source_object_path,
@@ -1580,11 +1587,16 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
             f"--billing-account {billing_account}",
             f"--cluster-name {cluster.name}",
             "--sts",
-            ("--private" if cluster.spec.private else ""),
             ("--hosted-cp" if cluster.spec.hypershift else ""),
+            ("--private" if cluster.spec.private else ""),
             (
                 "--private-link"
                 if cluster.spec.private and not cluster.spec.hypershift
+                else ""
+            ),
+            (
+                "--default-ingress-private"
+                if cluster.spec.private and cluster.spec.hypershift
                 else ""
             ),
             (
@@ -1703,7 +1715,10 @@ def add_resource(item: dict, resource: Mapping, columns: list[str]) -> None:
 @click.pass_context
 def cluster_openshift_resources(ctx: click.Context) -> None:
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     columns = ["name", "total"]
     results: dict = {}
     for ns_info in namespaces:
@@ -1857,8 +1872,8 @@ You can view the source of this Markdown to extract the JSON data.
 @get.command
 @click.pass_context
 def rds_recommendations(ctx: click.Context) -> None:
-    IGNORED_STATUSES = ("resolved",)
-    IGNORED_SEVERITIES = ("informational",)
+    ignored_statuses = ("resolved",)
+    ignored_severities = ("informational",)
 
     settings = queries.get_app_interface_settings()
 
@@ -1900,6 +1915,7 @@ def rds_recommendations(ctx: click.Context) -> None:
     print("[TOC]")
     for account in accounts:
         account_name = account.get("name")
+        assert account_name is not None  # make mypy happy
         account_deployment_regions = account.get("supportedDeploymentRegions")
         for region in account_deployment_regions or []:
             with AWSApi(1, [account], settings=settings, init_users=False) as aws:
@@ -1914,13 +1930,13 @@ def rds_recommendations(ctx: click.Context) -> None:
                 recommendations = [
                     {
                         **rec,
-                        "ResourceName": rec["ResourceArn"].split(":")[-1],
+                        "ResourceName": rec.get("ResourceArn", "").split(":")[-1],
                         # The Description field has \n that are causing issues with the markdown table
-                        "Description": rec["Description"].replace("\n", " "),
+                        "Description": rec.get("Description", "").replace("\n", " "),
                     }
                     for rec in db_recommendations
-                    if rec.get("Status") not in IGNORED_STATUSES
-                    and rec.get("Severity") not in IGNORED_SEVERITIES
+                    if rec.get("Status") not in ignored_statuses
+                    and rec.get("Severity") not in ignored_severities
                 ]
                 # If we have no recommendations to show, skip
                 if not recommendations:
@@ -2678,7 +2694,6 @@ def ec2_jenkins_workers(
     ec2 = boto3.resource("ec2")
     results = []
     now = datetime.now(UTC)
-    DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     columns = [
         "type",
         "id",
@@ -2699,16 +2714,16 @@ def ec2_jenkins_workers(
                 )
                 continue
             instance = ec2.Instance(i["InstanceId"])
-            state = instance.state["Name"]
+            state = instance.state.get("Name")
             if state != "running":
                 continue
             os = ""
             url = ""
             for t in instance.tags:
                 if t.get("Key") == "os":
-                    os = t["Value"]
+                    os = t.get("Value", "")
                 if t.get("Key") == "jenkins_controller":
-                    url = f"https://{t['Value'].replace('-', '.')}.devshift.net/computer/{instance.id}"
+                    url = f"https://{t.get('Value', '').replace('-', '.')}.devshift.net/computer/{instance.id}"
             image = ec2.Image(instance.image_id)
             commit_url = ""
             for t in image.tags:
@@ -2723,7 +2738,7 @@ def ec2_jenkins_workers(
                 "id": f"[{instance.id}]({url})",
                 "IP": instance.private_ip_address,
                 "instance type": instance.instance_type,
-                "launch time (utc)": f"{instance.launch_time.strftime(DATE_FORMAT)} {launch_emoji}",
+                "launch time (utc)": f"{instance.launch_time.strftime('%Y-%m-%d %H:%M:%S')} {launch_emoji}",
                 "OS": os,
                 "AMI": f"[{image.name}]({commit_url})",
             }
@@ -2801,12 +2816,12 @@ def slo_document_services(ctx: click.Context, status_board_instance: str) -> Non
 @click.argument("file_path")
 @click.pass_context
 def alerts(ctx: click.Context, file_path: str) -> None:
-    BIG_NUMBER = 10
+    big_number = 10
 
     def sort_by_threshold(item: dict[str, str]) -> int:
         threshold = item["threshold"]
         if not threshold:
-            return BIG_NUMBER * 60 * 24
+            return big_number * 60 * 24
         value = int(threshold[:-1])
         unit = threshold[-1]
         match unit:
@@ -2817,7 +2832,7 @@ def alerts(ctx: click.Context, file_path: str) -> None:
             case "d":
                 return value * 60 * 24
             case _:
-                return BIG_NUMBER * 60 * 24
+                return big_number * 60 * 24
 
     def sort_by_severity(item: dict[str, str]) -> int:
         match item["severity"].lower():
@@ -2828,7 +2843,7 @@ def alerts(ctx: click.Context, file_path: str) -> None:
             case "info":
                 return 2
             case _:
-                return BIG_NUMBER
+                return big_number
 
     with open(file_path, encoding="locale") as f:
         content = json.loads(f.read())
@@ -3622,7 +3637,10 @@ def template(
     secret_reader: str,
 ) -> None:
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     namespaces_info = [
         n
         for n in namespaces
@@ -3714,7 +3732,7 @@ def run_prometheus_test(
     ptr.run_test(test=test, alerting_services=get_alerting_services())
 
     print(test.result)
-    if not test.result:
+    if test.result is None:
         sys.exit(1)
 
 
@@ -3793,7 +3811,10 @@ def alert_to_receiver(
         additional_labels[key] = value
 
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     cluster_namespaces = [n for n in namespaces if n["cluster"]["name"] == cluster]
 
     if len(cluster_namespaces) == 0:
@@ -4016,15 +4037,16 @@ def query(output: str, query: str) -> None:
 def promquery(cluster: str, query: str) -> None:
     """Run a PromQL query"""
     config_data = config.get_config()
-    auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
+    prom_auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-    prom_auth_creds = secret_reader.read(auth)
-    prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(":"))
+    prom_user, prom_pass = secret_reader.read(prom_auth).split(":")
 
     url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"
 
-    response = requests.get(url, params={"query": query}, auth=prom_auth, timeout=60)
+    response = requests.get(
+        url, params={"query": query}, auth=(prom_user, prom_pass), timeout=60
+    )
     response.raise_for_status()
 
     print(json.dumps(response.json(), indent=4))
@@ -4081,11 +4103,12 @@ def sre_checkpoint_metadata(
         board_info = queries.get_simple_jira_boards(jiradef)
     else:
         board_info = app["escalationPolicy"]["channels"]["jiraBoard"]
-    board_info = board_info[0]
+    assert board_info  # make mypy happy
+    board = board_info[0]
     # Overrides for easier testing
     if jiraboard:
-        board_info["name"] = jiraboard
-    report_invalid_metadata(app, app_path, board_info, settings, parent_ticket, dry_run)
+        board["name"] = jiraboard
+    report_invalid_metadata(app, app_path, board, settings, parent_ticket, dry_run)
 
 
 @root.command()
@@ -4847,4 +4870,4 @@ def top_talkers(ctx: click.Context, top: int) -> None:
 
 
 if __name__ == "__main__":
-    root()  # pylint: disable=no-value-for-parameter
+    root()

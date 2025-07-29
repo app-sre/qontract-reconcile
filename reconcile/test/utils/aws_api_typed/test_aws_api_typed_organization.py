@@ -1,19 +1,19 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.organization import (
-    AWSAccountCreationException,
-    AWSAccountNotFoundException,
+    AWSAccountCreationError,
+    AWSAccountNotFoundError,
     AWSApiOrganizations,
 )
 
 if TYPE_CHECKING:
     from mypy_boto3_organizations import OrganizationsClient
-else:
-    OrganizationsClient = object
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture
@@ -102,7 +102,7 @@ def test_aws_api_typed_organizations_get_ou_not_found(
     aws_api_organizations: AWSApiOrganizations, organization_client: MagicMock
 ) -> None:
     organization_client.list_parents.return_value = {"Parents": []}
-    with pytest.raises(AWSAccountNotFoundException):
+    with pytest.raises(AWSAccountNotFoundError):
         aws_api_organizations.get_ou("account_id")
 
 
@@ -178,7 +178,7 @@ def test_aws_api_typed_organizations_create_account_error(
             "FailureReason": "ACCOUNT_LIMIT_EXCEEDED",
         }
     }
-    with pytest.raises(AWSAccountCreationException):
+    with pytest.raises(AWSAccountCreationError):
         aws_api_organizations.create_account("email", "account_name", True)
     organization_client.create_account.assert_called_once_with(
         Email="email",

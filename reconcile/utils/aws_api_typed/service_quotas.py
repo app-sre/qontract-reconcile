@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
@@ -6,7 +8,8 @@ if TYPE_CHECKING:
     from mypy_boto3_service_quotas import ServiceQuotasClient
     from mypy_boto3_service_quotas.literals import RequestStatusType
 else:
-    ServiceQuotasClient = RequestStatusType = object
+    # pydantic needs these types to be defined during runtime
+    RequestStatusType = str
 
 
 class AWSRequestedServiceQuotaChange(BaseModel):
@@ -31,11 +34,11 @@ class AWSQuota(BaseModel):
         return str(self)
 
 
-class AWSNoSuchResourceException(Exception):
+class AWSNoSuchResourceError(Exception):
     """Raised when a resource is not found in a service quotas API call."""
 
 
-class AWSResourceAlreadyExistsException(Exception):
+class AWSResourceAlreadyExistsError(Exception):
     """Raised when quota increase request already exists."""
 
 
@@ -62,7 +65,7 @@ class AWSApiServiceQuotas:
             )
             return AWSRequestedServiceQuotaChange(**req["RequestedQuota"])
         except self.client.exceptions.ResourceAlreadyExistsException:
-            raise AWSResourceAlreadyExistsException(
+            raise AWSResourceAlreadyExistsError(
                 f"Service quota increase request {service_code=}, {quota_code=} already exists."
             ) from None
 
@@ -74,6 +77,6 @@ class AWSApiServiceQuotas:
             )
             return AWSQuota(**quota["Quota"])
         except self.client.exceptions.NoSuchResourceException:
-            raise AWSNoSuchResourceException(
+            raise AWSNoSuchResourceError(
                 f"Service quota {service_code=}, {quota_code=} not found."
             ) from None

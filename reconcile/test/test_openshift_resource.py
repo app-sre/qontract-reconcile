@@ -17,7 +17,7 @@ TEST_INT = "test_openshift_resources"
 TEST_INT_VER = make_semver(1, 9, 2)
 
 
-def build_resource(kind: str, api_version: str, name: str):
+def build_resource(kind: str, api_version: str, name: str) -> OR:
     body = {
         "kind": kind,
         "apiVersion": api_version,
@@ -31,7 +31,7 @@ def build_resource(kind: str, api_version: str, name: str):
 #
 # OpenshiftResource tests
 #
-def test_obj_intersect_equal_status_depth_0_current():
+def test_obj_intersect_equal_status_depth_0_current() -> None:
     desired = {
         "kind": "kind",
         "metadata": {
@@ -51,7 +51,7 @@ def test_obj_intersect_equal_status_depth_0_current():
     assert d_item == c_item
 
 
-def test_obj_intersect_equal_status_depth_0_desired():
+def test_obj_intersect_equal_status_depth_0_desired() -> None:
     desired = {
         "kind": "kind",
         "metadata": {
@@ -72,7 +72,7 @@ def test_obj_intersect_equal_status_depth_0_desired():
     assert d_item == c_item
 
 
-def test_obj_intersect_equal_status_depth_not_0():
+def test_obj_intersect_equal_status_depth_not_0() -> None:
     desired = {
         "kind": "kind",
         "metadata": {
@@ -94,14 +94,14 @@ def test_obj_intersect_equal_status_depth_not_0():
     assert d_item != c_item
 
 
-def test_verify_valid_k8s_object():
+def test_verify_valid_k8s_object() -> None:
     resource = fxt.get_anymarkup("valid_resource.yml")
     openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
 
     assert openshift_resource.verify_valid_k8s_object() is None
 
 
-def test_verify_valid_k8s_object_false():
+def test_verify_valid_k8s_object_false() -> None:
     resource = fxt.get_anymarkup("invalid_resource.yml")
 
     with pytest.raises(ConstructResourceError):
@@ -109,7 +109,7 @@ def test_verify_valid_k8s_object_false():
         assert openshift_resource.verify_valid_k8s_object() is None
 
 
-def test_invalid_name_format():
+def test_invalid_name_format() -> None:
     resource = fxt.get_anymarkup("invalid_resource_name_format.yml")
 
     with pytest.raises(ConstructResourceError):
@@ -117,7 +117,7 @@ def test_invalid_name_format():
         assert openshift_resource.verify_valid_k8s_object() is None
 
 
-def test_invalid_name_too_long():
+def test_invalid_name_too_long() -> None:
     resource = fxt.get_anymarkup("invalid_resource_name_too_long.yml")
 
     with pytest.raises(ConstructResourceError):
@@ -125,7 +125,7 @@ def test_invalid_name_too_long():
         assert openshift_resource.verify_valid_k8s_object() is None
 
 
-def test_invalid_container_name_format():
+def test_invalid_container_name_format() -> None:
     resource = fxt.get_anymarkup("invalid_resource_container_name_format.yml")
 
     with pytest.raises(ConstructResourceError):
@@ -133,7 +133,7 @@ def test_invalid_container_name_format():
         assert openshift_resource.verify_valid_k8s_object() is None
 
 
-def test_invalid_container_name_too_long():
+def test_invalid_container_name_too_long() -> None:
     resource = fxt.get_anymarkup("invalid_resource_container_name_too_long.yml")
 
     with pytest.raises(ConstructResourceError):
@@ -141,7 +141,7 @@ def test_invalid_container_name_too_long():
         assert openshift_resource.verify_valid_k8s_object() is None
 
 
-def test_annotates_resource():
+def test_annotates_resource() -> None:
     resource = fxt.get_anymarkup("annotates_resource.yml")
     openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
 
@@ -151,7 +151,7 @@ def test_annotates_resource():
     assert annotated.has_qontract_annotations() is True
 
 
-def test_sha256sum_properly_ignores_some_params():
+def test_sha256sum_properly_ignores_some_params() -> None:
     resources = fxt.get_anymarkup("ignores_params.yml")
 
     assert (
@@ -160,7 +160,7 @@ def test_sha256sum_properly_ignores_some_params():
     )
 
 
-def test_sha256sum():
+def test_sha256sum() -> None:
     resource = fxt.get_anymarkup("sha256sum.yml")
 
     openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
@@ -189,7 +189,7 @@ def test_sha256sum():
     assert not annotated.has_valid_sha256sum()
 
 
-def test_has_owner_reference_true():
+def test_has_owner_reference_true() -> None:
     resource = {
         "kind": "kind",
         "metadata": {"name": "resource", "ownerReferences": [{"name": "owner"}]},
@@ -198,13 +198,13 @@ def test_has_owner_reference_true():
     assert openshift_resource.has_owner_reference()
 
 
-def test_has_owner_reference_false():
+def test_has_owner_reference_false() -> None:
     resource = {"kind": "kind", "metadata": {"name": "resource"}}
     openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
     assert not openshift_resource.has_owner_reference()
 
 
-def test_secret_string_data():
+def test_secret_string_data() -> None:
     resource = {
         "kind": "Secret",
         "metadata": {"name": "resource"},
@@ -219,7 +219,7 @@ def test_secret_string_data():
     assert result == expected
 
 
-def test_managed_cluster_label_ignore():
+def test_managed_cluster_label_ignore() -> None:
     desired = {
         "apiVersion": "cluster.open-cluster-management.io/v1",
         "kind": "ManagedCluster",
@@ -259,7 +259,7 @@ def test_managed_cluster_label_ignore():
     assert d_r.sha256sum() == c_r.sha256sum()
 
 
-def test_build_secret():
+def test_build_secret() -> None:
     value = "value"
     encoded_value = "dmFsdWU="
     res = build_secret(
@@ -284,12 +284,12 @@ def test_build_secret():
     assert not res.body["data"]["empty"]
 
 
-def test_openshift_resource_kind_and_group():
+def test_openshift_resource_kind_and_group() -> None:
     res = build_resource("Deployment", "apps/v1", "foo")
     assert res.kind_and_group == "Deployment.apps"
 
 
-def test_openshift_resource_kind_no_group():
+def test_openshift_resource_kind_no_group() -> None:
     res = build_resource("Pod", "v1", "foo")
     assert res.kind_and_group == "Pod"
 
@@ -299,7 +299,7 @@ def test_openshift_resource_kind_no_group():
 #
 
 
-def test_resource_inventory_add_desired():
+def test_resource_inventory_add_desired() -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type(
         cluster="cl", namespace="ns", resource_type="Deployment"
@@ -315,7 +315,7 @@ def test_resource_inventory_add_desired():
         assert not resource["use_admin_token"]["name"]
 
 
-def test_resource_inventory_add_desired_without_registration():
+def test_resource_inventory_add_desired_without_registration() -> None:
     """
     test that adding a desired state fails if the type has not been
     registered upfront
@@ -330,7 +330,7 @@ def test_resource_inventory_add_desired_without_registration():
         ri.add_desired_resource("cl", "ns", res)
 
 
-def test_resource_inventory_add_desired_with_managed_name():
+def test_resource_inventory_add_desired_with_managed_name() -> None:
     """
     test that adding a desired state succeeds if it's name is registered
     as being managed
@@ -344,7 +344,7 @@ def test_resource_inventory_add_desired_with_managed_name():
     ri.add_desired_resource("cl", "ns", res)
 
 
-def test_resource_inventory_add_desired_without_managed_name():
+def test_resource_inventory_add_desired_without_managed_name() -> None:
     """
     test that adding a desired state fails if it's name is not registered
     as being managed
@@ -359,7 +359,7 @@ def test_resource_inventory_add_desired_without_managed_name():
         ri.add_desired_resource("cl", "ns", res)
 
 
-def test_resource_inventory_add_desired_privileged():
+def test_resource_inventory_add_desired_privileged() -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type(
         cluster="cl",
@@ -377,7 +377,7 @@ def test_resource_inventory_add_desired_privileged():
         assert resource["use_admin_token"]["name"]
 
 
-def test_resource_inventory_add_desired_resource_short_kind():
+def test_resource_inventory_add_desired_resource_short_kind() -> None:
     """
     test that add_desired_resource uses the short kind name if the short
     name has been registered for the namespace
@@ -398,7 +398,7 @@ def test_resource_inventory_add_desired_resource_short_kind():
     assert resource["desired"].get("foo")
 
 
-def test_resource_inventory_add_desired_resource_long_kind():
+def test_resource_inventory_add_desired_resource_long_kind() -> None:
     """
     test that add_desired_resource uses the long kind name if the long
     name has been registered for the namespace
@@ -419,7 +419,7 @@ def test_resource_inventory_add_desired_resource_long_kind():
     assert resource["desired"].get("foo")
 
 
-def test_resource_inventory_add_desired_resource_mixed_kinds():
+def test_resource_inventory_add_desired_resource_mixed_kinds() -> None:
     """
     test that add_desired_resource prefers the long kind name if both the long
     and short kind have been registered with the namespace
@@ -437,7 +437,7 @@ def test_resource_inventory_add_desired_resource_mixed_kinds():
     assert len(list(ri)) == 2
 
     for _, _, resource_type, resource in ri:
-        if resource_type == "Deployments.app":
+        if resource_type == "Deployment.apps":
             assert resource["desired"].get("foo")
         elif resource_type == "Deployment":
             assert len(resource["desired"]) == 0

@@ -688,26 +688,6 @@ def test_policy_handler_create_cluster_upgrade(
     )
 
 
-def test_policy_handler_delete_cluster_upgrade(
-    cluster_upgrade_policy: ClusterUpgradePolicy,
-    ocm_api: OCMBaseClient,
-    mocker: MockerFixture,
-) -> None:
-    delete_upgrade_policy_mock = mocker.patch.object(
-        base, "delete_upgrade_policy", autospec=True
-    )
-    handler = base.UpgradePolicyHandler(
-        policy=cluster_upgrade_policy,
-        action="delete",
-    )
-    base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
-    delete_upgrade_policy_mock.assert_called_once_with(
-        ocm_api,
-        cluster_upgrade_policy.cluster.id,
-        cluster_upgrade_policy.id,
-    )
-
-
 def test_policy_handler_create_control_plane_upgrade(
     control_plane_upgrade_policy: ControlPlaneUpgradePolicy,
     ocm_api: OCMBaseClient,
@@ -731,26 +711,6 @@ def test_policy_handler_create_control_plane_upgrade(
             "cluster_id": control_plane_upgrade_policy.cluster.id,
             "upgrade_type": "ControlPlane",
         },
-    )
-
-
-def test_policy_handler_delete_control_plane_upgrade(
-    control_plane_upgrade_policy: ControlPlaneUpgradePolicy,
-    ocm_api: OCMBaseClient,
-    mocker: MockerFixture,
-) -> None:
-    delete_control_plane_upgrade_policy_mock = mocker.patch.object(
-        base, "delete_control_plane_upgrade_policy", autospec=True
-    )
-    handler = base.UpgradePolicyHandler(
-        policy=control_plane_upgrade_policy,
-        action="delete",
-    )
-    base.act(dry_run=False, diffs=[handler], ocm_api=ocm_api)
-    delete_control_plane_upgrade_policy_mock.assert_called_once_with(
-        ocm_api,
-        control_plane_upgrade_policy.cluster.id,
-        control_plane_upgrade_policy.id,
     )
 
 
@@ -918,18 +878,18 @@ def orgs_query_func() -> Callable:
         return {
             "organizations": [
                 build_organization(
-                    org_id="org1", env_name="env1", addonManagedUpgrades=False
+                    org_id="org1", env_name="env1", addon_managed_upgrades=False
                 ).dict(by_alias=True),
                 build_organization(
-                    org_id="org2", env_name="env1", addonManagedUpgrades=True
+                    org_id="org2", env_name="env1", addon_managed_upgrades=True
                 ).dict(by_alias=True),
                 build_organization(
-                    org_id="org3", env_name="env2", addonManagedUpgrades=False
+                    org_id="org3", env_name="env2", addon_managed_upgrades=False
                 ).dict(by_alias=True),
                 build_organization(
                     org_id="org4",
                     env_name="env2",
-                    addonManagedUpgrades=False,
+                    addon_managed_upgrades=False,
                     disabled_integrations=["integration"],
                 ).dict(by_alias=True),
             ]

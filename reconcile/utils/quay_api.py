@@ -1,24 +1,32 @@
+from typing import Any
+
 import requests
 
 
-class QuayTeamNotFoundException(Exception):
+class QuayTeamNotFoundError(Exception):
     pass
 
 
 class QuayApi:
     LIMIT_FOLLOWS = 15
 
-    def __init__(self, token, organization, base_url="quay.io", timeout=60):
+    def __init__(
+        self,
+        token: str,
+        organization: str,
+        base_url: str = "quay.io",
+        timeout: int = 60,
+    ) -> None:
         self.token = token
         self.organization = organization
         self.auth_header = {"Authorization": "Bearer %s" % (token,)}
-        self.team_members = {}
+        self.team_members: dict[str, Any] = {}
         self.api_url = f"https://{base_url}/api/v1"
 
         self._timeout = timeout
         """Timeout to use for HTTP calls to Quay (seconds)."""
 
-    def list_team_members(self, team, **kwargs):
+    def list_team_members(self, team: str, **kwargs: Any) -> list[dict]:
         """
         List Quay team members.
 
@@ -34,7 +42,7 @@ class QuayApi:
 
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         if r.status_code == 404:
-            raise QuayTeamNotFoundException(
+            raise QuayTeamNotFoundError(
                 f"team {team} is not found in "
                 f"org {self.organization}. "
                 f"contact org owner to create the "
@@ -52,12 +60,12 @@ class QuayApi:
 
         return members_list
 
-    def user_exists(self, user):
+    def user_exists(self, user: str) -> bool:
         url = f"{self.api_url}/users/{user}"
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         return r.ok
 
-    def remove_user_from_team(self, user, team):
+    def remove_user_from_team(self, user: str, team: str) -> bool:
         """Deletes an user from a team.
 
         :raises HTTPError if there are any problems with the request
@@ -80,7 +88,7 @@ class QuayApi:
 
         return True
 
-    def add_user_to_team(self, user, team):
+    def add_user_to_team(self, user: str, team: str) -> bool:
         """Adds an user to a team.
 
         :raises HTTPError if there are any errors with the request
@@ -93,7 +101,9 @@ class QuayApi:
         r.raise_for_status()
         return True
 
-    def create_or_update_team(self, team: str, role="member", description=None) -> None:
+    def create_or_update_team(
+        self, team: str, role: str = "member", description: str | None = None
+    ) -> None:
         """
         Create or update an Organization team.
 
@@ -117,7 +127,9 @@ class QuayApi:
         )
         r.raise_for_status()
 
-    def list_images(self, images=None, page=None, count=0):
+    def list_images(
+        self, images: list | None = None, page: str | None = None, count: int = 0
+    ) -> list[dict[str, Any]]:
         """
         https://docs.quay.io/api/swagger/#!/repository/listRepos
 
@@ -156,7 +168,7 @@ class QuayApi:
             return self.list_images(images, next_page, count + 1)
         return images
 
-    def repo_create(self, repo_name, description, public):
+    def repo_create(self, repo_name: str, description: str, public: str) -> None:
         """Creates a repository called repo_name with the given description
         and public flag.
 
@@ -180,14 +192,14 @@ class QuayApi:
         )
         r.raise_for_status()
 
-    def repo_delete(self, repo_name):
+    def repo_delete(self, repo_name: str) -> None:
         url = f"{self.api_url}/repository/{self.organization}/{repo_name}"
 
         # perform request
         r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
 
-    def repo_update_description(self, repo_name, description):
+    def repo_update_description(self, repo_name: str, description: str) -> None:
         url = f"{self.api_url}/repository/{self.organization}/{repo_name}"
 
         params = {"description": description}
@@ -198,13 +210,13 @@ class QuayApi:
         )
         r.raise_for_status()
 
-    def repo_make_public(self, repo_name):
+    def repo_make_public(self, repo_name: str) -> None:
         self._repo_change_visibility(repo_name, "public")
 
-    def repo_make_private(self, repo_name):
+    def repo_make_private(self, repo_name: str) -> None:
         self._repo_change_visibility(repo_name, "private")
 
-    def _repo_change_visibility(self, repo_name, visibility):
+    def _repo_change_visibility(self, repo_name: str, visibility: str) -> None:
         url = f"{self.api_url}/repository/{self.organization}/{repo_name}/changevisibility"
 
         params = {"visibility": visibility}
@@ -215,7 +227,7 @@ class QuayApi:
         )
         r.raise_for_status()
 
-    def get_repo_team_permissions(self, repo_name, team):
+    def get_repo_team_permissions(self, repo_name: str, team: str) -> str | None:
         url = (
             f"{self.api_url}/repository/{self.organization}/"
             + f"{repo_name}/permissions/team/{team}"
@@ -231,7 +243,7 @@ class QuayApi:
 
         return r.json().get("role") or None
 
-    def set_repo_team_permissions(self, repo_name, team, role):
+    def set_repo_team_permissions(self, repo_name: str, team: str, role: str) -> None:
         url = (
             f"{self.api_url}/repository/{self.organization}/"
             + f"{repo_name}/permissions/team/{team}"

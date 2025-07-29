@@ -22,6 +22,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.rhcs_provider_settings import get_rhcs_provider_settings
 from reconcile.utils import gql, metrics
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.metrics import GaugeMetric, normalize_integration_name
@@ -35,7 +36,7 @@ from reconcile.utils.rhcsv2_certs import RhcsV2Cert, generate_cert
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.vault import SecretNotFound, VaultClient
+from reconcile.utils.vault import SecretNotFoundError, VaultClient
 
 QONTRACT_INTEGRATION = "openshift-rhcs-certs"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
@@ -124,7 +125,7 @@ def get_vault_cert_secret(
         vault_cert_secret = vault.read_all({  # type: ignore[attr-defined]
             "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         })
-    except SecretNotFound:
+    except SecretNotFoundError:
         logging.info(
             f"No existing cert found for cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}''"
         )
@@ -243,7 +244,7 @@ def fetch_desired_state(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     cluster_name: Iterable[str] | None = None,

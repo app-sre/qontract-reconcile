@@ -25,10 +25,10 @@ class StateNotFoundError(Exception):
 
 
 class ReconcileStatus(StrEnum):
-    SUCCESS: str = "SUCCESS"
-    ERROR: str = "ERROR"
-    IN_PROGRESS: str = "IN_PROGRESS"
-    NOT_EXISTS: str = "NOT_EXISTS"
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+    IN_PROGRESS = "IN_PROGRESS"
+    NOT_EXISTS = "NOT_EXISTS"
 
 
 class ExternalResourceState(BaseModel):

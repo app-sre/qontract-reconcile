@@ -1,15 +1,19 @@
+# ruff: noqa: N801
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence, Set
 from typing import (
+    TYPE_CHECKING,
     Any,
     Protocol,
     runtime_checkable,
 )
 
-from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 from reconcile.utils import oc_connection_parameters
-from reconcile.utils.secret_reader import HasSecret
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
+    from reconcile.utils.secret_reader import HasSecret
 
 
 @runtime_checkable

@@ -62,10 +62,7 @@ def discover_clusters_by_labels(
 
     sub_id_filter = Filter().is_in("id", subscription_labels.keys())
     org_id_filter = Filter().is_in("organization_id", organization_labels.keys())
-    subscription_filter = (
-        sub_id_filter | org_id_filter  # pylint: disable=unsupported-binary-operation
-    )
-    # the pylint ignore above is because of a bug in pylint - https://github.com/PyCQA/pylint/issues/7381
+    subscription_filter = sub_id_filter | org_id_filter
 
     clusters = list(
         get_cluster_details_for_subscriptions(

@@ -30,11 +30,11 @@ class MyRole(BaseModel):
         (NEXT_WEEK.strftime(expiration.DATE_FORMAT), False),
     ],
 )
-def test_date_expired(in_date: str, expired: bool):
+def test_date_expired(in_date: str, expired: bool) -> None:
     assert expiration.date_expired(in_date) == expired
 
 
-def test_date_expired_invalid_format():
+def test_date_expired_invalid_format() -> None:
     with pytest.raises(ValueError):
         expiration.date_expired("garbage")
 
@@ -90,7 +90,7 @@ def test_date_expired_invalid_format():
         ),
     ],
 )
-def test_filter(roles, expected):
+def test_filter(roles: list[dict[str, str]], expected: list[MyRole]) -> None:
     assert expiration.filter(roles) == expected
 
 
@@ -103,6 +103,6 @@ def test_filter(roles, expected):
         [MyRole(expiration_date="garbage")],
     ],
 )
-def test_filter_invalid_format(roles):
+def test_filter_invalid_format(roles: list[dict[str, str]]) -> None:
     with pytest.raises(ValueError):
         expiration.filter(roles)

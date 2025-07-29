@@ -11,7 +11,7 @@ from reconcile.utils.jobcontroller.models import JobConcurrencyPolicy, JobStatus
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.rosa.rosa_cli import (
     LogHandle,
-    RosaCliException,
+    RosaCliError,
     RosaCliResult,
     RosaJob,
 )
@@ -106,7 +106,7 @@ class RosaSession:
         log_dir = tempfile.mkdtemp()
         log_file_name = self.job_controller.store_job_logs(job.name(), log_dir)
         if status != JobStatus.SUCCESS:
-            raise RosaCliException(status, cmd, LogHandle(log_file_name))
+            raise RosaCliError(status, cmd, LogHandle(log_file_name))
         return RosaCliResult(status, cmd, LogHandle(log_file_name))
 
     def create_hcp_cluster(

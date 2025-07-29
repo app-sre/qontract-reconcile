@@ -1,13 +1,15 @@
 import logging
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from gitlab.exceptions import GitlabGetError
-from gitlab.v4.objects import ProjectMergeRequest
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
 from reconcile.utils.vcs import VCS
+
+if TYPE_CHECKING:
+    from gitlab.v4.objects import ProjectMergeRequest
 
 AWS_MGR = "aws-account-manager"
 
@@ -66,7 +68,7 @@ class MergeRequestManager:
         return any(
             aws_account_file_path == diff["new_path"]
             for mr in self._open_mrs
-            for diff in cast(dict, mr.changes())["changes"]
+            for diff in cast("dict", mr.changes())["changes"]
         )
 
     def fetch_open_merge_requests(self) -> None:

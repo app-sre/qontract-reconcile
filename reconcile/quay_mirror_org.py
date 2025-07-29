@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import logging
 import os
 import tempfile
 from collections import defaultdict
-from collections.abc import Iterable
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import requests
 from sretoolbox.container import (
@@ -19,6 +20,11 @@ from sretoolbox.container.skopeo import SkopeoCmdError
 from reconcile.quay_base import get_quay_api_store
 from reconcile.quay_mirror import QuayMirror
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from reconcile.quay_base import OrgKey
 
 _LOG = logging.getLogger(__name__)
 
@@ -66,7 +72,7 @@ class QuayMirrorOrg:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.session.close()
 
-    def run(self):
+    def run(self) -> None:
         sync_tasks = self.process_sync_tasks()
         for org, data in sync_tasks.items():
             for item in data:
@@ -83,19 +89,11 @@ class QuayMirrorOrg:
         if self.is_compare_tags and not self.dry_run:
             record_timestamp(self.control_file_path)
 
-    def process_org_mirrors(self, summary):
-        """adds new keys to the summary dict with information about mirrored
-        orgs
-
-        It collects the list of repositories in the upstream org from an API
+    def process_org_mirrors(self) -> dict[OrgKey, list[dict[str, Any]]]:
+        """It collects the list of repositories in the upstream org from an API
         call and not from App-Interface.
-
-        :param summary: summary
-        :type summary: dict
-        :return: summary
-        :rtype: dict
         """
-
+        summary = defaultdict(list)
         for org_key, org_info in self.quay_api_store.items():
             if not org_info.get("mirror"):
                 continue
@@ -105,11 +103,16 @@ class QuayMirrorOrg:
 
             quay_api = org_info["api"]
             upstream_org_key = org_info["mirror"]
+            assert upstream_org_key is not None
             upstream_org = self.quay_api_store[upstream_org_key]
             upstream_quay_api = upstream_org["api"]
 
-            username = upstream_org["push_token"]["user"]
-            token = upstream_org["push_token"]["token"]
+            push_token = upstream_org["push_token"]
+
+            assert push_token is not None
+
+            username = push_token["user"]
+            token = push_token["token"]
 
             org_repos = [item["name"] for item in quay_api.list_images()]
             for repo in upstream_quay_api.list_images():
@@ -128,7 +131,7 @@ class QuayMirrorOrg:
                         "username": username,
                         "token": token,
                     },
-                    "mirror_filters": org_info.get("mirror_filters").get(
+                    "mirror_filters": org_info.get("mirror_filters", {}).get(
                         repo["name"], {}
                     ),
                 }
@@ -136,9 +139,8 @@ class QuayMirrorOrg:
 
         return summary
 
-    def process_sync_tasks(self):
-        summary = defaultdict(list)
-        self.process_org_mirrors(summary)
+    def process_sync_tasks(self) -> dict[OrgKey, list[dict[str, Any]]]:
+        summary = self.process_org_mirrors()
 
         sync_tasks = defaultdict(list)
         for org_key, data in summary.items():
@@ -146,8 +148,11 @@ class QuayMirrorOrg:
             org_name = org_key.org_name
 
             server_url = org["url"]
-            username = org["push_token"]["user"]
-            password = org["push_token"]["token"]
+            push_token = org["push_token"]
+            assert push_token is not None
+
+            username = push_token["user"]
+            password = push_token["token"]
 
             for item in data:
                 image = Image(
@@ -274,7 +279,7 @@ class QuayMirrorOrg:
 
         return self._has_enough_time_passed_since_last_compare_tags
 
-    def get_push_creds(self, org_key):
+    def get_push_creds(self, org_key: OrgKey) -> str:
         """returns username and password for the given org
 
         :param org_key: org_key
@@ -284,19 +289,21 @@ class QuayMirrorOrg:
         """
 
         push_token = self.quay_api_store[org_key]["push_token"]
+        assert push_token is not None
+
         username = push_token["user"]
         password = push_token["token"]
         return f"{username}:{password}"
 
 
 def run(
-    dry_run,
+    dry_run: bool,
     control_file_dir: str | None,
     compare_tags: bool | None,
     compare_tags_interval: int,
     orgs: Iterable[str] | None,
     repositories: Iterable[str] | None,
-):
+) -> None:
     with QuayMirrorOrg(
         dry_run,
         control_file_dir,

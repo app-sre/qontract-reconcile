@@ -5,6 +5,7 @@ from unittest.mock import (
 )
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile import terraform_cloudflare_users
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -36,7 +37,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture
-def query_data_with_one_role_one_user():
+def query_data_with_one_role_one_user() -> CloudflareAccountRoleQueryData:
     return CloudflareAccountRoleQueryData(
         cloudflare_account_roles=[
             CloudflareAccountRoleV1(
@@ -86,7 +87,7 @@ def query_data_with_one_role_one_user():
 
 
 @pytest.fixture
-def query_data_with_one_role_two_users():
+def query_data_with_one_role_two_users() -> CloudflareAccountRoleQueryData:
     return CloudflareAccountRoleQueryData(
         cloudflare_account_roles=[
             CloudflareAccountRoleV1(
@@ -139,7 +140,9 @@ def query_data_with_one_role_two_users():
 
 
 @pytest.fixture
-def query_data_with_two_roles_from_same_account_one_user():
+def query_data_with_two_roles_from_same_account_one_user() -> (
+    CloudflareAccountRoleQueryData
+):
     return CloudflareAccountRoleQueryData(
         cloudflare_account_roles=[
             CloudflareAccountRoleV1(
@@ -231,7 +234,9 @@ def query_data_with_two_roles_from_same_account_one_user():
 
 
 @pytest.fixture
-def query_data_with_two_roles_from_different_account_one_user():
+def query_data_with_two_roles_from_different_account_one_user() -> (
+    CloudflareAccountRoleQueryData
+):
     return CloudflareAccountRoleQueryData(
         cloudflare_account_roles=[
             CloudflareAccountRoleV1(
@@ -323,7 +328,9 @@ def query_data_with_two_roles_from_different_account_one_user():
 
 
 @pytest.fixture
-def query_data_with_two_roles_from_different_account_two_users():
+def query_data_with_two_roles_from_different_account_two_users() -> (
+    CloudflareAccountRoleQueryData
+):
     return CloudflareAccountRoleQueryData(
         cloudflare_account_roles=[
             CloudflareAccountRoleV1(
@@ -415,7 +422,9 @@ def query_data_with_two_roles_from_different_account_two_users():
 
 
 @pytest.fixture
-def app_interface_settings_cloudflare_and_vault():
+def app_interface_settings_cloudflare_and_vault() -> (
+    AppInterfaceSettingCloudflareAndVaultQueryData
+):
     return AppInterfaceSettingCloudflareAndVaultQueryData(
         settings=[
             AppInterfaceSettingsV1(
@@ -425,7 +434,7 @@ def app_interface_settings_cloudflare_and_vault():
     )
 
 
-def secret_reader_side_effect(*args):
+def secret_reader_side_effect(*args: Any) -> dict[str, str] | None:
     if args[0] == {
         "path": "some-path",
         "field": "some-field",
@@ -448,9 +457,11 @@ def secret_reader_side_effect(*args):
         cf_acct_creds["account_id"] = "account_id"
         return cf_acct_creds
 
+    return None
+
 
 @pytest.fixture
-def secret_reader(mocker):
+def secret_reader(mocker: MockerFixture) -> MockerFixture:
     secret_reader = mocker.Mock(spec=SecretReaderBase)
     secret_reader.read_all_secret.side_effect = secret_reader_side_effect
 
@@ -463,11 +474,11 @@ def secret_reader(mocker):
 
 
 def test_terraform_cloudflare_users(
-    mocker,
-    secret_reader,
-    query_data_with_one_role_one_user,
-    app_interface_settings_cloudflare_and_vault,
-):
+    mocker: MockerFixture,
+    secret_reader: MockerFixture,
+    query_data_with_one_role_one_user: CloudflareAccountRoleQueryData,
+    app_interface_settings_cloudflare_and_vault: AppInterfaceSettingCloudflareAndVaultQueryData,
+) -> None:
     # Used to mock out file system dependency within TerrascriptCloudflareClient
     mock_builtins_open = mock_open()
     mocker.patch("builtins.open", mock_builtins_open)
@@ -551,8 +562,8 @@ def test_terraform_cloudflare_users(
 
 
 def test_get_cloudflare_users_without_email_domain_allow_list(
-    query_data_with_one_role_one_user,
-):
+    query_data_with_one_role_one_user: CloudflareAccountRoleQueryData,
+) -> None:
     actual_users = get_cloudflare_users(
         query_data_with_one_role_one_user.cloudflare_account_roles, None, None
     )
@@ -560,7 +571,9 @@ def test_get_cloudflare_users_without_email_domain_allow_list(
     assert actual_users == expected_users
 
 
-def test_get_cloudflare_users_with_one_role_one_user(query_data_with_one_role_one_user):
+def test_get_cloudflare_users_with_one_role_one_user(
+    query_data_with_one_role_one_user: CloudflareAccountRoleQueryData,
+) -> None:
     actual_users = get_cloudflare_users(
         query_data_with_one_role_one_user.cloudflare_account_roles,
         None,
@@ -580,8 +593,8 @@ def test_get_cloudflare_users_with_one_role_one_user(query_data_with_one_role_on
 
 
 def test_get_cloudflare_users_with_one_role_two_users(
-    query_data_with_one_role_two_users,
-):
+    query_data_with_one_role_two_users: CloudflareAccountRoleQueryData,
+) -> None:
     actual_users = get_cloudflare_users(
         query_data_with_one_role_two_users.cloudflare_account_roles,
         None,
@@ -607,8 +620,8 @@ def test_get_cloudflare_users_with_one_role_two_users(
 
 
 def test_get_cloudflare_users_with_two_roles_from_same_account_one_user(
-    query_data_with_two_roles_from_same_account_one_user,
-):
+    query_data_with_two_roles_from_same_account_one_user: CloudflareAccountRoleQueryData,
+) -> None:
     actual_users = get_cloudflare_users(
         query_data_with_two_roles_from_same_account_one_user.cloudflare_account_roles,
         None,
@@ -629,8 +642,8 @@ def test_get_cloudflare_users_with_two_roles_from_same_account_one_user(
 
 
 def test_get_cloudflare_users_with_two_roles_from_different_account_one_user(
-    query_data_with_two_roles_from_different_account_one_user,
-):
+    query_data_with_two_roles_from_different_account_one_user: CloudflareAccountRoleQueryData,
+) -> None:
     actual_users = get_cloudflare_users(
         query_data_with_two_roles_from_different_account_one_user.cloudflare_account_roles,
         None,
@@ -660,8 +673,8 @@ def test_get_cloudflare_users_with_two_roles_from_different_account_one_user(
 
 
 def test_external_spec_with_two_roles_from_different_account_one_user(
-    query_data_with_two_roles_from_different_account_two_users,
-):
+    query_data_with_two_roles_from_different_account_two_users: CloudflareAccountRoleQueryData,
+) -> None:
     actual_users = get_cloudflare_users(
         query_data_with_two_roles_from_different_account_two_users.cloudflare_account_roles,
         None,
@@ -691,8 +704,8 @@ def test_external_spec_with_two_roles_from_different_account_one_user(
 
 
 def test_build_external_resource_spec_from_cloudflare_users(
-    query_data_with_two_roles_from_same_account_one_user,
-):
+    query_data_with_two_roles_from_same_account_one_user: CloudflareAccountRoleQueryData,
+) -> None:
     users = get_cloudflare_users(
         query_data_with_two_roles_from_same_account_one_user.cloudflare_account_roles,
         None,
@@ -708,7 +721,6 @@ def test_build_external_resource_spec_from_cloudflare_users(
             "provider": "account_member",
             "identifier": "user1",
             "email_address": "user1@redhat.com",
-            "status": "accepted",
             "account_id": "${var.account_id}",
             "role_ids": [
                 '%{ for role in data.cloudflare_account_roles.cloudflare-account.roles ~}  %{if role.name == "Administrator" ~}${role.id}%{ endif ~}  %{ endfor ~}',

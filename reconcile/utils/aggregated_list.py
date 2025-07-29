@@ -7,7 +7,7 @@ Action = Callable[[Any, list[Any]], bool]
 Cond = Callable[[Any], bool]
 
 
-class RunnerException(Exception):
+class RunnerError(Exception):
     pass
 
 
@@ -88,7 +88,7 @@ class AggregatedList:
     def dump(self) -> list[AggregatedItem]:
         return list(self._dict.values())
 
-    def toJSON(self) -> str:
+    def to_json(self) -> str:
         return json.dumps(self.dump(), indent=4)
 
     @staticmethod

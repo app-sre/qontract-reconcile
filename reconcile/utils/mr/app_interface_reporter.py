@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from ruamel.yaml.scalarstring import PreservedScalarString as pss
+from ruamel.yaml.scalarstring import PreservedScalarString
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
@@ -50,7 +50,7 @@ class CreateAppInterfaceReporter(MergeRequestBase):
             name=f"app-interface-reporter-{self.ts}",
             subject=self.title,
             aliases=["all-service-owners"],
-            body=pss(self.email_body),
+            body=PreservedScalarString(self.email_body),
         )
 
         email_path = Path("data") / "app-interface" / "emails" / f"{self.ts}.yml"

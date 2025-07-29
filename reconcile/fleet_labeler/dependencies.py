@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 from reconcile.fleet_labeler.metrics import FleetLabelerMetrics
 from reconcile.fleet_labeler.ocm import OCMClient, OCMClientConfig
 from reconcile.fleet_labeler.vcs import VCS
-from reconcile.gql_definitions.fleet_labeler.fleet_labels import FleetLabelsSpecV1
 from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
 from reconcile.typed_queries.fleet_labels import get_fleet_label_specs
 from reconcile.typed_queries.github_orgs import get_github_orgs
@@ -13,8 +12,13 @@ from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils.ocm_base_client import (
     init_ocm_base_client,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.vcs import VCS as VCSBase
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.gql_definitions.fleet_labeler.fleet_labels import FleetLabelsSpecV1
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 
 class Dependencies:

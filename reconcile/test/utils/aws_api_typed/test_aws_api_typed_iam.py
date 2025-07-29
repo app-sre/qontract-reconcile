@@ -1,20 +1,17 @@
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import botocore
 import pytest
+from mypy_boto3_iam import IAMClient
+from mypy_boto3_iam.type_defs import ListAccountAliasesResponseTypeDef
 from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 
-if TYPE_CHECKING:
-    from mypy_boto3_iam import IAMClient
-else:
-    IAMClient = object
-
 
 @pytest.fixture
 def iam_client(mocker: MockerFixture) -> IAMClient:
-    return mocker.Mock()
+    return mocker.MagicMock(spec=IAMClient)
 
 
 @pytest.fixture
@@ -71,6 +68,85 @@ def test_aws_api_typed_iam_set_account_alias(
     iam_client.create_account_alias.assert_called_once_with(
         AccountAlias="account_alias",
     )
+
+
+def test_aws_api_typed_iam_set_account_alias_already_set(
+    aws_api_iam: AWSApiIam, iam_client: MagicMock
+) -> None:
+    iam_client.create_account_alias.side_effect = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "EntityAlreadyExists",
+                "Message": "An account alias already exists for this account.",
+            }
+        },
+        operation_name="CreateAccountAlias",
+    )
+    iam_client.list_account_aliases.return_value = ListAccountAliasesResponseTypeDef(
+        AccountAliases=["account_alias"],
+        IsTruncated=False,
+        Marker="",
+        ResponseMetadata={
+            "RequestId": "request_id",
+            "HTTPStatusCode": 200,
+            "HTTPHeaders": {},
+            "RetryAttempts": 0,
+        },
+    )
+    aws_api_iam.set_account_alias("account_alias")
+
+
+def test_aws_api_typed_iam_set_account_alias_permission_denied_by_already_set(
+    aws_api_iam: AWSApiIam, iam_client: MagicMock
+) -> None:
+    iam_client.create_account_alias.side_effect = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "User: arn:aws:iam::xxxxx:user/terraform is not authorized to perform: iam:CreateAccountAlias on resource: * with an explicit deny in a service control policy",
+            }
+        },
+        operation_name="CreateAccountAlias",
+    )
+    iam_client.list_account_aliases.return_value = ListAccountAliasesResponseTypeDef(
+        AccountAliases=["account_alias"],
+        IsTruncated=False,
+        Marker="",
+        ResponseMetadata={
+            "RequestId": "request_id",
+            "HTTPStatusCode": 200,
+            "HTTPHeaders": {},
+            "RetryAttempts": 0,
+        },
+    )
+    aws_api_iam.set_account_alias("account_alias")
+
+
+def test_aws_api_typed_iam_set_account_alias_permission_denied_and_not_set(
+    aws_api_iam: AWSApiIam, iam_client: MagicMock
+) -> None:
+    iam_client.create_account_alias.side_effect = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "User: arn:aws:iam::xxxxx:user/terraform is not authorized to perform: iam:CreateAccountAlias on resource: * with an explicit deny in a service control policy",
+            }
+        },
+        operation_name="CreateAccountAlias",
+    )
+    iam_client.list_account_aliases.return_value = ListAccountAliasesResponseTypeDef(
+        AccountAliases=["some_other_alias"],
+        IsTruncated=False,
+        Marker="",
+        ResponseMetadata={
+            "RequestId": "request_id",
+            "HTTPStatusCode": 200,
+            "HTTPHeaders": {},
+            "RetryAttempts": 0,
+        },
+    )
+    with pytest.raises(botocore.exceptions.ClientError):
+        aws_api_iam.set_account_alias("account_alias")
 
 
 def test_aws_api_typed_iam_get_account_alias(

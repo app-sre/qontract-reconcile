@@ -26,9 +26,9 @@ from reconcile.gql_definitions.vault_policies.vault_policies import (
 )
 from reconcile.utils import gql
 from reconcile.utils.vault import (
-    SecretAccessForbidden,
-    SecretNotFound,
-    SecretVersionNotFound,
+    SecretAccessForbiddenError,
+    SecretNotFoundError,
+    SecretVersionNotFoundError,
     VaultClient,
     _VaultClient,
 )
@@ -37,15 +37,15 @@ QONTRACT_INTEGRATION = "vault-replication"
 SECRET_PATH_PATTERN = re.compile(r"^[\w/-]+?(?P<folder>/\*?)?$")
 
 
-class VaultInvalidPaths(Exception):
+class VaultInvalidPathsError(Exception):
     pass
 
 
-class VaultInvalidAuthMethod(Exception):
+class VaultInvalidAuthMethodError(Exception):
     pass
 
 
-class VaultInvalidPolicy(Exception):
+class VaultInvalidPolicyError(Exception):
     pass
 
 
@@ -64,7 +64,7 @@ def deep_copy_versions(
 
         try:
             secret, src_version = source_vault.read_all_with_version(secret_dict)
-        except (SecretNotFound, SecretVersionNotFound):
+        except (SecretNotFoundError, SecretVersionNotFoundError):
             # Handle the case where the difference between the source and destination
             # versions is greater than the number of versions in the source vault.
             # By default the secret engines store up to 10 versions of a secret.
@@ -119,7 +119,7 @@ def copy_vault_secret(
 
     try:
         source_data, version = source_vault.read_all_with_version(secret_dict)
-    except SecretAccessForbidden:
+    except SecretAccessForbiddenError:
         # Raise exception if we can't read the secret from the source vault.
         # This is likely to be related to the approle permissions.
         logging.error([
@@ -128,7 +128,7 @@ def copy_vault_secret(
             path,
         ])
         raise
-    except SecretNotFound:
+    except SecretNotFoundError:
         # If the secret is present in vault, but there are no versions of it
         # we want to be aware of it, but not cause a failure of the complete
         # integration
@@ -161,7 +161,7 @@ def copy_vault_secret(
                 current_source_version=version,
                 path=path,
             )
-    except (SecretVersionNotFound, SecretNotFound):
+    except (SecretVersionNotFoundError, SecretNotFoundError):
         logging.info(["replicate_vault_secret", "Secret not found", path])
         # Handle v1 secrets where version is None and we don't need to deep sync.
         if version is None:
@@ -194,7 +194,7 @@ def check_invalid_paths(
             # Exit if we have paths not present in the policy that needs to be replicated
             # this is to prevent to replicate secrets that are not allowed.
             logging.error(["replicate_vault_secret", "Invalid paths", invalid_paths])
-            raise VaultInvalidPaths
+            raise VaultInvalidPathsError
 
 
 def list_invalid_paths(
@@ -236,7 +236,7 @@ def get_policy_secret_list(
         match = SECRET_PATH_PATTERN.match(path)
         if not match:
             logging.error(["get_policy_secret_list", "Invalid path to replicate", path])
-            raise VaultInvalidPaths
+            raise VaultInvalidPathsError
 
         if match.group("folder"):
             # Remove the * at the end of the path because list method expects
@@ -294,7 +294,7 @@ def get_vault_credentials(
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}
-    vault = cast(_VaultClient, VaultClient())
+    vault = cast("_VaultClient", VaultClient())
 
     if not isinstance(
         vault_auth,
@@ -304,7 +304,7 @@ def get_vault_credentials(
         VaultInstanceV1_VaultReplicationConfigV1_VaultInstanceAuthV1_VaultInstanceAuthApproleV1,
     ):
         # Exit if the auth method is not approle as is the only one supported
-        raise VaultInvalidAuthMethod
+        raise VaultInvalidAuthMethodError
 
     role_id = {
         "path": vault_auth.role_id.path,
@@ -359,7 +359,7 @@ def replicate_paths(
             if path.policy is None:
                 # Exit if the replication config is empty, this should never happen
                 # as policy is a required field in the schema but makes mypy happy.
-                raise VaultInvalidPolicy(
+                raise VaultInvalidPolicyError(
                     "Policy is required when using policy provider"
                 )
             policy_paths = get_policy_paths(
@@ -402,7 +402,7 @@ def get_secrets_from_templated_path(path: str, vault_list: Iterable[str]) -> lis
         suffix = cap_groups.group(3)
     else:
         # Exit if the path is not a valid formatted template on the secret path
-        raise VaultInvalidPaths
+        raise VaultInvalidPathsError
 
     secret_start, secret_end = _get_start_end_secret(path)
 

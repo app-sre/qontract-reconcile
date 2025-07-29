@@ -2,6 +2,7 @@ import sys
 
 import reconcile.openshift_saas_deploy_trigger_base as osdt_base
 from reconcile.status import ExitCodes
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.saasherder import TriggerTypes
 from reconcile.utils.semver_helper import make_semver
 
@@ -11,7 +12,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     include_trigger_trace: bool = False,

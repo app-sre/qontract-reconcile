@@ -189,7 +189,7 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
         if "availability_zone" in data and "region" not in data:
             data["region"] = self._get_region_from_az(data["availability_zone"])
 
-        kms_key_id: str = data.get("kms_key_id", None)
+        kms_key_id: str | None = data.get("kms_key_id")
         if kms_key_id and not kms_key_id.startswith("arn:"):
             data["kms_key_id"] = self._get_kms_key_spec(
                 spec.provisioner_name, kms_key_id

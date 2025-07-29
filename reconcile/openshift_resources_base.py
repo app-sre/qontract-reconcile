@@ -40,6 +40,7 @@ from reconcile.utils import (
     gql,
     openssl,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.jinja2.utils import (
@@ -66,8 +67,8 @@ from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 from reconcile.utils.vault import (
-    SecretVersionIsNone,
-    SecretVersionNotFound,
+    SecretVersionIsNoneError,
+    SecretVersionNotFoundError,
 )
 
 # +-----------------------+-------------------------+-------------+
@@ -139,6 +140,7 @@ provider
   variables
   enable_query_support
   tests
+  promtool_version
 }
 """
 
@@ -602,7 +604,7 @@ def fetch_openshift_resource(
                 alertmanager_config_key=alertmanager_config_key,
                 settings=settings,
             )
-        except (SecretVersionNotFound, SecretVersionIsNone) as e:
+        except (SecretVersionNotFoundError, SecretVersionIsNoneError) as e:
             raise FetchSecretError(e) from None
     elif provider == "route":
         path = resource["resource"]["path"]
@@ -898,7 +900,7 @@ def get_namespaces(
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     providers: Sequence[str] | None = None,
@@ -1093,7 +1095,7 @@ def get_cluster_scoped_resources(
     oc_map: OC_Map,
     clusters: Iterable[str],
     namespaces: Iterable[Mapping[str, Any]] | None = None,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
 ) -> dict[str, dict[str, dict[str, list[str]]]]:
     """Returns cluster scoped resources for a list of clusters
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
@@ -5,8 +7,6 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from mypy_boto3_support import SupportClient
-else:
-    SupportClient = object
 
 
 class AWSCase(BaseModel):
@@ -15,7 +15,7 @@ class AWSCase(BaseModel):
     status: str
 
 
-class SUPPORT_PLAN(Enum):
+class SupportPlan(Enum):
     BASIC = "basic"
     DEVELOPER = "developer"
     BUSINESS = "business"
@@ -53,27 +53,27 @@ class AWSApiSupport:
         case = self.client.describe_cases(caseIdList=[case_id])["cases"][0]
         return AWSCase(**case)
 
-    def get_support_level(self) -> SUPPORT_PLAN:
+    def get_support_level(self) -> SupportPlan:
         """Return the support level of the account."""
 
         try:
             response = self.client.describe_severity_levels(language="en")
         except self.client.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "SubscriptionRequiredException":
-                return SUPPORT_PLAN.BASIC
+                return SupportPlan.BASIC
             raise err
 
         severity_levels = {
             level["code"].lower() for level in response["severityLevels"]
         }
         if "critical" in severity_levels:
-            return SUPPORT_PLAN.ENTERPRISE
+            return SupportPlan.ENTERPRISE
         if "urgent" in severity_levels:
-            return SUPPORT_PLAN.BUSINESS
+            return SupportPlan.BUSINESS
         if "high" in severity_levels:
-            return SUPPORT_PLAN.BUSINESS
+            return SupportPlan.BUSINESS
         if "normal" in severity_levels:
-            return SUPPORT_PLAN.DEVELOPER
+            return SupportPlan.DEVELOPER
         if "low" in severity_levels:
-            return SUPPORT_PLAN.DEVELOPER
-        return SUPPORT_PLAN.BASIC
+            return SupportPlan.DEVELOPER
+        return SupportPlan.BASIC

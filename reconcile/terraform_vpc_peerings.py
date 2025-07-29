@@ -12,6 +12,7 @@ from reconcile.utils import (
     ocm,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
@@ -28,7 +29,7 @@ QONTRACT_INTEGRATION = "terraform_vpc_peerings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-class BadTerraformPeeringState(Exception):
+class BadTerraformPeeringStateError(Exception):
     pass
 
 
@@ -122,7 +123,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
     # accepters peering connection
     infra_account = accepter_connection["awsInfrastructureManagementAccount"]
     if infra_account and infra_account["name"] not in allowed_accounts:
-        raise BadTerraformPeeringState(
+        raise BadTerraformPeeringStateError(
             "[account_not_allowed] "
             f"account {infra_account['name']} used on the peering accepter of "
             f"cluster {accepter_cluster['name']} is not listed as a "
@@ -135,7 +136,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
         infra_account = _get_default_management_account(accepter_cluster)
 
     if not infra_account:
-        raise BadTerraformPeeringState(
+        raise BadTerraformPeeringStateError(
             f"[no_account_available] unable to find infra account "
             f"for {accepter_cluster['name']} to manage the VPC peering "
             f"with {requester_cluster['name']}"
@@ -147,7 +148,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
         infra_account, requester_cluster, ocm, requester_connection.get("assumeRole")
     )
     if req_aws is None:
-        raise BadTerraformPeeringState(
+        raise BadTerraformPeeringStateError(
             f"[assume_role_not_found] unable to find assume role "
             f"on cluster-vpc-requester for account {infra_account['name']} and "
             f"cluster {requester_cluster['name']} "
@@ -156,7 +157,7 @@ def aws_assume_roles_for_cluster_vpc_peering(
         infra_account, accepter_cluster, ocm, accepter_connection.get("assumeRole")
     )
     if acc_aws is None:
-        raise BadTerraformPeeringState(
+        raise BadTerraformPeeringStateError(
             f"[assume_role_not_found] unable to find assume role "
             f"on cluster-vpc-accepter for account {infra_account['name']} and "
             f"cluster {accepter_cluster['name']} "
@@ -192,7 +193,7 @@ def build_desired_state_single_cluster(
             cluster_info, peer_cluster, "cluster-vpc-accepter"
         )
         if not peer_info:
-            raise BadTerraformPeeringState(
+            raise BadTerraformPeeringStateError(
                 "[no_matching_peering] could not find a matching peering "
                 f"connection for cluster {cluster_name}, connection "
                 f"{peer_connection_name}"
@@ -297,7 +298,7 @@ def build_desired_state_all_clusters(
                 cluster_info, ocm, awsapi, account_filter
             )
             desired_state.extend(items)
-        except (KeyError, BadTerraformPeeringState, aws_api.MissingARNError):
+        except (KeyError, BadTerraformPeeringStateError, aws_api.MissingARNError):
             logging.exception(f"Failed to get desired state for {cluster}")
             error = True
 
@@ -421,7 +422,7 @@ def build_desired_state_vpc_mesh(
                 cluster_info, ocm, awsapi, account_filter
             )
             desired_state.extend(items)
-        except (KeyError, BadTerraformPeeringState, aws_api.MissingARNError):
+        except (KeyError, BadTerraformPeeringStateError, aws_api.MissingARNError):
             logging.exception(f"Unable to create VPC mesh for cluster {cluster}")
             error = True
 
@@ -554,7 +555,7 @@ def build_desired_state_vpc(
                 cluster_info, ocm, awsapi, account_filter
             )
             desired_state.extend(items)
-        except (KeyError, BadTerraformPeeringState, aws_api.MissingARNError):
+        except (KeyError, BadTerraformPeeringStateError, aws_api.MissingARNError):
             logging.exception(f"Unable to process {cluster_info['name']}")
             error = True
 
@@ -566,7 +567,7 @@ def run(
     dry_run: bool,
     print_to_file: bool | None = None,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
     enable_extended_early_exit: bool = False,
     extended_early_exit_cache_ttl_seconds: int = 3600,

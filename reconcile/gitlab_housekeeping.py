@@ -277,7 +277,7 @@ def handle_stale_items(
     items: Iterable[ProjectIssue | ProjectMergeRequest],
     item_type: str,
 ) -> None:
-    LABEL = "stale"
+    LABEL = "stale"  # noqa: N806
 
     now = datetime.utcnow()
     for item in items:
@@ -343,14 +343,14 @@ def is_good_to_merge(labels: Iterable[str]) -> bool:
 def is_rebased(mr: ProjectMergeRequest, gl: GitLabApi) -> bool:
     target_branch = mr.target_branch
     head = cast(
-        list[ProjectCommit],
+        "list[ProjectCommit]",
         gl.project.commits.list(
             ref_name=target_branch,
             per_page=1,
             page=1,
         ),
     )[0].id
-    result = cast(dict, gl.project.repository_compare(mr.sha, head))
+    result = cast("dict", gl.project.repository_compare(mr.sha, head))
     return len(result["commits"]) == 0
 
 

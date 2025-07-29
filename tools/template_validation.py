@@ -57,17 +57,17 @@ def print_test_diffs(diffs: list[TemplateDiff]) -> None:
 def main(templates: tuple[str]) -> None:
     for template_path in templates:
         okay = True
-        templateRaw = load_clean_yaml(template_path)
+        template_raw = load_clean_yaml(template_path)
 
         tests = []
-        for testRaw in templateRaw["templateTest"]:
-            test_yaml = load_clean_yaml(testRaw["$ref"])
+        for test_raw in template_raw["templateTest"]:
+            test_yaml = load_clean_yaml(test_raw["$ref"])
             variables = json.dumps(test_yaml["variables"])
             test_yaml["variables"] = variables
             tests.append(test_yaml)
 
-        templateRaw["templateTest"] = tests
-        template: TemplateV1 = TemplateV1(**data_default_none(TemplateV1, templateRaw))
+        template_raw["templateTest"] = tests
+        template: TemplateV1 = TemplateV1(**data_default_none(TemplateV1, template_raw))
 
         # templates_to_validate = {}
         for test in template.template_test:
@@ -104,4 +104,4 @@ def main(templates: tuple[str]) -> None:
 
 
 if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
+    main()

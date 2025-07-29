@@ -5,11 +5,11 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any
 
 from sretoolbox.utils import threaded
 
 import reconcile.openshift_base as ob
+from reconcile.gql_definitions.common.clusters import ClusterV1
 from reconcile.gql_definitions.openshift_groups.managed_groups import (
     query as query_managed_groups,
 )
@@ -25,6 +25,7 @@ from reconcile.utils import (
     expiration,
     gql,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
     OCLogMsg,
@@ -62,20 +63,16 @@ def get_cluster_state(
 
 
 def create_groups_list(
-    clusters: Iterable[Mapping[str, Any]], oc_map: ClusterMap
+    clusters: Iterable[ClusterV1], oc_map: ClusterMap
 ) -> list[dict[str, str]]:
-    """
-    Also used by ocm-groups integration and thus requires to work with dict for now
-    """
     groups_list: list[dict[str, str]] = []
-    for cluster_info in clusters:
-        cluster = cluster_info["name"]
-        oc = oc_map.get(cluster)
+    for cluster in clusters:
+        oc = oc_map.get(cluster.name)
         if isinstance(oc, OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
-        groups = cluster_info["managedGroups"] or []
+        groups = cluster.managed_groups or []
         groups_list.extend(
-            {"cluster": cluster, "group_name": group_name} for group_name in groups
+            {"cluster": cluster.name, "group_name": group_name} for group_name in groups
         )
     return groups_list
 
@@ -97,7 +94,7 @@ def fetch_current_state(
         thread_pool_size=thread_pool_size,
     )
 
-    groups_list = create_groups_list([c.dict(by_alias=True) for c in clusters], oc_map)
+    groups_list = create_groups_list(clusters, oc_map)
     results = threaded.run(
         get_cluster_state, groups_list, thread_pool_size, oc_map=oc_map
     )
@@ -260,7 +257,7 @@ def act(diff: Mapping[str, str | None], oc_map: ClusterMap) -> None:
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     defer: Callable | None = None,

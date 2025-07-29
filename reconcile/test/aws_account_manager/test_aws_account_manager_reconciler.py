@@ -1,16 +1,18 @@
-from collections.abc import Callable, Generator
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
+
     from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
-from pytest_mock import MockerFixture
+    from pytest_mock import MockerFixture
+
 
 from reconcile.aws_account_manager.reconciler import (
     TASK_ACCOUNT_ALIAS,
@@ -33,7 +35,7 @@ from reconcile.gql_definitions.fragments.aws_account_managed import (
 )
 from reconcile.utils.aws_api_typed.iam import (
     AWSAccessKey,
-    AWSEntityAlreadyExistsException,
+    AWSEntityAlreadyExistsError,
 )
 from reconcile.utils.aws_api_typed.organization import (
     AWSAccountStatus,
@@ -43,7 +45,7 @@ from reconcile.utils.aws_api_typed.service_quotas import (
     AWSQuota,
     AWSRequestedServiceQuotaChange,
 )
-from reconcile.utils.aws_api_typed.support import SUPPORT_PLAN, AWSCase
+from reconcile.utils.aws_api_typed.support import AWSCase, SupportPlan
 from reconcile.utils.state import State
 
 
@@ -56,7 +58,7 @@ def s3_client(monkeypatch: pytest.MonkeyPatch) -> Generator[S3Client, None, None
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", "BUCKET")
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", "ACCOUNT")
 
-    with mock_s3():
+    with mock_aws():
         s3_client = boto3.client("s3", region_name="us-east-1")
         s3_client.create_bucket(Bucket="BUCKET")
         yield s3_client
@@ -545,7 +547,7 @@ def test_aws_account_manager_reconcile_check_quota_change_requests_state_exists_
 def test_aws_account_manager_reconcile_enable_enterprise_support(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
-    aws_api.support.get_support_level.return_value = SUPPORT_PLAN.BASIC
+    aws_api.support.get_support_level.return_value = SupportPlan.BASIC
     aws_api.support.create_case.return_value = "case-id"
     assert (
         reconciler._enable_enterprise_support(aws_api, "account", "123456789012")
@@ -557,7 +559,7 @@ def test_aws_account_manager_reconcile_enable_enterprise_support(
 def test_aws_account_manager_reconcile_enable_enterprise_support_already_enabled(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
-    aws_api.support.get_support_level.return_value = SUPPORT_PLAN.ENTERPRISE
+    aws_api.support.get_support_level.return_value = SupportPlan.ENTERPRISE
     assert (
         reconciler._enable_enterprise_support(aws_api, "account", "123456789012")
         is None
@@ -756,10 +758,10 @@ def test_aws_account_manager_reconcile_create_iam_user_dry_run(
 def test_aws_account_manager_reconcile_create_iam_user_alredy_exists(
     aws_api: MagicMock, reconciler: AWSReconciler
 ) -> None:
-    aws_api.iam.create_user.side_effect = AWSEntityAlreadyExistsException(
+    aws_api.iam.create_user.side_effect = AWSEntityAlreadyExistsError(
         "User already exists"
     )
-    with pytest.raises(AWSEntityAlreadyExistsException):
+    with pytest.raises(AWSEntityAlreadyExistsError):
         reconciler.create_iam_user(aws_api, "account", "user-name", "policy-arn")
 
 

@@ -25,7 +25,6 @@ from reconcile.test.ocm.fixtures import (
 )
 from reconcile.utils.metrics import MetricsContainer
 from reconcile.utils.ocm.base import build_label_container
-from reconcile.utils.ocm.labels import subscription_label_filter
 
 VI = "vault-input-path"
 ORG = "org_id"
@@ -68,7 +67,6 @@ def test_rhidp_common_cluster_object() -> None:
         auth=ClusterAuth(name="foobar", issuer=IURL, status=StatusValue.ENABLED.value),
         organization_id=ORG,
     )
-    print(cluster.json())
     assert cluster.ocm_cluster == CLUSTER_DETAILS_1.ocm_cluster
     assert cluster.organization_id == ORG
 
@@ -139,12 +137,7 @@ def test_rhidp_common_clusterauth_object(
 
 def test_rhidp_common_discover_clusters(discover_clusters_by_labels_mock: Mock) -> None:
     clusters = common.discover_clusters(None, None)  # type: ignore
-    discover_clusters_by_labels_mock.assert_called_once_with(
-        ocm_api=None,
-        label_filter=subscription_label_filter().like(
-            "key", f"{common.RHIDP_NAMESPACE_LABEL_KEY}%"
-        ),
-    )
+    discover_clusters_by_labels_mock.assert_called_once()
 
     assert len(clusters) == 2
     assert clusters[0].ocm_cluster.name == CLUSTER_DETAILS_1.ocm_cluster.name

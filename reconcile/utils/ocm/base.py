@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum, StrEnum
 from typing import (
+    TYPE_CHECKING,
     TypeVar,
 )
 
@@ -14,6 +14,9 @@ from pydantic import (
 
 from reconcile.utils.aws_helper import get_account_uid_from_arn, get_role_name_from_arn
 from reconcile.utils.semver_helper import parse_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 LabelSetTypeVar = TypeVar("LabelSetTypeVar", bound=BaseModel)
 ACTIVE_SUBSCRIPTION_STATES = {"Active", "Reserved"}
@@ -174,11 +177,11 @@ class OCMClusterAWSSettings(BaseModel):
 
     @property
     def account_role_prefix(self) -> str | None:
-        INSTALLER_ROLE_BASE_NAME = "-Installer-Role"
+        installer_role_base_name = "-Installer-Role"
         installer_role_arn = self.sts.role_arn if self.sts else None
-        if installer_role_arn and installer_role_arn.endswith(INSTALLER_ROLE_BASE_NAME):
+        if installer_role_arn and installer_role_arn.endswith(installer_role_base_name):
             installer_role_name = get_role_name_from_arn(installer_role_arn)
-            return installer_role_name.removesuffix(INSTALLER_ROLE_BASE_NAME)
+            return installer_role_name.removesuffix(installer_role_base_name)
         return None
 
     @property

@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import retry
 
 import reconcile.utils.aws_helper as awsh
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.ocm.types import (
-    OCMSpec,
-)
 from reconcile.utils.ocm.clusters import get_node_pools
 from reconcile.utils.ocm.products import (
     OCMProduct,
@@ -23,6 +19,11 @@ from reconcile.utils.ocm_base_client import (
     init_ocm_base_client,
 )
 from reconcile.utils.secret_reader import SecretReader
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from reconcile.ocm.types import OCMSpec
 
 STATUS_READY = "ready"
 STATUS_FAILED = "failed"
@@ -64,7 +65,7 @@ CLUSTER_ADMIN_LABEL_KEY = "capability.cluster.manage_cluster_admin"
 REQUEST_TIMEOUT_SEC = 60
 
 
-class OCM:  # pylint: disable=too-many-public-methods
+class OCM:
     """
     OCM is an instance of OpenShift Cluster Manager.
 
@@ -249,7 +250,6 @@ class OCM:  # pylint: disable=too-many-public-methods
         switch_role_link = role_grants[0][-1]
         return awsh.get_account_uid_from_role_link(switch_role_link)
 
-    # pylint: disable=method-hidden
     def get_aws_infrastructure_access_role_grants(self, cluster):
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.
@@ -403,7 +403,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         api = (
             f"{CS_API_BASE}/v1/clusters/{cluster_id}" + "/external_configuration/labels"
         )
-        items = self._get_json(api).get("items")
+        items = self._get_json(api).get("items", [])
         item = [item for item in items if label.items() <= item.items()]
         if not item:
             return
@@ -597,14 +597,14 @@ class OCM:  # pylint: disable=too-many-public-methods
     def _init_addons(self):
         """Returns a list of Addons"""
         api = f"{CS_API_BASE}/v1/addons"
-        self.addons = self._get_json(api).get("items")
+        self.addons = self._get_json(api).get("items", [])
 
     def _init_version_gates(self):
         """Returns a list of version gates"""
         if self.version_gates:
             return
         api = f"{CS_API_BASE}/v1/version_gates"
-        self.version_gates = self._get_json(api).get("items")
+        self.version_gates = self._get_json(api).get("items", [])
 
     def get_addon(self, id):
         for addon in self.addons:
@@ -734,7 +734,7 @@ class OCM:  # pylint: disable=too-many-public-methods
         )
 
 
-class OCMMap:  # pylint: disable=too-many-public-methods
+class OCMMap:
     """
     OCMMap gets a GraphQL query results list as input
     and initiates a dictionary of OCM clients per OCM.

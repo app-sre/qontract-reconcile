@@ -1,5 +1,6 @@
 import datetime
 import os
+from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
 
@@ -29,8 +30,12 @@ from reconcile.utils.jinja2.filters import (
     urlunescape,
     yaml_to_dict,
 )
-from reconcile.utils.secret_reader import SecretNotFound, SecretReader, SecretReaderBase
-from reconcile.utils.vault import SecretFieldNotFound
+from reconcile.utils.secret_reader import (
+    SecretNotFoundError,
+    SecretReader,
+    SecretReaderBase,
+)
+from reconcile.utils.vault import SecretFieldNotFoundError
 
 
 class Jinja2TemplateError(Exception):
@@ -112,7 +117,7 @@ def lookup_github_file_content(
     path: str,
     ref: str,
     tvars: dict[str, Any] | None = None,
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
 ) -> str:
     if tvars is not None:
@@ -190,7 +195,7 @@ def lookup_secret(
     version: str | None = None,
     tvars: dict[str, Any] | None = None,
     allow_not_found: bool = False,
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
 ) -> str | None:
     if tvars is not None:
@@ -209,7 +214,7 @@ def lookup_secret(
         if not secret_reader:
             secret_reader = SecretReader(settings)
         return secret_reader.read(secret)
-    except (SecretNotFound, SecretFieldNotFound) as e:
+    except (SecretNotFoundError, SecretFieldNotFoundError) as e:
         if allow_not_found:
             return None
         raise FetchSecretError(e) from None
@@ -221,7 +226,7 @@ def process_jinja2_template(
     body: str,
     vars: dict[str, Any] | None = None,
     extra_curly: bool = False,
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
     template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:
@@ -272,7 +277,7 @@ def process_extracurlyjinja2_template(
     body: str,
     vars: dict[str, Any] | None = None,
     extra_curly: bool = True,  # ignored. Just to be compatible with process_jinja2_template
-    settings: dict[str, Any] | None = None,
+    settings: Mapping[str, Any] | None = None,
     secret_reader: SecretReaderBase | None = None,
     template_render_options: TemplateRenderOptions | None = None,
 ) -> Any:

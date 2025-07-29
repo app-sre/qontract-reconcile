@@ -25,7 +25,7 @@ from reconcile.utils.oc import (
 )
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.secret_reader import (
-    SecretNotFound,
+    SecretNotFoundError,
     SecretReader,
 )
 
@@ -375,7 +375,7 @@ class TestOCMapInit(TestCase):
 
     @patch.object(SecretReader, "read_all", autospec=True)
     def test_automationtoken_not_found(self, mock_secret_reader):
-        mock_secret_reader.side_effect = SecretNotFound
+        mock_secret_reader.side_effect = SecretNotFoundError
 
         cluster = {
             "name": "test-1",
@@ -946,7 +946,6 @@ def test_get_replicaset_fail(
     oc__get_owned_replicasets.return_value = []
 
     with pytest.raises(ResourceNotFoundError):
-        # pylint: disable-next=expression-not-assigned
         oc_cli.get_replicaset("namespace", deployment)["metadata"]["name"]
     assert oc__get_owned_replicasets.call_count == GET_REPLICASET_MAX_ATTEMPTS
 

@@ -56,7 +56,7 @@ from reconcile.utils.metrics import reconcile_time
 from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.secret_reader import (
-    SecretNotFound,
+    SecretNotFoundError,
     SecretReader,
 )
 from reconcile.utils.unleash import get_feature_toggle_state
@@ -105,7 +105,7 @@ class UnsupportedMediaTypeError(Exception):
     pass
 
 
-class StatefulSetUpdateForbidden(Exception):
+class StatefulSetUpdateForbiddenError(Exception):
     pass
 
 
@@ -125,7 +125,7 @@ class RecyclePodsUnsupportedKindError(Exception):
     pass
 
 
-class RecyclePodsInvalidAnnotationValue(Exception):
+class RecyclePodsInvalidAnnotationValueError(Exception):
     pass
 
 
@@ -258,7 +258,7 @@ class OCCliApiResource:
         return self.api_version
 
 
-class OCCli:  # pylint: disable=too-many-public-methods
+class OCCli:
     def __init__(
         self,
         cluster_name: str | None,
@@ -551,19 +551,19 @@ class OCCli:  # pylint: disable=too-many-public-methods
     @OCDecorators.process_reconcile_time
     def apply(self, namespace, resource):
         cmd = ["apply", "-n", namespace, "-f", "-"]
-        self._run(cmd, stdin=resource.toJSON(), apply=True)
+        self._run(cmd, stdin=resource.to_json(), apply=True)
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
     def create(self, namespace, resource):
         cmd = ["create", "-n", namespace, "-f", "-"]
-        self._run(cmd, stdin=resource.toJSON(), apply=True)
+        self._run(cmd, stdin=resource.to_json(), apply=True)
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
     def replace(self, namespace, resource):
         cmd = ["replace", "-n", namespace, "-f", "-"]
-        self._run(cmd, stdin=resource.toJSON(), apply=True)
+        self._run(cmd, stdin=resource.to_json(), apply=True)
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
@@ -902,7 +902,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
         dep_annotations = dep_resource.body["metadata"].get("annotations") or {}
         qontract_recycle = dep_annotations.get("qontract.recycle")
         if qontract_recycle is True:
-            raise RecyclePodsInvalidAnnotationValue('should be "true"')
+            raise RecyclePodsInvalidAnnotationValueError('should be "true"')
         if qontract_recycle != "true":
             logging.debug([
                 "skipping_pod_recycle_no_annotation",
@@ -1119,7 +1119,7 @@ class OCCli:  # pylint: disable=too-many-public-methods
                 if "UnsupportedMediaType" in err:
                     raise UnsupportedMediaTypeError(f"[{self.server}]: {err}")
                 if "updates to statefulset spec for fields other than" in err:
-                    raise StatefulSetUpdateForbidden(f"[{self.server}]: {err}")
+                    raise StatefulSetUpdateForbiddenError(f"[{self.server}]: {err}")
                 if "the object has been modified" in err:
                     raise ObjectHasBeenModifiedError(f"[{self.server}]: {err}")
                 if "Request entity too large" in err:
@@ -1468,7 +1468,7 @@ class OC:
         )
 
 
-class OC_Map:
+class OC_Map:  # noqa: N801
     """
     DEPRECATED! Use reconcile.utils.oc_map.OCMap instead.
 
@@ -1612,7 +1612,7 @@ class OC_Map:
 
             try:
                 token_secret = secret_reader.read_all(automation_token)
-            except SecretNotFound:
+            except SecretNotFoundError:
                 self.set_oc(
                     cluster,
                     OCLogMsg(
@@ -1714,7 +1714,7 @@ class OC_Map:
                 oc.cleanup()
 
 
-class OCLogMsg(Exception):
+class OCLogMsg(Exception):  # noqa: N818
     """
     Track log messages associated with initializing OC clients in OC_Map.
     """
@@ -1836,9 +1836,7 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
                 if result.group_version == kwargs["api_version"]
             ]
         # If there are multiple matches, prefer non-List kinds
-        if len(results) > 1 and not all(  # pylint: disable=R1729
-            isinstance(x, ResourceList) for x in results
-        ):
+        if len(results) > 1 and not all(isinstance(x, ResourceList) for x in results):
             results = [
                 result for result in results if not isinstance(result, ResourceList)
             ]

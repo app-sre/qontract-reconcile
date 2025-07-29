@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import (
-    Callable,
-    Iterable,
-)
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from deepdiff import DeepHash
 from pydantic import validator
@@ -17,7 +13,6 @@ from reconcile.aus.aus_label_source import (
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
-from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 from reconcile.gql_definitions.ocm_labels.clusters import ClusterV1
 from reconcile.gql_definitions.ocm_labels.clusters import query as cluster_query
 from reconcile.gql_definitions.ocm_labels.organizations import OpenShiftClusterManagerV1
@@ -53,7 +48,12 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
+    from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+    from reconcile.utils.secret_reader import SecretReaderBase
 
 QONTRACT_INTEGRATION = "ocm-labels"
 
@@ -63,9 +63,7 @@ class OcmLabelsIntegrationParams(PydanticRunParams):
     ignored_label_prefixes: list[str] = []
 
     @validator("managed_label_prefixes", "ignored_label_prefixes")
-    def must_end_with_dot(  # pylint: disable=no-self-argument
-        cls, v: list[str]
-    ) -> list[str]:
+    def must_end_with_dot(cls, v: list[str]) -> list[str]:
         return [prefix + "." if not prefix.endswith(".") else prefix for prefix in v]
 
 

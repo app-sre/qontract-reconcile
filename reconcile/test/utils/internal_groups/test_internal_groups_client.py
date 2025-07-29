@@ -5,7 +5,7 @@ from reconcile.test.fixtures import Fixtures
 from reconcile.utils.internal_groups.client import (
     InternalGroupsApi,
     InternalGroupsClient,
-    NotFound,
+    NotFoundError,
 )
 from reconcile.utils.internal_groups.models import Group
 
@@ -31,7 +31,7 @@ def test_internal_groups_api_delete_unknown_group(
     internal_groups_api: InternalGroupsApi,
     non_existent_group_name: str,
 ) -> None:
-    with pytest.raises(NotFound):
+    with pytest.raises(NotFoundError):
         internal_groups_api.delete_group(name=non_existent_group_name)
 
 
@@ -64,7 +64,7 @@ def test_internal_groups_api_get_group(
 def test_internal_groups_api_get_group_not_found(
     internal_groups_api: InternalGroupsApi, non_existent_group_name: str
 ) -> None:
-    with pytest.raises(NotFound):
+    with pytest.raises(NotFoundError):
         internal_groups_api.group(name=non_existent_group_name)
 
 
@@ -89,7 +89,7 @@ def test_internal_groups_client_get_group(
 def test_internal_groups_client_get_unknown_group(
     internal_groups_client: InternalGroupsClient, non_existent_group_name: str
 ):
-    with pytest.raises(NotFound):
+    with pytest.raises(NotFoundError):
         internal_groups_client.group(non_existent_group_name)
 
 
@@ -110,7 +110,7 @@ def test_internal_groups_client_update_unknown_group(
 ):
     group = Group(**fx.get_json(f"v1/groups/{group_name}/get.json"))
     group.name = non_existent_group_name
-    with pytest.raises(NotFound):
+    with pytest.raises(NotFoundError):
         internal_groups_client.update_group(group)
 
 
@@ -124,5 +124,5 @@ def test_internal_groups_client_delete_group(
 def test_internal_groups_client_delete_unknown_group(
     internal_groups_client: InternalGroupsClient, non_existent_group_name: str
 ):
-    with pytest.raises(NotFound):
+    with pytest.raises(NotFoundError):
         internal_groups_client.delete_group(non_existent_group_name)

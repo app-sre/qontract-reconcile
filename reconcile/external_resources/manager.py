@@ -20,7 +20,7 @@ from reconcile.external_resources.model import (
     ExternalResourceKey,
     ExternalResourceModuleConfiguration,
     ExternalResourceOrphanedResourcesError,
-    ExternalResourceOutputResourceNameDuplications,
+    ExternalResourceOutputResourceNameDuplicationsError,
     ExternalResourcesInventory,
     ExternalResourceValidationError,
     ModuleInventory,
@@ -93,7 +93,7 @@ class ExternalResourceDryRunsValidator:
             for spec in self.er_inventory.values()
         )
         if duplicates := [key for key, count in specs.items() if count > 1]:
-            raise ExternalResourceOutputResourceNameDuplications(duplicates)
+            raise ExternalResourceOutputResourceNameDuplicationsError(duplicates)
 
     def _check_orphaned_objects(self) -> None:
         state_keys = self.state_mgr.get_all_resource_keys()

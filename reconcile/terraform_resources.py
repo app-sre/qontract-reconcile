@@ -31,6 +31,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
@@ -200,20 +201,20 @@ def get_aws_accounts(
     if exclude_accounts and not dry_run:
         message = "--exclude-accounts is only supported in dry-run mode"
         logging.error(message)
-        raise ExcludeAccountsAndDryRunException(message)
+        raise ExcludeAccountsAndDryRunError(message)
 
     if (exclude_accounts and include_accounts) and any(
         a in exclude_accounts for a in include_accounts
     ):
         message = "Using --exclude-accounts and --account-name with the same account is not allowed"
         logging.error(message)
-        raise ExcludeAccountsAndAccountNameException(message)
+        raise ExcludeAccountsAndAccountNameError(message)
 
     # If we are not running in dry run we don't want to run with more than one account
     if include_accounts and len(include_accounts) > 1 and not dry_run:
         message = "Running with multiple accounts is only supported in dry-run mode"
         logging.error(message)
-        raise MultipleAccountNamesInDryRunException(message)
+        raise MultipleAccountNamesInDryRunError(message)
 
     accounts = queries.get_aws_accounts(terraform_state=True)
 
@@ -313,7 +314,7 @@ def write_outputs_to_vault(
     vault_path: str, resource_specs: ExternalResourceSpecInventory
 ) -> None:
     integration_name = QONTRACT_INTEGRATION.replace("_", "-")
-    vault_client = cast(_VaultClient, VaultClient())
+    vault_client = cast("_VaultClient", VaultClient())
     for spec in resource_specs.values():
         # a secret can be empty if the terraform-integration is not enabled on the cluster
         # the resource is defined on - lets skip vault writes for those right now and
@@ -345,15 +346,15 @@ def populate_desired_state(
             )
 
 
-class ExcludeAccountsAndDryRunException(Exception):
+class ExcludeAccountsAndDryRunError(Exception):
     pass
 
 
-class ExcludeAccountsAndAccountNameException(Exception):
+class ExcludeAccountsAndAccountNameError(Exception):
     pass
 
 
-class MultipleAccountNamesInDryRunException(Exception):
+class MultipleAccountNamesInDryRunError(Exception):
     pass
 
 
@@ -367,7 +368,7 @@ def run(
     dry_run: bool,
     print_to_file: str | None = None,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     light: bool = False,
@@ -473,7 +474,7 @@ def runner(
     secret_reader: SecretReaderBase,
     dry_run: bool,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     light: bool = False,

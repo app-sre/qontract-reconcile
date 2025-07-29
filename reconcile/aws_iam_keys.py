@@ -6,6 +6,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.state import State, init_state
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
@@ -48,9 +49,9 @@ def init_tf_working_dirs(
     thread_pool_size: int,
     settings: Mapping[str, Any],
 ) -> dict[str, str]:
-    # copied here to avoid circular dependency
-    QONTRACT_INTEGRATION = "terraform_resources"
-    QONTRACT_TF_PREFIX = "qrtf"
+    # Avoid circular import
+    import reconcile.terraform_resources  # noqa: PLC0415
+
     # if the terraform-resources integration is disabled
     # for an account, it means that Terrascript will not
     # initiate that account's config and will not create
@@ -59,8 +60,8 @@ def init_tf_working_dirs(
     # created by terraform-resources, but it is disabled
     # tl;dr - we are good. how cool is this alignment...
     ts = Terrascript(
-        QONTRACT_INTEGRATION,
-        QONTRACT_TF_PREFIX,
+        reconcile.terraform_resources.QONTRACT_INTEGRATION,
+        reconcile.terraform_resources.QONTRACT_TF_PREFIX,
         thread_pool_size,
         accounts,
         settings=settings,
@@ -76,7 +77,7 @@ def cleanup(working_dirs: Mapping[str, str]) -> None:
 @defer
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     disable_service_account_keys: bool = False,
     account_name: str | None = None,
     defer: Callable | None = None,

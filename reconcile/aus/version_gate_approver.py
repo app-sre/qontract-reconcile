@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.aus.advanced_upgrade_service import aus_label_key
 from reconcile.aus.base import gates_to_agree, get_orgs_for_environment
@@ -8,7 +9,6 @@ from reconcile.aus.version_gates import (
     ocp_gate_handler,
     sts_version_gate_handler,
 )
-from reconcile.aus.version_gates.handler import GateHandler
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
@@ -40,6 +40,9 @@ from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )
 from reconcile.utils.semver_helper import make_semver
+
+if TYPE_CHECKING:
+    from reconcile.aus.version_gates.handler import GateHandler
 
 QONTRACT_INTEGRATION = "version-gate-approver"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)

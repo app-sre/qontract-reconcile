@@ -9,6 +9,7 @@ from pytest_mock import MockerFixture
 from reconcile.database_access_manager import (
     DatabaseConnectionParameters,
     DBAMResource,
+    JobData,
     JobFailedError,
     JobStatus,
     JobStatusCondition,
@@ -19,6 +20,7 @@ from reconcile.database_access_manager import (
     _generate_password,
     _populate_resources,
     _process_db_access,
+    get_job_spec,
 )
 from reconcile.gql_definitions.terraform_resources.database_access_manager import (
     DatabaseAccessAccessGranteeV1,
@@ -26,6 +28,7 @@ from reconcile.gql_definitions.terraform_resources.database_access_manager impor
     DatabaseAccessV1,
     NamespaceV1,
 )
+from reconcile.test.fixtures import Fixtures
 from reconcile.utils.openshift_resource import OpenshiftResource
 
 
@@ -123,6 +126,11 @@ def openshift_resource_secet() -> OpenshiftResource:
         integration="TEST",
         integration_version="0.0.1",
     )
+
+
+@pytest.fixture
+def fxt() -> Fixtures:
+    return Fixtures("database_access_manager")
 
 
 def _assert_create_script(script: str) -> None:
@@ -347,7 +355,7 @@ def test_populate_resources(
     reources = _populate_resources(
         db_access=db_access,
         engine="postgres",
-        image_repository="foo",
+        job_image="foo",
         pull_secret={
             "version": 1,
             "annotations": [],
@@ -469,7 +477,7 @@ def dbam_process_mocks(
 def ai_settings() -> dict[str, Any]:
     d: dict[str, Any] = defaultdict(str)
     d["sqlQuery"] = {
-        "imageRepository": {"foo": "bar"},
+        "jobImage": "quay.io/job/image",
         "pullSecret": {"foo": "bar"},
     }
     return d
@@ -658,3 +666,18 @@ def test__process_db_access_state_exists_matched(
         vault_output_path="foo",
         vault_client=vault_mock,
     )
+
+
+def test_get_job_spec(fxt: Fixtures) -> None:
+    job_data = JobData(
+        engine="postgres",
+        name_suffix="test-database",
+        image="quay.io/app-sre/yet-another-debug-container",
+        service_account_name="service-account-name",
+        rds_admin_secret_name="rds-admin-secret-name",
+        script_secret_name="script-secret-name",
+        pull_secret="pull-secret",
+    )
+
+    job_spec = get_job_spec(job_data).body
+    assert job_spec == fxt.get_anymarkup("job-always-pull-policy.yaml")

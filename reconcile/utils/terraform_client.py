@@ -76,7 +76,7 @@ class DeletionApprovalExpirationValueError(Exception):
     pass
 
 
-class TerraformClient:  # pylint: disable=too-many-public-methods
+class TerraformClient:
     def __init__(
         self,
         integration: str,
@@ -744,7 +744,7 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
                 value = allowed_modifications.get(argument)
                 if (
                     value in pending_modified_values
-                    and cast(dict[str, str], pending_modified_values)[value]
+                    and cast("dict[str, str]", pending_modified_values)[value]
                     == after[argument]
                 ):
                     changed_values.append(argument)
@@ -913,13 +913,13 @@ class TerraformClient:  # pylint: disable=too-many-public-methods
             )
 
 
-class TerraformPlanFailed(Exception):
+class TerraformPlanFailedError(Exception):
     pass
 
 
-class TerraformApplyFailed(Exception):
+class TerraformApplyFailedError(Exception):
     pass
 
 
-class TerraformDeletionDetected(Exception):
+class TerraformDeletionDetectedError(Exception):
     pass

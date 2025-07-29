@@ -20,8 +20,8 @@ QONTRACT_INTEGRATION = "jenkins-worker-fleets"
 def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
     current_state = []
 
-    jenkins_config = cast(dict[str, Any], jenkins.get_jcasc_config().get("jenkins"))
-    clouds = cast(list[dict[str, Any]], jenkins_config.get("clouds", []))
+    jenkins_config = cast("dict[str, Any]", jenkins.get_jcasc_config().get("jenkins"))
+    clouds = cast("list[dict[str, Any]]", jenkins_config.get("clouds", []))
     for c in clouds:
         # eC2Fleet is defined by jcasc schema
         fleet = c.get("eC2Fleet", None)
@@ -36,11 +36,11 @@ def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
 
 
 def get_desired_state(
-    terrascript: Terrascript, workerFleets: list[dict[str, Any]]
+    terrascript: Terrascript, worker_fleets: list[dict[str, Any]]
 ) -> list[JenkinsWorkerFleet]:
     desired_state = []
 
-    for f in workerFleets:
+    for f in worker_fleets:
         namespace = f["namespace"]
         account = f["account"]
         identifier = f["identifier"]
@@ -131,8 +131,8 @@ def run(dry_run: bool) -> None:
     )
 
     for instance in jenkins_instances:
-        workerFleets = instance.get("workerFleets", [])
-        if not workerFleets:
+        worker_fleets = instance.get("workerFleets", [])
+        if not worker_fleets:
             # Skip instance if no fleets defined
             continue
 
@@ -140,7 +140,7 @@ def run(dry_run: bool) -> None:
         instance_name = instance["name"]
         jenkins = JenkinsApi.init_jenkins_from_secret(secret_reader, token)
         current_state = get_current_state(jenkins)
-        desired_state = get_desired_state(terrascript, workerFleets)
+        desired_state = get_desired_state(terrascript, worker_fleets)
         act(dry_run, instance_name, current_state, desired_state, jenkins)
 
 

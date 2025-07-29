@@ -70,7 +70,6 @@ QONTRACT_ANNOTATIONS = {
 }
 
 
-# pylint: disable=R0904
 class OpenshiftResource:
     def __init__(
         self,
@@ -375,7 +374,7 @@ class OpenshiftResource:
         annotations = body["metadata"]["annotations"]
         return annotations["qontract.sha256sum"]
 
-    def toJSON(self):
+    def to_json(self):
         return self.serialize(self.body)
 
     @staticmethod
@@ -445,13 +444,12 @@ class OpenshiftResource:
         if body["kind"] == "ServiceAccount":
             if "imagePullSecrets" in body:
                 # remove default pull secrets added by k8s
-                imagePullSecrets = [
+                if imagepullsecrets := [
                     s
                     for s in body.pop("imagePullSecrets")
                     if "-dockercfg-" not in s["name"]
-                ]
-                if imagePullSecrets:
-                    body["imagePullSecrets"] = imagePullSecrets
+                ]:
+                    body["imagePullSecrets"] = imagepullsecrets
             if "secrets" in body:
                 body.pop("secrets")
 
@@ -478,13 +476,15 @@ class OpenshiftResource:
             if "userNames" in body:
                 body.pop("userNames")
             if "roleRef" in body:
-                roleRef = body["roleRef"]
-                if "namespace" in roleRef:
-                    roleRef.pop("namespace")
-                if "apiGroup" in roleRef and roleRef["apiGroup"] in body["apiVersion"]:
-                    roleRef.pop("apiGroup")
-                if "kind" in roleRef:
-                    roleRef.pop("kind")
+                if "namespace" in body["roleRef"]:
+                    body["roleRef"].pop("namespace")
+                if (
+                    "apiGroup" in body["roleRef"]
+                    and body["roleRef"]["apiGroup"] in body["apiVersion"]
+                ):
+                    body["roleRef"].pop("apiGroup")
+                if "kind" in body["roleRef"]:
+                    body["roleRef"].pop("kind")
             for subject in body["subjects"]:
                 if "namespace" in subject:
                     subject.pop("namespace")
@@ -497,11 +497,13 @@ class OpenshiftResource:
             if "userNames" in body:
                 body.pop("userNames")
             if "roleRef" in body:
-                roleRef = body["roleRef"]
-                if "apiGroup" in roleRef and roleRef["apiGroup"] in body["apiVersion"]:
-                    roleRef.pop("apiGroup")
-                if "kind" in roleRef:
-                    roleRef.pop("kind")
+                if (
+                    "apiGroup" in body["roleRef"]
+                    and body["roleRef"]["apiGroup"] in body["apiVersion"]
+                ):
+                    body["roleRef"].pop("apiGroup")
+                if "kind" in body["roleRef"]:
+                    body["roleRef"].pop("kind")
             if "groupNames" in body:
                 body.pop("groupNames")
         if body["kind"] == "Service":
@@ -532,7 +534,7 @@ class OpenshiftResource:
 
 def fully_qualified_kind(kind: str, api_version: str) -> str:
     if "/" in api_version:
-        group = api_version.split("/")[0]
+        group = api_version.split("/")[0]  # noqa: PLC0207
         return f"{kind}.{group}"
     return kind
 

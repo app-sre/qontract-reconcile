@@ -91,7 +91,7 @@ def patch_logging(mocker):
 
 @pytest.fixture
 def patch_et_parse(mocker):
-    et = mocker.patch("reconcile.utils.jjb_client.et")
+    et = mocker.patch("reconcile.utils.jjb_client.ET")
     et.parse.return_value.getroot.return_value.tag = "job"
     return et
 

@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.s3 import AWSApiS3
 
 if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
     from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture

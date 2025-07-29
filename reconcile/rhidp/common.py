@@ -32,7 +32,10 @@ from reconcile.utils.ocm.clusters import (
     ClusterDetails,
     discover_clusters_by_labels,
 )
-from reconcile.utils.ocm.labels import subscription_label_filter
+from reconcile.utils.ocm.labels import (
+    organization_label_filter,
+    subscription_label_filter,
+)
 from reconcile.utils.ocm.sre_capability_labels import sre_capability_label_key
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -61,7 +64,7 @@ class ClusterAuth(BaseModel):
     status: str
 
     @root_validator
-    def name_no_spaces(  # pylint: disable=no-self-argument
+    def name_no_spaces(
         cls, values: MutableMapping[str, Any]
     ) -> MutableMapping[str, Any]:
         values["name"] = values["name"].replace(" ", "-")
@@ -105,7 +108,8 @@ def discover_clusters(
         ocm_api=ocm_api,
         label_filter=subscription_label_filter().like(
             "key", f"{RHIDP_NAMESPACE_LABEL_KEY}%"
-        ),
+        )
+        | organization_label_filter().like("key", f"{RHIDP_NAMESPACE_LABEL_KEY}%"),
     )
 
     # filter by org if org_id is specified

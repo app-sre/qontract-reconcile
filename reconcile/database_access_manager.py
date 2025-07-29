@@ -13,6 +13,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from sretoolbox.container.image import Image
 
 from reconcile import openshift_base, queries
 from reconcile import openshift_resources_base as orb
@@ -52,7 +53,6 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 SUPPORTED_ENGINES = ["postgres"]
 
 JOB_DEADLINE_IN_SECONDS = 60
-JOB_PSQL_ENGINE_VERSION = "15.4-alpine"
 
 
 def get_database_access_namespaces(
@@ -227,9 +227,8 @@ def get_db_engine(resource: NamespaceTerraformResourceRDSV1) -> str:
 
 class JobData(BaseModel):
     engine: str
-    engine_version: str
     name_suffix: str
-    image_repository: str
+    image: str
     service_account_name: str
     rds_admin_secret_name: str
     script_secret_name: str
@@ -239,8 +238,11 @@ class JobData(BaseModel):
 def get_job_spec(job_data: JobData) -> OpenshiftResource:
     job_name = f"dbam-{job_data.name_suffix}"
 
+    image_tag = Image(job_data.image).tag
+    image_pull_policy = "Always" if image_tag == "latest" else "IfNotPresent"
+
     if job_data.engine == "postgres":
-        command = "/usr/local/bin/psql"
+        command = "/usr/bin/psql"
 
     job = {
         "apiVersion": "batch/v1",
@@ -269,7 +271,8 @@ def get_job_spec(job_data: JobData) -> OpenshiftResource:
                     "containers": [
                         {
                             "name": job_name,
-                            "image": f"{job_data.image_repository}/{job_data.engine}:{job_data.engine_version}",
+                            "image": f"{job_data.image}",
+                            "imagePullPolicy": image_pull_policy,
                             "command": [
                                 command,
                             ],
@@ -415,7 +418,7 @@ class JobStatus(BaseModel):
 def _populate_resources(
     db_access: DatabaseAccessV1,
     engine: str,
-    image_repository: str,
+    job_image: str,
     pull_secret: dict[Any, Any],
     admin_secret_name: str,
     resource_prefix: str,
@@ -479,9 +482,8 @@ def _populate_resources(
             resource=get_job_spec(
                 JobData(
                     engine=engine,
-                    engine_version=JOB_PSQL_ENGINE_VERSION,
                     name_suffix=db_access.name,
-                    image_repository=image_repository,
+                    image=job_image,
                     service_account_name=resource_prefix,
                     rds_admin_secret_name=admin_secret_name,
                     script_secret_name=script_secret_name,
@@ -620,10 +622,15 @@ def _process_db_access(
         if not sql_query_settings:
             raise KeyError("sqlQuery settings are required")
 
+        job_image = (
+            sql_query_settings.get("jobImage")
+            or "quay.io/app-sre/debug-container:latest"
+        )
+
         managed_resources = _populate_resources(
             db_access,
             engine,
-            sql_query_settings["imageRepository"],
+            job_image,
             sql_query_settings["pullSecret"],
             admin_secret_name,
             resource_prefix,
@@ -701,13 +708,13 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
-        vault_client = cast(_VaultClient, VaultClient())
+        vault_client = cast("_VaultClient", VaultClient())
 
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader
         )
 
-        encounteredErrors: list[Exception] = []
+        encountered_errors: list[Exception] = []
 
         namespaces = get_database_access_namespaces()
         for namespace in namespaces:
@@ -741,9 +748,9 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
                                 vault_client,
                             )
                         except (JobFailedError, ValueError) as e:
-                            encounteredErrors.append(e)
+                            encountered_errors.append(e)
 
-            if encounteredErrors:
-                for err in encounteredErrors:
+            if encountered_errors:
+                for err in encountered_errors:
                     logging.error(err)
                 raise JobFailedError("One or more jobs failed to complete")

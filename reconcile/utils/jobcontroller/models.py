@@ -20,17 +20,17 @@ from kubernetes.client import (
 
 
 class JobStatus(StrEnum):
-    SUCCESS: str = "SUCCESS"
-    ERROR: str = "ERROR"
-    IN_PROGRESS: str = "IN_PROGRESS"
-    NOT_EXISTS: str = "NOT_EXISTS"
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+    IN_PROGRESS = "IN_PROGRESS"
+    NOT_EXISTS = "NOT_EXISTS"
 
 
 class JobConcurrencyPolicy(IntFlag):
-    NO_REPLACE: int = 1
-    REPLACE_FAILED: int = 2
-    REPLACE_IN_PROGRESS: int = 4
-    REPLACE_FINISHED: int = 8
+    NO_REPLACE = 1
+    REPLACE_FAILED = 2
+    REPLACE_IN_PROGRESS = 4
+    REPLACE_FINISHED = 8
 
 
 class JobValidationError(Exception):

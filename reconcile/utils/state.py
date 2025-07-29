@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import contextlib
 import json
 import logging
 import os
 from abc import abstractmethod
-from collections.abc import Callable, Generator, Mapping
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
@@ -13,12 +14,6 @@ from typing import (
 
 import boto3
 from botocore.errorfactory import ClientError
-
-if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
-
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.common.app_interface_state_settings import (
@@ -38,15 +33,20 @@ from reconcile.utils.secret_reader import (
     create_secret_reader,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Mapping
 
-class StateInaccessibleException(Exception):
+    from mypy_boto3_s3 import S3Client
+
+
+class StateInaccessibleError(Exception):
     pass
 
 
 def init_state(
     integration: str,
     secret_reader: SecretReaderBase | None = None,
-) -> "State":
+) -> State:
     if not secret_reader:
         vault_settings = get_app_interface_vault_settings()
         secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -180,7 +180,7 @@ def acquire_state_settings(
             state_bucket_account_name, query_func=query_func
         )
         if not account:
-            raise StateInaccessibleException(
+            raise StateInaccessibleError(
                 f"The AWS account {state_bucket_account_name} that holds the state bucket can't be found in app-interface."
             )
         secret = secret_reader.read_all_secret(account.automation_token)
@@ -203,11 +203,11 @@ def acquire_state_settings(
                 access_key_id=secret["aws_access_key_id"],
                 secret_access_key=secret["aws_secret_access_key"],
             )
-        raise StateInaccessibleException(
+        raise StateInaccessibleError(
             f"The app-interface state provider {ai_settings.provider} is not supported."
         )
 
-    raise StateInaccessibleException(
+    raise StateInaccessibleError(
         "app-interface state must be configured to use stateful integrations. "
         "use one of the following options to provide state config: "
         "* env vars APP_INTERFACE_STATE_BUCKET, APP_INTERFACE_STATE_BUCKET_REGION, APP_INTERFACE_STATE_AWS_PROFILE and AWS_CONFIG (hosting the requested profile) \n"
@@ -218,7 +218,7 @@ def acquire_state_settings(
     )
 
 
-class AbortStateTransaction(Exception):
+class AbortStateTransactionError(Exception):
     """Raise to abort a state transaction."""
 
 
@@ -249,7 +249,7 @@ class State:
         try:
             self.client.head_bucket(Bucket=self.bucket)
         except ClientError as details:
-            raise StateInaccessibleException(
+            raise StateInaccessibleError(
                 f"Bucket {self.bucket} is not accessible - {details!s}"
             ) from None
 
@@ -299,7 +299,7 @@ class State:
             if error_code == "404":
                 return False, {}
 
-            raise StateInaccessibleException(
+            raise StateInaccessibleError(
                 f"Can not access state key {key_path} "
                 f"in bucket {self.bucket} - {details!s}"
             ) from None
@@ -418,7 +418,7 @@ class State:
     @contextlib.contextmanager
     def transaction(
         self, key: str, value: Any = None
-    ) -> Generator["TransactionStateObj", None, None]:
+    ) -> Generator[TransactionStateObj, None, None]:
         """Get a context manager to set the key in the state if no exception occurs.
 
         You can set the value either via the value parameter or by setting the value attribute of the returned object.
@@ -436,7 +436,7 @@ class State:
         state_obj = TransactionStateObj(key, value=current_value)
         try:
             yield state_obj
-        except AbortStateTransaction:
+        except AbortStateTransactionError:
             return
         else:
             if state_obj.changed and state_obj.value != current_value:

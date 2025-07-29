@@ -65,8 +65,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   RHIDP.
   cluster-deployment-mapper       Maps ClusterDeployment resources to Cluster
                                   IDs.
-  dashdotdb-cso                   Collects the ImageManifestVuln CRs from all
-                                  the clusters and posts them to Dashdotdb.
   dashdotdb-dora                  Collects dora metrics.
   dashdotdb-dvo                   Collects the DeploymentValidations from all
                                   the clusters and posts them to Dashdotdb.
@@ -329,7 +327,7 @@ these tools for static analysis and type checking:
 The [Makefile](Makefile) contains several targets to help with testing, linting,
 formatting, and type checking:
 
-- `make all-test`: Run all available tests.
+- `make all-tests`: Run all available tests.
 - `make linter-test`: Run the linter and formatter tests.
 - `make types-test`: Run the type checker tests.
 - `make qenerate-test`: Run the query classes generation tests.
@@ -359,7 +357,7 @@ Start the [qontract-server](https://github.com/app-sre/qontract-server) in a dif
 Run this in the root dir of `qontract-server` repo:
 
 ```shell
-make dev
+make build-dev
 ```
 
 ### Trigger integration
@@ -382,9 +380,31 @@ GQL definitions and generated classes can be found [here](reconcile/gql_definiti
 5. `make gql-introspection` gets the type definitions. They will be stored in `reconcile/gql_definitions/introspection.json`
 6. `make gql-query-classes` generates the data classes for your queries and fragments
 
+## Design Patterns
+
+This project follows a set of established architectural and implementation patterns to ensure consistency, reliability, and scalability. For a detailed explanation of these concepts, please see the **[Design Patterns Documentation](docs/patterns/README.md)**.
+
+Understanding these patterns, especially the `qenerate` workflow for GraphQL data binding, is highly recommended for new developers.
+
 ## Troubleshooting
 
 `faulthandler` is enabled for this project and SIGUSR1 is registered to dump the traceback. To do so, you can use `kill -USR1 pid` where pid is the ID of the qontract-reconcile process.
+
+## Profiling
+
+Enable the Python cProfile module by setting the environment variable `ENABLE_PROFILING=1` before running the integration. This will generate a profile file `/tmp/profile.prof`.
+
+You can then analyze the profile using `snakeviz`:
+
+```sh
+snakeviz /tmp/profile.prof
+```
+
+> :information_source: Note
+>
+> `cProfile` doesn't support multithreading, but it can still highlight performance issues on the main thread.
+> If you need to profile multithreaded code, consider using [py-spy](https://github.com/benfred/py-spy) or similar tools that support sampling profiling.
+> Also [memray](https://github.com/bloomberg/memray) could be beneficial for memory profiling.
 
 ## Code style guide
 

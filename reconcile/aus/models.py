@@ -2,11 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import (
-    Iterable,
-    Mapping,
-    Sequence,
-)
+from typing import TYPE_CHECKING
 
 from pydantic import (
     BaseModel,
@@ -20,6 +16,9 @@ from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePol
 from reconcile.utils.ocm.addons import OCMAddonInstallation
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.semver_helper import parse_semver
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 
 class NodePoolSpec(BaseModel):
@@ -68,7 +67,13 @@ class ClusterUpgradeSpec(BaseModel):
         return any(re.search(b, version) for b in self.blocked_versions)
 
     def get_available_upgrades(self) -> list[str]:
-        return self.cluster.available_upgrades()
+        cluster_available_upgrades = self.cluster.available_upgrades()
+        if (
+            self.oldest_current_version != self.current_version
+            and self.current_version not in cluster_available_upgrades
+        ):
+            return [self.current_version, *cluster_available_upgrades]
+        return cluster_available_upgrades
 
     @property
     def effective_mutexes(self) -> set[str]:

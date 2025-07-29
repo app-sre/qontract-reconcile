@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from typing import Any
 
 import reconcile.openshift_resources_base as orb
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.semver_helper import make_semver
 
@@ -12,7 +13,7 @@ PROVIDERS = ["prometheus-rule"]
 
 def run(
     dry_run: bool,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
     cluster_name: Iterable[str] | None = None,

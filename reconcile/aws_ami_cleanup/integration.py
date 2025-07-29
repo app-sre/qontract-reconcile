@@ -1,16 +1,13 @@
+from __future__ import annotations
+
 import logging
 import re
 from collections import defaultdict
-from collections.abc import (
-    Callable,
-)
 from datetime import (
     datetime,
     timedelta,
 )
-from typing import (
-    TYPE_CHECKING,
-)
+from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError
 from pydantic import (
@@ -34,9 +31,9 @@ from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 from reconcile.utils.secret_reader import create_secret_reader
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from mypy_boto3_ec2 import EC2Client
-else:
-    EC2Client = object
 
 QONTRACT_INTEGRATION = "aws_ami_cleanup"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}

@@ -21,12 +21,13 @@ from reconcile.status import (
     RunningState,
 )
 from reconcile.utils import gql
-from reconcile.utils.aggregated_list import RunnerException
+from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.amtool import AMTOOL_VERSION, AMTOOL_VERSION_REGEX
 from reconcile.utils.binary import (
     binary,
     binary_version,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
@@ -192,7 +193,7 @@ def gql_url_print(function: Callable) -> Callable:
     return function
 
 
-def threaded(default: int = 10) -> Callable:
+def threaded(default: int = DEFAULT_THREAD_POOL_SIZE) -> Callable:
     def f(function: Callable) -> Callable:
         opt = "--thread-pool-size"
         msg = "number of threads to run in parallel."
@@ -533,7 +534,7 @@ def register_faulthandler(fileobj: TextIOWrapper | None = sys.__stderr__) -> Non
                 logging.debug("faulthandler enabled.")
                 faulthandler.register(SIGUSR1, file=fileobj, all_threads=True)
                 logging.debug("SIGUSR1 registered with faulthandler.")
-            except RunnerException:
+            except RunnerError:
                 logging.warning("Failed to register USR1 or enable faulthandler.")
         else:
             logging.debug("Skipping, faulthandler already enabled")
@@ -591,13 +592,13 @@ def run_class_integration(
                 print_url=ctx.obj["gql_url_print"],
             )
         )
-    except gql.GqlApiIntegrationNotFound as e:
+    except gql.GqlApiIntegrationNotFoundError as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.INTEGRATION_NOT_FOUND)
-    except RunnerException as e:
+    except RunnerError as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.ERROR)
-    except gql.GqlApiErrorForbiddenSchema as e:
+    except gql.GqlApiErrorForbiddenSchemaError as e:
         sys.stderr.write(str(e) + "\n")
         sys.exit(ExitCodes.FORBIDDEN_SCHEMA)
     except Exception:
@@ -969,7 +970,7 @@ def aws_saml_roles(
     "--account-tmpl-resource",
     help="Resource name of the account template-collection template in the app-interface.",
     required=True,
-    default="/aws-account-manager/account-tmpl.yml",
+    default="/aws-account-manager/account-tmpl.yml.j2",
 )
 @click.option(
     "--template-collection-root-path",
@@ -2375,14 +2376,18 @@ def saas_auto_promotions_manager(
     env_name: str | None,
     app_name: str | None,
 ) -> None:
-    import reconcile.saas_auto_promotions_manager.integration
+    from reconcile.saas_auto_promotions_manager.integration import (
+        SaasAutoPromotionsManager,
+    )
 
-    run_integration(
-        reconcile.saas_auto_promotions_manager.integration,
-        ctx,
-        thread_pool_size,
-        env_name=env_name,
-        app_name=app_name,
+    run_class_integration(
+        integration=SaasAutoPromotionsManager.create(
+            env_name=env_name,
+            app_name=app_name,
+            thread_pool_size=thread_pool_size,
+            dry_run=ctx.obj["dry_run"],
+        ),
+        ctx=ctx,
     )
 
 
@@ -2940,12 +2945,11 @@ def ocm_update_recommended_version(
 
 
 @integration.command(short_help="Manages cluster Addons in OCM.")
-@threaded()
 @click.pass_context
-def ocm_addons(ctx: click.Context, thread_pool_size: int) -> None:
+def ocm_addons(ctx: click.Context) -> None:
     import reconcile.ocm_addons
 
-    run_integration(reconcile.ocm_addons, ctx, thread_pool_size)
+    run_integration(reconcile.ocm_addons, ctx)
 
 
 @integration.command(
@@ -3201,18 +3205,6 @@ def gitlab_fork_compliance(
         gitlab_merge_request_id,
         gitlab_maintainers_group,
     )
-
-
-@integration.command(
-    short_help="Collects the ImageManifestVuln CRs from all the clusters "
-    "and posts them to Dashdotdb."
-)
-@threaded(default=2)
-@click.pass_context
-def dashdotdb_cso(ctx: click.Context, thread_pool_size: int) -> None:
-    import reconcile.dashdotdb_cso
-
-    run_integration(reconcile.dashdotdb_cso, ctx, thread_pool_size)
 
 
 @integration.command(

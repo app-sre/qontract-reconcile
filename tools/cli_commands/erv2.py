@@ -3,13 +3,11 @@ from __future__ import annotations
 import json
 import os
 import sys
-from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from difflib import get_close_matches
 from enum import Enum
-from pathlib import Path
 from subprocess import CalledProcessError, run
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel
 from rich import print as rich_print
@@ -37,7 +35,15 @@ from reconcile.typed_queries.external_resources import (
 )
 from reconcile.utils import gql
 from reconcile.utils.exceptions import FetchResourceError
-from reconcile.utils.secret_reader import SecretReaderBase
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
+
+    from reconcile.utils.secret_reader import SecretReaderBase
+
+UP = "\x1b[1A"
+CLEAR = "\x1b[2K"
 
 
 def progress_spinner() -> Progress:
@@ -56,8 +62,6 @@ def pause_progress_spinner(progress: Progress | None) -> Iterator:
     """Pause the progress spinner."""
     if progress:
         progress.stop()
-        UP = "\x1b[1A"
-        CLEAR = "\x1b[2K"
         for task in progress.tasks:
             if task.finished:
                 continue

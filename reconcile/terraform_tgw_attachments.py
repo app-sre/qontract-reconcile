@@ -37,6 +37,7 @@ from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
 )
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.extended_early_exit import (
@@ -154,7 +155,7 @@ def _build_desired_state_items(
         for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
             if _is_tgw_peer_connection(peer_connection, account_name):
                 yield from _build_desired_state_tgw_connection(
-                    cast(ClusterPeeringConnectionAccountTGWV1, peer_connection),
+                    cast("ClusterPeeringConnectionAccountTGWV1", peer_connection),
                     cluster_info,
                     ocm,
                     awsapi,
@@ -366,7 +367,7 @@ def _is_tgw_peer_connection(
         return False
     if account_name is None:
         return True
-    tgw_peer_connection = cast(ClusterPeeringConnectionAccountTGWV1, peer_connection)
+    tgw_peer_connection = cast("ClusterPeeringConnectionAccountTGWV1", peer_connection)
     return tgw_peer_connection.account.name == account_name
 
 
@@ -396,7 +397,7 @@ def _filter_tgw_accounts(
         for peer_connection in cluster.peering.connections:  # type: ignore[union-attr]
             if peer_connection.provider == TGW_CONNECTION_PROVIDER:
                 tgw_peer_connection = cast(
-                    ClusterPeeringConnectionAccountTGWV1, peer_connection
+                    "ClusterPeeringConnectionAccountTGWV1", peer_connection
                 )
                 tgw_account_names.add(tgw_peer_connection.account.name)
     return [
@@ -423,7 +424,7 @@ def setup(
     account_name: str | None,
     desired_state_data_source: DesiredStateDataSource,
     tgw_accounts: list[dict[str, Any]],
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     print_to_file: str | None = None,
 ) -> tuple[SecretReaderBase, AWSApi, Terraform, Terrascript]:
     tgw_clusters = desired_state_data_source.clusters
@@ -500,7 +501,7 @@ def run(
     dry_run: bool,
     print_to_file: str | None = None,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
     defer: Callable | None = None,
     enable_extended_early_exit: bool = False,

@@ -2,12 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import (
-    Iterable,
-    Mapping,
-    Sequence,
-)
 from typing import (
+    TYPE_CHECKING,
     Any,
     Protocol,
 )
@@ -24,15 +20,18 @@ from slack_sdk.http_retry import (
 
 from reconcile.utils.metrics import slack_request
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
+
 MAX_RETRIES = 5
 TIMEOUT = 30
 
 
-class UserNotFoundException(Exception):
+class UserNotFoundError(Exception):
     pass
 
 
-class UsergroupNotFoundException(Exception):
+class UsergroupNotFoundError(Exception):
     pass
 
 
@@ -296,7 +295,7 @@ class SlackApi:
     def get_usergroup_id(self, handle: str) -> str | None:
         try:
             return self.get_usergroup(handle)["id"]
-        except UsergroupNotFoundException:
+        except UsergroupNotFoundError:
             return None
 
     def _initiate_usergroups(self) -> None:
@@ -317,7 +316,7 @@ class SlackApi:
             self._initiate_usergroups()
         usergroup = [g for g in self.usergroups if g["handle"] == handle]
         if len(usergroup) != 1:
-            raise UsergroupNotFoundException(handle)
+            raise UsergroupNotFoundError(handle)
         return usergroup[0]
 
     def create_usergroup(self, handle: str) -> str:
@@ -398,7 +397,7 @@ class SlackApi:
             result = self._sc.users_lookupByEmail(email=f"{user_name}@{mail_address}")
         except SlackApiError as e:
             if e.response["error"] == "users_not_found":
-                raise UserNotFoundException(e.response["error"]) from None
+                raise UserNotFoundError(e.response["error"]) from None
             raise
 
         return result["user"]["id"]
@@ -415,11 +414,19 @@ class SlackApi:
             k: v["name"] for k, v in self._get("channels").items() if k in channels_ids
         }
 
+    @staticmethod
+    def extract_name_from_user(user: dict[str, Any]) -> str | None:
+        if email := user["profile"].get("email"):
+            return email.split("@")[0]
+        return None
+
     def get_active_users_by_names(self, user_names: Iterable[str]) -> dict[str, str]:
         return {
-            k: v["name"]
+            k: name
             for k, v in self._get("users").items()
-            if v["name"] in user_names and not v["deleted"]
+            if not v["deleted"]
+            and (name := self.extract_name_from_user(v))
+            and name in user_names
         }
 
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
@@ -428,9 +435,10 @@ class SlackApi:
             self._translate_user_id(user_id) for user_id in users_ids
         )
         return {
-            user_id: user["name"]
+            user_id: name
             for user_id in translated_user_ids
             if (user := users.get(user_id))
+            and (name := self.extract_name_from_user(user))
         }
 
     def _get(self, resource: str) -> dict[str, Any]:

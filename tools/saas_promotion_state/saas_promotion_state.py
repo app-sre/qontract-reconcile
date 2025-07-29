@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from reconcile.openshift_saas_deploy import (
     QONTRACT_INTEGRATION as OPENSHIFT_SAAS_DEPLOY,
@@ -13,12 +13,15 @@ from reconcile.utils.promotion_state import PromotionData, PromotionState
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
-class SaasPromotionStateException(Exception):
+
+class SaasPromotionStateError(Exception):
     pass
 
 
-class SaasPromotionStateMissingException(Exception):
+class SaasPromotionStateMissingError(Exception):
     pass
 
 
@@ -72,12 +75,12 @@ class SaasPromotionState:
         )
 
         if not current_data:
-            raise SaasPromotionStateMissingException(
+            raise SaasPromotionStateMissingError(
                 f"No promotion state in S3 for given {publisher_uid=} {sha=} {channel=}"
             )
 
         if current_data.success:
-            raise SaasPromotionStateException(
+            raise SaasPromotionStateError(
                 f"The current promotion state is already marked successful for given {publisher_uid=} {sha=} {channel=}",
                 current_data,
             )

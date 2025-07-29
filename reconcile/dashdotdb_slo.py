@@ -15,6 +15,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.utils import gql
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -106,7 +107,9 @@ class DashdotdbSLO(DashdotdbBase):
             self._close_token()
 
 
-def run(dry_run: bool = False, thread_pool_size: int = 10) -> None:
+def run(
+    dry_run: bool = False, thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE
+) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     dashdotdb_slo = DashdotdbSLO(

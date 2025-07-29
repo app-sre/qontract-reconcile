@@ -12,7 +12,6 @@ BUILD_TARGET := prod-image
 
 .EXPORT_ALL_VARIABLES:
 # TWINE_USERNAME & TWINE_PASSWORD are available in jenkins job
-UV_PUBLISH_TOKEN = $(TWINE_PASSWORD)
 
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
@@ -86,10 +85,7 @@ clean: ## Clean up the local development environment
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
 
-pypi-release:
-	@$(CONTAINER_ENGINE) build --progress=plain --build-arg TWINE_USERNAME --build-arg TWINE_PASSWORD --target pypi -f dockerfiles/Dockerfile .
-
-pypi:
+pypi-konflux:
 	uv build --sdist --wheel
 	uv publish
 

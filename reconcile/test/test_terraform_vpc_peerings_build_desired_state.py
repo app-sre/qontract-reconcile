@@ -141,7 +141,7 @@ def test_c2c_one_cluster_failing_recoverable(mocker: MockerFixture) -> None:
     build_desired_state_single_cluster = mocker.patch.object(
         sut, "build_desired_state_single_cluster"
     )
-    build_desired_state_single_cluster.side_effect = sut.BadTerraformPeeringState(
+    build_desired_state_single_cluster.side_effect = sut.BadTerraformPeeringStateError(
         "something bad"
     )
 
@@ -164,8 +164,8 @@ def test_c2c_one_cluster_failing_weird(mocker: MockerFixture) -> None:
     build_desired_state_single_cluster = mocker.patch.object(
         sut, "build_desired_state_single_cluster"
     )
-    SOMETHING_UNEXPECTED = "nobody expects the spanish inquisition"
-    build_desired_state_single_cluster.side_effect = ValueError(SOMETHING_UNEXPECTED)
+    something_unexpected = "nobody expects the spanish inquisition"
+    build_desired_state_single_cluster.side_effect = ValueError(something_unexpected)
 
     with pytest.raises(ValueError) as ex:
         sut.build_desired_state_all_clusters(
@@ -175,7 +175,7 @@ def test_c2c_one_cluster_failing_weird(mocker: MockerFixture) -> None:
             account_filter=None,
         )
 
-    assert str(ex.value) == SOMETHING_UNEXPECTED
+    assert str(ex.value) == something_unexpected
 
 
 @pytest.mark.parametrize(
@@ -462,7 +462,7 @@ def test_c2c_no_matches() -> None:
         ],
     )
 
-    with pytest.raises(sut.BadTerraformPeeringState) as ex:
+    with pytest.raises(sut.BadTerraformPeeringStateError) as ex:
         sut.build_desired_state_single_cluster(
             requester_cluster,
             MockOCM(),  # type: ignore
@@ -539,7 +539,7 @@ def test_c2c_no_peer_account() -> None:
     ocm = MockOCM()
     awsapi = MockAWSAPI()
 
-    with pytest.raises(sut.BadTerraformPeeringState) as ex:
+    with pytest.raises(sut.BadTerraformPeeringStateError) as ex:
         sut.build_desired_state_single_cluster(
             requester_cluster,
             ocm,  # type: ignore
@@ -631,13 +631,13 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
         self.maxDiff = None
         self.ocm = testslide.StrictMock(ocm.OCM)
         self.ocm_map = cast(
-            ocm.OCMMap, {"clustername": self.ocm}
+            "ocm.OCMMap", {"clustername": self.ocm}
         )  # the cast is to make mypy happy
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (
             lambda cluster, uid, tfuser: self.peer_account["assume_role"]
         )
         self.awsapi = cast(
-            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+            "aws_api.AWSApi", testslide.StrictMock(aws_api.AWSApi)
         )  # the cast is to make mypy happy
         self.account_vpcs = [
             {
@@ -713,7 +713,7 @@ class TestBuildDesiredStateVpcMesh(testslide.TestCase):
 
     def test_cluster_raises(self) -> None:
         self.vpc_mesh_single_cluster.to_raise(
-            sut.BadTerraformPeeringState("This is wrong")
+            sut.BadTerraformPeeringStateError("This is wrong")
         )
         rs = sut.build_desired_state_vpc_mesh(
             self.clusters,
@@ -783,7 +783,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             },
         }
         self.awsapi = cast(
-            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+            "aws_api.AWSApi", testslide.StrictMock(aws_api.AWSApi)
         )  # the cast is to make mypy happy
         self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
         self.find_matching_peering = self.mock_callable(sut, "find_matching_peering")
@@ -815,7 +815,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
         self.maxDiff = None
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
         self.ocm = cast(
-            ocm.OCM, testslide.StrictMock(template=ocm.OCM)
+            "ocm.OCM", testslide.StrictMock(template=ocm.OCM)
         )  # the cast is to make mypy happy
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore
             lambda cluster, uid, tfuser: self.peer_account["assume_role"]
@@ -1075,7 +1075,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
         self.ocm = testslide.StrictMock(template=ocm.OCM)
         self.ocm_map: ocm.OCMMap = {"clustername": self.ocm}  # type: ignore
         self.awsapi = cast(
-            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+            "aws_api.AWSApi", testslide.StrictMock(aws_api.AWSApi)
         )  # the cast is to make mypy happy
 
         self.build_single_cluster = self.mock_callable(
@@ -1132,7 +1132,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
 
     def test_cluster_fails(self) -> None:
         self.build_single_cluster.to_raise(
-            sut.BadTerraformPeeringState("I have failed")
+            sut.BadTerraformPeeringStateError("I have failed")
         )
 
         self.assertEqual(
@@ -1154,7 +1154,7 @@ class TestBuildDesiredStateVpc(testslide.TestCase):
             self.ocm,
             self.awsapi,
             None,
-        ).to_raise(sut.BadTerraformPeeringState("Fail!")).and_assert_called_once()
+        ).to_raise(sut.BadTerraformPeeringStateError("Fail!")).and_assert_called_once()
 
         self.assertEqual(
             sut.build_desired_state_vpc(
@@ -1245,10 +1245,10 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
             sut, "build_desired_state_single_cluster"
         )
         self.ocm = cast(
-            ocm.OCM, testslide.StrictMock(template=ocm.OCM)
+            "ocm.OCM", testslide.StrictMock(template=ocm.OCM)
         )  # the cast is to make mypy happy
         self.awsapi = cast(
-            aws_api.AWSApi, testslide.StrictMock(aws_api.AWSApi)
+            "aws_api.AWSApi", testslide.StrictMock(aws_api.AWSApi)
         )  # the cast is to make mypy happy
         self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore

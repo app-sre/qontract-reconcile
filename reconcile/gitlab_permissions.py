@@ -14,6 +14,7 @@ from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile.utils import batches
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.gitlab_api import GitLabApi
@@ -55,7 +56,7 @@ class GroupPermissionHandler:
         # get all projects shared with group
         shared_projects = self.group.shared_projects.list(iterator=True)
         current_state = {
-            project.web_url: self.extract_group_spec(cast(SharedProject, project))
+            project.web_url: self.extract_group_spec(cast("SharedProject", project))
             for project in shared_projects
         }
         self.reconcile(desired_state, current_state)
@@ -194,7 +195,9 @@ def create_user_ids_query(ids: Iterable[str]) -> dict[str, str]:
 
 @defer
 def run(
-    dry_run: bool, thread_pool_size: int = 10, defer: Callable | None = None
+    dry_run: bool,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
+    defer: Callable | None = None,
 ) -> None:
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import contextlib
+import cProfile
 import logging
 import os
 import sys
@@ -65,14 +67,26 @@ HANDLERS = [STREAM_HANDLER]
 # Messages to the log file
 if LOG_FILE is not None:
     FILE_HANDLER = logging.FileHandler(LOG_FILE)
-    logFileFormat = "%(message)s"
-    if PREFIX_LOG_LEVEL == "true":
-        logFileFormat = "[%(levelname)s] %(message)s"
-    FILE_HANDLER.setFormatter(logging.Formatter(fmt=logFileFormat))
+    FILE_HANDLER.setFormatter(
+        logging.Formatter(
+            fmt="[%(levelname)s] %(message)s"
+            if PREFIX_LOG_LEVEL == "true"
+            else "%(message)s"
+        )
+    )
     HANDLERS.append(FILE_HANDLER)  # type: ignore
 
 # Setting up the root logger
 logging.basicConfig(level=LOG_LEVEL, handlers=HANDLERS)
+
+
+PROFILE_DUMP_FILE = os.environ.get("PROFILE_DUMP_FILE", "/tmp/profile.prof")
+profiling_enabled = os.environ.get("ENABLE_PROFILING", "").lower() in {
+    "true",
+    "1",
+    "yes",
+}
+profiler = cProfile.Profile() if profiling_enabled else contextlib.nullcontext()
 
 
 class PushgatewayBadConfigError(Exception):
@@ -106,7 +120,7 @@ def build_entry_point_args(
     # we add it right before the extra_args
     if (
         integration_name
-        and isinstance(command, click.MultiCommand)
+        and isinstance(command, click.Group)
         and command.get_command(None, integration_name)  # type: ignore
     ):
         args.append(integration_name)
@@ -235,7 +249,11 @@ def main() -> None:
         try:
             with command.make_context(info_name=COMMAND_NAME, args=args) as ctx:  # type: ignore
                 ctx.ensure_object(dict)
-                command.invoke(ctx)
+                with profiler as pr:
+                    command.invoke(ctx)
+                    if pr:
+                        LOG.info(f"Profiling data written to {PROFILE_DUMP_FILE}")
+                        pr.dump_stats(PROFILE_DUMP_FILE)
                 return_code = 0
         # This is for when the integration explicitly
         # calls sys.exit(N)

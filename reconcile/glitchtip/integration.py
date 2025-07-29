@@ -58,7 +58,7 @@ def get_user_role(organization: Organization, roles: RoleV1) -> str:
     return DEFAULT_MEMBER_ROLE
 
 
-class GlitchtipException(Exception):
+class GlitchtipError(Exception):
     pass
 
 
@@ -102,7 +102,7 @@ def fetch_desired_state(
         )
         # Check project is unique within an organization
         if project.name in [p.name for p in organization.projects]:
-            raise GlitchtipException(f'project name "{project.name}" already in use!')
+            raise GlitchtipError(f'project name "{project.name}" already in use!')
         for glitchtip_team in glitchtip_project.teams:
             users: list[User] = []
 

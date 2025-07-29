@@ -1,25 +1,28 @@
 import json
 import logging
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm import OCMMap
 
 QONTRACT_INTEGRATION = "ocm-external-configuration-labels"
 
 
-def get_allowed_labels_for_cluster(cluster: dict[str, Any]) -> set[str]:
+def get_allowed_labels_for_cluster(cluster: Mapping[str, Any]) -> set[str]:
     allowed_labels = cluster.get("ocm", {}).get(
         "allowedClusterExternalConfigLabels", []
     )
     return set(allowed_labels)
 
 
-def fetch_current_state(clusters):
+def fetch_current_state(
+    clusters: Iterable[Mapping[str, Any]],
+) -> tuple[OCMMap, list[dict[str, Any]]]:
     settings = queries.get_app_interface_settings()
     ocm_map = OCMMap(
         clusters=clusters, integration=QONTRACT_INTEGRATION, settings=settings
@@ -34,13 +37,16 @@ def fetch_current_state(clusters):
         for key, value in labels.items():
             if key not in allowed_labels:
                 continue
-            item = {"label": {"key": key, "value": value}, "cluster": cluster_name}
+            item = {
+                "label": {"key": key, "value": value},
+                "cluster": cluster_name,
+            }
             current_state.append(item)
 
     return ocm_map, current_state
 
 
-def fetch_desired_state(clusters):
+def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     desired_state = []
     for cluster in clusters:
         cluster_name = cluster["name"]
@@ -57,32 +63,35 @@ def fetch_desired_state(clusters):
     return desired_state
 
 
-def calculate_diff(current_state, desired_state):
+def calculate_diff(
+    current_state: Iterable[dict[str, Any]],
+    desired_state: Iterable[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], bool]:
     diffs = []
     err = False
-    for d in desired_state:
-        c = [c for c in current_state if d == c]
-        if not c:
-            d["action"] = "create"
-            diffs.append(d)
+    for d_item in desired_state:
+        c_items = [c for c in current_state if d_item == c]
+        if not c_items:
+            d_item["action"] = "create"
+            diffs.append(d_item)
 
-    for c in current_state:
-        d = [d for d in desired_state if c == d]
-        if not d:
-            c["action"] = "delete"
-            diffs.append(c)
+    for c_item in current_state:
+        d_items = [d for d in desired_state if c_item == d]
+        if not d_items:
+            c_item["action"] = "delete"
+            diffs.append(c_item)
 
     return diffs, err
 
 
-def sort_diffs(diff):
+def sort_diffs(diff: Mapping[str, Any]) -> int:
     """Sort diffs so we delete first and create later"""
     if diff["action"] == "delete":
         return 1
     return 2
 
 
-def act(dry_run, diffs, ocm_map):
+def act(dry_run: bool, diffs: list[dict[str, Any]], ocm_map: OCMMap) -> None:
     diffs.sort(key=sort_diffs)
     for diff in diffs:
         action = diff["action"]
@@ -104,7 +113,11 @@ def _cluster_is_compatible(cluster: Mapping[str, Any]) -> bool:
     )
 
 
-def run(dry_run, gitlab_project_id=None, thread_pool_size=10):
+def run(
+    dry_run: bool,
+    gitlab_project_id: str | None = None,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
+) -> None:
     clusters = queries.get_clusters()
     clusters = [
         c

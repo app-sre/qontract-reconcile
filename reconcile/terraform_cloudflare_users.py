@@ -35,15 +35,15 @@ from reconcile.utils.terraform.config_client import (
     TerraformConfigClientCollection,
 )
 from reconcile.utils.terraform_client import (
-    TerraformApplyFailed,
+    TerraformApplyFailedError,
     TerraformClient,
-    TerraformDeletionDetected,
-    TerraformPlanFailed,
+    TerraformDeletionDetectedError,
+    TerraformPlanFailedError,
 )
 from reconcile.utils.terrascript.cloudflare_client import (
     AccountShardingStrategy,
-    IntegrationUndefined,
-    InvalidTerraformState,
+    IntegrationUndefinedError,
+    InvalidTerraformStateError,
     TerrascriptCloudflareClientFactory,
 )
 from reconcile.utils.terrascript.models import (
@@ -153,9 +153,6 @@ class TerraformCloudflareUsers(
         ]
 
         self._run_terraform(
-            QONTRACT_INTEGRATION,
-            QONTRACT_INTEGRATION_VERSION,
-            QONTRACT_TF_PREFIX,
             dry_run,
             enable_deletion,
             thread_pool_size,
@@ -165,9 +162,6 @@ class TerraformCloudflareUsers(
 
     def _run_terraform(
         self,
-        QONTRACT_INTEGRATION: str,
-        QONTRACT_INTEGRATION_VERSION: str,
-        QONTRACT_TF_PREFIX: str,
         dry_run: bool,
         enable_deletion: bool,
         thread_pool_size: int,
@@ -186,11 +180,11 @@ class TerraformCloudflareUsers(
         try:
             disabled_deletions_detected, err = tf.plan(enable_deletion)
             if err:
-                raise TerraformPlanFailed(
+                raise TerraformPlanFailedError(
                     f"Failed to run terraform plan for integration {QONTRACT_INTEGRATION}"
                 )
             if disabled_deletions_detected:
-                raise TerraformDeletionDetected(
+                raise TerraformDeletionDetectedError(
                     "Deletions detected but they are disabled"
                 )
 
@@ -199,7 +193,7 @@ class TerraformCloudflareUsers(
 
             err = tf.apply()
             if err:
-                raise TerraformApplyFailed(
+                raise TerraformApplyFailedError(
                     f"Failed to run terraform apply for integration {QONTRACT_INTEGRATION}"
                 )
         finally:
@@ -235,9 +229,13 @@ class TerraformCloudflareUsers(
             integrations = tf_state.integrations
 
             if not bucket:
-                raise InvalidTerraformState("Terraform state must have bucket defined")
+                raise InvalidTerraformStateError(
+                    "Terraform state must have bucket defined"
+                )
             if not region:
-                raise InvalidTerraformState("Terraform state must have region defined")
+                raise InvalidTerraformStateError(
+                    "Terraform state must have region defined"
+                )
 
             integration = None
             for i in integrations:
@@ -246,7 +244,7 @@ class TerraformCloudflareUsers(
                     break
 
             if not integration:
-                raise IntegrationUndefined(
+                raise IntegrationUndefinedError(
                     "Must declare integration name under Terraform state in app-interface"
                 )
 
@@ -342,11 +340,6 @@ def build_external_resource_spec_from_cloudflare_users(
                 "provider": "account_member",
                 "identifier": safe_resource_id(cf_user.org_username),
                 "email_address": cf_user.email_address,
-                # Setting status to 'accepted' skips the need for the user to accept
-                # all the invites for the accounts that they're added to. This only
-                # works if the Cloudflare user account already exists, which seems to be
-                # acceptable for now.
-                "status": "accepted",
                 "account_id": "${var.account_id}",
                 "role_ids": [
                     # I know this is ugly :(

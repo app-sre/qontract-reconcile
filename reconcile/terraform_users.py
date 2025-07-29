@@ -16,6 +16,7 @@ from reconcile.utils import (
     gql,
 )
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import SecretReader
@@ -237,7 +238,7 @@ def run(
     dry_run: bool,
     print_to_file: str | None = None,
     enable_deletion: bool = False,
-    thread_pool_size: int = 10,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     send_mails: bool = True,
     account_name: str | None = None,
 ):
@@ -294,7 +295,7 @@ def run(
     new_users = tf.get_new_users()
 
     if reencrypt_settings:
-        vc = cast(_VaultClient, VaultClient())
+        vc = cast("_VaultClient", VaultClient())
         write_user_to_vault(
             vc, reencrypt_settings.reencrypt_vault_path, new_users, skip_accounts
         )

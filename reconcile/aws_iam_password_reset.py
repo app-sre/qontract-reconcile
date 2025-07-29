@@ -41,7 +41,7 @@ class AwsProfileToReset(BaseModel):
 
 class AwsAccountWithResets(BaseModel):
     account: Mapping[str, Any]
-    resetPasswords: list[AwsProfileToReset]
+    reset_passwords: list[AwsProfileToReset]
 
 
 @defer
@@ -63,7 +63,7 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
 
         account_reset = AwsAccountWithResets(
             account=a,
-            resetPasswords=[],
+            reset_passwords=[],
         )
         accounts_to_reset.append(account_reset)
 
@@ -83,23 +83,23 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
                 logging.error(f"User {user_name} is not in account {account_name}")
                 sys.exit(1)
 
-            account_reset.resetPasswords.append(
+            account_reset.reset_passwords.append(
                 AwsProfileToReset(
                     user_name=user_name,
                     state_key=state_key,
                 )
             )
 
-    for a in accounts_to_reset:
-        if not a.resetPasswords:
+    for account_to_reset in accounts_to_reset:
+        if not account_to_reset.reset_passwords:
             continue
 
-        with AWSApi(1, [a.account], settings=settings) as aws_api:
-            for r in a.resetPasswords:
+        with AWSApi(1, [account_to_reset.account], settings=settings) as aws_api:
+            for r in account_to_reset.reset_passwords:
                 user_name = r.user_name
                 state_key = r.state_key
 
-                account_name = a.account["name"]
+                account_name = account_to_reset.account["name"]
 
                 logging.info(["reset_password", account_name, user_name])
 

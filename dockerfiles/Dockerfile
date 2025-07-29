@@ -1,8 +1,9 @@
+# TODO: decommission once we remove ci.ext job completely
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.0.0-1 AS build-image
-COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.0.0-1@sha256:bbfe9e1f33dda05c13960181be29484cc2db4c6e8aeeb731a50a1ac7ff11792f AS build-image
+COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
 
 WORKDIR /work
 
@@ -24,8 +25,8 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --pytho
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS dev-image
-COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1@sha256:6344b1751aec6cab930d1b60553930a3e139f2121620ab1a46673abec2b8ffbf AS dev-image
+COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile && \
@@ -48,7 +49,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1 AS prod-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1@sha256:6344b1751aec6cab930d1b60553930a3e139f2121620ab1a46673abec2b8ffbf AS prod-image
 
 ARG quay_expiration=never
 LABEL quay.expires-after=${quay_expiration}
@@ -82,7 +83,7 @@ ENV OC_VERSION=4.16.2
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
 # versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1 \
+COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1@sha256:b7d06973a9e058a5dd6068566d6b1358fdc1a1c9b4653e39dbac018f74f2c8d1 \
     /work/${OC_VERSION}/ /usr/local/bin/
 
 
@@ -90,7 +91,7 @@ COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1 \
 # STAGE 5 - unittest image
 ###############################################################################
 FROM prod-image AS test-image
-COPY --from=ghcr.io/astral-sh/uv:0.7.14@sha256:cda0fdc9b6066975ba4c791597870d18bc3a441dfc18ab24c5e888c16e15780c /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
 
 RUN microdnf install -y make
 
@@ -116,4 +117,5 @@ ARG TWINE_PASSWORD
 # TODO: use --mount=source=.git,target=.git,type=bind
 # podman does not support --mount=type=bind
 # qontract-reconcile version depends on git tags!
-RUN make pypi
+# Handled by konflux
+#RUN make pypi

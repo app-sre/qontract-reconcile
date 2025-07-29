@@ -9,7 +9,7 @@ import reconcile.terraform_vpc_peerings as integ
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
 from reconcile import queries
-from reconcile.terraform_vpc_peerings import BadTerraformPeeringState
+from reconcile.terraform_vpc_peerings import BadTerraformPeeringStateError
 from reconcile.utils import (
     aws_api,
     ocm,
@@ -101,7 +101,7 @@ def build_cluster(
 ) -> dict[str, Any]:
     if not vpc:
         vpc = name
-    cluster = {
+    cluster: dict[str, Any] = {
         "name": name,
         "spec": {
             "region": "region",
@@ -117,32 +117,28 @@ def build_cluster(
         cluster["awsInfrastructureManagementAccounts"] = []
         if read_only_accounts:
             for acc in read_only_accounts:
-                cluster["awsInfrastructureManagementAccounts"].append(  # type: ignore
-                    {
-                        "account": {
-                            "name": acc,
-                            "uid": acc,
-                            "terraformUsername": "terraform",
-                            "automationToken": {},
-                        },
-                        "accessLevel": "read-only",
-                        "default": None,
-                    }
-                )
+                cluster["awsInfrastructureManagementAccounts"].append({
+                    "account": {
+                        "name": acc,
+                        "uid": acc,
+                        "terraformUsername": "terraform",
+                        "automationToken": {},
+                    },
+                    "accessLevel": "read-only",
+                    "default": None,
+                })
         if network_mgmt_accounts:
             for idx, acc in enumerate(network_mgmt_accounts):
-                cluster["awsInfrastructureManagementAccounts"].append(  # type: ignore
-                    {
-                        "account": {
-                            "name": acc,
-                            "uid": acc,
-                            "terraformUsername": "terraform",
-                            "automationToken": {},
-                        },
-                        "accessLevel": "network-mgmt",
-                        "default": True if idx == 0 else None,
-                    }
-                )
+                cluster["awsInfrastructureManagementAccounts"].append({
+                    "account": {
+                        "name": acc,
+                        "uid": acc,
+                        "terraformUsername": "terraform",
+                        "automationToken": {},
+                    },
+                    "accessLevel": "network-mgmt",
+                    "default": True if idx == 0 else None,
+                })
     return cluster
 
 
@@ -255,7 +251,7 @@ def test_c2c_vpc_peering_assume_role_acc_overwrite_fail() -> None:
         .register("r_c", "acc", "terraform", "arn:r_acc")
         .register("a_c", "acc", "terraform", "arn:a_acc")
     )
-    with pytest.raises(BadTerraformPeeringState) as ex:
+    with pytest.raises(BadTerraformPeeringStateError) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
             requester_connection,
             requester_cluster,
@@ -330,7 +326,7 @@ def test_c2c_vpc_peering_missing_ocm_assume_role() -> None:
 
     ocm = MockOCM()
 
-    with pytest.raises(BadTerraformPeeringState) as ex:
+    with pytest.raises(BadTerraformPeeringStateError) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
             requester_connection,
             requester_cluster,
@@ -352,7 +348,7 @@ def test_c2c_vpc_peering_missing_account() -> None:
 
     ocm = MockOCM()
 
-    with pytest.raises(BadTerraformPeeringState) as ex:
+    with pytest.raises(BadTerraformPeeringStateError) as ex:
         integ.aws_assume_roles_for_cluster_vpc_peering(
             requester_connection,
             requester_cluster,

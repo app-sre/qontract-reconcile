@@ -148,7 +148,7 @@ def test_retrieve_token(mocker: MockerFixture) -> None:
     mocker.patch("sretoolbox.utils.retry.time.sleep")
 
     oc_mock.return_value = {}
-    with pytest.raises(ocb.TokenNotReadyException):
+    with pytest.raises(ocb.TokenNotReadyError):
         ocb.retrieve_token("kc", "ns", "sa")
     assert oc_mock.call_count == 3
 

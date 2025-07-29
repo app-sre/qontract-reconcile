@@ -4,6 +4,7 @@ from collections import Counter
 from collections.abc import (
     Iterable,
     Mapping,
+    MutableMapping,
     Sequence,
 )
 from dataclasses import (
@@ -27,6 +28,7 @@ from reconcile.utils import (
     differ,
     metrics,
 )
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc import (
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -39,7 +41,7 @@ from reconcile.utils.oc import (
     OCLogMsg,
     PrimaryClusterIPCanNotBeUnsetError,
     RequestEntityTooLargeError,
-    StatefulSetUpdateForbidden,
+    StatefulSetUpdateForbiddenError,
     StatusCodeError,
     UnsupportedMediaTypeError,
 )
@@ -52,13 +54,19 @@ from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 
 ACTION_APPLIED = "applied"
 ACTION_DELETED = "deleted"
+AUTH_METHOD_USER_KEY = {
+    "github-org": "github_username",
+    "github-org-team": "github_username",
+    "oidc": "org_username",
+    "rhidp": "org_username",
+}
 
 
 class ValidationError(Exception):
     pass
 
 
-class ValidationErrorJobFailed(Exception):
+class ValidationErrorJobFailedError(Exception):
     pass
 
 
@@ -98,8 +106,7 @@ class HasNameAndAuthService(Protocol):
     name: str
 
     @property
-    def auth(self) -> Sequence[HasService]:
-        pass
+    def auth(self) -> Sequence[HasService]: ...
 
 
 class HasOrgAndGithubUsername(Protocol):
@@ -291,7 +298,7 @@ def populate_current_state(
     integration: str,
     integration_version: str,
     caller: str | None = None,
-):
+) -> None:
     # if spec.oc is None: - oc can't be none because init_namespace_specs_to_fetch does not create specs if oc is none
     #    return
     if not spec.oc.is_kind_supported(spec.kind):
@@ -324,7 +331,7 @@ def populate_current_state(
 def fetch_current_state(
     namespaces: Iterable[Mapping] | None = None,
     clusters: Iterable[Mapping] | None = None,
-    thread_pool_size: int | None = None,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     integration: str | None = None,
     integration_version: str | None = None,
     override_managed_types: Iterable[str] | None = None,
@@ -340,7 +347,7 @@ def fetch_current_state(
     oc_map = OC_Map(
         namespaces=namespaces,
         clusters=clusters,
-        integration=integration,
+        integration=integration or "",
         settings=settings,
         internal=internal,
         use_jump_host=use_jump_host,
@@ -371,7 +378,7 @@ def fetch_current_state(
 
 
 @retry(max_attempts=30)
-def wait_for_namespace_exists(oc, namespace):
+def wait_for_namespace_exists(oc: OCCli, namespace: str) -> None:
     if not oc.project_exists(namespace):
         raise StatusCodeError(f"namespace {namespace} does not exist")
 
@@ -498,7 +505,7 @@ def apply(
 
             oc.delete(namespace=namespace, kind=resource_type, name=resource.name)
             oc.apply(namespace=namespace, resource=annotated)
-        except StatefulSetUpdateForbidden:
+        except StatefulSetUpdateForbiddenError:
             if resource_type != "StatefulSet":
                 raise
 
@@ -535,13 +542,20 @@ def apply(
         oc.recycle_pods(dry_run, namespace, resource_type, resource)
 
 
-def create(dry_run, oc_map, cluster, namespace, resource_type, resource):
+def create(
+    dry_run: bool,
+    oc_map: ClusterMap,
+    cluster: str,
+    namespace: str,
+    resource_type: str,
+    resource: OR,
+) -> None:
     logging.info(["create", cluster, namespace, resource_type, resource.name])
 
     oc = oc_map.get(cluster)
-    if not oc:
+    if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
-        return None
+        return
     if not dry_run:
         annotated = resource.annotate()
         oc.create(namespace, annotated)
@@ -579,7 +593,7 @@ def delete(
         return None
 
 
-def check_unused_resource_types(ri):
+def check_unused_resource_types(ri: ResourceInventory) -> None:
     for cluster, namespace, resource_type, data in ri:
         if not data["desired"].items():
             msg = (
@@ -1030,18 +1044,18 @@ def _realize_resource_data_3way_diff(
 
 
 def realize_data(
-    dry_run,
+    dry_run: bool,
     oc_map: ClusterMap,
     ri: ResourceInventory,
-    thread_pool_size,
-    take_over=False,
-    caller=None,
-    all_callers=None,
-    wait_for_namespace=False,
-    no_dry_run_skip_compare=False,
-    override_enable_deletion=None,
-    recycle_pods=True,
-):
+    thread_pool_size: int,
+    take_over: bool = False,
+    caller: str | None = None,
+    all_callers: Sequence[str] | None = None,
+    wait_for_namespace: bool = False,
+    no_dry_run_skip_compare: bool = False,
+    override_enable_deletion: bool | None = None,
+    recycle_pods: bool = True,
+) -> list[dict[str, Any]]:
     """
     Realize the current state to the desired state.
 
@@ -1154,7 +1168,9 @@ def validate_planned_data(ri: ResourceInventory, oc_map: ClusterMap) -> None:
 
 
 @retry(exceptions=(ValidationError), max_attempts=200)
-def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap):
+def validate_realized_data(
+    actions: Iterable[dict[str, str]], oc_map: ClusterMap
+) -> None:
     """
     Validate the realized desired state.
 
@@ -1228,7 +1244,7 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap
                         for c in conditions:
                             if c.get("type") == "Failed":
                                 msg = f"{name}: {c.get('reason')}"
-                                raise ValidationErrorJobFailed(msg)
+                                raise ValidationErrorJobFailedError(msg)
                     raise ValidationError(name)
             elif kind == "ClowdApp":
                 deployments = status.get("deployments")
@@ -1256,7 +1272,7 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap
                         if job_state == "Failed":
                             failed_jobs.append(job_name)
                     if failed_jobs:
-                        raise ValidationErrorJobFailed(
+                        raise ValidationErrorJobFailedError(
                             f"CJI {name} failed jobs: {failed_jobs}"
                         )
                 else:
@@ -1268,7 +1284,9 @@ def validate_realized_data(actions: Iterable[dict[str, str]], oc_map: ClusterMap
                     raise ValidationError(name)
 
 
-def follow_logs(oc_map, actions, io_dir):
+def follow_logs(
+    oc_map: ClusterMap, actions: Iterable[Mapping[str, Any]], io_dir: str
+) -> None:
     """
     Collect the logs from the owned pods into files in io_dir.
 
@@ -1289,21 +1307,29 @@ def follow_logs(oc_map, actions, io_dir):
             logging.info(["collecting", cluster, namespace, kind, name])
 
             oc = oc_map.get(cluster)
-            if not oc:
+            if isinstance(oc, OCLogMsg):
                 logging.log(level=oc.log_level, msg=oc.message)
                 continue
 
             if kind == "Job":
                 oc.job_logs(namespace, name, follow=True, output=io_dir)
             if kind == "ClowdJobInvocation":
+                if isinstance(oc, OCLogMsg):
+                    logging.log(level=oc.log_level, msg=oc.message)
+                    continue
                 resource = oc.get(namespace, kind, name=name)
                 jobs = resource.get("status", {}).get("jobMap", {})
                 for jn in jobs:
                     logging.info(["collecting", cluster, namespace, kind, jn])
+                    if isinstance(oc, OCLogMsg):
+                        logging.log(level=oc.log_level, msg=oc.message)
+                        continue
                     oc.job_logs(namespace, jn, follow=True, output=io_dir)
 
 
-def aggregate_shared_resources(namespace_info, shared_resources_type):
+def aggregate_shared_resources(
+    namespace_info: MutableMapping[str, Any], shared_resources_type: str
+) -> None:
     """This function aggregates shared resources of the desired type
     from a shared resources file to the appropriate namespace section."""
     supported_shared_resources_types = [
@@ -1342,15 +1368,13 @@ class HasOpenshiftServiceAccountTokens(Protocol):
 @runtime_checkable
 class HasSharedResourcesOpenShiftResources(Protocol):
     @property
-    def shared_resources(self) -> Sequence[HasOpenShiftResources] | None:
-        pass
+    def shared_resources(self) -> Sequence[HasOpenShiftResources] | None: ...
 
 
 @runtime_checkable
 class HasSharedResourcesOpenshiftServiceAccountTokens(Protocol):
     @property
-    def shared_resources(self) -> Sequence[HasOpenshiftServiceAccountTokens] | None:
-        pass
+    def shared_resources(self) -> Sequence[HasOpenshiftServiceAccountTokens] | None: ...
 
 
 @runtime_checkable
@@ -1413,12 +1437,7 @@ def determine_user_keys_for_access(
     enforced_user_keys: list[str] | None = None,
 ) -> list[str]:
     """Return user keys based on enabled cluster authentication methods."""
-    AUTH_METHOD_USER_KEY = {
-        "github-org": "github_username",
-        "github-org-team": "github_username",
-        "oidc": "org_username",
-        "rhidp": "org_username",
-    }
+
     user_keys: list[str] = []
 
     if enforced_user_keys:

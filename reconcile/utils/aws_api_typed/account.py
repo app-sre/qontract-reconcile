@@ -1,12 +1,14 @@
+from __future__ import annotations
+
+import logging
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from pydantic import BaseModel
+
 if TYPE_CHECKING:
     from mypy_boto3_account import AccountClient
-else:
-    AccountClient = object
-
-from pydantic import BaseModel
+    from mypy_boto3_account.type_defs import AlternateContactTypeDef
 
 
 class OptStatus(StrEnum):
@@ -22,6 +24,9 @@ class Region(BaseModel):
     status: OptStatus
 
 
+log = logging.getLogger(__name__)
+
+
 class AWSApiAccount:
     def __init__(self, client: AccountClient) -> None:
         self.client = client
@@ -30,13 +35,36 @@ class AWSApiAccount:
         self, name: str, title: str, email: str, phone_number: str
     ) -> None:
         """Set the security contact for the account."""
-        self.client.put_alternate_contact(
-            AlternateContactType="SECURITY",
-            EmailAddress=email,
-            Name=name,
-            Title=title,
-            PhoneNumber=phone_number,
-        )
+        try:
+            self.client.put_alternate_contact(
+                AlternateContactType="SECURITY",
+                EmailAddress=email,
+                Name=name,
+                Title=title,
+                PhoneNumber=phone_number,
+            )
+        except self.client.exceptions.AccessDeniedException:
+            # This exception is raised if the user does not have permission to perform this action.
+            # Let's see if the current security contact is already set to the same values.
+            current_contact = self.get_security_contact()
+            if (
+                not current_contact
+                or current_contact["EmailAddress"] != email
+                or current_contact["Name"] != name
+                or current_contact["Title"] != title
+                or current_contact["PhoneNumber"] != phone_number
+            ):
+                raise
+
+    def get_security_contact(self) -> AlternateContactTypeDef | None:
+        """Get the security contact for the account."""
+        try:
+            return self.client.get_alternate_contact(AlternateContactType="SECURITY")[
+                "AlternateContact"
+            ]
+        except self.client.exceptions.ResourceNotFoundException:
+            log.warning("Security contact not set.")
+            return None
 
     def list_regions(self) -> list[Region]:
         """List all regions in the account."""

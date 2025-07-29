@@ -1,16 +1,10 @@
-from collections.abc import Generator
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import boto3
 import pytest
-from moto import mock_s3
-
-if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
-else:
-    S3Client = object
-from pytest import MonkeyPatch
-from pytest_mock import MockerFixture
+from moto import mock_aws
 
 from reconcile.gql_definitions.common.app_interface_state_settings import (
     AppInterfaceStateConfigurationS3V1,
@@ -24,14 +18,22 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
 )
 from reconcile.utils.state import (
-    AbortStateTransaction,
+    AbortStateTransactionError,
     S3CredsBasedStateConfiguration,
     S3ProfileBasedStateConfiguration,
     State,
-    StateInaccessibleException,
+    StateInaccessibleError,
     TransactionStateObj,
     acquire_state_settings,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from mypy_boto3_s3 import S3Client
+    from pytest import MonkeyPatch
+    from pytest_mock import MockerFixture
+
 
 BUCKET = "some-bucket"
 ACCOUNT = "some-account"
@@ -57,7 +59,7 @@ def s3_client(monkeypatch: MonkeyPatch) -> Generator[S3Client, None, None]:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
-    with mock_s3():
+    with mock_aws():
         s3_client = boto3.client("s3", region_name="us-east-1")
         s3_client.create_bucket(Bucket=BUCKET)
         yield s3_client
@@ -188,7 +190,7 @@ def test_exists_for_missing_key(integration_state: State) -> None:
 
 
 def test_exists_for_missing_bucket(s3_client: S3Client) -> None:
-    with pytest.raises(StateInaccessibleException, match=r".*404.*"):
+    with pytest.raises(StateInaccessibleError, match=r".*404.*"):
         State(
             integration="",
             bucket="does-not-exist",
@@ -262,7 +264,7 @@ def test_acquire_state_settings_env_missing_account(monkeypatch: MonkeyPatch) ->
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", BUCKET)
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET_ACCOUNT", ACCOUNT)
 
-    with pytest.raises(StateInaccessibleException):
+    with pytest.raises(StateInaccessibleError):
         acquire_state_settings(
             secret_reader=ConfigSecretReader(),
             query_func=lambda gql_query, **kwargs: {"accounts": None},
@@ -335,7 +337,7 @@ def test_acquire_state_settings_no_settings(mocker: MockerFixture) -> None:
     )
     get_aws_account_by_name_mock.return_value = None
 
-    with pytest.raises(StateInaccessibleException):
+    with pytest.raises(StateInaccessibleError):
         acquire_state_settings(secret_reader=MockAWSCredsSecretReader())
 
 
@@ -477,7 +479,7 @@ def test_state_transaction_abort(
 ) -> None:
     with integration_state.transaction("feature.foo.bar", "set") as state:
         assert not state.exists
-        raise AbortStateTransaction("We want to abort the transaction")
+        raise AbortStateTransactionError("We want to abort the transaction")
 
     with pytest.raises(KeyError):
         integration_state["feature.foo.bar"]

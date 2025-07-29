@@ -104,13 +104,16 @@ class LocalFilePersistence(FilePersistence):
     def read(self, path: str) -> str | None:
         return self._read_local_file(join_path(self.app_interface_data_path, path))
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        if self.dry_run:
-            return
+    def flush(self) -> None:
         for output in self.outputs:
             filepath = Path(join_path(self.app_interface_data_path, output.path))
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(output.content, encoding="utf-8")
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        if self.dry_run:
+            return
+        self.flush()
 
 
 class PersistenceTransaction(FilePersistence):

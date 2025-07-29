@@ -14,7 +14,6 @@ from reconcile.typed_queries.saas_files import (
     get_saasherder_settings,
 )
 from reconcile.utils.defer import defer
-from reconcile.utils.jjb_client import JJB
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
@@ -61,7 +60,7 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
     ]
     for p in missing_image_patterns:
         logging.error(f"image pattern is missing from quayOrgs: {p}")
-    jjb: JJB = init_jjb(secret_reader)
+    jjb = init_jjb(secret_reader)
     saasherder.validate_upstream_jobs(jjb)
     if not saasherder.valid or missing_repos or missing_image_patterns:
         sys.exit(ExitCodes.ERROR)

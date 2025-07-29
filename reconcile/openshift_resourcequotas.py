@@ -1,19 +1,23 @@
 import logging
 import sys
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any
 
 import reconcile.openshift_base as ob
 from reconcile import queries
+from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.helpers import flatten
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "openshift-resourcequotas"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
-def construct_resource(quota):
-    body = {
+def construct_resource(quota: Mapping[str, Any]) -> OR:
+    body: dict[str, Any] = {
         "apiVersion": "v1",
         "kind": "ResourceQuota",
         "metadata": {"name": quota["name"]},
@@ -31,13 +35,17 @@ def construct_resource(quota):
     )
 
 
-def fetch_desired_state(namespaces, ri, oc_map):
+def fetch_desired_state(
+    namespaces: Iterable[Mapping[str, Any]],
+    ri: ResourceInventory,
+    oc_map: ob.ClusterMap,
+) -> None:
     for namespace_info in namespaces:
         namespace = namespace_info["name"]
         cluster = namespace_info["cluster"]["name"]
         if not oc_map.get(cluster):
             continue
-        quotas = namespace_info["quota"]["quotas"]
+        quotas = (namespace_info.get("quota") or {}).get("quotas") or []
         for quota in quotas:
             quota_name = quota["name"]
             quota_resource = construct_resource(quota)
@@ -48,13 +56,13 @@ def fetch_desired_state(namespaces, ri, oc_map):
 
 @defer
 def run(
-    dry_run,
-    thread_pool_size=10,
-    internal=None,
-    use_jump_host=True,
-    take_over=True,
-    defer=None,
-):
+    dry_run: bool,
+    thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
+    internal: bool | None = None,
+    use_jump_host: bool = True,
+    take_over: bool = True,
+    defer: Callable | None = None,
+) -> None:
     namespaces = [
         namespace_info
         for namespace_info in queries.get_namespaces()
@@ -74,7 +82,8 @@ def run(
         internal=internal,
         use_jump_host=use_jump_host,
     )
-    defer(oc_map.cleanup)
+    if defer:
+        defer(oc_map.cleanup)
     fetch_desired_state(namespaces, ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)

@@ -7,7 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-import xml.etree.ElementTree as et
+import xml.etree.ElementTree as ET
 from os import path
 from subprocess import (
     PIPE,
@@ -30,7 +30,7 @@ from reconcile.utils.vcs import GITHUB_BASE_URL
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 
 
-class JJB:  # pylint: disable=too-many-public-methods
+class JJB:
     """Wrapper around Jenkins Jobs"""
 
     def __init__(self, configs, ssl_verify=True, secret_reader=None, print_only=False):
@@ -192,7 +192,7 @@ class JJB:  # pylint: disable=too-many-public-methods
                 name = "/".join(items)
                 raise ValueError(f"Invalid job name contains '/' in {instance}: {name}")
             item = items[0]
-            item_type = et.parse(f).getroot().tag
+            item_type = ET.parse(f).getroot().tag
             item_type = item_type.replace("hudson.model.ListView", "view")
             item_type = item_type.replace("project", "job")
             logging.info([action, item_type, instance, item])

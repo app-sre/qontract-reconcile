@@ -1,10 +1,9 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
-    from mypy_boto3_s3.literals import BucketLocationConstraintType
-else:
-    S3Client = BucketLocationConstraintType = object
 
 
 class AWSApiS3:

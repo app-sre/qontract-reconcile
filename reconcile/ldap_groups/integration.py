@@ -22,7 +22,7 @@ from reconcile.utils.exceptions import (
 from reconcile.utils.helpers import find_duplicates
 from reconcile.utils.internal_groups.client import (
     InternalGroupsClient,
-    NotFound,
+    NotFoundError,
 )
 from reconcile.utils.internal_groups.models import (
     Entity,
@@ -226,7 +226,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         """Reach out to the internal groups API and fetch all managed groups."""
         groups = []
         for group_name in group_names:
-            with contextlib.suppress(NotFound):
+            with contextlib.suppress(NotFoundError):
                 groups.append(internal_groups_client.group(group_name))
         return groups
 
@@ -263,7 +263,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         for group_to_remove in diff_result.delete.values():
             logging.info(["delete_ldap_group", group_to_remove.name])
             if not dry_run:
-                with contextlib.suppress(NotFound):
+                with contextlib.suppress(NotFoundError):
                     internal_groups_client.delete_group(group_to_remove.name)
                 self._managed_groups.remove(group_to_remove.name)
 
