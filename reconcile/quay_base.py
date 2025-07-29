@@ -66,7 +66,7 @@ def get_quay_api_store() -> QuayApiStore:
             "api": QuayApi(token, org_name, base_url=base_url),
             "push_token": push_token,
             "teams": org_data.get("managedTeams") or [],
-            "managedRepos": org_data.get("managedRepos"),
+            "managedRepos": bool(org_data.get("managedRepos")),
             "mirror": mirror,
             "mirror_filters": mirror_filters,
         }
