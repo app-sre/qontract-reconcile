@@ -355,7 +355,6 @@ module = [
     "reconcile.test.test_typed_queries.conftest",
     "reconcile.test.test_typed_queries.test_clusters_with_peering",
     "reconcile.test.test_typed_queries.test_status_board",
-    "reconcile.test.test_version_bump",
     "reconcile.test.test_vpc_peerings_validator",
     "reconcile.test.utils.internal_groups.test_internal_groups_client",
     "reconcile.test.utils.test_aws_rds",
