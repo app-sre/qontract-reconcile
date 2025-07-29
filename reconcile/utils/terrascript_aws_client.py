@@ -5563,22 +5563,27 @@ class TerrascriptClient:
 
         # mutual authentication section
         if mutual_authentication := resource.get("mutual_authentication"):
-            trust_store_values = {
-                "ca_certificates_bundle_s3_bucket": mutual_authentication[
-                    "ca_cert_bundle_s3_bucket_name"
-                ],
-                "ca_certificates_bundle_s3_key": mutual_authentication[
-                    "ca_cert_bundle_s3_bucket_key"
-                ],
-            }
-            trust_store = aws_lb_trust_store(
-                f"{identifier}-trust-store", **trust_store_values
-            )
-            tf_resources.append(trust_store)
-            values["mutual_authentication"] = {
-                "mode": mutual_authentication["mode"],
-                "trust_store_arn": f"${{{trust_store.arn}}}",
-            }
+            if mutual_authentication["mode"] in {"off", "passthrough"}:
+                values["mutual_authentication"] = {
+                    "mode": mutual_authentication["mode"],
+                }
+            else:
+                trust_store_values = {
+                    "ca_certificates_bundle_s3_bucket": mutual_authentication[
+                        "ca_cert_bundle_s3_bucket_name"
+                    ],
+                    "ca_certificates_bundle_s3_key": mutual_authentication[
+                        "ca_cert_bundle_s3_bucket_key"
+                    ],
+                }
+                trust_store = aws_lb_trust_store(
+                    f"{identifier}-trust-store", **trust_store_values
+                )
+                tf_resources.append(trust_store)
+                values["mutual_authentication"] = {
+                    "mode": mutual_authentication["mode"],
+                    "trust_store_arn": f"${{{trust_store.arn}}}",
+                }
 
         forward_identifier = f"{identifier}-forward"
         forward_lbl_tf_resource = aws_lb_listener(forward_identifier, **values)

@@ -817,8 +817,8 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
 
 class NamespaceTerraformResourceALBMutualAuthenticationV1(ConfiguredBaseModel):
     mode: str = Field(..., alias="mode")
-    ca_cert_bundle_s3_bucket_name: str = Field(..., alias="ca_cert_bundle_s3_bucket_name")
-    ca_cert_bundle_s3_bucket_key: str = Field(..., alias="ca_cert_bundle_s3_bucket_key")
+    ca_cert_bundle_s3_bucket_name: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_name")
+    ca_cert_bundle_s3_bucket_key: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_key")
 
 
 class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
