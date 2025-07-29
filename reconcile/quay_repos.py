@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
 from collections import namedtuple
+from typing import TYPE_CHECKING
 
 from reconcile.quay_base import (
     OrgKey,
@@ -8,6 +11,9 @@ from reconcile.quay_base import (
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
+
+if TYPE_CHECKING:
+    from reconcile.quay_base import QuayApiStore
 
 QUAY_REPOS_QUERY = """
 {
@@ -37,7 +43,7 @@ QONTRACT_INTEGRATION = "quay-repos"
 RepoInfo = namedtuple("RepoInfo", ["org_key", "name", "public", "description"])
 
 
-def fetch_current_state(quay_api_store):
+def fetch_current_state(quay_api_store: QuayApiStore) -> list[RepoInfo]:
     state = []
 
     for org_key, org_info in quay_api_store.items():
@@ -60,16 +66,17 @@ def fetch_current_state(quay_api_store):
     return state
 
 
-def fetch_desired_state(quay_api_store):
+def fetch_desired_state(quay_api_store: QuayApiStore) -> list[RepoInfo]:
     gqlapi = gql.get_api()
     result = gqlapi.query(QUAY_REPOS_QUERY)
+    # fetch from quayRepos
+    if not result:
+        return []
 
     state = []
-
     seen_repos = set()
 
-    # fetch from quayRepos
-    for app in result["apps"]:
+    for app in result.get("apps") or []:
         quay_repos = app.get("quayRepos")
 
         if quay_repos is None:
@@ -115,7 +122,9 @@ def fetch_desired_state(quay_api_store):
     return state
 
 
-def get_downstream_orgs(quay_api_store, upstream_org_key):
+def get_downstream_orgs(
+    quay_api_store: QuayApiStore, upstream_org_key: OrgKey
+) -> list[OrgKey]:
     downstream_orgs = []
     for org_key, org_info in quay_api_store.items():
         if org_info.get("mirror") == upstream_org_key:
@@ -124,14 +133,16 @@ def get_downstream_orgs(quay_api_store, upstream_org_key):
     return downstream_orgs
 
 
-def get_repo_from_state(state, repo_info):
+def get_repo_from_state(state: list[RepoInfo], repo_info: RepoInfo) -> RepoInfo | None:
     for item in state:
         if item.org_key == repo_info.org_key and item.name == repo_info.name:
             return item
     return None
 
 
-def act_delete(dry_run, quay_api_store, current_repo):
+def act_delete(
+    dry_run: bool, quay_api_store: QuayApiStore, current_repo: RepoInfo
+) -> None:
     logging.info([
         "delete_repo",
         current_repo.org_key.instance,
@@ -143,7 +154,9 @@ def act_delete(dry_run, quay_api_store, current_repo):
         api.repo_delete(current_repo.name)
 
 
-def act_create(dry_run, quay_api_store, desired_repo):
+def act_create(
+    dry_run: bool, quay_api_store: QuayApiStore, desired_repo: RepoInfo
+) -> None:
     logging.info([
         "create_repo",
         desired_repo.org_key.instance,
@@ -157,7 +170,9 @@ def act_create(dry_run, quay_api_store, desired_repo):
         )
 
 
-def act_description(dry_run, quay_api_store, desired_repo):
+def act_description(
+    dry_run: bool, quay_api_store: QuayApiStore, desired_repo: RepoInfo
+) -> None:
     logging.info([
         "update_desc",
         desired_repo.org_key.instance,
@@ -169,7 +184,9 @@ def act_description(dry_run, quay_api_store, desired_repo):
         api.repo_update_description(desired_repo.name, desired_repo.description)
 
 
-def act_public(dry_run, quay_api_store, desired_repo):
+def act_public(
+    dry_run: bool, quay_api_store: QuayApiStore, desired_repo: RepoInfo
+) -> None:
     logging.info([
         "update_public",
         desired_repo.org_key.instance,
@@ -184,24 +201,28 @@ def act_public(dry_run, quay_api_store, desired_repo):
             api.repo_make_private(desired_repo.name)
 
 
-def act(dry_run, quay_api_store, current_state, desired_state):
-    for current_repo in current_state:
-        desired_repo = get_repo_from_state(desired_state, current_repo)
-        if not desired_repo:
-            act_delete(dry_run, quay_api_store, current_repo)
+def act(
+    dry_run: bool,
+    quay_api_store: QuayApiStore,
+    current_state: list[RepoInfo],
+    desired_state: list[RepoInfo],
+) -> None:
+    for current_state_repo in current_state:
+        if not get_repo_from_state(desired_state, current_state_repo):
+            act_delete(dry_run, quay_api_store, current_state_repo)
 
-    for desired_repo in desired_state:
-        current_repo = get_repo_from_state(current_state, desired_repo)
+    for desired_state_repo in desired_state:
+        current_repo = get_repo_from_state(current_state, desired_state_repo)
         if not current_repo:
-            act_create(dry_run, quay_api_store, desired_repo)
+            act_create(dry_run, quay_api_store, desired_state_repo)
         else:
-            if current_repo.public != desired_repo.public:
-                act_public(dry_run, quay_api_store, desired_repo)
-            if current_repo.description != desired_repo.description:
-                act_description(dry_run, quay_api_store, desired_repo)
+            if current_repo.public != desired_state_repo.public:
+                act_public(dry_run, quay_api_store, desired_state_repo)
+            if current_repo.description != desired_state_repo.description:
+                act_description(dry_run, quay_api_store, desired_state_repo)
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     quay_api_store = get_quay_api_store()
 
     # consistency checks
@@ -209,6 +230,7 @@ def run(dry_run):
         if org_info.get("mirror"):
             # ensure there are no circular mirror dependencies
             mirror_org_key = org_info["mirror"]
+            assert mirror_org_key is not None
             mirror_org = quay_api_store[mirror_org_key]
             if mirror_org.get("mirror"):
                 logging.error(

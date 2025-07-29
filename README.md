@@ -380,6 +380,12 @@ GQL definitions and generated classes can be found [here](reconcile/gql_definiti
 5. `make gql-introspection` gets the type definitions. They will be stored in `reconcile/gql_definitions/introspection.json`
 6. `make gql-query-classes` generates the data classes for your queries and fragments
 
+## Design Patterns
+
+This project follows a set of established architectural and implementation patterns to ensure consistency, reliability, and scalability. For a detailed explanation of these concepts, please see the **[Design Patterns Documentation](docs/patterns/README.md)**.
+
+Understanding these patterns, especially the `qenerate` workflow for GraphQL data binding, is highly recommended for new developers.
+
 ## Troubleshooting
 
 `faulthandler` is enabled for this project and SIGUSR1 is registered to dump the traceback. To do so, you can use `kill -USR1 pid` where pid is the ID of the qontract-reconcile process.

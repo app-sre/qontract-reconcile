@@ -15,12 +15,12 @@ TEAM_NAME = "some-team"
 
 
 @pytest.fixture
-def quay_api():
+def quay_api() -> QuayApi:
     return QuayApi("some-token", ORG, base_url=BASE_URL)
 
 
 @responses.activate
-def test_create_or_update_team_default_payload(quay_api):
+def test_create_or_update_team_default_payload(quay_api: QuayApi) -> None:
     responses.add(
         responses.PUT,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/team/{TEAM_NAME}",
@@ -29,11 +29,12 @@ def test_create_or_update_team_default_payload(quay_api):
 
     quay_api.create_or_update_team(TEAM_NAME)
 
+    assert responses.calls[0].request.body is not None
     assert json.loads(responses.calls[0].request.body) == {"role": "member"}
 
 
 @responses.activate
-def test_create_or_update_team_with_description(quay_api):
+def test_create_or_update_team_with_description(quay_api: QuayApi) -> None:
     responses.add(
         responses.PUT,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/team/{TEAM_NAME}",
@@ -42,6 +43,7 @@ def test_create_or_update_team_with_description(quay_api):
 
     quay_api.create_or_update_team(TEAM_NAME, description="This is a team")
 
+    assert responses.calls[0].request.body is not None
     assert json.loads(responses.calls[0].request.body) == {
         "role": "member",
         "description": "This is a team",
@@ -49,7 +51,7 @@ def test_create_or_update_team_with_description(quay_api):
 
 
 @responses.activate
-def test_create_or_update_team_raises(quay_api):
+def test_create_or_update_team_raises(quay_api: QuayApi) -> None:
     responses.add(
         responses.PUT,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/team/{TEAM_NAME}",
@@ -61,7 +63,7 @@ def test_create_or_update_team_raises(quay_api):
 
 
 @responses.activate
-def test_list_team_members_raises_team_doesnt_exist(quay_api):
+def test_list_team_members_raises_team_doesnt_exist(quay_api: QuayApi) -> None:
     responses.add(
         responses.GET,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/team/{TEAM_NAME}/"
@@ -74,7 +76,7 @@ def test_list_team_members_raises_team_doesnt_exist(quay_api):
 
 
 @responses.activate
-def test_list_team_members_raises_other_status_codes(quay_api):
+def test_list_team_members_raises_other_status_codes(quay_api: QuayApi) -> None:
     responses.add(
         responses.GET,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/team/{TEAM_NAME}/"

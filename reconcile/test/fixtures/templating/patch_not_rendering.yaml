@@ -1,16 +1,16 @@
 template:
-  name: update file
+  name: patch not rendering
 
   targetPath: /some/saas/deploy.yml
 
   patch:
     path: '$.resourceTemplates[?name=="saas"].targets'
-    identifier: wrong
+    identifier: name
 
   condition: |
     {{ 1 == 2 }}
 
   template: |
-    foo: {{bar}}
+    foo: abc
 
   templateTest: []
