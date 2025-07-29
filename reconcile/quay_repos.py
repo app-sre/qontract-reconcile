@@ -230,6 +230,7 @@ def run(dry_run: bool) -> None:
         if org_info.get("mirror"):
             # ensure there are no circular mirror dependencies
             mirror_org_key = org_info["mirror"]
+            assert mirror_org_key is not None
             mirror_org = quay_api_store[mirror_org_key]
             if mirror_org.get("mirror"):
                 logging.error(

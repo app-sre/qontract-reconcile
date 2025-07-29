@@ -1,0 +1,14 @@
+template:
+  name: full not overwrite
+
+  overwrite: false
+
+  targetPath: /some/saas/deploy.yml
+
+  template: |
+    foo: abc
+
+  templateTest: []
+
+current:
+  foo: bar
