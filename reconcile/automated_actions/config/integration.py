@@ -18,6 +18,7 @@ import reconcile.openshift_base as ob
 from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionActionListV1,
     AutomatedActionExternalResourceFlushElastiCacheV1,
+    AutomatedActionExternalResourceRdsLogsV1,
     AutomatedActionExternalResourceRdsRebootV1,
     AutomatedActionExternalResourceRdsSnapshotV1,
     AutomatedActionOpenshiftWorkloadDeleteV1,
@@ -178,6 +179,17 @@ class AutomatedActionsConfigIntegration(
                             parameters.append({
                                 "account": f"^{ec_er.provisioner.name}$",
                                 "identifier": ec_arg.identifier,
+                            })
+                case AutomatedActionExternalResourceRdsLogsV1():
+                    for rds_logs_arg in action.external_resource_rds_logs_arguments:
+                        for rds_logs_er in (
+                            rds_logs_arg.namespace.external_resources or []
+                        ):
+                            if not isinstance(rds_logs_er.provisioner, AWSAccountV1):
+                                continue
+                            parameters.append({
+                                "account": f"^{rds_logs_er.provisioner.name}$",
+                                "identifier": rds_logs_arg.identifier,
                             })
                 case AutomatedActionExternalResourceRdsRebootV1():
                     for rds_reboot_arg in action.external_resource_rds_reboot_arguments:

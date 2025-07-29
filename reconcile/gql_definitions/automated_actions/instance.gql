@@ -46,6 +46,20 @@ query AutomatedActionsInstances {
           identifier
         }
       }
+      ... on AutomatedActionExternalResourceRdsLogs_v1 {
+        external_resource_rds_logs_arguments: arguments {
+          namespace {
+            externalResources {
+              provisioner {
+                ... on AWSAccount_v1 {
+                  name
+                }
+              }
+            }
+          }
+          identifier
+        }
+      }
       ... on AutomatedActionExternalResourceRdsReboot_v1 {
         external_resource_rds_reboot_arguments: arguments {
           namespace {
