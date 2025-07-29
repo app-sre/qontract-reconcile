@@ -427,8 +427,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     return False
 
                 try:
-                    sorted_current = sorted(current_value, key=lambda x: repr(x))
-                    sorted_desired = sorted(desired_value, key=lambda x: repr(x))
+                    sorted_current = sorted(current_value, key=repr)
+                    sorted_desired = sorted(desired_value, key=repr)
                 except Exception:
                     # Fallback: compare without sorting
                     sorted_current = current_value
