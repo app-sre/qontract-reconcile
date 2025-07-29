@@ -42,6 +42,7 @@ def get_selected_app_data(
                 saas_file.name
                 for saas_file in namespace.app.saas_files
                 if "Deployment" in saas_file.managed_resource_types
+                or "ClowdApp" in saas_file.managed_resource_types
             }
 
         selected_app_data[name] = {

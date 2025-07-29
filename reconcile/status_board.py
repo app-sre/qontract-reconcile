@@ -433,8 +433,8 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     sorted_desired = sorted(desired_value, key=repr)
                 except Exception:
                     # Fallback: compare without sorting
-                    sorted_current = current_value
-                    sorted_desired = desired_value
+                    sorted_current = list(current_value)
+                    sorted_desired = list(desired_value)
 
                 for c, d in zip(sorted_current, sorted_desired, strict=True):
                     if isinstance(c, dict) and isinstance(d, dict):
