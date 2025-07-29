@@ -422,7 +422,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 if current_value != desired_value:
                     return False
             # Handle lists and tuples
-            elif isinstance(current_value, (list, tuple)) and isinstance(desired_value, (list, tuple)):
+            elif isinstance(current_value, (list, tuple)) and isinstance(
+                desired_value, (list, tuple)
+            ):
                 if len(current_value) != len(desired_value):
                     return False
 
@@ -439,7 +441,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                         if not StatusBoardExporterIntegration._compare_metadata(c, d):
                             return False
                     elif isinstance(c, (list, tuple)) and isinstance(d, (list, tuple)):
-                        if not StatusBoardExporterIntegration._compare_metadata({'x': c}, {'x': d}):
+                        if not StatusBoardExporterIntegration._compare_metadata(
+                            {"x": c}, {"x": d}
+                        ):
                             return False
                     elif c != d:
                         return False
