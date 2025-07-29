@@ -1,0 +1,29 @@
+# qenerate: plugin=pydantic_v1
+query OpenshiftRoles {
+    roles: roles_v1 {
+    name
+    users {
+      org_username
+      github_username
+    }
+    bots {
+      openshift_serviceaccount
+    }
+    access {
+      namespace {
+        name
+        clusterAdmin
+        managedRoles
+        delete
+        cluster {
+          name
+          auth {
+            service
+          }
+        }
+      }
+      role
+    }
+    expirationDate
+  }
+}

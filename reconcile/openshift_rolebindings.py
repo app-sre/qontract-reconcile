@@ -1,8 +1,15 @@
 import contextlib
+from dataclasses import dataclass
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+from reconcile.gql_definitions.common.openshift_roles import (
+    RoleV1,
+    query as openshift_roles_query,
+    ClusterV1,
+    NamespaceV1,
+)
 import reconcile.openshift_base as ob
 from reconcile import queries
 from reconcile.utils import (
@@ -19,41 +26,16 @@ from reconcile.utils.openshift_resource import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
-ROLES_QUERY = """
-{
-  roles: roles_v1 {
-    name
-    users {
-      org_username
-      github_username
-    }
-    bots {
-      openshift_serviceaccount
-    }
-    access {
-      namespace {
-        name
-        clusterAdmin
-        managedRoles
-        delete
-        cluster {
-          name
-          auth {
-            service
-          }
-        }
-      }
-      role
-    }
-    expirationDate
-  }
-}
-"""
-
 
 QONTRACT_INTEGRATION = "openshift-rolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
+
+@dataclass
+class Permission:
+    role: str
+    namespace: NamespaceV1
+    cluster: ClusterV1
 
 def construct_user_oc_resource(role: str, user: str) -> tuple[OR, str]:
     name = f"{role}-{user}"
@@ -90,76 +72,73 @@ def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[O
         name,
     )
 
-
 def fetch_desired_state(
     ri: ResourceInventory | None,
     oc_map: ob.ClusterMap | None,
     enforced_user_keys: list[str] | None = None,
 ) -> list[dict[str, str]]:
     gqlapi = gql.get_api()
-    roles_query_result = gqlapi.query(ROLES_QUERY)
-    if not roles_query_result:
+    all_roles: list[RoleV1] = openshift_roles_query(query_func=gqlapi.query).roles or []
+    if not all_roles:
         return []
-    roles: Sequence[Mapping[str, Any]] = expiration.filter(roles_query_result["roles"])
+    valid_roles: list[RoleV1] = expiration.filter(all_roles)
     users_desired_state = []
-    for role in roles:
-        permissions = [
-            {
-                "cluster": a["namespace"]["cluster"],
-                "namespace": a["namespace"],
-                "role": a["role"],
-            }
-            for a in role["access"] or []
-            if a["namespace"]
-            and a["role"]
-            and a["namespace"].get("managedRoles")
-            and not ob.is_namespace_deleted(a["namespace"])
+    for role in valid_roles:
+        permissions: list[Permission] = [
+            Permission(
+                role=access.role,
+                namespace=access.namespace,
+                cluster=access.namespace.cluster,
+            )
+            for access in role.access or []
+            if access.namespace
+            and access.role
+            and access.namespace.managed_roles
+            and not ob.is_namespace_deleted(access.namespace.dict(by_alias=True))
         ]
         if not permissions:
             continue
 
         service_accounts = [
-            bot["openshift_serviceaccount"]
-            for bot in role["bots"]
-            if bot.get("openshift_serviceaccount")
+            bot.openshift_serviceaccount
+            for bot in role.bots
+            if bot.openshift_serviceaccount
         ]
 
         for permission in permissions:
-            cluster_info = permission["cluster"]
-            cluster = cluster_info["name"]
-            namespace_info = permission["namespace"]
-            perm_namespace_name = namespace_info["name"]
-            privileged = namespace_info.get("clusterAdmin") or False
-            if not is_in_shard(f"{cluster}/{perm_namespace_name}"):
+            cluster_name = permission.cluster.name
+            namespace_name = permission.namespace.name
+            privileged = permission.namespace.cluster_admin or False
+            if not is_in_shard(f"{cluster_name}/{namespace_name}"):
                 continue
-            if oc_map and not oc_map.get(cluster):
+            if oc_map and not oc_map.get(cluster=cluster_name):
                 continue
 
             # get username keys based on used IDPs
             user_keys = ob.determine_user_keys_for_access(
-                cluster,
-                cluster_info.get("auth") or [],
+                cluster_name,
+                permission.cluster.auth,
                 enforced_user_keys=enforced_user_keys,
             )
             # create user rolebindings for user * user_keys
-            for user in role.get("users") or []:
-                for username in {user.get(key) for key in user_keys}:
+            for user in role.users:
+                for username in {getattr(user, user_key) for user_key in user_keys}:
                     if not username:
                         continue
                     # used by openshift-users and github integrations
                     # this is just to simplify things a bit on the their side
-                    users_desired_state.append({"cluster": cluster, "user": username})
+                    users_desired_state.append({"cluster": cluster_name, "user": username})
                     if ri is None:
                         continue
                     oc_resource, resource_name = construct_user_oc_resource(
-                        permission["role"], username
+                        permission.role, username
                     )
                     with contextlib.suppress(ResourceKeyExistsError):
                         # a user may have a Role assigned to them
                         # from multiple app-interface roles
                         ri.add_desired(
-                            cluster,
-                            perm_namespace_name,
+                            cluster_name,
+                            namespace_name,
                             "RoleBinding.rbac.authorization.k8s.io",
                             resource_name,
                             oc_resource,
@@ -171,14 +150,14 @@ def fetch_desired_state(
                     continue
                 sa_namespace_name, sa_name = sa.split("/")
                 oc_resource, resource_name = construct_sa_oc_resource(
-                    permission["role"], sa_namespace_name, sa_name
+                    permission.role, sa_namespace_name, sa_name
                 )
                 with contextlib.suppress(ResourceKeyExistsError):
                     # a ServiceAccount may have a Role assigned to it
                     # from multiple app-interface roles
                     ri.add_desired(
-                        cluster,
-                        perm_namespace_name,
+                        cluster_name,
+                        namespace_name,
                         "RoleBinding.rbac.authorization.k8s.io",
                         resource_name,
                         oc_resource,
