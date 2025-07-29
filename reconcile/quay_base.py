@@ -1,12 +1,24 @@
 from collections import namedtuple
-from typing import Any
+from typing import Any, TypedDict
 
 from reconcile import queries
 from reconcile.utils.quay_api import QuayApi
 from reconcile.utils.secret_reader import SecretReader
 
 OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
-QuayApiStore = dict[OrgKey, dict[str, Any]]
+
+
+class OrgInfo(TypedDict):
+    url: str
+    api: QuayApi
+    push_token: dict[str, str] | None
+    teams: list[str]
+    managedRepos: bool
+    mirror: OrgKey | None
+    mirror_filters: dict[str, Any]
+
+
+QuayApiStore = dict[OrgKey, OrgInfo]
 
 
 def get_quay_api_store() -> QuayApiStore:
@@ -49,14 +61,16 @@ def get_quay_api_store() -> QuayApiStore:
         else:
             push_token = None
 
-        store[org_key] = {
+        org_info: OrgInfo = {
             "url": base_url,
             "api": QuayApi(token, org_name, base_url=base_url),
             "push_token": push_token,
-            "teams": org_data.get("managedTeams"),
+            "teams": org_data.get("managedTeams") or [],
             "managedRepos": org_data.get("managedRepos"),
             "mirror": mirror,
             "mirror_filters": mirror_filters,
         }
+
+        store[org_key] = org_info
 
     return store
