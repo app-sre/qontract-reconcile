@@ -24,6 +24,7 @@ query Templatev1 {
     name
     autoApproved
     condition
+    overwrite
     patch {
       path
       identifier
@@ -78,6 +79,7 @@ class TemplateV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     auto_approved: Optional[bool] = Field(..., alias="autoApproved")
     condition: Optional[str] = Field(..., alias="condition")
+    overwrite: Optional[bool] = Field(..., alias="overwrite")
     patch: Optional[TemplatePatchV1] = Field(..., alias="patch")
     target_path: str = Field(..., alias="targetPath")
     template: str = Field(..., alias="template")
