@@ -83,7 +83,7 @@ ENV OC_VERSION=4.16.2
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
 # versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/repository/redhat-services-prod/app-sre-tenant/qontract-reconcile-oc-master:f8af926d49da49eec9083f9268d04a7cf34e8916 \
+COPY --chown=0:0 --from=quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-oc-master:1.0.1@f8af926d49da49eec9083f9268d04a7cf34e8916 \
     /work/${OC_VERSION}/ /usr/local/bin/
 
 
