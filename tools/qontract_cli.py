@@ -1715,7 +1715,10 @@ def add_resource(item: dict, resource: Mapping, columns: list[str]) -> None:
 @click.pass_context
 def cluster_openshift_resources(ctx: click.Context) -> None:
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     columns = ["name", "total"]
     results: dict = {}
     for ns_info in namespaces:
@@ -1912,6 +1915,7 @@ def rds_recommendations(ctx: click.Context) -> None:
     print("[TOC]")
     for account in accounts:
         account_name = account.get("name")
+        assert account_name is not None  # make mypy happy
         account_deployment_regions = account.get("supportedDeploymentRegions")
         for region in account_deployment_regions or []:
             with AWSApi(1, [account], settings=settings, init_users=False) as aws:
@@ -1926,9 +1930,9 @@ def rds_recommendations(ctx: click.Context) -> None:
                 recommendations = [
                     {
                         **rec,
-                        "ResourceName": rec["ResourceArn"].split(":")[-1],
+                        "ResourceName": rec.get("ResourceArn", "").split(":")[-1],
                         # The Description field has \n that are causing issues with the markdown table
-                        "Description": rec["Description"].replace("\n", " "),
+                        "Description": rec.get("Description", "").replace("\n", " "),
                     }
                     for rec in db_recommendations
                     if rec.get("Status") not in ignored_statuses
@@ -2710,16 +2714,16 @@ def ec2_jenkins_workers(
                 )
                 continue
             instance = ec2.Instance(i["InstanceId"])
-            state = instance.state["Name"]
+            state = instance.state.get("Name")
             if state != "running":
                 continue
             os = ""
             url = ""
             for t in instance.tags:
                 if t.get("Key") == "os":
-                    os = t["Value"]
+                    os = t.get("Value", "")
                 if t.get("Key") == "jenkins_controller":
-                    url = f"https://{t['Value'].replace('-', '.')}.devshift.net/computer/{instance.id}"
+                    url = f"https://{t.get('Value', '').replace('-', '.')}.devshift.net/computer/{instance.id}"
             image = ec2.Image(instance.image_id)
             commit_url = ""
             for t in image.tags:
@@ -3633,7 +3637,10 @@ def template(
     secret_reader: str,
 ) -> None:
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     namespaces_info = [
         n
         for n in namespaces
@@ -3725,7 +3732,7 @@ def run_prometheus_test(
     ptr.run_test(test=test, alerting_services=get_alerting_services())
 
     print(test.result)
-    if not test.result:
+    if test.result is None:
         sys.exit(1)
 
 
@@ -3804,7 +3811,10 @@ def alert_to_receiver(
         additional_labels[key] = value
 
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     cluster_namespaces = [n for n in namespaces if n["cluster"]["name"] == cluster]
 
     if len(cluster_namespaces) == 0:
@@ -4027,15 +4037,16 @@ def query(output: str, query: str) -> None:
 def promquery(cluster: str, query: str) -> None:
     """Run a PromQL query"""
     config_data = config.get_config()
-    auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
+    prom_auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-    prom_auth_creds = secret_reader.read(auth)
-    prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(":"))
+    prom_user, prom_pass = secret_reader.read(prom_auth).split(":")
 
     url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"
 
-    response = requests.get(url, params={"query": query}, auth=prom_auth, timeout=60)
+    response = requests.get(
+        url, params={"query": query}, auth=(prom_user, prom_pass), timeout=60
+    )
     response.raise_for_status()
 
     print(json.dumps(response.json(), indent=4))
@@ -4092,11 +4103,12 @@ def sre_checkpoint_metadata(
         board_info = queries.get_simple_jira_boards(jiradef)
     else:
         board_info = app["escalationPolicy"]["channels"]["jiraBoard"]
-    board_info = board_info[0]
+    assert board_info  # make mypy happy
+    board = board_info[0]
     # Overrides for easier testing
     if jiraboard:
-        board_info["name"] = jiraboard
-    report_invalid_metadata(app, app_path, board_info, settings, parent_ticket, dry_run)
+        board["name"] = jiraboard
+    report_invalid_metadata(app, app_path, board, settings, parent_ticket, dry_run)
 
 
 @root.command()

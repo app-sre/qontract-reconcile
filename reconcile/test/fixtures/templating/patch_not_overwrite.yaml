@@ -1,7 +1,7 @@
 template:
   name: update file
 
-  overwrite: true
+  overwrite: false
 
   targetPath: /some/saas/deploy.yml
 
@@ -15,7 +15,3 @@ template:
   templateTest: []
 current:
   version: foo
-
-expected: |
-  ---
-  version: 123
