@@ -6,6 +6,9 @@ from abc import (
 from collections.abc import Iterable, Mapping
 from enum import Enum
 from itertools import chain
+from typing import (
+    Any,
+)
 
 from pydantic import BaseModel
 
@@ -13,7 +16,7 @@ from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import (
-    get_selected_app_names,
+    get_selected_app_data,
     get_status_board,
 )
 from reconcile.utils.differ import diff_mappings
@@ -31,6 +34,7 @@ from reconcile.utils.ocm.status_board import (
     get_application_services,
     get_managed_products,
     get_product_applications,
+    update_application,
     update_service,
 )
 from reconcile.utils.ocm_base_client import (
@@ -55,6 +59,7 @@ class AbstractStatusBoard(ABC, BaseModel):
     id: str | None
     name: str
     fullname: str
+    metadata: dict[str, Any] | ServiceMetadataSpec | None
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -122,6 +127,7 @@ class Product(AbstractStatusBoard):
 class Application(AbstractStatusBoard):
     product: Product
     services: list["Service"] | None
+    metadata: dict[str, Any]
 
     def create(self, ocm: OCMBaseClient) -> None:
         if self.product.id:
@@ -131,9 +137,11 @@ class Application(AbstractStatusBoard):
             logging.warning("Missing product id for application")
 
     def update(self, ocm: OCMBaseClient) -> None:
-        err_msg = "Called update on StatusBoardHandler that doesn't have update method"
-        logging.error(err_msg)
-        raise UpdateNotSupportedError(err_msg)
+        if not self.id:
+            logging.error(f'Trying to update Application "{self.name}" without id')
+            return
+        spec = self.to_ocm_spec()
+        update_application(ocm, self.id, spec)
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
@@ -149,6 +157,7 @@ class Application(AbstractStatusBoard):
         return {
             "name": self.name,
             "fullname": self.fullname,
+            "metadata": self.metadata,
             "product": {"id": product_id},
         }
 
@@ -248,12 +257,14 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return QONTRACT_INTEGRATION
 
     @staticmethod
-    def get_product_apps(sb: StatusBoardV1) -> dict[str, set[str]]:
+    def get_product_apps(
+        sb: StatusBoardV1,
+    ) -> dict[str, dict[str, dict[str, dict[str, set[str]]]]]:
         global_selectors = (
             sb.global_app_selectors.exclude or [] if sb.global_app_selectors else []
         )
         return {
-            p.product_environment.product.name: get_selected_app_names(
+            p.product_environment.product.name: get_selected_app_data(
                 global_selectors, p
             )
             for p in sb.products
@@ -287,7 +298,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, set[str]],
+        desired_product_apps: Mapping[str, dict[str, dict[str, dict[str, set[str]]]]],
         slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
         """
@@ -299,7 +310,11 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
         for product_name, apps in desired_product_apps.items():
             product = Product(
-                id=None, name=product_name, fullname=product_name, applications=[]
+                id=None,
+                name=product_name,
+                fullname=product_name,
+                applications=[],
+                metadata={},
             )
             desired_abstract_status_board_map[product_name] = product
             for a in apps:
@@ -310,6 +325,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     fullname=key,
                     services=[],
                     product=product,
+                    metadata=apps[a]["metadata"],
                 )
         for slodoc in slodocs:
             products = [
@@ -374,6 +390,99 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return return_value
 
     @staticmethod
+    def _compare_metadata(
+        current_metadata: dict[str, Any] | ServiceMetadataSpec,
+        desired_metadata: dict[str, Any] | ServiceMetadataSpec,
+    ) -> bool:
+        """
+        Compare metadata dictionaries with deep equality checking for nested structures.
+
+        :param current_metadata: The current metadata dictionary
+        :param desired_metadata: The desired metadata dictionary
+        :return: True if metadata are equal, False otherwise
+        """
+        # Convert TypedDict to regular dict to allow variable key access
+        current_dict = dict(current_metadata)
+        desired_dict = dict(desired_metadata)
+
+        if current_dict.keys() != desired_dict.keys():
+            return False
+
+        for key, current_value in current_dict.items():
+            desired_value = desired_dict[key]
+
+            # Handle None values
+            if current_value is None or desired_value is None:
+                if current_value is not desired_value:
+                    return False
+                continue
+
+            # Handle sets
+            if isinstance(current_value, set) and isinstance(desired_value, set):
+                if current_value != desired_value:
+                    return False
+            # Handle lists and tuples
+            elif isinstance(current_value, (list, tuple)) and isinstance(
+                desired_value, (list, tuple)
+            ):
+                if len(current_value) != len(desired_value):
+                    return False
+
+                try:
+                    sorted_current = sorted(current_value, key=repr)
+                    sorted_desired = sorted(desired_value, key=repr)
+                except Exception:
+                    # Fallback: compare without sorting
+                    sorted_current = list(current_value)
+                    sorted_desired = list(desired_value)
+
+                for c, d in zip(sorted_current, sorted_desired, strict=True):
+                    if isinstance(c, dict) and isinstance(d, dict):
+                        if not StatusBoardExporterIntegration._compare_metadata(c, d):
+                            return False
+                    elif isinstance(c, (list, tuple)) and isinstance(d, (list, tuple)):
+                        if not StatusBoardExporterIntegration._compare_metadata(
+                            {"x": c}, {"x": d}
+                        ):
+                            return False
+                    elif c != d:
+                        return False
+            # Handle nested dictionaries
+            elif isinstance(current_value, dict) and isinstance(desired_value, dict):
+                if not StatusBoardExporterIntegration._compare_metadata(
+                    current_value, desired_value
+                ):
+                    return False
+            # Handle primitive types
+            elif current_value != desired_value:
+                return False
+
+        return True
+
+    @staticmethod
+    def _status_board_objects_equal(
+        current: AbstractStatusBoard, desired: AbstractStatusBoard
+    ) -> bool:
+        """
+        Check if two AbstractStatusBoard objects are equal, including metadata comparison.
+
+        :param current: The current AbstractStatusBoard object
+        :param desired: The desired AbstractStatusBoard object
+        :return: True if objects are equal, False otherwise
+        """
+        # Check basic equality first (name, fullname)
+        if current.name != desired.name or current.fullname != desired.fullname:
+            return False
+
+        # Compare metadata with deep equality
+        if current.metadata and desired.metadata:
+            return StatusBoardExporterIntegration._compare_metadata(
+                current.metadata, desired.metadata
+            )
+        else:
+            return True
+
+    @staticmethod
     def get_diff(
         desired_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
         current_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
@@ -383,6 +492,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         diff_result = diff_mappings(
             current_abstract_status_board_map,
             desired_abstract_status_board_map,
+            equal=StatusBoardExporterIntegration._status_board_objects_equal,
         )
 
         for pair in chain(diff_result.identical.values(), diff_result.change.values()):
@@ -396,6 +506,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return_list.extend(
             StatusBoardHandler(action=Action.delete, status_board_object=o)
             for o in diff_result.delete.values()
+        )
+
+        # Handle Applications that need updates (metadata changes)
+        applications_to_update = [
+            a.desired
+            for _, a in diff_result.change.items()
+            if isinstance(a.desired, Application)
+        ]
+
+        return_list.extend(
+            StatusBoardHandler(action=Action.update, status_board_object=a)
+            for a in applications_to_update
         )
 
         services_to_update = [
@@ -445,7 +567,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
             # Desired state
-            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
+            desired_product_apps: dict[
+                str, dict[str, dict[str, dict[str, set[str]]]]
+            ] = self.get_product_apps(sb)
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
                 desired_product_apps, slodocs
             )

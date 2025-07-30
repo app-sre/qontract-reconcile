@@ -32,10 +32,18 @@ query StatusBoard {
             childrenApps {
               name
               onboardingStatus
+              saasFiles {
+                name
+                managedResourceTypes
+              }
             }
             parentApp {
               name
               onboardingStatus
+            }
+            saasFiles {
+              name
+              managedResourceTypes
             }
           }
         }
