@@ -169,7 +169,7 @@ def slo_documents(gql_class_factory: Callable[..., SLODocumentV1]) -> SLODocumen
 
 
 @pytest.fixture
-def basic_metadata_spec() -> ServiceMetadataSpec:
+def basic_service_metadata_spec() -> ServiceMetadataSpec:
     return {
         "sli_specification": "specification",
         "target_unit": "unit",
@@ -184,9 +184,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient")
     h = StatusBoardHandler(
         action=Action.create,
-        status_board_object=StatusBoardStub(
-            id=None, name="foo", fullname="foo", metadata={}
-        ),
+        status_board_object=StatusBoardStub(name="foo", fullname="foo", metadata={}),
     )
 
     h.act(dry_run=False, ocm=ocm)
@@ -196,9 +194,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
 
     h = StatusBoardHandler(
         action=Action.delete,
-        status_board_object=StatusBoardStub(
-            id=None, name="foo", fullname="foo", metadata={}
-        ),
+        status_board_object=StatusBoardStub(name="foo", fullname="foo"),
     )
 
     h.act(dry_run=False, ocm=ocm)
@@ -225,10 +221,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
             name="bar",
             fullname="bar",
             services=[],
-            product=Product(
-                id=None, name="baz", fullname="baz", applications=[], metadata={}
-            ),
-            metadata={},
+            product=Product(name="baz", fullname="baz", applications=[]),
         ),
         metadata=metadata,
     )
@@ -242,30 +235,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
 
 def test_get_product_apps(status_board: StatusBoardV1) -> None:
     p = StatusBoardExporterIntegration.get_product_apps(status_board)
-    assert p == {
-        "foo": {
-            "foo": {
-                "metadata": {
-                    "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": set(),
-                }
-            },
-            "foo-bar": {
-                "metadata": {
-                    "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": set(),
-                }
-            },
-        },
-        "bar": {
-            "bar": {
-                "metadata": {
-                    "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": set(),
-                }
-            }
-        },
-    }
+    assert p == {"foo": {"foo", "foo-bar"}, "bar": {"bar"}}
 
 
 def test_get_current_products_applications_services(mocker: MockerFixture) -> None:
@@ -275,32 +245,17 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
     mock_get_services = mocker.patch("reconcile.status_board.get_application_services")
 
     mock_get_products.return_value = [
-        {"name": "product_1", "fullname": "product_1", "id": "1", "metadata": {}},
-        {"name": "product_2", "fullname": "product_2", "id": "2", "metadata": {}},
+        {"name": "product_1", "fullname": "product_1", "id": "1"},
+        {"name": "product_2", "fullname": "product_2", "id": "2"},
     ]
 
     apps_mapping = {
         "1": [
-            {
-                "name": "app_1",
-                "fullname": "product_1/app_1",
-                "id": "1_1",
-                "metadata": {},
-            },
-            {
-                "name": "app_2",
-                "fullname": "product_1/app_2",
-                "id": "1_2",
-                "metadata": {},
-            },
+            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1"},
+            {"name": "app_2", "fullname": "product_1/app_2", "id": "1_2"},
         ],
         "2": [
-            {
-                "name": "app_3",
-                "fullname": "product_2/app_3",
-                "id": "2_3",
-                "metadata": {},
-            },
+            {"name": "app_3", "fullname": "product_2/app_3", "id": "2_3"},
         ],
     }
 
@@ -352,18 +307,24 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         "target_unit": "unit",
         "window": "1h",
     }
+
     product_1 = Product(
-        name="product_1", fullname="product_1", id="1", applications=[], metadata={}
+        name="product_1",
+        fullname="product_1",
+        id="1",
+        applications=[],
     )
     product_2 = Product(
-        name="product_2", fullname="product_2", id="2", applications=[], metadata={}
+        name="product_2",
+        fullname="product_2",
+        id="2",
+        applications=[],
     )
     app_1 = Application(
         name="app_1",
         fullname="product_1/app_1",
         id="1_1",
         services=[],
-        metadata={},
         product=product_1,
     )
     app_2 = Application(
@@ -371,7 +332,6 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         fullname="product_1/app_2",
         id="1_2",
         services=[],
-        metadata={},
         product=product_1,
     )
     app_3 = Application(
@@ -379,7 +339,6 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         fullname="product_2/app_3",
         id="2_3",
         services=[],
-        metadata={},
         product=product_2,
     )
     service_1 = Service(
@@ -414,10 +373,16 @@ def test_current_abstract_status_board_map() -> None:
     }
 
     product_1 = Product(
-        name="product_1", fullname="product_1", id=None, applications=[], metadata={}
+        name="product_1",
+        fullname="product_1",
+        id=None,
+        applications=[],
     )
     product_2 = Product(
-        name="product_2", fullname="product_2", id="2", applications=[], metadata={}
+        name="product_2",
+        fullname="product_2",
+        id="2",
+        applications=[],
     )
     app_1 = Application(
         name="app_1",
@@ -425,7 +390,6 @@ def test_current_abstract_status_board_map() -> None:
         id="1_1",
         services=[],
         product=product_1,
-        metadata={},
     )
     app_2 = Application(
         name="app_2",
@@ -433,7 +397,6 @@ def test_current_abstract_status_board_map() -> None:
         id="1_2",
         services=[],
         product=product_1,
-        metadata={},
     )
     app_3 = Application(
         name="app_3",
@@ -441,7 +404,6 @@ def test_current_abstract_status_board_map() -> None:
         id="2_3",
         services=[],
         product=product_2,
-        metadata={},
     )
     service_1 = Service(
         name="service_1",
@@ -468,14 +430,16 @@ def test_current_abstract_status_board_map() -> None:
 
     assert flat_map == {
         "product_1": Product(
-            name="product_1", fullname="product_1", id="1", applications=[], metadata={}
+            name="product_1",
+            fullname="product_1",
+            id="1",
+            applications=[],
         ),
         "product_1/app_1": Application(
             name="app_1",
             fullname="product_1/app_1",
             id="1_1",
             services=[],
-            metadata={},
             product=product_1,
         ),
         "product_1/app_1/service_1": Service(
@@ -497,27 +461,26 @@ def test_current_abstract_status_board_map() -> None:
             fullname="product_1/app_2",
             id="1_2",
             services=[],
-            metadata={},
             product=product_1,
         ),
         "product_2": Product(
-            name="product_2", fullname="product_2", id="2", applications=[], metadata={}
+            name="product_2",
+            fullname="product_2",
+            id="2",
+            applications=[],
         ),
         "product_2/app_3": Application(
             name="app_3",
             fullname="product_2/app_3",
             id="2_3",
             services=[],
-            metadata={},
             product=product_2,
         ),
     }
 
 
 def test_get_diff_create_app() -> None:
-    foo_product = Product(
-        name="foo", fullname="foo", applications=[], id=None, metadata={}
-    )
+    foo_product = Product(name="foo", fullname="foo", applications=[])
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
@@ -526,22 +489,16 @@ def test_get_diff_create_app() -> None:
                 fullname="foo/bar",
                 services=[],
                 product=foo_product,
-                id=None,
-                metadata={},
             ),
             "foo/foo": Application(
                 name="foo",
                 fullname="foo/foo",
                 services=[],
                 product=foo_product,
-                id=None,
-                metadata={},
             ),
         },
         current_abstract_status_board_map={
-            "foo": Product(
-                name="foo", fullname="foo", applications=[], id=None, metadata={}
-            ),
+            "foo": Product(name="foo", fullname="foo", applications=[]),
         },
     )
 
@@ -561,39 +518,25 @@ def test_get_diff_create_app() -> None:
 
 
 def test_get_diff_create_one_app() -> None:
-    foo_product = Product(
-        name="foo", fullname="foo", applications=[], id=None, metadata={}
-    )
+    foo_product = Product(name="foo", fullname="foo", applications=[])
     current_foo = Product(
-        id="1", name="foo", fullname="foo", applications=[], metadata={}
+        id="1",
+        name="foo",
+        fullname="foo",
+        applications=[],
     )
     current_app = Application(
-        id="2",
-        name="bar",
-        fullname="foo/bar",
-        services=[],
-        product=current_foo,
-        metadata={},
+        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
             "foo/bar": Application(
-                name="bar",
-                fullname="foo/bar",
-                services=[],
-                product=foo_product,
-                id=None,
-                metadata={},
+                name="bar", fullname="foo/bar", services=[], product=foo_product
             ),
             "foo/foo": Application(
-                name="foo",
-                fullname="foo/foo",
-                services=[],
-                product=foo_product,
-                id=None,
-                metadata={},
+                name="foo", fullname="foo/foo", services=[], product=foo_product
             ),
         },
         current_abstract_status_board_map={
@@ -609,27 +552,15 @@ def test_get_diff_create_one_app() -> None:
 
 
 def test_get_diff_create_product_and_apps() -> None:
-    foo_product = Product(
-        name="foo", fullname="foo", applications=[], id=None, metadata={}
-    )
+    foo_product = Product(name="foo", fullname="foo", applications=[])
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
             "foo/bar": Application(
-                name="bar",
-                fullname="foo/bar",
-                services=[],
-                product=foo_product,
-                id=None,
-                metadata={},
+                name="bar", fullname="foo/bar", services=[], product=foo_product
             ),
             "foo/foo": Application(
-                name="foo",
-                fullname="foo/foo",
-                services=[],
-                product=foo_product,
-                id=None,
-                metadata={},
+                name="foo", fullname="foo/foo", services=[], product=foo_product
             ),
         },
         current_abstract_status_board_map={},
@@ -657,37 +588,24 @@ def test_get_diff_create_product_and_apps() -> None:
 
 
 def test_get_diff_create_product_app_and_service(
-    basic_metadata_spec: ServiceMetadataSpec,
+    basic_service_metadata_spec: ServiceMetadataSpec,
 ) -> None:
-    foo_product = Product(
-        name="foo", fullname="foo", applications=[], id=None, metadata={}
-    )
+    foo_product = Product(name="foo", fullname="foo", applications=[])
     bar_app = Application(
-        name="bar",
-        fullname="foo/bar",
-        services=[],
-        product=foo_product,
-        id=None,
-        metadata={},
+        name="bar", fullname="foo/bar", services=[], product=foo_product
     )
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
             "foo/bar": bar_app,
             "foo/foo": Application(
-                name="foo",
-                fullname="foo/foo",
-                services=[],
-                product=foo_product,
-                id=None,
-                metadata={},
+                name="foo", fullname="foo/foo", services=[], product=foo_product
             ),
             "foo/bar/baz": Service(
                 name="baz",
                 fullname="foo/bar/baz",
-                metadata=basic_metadata_spec,
+                metadata=basic_service_metadata_spec,
                 application=bar_app,
-                id=None,
             ),
         },
         current_abstract_status_board_map={},
@@ -729,20 +647,16 @@ def test_get_diff_update_service() -> None:
         "window": "window",
         "target": 0.99,
     }
-    foo_product = Product(name="foo", fullname="foo", applications=[], metadata={})
+    foo_product = Product(name="foo", fullname="foo", applications=[])
     foo_bar_app = Application(
-        name="bar", fullname="foo/bar", services=[], product=foo_product, metadata={}
+        name="bar", fullname="foo/bar", services=[], product=foo_product
     )
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
             "foo/bar": foo_bar_app,
             "foo/foo": Application(
-                name="foo",
-                fullname="foo/foo",
-                services=[],
-                product=foo_product,
-                metadata={},
+                name="foo", fullname="foo/foo", services=[], product=foo_product
             ),
             "foo/bar/baz": Service(
                 name="baz",
@@ -755,11 +669,7 @@ def test_get_diff_update_service() -> None:
             "foo": foo_product,
             "foo/bar": foo_bar_app,
             "foo/foo": Application(
-                name="foo",
-                fullname="foo/foo",
-                services=[],
-                product=foo_product,
-                metadata={},
+                name="foo", fullname="foo/foo", services=[], product=foo_product
             ),
             "foo/bar/baz": Service(
                 name="baz",
@@ -776,31 +686,22 @@ def test_get_diff_update_service() -> None:
 
 
 def test_get_diff_noop() -> None:
-    foo_product = Product(
-        name="foo", fullname="foo", applications=[], id=None, metadata={}
-    )
+    foo_product = Product(name="foo", fullname="foo", applications=[])
     current_foo = Product(
-        id="1", name="foo", fullname="foo", applications=[], metadata={}
+        id="1",
+        name="foo",
+        fullname="foo",
+        applications=[],
     )
     current_app = Application(
-        id="2",
-        name="bar",
-        fullname="foo/bar",
-        services=[],
-        product=current_foo,
-        metadata={},
+        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
             "foo": foo_product,
             "foo/bar": Application(
-                name="bar",
-                fullname="foo/bar",
-                services=[],
-                product=foo_product,
-                id=None,
-                metadata={},
+                name="bar", fullname="foo/bar", services=[], product=foo_product
             ),
         },
         current_abstract_status_board_map={
@@ -812,19 +713,15 @@ def test_get_diff_noop() -> None:
 
 
 def test_get_diff_delete_app() -> None:
-    foo_product = Product(
-        name="foo", fullname="foo", applications=[], id=None, metadata={}
-    )
+    foo_product = Product(name="foo", fullname="foo", applications=[])
     current_foo = Product(
-        id="1", name="foo", fullname="foo", applications=[], metadata={}
+        id="1",
+        name="foo",
+        fullname="foo",
+        applications=[],
     )
     current_app = Application(
-        id="2",
-        name="bar",
-        fullname="foo/bar",
-        services=[],
-        product=current_foo,
-        metadata={},
+        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
@@ -834,12 +731,7 @@ def test_get_diff_delete_app() -> None:
         current_abstract_status_board_map={
             "foo": current_foo,
             "foo/bar": Application(
-                id="2",
-                name="bar",
-                fullname="foo/bar",
-                services=[],
-                product=current_foo,
-                metadata={},
+                id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
             ),
         },
     )
@@ -852,15 +744,13 @@ def test_get_diff_delete_app() -> None:
 
 def test_get_diff_delete_apps_and_product() -> None:
     current_foo = Product(
-        id="1", name="foo", fullname="foo", applications=[], metadata={}
+        id="1",
+        name="foo",
+        fullname="foo",
+        applications=[],
     )
     current_app = Application(
-        id="2",
-        name="bar",
-        fullname="foo/bar",
-        services=[],
-        product=current_foo,
-        metadata={},
+        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
@@ -868,12 +758,7 @@ def test_get_diff_delete_apps_and_product() -> None:
         current_abstract_status_board_map={
             "foo": current_foo,
             "foo/bar": Application(
-                id="2",
-                name="bar",
-                fullname="foo/bar",
-                services=[],
-                product=current_foo,
-                metadata={},
+                id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
             ),
         },
     )
@@ -902,15 +787,13 @@ def test_get_diff_delete_product_app_and_service() -> None:
         "target": 0.99,
     }
     current_foo = Product(
-        id="1", name="foo", fullname="foo", applications=[], metadata={}
+        id="1",
+        name="foo",
+        fullname="foo",
+        applications=[],
     )
     current_bar = Application(
-        id="2",
-        name="bar",
-        fullname="foo/bar",
-        services=[],
-        product=current_foo,
-        metadata={},
+        id="2", name="bar", fullname="foo/bar", services=[], product=current_foo
     )
     current_service = Service(
         id="3",
@@ -960,14 +843,12 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
     ocm = mocker.patch("reconcile.status_board.OCMBaseClient", autospec=True)
     logging = mocker.patch("reconcile.status_board.logging", autospec=True)
 
-    product = Product(name="foo", fullname="foo", applications=[], id=None, metadata={})
+    product = Product(name="foo", fullname="foo", applications=[])
     application = Application(
         name="bar",
         fullname="foo/bar",
         product=product,
         services=[],
-        id=None,
-        metadata={},
     )
     metadata: ServiceMetadataSpec = {
         "sli_type": "type",
@@ -984,7 +865,6 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
                 name="baz",
                 fullname="foo/bar/baz",
                 metadata=metadata,
-                id=None,
                 application=application,
             ),
         ),
@@ -1046,20 +926,15 @@ def test_run_integration(
     )
 
     mock_get_products.return_value = [
-        {"name": "product_1", "fullname": "product_1", "id": "1", "metadata": {}},
-        {"name": "bar", "fullname": "bar", "id": "2", "metadata": {}},
+        {"name": "product_1", "fullname": "product_1", "id": "1"},
+        {"name": "bar", "fullname": "bar", "id": "2"},
     ]
 
     apps_mapping = {
         "1": [
-            {
-                "name": "app_1",
-                "fullname": "product_1/app_1",
-                "id": "1_1",
-                "metadata": {},
-            },
+            {"name": "app_1", "fullname": "product_1/app_1", "id": "1_1"},
         ],
-        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1", "metadata": {}}],
+        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1"}],
     }
 
     services_mapping = {
@@ -1121,10 +996,6 @@ def test_run_integration(
                 spec={
                     "fullname": "foo/foo-bar",
                     "name": "foo-bar",
-                    "metadata": {
-                        "deploymentSaasFiles": set(),
-                        "managedBy": "qontract-reconcile",
-                    },
                     "product": {"id": "1"},
                 },
             ),
@@ -1133,10 +1004,6 @@ def test_run_integration(
                 spec={
                     "fullname": "foo/foo",
                     "name": "foo",
-                    "metadata": {
-                        "deploymentSaasFiles": set(),
-                        "managedBy": "qontract-reconcile",
-                    },
                     "product": {"id": "1"},
                 },
             ),
@@ -1226,15 +1093,15 @@ def test_run_integration_create_services(
     )
 
     mock_get_products.return_value = [
-        {"name": "foo", "fullname": "foo", "id": "1", "metadata": {}},
-        {"name": "bar", "fullname": "bar", "id": "2", "metadata": {}},
+        {"name": "foo", "fullname": "foo", "id": "1"},
+        {"name": "bar", "fullname": "bar", "id": "2"},
     ]
 
     apps_mapping = {
         "1": [
-            {"name": "foo", "fullname": "foo/foo", "id": "1_1", "metadata": {}},
+            {"name": "foo", "fullname": "foo/foo", "id": "1_1"},
         ],
-        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1", "metadata": {}}],
+        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1"}],
     }
 
     mock_get_apps.side_effect = lambda _, product_id: apps_mapping.get(product_id, [])
@@ -1295,197 +1162,3 @@ def test_run_integration_create_services(
         ],
         any_order=True,
     )
-
-
-@pytest.fixture
-def status_board_with_saas_file(
-    gql_class_factory: Callable[..., StatusBoardV1],
-) -> StatusBoardV1:
-    """StatusBoard fixture for app 'foo' under product 'bar' with saas-file 'baz'"""
-    return gql_class_factory(
-        StatusBoardV1,
-        {
-            "name": "test-board",
-            "ocm": {
-                "url": "https://test.com",
-                "accessTokenUrl": "test",
-                "accessTokenClientId": "test",
-                "accessTokenClientSecret": {
-                    "path": "test",
-                    "field": "test",
-                    "version": "1",
-                    "format": "test",
-                },
-            },
-            "products": [
-                {
-                    "productEnvironment": {
-                        "name": "bar",
-                        "labels": '{"environment": "production"}',
-                        "namespaces": [
-                            {
-                                "app": {
-                                    "name": "foo",
-                                    "onboardingStatus": "OnBoarded",
-                                    "saasFiles": [
-                                        {
-                                            "name": "baz",
-                                            "managedResourceTypes": ["Deployment"],
-                                        }
-                                    ],
-                                }
-                            }
-                        ],
-                        "product": {
-                            "name": "bar",
-                        },
-                    },
-                },
-            ],
-        },
-    )
-
-
-@pytest.fixture
-def status_board_with_multiple_saas_files(
-    gql_class_factory: Callable[..., StatusBoardV1],
-) -> StatusBoardV1:
-    """StatusBoard fixture for app 'foo' under product 'bar' with multiple saas-files"""
-    return gql_class_factory(
-        StatusBoardV1,
-        {
-            "name": "test-board",
-            "ocm": {
-                "url": "https://test.com",
-                "accessTokenUrl": "test",
-                "accessTokenClientId": "test",
-                "accessTokenClientSecret": {
-                    "path": "test",
-                    "field": "test",
-                    "version": "1",
-                    "format": "test",
-                },
-            },
-            "products": [
-                {
-                    "productEnvironment": {
-                        "name": "bar",
-                        "labels": '{"environment": "production"}',
-                        "namespaces": [
-                            {
-                                "app": {
-                                    "name": "foo",
-                                    "onboardingStatus": "OnBoarded",
-                                    "saasFiles": [
-                                        {
-                                            "name": "baz",
-                                            "managedResourceTypes": ["Deployment"],
-                                        },
-                                        {
-                                            "name": "qux",
-                                            "managedResourceTypes": ["Deployment"],
-                                        },
-                                    ],
-                                }
-                            }
-                        ],
-                        "product": {
-                            "name": "bar",
-                        },
-                    },
-                },
-            ],
-        },
-    )
-
-
-def test_get_diff_create_app_with_saas_file(
-    status_board_with_saas_file: StatusBoardV1,
-) -> None:
-    """Test creating app 'foo' under product 'bar' with deployment saas-file 'baz'"""
-    # Get desired state from status board
-    desired_product_apps = StatusBoardExporterIntegration.get_product_apps(
-        status_board_with_saas_file
-    )
-    desired_abstract_status_board_map = (
-        StatusBoardExporterIntegration.desired_abstract_status_board_map(
-            desired_product_apps, []
-        )
-    )
-
-    # No current state (creating from scratch)
-    current_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
-
-    h = StatusBoardExporterIntegration.get_diff(
-        desired_abstract_status_board_map, current_abstract_status_board_map
-    )
-
-    assert len(h) == 2
-
-    # Should create product first
-    product_handler = next(
-        (handler for handler in h if isinstance(handler.status_board_object, Product)),
-        None,
-    )
-    assert product_handler is not None
-    assert product_handler.action == Action.create
-    assert product_handler.status_board_object.name == "bar"
-
-    # Should create application with saas file
-    app_handler = next(
-        (
-            handler
-            for handler in h
-            if isinstance(handler.status_board_object, Application)
-        ),
-        None,
-    )
-    assert app_handler is not None
-    assert app_handler.action == Action.create
-    assert isinstance(app_handler.status_board_object, Application)
-    assert app_handler.status_board_object.name == "foo"
-    assert "baz" in app_handler.status_board_object.metadata["deploymentSaasFiles"]
-    assert app_handler.status_board_object.metadata["managedBy"] == "qontract-reconcile"
-
-
-def test_get_diff_update_app_with_additional_saas_file(
-    status_board_with_saas_file: StatusBoardV1,
-    status_board_with_multiple_saas_files: StatusBoardV1,
-) -> None:
-    """Test updating app 'foo' to add another saas-file and assert update call is made"""
-
-    # Current state: app with one saas file
-    current_product_apps = StatusBoardExporterIntegration.get_product_apps(
-        status_board_with_saas_file
-    )
-    current_abstract_status_board_map = (
-        StatusBoardExporterIntegration.desired_abstract_status_board_map(
-            current_product_apps, []
-        )
-    )
-
-    # Desired state: app with two saas files
-    desired_product_apps = StatusBoardExporterIntegration.get_product_apps(
-        status_board_with_multiple_saas_files
-    )
-    desired_abstract_status_board_map = (
-        StatusBoardExporterIntegration.desired_abstract_status_board_map(
-            desired_product_apps, []
-        )
-    )
-
-    h = StatusBoardExporterIntegration.get_diff(
-        desired_abstract_status_board_map, current_abstract_status_board_map
-    )
-
-    assert len(h) == 1
-
-    # Should update the application
-    app_handler = h[0]
-    assert app_handler.action == Action.update
-    assert isinstance(app_handler.status_board_object, Application)
-    app_obj = app_handler.status_board_object
-    assert app_obj.name == "foo"
-    assert "baz" in app_obj.metadata["deploymentSaasFiles"]
-    assert "qux" in app_obj.metadata["deploymentSaasFiles"]
-    assert app_obj.metadata["managedBy"] == "qontract-reconcile"

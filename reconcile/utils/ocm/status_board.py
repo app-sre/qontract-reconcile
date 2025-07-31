@@ -21,7 +21,6 @@ class IDSpec(TypedDict):
 
 
 class ApplicationOCMSpec(BaseOCMSpec):
-    metadata: dict[str, Any]
     product: IDSpec
 
 
@@ -116,18 +115,6 @@ def create_service(ocm_api: OCMBaseClient, spec: ServiceOCMSpec) -> str:
 
     resp = ocm_api.post("/api/status-board/v1/services/", data=data)
     return resp["id"]
-
-
-def update_application(
-    ocm_api: OCMBaseClient,
-    application_id: str,
-    spec: ApplicationOCMSpec,
-) -> None:
-    data = spec | {
-        "metadata": spec.get("metadata", {})
-        | {METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE}
-    }
-    ocm_api.patch(f"/api/status-board/v1/applications/{application_id}", data=data)
 
 
 def update_service(
