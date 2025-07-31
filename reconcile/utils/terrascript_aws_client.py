@@ -2543,10 +2543,12 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
 
         # iam user for bucket
-        values = {}
-        values["name"] = identifier
-        values["tags"] = common_values["tags"]
-        values["depends_on"] = self.get_dependencies([bucket_tf_resource])
+        values = {
+            "name": identifier,
+            "tags": common_values["tags"],
+            "depends_on": self.get_dependencies([bucket_tf_resource]),
+        }
+
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -2556,8 +2558,7 @@ class TerrascriptClient:
         )
 
         # iam user policy for bucket
-        values = {}
-        values["name"] = identifier
+        values = {"name": identifier}
 
         action = ["s3:*Object*"]
         if common_values.get("acl", "private") == "public-read":
@@ -2701,9 +2702,11 @@ class TerrascriptClient:
         self.init_common_outputs(tf_resources, spec)
 
         # iam user for bucket
-        values = {}
-        values["name"] = identifier
-        values["tags"] = common_values["tags"]
+        values = {
+            "name": identifier,
+            "tags": common_values["tags"],
+        }
+
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -3048,9 +3051,11 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
 
         # iam user for queue
-        values = {}
-        values["name"] = identifier
-        values["tags"] = common_values["tags"]
+        values = {
+            "name": identifier,
+            "tags": common_values["tags"],
+        }
+
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -3064,8 +3069,8 @@ class TerrascriptClient:
             policy_identifier = f"{identifier}-{policy_index}"
             if len(all_queues_per_spec) == 1:
                 policy_identifier = identifier
-            values = {}
-            values["name"] = policy_identifier
+            values = {"name": policy_identifier}
+
             policy: dict[str, Any] = {
                 "Version": "2012-10-17",
                 "Statement": [
@@ -3092,13 +3097,15 @@ class TerrascriptClient:
             tf_resources.append(policy_tf_resource)
 
             # iam user policy attachment
-            values = {}
-            values["user"] = identifier
-            values["policy_arn"] = "${" + policy_tf_resource.arn + "}"
-            values["depends_on"] = self.get_dependencies([
-                user_tf_resource,
-                policy_tf_resource,
-            ])
+            values = {
+                "user": identifier,
+                "policy_arn": "${" + policy_tf_resource.arn + "}",
+                "depends_on": self.get_dependencies([
+                    user_tf_resource,
+                    policy_tf_resource,
+                ]),
+            }
+
             tf_resource = aws_iam_user_policy_attachment(policy_identifier, **values)
             tf_resources.append(tf_resource)
 
@@ -3128,8 +3135,10 @@ class TerrascriptClient:
         if "subscriptions" in common_values:
             subscriptions = common_values["subscriptions"]
             for index, sub in enumerate(subscriptions):
-                sub_values = {}
-                sub_values["topic_arn"] = "${aws_sns_topic" + "." + identifier + ".arn}"
+                sub_values = {
+                    "topic_arn": "${aws_sns_topic" + "." + identifier + ".arn}"
+                }
+
                 protocol = sub["protocol"]
                 endpoint = sub["endpoint"]
                 if protocol == "email" and not EMAIL_REGEX.match(endpoint):
@@ -3180,9 +3189,11 @@ class TerrascriptClient:
                 # Terraform resource reference:
                 # https://www.terraform.io/docs/providers/aws/r/
                 # dynamodb_table.html
-                values = {}
-                values["name"] = table
-                values["tags"] = common_values["tags"]
+                values = {
+                    "name": table,
+                    "tags": common_values["tags"],
+                }
+
                 values.update(defaults)
                 values["attribute"] = attributes
                 if self._multiregion_account(account):
@@ -3203,9 +3214,11 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
 
         # iam user for table
-        values = {}
-        values["name"] = identifier
-        values["tags"] = common_values["tags"]
+        values = {
+            "name": identifier,
+            "tags": common_values["tags"],
+        }
+
         user_tf_resource = aws_iam_user(identifier, **values)
         tf_resources.append(user_tf_resource)
 
@@ -3288,10 +3301,11 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
 
         # iam user for repository
-        values_iam_user: dict[str, Any] = {}
-        values_iam_user["name"] = identifier
-        values_iam_user["tags"] = common_values["tags"]
-        values_iam_user["depends_on"] = self.get_dependencies([ecr_tf_resource])
+        values_iam_user: dict[str, Any] = {
+            "name": identifier,
+            "tags": common_values["tags"],
+            "depends_on": self.get_dependencies([ecr_tf_resource]),
+        }
         user_tf_resource = aws_iam_user(identifier, **values_iam_user)
         tf_resources.append(user_tf_resource)
 
@@ -3301,8 +3315,7 @@ class TerrascriptClient:
         )
 
         # iam user policy for bucket
-        values_policy: dict[str, Any] = {}
-        values_policy["name"] = identifier
+        values_policy: dict[str, Any] = {"name": identifier}
         policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -3366,14 +3379,12 @@ class TerrascriptClient:
         tf_resources: list[TFResource] = []
 
         # cloudfront origin access identity
-        values = {}
-        values["comment"] = f"{identifier}-cf-identity"
+        values = {"comment": f"{identifier}-cf-identity"}
         cf_oai_tf_resource = aws_cloudfront_origin_access_identity(identifier, **values)
         tf_resources.append(cf_oai_tf_resource)
 
         # bucket policy for cloudfront
-        values_policy: dict[str, Any] = {}
-        values_policy["bucket"] = identifier
+        values_policy: dict[str, Any] = {"bucket": identifier}
         policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -3543,15 +3554,15 @@ class TerrascriptClient:
         if kms_encryption:
             kms_identifier = f"{identifier}-kms"
             kms_values = {
-                "description": "app-interface created KMS key for" + sqs_identifier
+                "description": "app-interface created KMS key for" + sqs_identifier,
+                "key_usage": str(
+                    common_values.get("key_usage", "ENCRYPT_DECRYPT")
+                ).upper(),
+                "customer_master_key_spec": str(
+                    common_values.get("customer_master_key_spec", "SYMMETRIC_DEFAULT")
+                ).upper(),
+                "is_enabled": common_values.get("is_enabled", True),
             }
-            kms_values["key_usage"] = str(
-                common_values.get("key_usage", "ENCRYPT_DECRYPT")
-            ).upper()
-            kms_values["customer_master_key_spec"] = str(
-                common_values.get("customer_master_key_spec", "SYMMETRIC_DEFAULT")
-            ).upper()
-            kms_values["is_enabled"] = common_values.get("is_enabled", True)
 
             kms_policy = {
                 "Version": "2012-10-17",
@@ -3627,15 +3638,15 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
 
         # iam user for queue
-        values: dict[str, Any] = {}
-        values["name"] = sqs_identifier
+        values: dict[str, Any] = {"name": sqs_identifier}
         user_tf_resource = aws_iam_user(sqs_identifier, **values)
         tf_resources.append(user_tf_resource)
 
         # iam access key for user
-        values_key: dict[str, Any] = {}
-        values_key["user"] = sqs_identifier
-        values_key["depends_on"] = self.get_dependencies([user_tf_resource])
+        values_key: dict[str, Any] = {
+            "user": sqs_identifier,
+            "depends_on": self.get_dependencies([user_tf_resource]),
+        }
         access_key_tf_resource = aws_iam_access_key(sqs_identifier, **values_key)
         tf_resources.append(access_key_tf_resource)
         # outputs
@@ -3649,8 +3660,7 @@ class TerrascriptClient:
         tf_resources.append(Output(output_name, value=output_value, sensitive=True))
 
         # iam policy for queue
-        values_policy: dict[str, Any] = {}
-        values_policy["name"] = sqs_identifier
+        values_policy: dict[str, Any] = {"name": sqs_identifier}
         policy: dict[str, Any] = {
             "Version": "2012-10-17",
             "Statement": [
@@ -3677,13 +3687,14 @@ class TerrascriptClient:
         tf_resources.append(policy_tf_resource)
 
         # iam user policy attachment
-        values_user_policy: dict[str, Any] = {}
-        values_user_policy["user"] = sqs_identifier
-        values_user_policy["policy_arn"] = "${" + policy_tf_resource.arn + "}"
-        values_user_policy["depends_on"] = self.get_dependencies([
-            user_tf_resource,
-            policy_tf_resource,
-        ])
+        values_user_policy: dict[str, Any] = {
+            "user": sqs_identifier,
+            "policy_arn": "${" + policy_tf_resource.arn + "}",
+            "depends_on": self.get_dependencies([
+                user_tf_resource,
+                policy_tf_resource,
+            ]),
+        }
         user_policy_attachment_tf_resource = aws_iam_user_policy_attachment(
             sqs_identifier, **values_user_policy
         )
@@ -3794,29 +3805,26 @@ class TerrascriptClient:
                 "filename": zip_file,
                 "source_code_hash": '${filebase64sha256("' + zip_file + '")}',
                 "role": "${" + role_tf_resource.arn + "}",
-            }
-
-            lambda_values["function_name"] = lambda_identifier
-            lambda_values["runtime"] = common_values.get("runtime", "nodejs18.x")
-            lambda_values["timeout"] = common_values.get("timeout", 30)
-            lambda_values["handler"] = common_values.get("handler", "index.handler")
-            lambda_values["memory_size"] = common_values.get("memory_size", 128)
-
-            lambda_values["vpc_config"] = {
-                "subnet_ids": "${data.aws_elasticsearch_domain."
-                + es_identifier
-                + ".vpc_options.0.subnet_ids}",
-                "security_group_ids": "${data.aws_elasticsearch_domain."
-                + es_identifier
-                + ".vpc_options.0.security_group_ids}",
-            }
-
-            lambda_values["environment"] = {
-                "variables": {
-                    "es_endpoint": "${data.aws_elasticsearch_domain."
+                "function_name": lambda_identifier,
+                "runtime": common_values.get("runtime", "nodejs18.x"),
+                "timeout": common_values.get("timeout", 30),
+                "handler": common_values.get("handler", "index.handler"),
+                "memory_size": common_values.get("memory_size", 128),
+                "vpc_config": {
+                    "subnet_ids": "${data.aws_elasticsearch_domain."
                     + es_identifier
-                    + ".endpoint}"
-                }
+                    + ".vpc_options.0.subnet_ids}",
+                    "security_group_ids": "${data.aws_elasticsearch_domain."
+                    + es_identifier
+                    + ".vpc_options.0.security_group_ids}",
+                },
+                "environment": {
+                    "variables": {
+                        "es_endpoint": "${data.aws_elasticsearch_domain."
+                        + es_identifier
+                        + ".endpoint}"
+                    }
+                },
             }
 
             if provider:
@@ -3957,9 +3965,10 @@ class TerrascriptClient:
         output_value = "${" + tf_resource.key_id + "}"
         tf_resources.append(Output(output_name, value=output_value))
 
-        alias_values = {}
-        alias_values["name"] = "alias/" + identifier
-        alias_values["target_key_id"] = "${aws_kms_key." + identifier + ".key_id}"
+        alias_values = {
+            "name": "alias/" + identifier,
+            "target_key_id": "${aws_kms_key." + identifier + ".key_id}",
+        }
         if self._multiregion_account(account):
             alias_values["provider"] = "aws." + region
         tf_resource = aws_kms_alias(identifier, **alias_values)
@@ -3980,10 +3989,11 @@ class TerrascriptClient:
         kinesis_values: dict[str, Any] = {
             "name": identifier,
             "tags": tags,
+            "shard_count": common_values.get("shard_count"),
+            "retention_period": common_values.get("retention_period", 24),
+            "encryption_type": common_values.get("encryption_type", None),
         }
-        kinesis_values["shard_count"] = common_values.get("shard_count")
-        kinesis_values["retention_period"] = common_values.get("retention_period", 24)
-        kinesis_values["encryption_type"] = common_values.get("encryption_type", None)
+
         if kinesis_values["encryption_type"] == "KMS":
             kinesis_values["kms_key_id"] = common_values.get("kms_key_id")
 
@@ -4109,34 +4119,31 @@ class TerrascriptClient:
                 "source_code_hash": '${filebase64sha256("' + zip_file + '")}',
                 "role": "${" + role_tf_resource.arn + "}",
                 "tags": tags,
-            }
-
-            lambda_values["function_name"] = lambda_identifier
-            lambda_values["runtime"] = common_values.get("runtime", "python3.9")
-            lambda_values["timeout"] = common_values.get("timeout", 30)
-            lambda_values["handler"] = common_values.get(
-                "handler", "lambda_function.handler"
-            )
-            lambda_values["memory_size"] = common_values.get("memory_size", 128)
-
-            lambda_values["vpc_config"] = {
-                "subnet_ids": "${data.aws_elasticsearch_domain."
-                + es_identifier
-                + ".vpc_options.0.subnet_ids}",
-                "security_group_ids": "${data.aws_elasticsearch_domain."
-                + es_identifier
-                + ".vpc_options.0.security_group_ids}",
-            }
-
-            index_prefix = common_values.get("index_prefix", f"{identifier}-")
-            lambda_values["environment"] = {
-                "variables": {
-                    "es_endpoint": "${data.aws_elasticsearch_domain."
+                "function_name": lambda_identifier,
+                "runtime": common_values.get("runtime", "python3.9"),
+                "timeout": common_values.get("timeout", 30),
+                "handler": common_values.get("handler", "lambda_function.handler"),
+                "memory_size": common_values.get("memory_size", 128),
+                "vpc_config": {
+                    "subnet_ids": "${data.aws_elasticsearch_domain."
                     + es_identifier
-                    + ".endpoint}",
-                    "index_prefix": index_prefix,
-                }
+                    + ".vpc_options.0.subnet_ids}",
+                    "security_group_ids": "${data.aws_elasticsearch_domain."
+                    + es_identifier
+                    + ".vpc_options.0.security_group_ids}",
+                },
+                "environment": {
+                    "variables": {
+                        "es_endpoint": "${data.aws_elasticsearch_domain."
+                        + es_identifier
+                        + ".endpoint}",
+                        "index_prefix": common_values.get(
+                            "index_prefix", f"{identifier}-"
+                        ),
+                    }
+                },
             }
+
             secret_name = es_resource.get_secret_field("secret_name")
             if secret_name:
                 lambda_values["environment"]["variables"]["secret_name"] = secret_name
@@ -4264,9 +4271,8 @@ class TerrascriptClient:
         tf_resources: list[TFResource] = []
 
         # iam user
-        values: dict[str, Any] = {}
-        values["name"] = identifier
-        values["tags"] = tags
+        values: dict[str, Any] = {"name": identifier, "tags": tags}
+
         if dep_tf_resource:
             values["depends_on"] = self.get_dependencies([dep_tf_resource])
         user_tf_resource = aws_iam_user(identifier, **values)
@@ -4278,10 +4284,11 @@ class TerrascriptClient:
         )
 
         # iam user policy
-        values_policy: dict[str, Any] = {}
-        values_policy["name"] = identifier
-        values_policy["policy"] = json.dumps(policy, sort_keys=True)
-        values_policy["depends_on"] = self.get_dependencies([user_tf_resource])
+        values_policy: dict[str, Any] = {
+            "name": identifier,
+            "policy": json.dumps(policy, sort_keys=True),
+            "depends_on": self.get_dependencies([user_tf_resource]),
+        }
 
         tf_aws_iam_policy = aws_iam_policy(identifier, **values_policy)
         tf_resources.append(tf_aws_iam_policy)
@@ -4300,9 +4307,11 @@ class TerrascriptClient:
         self, user_tf_resource: aws_iam_user, identifier: str, output_prefix: str
     ) -> list[TFResource]:
         tf_resources: list[TFResource] = []
-        values: dict[str, Any] = {}
-        values["user"] = identifier
-        values["depends_on"] = self.get_dependencies([user_tf_resource])
+        values: dict[str, Any] = {
+            "user": identifier,
+            "depends_on": self.get_dependencies([user_tf_resource]),
+        }
+
         tf_resource = aws_iam_access_key(identifier, **values)
         tf_resources.append(tf_resource)
         # outputs
@@ -4795,10 +4804,11 @@ class TerrascriptClient:
             )
 
         tags = values["tags"]
-        es_values: dict[str, Any] = {}
-        es_values["domain_name"] = identifier
-        es_values["tags"] = tags
-        es_values["elasticsearch_version"] = values.get("elasticsearch_version")
+        es_values: dict[str, Any] = {
+            "domain_name": identifier,
+            "tags": tags,
+            "elasticsearch_version": values.get("elasticsearch_version"),
+        }
 
         (
             log_group_resources,
@@ -5238,8 +5248,6 @@ class TerrascriptClient:
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
-        print("jfs")
-        print(common_values)
         output_prefix = spec.output_prefix
 
         tf_resources: list[TFResource] = []
@@ -5289,14 +5297,10 @@ class TerrascriptClient:
         openshift_service: str,
         account_name: str,
         namespace_info: Mapping[str, Any],
-        ocm_map: OCMMap | None,
+        ocm_map: OCMMap,
     ) -> set[str]:
         account = self.accounts[account_name]
         cluster = namespace_info["cluster"]
-        if ocm_map is None:
-            raise ValueError(
-                "ocm_map should be not none raising exception to make mypy happy"
-            )
         ocm = ocm_map.get(cluster["name"])
         account["assume_role"] = (
             ocm.get_aws_infrastructure_access_terraform_assume_role(
@@ -5505,6 +5509,10 @@ class TerrascriptClient:
             t_protocol_version = t.get("protocol_version") or "HTTP1"
 
             if t_openshift_service:
+                if ocm_map is None:
+                    raise ValueError(
+                        "ocm_map should be not none raising exception to make mypy happy"
+                    )
                 target_ips = self._get_alb_target_ips_by_openshift_service(
                     identifier, t_openshift_service, account, namespace_info, ocm_map
                 )
