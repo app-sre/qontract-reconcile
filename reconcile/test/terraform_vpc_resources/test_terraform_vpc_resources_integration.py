@@ -224,10 +224,6 @@ def test_vpc_and_subnet_tags(
     }
 
     # Mock VCS and MR manager dependencies
-    mock_vcs = mocker.patch(
-        "reconcile.terraform_vpc_resources.integration.VCS",
-        autospec=True,
-    )
     mock_mr_manager = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.MergeRequestManager",
         autospec=True,
