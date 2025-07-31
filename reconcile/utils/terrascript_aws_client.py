@@ -323,7 +323,7 @@ AWS_US_GOV_ELB_ACCOUNT_IDS = {
 
 
 class OutputResourceNameNotUniqueError(Exception):
-    def __init__(self, namespace: str | None, duplicates: list[str]) -> None:
+    def __init__(self, namespace: str | None, duplicates: Iterable[str]) -> None:
         self.namespace, self.duplicates = namespace, duplicates
         super().__init__(
             str.format(
@@ -470,9 +470,9 @@ class TerrascriptClient:
         integration: str,
         integration_prefix: str,
         thread_pool_size: int,
-        accounts: Iterable[dict[str, Any]],
+        accounts: Iterable[MutableMapping[str, Any]],
         settings: Mapping[str, Any] | None = None,
-        prefetch_resources_by_schemas: list[str] | None = None,
+        prefetch_resources_by_schemas: Iterable[str] | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         self.integration = integration
@@ -595,7 +595,7 @@ class TerrascriptClient:
 
     @staticmethod
     def state_bucket_for_account(
-        integration: str, account_name: str, config: dict[str, Any]
+        integration: str, account_name: str, config: Mapping[str, Any]
     ) -> Backend:
         # creds
         access_key_backend_value = config["aws_access_key_id"]
@@ -761,7 +761,7 @@ class TerrascriptClient:
                     self.gitlab = GitLabApi(instance, secret_reader=self.secret_reader)
         return self.gitlab
 
-    def init_jenkins(self, instance: dict) -> JenkinsApi:
+    def init_jenkins(self, instance: Mapping[str, Any]) -> JenkinsApi:
         instance_name = instance["name"]
         if not self.jenkins_map.get(instance_name):
             with self.jenkins_lock:
@@ -775,8 +775,8 @@ class TerrascriptClient:
         return self.jenkins_map[instance_name]
 
     def filter_disabled_accounts(
-        self, accounts: Iterable[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+        self, accounts: Iterable[MutableMapping[str, Any]]
+    ) -> list[MutableMapping[str, Any]]:
         filtered_accounts = []
         for account in accounts:
             integration = self.integration.replace("_", "-")
@@ -857,7 +857,7 @@ class TerrascriptClient:
         return groups
 
     @staticmethod
-    def _get_aws_username(user: dict[str, str]) -> str:
+    def _get_aws_username(user: Mapping[str, str]) -> str:
         return user.get("aws_username") or user["org_username"]
 
     @staticmethod
@@ -883,7 +883,7 @@ class TerrascriptClient:
     def populate_iam_users(
         self,
         roles: Iterable[Role],
-        skip_reencrypt_accounts: list[str],
+        skip_reencrypt_accounts: Iterable[str],
         appsre_pgp_key: str | None,
     ) -> bool:
         error = False
@@ -1015,7 +1015,7 @@ class TerrascriptClient:
     def populate_users(
         self,
         roles: Iterable[Role],
-        skip_reencrypt_accounts: list[str],
+        skip_reencrypt_accounts: Iterable[str],
         appsre_pgp_key: str | None = None,
     ) -> bool:
         self.populate_iam_groups(roles)
@@ -1036,7 +1036,7 @@ class TerrascriptClient:
 
     @staticmethod
     def get_resource_lifecycle(
-        common_values: dict[str, Any],
+        common_values: Mapping[str, Any],
     ) -> dict[str, Any] | None:
         if lifecycle := common_values.get("lifecycle"):
             lifecycle = NamespaceTerraformResourceLifecycleV1(**lifecycle)
@@ -1054,7 +1054,7 @@ class TerrascriptClient:
         return None
 
     def populate_additional_providers(
-        self, infra_account_name: str, accounts: list[dict[str, Any]]
+        self, infra_account_name: str, accounts: Iterable[Mapping[str, Any]]
     ) -> None:
         for account in accounts:
             account_name = account["name"]
@@ -1086,7 +1086,7 @@ class TerrascriptClient:
                     )
 
     def populate_route53(
-        self, desired_state: Iterable[dict[str, Any]], default_ttl: int = 300
+        self, desired_state: Iterable[Mapping[str, Any]], default_ttl: int = 300
     ) -> None:
         for zone in desired_state:
             acct_name = zone["account_name"]
@@ -1105,7 +1105,7 @@ class TerrascriptClient:
     def populate_route53_records(
         self,
         acct_name: str,
-        zone: dict[str, Any],
+        zone: Mapping[str, Any],
         zone_resource: aws_route53_zone,
         default_ttl: int = 300,
     ) -> None:
@@ -1185,7 +1185,7 @@ class TerrascriptClient:
             record_resource = aws_route53_record(record_id, **record_values)
             self.add_resource(acct_name, record_resource)
 
-    def populate_vpc_peerings(self, desired_state: list[dict[str, Any]]) -> None:
+    def populate_vpc_peerings(self, desired_state: Iterable[Mapping[str, Any]]) -> None:
         for item in desired_state:
             if item["deleted"]:
                 continue
@@ -1634,7 +1634,9 @@ class TerrascriptClient:
                 self.add_resource(infra_account_name, association)
 
     @staticmethod
-    def get_az_unique_subnet_ids(subnets_id_az: list[dict[str, str]]) -> list[str]:
+    def get_az_unique_subnet_ids(
+        subnets_id_az: Iterable[Mapping[str, str]],
+    ) -> list[str]:
         """returns a list of subnet ids which are unique per az"""
         results = []
         azs = []
@@ -2169,7 +2171,7 @@ class TerrascriptClient:
                 return spec
         return None
 
-    def _get_db_name_from_values(self, values: dict) -> str:
+    def _get_db_name_from_values(self, values: Mapping[str, Any]) -> str:
         return values.get("name") or values.get("db_name") or ""
 
     @staticmethod
@@ -2183,7 +2185,7 @@ class TerrascriptClient:
         return None
 
     @staticmethod
-    def _db_needs_auth(config: dict[str, Any]) -> bool:
+    def _db_needs_auth(config: Mapping[str, Any]) -> bool:
         return bool(
             "replicate_source_db" not in config and config.get("replica_source") is None
         )
@@ -2914,7 +2916,7 @@ class TerrascriptClient:
         self.add_resources(account, tf_resources)
 
     def populate_iam_policy(
-        self, account: str, name: str, policy: dict[str, Any]
+        self, account: str, name: str, policy: Mapping[str, Any]
     ) -> None:
         tf_aws_iam_policy = aws_iam_policy(
             f"{account}-{name}", name=name, policy=json.dumps(policy)
@@ -2926,8 +2928,8 @@ class TerrascriptClient:
         account: str,
         name: str,
         saml_provider_name: str,
-        aws_managed_policies: list[str],
-        customer_managed_policies: list[str] | None = None,
+        aws_managed_policies: Iterable[str],
+        customer_managed_policies: Iterable[str] | None = None,
         max_session_duration_hours: int = 1,
     ) -> None:
         """Manage the an IAM role needed for SAML authentication."""
@@ -4223,7 +4225,7 @@ class TerrascriptClient:
 
     @staticmethod
     def _get_retention_in_days(
-        values: dict[str, Any], account: str, identifier: str
+        values: Mapping[str, Any], account: str, identifier: str
     ) -> int:
         default_retention_in_days = 14
         allowed_retention_in_days = [
@@ -4261,8 +4263,8 @@ class TerrascriptClient:
         self,
         dep_tf_resource: TFResource | None,
         identifier: str,
-        policy: dict[str, Any],
-        tags: dict[str, str],
+        policy: Mapping[str, Any],
+        tags: Mapping[str, str],
         output_prefix: str,
     ) -> list[TFResource]:
         # iam resources
@@ -4326,7 +4328,7 @@ class TerrascriptClient:
 
         return tf_resources
 
-    def add_resources(self, account: str, tf_resources: list[TFResource]) -> None:
+    def add_resources(self, account: str, tf_resources: Iterable[TFResource]) -> None:
         for r in tf_resources:
             self.add_resource(account, r)
 
@@ -4356,8 +4358,8 @@ class TerrascriptClient:
     def dump(
         self,
         print_to_file: str | None = None,
-        existing_dirs: dict[str, str] | None = None,
-    ) -> dict[str, str]:
+        existing_dirs: MutableMapping[str, str] | None = None,
+    ) -> MutableMapping[str, str]:
         """
         Dump the Terraform configurations (in JSON format) to the working directories.
 
@@ -4368,7 +4370,7 @@ class TerrascriptClient:
         :return: key is AWS account name and value is directory location
         """
         if existing_dirs is None:
-            working_dirs: dict[str, str] = {}
+            working_dirs: MutableMapping[str, str] = {}
         else:
             working_dirs = existing_dirs
 
@@ -5325,7 +5327,7 @@ class TerrascriptClient:
 
     @staticmethod
     def _get_alb_rule_condition_value(
-        condition: dict[str, Any],
+        condition: Mapping[str, Any],
     ) -> dict[str, dict[str, str]]:
         condition_type = condition["type"]
         condition_type_key = SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING.get(

@@ -4,6 +4,7 @@ from collections.abc import (
     Collection,
     Iterable,
     Mapping,
+    MutableMapping,
     Sequence,
 )
 from dataclasses import asdict
@@ -160,7 +161,7 @@ def init_working_dirs(
     accounts: list[dict[str, Any]],
     thread_pool_size: int,
     settings: Mapping[str, Any] | None = None,
-) -> tuple[Terrascript, dict[str, str]]:
+) -> tuple[Terrascript, MutableMapping[str, str]]:
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         QONTRACT_TF_PREFIX,
