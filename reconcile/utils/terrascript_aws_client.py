@@ -1341,10 +1341,16 @@ class TerrascriptClient:
             if request.subnets:
                 if request.subnets.public:
                     vpc_module_values["public_subnets"] = request.subnets.public
-                    vpc_module_values["public_subnet_tags"] = VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS | (request.subnets.public_subnet_tags or {}),
+                    vpc_module_values["public_subnet_tags"] = (
+                        VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS
+                        | (request.subnets.public_subnet_tags or {}),
+                    )
                 if request.subnets.private:
                     vpc_module_values["private_subnets"] = request.subnets.private
-                    vpc_module_values["private_subnet_tags"] = VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS | (request.subnets.private_subnet_tags or {}),
+                    vpc_module_values["private_subnet_tags"] = (
+                        VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS
+                        | (request.subnets.private_subnet_tags or {}),
+                    )
                 if request.subnets.availability_zones:
                     vpc_module_values["azs"] = request.subnets.availability_zones
                 # We only want to enable nat_gateway if we have public and private subnets
