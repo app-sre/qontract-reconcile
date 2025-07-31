@@ -254,6 +254,41 @@ class QuayApi:
         )
         r.raise_for_status()
 
+    def get_repo_robot_permissions(self, repo_name: str, robot_name: str) -> str | None:
+        url = (
+            f"{self.api_url}/repository/{self.organization}/"
+            + f"{repo_name}/permissions/user/{self.organization}+{robot_name}"
+        )
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
+        if not r.ok:
+            message = r.json().get("message")
+            expected_message = "User does not have permission for repo."
+            if message == expected_message:
+                return None
+            r.raise_for_status()
+        return r.json().get("role") or None
+
+    def set_repo_robot_permissions(
+        self, repo_name: str, robot_name: str, role: str
+    ) -> None:
+        url = (
+            f"{self.api_url}/repository/{self.organization}/"
+            + f"{repo_name}/permissions/user/{self.organization}+{robot_name}"
+        )
+        body = {"role": role}
+        r = requests.put(
+            url, json=body, headers=self.auth_header, timeout=self._timeout
+        )
+        r.raise_for_status()
+
+    def delete_repo_robot_permissions(self, repo_name: str, robot_name: str) -> None:
+        url = (
+            f"{self.api_url}/repository/{self.organization}/"
+            + f"{repo_name}/permissions/user/{self.organization}+{robot_name}"
+        )
+        r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
+        r.raise_for_status()
+
     def list_robot_accounts(self) -> list[dict[str, str | None]] | None:
         url = f"{self.api_url}/organization/{self.organization}/robots"
         r = requests.get(
@@ -277,3 +312,66 @@ class QuayApi:
         url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}"
         r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
+
+    def get_robot_account_details(self, robot_name: str) -> dict[str, Any] | None:
+        """Get detailed information about a robot account including teams and repositories"""
+        url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}"
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+
+        robot_data = r.json()
+
+        # Get team memberships for this robot
+        teams = []
+        try:
+            teams_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}/permissions"
+            teams_r = requests.get(
+                teams_url, headers=self.auth_header, timeout=self._timeout
+            )
+            if teams_r.ok:
+                teams_data = teams_r.json()
+                for perm in teams_data.get("permissions", []):
+                    if perm["role"] == "team":
+                        teams.append({"name": perm["team"]["name"]})
+        except Exception:
+            pass
+
+        # Get repository permissions for this robot
+        repositories = []
+        try:
+            repos_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}/permissions"
+            repos_r = requests.get(
+                repos_url, headers=self.auth_header, timeout=self._timeout
+            )
+            if repos_r.ok:
+                repos_data = repos_r.json()
+                for perm in repos_data.get("permissions", []):
+                    if perm["role"] != "team":
+                        repositories.append({
+                            "name": perm["repository"]["name"],
+                            "role": perm["role"],
+                        })
+        except Exception:
+            pass
+
+        robot_data["teams"] = teams
+        robot_data["repositories"] = repositories
+
+        return robot_data
+
+    def list_robot_accounts_detailed(self) -> list[dict[str, Any]]:
+        """List all robot accounts with detailed information including teams and repositories"""
+        robots = self.list_robot_accounts()
+        if not robots:
+            return []
+
+        detailed_robots = []
+        for robot in robots:
+            robot_name = robot["name"]
+            details = self.get_robot_account_details(robot_name)
+            if details:
+                detailed_robots.append(details)
+
+        return detailed_robots
