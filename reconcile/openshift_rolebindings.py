@@ -12,6 +12,8 @@ from reconcile.gql_definitions.common.openshift_roles import (
 )
 import reconcile.openshift_base as ob
 from reconcile import queries
+from reconcile.typed_queries.namespaces import get_namespaces
+from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
 from reconcile.utils import (
     expiration,
     gql,
@@ -77,13 +79,9 @@ def fetch_desired_state(
     oc_map: ob.ClusterMap | None,
     enforced_user_keys: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    gqlapi = gql.get_api()
-    all_roles: list[RoleV1] = openshift_roles_query(query_func=gqlapi.query).roles or []
-    if not all_roles:
-        return []
-    valid_roles: list[RoleV1] = expiration.filter(all_roles)
+    roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
     users_desired_state = []
-    for role in valid_roles:
+    for role in roles:
         permissions: list[Permission] = [
             Permission(
                 role=access.role,
@@ -165,7 +163,6 @@ def fetch_desired_state(
                     )
     return users_desired_state
 
-
 @defer
 def run(
     dry_run: bool,
@@ -175,13 +172,13 @@ def run(
     defer: Callable | None = None,
 ) -> None:
     namespaces = [
-        namespace_info
-        for namespace_info in queries.get_namespaces()
-        if namespace_info.get("managedRoles")
+        namespace.dict(by_alias=True,exclude={"openshift_resources"})
+        for namespace in get_namespaces()
+        if namespace.managed_roles
         and is_in_shard(
-            f"{namespace_info['cluster']['name']}/" + f"{namespace_info['name']}"
+            f"{namespace.cluster.name}/{namespace.name}"
         )
-        and not ob.is_namespace_deleted(namespace_info)
+        and not ob.is_namespace_deleted(namespace.dict(by_alias=True))
     ]
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
