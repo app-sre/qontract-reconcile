@@ -32,9 +32,9 @@ from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient
 from reconcile.utils.terrascript_aws_client import (
-    TerrascriptClient,
     VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS,
     VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS,
+    TerrascriptClient,
 )
 from reconcile.utils.vcs import VCS
 
