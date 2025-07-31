@@ -31,7 +31,11 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.terraform_client import TerraformClient
-from reconcile.utils.terrascript_aws_client import TerrascriptClient
+from reconcile.utils.terrascript_aws_client import (
+    VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS,
+    VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS,
+    TerrascriptClient,
+)
 from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "terraform_vpc_resources"
@@ -90,14 +94,28 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
                 f"{request.identifier}-public_subnets", {}
             ).get("value", [])
 
+            if request.subnets:
+                private_subnet_tags = VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS | (
+                    request.subnets.private_subnet_tags or {}
+                )
+                public_subnet_tags = VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS | (
+                    request.subnets.public_subnet_tags or {}
+                )
+            else:
+                private_subnet_tags = VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS
+                public_subnet_tags = VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS
+
             values = {
                 "static": {
                     "vpc_id": outputs_per_account.get(
                         f"{request.identifier}-vpc_id", {}
                     ).get("value"),
+                    "vpc_tags": request.vpc_tags or {},
                     "subnets": {
                         "private": private_subnets,
                         "public": public_subnets,
+                        "private_subnet_tags": private_subnet_tags,
+                        "public_subnet_tags": public_subnet_tags,
                     },
                     "account_name": request.account.name,
                     "region": request.region,
