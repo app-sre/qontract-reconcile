@@ -1,9 +1,9 @@
 import contextlib
+from dataclasses import dataclass
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from attr import dataclass
 from pytest_mock import MockerFixture
 from terrascript.resource import (
     aws_lb,
@@ -528,11 +528,7 @@ def build_s3_spec(
 
 @pytest.fixture
 def s3_default_spec() -> ExternalResourceSpec:
-    resource = {
-        "identifier": "s3-bucket",
-        "provider": "s3",
-        "region": "us-east-1"
-    }
+    resource = {"identifier": "s3-bucket", "provider": "s3", "region": "us-east-1"}
     return build_s3_spec(resource)
 
 
@@ -578,7 +574,7 @@ def s3_spec_with_bucket_policy() -> ExternalResourceSpec:
         "identifier": "s3-bucket",
         "provider": "s3",
         "bucket_policy": "some-bucket-policy",
-        "region": "us-east-1"
+        "region": "us-east-1",
     }
     return build_s3_spec(resource)
 

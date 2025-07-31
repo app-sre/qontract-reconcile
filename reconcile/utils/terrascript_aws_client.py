@@ -1,4 +1,6 @@
 # ruff: noqa: N801
+from __future__ import annotations
+
 import base64
 import enum
 import json
@@ -9,7 +11,6 @@ import re
 import string
 import tempfile
 from collections import Counter
-from collections.abc import Iterable, Mapping, MutableMapping
 from dataclasses import dataclass, field
 from ipaddress import (
     ip_address,
@@ -148,9 +149,6 @@ import reconcile.utils.aws_helper as awsh
 from reconcile import queries
 from reconcile.cli import TERRAFORM_VERSION
 from reconcile.github_org import get_default_config
-from reconcile.gql_definitions.fragments.aws_vpc_request import (
-    VPCRequest,
-)
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
@@ -173,10 +171,6 @@ from reconcile.utils.exceptions import (
     FetchResourceError,
     PrintToFileInGitRepositoryError,
 )
-from reconcile.utils.external_resource_spec import (
-    ExternalResourceSpec,
-    ExternalResourceSpecInventory,
-)
 from reconcile.utils.external_resources import (
     PROVIDER_AWS,
     get_external_resource_specs,
@@ -185,7 +179,6 @@ from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
-from reconcile.utils.ocm import OCMMap
 from reconcile.utils.password_validator import (
     PasswordPolicy,
     PasswordValidator,
@@ -195,8 +188,19 @@ from reconcile.utils.terraform import safe_resource_id
 from reconcile.utils.vcs import VCS
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, MutableMapping
+
+    from reconcile.gql_definitions.fragments.aws_vpc_request import (
+        VPCRequest,
+    )
     from reconcile.terraform_tgw_attachments import DesiredStateItem
     from reconcile.terraform_users import Role
+    from reconcile.utils.external_resource_spec import (
+        ExternalResourceSpec,
+        ExternalResourceSpecInventory,
+    )
+    from reconcile.utils.ocm import OCMMap
+
 
 TFResource: TypeAlias = type[
     Resource | Data | Module | Provider | Variable | Output | Locals | Terraform
@@ -809,7 +813,7 @@ class TerrascriptClient:
             tags={"managed_by_integration": self.integration},
         )
 
-    def populate_iam_groups(self, roles: list["Role"]) -> dict[str, dict[str, str]]:
+    def populate_iam_groups(self, roles: Iterable[Role]) -> dict[str, dict[str, str]]:
         groups: dict[str, dict[str, str]] = {}
         for role in roles:
             users = role["users"]
@@ -878,7 +882,7 @@ class TerrascriptClient:
 
     def populate_iam_users(
         self,
-        roles: list["Role"],
+        roles: Iterable[Role],
         skip_reencrypt_accounts: list[str],
         appsre_pgp_key: str | None,
     ) -> bool:
@@ -1010,7 +1014,7 @@ class TerrascriptClient:
 
     def populate_users(
         self,
-        roles: list["Role"],
+        roles: Iterable[Role],
         skip_reencrypt_accounts: list[str],
         appsre_pgp_key: str | None = None,
     ) -> bool:
@@ -1397,7 +1401,7 @@ class TerrascriptClient:
                 self.add_resource(aws_account, public_subnets_output)
 
     def populate_tgw_attachments(
-        self, desired_state: Iterable["DesiredStateItem"]
+        self, desired_state: Iterable[DesiredStateItem]
     ) -> None:
         for item in desired_state:
             if item.deleted:
@@ -3495,6 +3499,7 @@ class TerrascriptClient:
 
         region = common_values.get("region") or self.default_regions.get(account)
         assert region  # make mypy happy
+        provider = ""
         if self._multiregion_account(account):
             provider = "aws." + region
         tf_resources: list[TFResource] = []
