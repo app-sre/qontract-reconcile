@@ -1,3 +1,4 @@
+import json
 import logging
 import random
 from collections.abc import Callable
@@ -175,3 +176,128 @@ def test_dry_run(
     assert sample.value.code == ExitCodes.SUCCESS
     assert mock_terraform_client.called is True
     assert call().apply() not in mock_terraform_client.method_calls
+
+
+def test_vpc_and_subnet_tags(
+    mocker: MockerFixture,
+    mock_gql: pytest.LogCaptureFixture,
+    gql_class_factory: Callable,
+    mock_app_interface_vault_settings: MagicMock,
+    mock_create_secret_reader: MagicMock,
+    mock_terraform_client: MagicMock,
+) -> None:
+    """Test that VPC tags are properly processed and included in outputs."""
+    # Setup VPC request with custom VPC tags
+    vpc_request_data = vpc_request_dict()
+    vpc_request_data["vpc_tags"] = json.dumps({
+        "Environment": "test",
+        "Team": "platform",
+        "Project": "vpc-resources"
+    })
+    vpc_request_data["subnets"] = {
+        "private": ["10.0.1.0/24", "10.0.2.0/24"],
+        "public": ["10.0.10.0/24", "10.0.20.0/24"],
+        "availability_zones": ["us-east-1a", "us-east-1b"],
+        "private_subnet_tags": json.dumps({"Type": "private"}),
+        "public_subnet_tags": json.dumps({"Type": "public"})
+    }
+
+    # Mock the query to return our VPC request with tags
+    mocked_query = mocker.patch(
+        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
+        autospec=True,
+    )
+    mocked_query.return_value = [gql_class_factory(VPCRequest, vpc_request_data)]
+
+    # Mock secret reader
+    secret_reader = mocker.Mock(SecretReaderBase)
+    secret_reader.read_all.side_effect = secret_reader_side_effect
+    mock_create_secret_reader.return_value = secret_reader
+
+    # Mock terraform client outputs
+    mock_terraform_client.return_value.outputs = {
+        "some-account": {
+            "some-identifier-vpc_id": {"value": "vpc-12345"},
+            "some-identifier-private_subnets": {"value": ["subnet-private1", "subnet-private2"]},
+            "some-identifier-public_subnets": {"value": ["subnet-public1", "subnet-public2"]},
+        }
+    }
+
+    # Mock VCS and MR manager dependencies
+    mock_vcs = mocker.patch(
+        "reconcile.terraform_vpc_resources.integration.VCS",
+        autospec=True,
+    )
+    mock_mr_manager = mocker.patch(
+        "reconcile.terraform_vpc_resources.integration.MergeRequestManager",
+        autospec=True,
+    )
+    mock_mr_manager.return_value._fetch_managed_open_merge_requests.return_value = None
+    mock_mr_manager.return_value.create_merge_request.return_value = None
+
+    # Mock template retrieval
+    mock_gql.get_api.return_value.get_template.return_value = {
+        "template": "vpc_id: {{ static.vpc_id }}\nvpc_tags: {{ static.vpc_tags }}"
+    }
+
+    # Mock typed queries
+    mocker.patch("reconcile.terraform_vpc_resources.integration.get_github_orgs", return_value=[])
+    mocker.patch("reconcile.terraform_vpc_resources.integration.get_gitlab_instances", return_value=[])
+    mocker.patch("reconcile.terraform_vpc_resources.integration.get_app_interface_repo_url", return_value="https://github.com/test/repo")
+
+    params = TerraformVpcResourcesParams(
+        account_name=None, print_to_file=None, thread_pool_size=1
+    )
+
+    # Create integration instance and access private method for testing
+    integration = TerraformVpcResources(params)
+
+    # Test the _handle_outputs method directly to verify VPC tags processing
+    vpc_requests = [gql_class_factory(VPCRequest, vpc_request_data)]
+    terraform_outputs = {
+        "some-account": {
+            "some-identifier-vpc_id": {"value": "vpc-12345"},
+            "some-identifier-private_subnets": {"value": ["subnet-private1", "subnet-private2"]},
+            "some-identifier-public_subnets": {"value": ["subnet-public1", "subnet-public2"]},
+        }
+    }
+
+    handled_outputs = integration._handle_outputs(vpc_requests, terraform_outputs)
+
+    # Verify VPC tags are correctly processed
+    assert "some-identifier" in handled_outputs
+    vpc_output = handled_outputs["some-identifier"]
+    assert "static" in vpc_output
+    static_data = vpc_output["static"]
+
+    # Check that VPC tags are properly included
+    assert "vpc_tags" in static_data
+    expected_vpc_tags = {
+        "Environment": "test",
+        "Team": "platform",
+        "Project": "vpc-resources"
+    }
+    assert static_data["vpc_tags"] == expected_vpc_tags
+
+    # Verify other expected fields are present
+    assert static_data["vpc_id"] == "vpc-12345"
+    assert static_data["account_name"] == "some-account"
+    assert static_data["region"] == "us-east-1"
+    assert static_data["cidr_block"] == "10.0.0.0/16"
+    assert static_data["identifier"] == "some-identifier"
+
+    # Verify subnet configuration and tags
+    assert "subnets" in static_data
+    subnets = static_data["subnets"]
+    assert subnets["private"] == ["subnet-private1", "subnet-private2"]
+    assert subnets["public"] == ["subnet-public1", "subnet-public2"]
+
+    # Explicitly test that subnet tag keys exist in static data
+    assert "private_subnet_tags" in subnets
+    assert "public_subnet_tags" in subnets
+
+    # Check that default subnet tags are merged with custom tags
+    expected_private_tags = {"kubernetes.io/role/internal-elb": "1", "Type": "private"}
+    expected_public_tags = {"kubernetes.io/role/elb": "1", "Type": "public"}
+    assert subnets["private_subnet_tags"] == expected_private_tags
+    assert subnets["public_subnet_tags"] == expected_public_tags
