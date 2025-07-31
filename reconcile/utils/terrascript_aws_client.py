@@ -1485,7 +1485,7 @@ class TerrascriptClient:
             subnets_id_az = accepter.subnets_id_az
             assert subnets_id_az is not None  # make mypy happy
             subnets = self.get_az_unique_subnet_ids(subnets_id_az)
-            values: dict[str, Any] = {
+            values_resource_attachment: dict[str, Any] = {
                 "provider": "aws." + acc_alias,
                 "subnet_ids": subnets,
                 "transit_gateway_id": requester.tgw_id,
@@ -1497,20 +1497,22 @@ class TerrascriptClient:
                 "tags": tags,
             }
             tf_resource_attachment = aws_ec2_transit_gateway_vpc_attachment(
-                identifier, **values
+                identifier, **values_resource_attachment
             )
             # we send the attachment from the cluster's aws account
             self.add_resource(infra_account_name, tf_resource_attachment)
 
             # and accept the attachment in the non cluster's aws account
-            values = {
+            values_attachment_accepter = {
                 "transit_gateway_attachment_id": "${" + tf_resource_attachment.id + "}",
                 "tags": tags,
             }
             if self._multiregion_account(req_account_name):
-                values["provider"] = "aws." + requester.region
+                values_attachment_accepter["provider"] = "aws." + requester.region
             tf_resource_attachment_accepter = (
-                aws_ec2_transit_gateway_vpc_attachment_accepter(identifier, **values)
+                aws_ec2_transit_gateway_vpc_attachment_accepter(
+                    identifier, **values_attachment_accepter
+                )
             )
             self.add_resource(infra_account_name, tf_resource_attachment_accepter)
 
@@ -1556,16 +1558,16 @@ class TerrascriptClient:
                             + f"unsupported region: {route_region}"
                         )
                         continue
-                    values = {
+                    values_gateway_router = {
                         "destination_cidr_block": route["cidr_block"],
                         "transit_gateway_attachment_id": route["tgw_attachment_id"],
                         "transit_gateway_route_table_id": route["tgw_route_table_id"],
                     }
                     if self._multiregion_account(req_account_name):
-                        values["provider"] = "aws." + route_region
+                        values_gateway_router["provider"] = "aws." + route_region
                     route_identifier = f"{identifier}-{route['tgw_id']}"
                     tf_resource = aws_ec2_transit_gateway_route(
-                        route_identifier, **values
+                        route_identifier, **values_gateway_router
                     )
                     self.add_resource(infra_account_name, tf_resource)
 
@@ -1595,7 +1597,7 @@ class TerrascriptClient:
                             + f"unsupported region: {rule_region}"
                         )
                         continue
-                    values = {
+                    values_rule = {
                         "type": "ingress",
                         "from_port": 0,
                         "to_port": 0,
@@ -1604,27 +1606,31 @@ class TerrascriptClient:
                         "security_group_id": rule["security_group_id"],
                     }
                     if self._multiregion_account(req_account_name):
-                        values["provider"] = "aws." + rule_region
+                        values_rule["provider"] = "aws." + rule_region
                     rule_identifier = f"{identifier}-{rule['vpc_id']}"
-                    tf_resource = aws_security_group_rule(rule_identifier, **values)
+                    tf_resource = aws_security_group_rule(
+                        rule_identifier, **values_rule
+                    )
                     self.add_resource(infra_account_name, tf_resource)
 
             for zone in requester.hostedzones or []:
                 id = f"{identifier}-{zone}"
-                values = {
+                values_authorization = {
                     "vpc_id": accepter.vpc_id,
                     "vpc_region": accepter.region,
                     "zone_id": zone,
                 }
-                authorization = aws_route53_vpc_association_authorization(id, **values)
+                authorization = aws_route53_vpc_association_authorization(
+                    id, **values_authorization
+                )
                 self.add_resource(infra_account_name, authorization)
-                values = {
+                values_association = {
                     "provider": "aws." + acc_alias,
                     "vpc_id": f"${{aws_route53_vpc_association_authorization.{id}.vpc_id}}",
                     "vpc_region": accepter.region,
                     "zone_id": f"${{aws_route53_vpc_association_authorization.{id}.zone_id}}",
                 }
-                association = aws_route53_zone_association(id, **values)
+                association = aws_route53_zone_association(id, **values_association)
                 self.add_resource(infra_account_name, association)
 
     @staticmethod
@@ -2188,7 +2194,7 @@ class TerrascriptClient:
         InvalidParameterValue: DBName must begin with a letter
         and contain only alphanumeric characters."""
         pattern = r"^[a-zA-Z][a-zA-Z0-9_]+$"
-        return bool(re.search(pattern, name)) and len(name) < 64
+        return len(name) < 64 and re.search(pattern, name) is not None
 
     @staticmethod
     def generate_random_password(string_length: int = 20) -> str:
@@ -4557,7 +4563,7 @@ class TerrascriptClient:
         if len(name) < 3 or len(name) > 28:
             return False
         pattern = r"^[a-z][a-z0-9-]+$"
-        return bool(re.search(pattern, name))
+        return re.search(pattern, name) is not None
 
     @staticmethod
     def elasticsearch_log_group_identifier(
