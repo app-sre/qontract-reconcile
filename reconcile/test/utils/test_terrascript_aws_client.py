@@ -531,6 +531,7 @@ def s3_default_spec() -> ExternalResourceSpec:
     resource = {
         "identifier": "s3-bucket",
         "provider": "s3",
+        "region": "us-east-1"
     }
     return build_s3_spec(resource)
 
@@ -577,6 +578,7 @@ def s3_spec_with_bucket_policy() -> ExternalResourceSpec:
         "identifier": "s3-bucket",
         "provider": "s3",
         "bucket_policy": "some-bucket-policy",
+        "region": "us-east-1"
     }
     return build_s3_spec(resource)
 

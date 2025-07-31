@@ -5227,6 +5227,8 @@ class TerrascriptClient:
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
+        print("jfs")
+        print(common_values)
         output_prefix = spec.output_prefix
 
         tf_resources: list[TFResource] = []
