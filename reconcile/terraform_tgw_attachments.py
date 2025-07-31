@@ -93,7 +93,7 @@ class Accepter(BaseModel):
     region: str
     vpc_id: str | None
     route_table_ids: list[str] | None
-    subnets_id_az: list[dict] | None
+    subnets_id_az: list[dict[str, str]] | None
     account: ClusterAccountProviderInfo
     api_security_group_id: str | None
 

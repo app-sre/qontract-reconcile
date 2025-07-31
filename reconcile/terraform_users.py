@@ -81,8 +81,10 @@ QONTRACT_INTEGRATION = "terraform_users"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = "qrtf"
 
+Role = dict[str, Any]
 
-def get_tf_roles() -> list[dict[str, Any]]:
+
+def get_tf_roles() -> list[Role]:
     gqlapi = gql.get_api()
     roles: list[dict] = expiration.filter(gqlapi.query(TF_QUERY)["roles"])
     return [
