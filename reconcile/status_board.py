@@ -259,7 +259,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     @staticmethod
     def get_product_apps(
         sb: StatusBoardV1,
-    ) -> dict[str, dict[str, dict[str, dict[str, set[str]]]]]:
+    ) -> dict[str, dict[str, dict[str, dict[str, list[str]]]]]:
         global_selectors = (
             sb.global_app_selectors.exclude or [] if sb.global_app_selectors else []
         )
@@ -298,7 +298,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, dict[str, dict[str, dict[str, set[str]]]]],
+        desired_product_apps: Mapping[str, dict[str, dict[str, dict[str, list[str]]]]],
         slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
         """
@@ -417,10 +417,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     return False
                 continue
 
-            # Handle sets
-            if isinstance(current_value, set) and isinstance(desired_value, set):
-                if current_value != desired_value:
-                    return False
             # Handle lists and tuples
             elif isinstance(current_value, (list, tuple)) and isinstance(
                 desired_value, (list, tuple)
@@ -568,7 +564,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
             # Desired state
             desired_product_apps: dict[
-                str, dict[str, dict[str, dict[str, set[str]]]]
+                str, dict[str, dict[str, dict[str, list[str]]]]
             ] = self.get_product_apps(sb)
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
                 desired_product_apps, slodocs

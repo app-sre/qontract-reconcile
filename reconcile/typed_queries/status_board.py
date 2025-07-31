@@ -26,7 +26,7 @@ def get_status_board(
 def get_selected_app_data(
     global_selectors: Iterable[str],
     product: StatusBoardProductV1,
-) -> dict[str, dict[str, dict[str, set[str]]]]:
+) -> dict[str, dict[str, dict[str, list[str]]]]:
     selected_app_data: dict[str, dict[str, dict[str, Any]]] = {}
 
     apps: dict[str, Any] = {"apps": []}
@@ -51,7 +51,7 @@ def get_selected_app_data(
         selected_app_data[name] = {
             "metadata": {
                 METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
-                "deploymentSaasFiles": set(deployment_saas_files),
+                "deploymentSaasFiles": list(deployment_saas_files),
             },
         }
 
@@ -78,7 +78,7 @@ def get_selected_app_data(
                 selected_app_data[name] = {
                     "metadata": {
                         METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
-                        "deploymentSaasFiles": set(deployment_saas_files),
+                        "deploymentSaasFiles": list(deployment_saas_files),
                     },
                 }
 
