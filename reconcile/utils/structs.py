@@ -5,7 +5,7 @@ from pydantic.dataclasses import dataclass
 class CommandExecutionResult:
     """This class represents a command execution result"""
 
-    def __init__(self, is_ok: bool, message: str):
+    def __init__(self, is_ok: bool, message: str) -> None:
         self.is_ok = is_ok
         self.message = message
 
