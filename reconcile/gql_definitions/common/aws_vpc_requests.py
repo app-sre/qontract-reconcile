@@ -58,10 +58,13 @@ fragment VPCRequest on VPCRequest_v1 {
   cidr_block {
     networkAddress
   }
+  vpc_tags
   subnets {
-    private 
+    private
     public
     availability_zones
+    private_subnet_tags
+    public_subnet_tags
   }
 }
 
