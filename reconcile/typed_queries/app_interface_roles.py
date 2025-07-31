@@ -1,4 +1,4 @@
-from reconcile.gql_definitions.common.openshift_roles import (
+from reconcile.gql_definitions.common.app_interface_roles import (
     query,
     RoleV1,
 )

@@ -1,5 +1,5 @@
 # qenerate: plugin=pydantic_v1
-query OpenshiftRoles {
+query AppInterfaceRoles {
     roles: roles_v1 {
     name
     users {
