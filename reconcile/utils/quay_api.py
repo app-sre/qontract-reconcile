@@ -332,9 +332,11 @@ class QuayApi:
             )
             if teams_r.ok:
                 teams_data = teams_r.json()
-                for perm in teams_data.get("permissions", []):
-                    if perm["role"] == "team":
-                        teams.append({"name": perm["team"]["name"]})
+                teams.extend(
+                    {"name": perm["team"]["name"]}
+                    for perm in teams_data.get("permissions", [])
+                    if perm["role"] == "team"
+                )
         except Exception:
             pass
 
@@ -347,12 +349,14 @@ class QuayApi:
             )
             if repos_r.ok:
                 repos_data = repos_r.json()
-                for perm in repos_data.get("permissions", []):
-                    if perm["role"] != "team":
-                        repositories.append({
-                            "name": perm["repository"]["name"],
-                            "role": perm["role"],
-                        })
+                repositories.extend(
+                    {
+                        "name": perm["repository"]["name"],
+                        "role": perm["role"],
+                    }
+                    for perm in repos_data.get("permissions", [])
+                    if perm["role"] != "team"
+                )
         except Exception:
             pass
 
