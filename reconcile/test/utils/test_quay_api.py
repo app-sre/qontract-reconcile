@@ -200,3 +200,205 @@ def test_delete_robot_account_raises_other_status_codes(quay_api):
 
     with pytest.raises(HTTPError):
         quay_api.delete_robot_account("robot1")
+
+
+@responses.activate
+def test_get_repo_robot_permissions(quay_api):
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        status=200,
+        json={"role": "write"},
+    )
+
+    result = quay_api.get_repo_robot_permissions("some-repo", "robot1")
+    assert result == "write"
+
+
+@responses.activate
+def test_get_repo_robot_permissions_no_permission(quay_api):
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        status=400,
+        json={"message": "User does not have permission for repo."},
+    )
+
+    result = quay_api.get_repo_robot_permissions("some-repo", "robot1")
+    assert result is None
+
+
+@responses.activate
+def test_get_repo_robot_permissions_raises_other_status_codes(quay_api):
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        status=500,
+    )
+
+    with pytest.raises(HTTPError):
+        quay_api.get_repo_robot_permissions("some-repo", "robot1")
+
+
+@responses.activate
+def test_set_repo_robot_permissions(quay_api):
+    responses.add(
+        responses.PUT,
+        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        status=200,
+    )
+
+    quay_api.set_repo_robot_permissions("some-repo", "robot1", "admin")
+
+    assert responses.calls[0].request.body == b'{"role": "admin"}'
+
+
+@responses.activate
+def test_set_repo_robot_permissions_raises_other_status_codes(quay_api):
+    responses.add(
+        responses.PUT,
+        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        status=400,
+    )
+
+    with pytest.raises(HTTPError):
+        quay_api.set_repo_robot_permissions("some-repo", "robot1", "admin")
+
+
+@responses.activate
+def test_delete_repo_robot_permissions(quay_api):
+    responses.add(
+        responses.DELETE,
+        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        status=200,
+    )
+
+    quay_api.delete_repo_robot_permissions("some-repo", "robot1")
+
+    assert responses.calls[0].request.method == "DELETE"
+    assert (
+        responses.calls[0].request.url
+        == f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1"
+    )
+
+
+@responses.activate
+def test_delete_repo_robot_permissions_raises_other_status_codes(quay_api):
+    responses.add(
+        responses.DELETE,
+        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
+        status=400,
+    )
+
+    with pytest.raises(HTTPError):
+        quay_api.delete_repo_robot_permissions("some-repo", "robot1")
+
+
+@responses.activate
+def test_get_robot_account_details_success(quay_api: QuayApi) -> None:
+    robot_data = {"name": "test-robot", "description": "Test robot account"}
+    permissions_data = {
+        "permissions": [
+            {"role": "team", "team": {"name": "test-team"}},
+            {"role": "read", "repository": {"name": "test-repo"}},
+        ]
+    }
+
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/test-robot",
+        json=robot_data,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/test-robot/permissions",
+        json=permissions_data,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/test-robot/permissions",
+        json=permissions_data,
+        status=200,
+    )
+
+    result = quay_api.get_robot_account_details("test-robot")
+
+    assert result is not None
+    assert result["name"] == "test-robot"
+    assert result["description"] == "Test robot account"
+    assert len(result["teams"]) == 1
+    assert result["teams"][0]["name"] == "test-team"
+    assert len(result["repositories"]) == 1
+    assert result["repositories"][0]["name"] == "test-repo"
+    assert result["repositories"][0]["role"] == "read"
+
+
+@responses.activate
+def test_get_robot_account_details_not_found(quay_api: QuayApi) -> None:
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/test-robot",
+        status=404,
+    )
+
+    result = quay_api.get_robot_account_details("test-robot")
+    assert result is None
+
+
+@responses.activate
+def test_list_robot_accounts_detailed(quay_api: QuayApi) -> None:
+    robots_data = {"robots": [{"name": "robot1"}, {"name": "robot2"}]}
+    robot1_details = {"name": "robot1", "description": "Robot 1"}
+    robot2_details = {"name": "robot2", "description": "Robot 2"}
+    permissions_data = {"permissions": []}
+
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots",
+        json=robots_data,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1",
+        json=robot1_details,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1/permissions",
+        json=permissions_data,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1/permissions",
+        json=permissions_data,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot2",
+        json=robot2_details,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot2/permissions",
+        json=permissions_data,
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot2/permissions",
+        json=permissions_data,
+        status=200,
+    )
+
+    result = quay_api.list_robot_accounts_detailed()
+
+    assert len(result) == 2
+    assert result[0]["name"] == "robot1"
+    assert result[1]["name"] == "robot2"
