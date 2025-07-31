@@ -1,6 +1,6 @@
 from reconcile.gql_definitions.common.app_interface_roles import (
-    query,
     RoleV1,
+    query,
 )
 from reconcile.utils import gql
 

@@ -1,22 +1,18 @@
 import contextlib
-from dataclasses import dataclass
 import sys
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any
+from collections.abc import Callable
+from dataclasses import dataclass
 
+import reconcile.openshift_base as ob
 from reconcile.gql_definitions.common.openshift_roles import (
-    RoleV1,
-    query as openshift_roles_query,
     ClusterV1,
     NamespaceV1,
+    RoleV1,
 )
-import reconcile.openshift_base as ob
-from reconcile import queries
-from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
+from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import (
     expiration,
-    gql,
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
@@ -28,7 +24,6 @@ from reconcile.utils.openshift_resource import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
-
 QONTRACT_INTEGRATION = "openshift-rolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
@@ -38,6 +33,7 @@ class Permission:
     role: str
     namespace: NamespaceV1
     cluster: ClusterV1
+
 
 def construct_user_oc_resource(role: str, user: str) -> tuple[OR, str]:
     name = f"{role}-{user}"
@@ -73,6 +69,7 @@ def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[O
         ),
         name,
     )
+
 
 def fetch_desired_state(
     ri: ResourceInventory | None,
@@ -125,7 +122,10 @@ def fetch_desired_state(
                         continue
                     # used by openshift-users and github integrations
                     # this is just to simplify things a bit on the their side
-                    users_desired_state.append({"cluster": cluster_name, "user": username})
+                    users_desired_state.append({
+                        "cluster": cluster_name,
+                        "user": username,
+                    })
                     if ri is None:
                         continue
                     oc_resource, resource_name = construct_user_oc_resource(
@@ -163,6 +163,7 @@ def fetch_desired_state(
                     )
     return users_desired_state
 
+
 @defer
 def run(
     dry_run: bool,
@@ -172,12 +173,10 @@ def run(
     defer: Callable | None = None,
 ) -> None:
     namespaces = [
-        namespace.dict(by_alias=True,exclude={"openshift_resources"})
+        namespace.dict(by_alias=True, exclude={"openshift_resources"})
         for namespace in get_namespaces()
         if namespace.managed_roles
-        and is_in_shard(
-            f"{namespace.cluster.name}/{namespace.name}"
-        )
+        and is_in_shard(f"{namespace.cluster.name}/{namespace.name}")
         and not ob.is_namespace_deleted(namespace.dict(by_alias=True))
     ]
     ri, oc_map = ob.fetch_current_state(
