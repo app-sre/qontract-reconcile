@@ -247,13 +247,13 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
             "foo": {
                 "metadata": {
                     "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": set(),
+                    "deploymentSaasFiles": [],
                 }
             },
             "foo-bar": {
                 "metadata": {
                     "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": set(),
+                    "deploymentSaasFiles": [],
                 }
             },
         },
@@ -261,7 +261,7 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
             "bar": {
                 "metadata": {
                     "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": set(),
+                    "deploymentSaasFiles": [],
                 }
             }
         },
@@ -1123,7 +1123,7 @@ def test_run_integration(
                     "name": "foo-bar",
                     "product_id": "1",
                     "metadata": {
-                        "deploymentSaasFiles": set(),
+                        "deploymentSaasFiles": [],
                         "managedBy": "qontract-reconcile",
                     },
                 },
@@ -1135,7 +1135,7 @@ def test_run_integration(
                     "name": "foo",
                     "product_id": "1",
                     "metadata": {
-                        "deploymentSaasFiles": set(),
+                        "deploymentSaasFiles": [],
                         "managedBy": "qontract-reconcile",
                     },
                 },
