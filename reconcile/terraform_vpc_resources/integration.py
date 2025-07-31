@@ -94,6 +94,17 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
                 f"{request.identifier}-public_subnets", {}
             ).get("value", [])
 
+            if request.subnets:
+                private_subnet_tags = VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS | (
+                    request.subnets.private_subnet_tags or {}
+                )
+                public_subnet_tags = VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS | (
+                    request.subnets.public_subnet_tags or {}
+                )
+            else:
+                private_subnet_tags = VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS
+                public_subnet_tags = VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS
+
             values = {
                 "static": {
                     "vpc_id": outputs_per_account.get(
@@ -103,10 +114,8 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
                     "subnets": {
                         "private": private_subnets,
                         "public": public_subnets,
-                        "private_subnet_tags": VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS
-                        | (request.subnets.private_subnet_tags or {}),
-                        "public_subnet_tags": VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS
-                        | (request.subnets.public_subnet_tags or {}),
+                        "private_subnet_tags": private_subnet_tags,
+                        "public_subnet_tags": public_subnet_tags,
                     },
                     "account_name": request.account.name,
                     "region": request.region,

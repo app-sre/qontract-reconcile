@@ -150,7 +150,7 @@ def test_log_message_for_accounts_having_vpc_requests(
 
 def test_dry_run(
     mocker: MockerFixture,
-    mock_gql: pytest.LogCaptureFixture,
+    mock_gql: MagicMock,
     gql_class_factory: Callable,
     mock_app_interface_vault_settings: MagicMock,
     mock_create_secret_reader: MagicMock,
@@ -180,7 +180,7 @@ def test_dry_run(
 
 def test_vpc_and_subnet_tags(
     mocker: MockerFixture,
-    mock_gql: pytest.LogCaptureFixture,
+    mock_gql: MagicMock,
     gql_class_factory: Callable,
     mock_app_interface_vault_settings: MagicMock,
     mock_create_secret_reader: MagicMock,
