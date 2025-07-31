@@ -215,7 +215,7 @@ class OCMExternalConfiguration(BaseModel):
     syncsets: dict
 
 
-class OCExternalAuthConfig(BaseModel):
+class OCMExternalAuthConfig(BaseModel):
     enabled: bool
 
 
@@ -278,7 +278,7 @@ class OCMCluster(BaseModel):
 
     external_configuration: OCMExternalConfiguration | None
 
-    external_auth_config: OCExternalAuthConfig | None
+    external_auth_config: OCMExternalAuthConfig | None
 
     def minor_version(self) -> str:
         version_info = parse_semver(self.version.raw_id)
