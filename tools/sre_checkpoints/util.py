@@ -1,7 +1,9 @@
+from typing import Any
+
 from reconcile import queries
 
 
-def full_name(app):
+def full_name(app: dict[str, Any]) -> str:
     """Builds App full_name, prepending the App with the name
     of the parent App.
 
@@ -17,14 +19,14 @@ def full_name(app):
     return name
 
 
-def get_latest_sre_checkpoints():
+def get_latest_sre_checkpoints() -> dict[str, str]:
     """Builds dictionary with the full_name of the app as the key and the
     date of sre_checkpoint as the value.
 
     :return: dictionary with the latest checkpoints
     :rtype: dict
     """
-    checkpoints = {}
+    checkpoints: dict[str, str] = {}
     for checkpoint in queries.get_sre_checkpoints():
         name = full_name(checkpoint["app"])
         date = checkpoint["date"]
