@@ -2186,7 +2186,7 @@ class TerrascriptClient:
 
     @staticmethod
     def _db_needs_auth(config: Mapping[str, Any]) -> bool:
-        return bool(
+        return (
             "replicate_source_db" not in config and config.get("replica_source") is None
         )
 
