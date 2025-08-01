@@ -1,9 +1,11 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 from jsonpath_ng.ext import parser
 
 from reconcile.gql_definitions.status_board.status_board import (
+    AppV1_SaasFileV2,
+    SaasFileV2,
     StatusBoardProductV1,
     StatusBoardV1,
     query,
@@ -23,6 +25,17 @@ def get_status_board(
     return query(query_func).status_board_v1 or []
 
 
+def _get_deployment_saas_files(
+    saas_files: Sequence[SaasFileV2 | AppV1_SaasFileV2],
+) -> set[str]:
+    return {
+        saas_file.name
+        for saas_file in saas_files
+        if "Deployment" in saas_file.managed_resource_types
+        or "ClowdApp" in saas_file.managed_resource_types
+    }
+
+
 def get_selected_app_data(
     global_selectors: Iterable[str],
     product: StatusBoardProductV1,
@@ -36,14 +49,9 @@ def get_selected_app_data(
             prefix = f"{namespace.app.parent_app.name}-"
         name = f"{prefix}{namespace.app.name}"
 
-        deployment_saas_files = set()
-        if namespace.app.saas_files:
-            deployment_saas_files = {
-                saas_file.name
-                for saas_file in namespace.app.saas_files
-                if "Deployment" in saas_file.managed_resource_types
-                or "ClowdApp" in saas_file.managed_resource_types
-            }
+        deployment_saas_files = _get_deployment_saas_files(
+            namespace.app.saas_files or []
+        )
 
         selected_app_data[name] = {
             "metadata": {
@@ -59,13 +67,9 @@ def get_selected_app_data(
         for child in namespace.app.children_apps or []:
             name = f"{namespace.app.name}-{child.name}"
             if name not in selected_app_data:
-                deployment_saas_files = set()
-                if child.saas_files:
-                    deployment_saas_files = {
-                        saas_file.name
-                        for saas_file in child.saas_files
-                        if "Deployment" in saas_file.managed_resource_types
-                    }
+                deployment_saas_files = _get_deployment_saas_files(
+                    child.saas_files or []
+                )
 
                 selected_app_data[name] = {
                     "metadata": {
