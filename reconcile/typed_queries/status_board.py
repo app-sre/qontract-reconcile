@@ -1,9 +1,11 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
 from jsonpath_ng.ext import parser
 
 from reconcile.gql_definitions.status_board.status_board import (
+    AppV1_SaasFileV2,
+    SaasFileV2,
     StatusBoardProductV1,
     StatusBoardV1,
     query,
@@ -21,6 +23,17 @@ def get_status_board(
     if not query_func:
         query_func = gql.get_api().query
     return query(query_func).status_board_v1 or []
+
+
+def _get_deployment_saas_files(
+    saas_files: Sequence[SaasFileV2 | AppV1_SaasFileV2],
+) -> set[str]:
+    return {
+        saas_file.name
+        for saas_file in saas_files
+        if "Deployment" in saas_file.managed_resource_types
+        or "ClowdApp" in saas_file.managed_resource_types
+    }
 
 
 def get_selected_app_data(
