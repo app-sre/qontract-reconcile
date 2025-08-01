@@ -1,4 +1,5 @@
 import sys
+from collections.abc import Mapping
 from textwrap import indent
 from typing import (
     Any,
@@ -81,8 +82,10 @@ QONTRACT_INTEGRATION = "terraform_users"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 4, 2)
 QONTRACT_TF_PREFIX = "qrtf"
 
+Role = dict[str, Any]
 
-def get_tf_roles() -> list[dict[str, Any]]:
+
+def get_tf_roles() -> list[Role]:
     gqlapi = gql.get_api()
     roles: list[dict] = expiration.filter(gqlapi.query(TF_QUERY)["roles"])
     return [
@@ -114,7 +117,7 @@ def setup(
     skip_reencrypt_accounts: list[str],
     appsre_pgp_key: str | None = None,
     account_name: str | None = None,
-) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
+) -> tuple[list[dict[str, Any]], Mapping[str, str], bool, AWSApi]:
     accounts = [
         a
         for a in queries.get_aws_accounts(terraform_state=True)

@@ -1,4 +1,6 @@
 import contextlib
+from dataclasses import dataclass
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,18 +12,21 @@ from terrascript.resource import (
     aws_s3_bucket_policy,
 )
 
-import reconcile.utils.terrascript_aws_client as tsclient
 from reconcile.utils.aws_api import AmiTag
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
 from reconcile.utils.ocm.ocm import OCM
-from reconcile.utils.terrascript_aws_client import ProviderExcludedError
+from reconcile.utils.terrascript_aws_client import (
+    OutputResourceNameNotUniqueError,
+    ProviderExcludedError,
+    TerrascriptClient,
+)
 
 
 @pytest.fixture
-def default_account():
+def default_account() -> dict[str, Any]:
     return {
         "automationToken": "token",
         "name": "account1",
@@ -44,7 +49,7 @@ def default_account():
 
 
 @pytest.fixture
-def cluster_account():
+def cluster_account() -> dict[str, Any]:
     return {
         "automationToken": "token",
         "name": "account2",
@@ -67,7 +72,7 @@ def cluster_account():
 
 
 @pytest.fixture
-def expected_supported_region_aws_provider():
+def expected_supported_region_aws_provider() -> dict[str, Any]:
     return {
         "access_key": "some-key-id",
         "secret_key": "some-secret-key",
@@ -83,7 +88,7 @@ def expected_supported_region_aws_provider():
 
 
 @pytest.fixture
-def expected_default_region_aws_provider():
+def expected_default_region_aws_provider() -> dict[str, Any]:
     return {
         "access_key": "some-key-id",
         "secret_key": "some-secret-key",
@@ -98,11 +103,11 @@ def expected_default_region_aws_provider():
 
 
 def test_init_with_default_tags(
-    mocker,
-    default_account,
-    expected_supported_region_aws_provider,
-    expected_default_region_aws_provider,
-):
+    mocker: MockerFixture,
+    default_account: dict[str, Any],
+    expected_supported_region_aws_provider: dict[str, Any],
+    expected_default_region_aws_provider: dict[str, Any],
+) -> None:
     mocked_secret_reader = mocker.patch(
         "reconcile.utils.terrascript_aws_client.SecretReader",
         autospec=True,
@@ -112,7 +117,7 @@ def test_init_with_default_tags(
         "aws_secret_access_key": "some-secret-key",
     }
 
-    ts = tsclient.TerrascriptClient(
+    ts = TerrascriptClient(
         "a_integration",
         "prefix",
         1,
@@ -126,7 +131,7 @@ def test_init_with_default_tags(
 
 
 @pytest.fixture
-def account_with_assume_role(default_account):
+def account_with_assume_role(default_account: dict[str, Any]) -> dict[str, Any]:
     return {
         **default_account,
         "assume_role": "arn:aws:iam::12345:role/1",
@@ -135,7 +140,7 @@ def account_with_assume_role(default_account):
 
 
 @pytest.fixture
-def cluster_account_no_assume_role(cluster_account):
+def cluster_account_no_assume_role(cluster_account: dict[str, Any]) -> dict[str, Any]:
     return {
         **cluster_account,
         "assume_role": None,
@@ -144,7 +149,7 @@ def cluster_account_no_assume_role(cluster_account):
 
 
 @pytest.fixture
-def expected_additional_aws_providers():
+def expected_additional_aws_providers() -> list[dict[str, Any]]:
     return [
         {
             "access_key": "some-key-id",
@@ -167,7 +172,7 @@ def expected_additional_aws_providers():
 
 
 @pytest.fixture
-def mock_provider_exclusions_by_provider(mocker):
+def mock_provider_exclusions_by_provider(mocker: MockerFixture) -> None:
     mock = mocker.patch(
         "reconcile.queries.get_tf_resources_provider_exclusions_by_provisioner",
         autospec=True,
@@ -176,14 +181,14 @@ def mock_provider_exclusions_by_provider(mocker):
 
 
 def test_populate_additional_providers(
-    mocker,
-    default_account,
-    account_with_assume_role,
-    cluster_account_no_assume_role,
-    expected_supported_region_aws_provider,
-    expected_default_region_aws_provider,
-    expected_additional_aws_providers,
-):
+    mocker: MockerFixture,
+    default_account: dict[str, Any],
+    account_with_assume_role: dict[str, Any],
+    cluster_account_no_assume_role: dict[str, Any],
+    expected_supported_region_aws_provider: dict[str, Any],
+    expected_default_region_aws_provider: dict[str, Any],
+    expected_additional_aws_providers: dict[str, Any],
+) -> None:
     mocked_secret_reader = mocker.patch(
         "reconcile.utils.terrascript_aws_client.SecretReader",
         autospec=True,
@@ -193,7 +198,7 @@ def test_populate_additional_providers(
         "aws_secret_access_key": "some-secret-key",
     }
 
-    ts = tsclient.TerrascriptClient(
+    ts = TerrascriptClient(
         "a_integration",
         "prefix",
         1,
@@ -213,23 +218,23 @@ def test_populate_additional_providers(
 
 
 @pytest.fixture
-def ts():
-    return tsclient.TerrascriptClient("", "", 1, [])
+def ts() -> TerrascriptClient:
+    return TerrascriptClient("", "", 1, [])
 
 
-def test_aws_username_org(ts):
+def test_aws_username_org(ts: TerrascriptClient) -> None:
     result = "org"
     user = {"org_username": result}
     assert ts._get_aws_username(user) == result
 
 
-def test_aws_username_aws(ts):
+def test_aws_username_aws(ts: TerrascriptClient) -> None:
     result = "aws"
     user = {"org_username": "org", "aws_username": result}
     assert ts._get_aws_username(user) == result
 
 
-def test_validate_mandatory_policies(ts):
+def test_validate_mandatory_policies(ts: TerrascriptClient) -> None:
     mandatory_policy = {
         "name": "mandatory",
         "mandatory": True,
@@ -246,19 +251,21 @@ def test_validate_mandatory_policies(ts):
 
 
 class MockJenkinsApi:
-    def __init__(self, response):
+    def __init__(self, response: bool) -> None:
         self.response = response
 
-    def is_job_running(self, name):
+    def is_job_running(self, name: str) -> bool:
         return self.response
 
 
-def test_use_previous_image_id_no_upstream(ts):
+def test_use_previous_image_id_no_upstream(ts: TerrascriptClient) -> None:
     assert ts._use_previous_image_id([]) is False
 
 
 @pytest.mark.parametrize("result", [True, False])
-def test_use_previous_image_id(mocker, ts, result):
+def test_use_previous_image_id(
+    mocker: MockerFixture, ts: TerrascriptClient, result: bool
+) -> None:
     mocker.patch(
         "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_jenkins",
         return_value=MockJenkinsApi(result),
@@ -267,7 +274,7 @@ def test_use_previous_image_id(mocker, ts, result):
     assert ts._use_previous_image_id(image) == result
 
 
-def test_get_asg_image_id(mocker, ts: tsclient.TerrascriptClient):
+def test_get_asg_image_id(mocker: MockerFixture, ts: TerrascriptClient) -> None:
     awsapi = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
     with awsapi() as aws:
         get_image_id_mock = aws.get_image_id
@@ -308,9 +315,9 @@ def test_get_asg_image_id(mocker, ts: tsclient.TerrascriptClient):
     )
 
 
+@dataclass
 class MockProjectCommit:
-    def __init__(self, id):
-        self.id = id
+    id: str
 
 
 @pytest.mark.parametrize(
@@ -324,7 +331,12 @@ class MockProjectCommit:
         ),
     ],
 )
-def test_get_commit_sha(mocker, ts: tsclient.TerrascriptClient, repo_info, expected):
+def test_get_commit_sha(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    repo_info: dict[str, str],
+    expected: str,
+) -> None:
     init_github = mocker.patch(
         "reconcile.utils.terrascript_aws_client.TerrascriptClient.init_github"
     )
@@ -340,7 +352,9 @@ def test_get_commit_sha(mocker, ts: tsclient.TerrascriptClient, repo_info, expec
     assert ts.get_commit_sha(repo_info) == expected
 
 
-def test_tf_disabled_namespace_with_resources(mock_provider_exclusions_by_provider, ts):
+def test_tf_disabled_namespace_with_resources(
+    mock_provider_exclusions_by_provider: None, ts: TerrascriptClient
+) -> None:
     """
     even if a namespace has tf resources, they are not considered when the
     namespace is not enabled for tf resource management
@@ -361,8 +375,8 @@ def test_tf_disabled_namespace_with_resources(mock_provider_exclusions_by_provid
 
 
 def test_resource_specs_without_account_filter(
-    mock_provider_exclusions_by_provider, ts
-):
+    mock_provider_exclusions_by_provider: None, ts: TerrascriptClient
+) -> None:
     """
     if no account filter is given, all resources of namespaces with
     enabled tf resource management are expected to be returned
@@ -383,7 +397,9 @@ def test_resource_specs_without_account_filter(
     assert specs == {ExternalResourceUniqueKey.from_spec(spec): spec}
 
 
-def test_resource_specs_with_account_filter(mock_provider_exclusions_by_provider, ts):
+def test_resource_specs_with_account_filter(
+    mock_provider_exclusions_by_provider: None, ts: TerrascriptClient
+) -> None:
     """
     if an account filter is given only the resources defined for
     that account are expected
@@ -420,7 +436,7 @@ expected_result = {
 }
 
 
-def test_terraform_state_when_present(ts):
+def test_terraform_state_when_present(ts: TerrascriptClient) -> None:
     account_name = "some-account"
     integration_name = "terraform-resources-wrapper"
     terraform_state_config_test = {
@@ -461,7 +477,7 @@ terraform_state_config_test_missing = {
 }
 
 
-def test_terraform_state_when_not_present(ts):
+def test_terraform_state_when_not_present(ts: TerrascriptClient) -> None:
     account_name = "some-account"
     integration_name = "terraform-resources-wrapper"
     assert (
@@ -472,7 +488,7 @@ def test_terraform_state_when_not_present(ts):
     )
 
 
-def test_terraform_state_when_not_present_error(ts):
+def test_terraform_state_when_not_present_error(ts: TerrascriptClient) -> None:
     account_name = "some-account"
     integration_name = "not-found-integration"
     with contextlib.suppress(ValueError):
@@ -512,10 +528,7 @@ def build_s3_spec(
 
 @pytest.fixture
 def s3_default_spec() -> ExternalResourceSpec:
-    resource = {
-        "identifier": "s3-bucket",
-        "provider": "s3",
-    }
+    resource = {"identifier": "s3-bucket", "provider": "s3", "region": "us-east-1"}
     return build_s3_spec(resource)
 
 
@@ -546,7 +559,7 @@ def expected_s3_default_bucket() -> aws_s3_bucket:
 
 
 def test_populate_tf_resource_s3(
-    ts: tsclient.TerrascriptClient,
+    ts: TerrascriptClient,
     s3_default_spec: ExternalResourceSpec,
     expected_s3_default_bucket: aws_s3_bucket,
 ) -> None:
@@ -561,6 +574,7 @@ def s3_spec_with_bucket_policy() -> ExternalResourceSpec:
         "identifier": "s3-bucket",
         "provider": "s3",
         "bucket_policy": "some-bucket-policy",
+        "region": "us-east-1",
     }
     return build_s3_spec(resource)
 
@@ -579,7 +593,7 @@ def expected_s3_bucket_policy() -> aws_s3_bucket_policy:
 
 def test_populate_tf_resource_s3_with_bucket_policy(
     mocker: MockerFixture,
-    ts: tsclient.TerrascriptClient,
+    ts: TerrascriptClient,
     s3_spec_with_bucket_policy: ExternalResourceSpec,
     expected_s3_default_bucket: aws_s3_bucket,
     expected_s3_bucket_policy: aws_s3_bucket_policy,
@@ -649,7 +663,7 @@ def expected_s3_bucket_policy_with_region() -> aws_s3_bucket_policy:
 
 def test_populate_tf_resource_s3_with_bucket_policy_and_different_region(
     mocker: MockerFixture,
-    ts: tsclient.TerrascriptClient,
+    ts: TerrascriptClient,
     s3_spec_with_bucket_policy_and_region: ExternalResourceSpec,
     expected_s3_bucket_with_region: aws_s3_bucket,
     expected_s3_bucket_policy_with_region: aws_s3_bucket_policy,
@@ -705,7 +719,7 @@ def expected_s3_bucket_notification() -> aws_s3_bucket_notification:
 
 def test_s3_bucket_event_notifications(
     mocker: MockerFixture,
-    ts: tsclient.TerrascriptClient,
+    ts: TerrascriptClient,
     s3_spec_with_event_notifications: ExternalResourceSpec,
     expected_s3_bucket_notification: aws_s3_bucket_notification,
 ) -> None:
@@ -721,7 +735,7 @@ def test_s3_bucket_event_notifications(
 
 
 @pytest.fixture
-def ts_for_alb(mocker: MockerFixture):
+def ts_for_alb(mocker: MockerFixture) -> TerrascriptClient:
     mock_awsh = mocker.patch("reconcile.utils.terrascript_aws_client.awsh")
     mock_awsh.get_tf_secrets.return_value = (
         "a",
@@ -748,7 +762,7 @@ def ts_for_alb(mocker: MockerFixture):
         },
     }
 
-    return tsclient.TerrascriptClient(
+    return TerrascriptClient(
         integration="terraform_resources",
         integration_prefix="qrtf",
         thread_pool_size=1,
@@ -882,7 +896,7 @@ def expected_alb_resource() -> aws_lb:
 
 def test_populate_tf_resource_alb(
     mocker: MockerFixture,
-    ts_for_alb: tsclient.TerrascriptClient,
+    ts_for_alb: TerrascriptClient,
     alb_spec: ExternalResourceSpec,
     expected_alb_resource: aws_lb,
 ) -> None:
@@ -913,7 +927,7 @@ def test_populate_tf_resource_alb(
 
 
 def test_get_resource_lifecycle_none(
-    ts: tsclient.TerrascriptClient,
+    ts: TerrascriptClient,
 ) -> None:
     common_values = {"lifecycle": None}
     lifecycle = ts.get_resource_lifecycle(common_values)
@@ -921,7 +935,7 @@ def test_get_resource_lifecycle_none(
 
 
 def test_get_resource_lifecycle_default(
-    ts: tsclient.TerrascriptClient,
+    ts: TerrascriptClient,
 ) -> None:
     common_values: dict = {
         "lifecycle": {
@@ -940,7 +954,7 @@ def test_get_resource_lifecycle_default(
 
 
 def test_get_resource_lifecycle_all(
-    ts: tsclient.TerrascriptClient,
+    ts: TerrascriptClient,
 ) -> None:
     common_values: dict = {
         "lifecycle": {
@@ -959,8 +973,8 @@ def test_get_resource_lifecycle_all(
 
 
 def test_output_resource_name_not_unique_raises_exception(
-    mock_provider_exclusions_by_provider, ts
-):
+    mock_provider_exclusions_by_provider: None, ts: TerrascriptClient
+) -> None:
     external_resource_1 = {
         "identifier": "a",
         "provider": "rds",
@@ -985,11 +999,13 @@ def test_output_resource_name_not_unique_raises_exception(
     }
     namespaces = [namespace_1]
 
-    with pytest.raises(tsclient.OutputResourceNameNotUniqueError):
+    with pytest.raises(OutputResourceNameNotUniqueError):
         ts.init_populate_specs(namespaces, "account")
 
 
-def test_output_resource_name_unique_success(mock_provider_exclusions_by_provider, ts):
+def test_output_resource_name_unique_success(
+    mock_provider_exclusions_by_provider: None, ts: TerrascriptClient
+) -> None:
     external_resource_1 = {
         "identifier": "a",
         "provider": "rds",
@@ -1017,7 +1033,9 @@ def test_output_resource_name_unique_success(mock_provider_exclusions_by_provide
     ts.init_populate_specs(namespaces, "account")
 
 
-def test_managed_by_erv2_is_excluded(mock_provider_exclusions_by_provider, ts):
+def test_managed_by_erv2_is_excluded(
+    mock_provider_exclusions_by_provider: None, ts: TerrascriptClient
+) -> None:
     external_resource_1 = {
         "identifier": "a",
         "managed_by_erv2": True,
@@ -1047,7 +1065,9 @@ def test_managed_by_erv2_is_excluded(mock_provider_exclusions_by_provider, ts):
     assert len(ts.resource_spec_inventory) == 1
 
 
-def test_excluded_provider_throws_exception(mocker, ts):
+def test_excluded_provider_throws_exception(
+    mocker: MockerFixture, ts: TerrascriptClient
+) -> None:
     external_resource_1 = {
         "identifier": "a",
         "provider": "rds",
@@ -1082,7 +1102,9 @@ def test_excluded_provider_throws_exception(mocker, ts):
         ts.init_populate_specs(namespaces, "account")
 
 
-def test_exclude_all_provisioners_throws_exception(mocker, ts):
+def test_exclude_all_provisioners_throws_exception(
+    mocker: MockerFixture, ts: TerrascriptClient
+) -> None:
     external_resource_1 = {
         "identifier": "a",
         "provider": "rds",

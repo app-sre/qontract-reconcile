@@ -194,17 +194,17 @@ class TerraformClient:
         return spec.name, json.loads(stdout)
 
     # terraform plan
-    def plan(self, enable_deletion):
+    def plan(self, enable_deletion: bool) -> tuple[bool, bool]:
         errors = False
         disabled_deletions_detected = False
-        results = threaded.run(
+        results: list[tuple[bool, list[AccountUser], bool]] = threaded.run(
             self.terraform_plan,
             self.specs,
             self.thread_pool_size,
             enable_deletion=enable_deletion,
         )
 
-        self.created_users = []
+        self.created_users: list[AccountUser] = []
         for disabled_deletion_detected, created_users, error in results:
             if error:
                 errors = True
