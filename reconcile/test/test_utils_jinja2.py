@@ -1,3 +1,5 @@
+import tempfile
+
 import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
@@ -8,6 +10,7 @@ from reconcile.utils.jinja2.filters import (
     matches_jsonpath,
     str_format,
 )
+from reconcile.utils.jinja2.utils import _process_sloth_output
 
 
 def test_hash_list_empty() -> None:
@@ -128,3 +131,46 @@ def test_str_format() -> None:
     value = "path/to/object"
     format = "s3://%s"
     assert str_format(value, format) == "s3://path/to/object"
+
+
+def test_process_sloth_output_schema_compliance() -> None:
+    """Test that _process_sloth_output removes non-schema-compliant elements."""
+    mock_sloth_output = """---
+        groups:
+        - name: test-group
+          rules:
+          - record: test_metric
+            expr: vector(1)
+            labels:
+              sloth_id: test-id
+              sloth_service: test-service
+              service: app-interface
+          - alert: TestAlert
+            expr: vector(1)
+            labels:
+              sloth_severity: critical
+              service: app-interface
+              severity: critical
+            annotations:
+              title: Test Alert Title
+              summary: Test summary
+    """
+
+    with tempfile.NamedTemporaryFile(
+        encoding="utf-8", mode="w", suffix=".yml", delete=False
+    ) as f:
+        f.write(mock_sloth_output)
+        f.flush()
+        result = _process_sloth_output(f.name)
+        # Should remove document separator
+        assert not result.startswith("---")
+        # Should remove sloth_* labels
+        assert "sloth_id:" not in result
+        assert "sloth_service:" not in result
+        assert "sloth_severity:" not in result
+        # Should remove title annotations
+        assert "title:" not in result
+        # Should preserve schema-compliant elements
+        assert "service: app-interface" in result
+        assert "severity: critical" in result
+        assert "summary: Test summary" in result
