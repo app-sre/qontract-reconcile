@@ -268,6 +268,38 @@ def test_rhidp_common_build_cluster_objects() -> None:
         ),
         organization_id=ORG,
     )
+
+    # external auth disabled
+    cluster_external_auth_disabled = build_cluster_details(
+        cluster_name="external-auth-disabled",
+        subscription_labels=RHIDP_LABELS_CONTAINER,
+        org_id=ORG,
+        external_auth_enabled=False,
+    )
+    cluster_external_auth_disabled_expected = Cluster(
+        ocm_cluster=cluster_external_auth_disabled.ocm_cluster,
+        auth=ClusterAuth(name=AN, issuer=IURL, status=StatusValue.ENABLED.value),
+        organization_id=ORG,
+    )
+
+    #
+    # excluded clusters
+    #
+
+    # no console url
+    cluster_no_console = build_cluster_details(
+        cluster_name="no-console",
+        subscription_labels=RHIDP_LABELS_CONTAINER,
+        org_id=ORG,
+        console_url=None,
+    )
+    # external auth enabled
+    cluster_external_auth = build_cluster_details(
+        cluster_name="external-auth",
+        subscription_labels=RHIDP_LABELS_CONTAINER,
+        org_id=ORG,
+        external_auth_enabled=True,
+    )
     assert common.build_cluster_objects(
         [
             cluster_enabled,
@@ -278,6 +310,10 @@ def test_rhidp_common_build_cluster_objects() -> None:
             cluster_deprecated_rhidp_disabled,
             cluster_auth_name,
             cluster_issuer_url,
+            cluster_external_auth_disabled,
+            # excluded cluster
+            cluster_no_console,
+            cluster_external_auth,
         ],
         AN,
         IURL,
@@ -290,6 +326,7 @@ def test_rhidp_common_build_cluster_objects() -> None:
         cluster_deprecated_rhidp_disabled_expected,
         cluster_auth_name_expected,
         cluster_issuer_url_expected,
+        cluster_external_auth_disabled_expected,
     ]
 
 
