@@ -565,7 +565,7 @@ def build_desired_state_vpc(
 @defer
 def run(
     dry_run: bool,
-    print_to_file: bool | None = None,
+    print_to_file: str | None = None,
     enable_deletion: bool = False,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,

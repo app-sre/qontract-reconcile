@@ -93,7 +93,7 @@ class Accepter(BaseModel):
     region: str
     vpc_id: str | None
     route_table_ids: list[str] | None
-    subnets_id_az: list[dict] | None
+    subnets_id_az: list[dict[str, str]] | None
     account: ClusterAccountProviderInfo
     api_security_group_id: str | None
 
@@ -342,7 +342,7 @@ def _populate_tgw_attachments_working_dirs(
     ts: Terrascript,
     desired_state: Iterable[DesiredStateItem],
     print_to_file: str | None,
-) -> dict[str, str]:
+) -> Mapping[str, str]:
     accounts_by_infra_account_name: dict[str, list[dict[str, Any]]] = {}
     for item in desired_state:
         accounts_by_infra_account_name.setdefault(item.infra_acount_name, []).append(
