@@ -4,7 +4,6 @@ from collections.abc import (
     Collection,
     Iterable,
     Mapping,
-    MutableMapping,
     Sequence,
 )
 from dataclasses import asdict

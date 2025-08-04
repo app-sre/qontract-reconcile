@@ -5135,8 +5135,8 @@ class TerrascriptClient:
 
     # TODO: @fishi0x01 remove this function after migration APPSRE-3409
     def _build_es_advanced_security_options_deprecated(
-        self, advanced_security_options: MutableMapping[str, Any]
-    ) -> MutableMapping[str, Any]:
+        self, advanced_security_options: dict[str, Any]
+    ) -> dict[str, Any]:
         master_user_options = advanced_security_options.pop("master_user_options", {})
 
         if master_user_options:
@@ -5338,7 +5338,7 @@ class TerrascriptClient:
         return {condition_type_key: {"values": condition[condition_type_key]}}
 
     @staticmethod
-    def _get_principal_for_s3_bucket_policy(region: str) -> Mapping[str, str]:
+    def _get_principal_for_s3_bucket_policy(region: str) -> dict[str, str]:
         if region in AWS_ELB_ACCOUNT_IDS:
             return {"AWS": f"arn:aws:iam::{AWS_ELB_ACCOUNT_IDS[region]}:root"}
         if region in AWS_US_GOV_ELB_ACCOUNT_IDS:
