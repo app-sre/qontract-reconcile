@@ -103,11 +103,16 @@ class QuayMirrorOrg:
 
             quay_api = org_info["api"]
             upstream_org_key = org_info["mirror"]
+            assert upstream_org_key is not None
             upstream_org = self.quay_api_store[upstream_org_key]
             upstream_quay_api = upstream_org["api"]
 
-            username = upstream_org["push_token"]["user"]
-            token = upstream_org["push_token"]["token"]
+            push_token = upstream_org["push_token"]
+
+            assert push_token is not None
+
+            username = push_token["user"]
+            token = push_token["token"]
 
             org_repos = [item["name"] for item in quay_api.list_images()]
             for repo in upstream_quay_api.list_images():
@@ -143,8 +148,11 @@ class QuayMirrorOrg:
             org_name = org_key.org_name
 
             server_url = org["url"]
-            username = org["push_token"]["user"]
-            password = org["push_token"]["token"]
+            push_token = org["push_token"]
+            assert push_token is not None
+
+            username = push_token["user"]
+            password = push_token["token"]
 
             for item in data:
                 image = Image(
@@ -281,6 +289,8 @@ class QuayMirrorOrg:
         """
 
         push_token = self.quay_api_store[org_key]["push_token"]
+        assert push_token is not None
+
         username = push_token["user"]
         password = push_token["token"]
         return f"{username}:{password}"

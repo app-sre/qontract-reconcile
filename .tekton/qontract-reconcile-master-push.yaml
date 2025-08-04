@@ -24,7 +24,7 @@ spec:
   - name: output-image
     value: quay.io/redhat-user-workloads/app-sre-tenant/qontract-reconcile-master/qontract-reconcile-master:{{revision}}
   - name: dockerfile
-    value: dockerfiles/Dockerfile.konflux
+    value: dockerfiles/Dockerfile
   - name: path-context
     value: .
   - name: target-stage

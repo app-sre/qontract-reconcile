@@ -26,18 +26,18 @@ help: ## Prints help for targets with comments
 	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 build:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile --target $(BUILD_TARGET) . --progress=plain
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile.deprecated --target $(BUILD_TARGET) . --progress=plain
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 build-dev:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --progress=plain --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile --target dev-image .
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --progress=plain --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile.deprecated --target dev-image .
 
 push:
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
 
 rc:
-	@$(CONTAINER_ENGINE) build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc --build-arg quay_expiration=3d -f dockerfiles/Dockerfile --target prod-image .
+	@$(CONTAINER_ENGINE) build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc --build-arg quay_expiration=3d -f dockerfiles/Dockerfile.deprecated --target prod-image .
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
 generate:
@@ -47,7 +47,7 @@ generate:
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager-fedramp.yaml > openshift/qontract-manager-fedramp.yaml
 
 test-app: ## Target to test app in a container
-	@$(CONTAINER_ENGINE) build --progress=plain -t $(IMAGE_TEST) -f dockerfiles/Dockerfile --target test-image .
+	@$(CONTAINER_ENGINE) build --progress=plain -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.deprecated --target test-image .
 
 print-host-versions:
 	@$(CONTAINER_ENGINE) --version

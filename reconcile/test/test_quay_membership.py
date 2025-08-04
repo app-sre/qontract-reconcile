@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 from reconcile import quay_membership
@@ -8,8 +8,12 @@ from reconcile.utils import (
     gql,
 )
 from reconcile.utils.aggregated_list import AggregatedList
+from reconcile.utils.quay_api import QuayApi
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from reconcile.quay_base import OrgKey, QuayApiStore
 
 fxt = Fixtures("quay_membership")
 
@@ -26,11 +30,11 @@ def get_items_by_params(
     return False
 
 
-class QuayApiMock:
-    def __init__(self, list_team_members_response: dict[str, list[str]]):
+class QuayApiMock(QuayApi):
+    def __init__(self, list_team_members_response: dict[str, list[dict]]):
         self.list_team_members_response = list_team_members_response
 
-    def list_team_members(self, team: str) -> list[str]:
+    def list_team_members(self, team: str, **kwargs: Any) -> list[dict]:
         return self.list_team_members_response[team]
 
 
@@ -47,12 +51,17 @@ class TestQuayMembership:
         quay_org_catalog = fixture["quay_org_catalog"]
         quay_org_teams = fixture["quay_org_teams"]
 
-        store = {}
+        store: QuayApiStore = {}
         for org_data in quay_org_catalog:
-            name = org_data["name"]
+            name: OrgKey = org_data["name"]
             store[name] = {
                 "api": QuayApiMock(quay_org_teams[name]),
                 "teams": org_data["managedTeams"],
+                "url": "",
+                "push_token": None,
+                "managedRepos": False,
+                "mirror": None,
+                "mirror_filters": {},
             }
 
         current_state = quay_membership.fetch_current_state(store).dump()

@@ -140,6 +140,8 @@ def build_cluster_objects(
         for cluster in cluster_details
         # we can't calculate the redirect url w/o a console url
         if cluster.ocm_cluster.console
+        # we can't configure an identity provider if external auth is enabled
+        and not cluster.ocm_cluster.external_auth_enabled
     ]
 
 

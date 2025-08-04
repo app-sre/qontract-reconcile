@@ -29,7 +29,7 @@ class PasswordValidator:
         self._policy_flags = policy_flags
         self._mininum_length = minimum_length
 
-    def validate(self, password: str):
+    def validate(self, password: str) -> None:
         errors: list[str] = []
 
         if len(password) < self._mininum_length:
