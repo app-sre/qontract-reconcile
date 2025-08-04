@@ -4358,8 +4358,8 @@ class TerrascriptClient:
     def dump(
         self,
         print_to_file: str | None = None,
-        existing_dirs: MutableMapping[str, str] | None = None,
-    ) -> MutableMapping[str, str]:
+        existing_dirs: dict[str, str] | None = None,
+    ) -> dict[str, str]:
         """
         Dump the Terraform configurations (in JSON format) to the working directories.
 
@@ -4370,7 +4370,7 @@ class TerrascriptClient:
         :return: key is AWS account name and value is directory location
         """
         if existing_dirs is None:
-            working_dirs: MutableMapping[str, str] = {}
+            working_dirs: dict[str, str] = {}
         else:
             working_dirs = existing_dirs
 

@@ -48,7 +48,7 @@ def init_tf_working_dirs(
     accounts: Iterable[dict[str, Any]],
     thread_pool_size: int,
     settings: Mapping[str, Any],
-) -> Mapping[str, str]:
+) -> dict[str, str]:
     # Avoid circular import
     import reconcile.terraform_resources  # noqa: PLC0415
 
