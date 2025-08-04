@@ -20,9 +20,13 @@ class IDSpec(TypedDict):
     id: str
 
 
+class ApplicationMetadataSpec(TypedDict):
+    deployment_saas_files: list[str]
+
+
 class ApplicationOCMSpec(BaseOCMSpec):
-    product_id: str
-    metadata: dict[str, Any]
+    product: IDSpec
+    metadata: ApplicationMetadataSpec
 
 
 class ServiceMetadataSpec(TypedDict):
