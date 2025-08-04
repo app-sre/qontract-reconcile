@@ -252,7 +252,13 @@ class TemplateRendererIntegrationParams(PydanticRunParams):
 
 
 def join_path(base: str, sub: str) -> str:
-    return os.path.join(base, sub.lstrip(APP_INTERFACE_PATH_SEPERATOR))
+    clean_sub = sub.lstrip(APP_INTERFACE_PATH_SEPERATOR)
+    # Handle special case: if targetPath starts with "resources",
+    # write to sibling resources/ directory instead of under data/
+    if clean_sub.startswith("resources/"):
+        base_parent = os.path.dirname(base)  # /foo/bar/data -> /foo/bar
+        return os.path.join(base_parent, clean_sub)
+    return os.path.join(base, clean_sub)
 
 
 class TemplateRendererIntegration(QontractReconcileIntegration):
