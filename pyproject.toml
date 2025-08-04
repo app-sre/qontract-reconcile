@@ -293,7 +293,6 @@ module = [
     "reconcile.utils.sharding",
     "reconcile.utils.sqs_gateway",
     "reconcile.utils.terraform_client",
-    "reconcile.utils.terrascript_aws_client",
     "reconcile.utils.vault",
     # untyped tests
     "reconcile.test.oc.test_oc_connection_parameters",
@@ -369,7 +368,6 @@ module = [
     "reconcile.test.utils.test_smtp_client",
     "reconcile.test.utils.test_terraform_client",
     "reconcile.test.utils.test_terraform",
-    "reconcile.test.utils.test_terrascript_aws_client",
     "reconcile.test.utils.test_terrascript_cloudflare_client",
     "reconcile.test.utils.test_terrascript_cloudflare_resources",
 ]
