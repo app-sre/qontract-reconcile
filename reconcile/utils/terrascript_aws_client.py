@@ -321,6 +321,9 @@ AWS_US_GOV_ELB_ACCOUNT_IDS = {
     "us-gov-east-1": "190560391635",
 }
 
+VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS = {"kubernetes.io/role/internal-elb": "1"}
+VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS = {"kubernetes.io/role/elb": "1"}
+
 
 class OutputResourceNameNotUniqueError(Exception):
     def __init__(self, namespace: str | None, duplicates: Iterable[str]) -> None:
@@ -1327,25 +1330,32 @@ class TerrascriptClient:
                 "version": vpc_module_version,
                 "name": request.identifier,
                 "cidr": request.cidr_block.network_address,
-                "private_subnet_tags": {"kubernetes.io/role/internal-elb": "1"},
-                "public_subnet_tags": {"kubernetes.io/role/elb": "1"},
                 "create_database_subnet_group": False,
                 "enable_dns_hostnames": True,
+                "vpc_tags": request.vpc_tags or {},
                 "tags": {
                     "managed_by_integration": self.integration,
                 },
             }
 
-            if request.subnets and request.subnets.public:
-                vpc_module_values["public_subnets"] = request.subnets.public
-            if request.subnets and request.subnets.private:
-                vpc_module_values["private_subnets"] = request.subnets.private
-            if request.subnets and request.subnets.availability_zones:
-                vpc_module_values["azs"] = request.subnets.availability_zones
-
-            # We only want to enable nat_gateway if we have public and private subnets
-            if request.subnets and request.subnets.public and request.subnets.private:
-                vpc_module_values["enable_nat_gateway"] = True
+            if request.subnets:
+                if request.subnets.public:
+                    vpc_module_values["public_subnets"] = request.subnets.public
+                    vpc_module_values["public_subnet_tags"] = (
+                        VPC_REQUEST_DEFAULT_PUBLIC_SUBNET_TAGS
+                        | (request.subnets.public_subnet_tags or {}),
+                    )
+                if request.subnets.private:
+                    vpc_module_values["private_subnets"] = request.subnets.private
+                    vpc_module_values["private_subnet_tags"] = (
+                        VPC_REQUEST_DEFAULT_PRIVATE_SUBNET_TAGS
+                        | (request.subnets.private_subnet_tags or {}),
+                    )
+                if request.subnets.availability_zones:
+                    vpc_module_values["azs"] = request.subnets.availability_zones
+                # We only want to enable nat_gateway if we have public and private subnets
+                if request.subnets.public and request.subnets.private:
+                    vpc_module_values["enable_nat_gateway"] = True
 
             aws_account = request.account.name
             vpc_module = Module(request.identifier, **vpc_module_values)
@@ -1386,19 +1396,20 @@ class TerrascriptClient:
             )
             self.add_resource(aws_account, vpc_cidr_block_output)
 
-            if request.subnets and request.subnets.private:
-                private_subnets_output = Output(
-                    f"{request.identifier}-private_subnets",
-                    value=f"${{module.{request.identifier}.private_subnets}}",
-                )
-                self.add_resource(aws_account, private_subnets_output)
+            if request.subnets:
+                if request.subnets.private:
+                    private_subnets_output = Output(
+                        f"{request.identifier}-private_subnets",
+                        value=f"${{module.{request.identifier}.private_subnets}}",
+                    )
+                    self.add_resource(aws_account, private_subnets_output)
 
-            if request.subnets and request.subnets.public:
-                public_subnets_output = Output(
-                    f"{request.identifier}-public_subnets",
-                    value=f"${{module.{request.identifier}.public_subnets}}",
-                )
-                self.add_resource(aws_account, public_subnets_output)
+                if request.subnets.public:
+                    public_subnets_output = Output(
+                        f"{request.identifier}-public_subnets",
+                        value=f"${{module.{request.identifier}.public_subnets}}",
+                    )
+                    self.add_resource(aws_account, public_subnets_output)
 
     def populate_tgw_attachments(
         self, desired_state: Iterable[DesiredStateItem]
