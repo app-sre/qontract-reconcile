@@ -507,7 +507,7 @@ class TestRun(testslide.TestCase):
             None
         ).and_assert_called_once()
         self.mock_callable(self.terraform, "apply").to_return_value(
-            None
+            False
         ).and_assert_called_once()
         integ.run(False, print_to_file=None, enable_deletion=False)
 
