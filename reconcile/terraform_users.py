@@ -1,5 +1,4 @@
 import sys
-from collections.abc import Mapping
 from textwrap import indent
 from typing import (
     Any,
@@ -117,7 +116,7 @@ def setup(
     skip_reencrypt_accounts: list[str],
     appsre_pgp_key: str | None = None,
     account_name: str | None = None,
-) -> tuple[list[dict[str, Any]], Mapping[str, str], bool, AWSApi]:
+) -> tuple[list[dict[str, Any]], dict[str, str], bool, AWSApi]:
     accounts = [
         a
         for a in queries.get_aws_accounts(terraform_state=True)

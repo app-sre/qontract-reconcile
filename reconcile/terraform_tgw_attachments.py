@@ -342,7 +342,7 @@ def _populate_tgw_attachments_working_dirs(
     ts: Terrascript,
     desired_state: Iterable[DesiredStateItem],
     print_to_file: str | None,
-) -> Mapping[str, str]:
+) -> dict[str, str]:
     accounts_by_infra_account_name: dict[str, list[dict[str, Any]]] = {}
     for item in desired_state:
         accounts_by_infra_account_name.setdefault(item.infra_acount_name, []).append(
