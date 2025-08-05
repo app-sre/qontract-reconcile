@@ -3,22 +3,30 @@ import tempfile
 from collections.abc import Callable
 from logging import DEBUG
 from operator import itemgetter
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
 from botocore.errorfactory import ClientError
 from pytest_mock import MockerFixture
 
-import reconcile.utils.terraform_client as tfclient
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceUniqueKey,
 )
+from reconcile.utils.terraform_client import (
+    DeletionApprovalExpirationValueError,
+    RdsUpgradeValidationError,
+    TerraformClient,
+    TerraformSpec,
+)
+
+MockAWSApi = Any
 
 
 @pytest.fixture
-def aws_api():
+def aws_api() -> MockAWSApi:
     return create_autospec(AWSApi)
 
 
@@ -26,59 +34,57 @@ ACCOUNT_NAME = "a1"
 
 
 @pytest.fixture
-def tf(aws_api):
+def tf(aws_api: MockAWSApi) -> TerraformClient:
     account = {"name": ACCOUNT_NAME, "deletionApprovals": []}
-    return tfclient.TerraformClient(
-        "integ", "v1", "integ_pfx", [account], {}, 1, aws_api
-    )
+    return TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
 
 
-def test_no_deletion_approvals(tf):
+def test_no_deletion_approvals(tf: TerraformClient) -> None:
     result = tf.deletion_approved("a1", "t1", "n1")
     assert result is False
 
 
-def test_deletion_not_approved(aws_api):
+def test_deletion_not_approved(aws_api: MockAWSApi) -> None:
     account = {
         "name": "a1",
         "deletionApprovals": [{"type": "t1", "name": "n1", "expiration": "2000-01-01"}],
     }
-    tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
+    tf = TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
     result = tf.deletion_approved("a1", "t2", "n2")
     assert result is False
 
 
-def test_deletion_approved_expired(aws_api):
+def test_deletion_approved_expired(aws_api: MockAWSApi) -> None:
     account = {
         "name": "a1",
         "deletionApprovals": [{"type": "t1", "name": "n1", "expiration": "2000-01-01"}],
     }
-    tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
+    tf = TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
     result = tf.deletion_approved("a1", "t1", "n1")
     assert result is False
 
 
-def test_deletion_approved(aws_api):
+def test_deletion_approved(aws_api: MockAWSApi) -> None:
     account = {
         "name": "a1",
         "deletionApprovals": [{"type": "t1", "name": "n1", "expiration": "2500-01-01"}],
     }
-    tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
+    tf = TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
     result = tf.deletion_approved("a1", "t1", "n1")
     assert result is True
 
 
-def test_expiration_value_error(aws_api):
+def test_expiration_value_error(aws_api: MockAWSApi) -> None:
     account = {
         "name": "a1",
         "deletionApprovals": [{"type": "t1", "name": "n1", "expiration": "2000"}],
     }
-    tf = tfclient.TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
-    with pytest.raises(tfclient.DeletionApprovalExpirationValueError):
+    tf = TerraformClient("integ", "v1", "integ_pfx", [account], {}, 1, aws_api)
+    with pytest.raises(DeletionApprovalExpirationValueError):
         tf.deletion_approved("a1", "t1", "n1")
 
 
-def test_get_replicas_info_via_replica_source():
+def test_get_replicas_info_via_replica_source() -> None:
     resource_specs = [
         ExternalResourceSpec(
             provision_provider="aws",
@@ -92,12 +98,12 @@ def test_get_replicas_info_via_replica_source():
             namespace={},
         )
     ]
-    result = tfclient.TerraformClient.get_replicas_info(resource_specs)
+    result = TerraformClient.get_replicas_info(resource_specs)
     expected = {"acc": {"replica-id-rds": "replica-source-id-rds"}}
     assert result == expected
 
 
-def test_build_oc_secret():
+def test_build_oc_secret() -> None:
     integration = "integ"
     integration_version = "v1"
     account = "account"
@@ -145,7 +151,7 @@ def test_build_oc_secret():
     assert not resource.body["data"]["data2"]
 
 
-def test_populate_terraform_output_secret():
+def test_populate_terraform_output_secret() -> None:
     integration_prefix = "integ_pfx"
     account = "account"
     resource_specs = [
@@ -168,7 +174,7 @@ def test_populate_terraform_output_secret():
         }
     }
 
-    tfclient.TerraformClient._populate_terraform_output_secrets(
+    TerraformClient._populate_terraform_output_secrets(
         {ExternalResourceUniqueKey.from_spec(s): s for s in resource_specs},
         existing_secrets,
         integration_prefix,
@@ -180,7 +186,7 @@ def test_populate_terraform_output_secret():
     assert resource_specs[0].get_secret_field("key") == "value"
 
 
-def test_populate_terraform_output_secret_with_replica_credentials():
+def test_populate_terraform_output_secret_with_replica_credentials() -> None:
     integration_prefix = "integ_pfx"
     account = "account"
     replica = ExternalResourceSpec(
@@ -218,7 +224,7 @@ def test_populate_terraform_output_secret_with_replica_credentials():
         }
     }
 
-    tfclient.TerraformClient._populate_terraform_output_secrets(
+    TerraformClient._populate_terraform_output_secrets(
         resource_specs, existing_secrets, integration_prefix, replica_source_info
     )
 
@@ -228,7 +234,7 @@ def test_populate_terraform_output_secret_with_replica_credentials():
     assert replica.get_secret_field("db.password") == "password"
 
 
-def test__resource_diff_changed_fields(tf):
+def test__resource_diff_changed_fields(tf: TerraformClient) -> None:
     changed = tf._resource_diff_changed_fields(
         "update",
         {
@@ -401,7 +407,14 @@ def test__resource_diff_changed_fields(tf):
         ),
     ],
 )
-def test__can_skip_rds_modifications(aws_api, tf, before, after, response, expected):
+def test__can_skip_rds_modifications(
+    aws_api: MockAWSApi,
+    tf: TerraformClient,
+    before: dict[str, Any],
+    after: dict[str, Any],
+    response: dict[str, Any],
+    expected: bool,
+) -> None:
     aws_api.describe_rds_db_instance.return_value = response
 
     actual = tf._can_skip_rds_modifications(
@@ -413,7 +426,9 @@ def test__can_skip_rds_modifications(aws_api, tf, before, after, response, expec
     assert actual == expected
 
 
-def test__can_skip_rds_modifications_with_client_error(aws_api, tf, caplog):
+def test__can_skip_rds_modifications_with_client_error(
+    aws_api: MockAWSApi, tf: TerraformClient, caplog: pytest.LogCaptureFixture
+) -> None:
     aws_api.describe_rds_db_instance.side_effect = ClientError(
         {
             "Error": {
@@ -448,7 +463,9 @@ def test__can_skip_rds_modifications_with_client_error(aws_api, tf, caplog):
     ]
 
 
-def test__can_skip_rds_modifications_with_exception(aws_api, tf):
+def test__can_skip_rds_modifications_with_exception(
+    aws_api: MockAWSApi, tf: TerraformClient
+) -> None:
     with pytest.raises(Exception) as error:
         aws_api.describe_rds_db_instance.side_effect = Exception("a-test-exception")
 
@@ -470,7 +487,9 @@ def test__can_skip_rds_modifications_with_exception(aws_api, tf):
     assert "a-test-exception" in str(error.value)
 
 
-def test_validate_db_upgrade_no_upgrade(aws_api, tf):
+def test_validate_db_upgrade_no_upgrade(
+    aws_api: MockAWSApi, tf: TerraformClient
+) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "11.17", "IsMajorVersionUpgrade": False}
     ]
@@ -491,12 +510,14 @@ def test_validate_db_upgrade_no_upgrade(aws_api, tf):
     )
 
 
-def test_validate_db_upgrade_modify_with_blue_green(aws_api, tf):
+def test_validate_db_upgrade_modify_with_blue_green(
+    aws_api: MockAWSApi, tf: TerraformClient
+) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "11.17", "IsMajorVersionUpgrade": False}
     ]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_db_upgrade(
             account_name="a1",
             resource_name="test-database-1",
@@ -521,7 +542,7 @@ def test_validate_db_upgrade_modify_with_blue_green(aws_api, tf):
     )
 
 
-def test_validate_db_upgrade(aws_api, tf):
+def test_validate_db_upgrade(aws_api: MockAWSApi, tf: TerraformClient) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "11.17", "IsMajorVersionUpgrade": False}
     ]
@@ -543,7 +564,9 @@ def test_validate_db_upgrade(aws_api, tf):
     )
 
 
-def test_validate_db_upgrade_major_version_upgrade(aws_api, tf):
+def test_validate_db_upgrade_major_version_upgrade(
+    aws_api: MockAWSApi, tf: TerraformClient
+) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
@@ -567,13 +590,13 @@ def test_validate_db_upgrade_major_version_upgrade(aws_api, tf):
 
 
 def test_validate_db_upgrade_cannot_upgrade(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [  # type: ignore[attr-defined]
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_db_upgrade(
             account_name="a1",
             resource_name="test-database-1",
@@ -597,13 +620,13 @@ def test_validate_db_upgrade_cannot_upgrade(
 
 
 def test_validate_db_upgrade_major_version_upgrade_not_allow(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [  # type: ignore[attr-defined]
         {"Engine": "postgres", "EngineVersion": "13.3", "IsMajorVersionUpgrade": True}
     ]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_db_upgrade(
             account_name="a1",
             resource_name="test-database-1",
@@ -627,11 +650,11 @@ def test_validate_db_upgrade_major_version_upgrade_not_allow(
 
 
 def test_validate_db_upgrade_with_empty_valid_upgrade_target(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = []  # type: ignore[attr-defined]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_db_upgrade(
             account_name="a1",
             resource_name="test-database-1",
@@ -655,9 +678,9 @@ def test_validate_db_upgrade_with_empty_valid_upgrade_target(
 
 
 def test_validate_blue_green_update_requirements_not_major_version_upgrade(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
 ) -> None:
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             resource_name="test-database-1",
@@ -678,7 +701,7 @@ def test_validate_blue_green_update_requirements_not_major_version_upgrade(
 
 
 def test_validate_blue_green_update_requirements_supported_version(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
 
@@ -697,9 +720,9 @@ def test_validate_blue_green_update_requirements_supported_version(
 
 
 def test_validate_blue_green_update_requirements_unsupported_version(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
 ) -> None:
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             resource_name="test-database-1",
@@ -720,11 +743,11 @@ def test_validate_blue_green_update_requirements_unsupported_version(
 
 
 def test_validate_blue_green_update_requirements_deprecated_version(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.check_db_engine_version.return_value = False  # type: ignore[attr-defined]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             resource_name="test-database-1",
@@ -745,11 +768,11 @@ def test_validate_blue_green_update_requirements_deprecated_version(
 
 
 def test_validate_blue_green_update_requirements_missing_logical_replication(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "0"}  # type: ignore[attr-defined]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             resource_name="test-database-1",
@@ -770,11 +793,11 @@ def test_validate_blue_green_update_requirements_missing_logical_replication(
 
 
 def test_validate_blue_green_update_requirements_with_replica_source(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             resource_name="test-database-1",
@@ -795,7 +818,7 @@ def test_validate_blue_green_update_requirements_with_replica_source(
 
 
 def test_validate_db_upgrade_with_blue_green_update(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.get_db_valid_upgrade_target.return_value = [  # type: ignore[attr-defined]
         {"Engine": "postgres", "EngineVersion": "12.16", "IsMajorVersionUpgrade": True}
@@ -826,11 +849,11 @@ def test_validate_db_upgrade_with_blue_green_update(
 
 
 def test_validate_blue_green_update_requirements_with_storage_type_change(
-    aws_api: AWSApi, tf: tfclient.TerraformClient
+    aws_api: AWSApi, tf: TerraformClient
 ) -> None:
     aws_api.describe_db_parameter_group.return_value = {"rds.logical_replication": "1"}  # type: ignore[attr-defined]
 
-    with pytest.raises(tfclient.RdsUpgradeValidationError) as error:
+    with pytest.raises(RdsUpgradeValidationError) as error:
         tf.validate_blue_green_update_requirements(
             account_name="a1",
             resource_name="test-database-1",
@@ -851,7 +874,7 @@ def test_validate_blue_green_update_requirements_with_storage_type_change(
 
 
 def test_check_output_debug(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
@@ -865,7 +888,7 @@ def test_check_output_debug(
 
 
 def test_check_output_warning(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
@@ -879,7 +902,7 @@ def test_check_output_warning(
 
 
 def test_check_output_from_terraform_log(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
@@ -895,7 +918,7 @@ def test_check_output_from_terraform_log(
 
 
 def test_check_output_warning_from_provider_warn_log(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
@@ -914,7 +937,7 @@ def test_check_output_warning_from_provider_warn_log(
 
 
 def test_check_output_warning_from_provider_error_log(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
@@ -933,7 +956,7 @@ def test_check_output_warning_from_provider_error_log(
 
 
 def test_check_output_warning_ignore_from_provider_warning_log(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
@@ -952,7 +975,7 @@ def test_check_output_warning_ignore_from_provider_warning_log(
 
 
 def test_check_output_error(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_logging = mocker.patch("reconcile.utils.terraform_client.logging")
@@ -966,9 +989,9 @@ def test_check_output_error(
 
 
 @pytest.fixture
-def terraform_spec_builder() -> Callable[..., tfclient.TerraformSpec]:
-    def builder(name: str, working_dir: str) -> tfclient.TerraformSpec:
-        return tfclient.TerraformSpec(
+def terraform_spec_builder() -> Callable[..., TerraformSpec]:
+    def builder(name: str, working_dir: str) -> TerraformSpec:
+        return TerraformSpec(
             name=name,
             working_dir=working_dir,
         )
@@ -977,9 +1000,9 @@ def terraform_spec_builder() -> Callable[..., tfclient.TerraformSpec]:
 
 
 def test_terraform_init(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
-    terraform_spec_builder: Callable[..., tfclient.TerraformSpec],
+    terraform_spec_builder: Callable[..., TerraformSpec],
 ) -> None:
     mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
     mocked_lean_tf.init.return_value = (0, "", "")
@@ -1008,9 +1031,9 @@ def test_terraform_init(
 
 
 def test_terraform_output(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
-    terraform_spec_builder: Callable[..., tfclient.TerraformSpec],
+    terraform_spec_builder: Callable[..., TerraformSpec],
 ) -> None:
     mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
     mocked_lean_tf.output.return_value = (0, "{}", "")
@@ -1041,9 +1064,9 @@ def test_terraform_output(
 
 
 def test_terraform_plan(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
-    terraform_spec_builder: Callable[..., tfclient.TerraformSpec],
+    terraform_spec_builder: Callable[..., TerraformSpec],
 ) -> None:
     mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
     mocked_lean_tf.show_json.return_value = {"format_version": "1.2"}
@@ -1080,9 +1103,9 @@ def test_terraform_plan(
 
 
 def test_terraform_plan_with_error(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
-    terraform_spec_builder: Callable[..., tfclient.TerraformSpec],
+    terraform_spec_builder: Callable[..., TerraformSpec],
 ) -> None:
     mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
     error_message = "exceeded available rate limit retries"
@@ -1111,7 +1134,7 @@ def test_terraform_plan_with_error(
 
 
 def test_terraform_safe_plan_raises_errors(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
 ) -> None:
     mocked_threaded_run = mocker.patch("reconcile.utils.terraform_client.threaded.run")
@@ -1134,9 +1157,9 @@ def test_terraform_safe_plan_raises_errors(
 
 
 def test_terraform_apply(
-    tf: tfclient.TerraformClient,
+    tf: TerraformClient,
     mocker: MockerFixture,
-    terraform_spec_builder: Callable[..., tfclient.TerraformSpec],
+    terraform_spec_builder: Callable[..., TerraformSpec],
 ) -> None:
     mocked_lean_tf = mocker.patch("reconcile.utils.terraform_client.lean_tf")
     mocked_lean_tf.apply.return_value = (0, "", "")
