@@ -173,6 +173,7 @@ def test_update_application(mocker: MockFixture) -> None:
         object_id,
         {
             "name": "foo",
+            "product": {"id": "1"},
             "fullname": "foo",
             "metadata": {"deployment_saas_files": ["foo"]},
         },
@@ -182,6 +183,7 @@ def test_update_application(mocker: MockFixture) -> None:
         f"/api/status-board/v1/applications/{object_id}",
         data={
             "name": "foo",
+            "product": {"id": "1"},
             "fullname": "foo",
             "metadata": {
                 METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
