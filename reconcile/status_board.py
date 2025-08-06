@@ -6,21 +6,20 @@ from abc import (
 from collections.abc import Iterable, Mapping
 from enum import Enum
 from itertools import chain
-from typing import (
-    Any,
-)
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import (
-    get_selected_app_data,
+    get_selected_app_metadata,
     get_status_board,
 )
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.ocm.status_board import (
+    ApplicationMetadataSpec,
     ApplicationOCMSpec,
     BaseOCMSpec,
     ServiceMetadataSpec,
@@ -45,6 +44,9 @@ from reconcile.utils.runtime.integration import QontractReconcileIntegration
 
 QONTRACT_INTEGRATION = "status-board-exporter"
 
+# Type alias for metadata that accepts ApplicationMetadataSpec, ServiceMetadataSpec, or empty dict
+MetadataType = ApplicationMetadataSpec | ServiceMetadataSpec | dict[str, Any] | None
+
 
 class Action(Enum):
     create = "create"
@@ -59,7 +61,45 @@ class AbstractStatusBoard(ABC, BaseModel):
     id: str | None = None
     name: str
     fullname: str
-    metadata: dict[str, Any] | ServiceMetadataSpec | None
+    metadata: MetadataType
+
+    @validator("metadata")
+    def validate_metadata(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        if v is None:
+            return v
+
+        if not isinstance(v, dict):
+            raise ValueError("metadata must be a dictionary")
+
+        # Allow empty dict
+        if not v:
+            return v
+
+        # Check if it's a valid ApplicationMetadataSpec
+        if set(v.keys()) == {"deployment_saas_files"}:
+            if isinstance(v.get("deployment_saas_files"), list):
+                return v
+
+        # Check if it's a valid ServiceMetadataSpec
+        expected_service_schema: dict[str, type | tuple[type, ...]] = {
+            "sli_type": str,
+            "sli_specification": str,
+            "slo_details": str,
+            "target": (int, float),
+            "target_unit": str,
+            "window": str,
+        }
+        if set(v.keys()) == set(expected_service_schema.keys()) and all(
+            isinstance(v.get(key), expected_type)
+            for key, expected_type in expected_service_schema.items()
+        ):
+            return v
+
+        raise ValueError(
+            "metadata must be either empty, a valid ApplicationMetadataSpec "
+            "(with 'deployment_saas_files' list), or a valid ServiceMetadataSpec "
+            "(with 'sli_type', 'sli_specification', 'slo_details', 'target', 'target_unit', 'window')"
+        )
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -127,7 +167,7 @@ class Product(AbstractStatusBoard):
 class Application(AbstractStatusBoard):
     product: Product
     services: list["Service"] | None
-    metadata: dict[str, Any]
+    metadata: ApplicationMetadataSpec
 
     def create(self, ocm: OCMBaseClient) -> None:
         if self.product.id:
@@ -157,7 +197,7 @@ class Application(AbstractStatusBoard):
         return {
             "name": self.name,
             "fullname": self.fullname,
-            "product_id": product_id,
+            "product": {"id": product_id},
             "metadata": self.metadata,
         }
 
@@ -259,12 +299,12 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
     @staticmethod
     def get_product_apps(
         sb: StatusBoardV1,
-    ) -> dict[str, dict[str, dict[str, dict[str, list[str]]]]]:
+    ) -> dict[str, dict[str, ApplicationMetadataSpec]]:
         global_selectors = (
             sb.global_app_selectors.exclude or [] if sb.global_app_selectors else []
         )
         return {
-            p.product_environment.product.name: get_selected_app_data(
+            p.product_environment.product.name: get_selected_app_metadata(
                 global_selectors, p
             )
             for p in sb.products
@@ -298,7 +338,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, dict[str, dict[str, dict[str, list[str]]]]],
+        desired_product_apps: Mapping[str, dict[str, ApplicationMetadataSpec]],
         slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
         """
@@ -314,7 +354,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 name=product_name,
                 fullname=product_name,
                 applications=[],
-                metadata={},
+                metadata=None,
             )
             desired_abstract_status_board_map[product_name] = product
             for a in apps:
@@ -325,7 +365,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     fullname=key,
                     services=[],
                     product=product,
-                    metadata=apps[a]["metadata"],
+                    metadata=apps[a],
                 )
         for slodoc in slodocs:
             products = [
@@ -390,72 +430,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return return_value
 
     @staticmethod
-    def _compare_metadata(
-        current_metadata: dict[str, Any] | ServiceMetadataSpec,
-        desired_metadata: dict[str, Any] | ServiceMetadataSpec,
-    ) -> bool:
-        """
-        Compare metadata dictionaries with deep equality checking for nested structures.
-
-        :param current_metadata: The current metadata dictionary
-        :param desired_metadata: The desired metadata dictionary
-        :return: True if metadata are equal, False otherwise
-        """
-        # Convert TypedDict to regular dict to allow variable key access
-        current_dict = dict(current_metadata)
-        desired_dict = dict(desired_metadata)
-
-        if current_dict.keys() != desired_dict.keys():
-            return False
-
-        for key, current_value in current_dict.items():
-            desired_value = desired_dict[key]
-
-            # Handle None values
-            if current_value is None or desired_value is None:
-                if current_value is not desired_value:
-                    return False
-                continue
-
-            # Handle lists and tuples
-            elif isinstance(current_value, (list, tuple)) and isinstance(
-                desired_value, (list, tuple)
-            ):
-                if len(current_value) != len(desired_value):
-                    return False
-
-                try:
-                    sorted_current = sorted(current_value, key=repr)
-                    sorted_desired = sorted(desired_value, key=repr)
-                except Exception:
-                    # Fallback: compare without sorting
-                    sorted_current = list(current_value)
-                    sorted_desired = list(desired_value)
-
-                for c, d in zip(sorted_current, sorted_desired, strict=True):
-                    if isinstance(c, dict) and isinstance(d, dict):
-                        if not StatusBoardExporterIntegration._compare_metadata(c, d):
-                            return False
-                    elif isinstance(c, (list, tuple)) and isinstance(d, (list, tuple)):
-                        if not StatusBoardExporterIntegration._compare_metadata(
-                            {"x": c}, {"x": d}
-                        ):
-                            return False
-                    elif c != d:
-                        return False
-            # Handle nested dictionaries
-            elif isinstance(current_value, dict) and isinstance(desired_value, dict):
-                if not StatusBoardExporterIntegration._compare_metadata(
-                    current_value, desired_value
-                ):
-                    return False
-            # Handle primitive types
-            elif current_value != desired_value:
-                return False
-
-        return True
-
-    @staticmethod
     def _status_board_objects_equal(
         current: AbstractStatusBoard, desired: AbstractStatusBoard
     ) -> bool:
@@ -470,13 +444,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         if current.name != desired.name or current.fullname != desired.fullname:
             return False
 
-        # Compare metadata with deep equality
-        if current.metadata and desired.metadata:
-            return StatusBoardExporterIntegration._compare_metadata(
-                current.metadata, desired.metadata
-            )
-        else:
-            return True
+        return current.metadata == desired.metadata
 
     @staticmethod
     def get_diff(
@@ -563,9 +531,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
             # Desired state
-            desired_product_apps: dict[
-                str, dict[str, dict[str, dict[str, list[str]]]]
-            ] = self.get_product_apps(sb)
+            desired_product_apps: dict[str, dict[str, ApplicationMetadataSpec]] = (
+                self.get_product_apps(sb)
+            )
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
                 desired_product_apps, slodocs
             )
