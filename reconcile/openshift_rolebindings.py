@@ -15,6 +15,7 @@ from reconcile.gql_definitions.common.app_interface_roles import (
     RoleV1,
     UserV1,
 )
+from reconcile.gql_definitions.common.namespaces import NamespaceV1 as CommonNamespaceV1
 from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
 from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import (
@@ -121,7 +122,9 @@ class RoleBindingSpec(BaseModel):
 
     @staticmethod
     def create_rb_specs_from_role(
-        role: RoleV1, oc_map: ob.ClusterMap| None = None, enforced_user_keys: list[str] | None = None
+        role: RoleV1,
+        oc_map: ob.ClusterMap | None = None,
+        enforced_user_keys: list[str] | None = None,
     ) -> list["RoleBindingSpec"]:
         return [
             role_binding_spec
@@ -218,7 +221,7 @@ class RoleBindingSpec(BaseModel):
         self, sa_namespace_name: str, sa_name: str, force_cluster_role_ref: bool
     ) -> OCResource:
         name = f"{self.role_name}-{sa_namespace_name}-{sa_name}"
-        body : dict[str, Any] = {
+        body: dict[str, Any] = {
             "apiVersion": "rbac.authorization.k8s.io/v1",
             "kind": "RoleBinding",
             "metadata": {"name": name},
@@ -312,9 +315,10 @@ def fetch_desired_state(
     print("************************************************")
     return users_desired_state
 
-def is_valid_namespace(namespace: NamespaceV1) -> bool:
+
+def is_valid_namespace(namespace: NamespaceV1 | CommonNamespaceV1) -> bool:
     return (
-        namespace.managed_roles
+        bool(namespace.managed_roles)
         and is_in_shard(f"{namespace.cluster.name}/{namespace.name}")
         and not ob.is_namespace_deleted(namespace.dict(by_alias=True))
     )
