@@ -315,9 +315,6 @@ def populate_current_state(
 
             if caller and openshift_resource.caller != caller:
                 continue
-            print("******** currentstate ***********")
-            print(openshift_resource.__dict__)
-            print("******** currentstate ***********")
             ri.add_current(
                 spec.cluster,
                 spec.namespace,

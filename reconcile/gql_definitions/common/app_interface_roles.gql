@@ -23,6 +23,7 @@ query AppInterfaceRoles {
         }
       }
       role
+      clusterRole
     }
     expirationDate
   }

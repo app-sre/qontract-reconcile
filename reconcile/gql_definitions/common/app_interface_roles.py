@@ -43,6 +43,7 @@ query AppInterfaceRoles {
         }
       }
       role
+      clusterRole
     }
     expirationDate
   }
@@ -85,6 +86,7 @@ class NamespaceV1(ConfiguredBaseModel):
 class AccessV1(ConfiguredBaseModel):
     namespace: Optional[NamespaceV1] = Field(..., alias="namespace")
     role: Optional[str] = Field(..., alias="role")
+    cluster_role: Optional[str] = Field(..., alias="clusterRole")
 
 
 class RoleV1(ConfiguredBaseModel):
