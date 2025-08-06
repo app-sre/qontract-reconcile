@@ -12,8 +12,7 @@ from reconcile.gql_definitions.status_board.status_board import (
 )
 from reconcile.utils import gql
 from reconcile.utils.ocm.status_board import (
-    METADATA_MANAGED_BY_KEY,
-    METADATA_MANAGED_BY_VALUE,
+    ApplicationMetadataSpec,
 )
 
 
@@ -36,11 +35,11 @@ def _get_deployment_saas_files(
     }
 
 
-def get_selected_app_data(
+def get_selected_app_metadata(
     global_selectors: Iterable[str],
     product: StatusBoardProductV1,
-) -> dict[str, dict[str, dict[str, list[str]]]]:
-    selected_app_data: dict[str, dict[str, dict[str, Any]]] = {}
+) -> dict[str, ApplicationMetadataSpec]:
+    selected_app_metadata: dict[str, ApplicationMetadataSpec] = {}
 
     apps: dict[str, Any] = {"apps": []}
     for namespace in product.product_environment.namespaces or []:
@@ -61,11 +60,8 @@ def get_selected_app_data(
                 or "ClowdApp" in saas_file.managed_resource_types
             }
 
-        selected_app_data[name] = {
-            "metadata": {
-                METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
-                "deploymentSaasFiles": list(deployment_saas_files),
-            },
+        selected_app_metadata[name] = {
+            "deployment_saas_files": list(deployment_saas_files),
         }
 
         app = namespace.app.dict(by_alias=True)
@@ -88,11 +84,8 @@ def get_selected_app_data(
                         if "Deployment" in saas_file.managed_resource_types
                     }
 
-                selected_app_data[name] = {
-                    "metadata": {
-                        METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
-                        "deploymentSaasFiles": list(deployment_saas_files),
-                    },
+                selected_app_metadata[name] = {
+                    "deployment_saas_files": list(deployment_saas_files),
                 }
 
                 child_dict = child.dict(by_alias=True)
@@ -108,6 +101,6 @@ def get_selected_app_data(
         results = parser.parse(selector).find(apps)
         apps_to_remove.update(match.value["name"] for match in results)
         for app_name in apps_to_remove:
-            selected_app_data.pop(app_name, None)
+            selected_app_metadata.pop(app_name, None)
 
-    return selected_app_data
+    return selected_app_metadata
