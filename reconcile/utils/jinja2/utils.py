@@ -1,10 +1,15 @@
+import contextlib
 import datetime
 import os
+import re
+import subprocess
+import tempfile
 from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
 
 import jinja2
+import yaml
 from github import Github
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
@@ -188,6 +193,118 @@ def list_s3_objects(
         )
 
 
+def _process_sloth_output(output_file_path: str) -> str:
+    """Process sloth output to make it compliant with the prometheus-rule-1 schema"""
+    with open(output_file_path, encoding="utf-8") as f:
+        content = f.read()
+        # Strip leading whitespace and document separator since we're embedding in existing YAML
+        content = content.lstrip()
+        content = content.removeprefix("---\n")
+        # Remove sloth_* labels and title annotation
+        content = re.sub(r"^(\s+)sloth_\w+:.*\n", "", content, flags=re.MULTILINE)
+        content = re.sub(
+            r"^(\s+)title:.*\n(?:(?:\1\s+.*\n)*)", "", content, flags=re.MULTILINE
+        )
+        # Remove labels sections from recording rules
+        # sloth adds numerous labels that violate schema and we don't have any functionality based off recording rule labels
+        content = re.sub(
+            r"^(\s+)labels:\s*\n(?=\s*(?:- (?:record|alert|name):|$))",
+            "",
+            content,
+            flags=re.MULTILINE,
+        )
+        return content
+
+
+def sloth_alerts(
+    service: str,
+    slo_name: str,
+    objective: float,
+    error_query: str,
+    total_query: str,
+    version: str = "prometheus/v1",
+) -> str:
+    """Generate Prometheus rules using sloth: https://sloth.dev
+
+    Args:
+        service: Service name identifier
+        slo_name: Name of the SLO
+        objective: Target percentage (e.g. 99.9)
+        error_query: Prometheus query for error events
+        total_query: Prometheus query for total events
+        version: Spec version (default: "prometheus/v1")
+
+    Returns:
+        Generated Prometheus rules as YAML string
+    """
+    # Build the SLO definition
+    slo = {
+        "name": slo_name,
+        "objective": objective,
+        "description": f"{slo_name} SLO for {service}",
+        "sli": {
+            "events": {
+                "error_query": error_query.replace("{{window}}", "{{.window}}"),
+                "total_query": total_query.replace("{{window}}", "{{.window}}"),
+            }
+        },
+        "alerting": {
+            "name": f"{service.title()}{slo_name.title()}",
+            "annotations": {
+                "summary": f"High error rate on '{service}' {slo_name}",
+                "message": f"High error rate on '{service}' {slo_name}",
+            },
+            "page_alert": {
+                "labels": {
+                    "severity": "critical",
+                    "service": service,
+                    "slo": slo_name,
+                }
+            },
+            "ticket_alert": {
+                "labels": {
+                    "severity": "medium",
+                    "service": service,
+                    "slo": slo_name,
+                }
+            },
+        },
+    }
+
+    spec = {
+        "version": version,
+        "service": service,
+        "slos": [slo],
+    }
+
+    # Generate rules using temporary files
+    input_fd, input_path = tempfile.mkstemp(suffix=".yml")
+    output_fd, output_path = tempfile.mkstemp(suffix=".yml")
+
+    try:
+        # Write spec to input file
+        with os.fdopen(input_fd, "w") as input_file:
+            yaml_content = yaml.dump(spec, allow_unicode=True)
+            input_file.write(yaml_content)
+        os.close(output_fd)
+        cmd = ["sloth", "generate", "-i", input_path, "-o", output_path]
+        subprocess.run(cmd, capture_output=True, check=True, text=True)
+        return _process_sloth_output(output_path)
+    except subprocess.CalledProcessError as e:
+        error_msg = f"sloth generate failed: {e}"
+        if e.stdout:
+            error_msg += f"\nstdout: {e.stdout}"
+        if e.stderr:
+            error_msg += f"\nstderr: {e.stderr}"
+        raise Exception(error_msg) from e
+    finally:
+        # Clean up temporary files
+        with contextlib.suppress(OSError):
+            os.unlink(input_path)
+        with contextlib.suppress(OSError):
+            os.unlink(output_path)
+
+
 @retry()
 def lookup_secret(
     path: str,
@@ -261,6 +378,7 @@ def process_jinja2_template(
         "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
             "%Y-%m-%d"
         ),
+        "sloth_alerts": sloth_alerts,
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():

@@ -216,10 +216,17 @@ def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
     each: dict[str, Any],
 ) -> dict:
-    return {
-        k: json.loads(process_jinja2_template(body=json.dumps(v), vars={"each": each}))
-        for k, v in (collection_variables.static or {}).items()
-    }
+    def process_value(v: Any) -> Any:
+        # If the value is a string that contains Jinja2 templates, process it directly
+        if isinstance(v, str) and ("{{" in v or "{%" in v):
+            return process_jinja2_template(body=v, vars={"each": each})
+        # Otherwise, use the original JSON round-trip method
+        else:
+            return json.loads(
+                process_jinja2_template(body=json.dumps(v), vars={"each": each})
+            )
+
+    return {k: process_value(v) for k, v in (collection_variables.static or {}).items()}
 
 
 def unpack_dynamic_variables(
@@ -245,7 +252,13 @@ class TemplateRendererIntegrationParams(PydanticRunParams):
 
 
 def join_path(base: str, sub: str) -> str:
-    return os.path.join(base, sub.lstrip(APP_INTERFACE_PATH_SEPERATOR))
+    clean_sub = sub.lstrip(APP_INTERFACE_PATH_SEPERATOR)
+    # Handle special case: if targetPath starts with "resources",
+    # write to sibling resources/ directory instead of under data/
+    if clean_sub.startswith("resources/"):
+        base_parent = os.path.dirname(base)  # /foo/bar/data -> /foo/bar
+        return os.path.join(base_parent, clean_sub)
+    return os.path.join(base, clean_sub)
 
 
 class TemplateRendererIntegration(QontractReconcileIntegration):
