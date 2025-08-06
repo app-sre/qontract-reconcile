@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 
 from reconcile.gql_definitions.status_board.status_board import StatusBoardProductV1
-from reconcile.typed_queries.status_board import get_selected_app_data
+from reconcile.typed_queries.status_board import get_selected_app_metadata
 
 
 @pytest.fixture
@@ -61,55 +61,34 @@ def status_board_product(
     )
 
 
-def test_get_selected_app_data(status_board_product):
-    app_names = get_selected_app_data(
+def test_get_selected_app_metadata(status_board_product):
+    app_names = get_selected_app_metadata(
         ['apps[?@.name=="excluded"]'], status_board_product
     )
     assert app_names == {
         "oof-bar": {
-            "metadata": {
-                "managedBy": "qontract-reconcile",
-                "deploymentSaasFiles": [],
-            }
+            "deployment_saas_files": [],
         },
         "bar-oof-bar": {
-            "metadata": {
-                "managedBy": "qontract-reconcile",
-                "deploymentSaasFiles": [],
-            }
+            "deployment_saas_files": [],
         },
         "foo": {
-            "metadata": {
-                "managedBy": "qontract-reconcile",
-                "deploymentSaasFiles": [],
-            }
+            "deployment_saas_files": [],
         },
     }
 
-    app_names = get_selected_app_data([], status_board_product)
+    app_names = get_selected_app_metadata([], status_board_product)
     assert app_names == {
         "excluded": {
-            "metadata": {
-                "managedBy": "qontract-reconcile",
-                "deploymentSaasFiles": [],
-            }
+            "deployment_saas_files": [],
         },
         "oof-bar": {
-            "metadata": {
-                "managedBy": "qontract-reconcile",
-                "deploymentSaasFiles": [],
-            }
+            "deployment_saas_files": [],
         },
         "bar-oof-bar": {
-            "metadata": {
-                "managedBy": "qontract-reconcile",
-                "deploymentSaasFiles": [],
-            }
+            "deployment_saas_files": [],
         },
         "foo": {
-            "metadata": {
-                "managedBy": "qontract-reconcile",
-                "deploymentSaasFiles": [],
-            }
+            "deployment_saas_files": [],
         },
     }
