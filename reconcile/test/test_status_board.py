@@ -15,7 +15,11 @@ from reconcile.status_board import (
     StatusBoardExporterIntegration,
     StatusBoardHandler,
 )
-from reconcile.utils.ocm.status_board import BaseOCMSpec, ServiceMetadataSpec
+from reconcile.utils.ocm.status_board import (
+    ApplicationMetadataSpec,
+    BaseOCMSpec,
+    ServiceMetadataSpec,
+)
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.runtime.integration import PydanticRunParams
 
@@ -206,9 +210,8 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
     assert h.status_board_object.deleted
     assert h.status_board_object.summarized
 
-    # Update is only supported for Services
     # Services need an Application with ID to be updated
-    metadata: ServiceMetadataSpec = {
+    service_metadata: ServiceMetadataSpec = {
         "sli_specification": "specification",
         "target_unit": "unit",
         "slo_details": "details",
@@ -216,6 +219,7 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
         "window": "window",
         "target": 0.99,
     }
+    app_metadata: ApplicationMetadataSpec = {"deployment_saas_files": []}
     s = Service(
         id="baz",
         name="foo",
@@ -228,9 +232,9 @@ def test_status_board_handler(mocker: MockerFixture) -> None:
             product=Product(
                 id=None, name="baz", fullname="baz", applications=[], metadata={}
             ),
-            metadata={},
+            metadata=app_metadata,
         ),
-        metadata=metadata,
+        metadata=service_metadata,
     )
     spy = mocker.spy(Service, "update")
     h = StatusBoardHandler(action=Action.update, status_board_object=s)
@@ -245,24 +249,15 @@ def test_get_product_apps(status_board: StatusBoardV1) -> None:
     assert p == {
         "foo": {
             "foo": {
-                "metadata": {
-                    "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": [],
-                }
+                "deployment_saas_files": [],
             },
             "foo-bar": {
-                "metadata": {
-                    "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": [],
-                }
+                "deployment_saas_files": [],
             },
         },
         "bar": {
             "bar": {
-                "metadata": {
-                    "managedBy": "qontract-reconcile",
-                    "deploymentSaasFiles": [],
-                }
+                "deployment_saas_files": [],
             }
         },
     }
@@ -285,13 +280,13 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
                 "name": "app_1",
                 "fullname": "product_1/app_1",
                 "id": "1_1",
-                "metadata": {},
+                "metadata": {"deployment_saas_files": []},
             },
             {
                 "name": "app_2",
                 "fullname": "product_1/app_2",
                 "id": "1_2",
-                "metadata": {},
+                "metadata": {"deployment_saas_files": []},
             },
         ],
         "2": [
@@ -299,7 +294,7 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
                 "name": "app_3",
                 "fullname": "product_2/app_3",
                 "id": "2_3",
-                "metadata": {},
+                "metadata": {"deployment_saas_files": []},
             },
         ],
     }
@@ -363,7 +358,7 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         fullname="product_1/app_1",
         id="1_1",
         services=[],
-        metadata={},
+        metadata={"deployment_saas_files": []},
         product=product_1,
     )
     app_2 = Application(
@@ -371,7 +366,7 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         fullname="product_1/app_2",
         id="1_2",
         services=[],
-        metadata={},
+        metadata={"deployment_saas_files": []},
         product=product_1,
     )
     app_3 = Application(
@@ -379,7 +374,7 @@ def test_get_current_products_applications_services(mocker: MockerFixture) -> No
         fullname="product_2/app_3",
         id="2_3",
         services=[],
-        metadata={},
+        metadata={"deployment_saas_files": []},
         product=product_2,
     )
     service_1 = Service(
@@ -425,7 +420,7 @@ def test_current_abstract_status_board_map() -> None:
         id="1_1",
         services=[],
         product=product_1,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     app_2 = Application(
         name="app_2",
@@ -433,7 +428,7 @@ def test_current_abstract_status_board_map() -> None:
         id="1_2",
         services=[],
         product=product_1,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     app_3 = Application(
         name="app_3",
@@ -441,7 +436,7 @@ def test_current_abstract_status_board_map() -> None:
         id="2_3",
         services=[],
         product=product_2,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     service_1 = Service(
         name="service_1",
@@ -475,7 +470,7 @@ def test_current_abstract_status_board_map() -> None:
             fullname="product_1/app_1",
             id="1_1",
             services=[],
-            metadata={},
+            metadata={"deployment_saas_files": []},
             product=product_1,
         ),
         "product_1/app_1/service_1": Service(
@@ -497,7 +492,7 @@ def test_current_abstract_status_board_map() -> None:
             fullname="product_1/app_2",
             id="1_2",
             services=[],
-            metadata={},
+            metadata={"deployment_saas_files": []},
             product=product_1,
         ),
         "product_2": Product(
@@ -508,7 +503,7 @@ def test_current_abstract_status_board_map() -> None:
             fullname="product_2/app_3",
             id="2_3",
             services=[],
-            metadata={},
+            metadata={"deployment_saas_files": []},
             product=product_2,
         ),
     }
@@ -527,7 +522,7 @@ def test_get_diff_create_app() -> None:
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
             "foo/foo": Application(
                 name="foo",
@@ -535,7 +530,7 @@ def test_get_diff_create_app() -> None:
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
         },
         current_abstract_status_board_map={
@@ -573,7 +568,7 @@ def test_get_diff_create_one_app() -> None:
         fullname="foo/bar",
         services=[],
         product=current_foo,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
@@ -585,7 +580,7 @@ def test_get_diff_create_one_app() -> None:
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
             "foo/foo": Application(
                 name="foo",
@@ -593,7 +588,7 @@ def test_get_diff_create_one_app() -> None:
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
         },
         current_abstract_status_board_map={
@@ -621,7 +616,7 @@ def test_get_diff_create_product_and_apps() -> None:
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
             "foo/foo": Application(
                 name="foo",
@@ -629,7 +624,7 @@ def test_get_diff_create_product_and_apps() -> None:
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
         },
         current_abstract_status_board_map={},
@@ -668,7 +663,7 @@ def test_get_diff_create_product_app_and_service(
         services=[],
         product=foo_product,
         id=None,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
@@ -680,7 +675,7 @@ def test_get_diff_create_product_app_and_service(
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
             "foo/bar/baz": Service(
                 name="baz",
@@ -731,7 +726,11 @@ def test_get_diff_update_service() -> None:
     }
     foo_product = Product(name="foo", fullname="foo", applications=[], metadata={})
     foo_bar_app = Application(
-        name="bar", fullname="foo/bar", services=[], product=foo_product, metadata={}
+        name="bar",
+        fullname="foo/bar",
+        services=[],
+        product=foo_product,
+        metadata={"deployment_saas_files": []},
     )
     h = StatusBoardExporterIntegration.get_diff(
         desired_abstract_status_board_map={
@@ -742,7 +741,7 @@ def test_get_diff_update_service() -> None:
                 fullname="foo/foo",
                 services=[],
                 product=foo_product,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
             "foo/bar/baz": Service(
                 name="baz",
@@ -759,7 +758,7 @@ def test_get_diff_update_service() -> None:
                 fullname="foo/foo",
                 services=[],
                 product=foo_product,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
             "foo/bar/baz": Service(
                 name="baz",
@@ -788,7 +787,7 @@ def test_get_diff_noop() -> None:
         fullname="foo/bar",
         services=[],
         product=current_foo,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
@@ -800,7 +799,7 @@ def test_get_diff_noop() -> None:
                 services=[],
                 product=foo_product,
                 id=None,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
         },
         current_abstract_status_board_map={
@@ -824,7 +823,7 @@ def test_get_diff_delete_app() -> None:
         fullname="foo/bar",
         services=[],
         product=current_foo,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
@@ -839,7 +838,7 @@ def test_get_diff_delete_app() -> None:
                 fullname="foo/bar",
                 services=[],
                 product=current_foo,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
         },
     )
@@ -860,7 +859,7 @@ def test_get_diff_delete_apps_and_product() -> None:
         fullname="foo/bar",
         services=[],
         product=current_foo,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     current_foo.applications = [current_app]
     h = StatusBoardExporterIntegration.get_diff(
@@ -873,7 +872,7 @@ def test_get_diff_delete_apps_and_product() -> None:
                 fullname="foo/bar",
                 services=[],
                 product=current_foo,
-                metadata={},
+                metadata={"deployment_saas_files": []},
             ),
         },
     )
@@ -910,7 +909,7 @@ def test_get_diff_delete_product_app_and_service() -> None:
         fullname="foo/bar",
         services=[],
         product=current_foo,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     current_service = Service(
         id="3",
@@ -967,7 +966,7 @@ def test_apply_sorted(mocker: MockerFixture) -> None:
         product=product,
         services=[],
         id=None,
-        metadata={},
+        metadata={"deployment_saas_files": []},
     )
     metadata: ServiceMetadataSpec = {
         "sli_type": "type",
@@ -1056,10 +1055,17 @@ def test_run_integration(
                 "name": "app_1",
                 "fullname": "product_1/app_1",
                 "id": "1_1",
-                "metadata": {},
+                "metadata": {"deployment_saas_files": []},
             },
         ],
-        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1", "metadata": {}}],
+        "2": [
+            {
+                "name": "bar",
+                "fullname": "bar/bar",
+                "id": "2_1",
+                "metadata": {"deployment_saas_files": []},
+            }
+        ],
     }
 
     services_mapping = {
@@ -1121,11 +1127,8 @@ def test_run_integration(
                 spec={
                     "fullname": "foo/foo-bar",
                     "name": "foo-bar",
-                    "product_id": "1",
-                    "metadata": {
-                        "deploymentSaasFiles": [],
-                        "managedBy": "qontract-reconcile",
-                    },
+                    "product": {"id": "1"},
+                    "metadata": {"deployment_saas_files": []},
                 },
             ),
             call(
@@ -1133,11 +1136,8 @@ def test_run_integration(
                 spec={
                     "fullname": "foo/foo",
                     "name": "foo",
-                    "product_id": "1",
-                    "metadata": {
-                        "deploymentSaasFiles": [],
-                        "managedBy": "qontract-reconcile",
-                    },
+                    "product": {"id": "1"},
+                    "metadata": {"deployment_saas_files": []},
                 },
             ),
         ],
@@ -1232,9 +1232,21 @@ def test_run_integration_create_services(
 
     apps_mapping = {
         "1": [
-            {"name": "foo", "fullname": "foo/foo", "id": "1_1", "metadata": {}},
+            {
+                "name": "foo",
+                "fullname": "foo/foo",
+                "id": "1_1",
+                "metadata": {"deployment_saas_files": []},
+            },
         ],
-        "2": [{"name": "bar", "fullname": "bar/bar", "id": "2_1", "metadata": {}}],
+        "2": [
+            {
+                "name": "bar",
+                "fullname": "bar/bar",
+                "id": "2_1",
+                "metadata": {"deployment_saas_files": []},
+            }
+        ],
     }
 
     mock_get_apps.side_effect = lambda _, product_id: apps_mapping.get(product_id, [])
@@ -1444,8 +1456,7 @@ def test_get_diff_create_app_with_saas_file(
     assert app_handler.action == Action.create
     assert isinstance(app_handler.status_board_object, Application)
     assert app_handler.status_board_object.name == "foo"
-    assert "baz" in app_handler.status_board_object.metadata["deploymentSaasFiles"]
-    assert app_handler.status_board_object.metadata["managedBy"] == "qontract-reconcile"
+    assert "baz" in app_handler.status_board_object.metadata["deployment_saas_files"]
 
 
 def test_get_diff_update_app_with_additional_saas_file(
@@ -1486,6 +1497,5 @@ def test_get_diff_update_app_with_additional_saas_file(
     assert isinstance(app_handler.status_board_object, Application)
     app_obj = app_handler.status_board_object
     assert app_obj.name == "foo"
-    assert "baz" in app_obj.metadata["deploymentSaasFiles"]
-    assert "qux" in app_obj.metadata["deploymentSaasFiles"]
-    assert app_obj.metadata["managedBy"] == "qontract-reconcile"
+    assert "baz" in app_obj.metadata["deployment_saas_files"]
+    assert "qux" in app_obj.metadata["deployment_saas_files"]
