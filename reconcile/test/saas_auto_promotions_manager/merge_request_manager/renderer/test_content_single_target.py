@@ -15,7 +15,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 def test_content_single_target(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "NAMESPACE": {"path": "/some/namespace.yml"},
         "DESIRED_REF": "new_sha",
@@ -39,7 +39,7 @@ def test_content_single_target(
 def test_must_not_line_wrap(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     namespace_name = "/services/sosososolong/namespaces/loooooooooooooooooooooooooooooooooooooooooooooooooooooooooong.yml"
     subscriber = subscriber_builder({
         "NAMESPACE": {"path": namespace_name},

@@ -14,7 +14,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 def test_use_target_config_hash(
     saas_files_builder: Callable[[Iterable[Mapping]], list[SaasFile]],
     secret_reader: SecretReaderBase,
-):
+) -> None:
     saas_files = saas_files_builder([
         {
             "path": "/saas1.yml",
