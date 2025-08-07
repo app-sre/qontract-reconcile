@@ -3,6 +3,7 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
+from typing import Any
 from unittest.mock import call
 
 import pytest
@@ -103,7 +104,7 @@ def test_ocm_labels_init_ocm_apis(
     envs: Iterable[OCMEnvironment],
     ocm_base_client: OCMBaseClient,
 ) -> None:
-    def init_ocm_base_client_fake(*args, **kwargs) -> OCMBaseClient:
+    def init_ocm_base_client_fake(*args: Any, **kwargs: Any) -> OCMBaseClient:
         return ocm_base_client
 
     ocm_apis = ocm_labels.init_ocm_apis(

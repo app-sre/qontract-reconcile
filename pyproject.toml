@@ -268,7 +268,6 @@ module = [
     # untyped tests
     "reconcile.test.oc.test_oc_connection_parameters",
     "reconcile.test.oc.test_oc_map",
-    "reconcile.test.ocm_labels.test_ocm_labels_integration",
     "reconcile.test.test_acs_rbac",
     "reconcile.test.test_checkpoint",
     "reconcile.test.test_closedbox_endpoint_monitoring",
