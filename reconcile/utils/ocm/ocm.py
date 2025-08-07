@@ -439,7 +439,7 @@ class OCM:
 
         return results
 
-    def create_machine_pool(self, cluster: str, spec: Mapping[str, str]) -> None:
+    def create_machine_pool(self, cluster: str, spec: Mapping[str, Any]) -> None:
         """Creates a new Machine Pool
 
         :param cluster: cluster name
@@ -452,7 +452,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools"
         self._post(api, spec)
 
-    def update_machine_pool(self, cluster: str, spec: MutableMapping[str, str]) -> None:
+    def update_machine_pool(self, cluster: str, spec: MutableMapping[str, Any]) -> None:
         """Updates an existing Machine Pool
 
         :param cluster: cluster name
@@ -463,7 +463,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         machine_pool_id = spec["id"]
-        labels: str = spec.get("labels", {})  # type: ignore
+        labels: dict[str, Any] = spec.get("labels", {})
         spec["labels"] = labels
         api = (
             f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/"
@@ -471,7 +471,7 @@ class OCM:
         )
         self._patch(api, spec)
 
-    def delete_machine_pool(self, cluster: str, spec: Mapping[str, str]) -> None:
+    def delete_machine_pool(self, cluster: str, spec: Mapping[str, Any]) -> None:
         """Deletes an existing Machine Pool
 
         :param cluster: cluster name
@@ -502,7 +502,7 @@ class OCM:
 
         return get_node_pools(self._ocm_client, cluster_id)
 
-    def delete_node_pool(self, cluster: str, spec: dict[str, str]) -> None:
+    def delete_node_pool(self, cluster: str, spec: Mapping[str, Any]) -> None:
         """Deletes an existing Node Pool
 
         :param cluster: cluster name
@@ -516,7 +516,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._delete(api)
 
-    def create_node_pool(self, cluster: str, spec: dict[str, str]) -> None:
+    def create_node_pool(self, cluster: str, spec: Mapping[str, Any]) -> None:
         """Creates a new Node Pool
 
         :param cluster: cluster name
@@ -529,7 +529,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools"
         self._post(api, spec)
 
-    def update_node_pool(self, cluster: str, spec: dict[str, str]) -> None:
+    def update_node_pool(self, cluster: str, spec: MutableMapping[str, Any]) -> None:
         """Updates an existing Node Pool
 
         :param cluster: cluster name
@@ -540,7 +540,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         node_pool_id = spec["id"]
-        labels: str = spec.get("labels", {})  # type: ignore
+        labels: dict[str, Any] = spec.get("labels", {})
         spec["labels"] = labels
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._patch(api, spec)
