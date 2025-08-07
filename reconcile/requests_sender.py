@@ -1,6 +1,8 @@
 import logging
 import sys
+from collections.abc import Callable, Mapping
 from subprocess import CalledProcessError
+from typing import Any
 
 from reconcile import (
     queries,
@@ -44,7 +46,9 @@ Encrypted credentials:
 """
 
 
-def get_encrypted_credentials(credentials_name, user, settings):
+def get_encrypted_credentials(
+    credentials_name: str, user: Mapping[str, Any], settings: Mapping[str, Any]
+) -> str | None:
     credentials_map = settings["credentials"]
     credentials_map_item = [c for c in credentials_map if c["name"] == credentials_name]
     if len(credentials_map_item) != 1:
@@ -59,7 +63,7 @@ def get_encrypted_credentials(credentials_name, user, settings):
 
 
 @defer
-def run(dry_run, defer=None):
+def run(dry_run: bool, defer: Callable | None = None) -> None:
     settings = queries.get_app_interface_settings()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -76,7 +80,8 @@ def run(dry_run, defer=None):
         integration=QONTRACT_INTEGRATION,
         secret_reader=secret_reader,
     )
-    defer(state.cleanup)
+    if defer:
+        defer(state.cleanup)
     credentials_requests = queries.get_credentials_requests()
 
     # validate no 2 requests have the same name
