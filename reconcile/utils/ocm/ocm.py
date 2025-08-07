@@ -250,7 +250,9 @@ class OCM:
         switch_role_link = role_grants[0][-1]
         return awsh.get_account_uid_from_role_link(switch_role_link)
 
-    def get_aws_infrastructure_access_role_grants(self, cluster: str) -> list[tuple[str, str, str, str]]:
+    def get_aws_infrastructure_access_role_grants(
+        self, cluster: str
+    ) -> list[tuple[str, str, str, str]]:
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.
 
@@ -287,7 +289,7 @@ class OCM:
             role_account_id = account.replace("account=", "")
             role_name = role.replace("roleName=", "")
             return f"arn:aws:iam::{role_account_id}:role/{role_name}"
-    
+
         return None
 
     def add_user_to_aws_infrastructure_access_role_grants(
@@ -394,7 +396,9 @@ class OCM:
         )
         self._post(api, label)
 
-    def delete_external_configuration_label(self, cluster: str, label: Mapping[str, str]) -> None:
+    def delete_external_configuration_label(
+        self, cluster: str, label: Mapping[str, str]
+    ) -> None:
         """Deletes an existing External Configuration label
 
         :param cluster: cluster name
@@ -459,7 +463,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         machine_pool_id = spec["id"]
-        labels: str = spec.get("labels", {}) # type: ignore
+        labels: str = spec.get("labels", {})  # type: ignore
         spec["labels"] = labels
         api = (
             f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/"
@@ -536,7 +540,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         node_pool_id = spec["id"]
-        labels: str = spec.get("labels", {}) # type: ignore
+        labels: str = spec.get("labels", {})  # type: ignore
         spec["labels"] = labels
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._patch(api, spec)
