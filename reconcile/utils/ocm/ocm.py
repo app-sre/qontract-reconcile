@@ -463,7 +463,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         machine_pool_id = spec["id"]
-        labels: dict[str, Any] = spec.get("labels", {})
+        labels: dict[str, str] = spec.get("labels", {})
         spec["labels"] = labels
         api = (
             f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/"
@@ -540,7 +540,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         node_pool_id = spec["id"]
-        labels: dict[str, Any] = spec.get("labels", {})
+        labels: dict[str, str] = spec.get("labels", {})
         spec["labels"] = labels
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._patch(api, spec)
