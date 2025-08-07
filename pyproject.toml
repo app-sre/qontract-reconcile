@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.utils.jjb_client",
     "reconcile.utils.ldap_client",
     "reconcile.utils.lean_terraform_client",
     "reconcile.utils.oc",
@@ -300,7 +299,6 @@ module = [
     "reconcile.test.utils.test_external_resource_spec",
     "reconcile.test.utils.test_helm",
     "reconcile.test.utils.test_jira_client",
-    "reconcile.test.utils.test_jjb_client",
     "reconcile.test.utils.test_jsonpath",
     "reconcile.test.utils.test_models",
     "reconcile.test.utils.test_oc",
