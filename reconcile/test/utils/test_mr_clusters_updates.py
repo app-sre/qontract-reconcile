@@ -1,9 +1,6 @@
 from io import StringIO
 from unittest import TestCase
-from unittest.mock import (
-    create_autospec,
-    patch,
-)
+from unittest.mock import MagicMock, create_autospec, patch
 
 from gitlab.v4.objects import Project
 
@@ -16,11 +13,11 @@ fxt = Fixtures("clusters")
 
 @patch.object(sut.CreateClustersUpdates, "cancel")
 class TestProcess(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.clusters = [fxt.get_anymarkup("cluster1.yml")]
         self.raw_clusters = fxt.get("cluster1.yml")
 
-    def test_no_changes(self, cancel):
+    def test_no_changes(self, cancel: MagicMock) -> None:
         cli = create_autospec(GitLabApi)
         c = sut.CreateClustersUpdates({})
         c.branch = "abranch"
@@ -29,7 +26,7 @@ class TestProcess(TestCase):
 
         cli.get_raw_file.assert_not_called()
 
-    def test_changes_to_spec(self, cancel):
+    def test_changes_to_spec(self, cancel: MagicMock) -> None:
         cli = create_autospec(GitLabApi)
         cli.project = create_autospec(Project)
         cli.get_raw_file.return_value = self.raw_clusters.encode()
@@ -57,7 +54,7 @@ class TestProcess(TestCase):
         )
         cancel.assert_not_called()
 
-    def test_changes_to_root(self, cancel):
+    def test_changes_to_root(self, cancel: MagicMock) -> None:
         cli = create_autospec(GitLabApi)
         cli.project = create_autospec(Project)
         cli.get_raw_file.return_value = self.raw_clusters.encode()

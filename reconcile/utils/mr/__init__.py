@@ -1,3 +1,5 @@
+from typing import Any
+
 from reconcile.utils.mr.app_interface_reporter import CreateAppInterfaceReporter
 from reconcile.utils.mr.aws_access import CreateDeleteAwsAccessKey
 from reconcile.utils.mr.base import (
@@ -44,7 +46,7 @@ class UnknownMergeRequestTypeError(Exception):
     """
 
 
-def init_from_sqs_message(message) -> MergeRequestBase:
+def init_from_sqs_message(message: dict[str, Any]) -> MergeRequestBase:
     # First, let's find the classes that are inheriting from
     # MergeRequestBase and create a map where the class.name is
     # the key and the class itself is the value.
