@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
@@ -22,7 +22,7 @@ class SAPMMR(MergeRequestBase):
         content_by_path: Mapping[str, str],
         description: str,
         title: str,
-        labels: list[str],
+        labels: Iterable[str],
     ):
         super().__init__()
         self._content_by_path = content_by_path

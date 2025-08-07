@@ -52,7 +52,7 @@ class MergeRequestBase(ABC):
         # of the child class.
         self.sqs_msg_data = {**self.__dict__}
 
-        self.labels: list[str] = [DO_NOT_MERGE_HOLD]
+        self.labels: Iterable[str] = [DO_NOT_MERGE_HOLD]
 
         random_id = str(uuid4())[:6]
         self.branch = f"{self.name}-{random_id}"
