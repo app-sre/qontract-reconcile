@@ -26,13 +26,13 @@ def get_status_board(
 
 def _get_deployment_saas_files(
     saas_files: Sequence[SaasFileV2 | AppV1_SaasFileV2],
-) -> set[str]:
-    return {
+) -> list[str]:
+    return sorted(
         saas_file.name
         for saas_file in saas_files
         if "Deployment" in saas_file.managed_resource_types
         or "ClowdApp" in saas_file.managed_resource_types
-    }
+    )
 
 
 def get_selected_app_metadata(
@@ -61,7 +61,7 @@ def get_selected_app_metadata(
             }
 
         selected_app_metadata[name] = {
-            "deployment_saas_files": list(deployment_saas_files),
+            "deployment_saas_files": deployment_saas_files,
         }
 
         app = namespace.app.dict(by_alias=True)
