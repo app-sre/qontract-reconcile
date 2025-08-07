@@ -1,4 +1,7 @@
+from collections.abc import Callable, Mapping
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -36,7 +39,9 @@ STATE_PROVIDER = "s3"
 
 
 @pytest.fixture
-def existing_repo(aws_account, tf_variables) -> TerraformRepoV1:
+def existing_repo(
+    aws_account: AWSAccountV1, tf_variables: TerraformRepoVariablesV1
+) -> TerraformRepoV1:
     return TerraformRepoV1(
         name="a_repo",
         repository=A_REPO,
@@ -53,7 +58,7 @@ def existing_repo(aws_account, tf_variables) -> TerraformRepoV1:
 
 
 @pytest.fixture
-def existing_repo_output(tf_variables) -> OutputFile:
+def existing_repo_output(tf_variables: TerraformRepoVariablesV1) -> OutputFile:
     return OutputFile(
         dry_run=True,
         repos=[
@@ -78,7 +83,7 @@ def existing_repo_output(tf_variables) -> OutputFile:
 
 
 @pytest.fixture
-def new_repo(aws_account_no_state) -> TerraformRepoV1:
+def new_repo(aws_account_no_state: AWSAccountV1) -> TerraformRepoV1:
     return TerraformRepoV1(
         name="b_repo",
         repository=B_REPO,
@@ -137,7 +142,9 @@ def tf_variables() -> TerraformRepoVariablesV1:
 
 
 @pytest.fixture()
-def terraform_state(terraform_state_integrations) -> TerraformStateAWSV1:
+def terraform_state(
+    terraform_state_integrations: list[AWSTerraformStateIntegrationsV1],
+) -> TerraformStateAWSV1:
     return TerraformStateAWSV1(
         provider=STATE_PROVIDER,
         region=STATE_REGION,
@@ -154,7 +161,9 @@ def terraform_state_integrations() -> list[AWSTerraformStateIntegrationsV1]:
 
 
 @pytest.fixture
-def aws_account(automation_token, terraform_state) -> AWSAccountV1:
+def aws_account(
+    automation_token: VaultSecret, terraform_state: TerraformStateAWSV1
+) -> AWSAccountV1:
     return AWSAccountV1(
         name="foo",
         uid="000000000000",
@@ -164,7 +173,7 @@ def aws_account(automation_token, terraform_state) -> AWSAccountV1:
 
 
 @pytest.fixture
-def aws_account_no_state(automation_token) -> AWSAccountV1:
+def aws_account_no_state(automation_token: VaultSecret) -> AWSAccountV1:
     return AWSAccountV1(
         name="foo",
         uid="000000000000",
@@ -183,7 +192,12 @@ def state_mock() -> MagicMock:
     return MagicMock(spec=State)
 
 
-def test_addition_to_existing_repo(existing_repo, new_repo, int_params, state_mock):
+def test_addition_to_existing_repo(
+    existing_repo: TerraformRepoV1,
+    new_repo: TerraformRepoV1,
+    int_params: TerraformRepoIntegrationParams,
+    state_mock: MagicMock,
+) -> None:
     existing = [existing_repo]
     desired = [existing_repo, new_repo]
 
@@ -203,7 +217,11 @@ def test_addition_to_existing_repo(existing_repo, new_repo, int_params, state_mo
     )
 
 
-def test_updating_repo_ref(existing_repo, int_params, state_mock):
+def test_updating_repo_ref(
+    existing_repo: TerraformRepoV1,
+    int_params: TerraformRepoIntegrationParams,
+    state_mock: MagicMock,
+) -> None:
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.ref = B_REPO_SHA
@@ -223,7 +241,11 @@ def test_updating_repo_ref(existing_repo, int_params, state_mock):
     )
 
 
-def test_force_rerun(existing_repo, int_params, state_mock):
+def test_force_rerun(
+    existing_repo: TerraformRepoV1,
+    int_params: TerraformRepoIntegrationParams,
+    state_mock: MagicMock,
+) -> None:
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.force_rerun_timestamp = datetime.now().isoformat()
@@ -243,7 +265,9 @@ def test_force_rerun(existing_repo, int_params, state_mock):
     )
 
 
-def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
+def test_fail_on_update_invalid_repo_params(
+    existing_repo: TerraformRepoV1, int_params: TerraformRepoIntegrationParams
+) -> None:
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.name = "c_repo"
@@ -263,7 +287,11 @@ def test_fail_on_update_invalid_repo_params(existing_repo, int_params):
         )
 
 
-def test_delete_repo(existing_repo, int_params, state_mock):
+def test_delete_repo(
+    existing_repo: TerraformRepoV1,
+    int_params: TerraformRepoIntegrationParams,
+    state_mock: MagicMock,
+) -> None:
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.delete = True
@@ -282,7 +310,9 @@ def test_delete_repo(existing_repo, int_params, state_mock):
     state_mock.rm.assert_called_once_with(updated_repo.name)
 
 
-def test_delete_repo_without_flag(existing_repo, int_params):
+def test_delete_repo_without_flag(
+    existing_repo: TerraformRepoV1, int_params: TerraformRepoIntegrationParams
+) -> None:
     existing = [existing_repo]
 
     integration = TerraformRepoIntegration(params=int_params)
@@ -296,7 +326,12 @@ def test_delete_repo_without_flag(existing_repo, int_params):
         )
 
 
-def test_get_repo_state(s3_state_builder, int_params, existing_repo, tf_variables):
+def test_get_repo_state(
+    s3_state_builder: Callable[[Mapping[str, Any]], State],
+    int_params: TerraformRepoIntegrationParams,
+    existing_repo: TerraformRepoV1,
+    tf_variables: TerraformRepoVariablesV1,
+) -> None:
     state = s3_state_builder({
         "ls": [
             "/a_repo",
@@ -344,7 +379,11 @@ def test_get_repo_state(s3_state_builder, int_params, existing_repo, tf_variable
     assert existing_state == [existing_repo]
 
 
-def test_update_repo_state(int_params, existing_repo, state_mock):
+def test_update_repo_state(
+    int_params: TerraformRepoIntegrationParams,
+    existing_repo: TerraformRepoV1,
+    state_mock: MagicMock,
+) -> None:
     integration = TerraformRepoIntegration(params=int_params)
 
     existing_state: list = []
@@ -365,8 +404,11 @@ def test_update_repo_state(int_params, existing_repo, state_mock):
 # these two output tests are to ensure that there isn't a sudden change to outputs that throws
 # off tf-executor
 def test_output_correct_statefile(
-    int_params, existing_repo, existing_repo_output, state_mock
-):
+    int_params: TerraformRepoIntegrationParams,
+    existing_repo: TerraformRepoV1,
+    existing_repo_output: OutputFile,
+    state_mock: MagicMock,
+) -> None:
     integration = TerraformRepoIntegration(params=int_params)
 
     existing_state: list = []
@@ -386,8 +428,12 @@ def test_output_correct_statefile(
 
 
 def test_output_correct_no_statefile(
-    int_params, new_repo, new_repo_output, tmp_path, state_mock
-):
+    int_params: TerraformRepoIntegrationParams,
+    new_repo: TerraformRepoV1,
+    new_repo_output: OutputFile,
+    tmp_path: Path,
+    state_mock: MagicMock,
+) -> None:
     integration = TerraformRepoIntegration(params=int_params)
 
     existing_state: list = []
@@ -406,7 +452,11 @@ def test_output_correct_no_statefile(
     assert new_repo_output == current_output
 
 
-def test_succeed_on_multiple_repos_non_dry_run(int_params, existing_repo, new_repo):
+def test_succeed_on_multiple_repos_non_dry_run(
+    int_params: TerraformRepoIntegrationParams,
+    existing_repo: TerraformRepoV1,
+    new_repo: TerraformRepoV1,
+) -> None:
     integration = TerraformRepoIntegration(params=int_params)
 
     desired_state = [existing_repo, new_repo]
@@ -425,7 +475,9 @@ def test_succeed_on_multiple_repos_non_dry_run(int_params, existing_repo, new_re
         )
 
 
-def test_no_op_succeeds(int_params, existing_repo):
+def test_no_op_succeeds(
+    int_params: TerraformRepoIntegrationParams, existing_repo: TerraformRepoV1
+) -> None:
     integration = TerraformRepoIntegration(params=int_params)
 
     state = [existing_repo]
