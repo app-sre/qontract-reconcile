@@ -12,7 +12,7 @@ from reconcile import (
 
 
 class TestRunInteg(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         os.environ["APP_INTERFACE_STATE_BUCKET_ACCOUNT"] = "anaccount"
         self.user = {
             "org_username": "myorg",
@@ -79,7 +79,7 @@ class TestRunInteg(TestCase):
         self.get_app_interface_settings.return_value = self.settings
         self.get_aws_accounts.return_value = ["anaccount"]
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         for p in (
             self.exit_patcher,
             self.get_encrypted_creds_patcher,
@@ -94,7 +94,7 @@ class TestRunInteg(TestCase):
         ):
             p.stop()
 
-    def test_valid_credentials(self):
+    def test_valid_credentials(self) -> None:
         # Yeah, yeah, whatever
         self.state.return_value.exists.return_value = False
         integ.run(False)
@@ -112,14 +112,14 @@ class TestRunInteg(TestCase):
         # other assertions :(
         self.assertIn("anencryptedcred", calls[0][0][-1])
 
-    def test_existing_credentials(self):
+    def test_existing_credentials(self) -> None:
         self.state.return_value.exists.return_value = True
         integ.run(False)
         self.do_exit.assert_not_called()
         self.get_encrypted_credentials.assert_not_called()
         self.smtpclient.return_value.send_mail.assert_not_called()
 
-    def test_invalid_credentials(self):
+    def test_invalid_credentials(self) -> None:
         self.get_encrypted_credentials.side_effect = CalledProcessError(
             stderr="iadaiada", returncode=1, cmd="a command"
         )
@@ -129,7 +129,7 @@ class TestRunInteg(TestCase):
         self.get_encrypted_credentials.assert_called_once()
         self.smtpclient.return_value.send_mail.assert_not_called()
 
-    def test_dry_run_honored(self):
+    def test_dry_run_honored(self) -> None:
         self.state.return_value.exists.return_value = False
         integ.run(True)
 

@@ -114,7 +114,7 @@ class GPGEncryptCommand:
             f"No argument given which defines how to fetch the secret {self._command_data}"
         )
 
-    def _get_gpg_key(self) -> str | None:
+    def _get_gpg_key(self) -> str:
         target_user = self._command_data.target_user
         users = queries.get_users_by(
             refs=False,

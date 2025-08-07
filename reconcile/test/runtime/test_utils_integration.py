@@ -15,7 +15,7 @@ from reconcile.utils.runtime.integration import (
 )
 
 
-def test_module_integration_no_name():
+def test_module_integration_no_name() -> None:
     """
     an integration with no QONTRACT_INTEGRATION name variable
     """
@@ -25,7 +25,7 @@ def test_module_integration_no_name():
         )
 
 
-def test_module_integration_no_run_func():
+def test_module_integration_no_run_func() -> None:
     """
     an integration with no run function
     """
@@ -35,7 +35,7 @@ def test_module_integration_no_run_func():
         )
 
 
-def test_module_integration_run():
+def test_module_integration_run() -> None:
     demo_integration.run_calls = []
     integration = ModuleBasedQontractReconcileIntegration(
         ModuleArgsKwargsRunParams(module=demo_integration, some_arg=1)
@@ -49,14 +49,14 @@ def test_module_integration_run():
     demo_integration.run_calls = []
 
 
-def test_demo_integration_no_early_exit_desired_state():
+def test_demo_integration_no_early_exit_desired_state() -> None:
     integration = ModuleBasedQontractReconcileIntegration(
         ModuleArgsKwargsRunParams(module=demo_integration, some_arg=1)
     )
     assert not integration.get_early_exit_desired_state()
 
 
-def test_demo_integration_early_exit_desired_state():
+def test_demo_integration_early_exit_desired_state() -> None:
     integration = ModuleBasedQontractReconcileIntegration(
         ModuleArgsKwargsRunParams(
             demo_integration_early_exit, "arg", some_kw_arg="kwarg"
@@ -67,14 +67,14 @@ def test_demo_integration_early_exit_desired_state():
     assert data == {"args": ("arg",), "kwargs": {"some_kw_arg": "kwarg"}}
 
 
-def test_demo_integration_no_shard_config():
+def test_demo_integration_no_shard_config() -> None:
     integration = ModuleBasedQontractReconcileIntegration(
         ModuleArgsKwargsRunParams(module=demo_integration, some_arg=1)
     )
     assert not integration.get_desired_state_shard_config()
 
 
-def test_demo_integration_shard_config():
+def test_demo_integration_shard_config() -> None:
     integration = ModuleBasedQontractReconcileIntegration(
         ModuleArgsKwargsRunParams(demo_integration_shard_config)
     )
@@ -93,7 +93,9 @@ def test_demo_integration_shard_config():
         ({}, False),
     ],
 )
-def test_demo_integration_params_have_shard_info(kwargs: Any, expected_result: bool):
+def test_demo_integration_params_have_shard_info(
+    kwargs: Any, expected_result: bool
+) -> None:
     integration = ModuleBasedQontractReconcileIntegration(
         ModuleArgsKwargsRunParams(
             demo_integration_shard_config,

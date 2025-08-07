@@ -45,14 +45,14 @@ class MergeRequestBase(ABC):
 
     name = "merge-request-base"
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Let's first get all the attributes from the instance
         # and use for the SQS Msg payload. With that, the msg
         # to the SQS is enough to create a new, similar, instance
         # of the child class.
         self.sqs_msg_data = {**self.__dict__}
 
-        self.labels = [DO_NOT_MERGE_HOLD]
+        self.labels: Iterable[str] = [DO_NOT_MERGE_HOLD]
 
         random_id = str(uuid4())[:6]
         self.branch = f"{self.name}-{random_id}"

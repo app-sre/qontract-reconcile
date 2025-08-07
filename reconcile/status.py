@@ -11,7 +11,7 @@ class ExitCodes:
 class _RunningState:
     _state: dict[Any, Any] = {}
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__dict__ = self._state
 
 
@@ -22,7 +22,7 @@ class RunningState(_RunningState):
     by the callers.
     """
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> None:
         """
         Default value for attributes not explicitly created is None.
         """

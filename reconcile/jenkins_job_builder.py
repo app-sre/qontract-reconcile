@@ -81,7 +81,7 @@ def run(
     if not print_only and config_name is not None:
         raise Exception("--config-name must works with --print-only mode")
     secret_reader = SecretReader(queries.get_secret_reader_settings())
-    jjb: JJB = init_jjb(secret_reader, instance_name, config_name, print_only)
+    jjb = init_jjb(secret_reader, instance_name, config_name, print_only)
     if defer:
         defer(jjb.cleanup)
 

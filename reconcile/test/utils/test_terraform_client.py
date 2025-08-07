@@ -4,7 +4,7 @@ from collections.abc import Callable
 from logging import DEBUG
 from operator import itemgetter
 from typing import Any
-from unittest.mock import create_autospec
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from botocore.errorfactory import ClientError
@@ -22,7 +22,7 @@ from reconcile.utils.terraform_client import (
     TerraformSpec,
 )
 
-MockAWSApi = Any
+MockAWSApi = MagicMock
 
 
 @pytest.fixture

@@ -61,6 +61,7 @@ def status_board_product(
     )
 
 
+
 def test_get_selected_app_metadata(status_board_product):
     app_names = get_selected_app_metadata(
         ['apps[?@.name=="excluded"]'], status_board_product

@@ -1,3 +1,6 @@
+from collections.abc import Mapping
+from typing import Any
+
 from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -8,7 +11,7 @@ from reconcile.utils.mr.labels import AUTO_MERGE
 class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
     name = "create_ocm_upgrade_scheduler_org_updates_mr"
 
-    def __init__(self, updates_info):
+    def __init__(self, updates_info: Mapping[str, Any]):
         self.updates_info = updates_info
 
         super().__init__()

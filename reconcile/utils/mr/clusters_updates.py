@@ -1,4 +1,6 @@
+from collections.abc import Mapping
 from io import StringIO
+from typing import Any
 
 from ruamel.yaml import YAML
 
@@ -15,7 +17,7 @@ yaml.width = 4096
 class CreateClustersUpdates(MergeRequestBase):
     name = "create_clusters_updates_mr"
 
-    def __init__(self, clusters_updates):
+    def __init__(self, clusters_updates: Mapping[str, dict[str, Any]]):
         self.clusters_updates = clusters_updates
 
         super().__init__()
@@ -30,7 +32,7 @@ class CreateClustersUpdates(MergeRequestBase):
     def description(self) -> str:
         return DecisionCommand.APPROVED.value
 
-    def process(self, gitlab_cli: GitLabApi):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         changes = False
         for cluster_name, cluster_updates in self.clusters_updates.items():
             if not cluster_updates:

@@ -1,4 +1,5 @@
 import sys
+from collections.abc import Iterable, Mapping
 from textwrap import indent
 from typing import (
     Any,
@@ -95,9 +96,9 @@ def get_tf_roles() -> list[Role]:
 
 
 def _filter_participating_aws_accounts(
-    accounts: list,
-    roles: list[dict[str, Any]],
-) -> list:
+    accounts: Iterable[dict[str, Any]],
+    roles: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
     participating_aws_account_names: set[str] = set()
     for role in roles:
         participating_aws_account_names.update(
@@ -111,7 +112,7 @@ def _filter_participating_aws_accounts(
 
 
 def setup(
-    print_to_file,
+    print_to_file: str | None,
     thread_pool_size: int,
     skip_reencrypt_accounts: list[str],
     appsre_pgp_key: str | None = None,
@@ -146,10 +147,10 @@ def setup(
 
 
 def send_email_invites(
-    new_users,
+    new_users: Iterable[tuple[str, str, str, str]],
     smtp_client: SmtpClient,
-    skip_reencrypt_accounts: list[str],
-):
+    skip_reencrypt_accounts: Iterable[str],
+) -> None:
     msg_template = """
 You have been invited to join the {} AWS account!
 Below you will find credentials for the first sign in.
@@ -189,9 +190,9 @@ Encrypted password: {}
 def write_user_to_vault(
     vault_client: _VaultClient,
     vault_path: str,
-    new_users: list[tuple[str, str, str, str]],
-    skip_reencrypt_accounts: list[str],
-):
+    new_users: Iterable[tuple[str, str, str, str]],
+    skip_reencrypt_accounts: Iterable[str],
+) -> None:
     for account, console_url, user_name, enc_password in new_users:
         if account in skip_reencrypt_accounts:
             continue
@@ -208,13 +209,13 @@ def write_user_to_vault(
         vault_client.write(desired_secret, decode_base64=False)
 
 
-def cleanup_and_exit(tf=None, status=False):
+def cleanup_and_exit(tf: Terraform | None = None, status: bool = False) -> None:
     if tf is not None:
         tf.cleanup()
     sys.exit(status)
 
 
-def get_reencrypt_settings():
+def get_reencrypt_settings() -> tuple[list[str], str | None, Any]:
     all_reencrypt_settings = query(
         query_func=gql.get_api().query
     ).pgp_reencryption_settings
@@ -243,7 +244,7 @@ def run(
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     send_mails: bool = True,
     account_name: str | None = None,
-):
+) -> None:
     skip_accounts, appsre_pgp_key, reencrypt_settings = get_reencrypt_settings()
 
     # setup errors should skip resources that will lead
@@ -319,7 +320,7 @@ def run(
     cleanup_and_exit(tf, setup_err)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     """
     Finding diffs in deeply nested structures is time/resource consuming.
     Having a unique known property to identify objects makes it easier to match
@@ -330,11 +331,11 @@ def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
     for the DeepDiff library used in qontract-reconcile.
     """
 
-    def add_account_identity(acc):
+    def add_account_identity(acc: dict[str, Any]) -> dict[str, Any]:
         acc[IDENTIFIER_FIELD_NAME] = acc["path"]
         return acc
 
-    def add_role_identity(role):
+    def add_role_identity(role: dict[str, Any]) -> dict[str, Any]:
         role[IDENTIFIER_FIELD_NAME] = role["name"]
         return role
 

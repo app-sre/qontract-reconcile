@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
+from collections.abc import Iterable, Mapping
 from os import path
 from subprocess import (
     PIPE,
@@ -25,6 +26,8 @@ from sretoolbox.utils import retry
 
 from reconcile.utils import throughput
 from reconcile.utils.helpers import toggle_logger
+from reconcile.utils.secret_reader import SecretReaderBase
+from reconcile.utils.state import State
 from reconcile.utils.vcs import GITHUB_BASE_URL
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
@@ -33,14 +36,22 @@ JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 class JJB:
     """Wrapper around Jenkins Jobs"""
 
-    def __init__(self, configs, ssl_verify=True, secret_reader=None, print_only=False):
+    def __init__(
+        self,
+        configs: list[dict[str, Any]],
+        ssl_verify: bool = True,
+        secret_reader: SecretReaderBase | None = None,
+        print_only: bool = False,
+    ) -> None:
         self.print_only = print_only
         self.secret_reader = secret_reader
+        if not self.print_only and self.secret_reader is None:
+            raise ValueError("secret_reader must be provided if print_only is False")
         self.collect_configs(configs)
         self.modify_logger()
         self.python_https_verify = str(int(ssl_verify))
 
-    def collect_configs(self, configs):
+    def collect_configs(self, configs: list[dict[str, Any]]) -> None:
         instances = {
             c["instance"]["name"]: {
                 "serverUrl": c["instance"]["serverUrl"],
@@ -57,7 +68,7 @@ class JJB:
             server_url = data["serverUrl"]
             wd = tempfile.mkdtemp()
             ini = JJB_INI
-            if not self.print_only:
+            if not self.print_only and self.secret_reader:
                 ini = self.secret_reader.read(token)
                 ini = ini.replace('"', "")
                 ini = ini.replace("false", "False")
@@ -92,7 +103,7 @@ class JJB:
         self.instance_urls = instance_urls
         self.working_dirs = working_dirs
 
-    def overwrite_configs(self, configs):
+    def overwrite_configs(self, configs: Mapping[str, str] | State) -> None:
         """This function will override the existing
         config files in the working directories with
         the supplied configs"""
@@ -101,12 +112,12 @@ class JJB:
             with open(config_path, "w", encoding="locale") as f:
                 f.write(configs[name])
 
-    def sort(self, configs):
+    def sort(self, configs: list[dict[str, Any]]) -> None:
         configs.sort(key=self.sort_by_name)
-        configs.sort(key=self.sort_by_type)
+        configs.sort(key=lambda x: self.sort_by_type(x) or 0)
 
     @staticmethod
-    def sort_by_type(config):
+    def sort_by_type(config: Mapping[str, Any]) -> int:
         if config["type"] == "defaults":
             return 0
         if config["type"] == "global-defaults":
@@ -123,12 +134,13 @@ class JJB:
             return 40
         if config["type"] == "jobs":
             return 50
+        return 100
 
     @staticmethod
-    def sort_by_name(config):
+    def sort_by_name(config: Mapping[str, Any]) -> str:
         return config["name"]
 
-    def get_configs(self):
+    def get_configs(self) -> dict[str, str]:
         """This function gets the configs from the
         working directories"""
         configs = {}
@@ -139,7 +151,7 @@ class JJB:
 
         return configs
 
-    def generate(self, io_dir, fetch_state):
+    def generate(self, io_dir: str, fetch_state: str) -> None:
         """
         Generates job definitions from JJB configs
 
@@ -163,7 +175,7 @@ class JJB:
             self.execute(args)
             throughput.change_files_ownership(io_dir)
 
-    def print_diffs(self, io_dir, instance_name=None):
+    def print_diffs(self, io_dir: str, instance_name: str | None = None) -> None:
         """Print the diffs between the current and
         the desired job definitions"""
         current_path = path.join(io_dir, "jjb", "current")
@@ -179,7 +191,7 @@ class JJB:
         self.print_diff(delete, current_path, "delete")
         self.print_diff(common, desired_path, "update")
 
-    def print_diff(self, files, replace_path, action):
+    def print_diff(self, files: Iterable[str], replace_path: str, action: str) -> None:
         for f in files:
             if action == "update":
                 ft = self.toggle_cd(f)
@@ -210,11 +222,16 @@ class JJB:
                     ]
                     logging.debug("DIFF:\n" + "".join(diff))
 
-    def compare_files(self, from_files, subtract_files, in_op=False):
+    def compare_files(
+        self,
+        from_files: Iterable[str],
+        subtract_files: Iterable[str],
+        in_op: bool = False,
+    ) -> list[str]:
         return [f for f in from_files if (self.toggle_cd(f) in subtract_files) is in_op]
 
     @staticmethod
-    def get_files(search_path, instance_name=None):
+    def get_files(search_path: str, instance_name: str | None = None) -> list[str]:
         if instance_name is not None:
             search_path = path.join(search_path, instance_name)
         return [
@@ -222,7 +239,7 @@ class JJB:
         ]
 
     @staticmethod
-    def toggle_cd(file_name):
+    def toggle_cd(file_name: str) -> str:
         if "desired" in file_name:
             return file_name.replace("desired", "current")
         return file_name.replace("current", "desired")
@@ -248,28 +265,28 @@ class JJB:
                 raise
 
     @staticmethod
-    def get_jjb(args):
+    def get_jjb(args: Iterable[str]) -> Any:
         from jenkins_jobs.cli.entry import JenkinsJobs  # noqa: PLC0415
 
         return JenkinsJobs(args)
 
-    def execute(self, args):
+    def execute(self, args: Iterable[str]) -> None:
         jjb = self.get_jjb(args)
         with toggle_logger():
             jjb.execute()
 
-    def modify_logger(self):
+    def modify_logger(self) -> None:
         yaml.warnings({"YAMLLoadWarning": False})
         formatter = logging.Formatter("%(levelname)s: %(message)s")
         logger = logging.getLogger()
         logger.handlers[0].setFormatter(formatter)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         for wd in self.working_dirs.values():
             shutil.rmtree(wd)
 
     @retry(exceptions=(JenkinsJobsException))
-    def get_jobs(self, wd, name):
+    def get_jobs(self, wd: str, name: str) -> list[dict[str, Any]]:
         ini_path = f"{wd}/{name}.ini"
         config_path = f"{wd}/config.yaml"
 
@@ -283,8 +300,8 @@ class JJB:
 
         return jobs
 
-    def get_job_webhooks_data(self):
-        job_webhooks_data = {}
+    def get_job_webhooks_data(self) -> dict[str, list[dict[str, Any]]]:
+        job_webhooks_data: dict[str, list[dict[str, Any]]] = {}
         for name, wd in self.working_dirs.items():
             jobs = self.get_jobs(wd, name)
 
@@ -313,7 +330,7 @@ class JJB:
 
         return job_webhooks_data
 
-    def get_repos(self):
+    def get_repos(self) -> set[str]:
         repos = set()
         for name, wd in self.working_dirs.items():
             jobs = self.get_jobs(wd, name)
@@ -325,7 +342,7 @@ class JJB:
                     logging.debug(f"missing github url: {job_name}")
         return repos
 
-    def get_admins(self):
+    def get_admins(self) -> set[str]:
         admins = set()
         for name, wd in self.working_dirs.items():
             jobs = self.get_jobs(wd, name)
@@ -340,15 +357,17 @@ class JJB:
         return admins
 
     @staticmethod
-    def get_repo_url(job):
+    def get_repo_url(job: Mapping[str, Any]) -> str:
         repo_url_raw = job["properties"][0]["github"]["url"]
         return repo_url_raw.strip("/").replace(".git", "")
 
     @staticmethod
-    def get_ref(job: dict) -> str:
+    def get_ref(job: Mapping[str, Any]) -> str:
         return job["scm"][0]["git"]["branches"][0]
 
-    def get_all_jobs(self, job_types=None, instance_name=None) -> dict[str, list[dict]]:
+    def get_all_jobs(
+        self, job_types: Iterable[str] | None = None, instance_name: str | None = None
+    ) -> dict[str, list[dict[str, Any]]]:
         if job_types is None:
             job_types = []
         all_jobs: dict[str, list[dict]] = {}
@@ -366,8 +385,8 @@ class JJB:
 
         return all_jobs
 
-    def print_jobs(self, job_name=None):
-        all_jobs = {}
+    def print_jobs(self, job_name: str | None = None) -> None:
+        all_jobs: dict[str, list[dict[str, Any]]] = {}
         found = False
         for name, wd in self.working_dirs.items():
             logging.debug(f"getting jobs from {name}")
@@ -394,7 +413,7 @@ class JJB:
         raise ValueError(f"job with {job_type=} and {repo_url=} not found")
 
     @staticmethod
-    def get_trigger_phrases_regex(job: dict) -> str | None:
+    def get_trigger_phrases_regex(job: Mapping[str, Any]) -> str | None:
         for trigger in job["triggers"]:
             if "gitlab" in trigger:
                 return trigger["gitlab"].get("note-regex")
@@ -403,7 +422,7 @@ class JJB:
         return None
 
     @staticmethod
-    def get_gitlab_webhook_trigger(job: dict) -> list[str]:
+    def get_gitlab_webhook_trigger(job: Mapping[str, Any]) -> list[str]:
         gitlab_triggers = job["triggers"][0]["gitlab"]
         # pr-check job should be triggered by merge request events
         # and certain comments: [test]|/retest|/lgtm|/lgtm cancel|/hold|/hold cancel

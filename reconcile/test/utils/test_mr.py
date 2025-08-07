@@ -20,19 +20,19 @@ from reconcile.utils.mr.promote_qontract import PromoteQontractReconcileCommerci
 
 
 class DummyMergeRequest(MergeRequestBase):
-    def __init__(self, process_error: Exception | None = None):
+    def __init__(self, process_error: Exception | None = None) -> None:
         super().__init__()
         self.process_error = process_error
 
     @property
-    def title(self):
+    def title(self) -> str:
         return "xxx"
 
     @property
-    def description(self):
+    def description(self) -> str:
         return "xxx"
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         if self.process_error:
             raise self.process_error
 
@@ -41,7 +41,7 @@ def build_gitlab_cli_mock(
     mr_exists: bool = False,
     diffs: list | None = None,
     create_branch_error: Exception | None = None,
-) -> GitLabApi:
+) -> MagicMock:
     cli = MagicMock(spec=GitLabApi)
     cli.mr_exists.return_value = mr_exists
     if create_branch_error:
@@ -62,34 +62,34 @@ class TestMergeRequestBaseProcessContractTests(TestCase):
     """
 
     @staticmethod
-    def test_mr_opened():
+    def test_mr_opened() -> None:
         cli = build_gitlab_cli_mock()
         mr = DummyMergeRequest()
         mr.submit_to_gitlab(cli)
         cli.project.mergerequests.create.assert_called()
 
-    def test_cancellation_on_duplicate_mr(self):
+    def test_cancellation_on_duplicate_mr(self) -> None:
         cli = build_gitlab_cli_mock(mr_exists=True)
         mr = DummyMergeRequest()
         mr.submit_to_gitlab(cli)
         self.assertTrue(mr.cancelled)
         cli.project.mergerequests.create.assert_not_called()
 
-    def test_cancellation_on_empty_mr(self):
+    def test_cancellation_on_empty_mr(self) -> None:
         cli = build_gitlab_cli_mock(diffs=[])
         mr = DummyMergeRequest()
         mr.submit_to_gitlab(cli)
         self.assertTrue(mr.cancelled)
         cli.project.mergerequests.create.assert_not_called()
 
-    def test_failure_during_branching(self):
+    def test_failure_during_branching(self) -> None:
         cli = build_gitlab_cli_mock(create_branch_error=GitlabError())
         mr = DummyMergeRequest()
         with self.assertRaises(MergeRequestProcessingError):
             mr.submit_to_gitlab(cli)
         self.assertFalse(cli.project.mergerequests.create.called)
 
-    def test_failure_during_processing(self):
+    def test_failure_during_processing(self) -> None:
         cli = build_gitlab_cli_mock()
         mr = DummyMergeRequest(process_error=GitlabError())
         with self.assertRaises(MergeRequestProcessingError):
@@ -228,7 +228,7 @@ def test_email_template(
         assert email["to"][key] == value
 
 
-def test_process_by_line_search():
+def test_process_by_line_search() -> None:
     mr = PromoteQontractReconcileCommercial(
         "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
@@ -249,7 +249,7 @@ export IMAGE=1q2w3e4
     assert expected == result
 
 
-def test_process_by_json_path():
+def test_process_by_json_path() -> None:
     mr = PromoteQontractReconcileCommercial(
         "1q2w3e4", "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p"
     )
@@ -288,7 +288,7 @@ resourceTemplates:
 
 
 @pytest.fixture
-def users():
+def users() -> list[User]:
     return [
         User(
             name="",
@@ -301,7 +301,7 @@ def users():
 
 
 @pytest.fixture
-def smtp_settings():
+def smtp_settings() -> SmtpSettingsV1:
     return SmtpSettingsV1(
         mailAddress="redhat.com",
         timeout=30,
@@ -309,7 +309,7 @@ def smtp_settings():
     )
 
 
-def test_author_email_empty(users):
+def test_author_email_empty(users: list[User]) -> None:
     mr = PromoteQontractReconcileCommercial(
         version="1q2w3e4",
         commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
@@ -320,7 +320,9 @@ def test_author_email_empty(users):
 
 
 @patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
-def test_author_org_username(settings, users, smtp_settings):
+def test_author_org_username(
+    settings: MagicMock, users: list[User], smtp_settings: SmtpSettingsV1
+) -> None:
     mr = PromoteQontractReconcileCommercial(
         version="1q2w3e4",
         commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
@@ -332,7 +334,9 @@ def test_author_org_username(settings, users, smtp_settings):
 
 
 @patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
-def test_author_github_username(settings, users, smtp_settings):
+def test_author_github_username(
+    settings: MagicMock, users: list[User], smtp_settings: SmtpSettingsV1
+) -> None:
     mr = PromoteQontractReconcileCommercial(
         "1q2w3e4",
         "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",

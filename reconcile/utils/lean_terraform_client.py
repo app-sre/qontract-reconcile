@@ -6,7 +6,9 @@ from collections.abc import Mapping
 from typing import Any
 
 
-def state_rm_access_key(working_dirs, account, user):
+def state_rm_access_key(
+    working_dirs: Mapping[str, str], account: str, user: str
+) -> bool:
     wd = working_dirs[account]
     init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
     if init_result.returncode != 0:
