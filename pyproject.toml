@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.terraform_users",
     "reconcile.utils.gpg",
     "reconcile.utils.imap_client",
     "reconcile.utils.jjb_client",
@@ -326,7 +325,6 @@ module = [
     "reconcile.test.test_terraform_cloudflare_dns",
     "reconcile.test.test_terraform_repo",
     "reconcile.test.test_terraform_resources",
-    "reconcile.test.test_terraform_users",
     "reconcile.test.test_three_way_diff_strategy",
     "reconcile.test.test_typed_queries.conftest",
     "reconcile.test.test_typed_queries.test_clusters_with_peering",
