@@ -266,7 +266,6 @@ module = [
     "reconcile.utils.ocm_base_client",
     "reconcile.utils.ocm.ocm",
     "reconcile.utils.openshift_resource",
-    "reconcile.utils.raw_github_api",
     "reconcile.utils.vault",
     # untyped tests
     "reconcile.test.oc.test_oc_connection_parameters",
