@@ -1299,7 +1299,7 @@ def user_credentials_migrate_output(ctx: click.Context, account_name: str) -> No
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
-        False,
+        None,
         1,
         skip_accounts,
         account_name=account_name,
