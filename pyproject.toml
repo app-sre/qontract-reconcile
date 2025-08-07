@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.terraform_aws_route53",
     "reconcile.terraform_cloudflare_resources",
     "reconcile.terraform_users",
     "reconcile.utils.gpg",
