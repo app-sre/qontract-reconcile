@@ -24,14 +24,14 @@ class PathSpec(BaseModel):
     path: str
 
     @validator("path")
-    def prepend_data_to_path(cls, v):
+    def prepend_data_to_path(cls, v: str) -> str:
         return "data" + v
 
 
 class CreateDeleteUserAppInterface(MergeRequestBase):
     name = "create_delete_user_mr"
 
-    def __init__(self, username, paths: Iterable[PathSpec]):
+    def __init__(self, username: str, paths: Iterable[PathSpec]) -> None:
         self.username = username
         self.paths = paths
 
@@ -120,7 +120,7 @@ class CreateDeleteUserInfra(MergeRequestBase):
 
     name = "create_ssh_key_mr"
 
-    def __init__(self, usernames):
+    def __init__(self, usernames: Iterable[str]):
         self.usernames = usernames
 
         super().__init__()
@@ -135,7 +135,7 @@ class CreateDeleteUserInfra(MergeRequestBase):
     def description(self) -> str:
         return "delete user(s)"
 
-    def process(self, gitlab_cli):
+    def process(self, gitlab_cli: GitLabApi) -> None:
         raw_file = gitlab_cli.get_raw_file(
             project=gitlab_cli.project,
             path=self.PLAYBOOK,
