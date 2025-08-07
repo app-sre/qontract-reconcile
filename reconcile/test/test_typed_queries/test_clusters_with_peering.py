@@ -23,7 +23,7 @@ def peering(
 @pytest.fixture
 def clusters_with_peering(
     gql_class_factory: Callable[..., ClustersWithPeeringQueryData],
-    peering,
+    peering: ClusterPeeringV1,
 ) -> ClustersWithPeeringQueryData:
     return gql_class_factory(
         ClustersWithPeeringQueryData,
