@@ -21,7 +21,7 @@ from reconcile.utils.ocm_base_client import (
 from reconcile.utils.secret_reader import SecretReader
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping, MutableMapping
 
     from reconcile.ocm.types import OCMSpec
 
@@ -83,13 +83,13 @@ class OCM:
 
     def __init__(
         self,
-        name,
-        org_id,
+        name: str,
+        org_id: str,
         ocm_env: str,
         ocm_client: OCMBaseClient,
-        init_provision_shards=False,
-        init_addons=False,
-        init_version_gates=False,
+        init_provision_shards: bool = False,
+        init_addons: bool = False,
+        init_version_gates: bool = False,
         product_portfolio: OCMProductPortfolio | None = None,
     ):
         """Initiates access token and gets clusters information."""
@@ -130,7 +130,7 @@ class OCM:
             and cluster["product"]["id"] in self.product_portfolio.product_names
         )
 
-    def _init_clusters(self, init_provision_shards: bool):
+    def _init_clusters(self, init_provision_shards: bool) -> None:
         api = f"{CS_API_BASE}/v1/clusters"
         product_csv = ",".join([f"'{p}'" for p in self.product_portfolio.product_names])
         params = {
@@ -168,19 +168,19 @@ class OCM:
         spec = impl.get_ocm_spec(self.ocm_api, cluster, init_provision_shards)
         return spec
 
-    def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool):
+    def create_cluster(self, name: str, cluster: OCMSpec, dry_run: bool) -> None:
         impl = self.get_product_impl(cluster.spec.product, cluster.spec.hypershift)
         impl.create_cluster(self.ocm_api, self.org_id, name, cluster, dry_run)
 
     def update_cluster(
-        self, cluster_name: str, update_spec: Mapping[str, Any], dry_run=False
-    ):
+        self, cluster_name: str, update_spec: Mapping[str, Any], dry_run: bool = False
+    ) -> None:
         cluster = self.clusters[cluster_name]
         cluster_id = self.cluster_ids[cluster_name]
         impl = self.get_product_impl(cluster.spec.product, cluster.spec.hypershift)
         impl.update_cluster(self.ocm_api, cluster_id, update_spec, dry_run)
 
-    def get_group_if_exists(self, cluster, group_id):
+    def get_group_if_exists(self, cluster: str, group_id: str) -> dict[str, Any] | None:
         """Returns a list of users in a group in a cluster.
         If the group does not exist, None will be returned.
 
@@ -202,7 +202,7 @@ class OCM:
         users = self._get_json(api).get("items", [])
         return {"users": [u["id"] for u in users]}
 
-    def add_user_to_group(self, cluster, group_id, user):
+    def add_user_to_group(self, cluster: str, group_id: str, user: str) -> None:
         """
         Adds a user to a group in a cluster.
 
@@ -218,7 +218,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"groups/{group_id}/users"
         self._post(api, {"id": user})
 
-    def del_user_from_group(self, cluster, group_id, user_id):
+    def del_user_from_group(self, cluster: str, group_id: str, user_id: str) -> None:
         """Deletes a user from a group in a cluster.
 
         :param cluster: cluster name
@@ -250,7 +250,7 @@ class OCM:
         switch_role_link = role_grants[0][-1]
         return awsh.get_account_uid_from_role_link(switch_role_link)
 
-    def get_aws_infrastructure_access_role_grants(self, cluster):
+    def get_aws_infrastructure_access_role_grants(self, cluster: str) -> list[tuple[str, str, str, str]]:
         """Returns a list of AWS users (ARN, access level)
         who have AWS infrastructure access in a cluster.
 
@@ -272,8 +272,8 @@ class OCM:
         ]
 
     def get_aws_infrastructure_access_terraform_assume_role(
-        self, cluster, tf_account_id, tf_user
-    ):
+        self, cluster: str, tf_account_id: str, tf_user: str | None
+    ) -> str | None:
         role_grants = self.get_aws_infrastructure_access_role_grants(cluster)
         user_arn = f"arn:aws:iam::{tf_account_id}:user/{tf_user}"
         for arn, role_id, _, console_url in role_grants:
@@ -287,10 +287,12 @@ class OCM:
             role_account_id = account.replace("account=", "")
             role_name = role.replace("roleName=", "")
             return f"arn:aws:iam::{role_account_id}:role/{role_name}"
+    
+        return None
 
     def add_user_to_aws_infrastructure_access_role_grants(
-        self, cluster, user_arn, access_level
-    ):
+        self, cluster: str, user_arn: str, access_level: str
+    ) -> None:
         """
         Adds a user to AWS infrastructure access in a cluster.
 
@@ -310,8 +312,8 @@ class OCM:
         self._post(api, {"user_arn": user_arn, "role": {"id": access_level}})
 
     def del_user_from_aws_infrastructure_access_role_grants(
-        self, cluster, user_arn, access_level
-    ):
+        self, cluster: str, user_arn: str, access_level: str
+    ) -> None:
         """
         Deletes a user from AWS infrastructure access in a cluster.
 
@@ -375,7 +377,9 @@ class OCM:
 
         return results
 
-    def create_external_configuration_label(self, cluster, label):
+    def create_external_configuration_label(
+        self, cluster: str, label: dict[str, str]
+    ) -> None:
         """Creates a new External Configuration label
 
         :param cluster: cluster name
@@ -390,7 +394,7 @@ class OCM:
         )
         self._post(api, label)
 
-    def delete_external_configuration_label(self, cluster, label):
+    def delete_external_configuration_label(self, cluster: str, label: Mapping[str, str]) -> None:
         """Deletes an existing External Configuration label
 
         :param cluster: cluster name
@@ -414,14 +418,9 @@ class OCM:
         )
         self._delete(api)
 
-    def get_machine_pools(self, cluster):
-        """Returns a list of details of Machine Pools
-
-        :param cluster: cluster name
-
-        :type cluster: string
-        """
-        results = []
+    def get_machine_pools(self, cluster: str) -> list[dict[str, Any]]:
+        """Returns a list of details of Machine Pools"""
+        results: list[dict[str, Any]] = []
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
@@ -436,7 +435,7 @@ class OCM:
 
         return results
 
-    def create_machine_pool(self, cluster, spec):
+    def create_machine_pool(self, cluster: str, spec: Mapping[str, str]) -> None:
         """Creates a new Machine Pool
 
         :param cluster: cluster name
@@ -449,7 +448,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools"
         self._post(api, spec)
 
-    def update_machine_pool(self, cluster, spec):
+    def update_machine_pool(self, cluster: str, spec: MutableMapping[str, str]) -> None:
         """Updates an existing Machine Pool
 
         :param cluster: cluster name
@@ -460,7 +459,7 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         machine_pool_id = spec["id"]
-        labels = spec.get("labels", {})
+        labels: str = spec.get("labels", {}) # type: ignore
         spec["labels"] = labels
         api = (
             f"{CS_API_BASE}/v1/clusters/{cluster_id}/machine_pools/"
@@ -468,7 +467,7 @@ class OCM:
         )
         self._patch(api, spec)
 
-    def delete_machine_pool(self, cluster, spec):
+    def delete_machine_pool(self, cluster: str, spec: Mapping[str, str]) -> None:
         """Deletes an existing Machine Pool
 
         :param cluster: cluster name
@@ -485,21 +484,21 @@ class OCM:
         )
         self._delete(api)
 
-    def get_node_pools(self, cluster):
+    def get_node_pools(self, cluster: str) -> list[dict[str, Any]]:
         """Returns a list of details of Node Pools
 
         :param cluster: cluster name
 
         :type cluster: string
         """
-        results = []
+        results: list[dict[str, Any]] = []
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
 
         return get_node_pools(self._ocm_client, cluster_id)
 
-    def delete_node_pool(self, cluster, spec):
+    def delete_node_pool(self, cluster: str, spec: dict[str, str]) -> None:
         """Deletes an existing Node Pool
 
         :param cluster: cluster name
@@ -513,7 +512,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._delete(api)
 
-    def create_node_pool(self, cluster, spec):
+    def create_node_pool(self, cluster: str, spec: dict[str, str]) -> None:
         """Creates a new Node Pool
 
         :param cluster: cluster name
@@ -526,7 +525,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools"
         self._post(api, spec)
 
-    def update_node_pool(self, cluster, spec):
+    def update_node_pool(self, cluster: str, spec: dict[str, str]) -> None:
         """Updates an existing Node Pool
 
         :param cluster: cluster name
@@ -537,19 +536,19 @@ class OCM:
         """
         cluster_id = self.cluster_ids[cluster]
         node_pool_id = spec["id"]
-        labels = spec.get("labels", {})
+        labels: str = spec.get("labels", {}) # type: ignore
         spec["labels"] = labels
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/node_pools/" + f"{node_pool_id}"
         self._patch(api, spec)
 
-    def get_additional_routers(self, cluster):
+    def get_additional_routers(self, cluster: str) -> list[dict[str, Any]]:
         """Returns a list of Additional Application Routers
 
         :param cluster: cluster name
 
         :type cluster: string
         """
-        results = []
+        results: list[dict[str, Any]] = []
         cluster_id = self.cluster_ids.get(cluster)
         if not cluster_id:
             return results
@@ -567,7 +566,7 @@ class OCM:
 
         return results
 
-    def create_additional_router(self, cluster, spec):
+    def create_additional_router(self, cluster: str, spec: Mapping[str, Any]) -> None:
         """Creates a new Additional Application Router
 
         :param cluster: cluster name
@@ -580,7 +579,7 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/ingresses"
         self._post(api, spec)
 
-    def delete_additional_router(self, cluster, spec):
+    def delete_additional_router(self, cluster: str, spec: Mapping[str, Any]) -> None:
         """Deletes an existing Additional Application Router
 
         :param cluster: cluster name
@@ -594,19 +593,19 @@ class OCM:
         api = f"{CS_API_BASE}/v1/clusters/{cluster_id}/" + f"ingresses/{router_id}"
         self._delete(api)
 
-    def _init_addons(self):
+    def _init_addons(self) -> None:
         """Returns a list of Addons"""
         api = f"{CS_API_BASE}/v1/addons"
         self.addons = self._get_json(api).get("items", [])
 
-    def _init_version_gates(self):
+    def _init_version_gates(self) -> None:
         """Returns a list of version gates"""
         if self.version_gates:
             return
         api = f"{CS_API_BASE}/v1/version_gates"
         self.version_gates = self._get_json(api).get("items", [])
 
-    def get_addon(self, id):
+    def get_addon(self, id: str) -> dict[str, Any] | None:
         for addon in self.addons:
             addon_id = addon["id"]
             if id == addon_id:
@@ -652,7 +651,7 @@ class OCM:
 
         return results
 
-    def install_addon(self, cluster, spec):
+    def install_addon(self, cluster: str, spec: MutableMapping[str, Any]) -> None:
         """Installs an addon on a cluster
 
         :param cluster: cluster name
@@ -714,21 +713,28 @@ class OCM:
             return ret_items
         return responses[0]
 
-    def _post(self, api, data=None, params=None):
+    def _post(
+        self,
+        api: str,
+        data: Mapping[str, Any] | None = None,
+        params: Mapping[str, str] | None = None,
+    ) -> Any:
         return self._ocm_client.post(
             api_path=api,
             data=data,
             params=params,
         )
 
-    def _patch(self, api, data, params=None):
+    def _patch(
+        self, api: str, data: Mapping[str, Any], params: Mapping[str, str] | None = None
+    ) -> None:
         return self._ocm_client.patch(
             api_path=api,
             data=data,
             params=params,
         )
 
-    def _delete(self, api):
+    def _delete(self, api: str) -> None:
         return self._ocm_client.delete(
             api_path=api,
         )
@@ -762,14 +768,14 @@ class OCMMap:
 
     def __init__(
         self,
-        clusters=None,
-        namespaces=None,
-        ocms=None,
-        integration="",
-        settings=None,
-        init_provision_shards=False,
-        init_addons=False,
-        init_version_gates=False,
+        clusters: Iterable[Mapping[str, Any]] | None = None,
+        namespaces: Iterable[Mapping[str, Any]] | None = None,
+        ocms: Iterable[Mapping[str, Any]] | None = None,
+        integration: str = "",
+        settings: Mapping[str, Any] | None = None,
+        init_provision_shards: bool = False,
+        init_addons: bool = False,
+        init_version_gates: bool = False,
         product_portfolio: OCMProductPortfolio | None = None,
     ) -> None:
         """Initiates OCM instances for each OCM referenced in a cluster."""
@@ -817,12 +823,12 @@ class OCMMap:
 
     def init_ocm_client_from_cluster(
         self,
-        cluster_info,
-        init_provision_shards,
-        init_addons,
-        init_version_gates,
+        cluster_info: Mapping[str, Any],
+        init_provision_shards: bool,
+        init_addons: bool,
+        init_version_gates: bool,
         product_portfolio: OCMProductPortfolio | None = None,
-    ):
+    ) -> None:
         if self.cluster_disabled(cluster_info):
             return
         cluster_name = cluster_info["name"]
@@ -842,12 +848,12 @@ class OCMMap:
 
     def init_ocm_client(
         self,
-        ocm_info,
-        init_provision_shards,
-        init_addons,
-        init_version_gates,
+        ocm_info: Mapping[str, Any],
+        init_provision_shards: bool,
+        init_addons: bool,
+        init_version_gates: bool,
         product_portfolio: OCMProductPortfolio | None = None,
-    ):
+    ) -> None:
         """
         Initiate OCM client.
         Gets the OCM information and initiates an OCM client.
@@ -901,7 +907,7 @@ class OCMMap:
         """Get list of OCM instance names initiated in the OCM map."""
         return list(self.ocm_map.keys())
 
-    def cluster_disabled(self, cluster_info):
+    def cluster_disabled(self, cluster_info: Mapping[str, Any]) -> bool:
         """
         Checks if the calling integration is disabled in this cluster.
 
@@ -918,7 +924,7 @@ class OCMMap:
 
         return False
 
-    def get(self, cluster) -> OCM:
+    def get(self, cluster: str) -> OCM:
         """
         Gets an OCM instance by cluster.
 
