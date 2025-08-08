@@ -293,6 +293,12 @@ query TerraformResourcesNamespaces {
                         ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
                             source_ip
                         }
+                        ... on NamespaceTerraformResourceALBConditionQueryString_v1 {
+                            query_string {
+                                key
+                                value
+                            }
+                        }
                     }
                     action {
                         type
