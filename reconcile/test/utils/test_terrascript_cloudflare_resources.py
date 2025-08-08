@@ -7,7 +7,7 @@ from reconcile.utils.terrascript.cloudflare_resources import (
 )
 
 
-def create_external_resource_spec(provision_provider):
+def create_external_resource_spec(provision_provider: str) -> ExternalResourceSpec:
     return ExternalResourceSpec(
         provision_provider,
         {"name": "dev", "automationToken": {}},
@@ -19,7 +19,7 @@ def create_external_resource_spec(provision_provider):
     )
 
 
-def test_create_cloudflare_terrascript_resource_unsupported():
+def test_create_cloudflare_terrascript_resource_unsupported() -> None:
     spec = create_external_resource_spec("doesntexist")
 
     with pytest.raises(UnsupportedCloudflareResourceError):

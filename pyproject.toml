@@ -284,9 +284,6 @@ module = [
     "reconcile.test.test_secret_reader",
     "reconcile.test.test_slack_base",
     "reconcile.test.test_slack_usergroups",
-    "reconcile.test.test_terraform_cloudflare_dns",
-    "reconcile.test.test_terraform_repo",
-    "reconcile.test.test_terraform_resources",
     "reconcile.test.test_three_way_diff_strategy",
     "reconcile.test.utils.internal_groups.test_internal_groups_client",
     "reconcile.test.utils.test_aws_rds",
@@ -300,9 +297,6 @@ module = [
     "reconcile.test.utils.test_promotion_state",
     "reconcile.test.utils.test_semver_helper",
     "reconcile.test.utils.test_smtp_client",
-    "reconcile.test.utils.test_terraform",
-    "reconcile.test.utils.test_terrascript_cloudflare_client",
-    "reconcile.test.utils.test_terrascript_cloudflare_resources",
 ]
 check_untyped_defs = false
 disallow_untyped_defs = false
