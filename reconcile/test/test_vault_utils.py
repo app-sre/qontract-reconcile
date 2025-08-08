@@ -15,7 +15,7 @@ class SleepCalledError(Exception):
     pass
 
 
-class VaultClientTest(vault._VaultClient):
+class VaultClientTest(vault.VaultClient):
     def __init__(self) -> None:
         pass
 

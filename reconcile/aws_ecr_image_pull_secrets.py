@@ -59,7 +59,7 @@ def write_output_to_vault(
     logging.info(["write_secret", secret_path])
     vault_client = VaultClient()
     if not dry_run:
-        vault_client.write(secret)  # type: ignore
+        vault_client.write(secret)
 
 
 def run(dry_run: bool, vault_output_path: str = "") -> None:

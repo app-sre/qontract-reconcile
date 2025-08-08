@@ -138,7 +138,7 @@ def fetch_current_state(
     secret_reader: VaultSecretReader, vault_input_path: str
 ) -> list[str]:
     """Fetch all existing SSO client IDs from vault."""
-    return secret_reader.vault_client.list(vault_input_path)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
+    return secret_reader.vault_client.list(vault_input_path)
 
 
 def fetch_desired_state(
@@ -234,7 +234,7 @@ def create_sso_client(
         vault_secret_id=sso_client_id,
     )
 
-    secret_reader.vault_client.write(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
+    secret_reader.vault_client.write(
         secret={
             "path": secret.path,
             "data": sso_client.dict(),
@@ -261,6 +261,4 @@ def delete_sso_client(
         registration_access_token=sso_client.registration_access_token,
     )
 
-    secret_reader.vault_client.delete(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
-        path=secret.path
-    )
+    secret_reader.vault_client.delete(path=secret.path)

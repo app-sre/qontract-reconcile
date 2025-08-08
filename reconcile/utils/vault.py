@@ -1,10 +1,12 @@
 import base64
+import builtins
 import logging
 import os
 import threading
 import time
 from collections.abc import Mapping
 from functools import lru_cache
+from typing import Any, Self, TypedDict
 
 import hvac
 import requests
@@ -49,13 +51,34 @@ class VaultConnectionError(Exception):
 SECRET_VERSION_LATEST = "LATEST"
 
 
-class _VaultClient:
+class VaultClient:
     """
     A class representing a Vault client. Allows read/write operations.
     The client caches read requests in-memory if the request is made
     to a versioned KV engine (v2), since that includes both a path
     and a version (no invalidation required).
     """
+
+    _instance_lock = threading.Lock()
+    _instance = None
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+        with cls._instance_lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+                return cls._instance
+
+            try:
+                is_authenticated = cls._instance._client.is_authenticated()
+            except requests.exceptions.ConnectionError:
+                is_authenticated = False
+
+            if not is_authenticated:
+                cls._instance.close()
+                cls._instance = super().__new__(cls)
+                return cls._instance
+
+            return cls._instance
 
     def __init__(
         self,
@@ -66,69 +89,73 @@ class _VaultClient:
         kube_auth_mount: str | None = None,
         auto_refresh: bool = True,
     ):
-        config = get_config()
+        if not hasattr(self, "initialized"):
+            config = get_config()
 
-        server = config["vault"]["server"] if server is None else server
-        self.kube_auth_enabled = False
-        if "role_id" in config["vault"] or role_id is not None:
-            self.role_id = config["vault"]["role_id"] if role_id is None else role_id
-            self.secret_id = (
-                config["vault"]["secret_id"] if secret_id is None else secret_id
-            )
-        else:
-            self.kube_auth_role = (
-                config["vault"]["kube_auth_role"]
-                if kube_auth_role is None
-                else kube_auth_role
-            )
-            self.kube_auth_mount = (
-                config["vault"]["kube_auth_mount"]
-                if kube_auth_mount is None
-                else kube_auth_mount
-            )
-            self.kube_sa_token_path = os.environ.get(
-                "KUBE_SA_TOKEN_PATH",
-                "/var/run/secrets/kubernetes.io/serviceaccount/token",
-            )
-            self.kube_auth_enabled = True
+            server = config["vault"]["server"] if server is None else server
+            self.kube_auth_enabled = False
+            if "role_id" in config["vault"] or role_id is not None:
+                self.role_id = (
+                    config["vault"]["role_id"] if role_id is None else role_id
+                )
+                self.secret_id = (
+                    config["vault"]["secret_id"] if secret_id is None else secret_id
+                )
+            else:
+                self.kube_auth_role = (
+                    config["vault"]["kube_auth_role"]
+                    if kube_auth_role is None
+                    else kube_auth_role
+                )
+                self.kube_auth_mount = (
+                    config["vault"]["kube_auth_mount"]
+                    if kube_auth_mount is None
+                    else kube_auth_mount
+                )
+                self.kube_sa_token_path = os.environ.get(
+                    "KUBE_SA_TOKEN_PATH",
+                    "/var/run/secrets/kubernetes.io/serviceaccount/token",
+                )
+                self.kube_auth_enabled = True
 
-        self._get_mount_version = lru_cache(maxsize=128)(self.__get_mount_version)
-        self._read_all_v2 = lru_cache(maxsize=2048)(self.__read_all_v2)
+            self._get_mount_version = lru_cache(maxsize=128)(self.__get_mount_version)
+            self._read_all_v2 = lru_cache(maxsize=2048)(self.__read_all_v2)
 
-        session = requests.Session()
-        # There are at most 10 working threads in reconcile, plus 1 daemon thread for auto refresh
-        adapter = HTTPAdapter(pool_maxsize=11)
-        session.mount("https://", adapter)
-        self._client = hvac.Client(url=server, session=session)
-        self._close_lock = threading.Lock()
-        self._closed = False
+            session = requests.Session()
+            # There are at most 10 working threads in reconcile, plus 1 daemon thread for auto refresh
+            adapter = HTTPAdapter(pool_maxsize=11)
+            session.mount("https://", adapter)
+            self._client = hvac.Client(url=server, session=session)
+            self._close_lock = threading.Lock()
+            self._closed = False
 
-        authenticated = False
-        for _ in range(0, 3):
-            try:
-                self._refresh_client_auth()
-                authenticated = self._client.is_authenticated()
-                break
-            except (
-                requests.exceptions.ConnectionError,
-                requests.exceptions.TooManyRedirects,
-            ):
-                time.sleep(1)
+            authenticated = False
+            for _ in range(0, 3):
+                try:
+                    self._refresh_client_auth()
+                    authenticated = self._client.is_authenticated()
+                    break
+                except (
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.TooManyRedirects,
+                ):
+                    time.sleep(1)
 
-        if not authenticated:
-            raise VaultConnectionError()
+            if not authenticated:
+                raise VaultConnectionError()
 
-        if auto_refresh:
-            t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
-            t.start()
+            if auto_refresh:
+                t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
+                t.start()
+            self.initialized = True
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         """
         Close the client and release any resources associated with it.
         """
@@ -137,7 +164,7 @@ class _VaultClient:
                 self._client.adapter.close()
                 self._closed = True
 
-    def _auto_refresh_client_auth(self):
+    def _auto_refresh_client_auth(self) -> None:
         """
         Thread that periodically refreshes the vault token
         """
@@ -150,7 +177,7 @@ class _VaultClient:
                 LOG.debug("auto refresh client auth")
                 self._refresh_client_auth()
 
-    def _refresh_client_auth(self):
+    def _refresh_client_auth(self) -> None:
         if self.kube_auth_enabled:
             # must read each time to account for sa token refresh
             with open(self.kube_sa_token_path, encoding="locale") as f:
@@ -203,12 +230,12 @@ class _VaultClient:
         """
         return self.read_all_with_version(secret)[0]
 
-    def _get_mount_version_by_secret_path(self, path):
+    def _get_mount_version_by_secret_path(self, path: str) -> int:
         path_split = path.split("/")
         mount_point = path_split[0]
         return self._get_mount_version(mount_point)
 
-    def __get_mount_version(self, mount_point):
+    def __get_mount_version(self, mount_point: str) -> int:
         try:
             self._client.secrets.kv.v2.read_configuration(mount_point)
             version = 2
@@ -217,7 +244,9 @@ class _VaultClient:
 
         return version
 
-    def __read_all_v2(self, path: str, version: str | None) -> tuple[dict, str | None]:
+    def __read_all_v2(
+        self, path: str, version: str | None
+    ) -> tuple[dict[str, Any], str | None]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
@@ -248,7 +277,7 @@ class _VaultClient:
         secret_version = secret["data"]["metadata"]["version"]
         return data, secret_version
 
-    def _read_all_v1(self, path):
+    def _read_all_v1(self, path: str) -> Any:
         try:
             secret = self._client.read(path)
         except hvac.exceptions.Forbidden:
@@ -260,8 +289,14 @@ class _VaultClient:
 
         return secret["data"]
 
+    class Secret(TypedDict):
+        path: str
+        field: str
+        format: str | None
+        version: str | None
+
     @retry()
-    def read(self, secret):
+    def read(self, secret: Secret) -> Any:
         """Returns a value of a key in a Vault secret.
 
         The input secret is a dictionary which contains the following fields:
@@ -293,7 +328,7 @@ class _VaultClient:
             else data
         )
 
-    def _read_v2(self, path, field, version):
+    def _read_v2(self, path: str, field: str, version: str | None) -> Any:
         data, _ = self._read_all_v2(path, version)
         try:
             secret_field = data[field]
@@ -301,7 +336,7 @@ class _VaultClient:
             raise SecretFieldNotFoundError(f"{path}/{field} ({version})") from None
         return secret_field
 
-    def _read_v1(self, path, field):
+    def _read_v1(self, path: str, field: str) -> Any:
         data = self._read_all_v1(path)
         try:
             secret_field = data[field]
@@ -360,7 +395,7 @@ class _VaultClient:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbiddenError(msg) from None
 
-    def _write_v1(self, path, data):
+    def _write_v1(self, path: str, data: dict[str, Any]) -> None:
         try:
             self._client.write(path, **data)
         except hvac.exceptions.Forbidden:
@@ -395,7 +430,7 @@ class _VaultClient:
             return []
         return path_list["data"]["keys"] or []
 
-    def list_all(self, path):
+    def list_all(self, path: str) -> builtins.list[str]:
         """Returns a list of secrets in a given path and
         all its subpaths."""
         secrets = []
@@ -415,32 +450,9 @@ class _VaultClient:
             raise ValueError("deleting V2 secrets is not supported yet")
         self._delete_v1(path)
 
-    def _delete_v1(self, path):
+    def _delete_v1(self, path: str) -> None:
         try:
             self._client.delete(path)
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbiddenError(msg) from None
-
-
-class VaultClient:
-    _instance_lock = threading.Lock()
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        with cls._instance_lock:
-            if cls._instance is None:
-                cls._instance = _VaultClient(*args, **kwargs)
-                return cls._instance
-
-            try:
-                is_authenticated = cls._instance._client.is_authenticated()
-            except requests.exceptions.ConnectionError:
-                is_authenticated = False
-
-            if not is_authenticated:
-                cls._instance.close()
-                cls._instance = _VaultClient(*args, **kwargs)
-                return cls._instance
-
-            return cls._instance
