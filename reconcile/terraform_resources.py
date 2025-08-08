@@ -10,7 +10,6 @@ from dataclasses import asdict
 from typing import (
     Any,
     TypedDict,
-    cast,
 )
 
 from deepdiff import DeepHash
@@ -63,7 +62,6 @@ from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascr
 from reconcile.utils.unleash import get_feature_toggle_state
 from reconcile.utils.vault import (
     VaultClient,
-    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "terraform_resources"
@@ -314,7 +312,7 @@ def write_outputs_to_vault(
     vault_path: str, resource_specs: ExternalResourceSpecInventory
 ) -> None:
     integration_name = QONTRACT_INTEGRATION.replace("_", "-")
-    vault_client = cast("_VaultClient", VaultClient())
+    vault_client = VaultClient()
     for spec in resource_specs.values():
         # a secret can be empty if the terraform-integration is not enabled on the cluster
         # the resource is defined on - lets skip vault writes for those right now and

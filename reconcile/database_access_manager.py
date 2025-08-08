@@ -9,7 +9,6 @@ from string import (
 from typing import (
     Any,
     TypedDict,
-    cast,
 )
 
 from pydantic import BaseModel
@@ -44,7 +43,6 @@ from reconcile.utils.state import (
 )
 from reconcile.utils.vault import (
     VaultClient,
-    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "database-access-manager"
@@ -583,7 +581,7 @@ def _process_db_access(
     engine: str,
     settings: dict[Any, Any],
     vault_output_path: str,
-    vault_client: _VaultClient,
+    vault_client: VaultClient,
 ) -> None:
     if not _db_access_acccess_is_valid(db_access):
         raise ValueError("Duplicate schema in access list.")
@@ -708,7 +706,7 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
     def run(self, dry_run: bool) -> None:
         settings = queries.get_app_interface_settings()
-        vault_client = cast("_VaultClient", VaultClient())
+        vault_client = VaultClient()
 
         state = init_state(
             integration=QONTRACT_INTEGRATION, secret_reader=self.secret_reader

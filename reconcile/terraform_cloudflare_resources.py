@@ -3,7 +3,6 @@ import sys
 from collections.abc import Callable, Iterable
 from typing import (
     Any,
-    cast,
 )
 
 from sretoolbox.utils import threaded
@@ -66,7 +65,6 @@ from reconcile.utils.terrascript.cloudflare_client import (
 )
 from reconcile.utils.vault import (
     VaultClient,
-    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_resources"
@@ -272,7 +270,7 @@ def _write_external_resource_secrets_to_vault(
     separate module if we have additional needs for a similar function.
     """
     integration_name = integration_name.replace("_", "-")
-    vault_client = cast("_VaultClient", VaultClient())
+    vault_client = VaultClient()
     for spec in resource_specs.values():
         # A secret can be empty if the terraform-* integrations are not enabled on the cluster
         # the resource is defined on - lets skip vault writes for those right now and

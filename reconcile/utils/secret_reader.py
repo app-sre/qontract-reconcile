@@ -153,7 +153,7 @@ class VaultSecretReader(SecretReaderBase):
         self, path: str, field: str, format: str | None, version: int | None
     ) -> dict[str, str]:
         try:
-            data = self.vault_client.read_all(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
+            data = self.vault_client.read_all(
                 self._parameters_to_dict(
                     path=path,
                     field=field,
@@ -173,7 +173,7 @@ class VaultSecretReader(SecretReaderBase):
         self, path: str, field: str, format: str | None, version: int | None
     ) -> str:
         try:
-            data = self.vault_client.read(  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
+            data = self.vault_client.read(
                 self._parameters_to_dict(
                     path=path,
                     field=field,
@@ -278,7 +278,7 @@ class SecretReader(SecretReaderBase):
 
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
+                data = self.vault_client.read(params)
             except vault.SecretNotFoundError as e:
                 raise SecretNotFoundError(*e.args) from e
         else:
@@ -312,7 +312,7 @@ class SecretReader(SecretReaderBase):
 
         if self.settings and self.settings.get("vault"):
             try:
-                data = self.vault_client.read_all(params)  # type: ignore[attr-defined] # mypy doesn't recognize the VaultClient.__new__ method
+                data = self.vault_client.read_all(params)
             except Forbidden:
                 raise VaultForbiddenError(
                     f"permission denied reading vault secret at {path}"

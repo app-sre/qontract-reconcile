@@ -1,7 +1,4 @@
 import logging
-from typing import (
-    cast,
-)
 
 from pydantic import BaseModel
 
@@ -22,7 +19,6 @@ from reconcile.utils.runtime.integration import (
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.vault import (
     VaultClient,
-    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "deadmanssnitch"
@@ -51,7 +47,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         super().__init__(NoParams())
         self.qontract_integration_version = make_semver(0, 1, 0)
         self.settings = get_deadmanssnitch_settings()
-        self.vault_client = cast("_VaultClient", VaultClient())
+        self.vault_client = VaultClient()
 
     @staticmethod
     def get_snitch_name(cluster: ClusterV1) -> str:

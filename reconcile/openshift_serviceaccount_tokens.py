@@ -157,11 +157,11 @@ def write_outputs_to_vault(
                     f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
                 )
                 secret = {"path": secret_path, "data": body_data}
-                vault_client.write(secret)  # type: ignore
+                vault_client.write(secret)
                 # write secret to shared-resources location
                 secret_path = f"{vault_path}/{integration_name}/shared-resources/{name}"
                 secret = {"path": secret_path, "data": body_data}
-                vault_client.write(secret)  # type: ignore
+                vault_client.write(secret)
 
 
 def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[NamespaceV1]:

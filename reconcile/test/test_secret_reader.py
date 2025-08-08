@@ -10,7 +10,7 @@ from reconcile.utils.secret_reader import (
     SecretReader,
     VaultSecretReader,
 )
-from reconcile.utils.vault import _VaultClient
+from reconcile.utils.vault import VaultClient
 
 VAULT_READ_EXPECTED = {"key": "value"}
 VAULT_READ_ALL_EXPECTED = {"key2": "value2"}
@@ -18,7 +18,7 @@ VAULT_READ_ALL_EXPECTED = {"key2": "value2"}
 
 @pytest.fixture
 def vault_mock():
-    vault_mock = create_autospec(_VaultClient)
+    vault_mock = create_autospec(VaultClient)
     vault_mock.read.side_effect = [VAULT_READ_EXPECTED] * 100
     vault_mock.read_all.side_effect = [VAULT_READ_ALL_EXPECTED] * 100
     return vault_mock
@@ -94,7 +94,7 @@ def test_read_vault_raises(mocker, patch_sleep):
     vault.SecretNotFound.
     """
     mock_vault_client = mocker.patch.object(
-        reconcile.utils.secret_reader, "VaultClient", autospec=_VaultClient
+        reconcile.utils.secret_reader, "VaultClient", autospec=VaultClient
     )
     settings = {"vault": True}
     mock_vault_client.return_value.read.side_effect = vault.SecretNotFoundError
@@ -111,7 +111,7 @@ def test_read_config_raises(mocker, patch_sleep):
     config.SecretNotFound.
     """
     mocker.patch.object(
-        reconcile.utils.secret_reader, "VaultClient", autospec=_VaultClient
+        reconcile.utils.secret_reader, "VaultClient", autospec=VaultClient
     )
 
     secret_reader = SecretReader()
@@ -126,7 +126,7 @@ def test_read_all_vault_raises(mocker, patch_sleep):
     vault.SecretNotFound.
     """
     mock_vault_client = mocker.patch.object(
-        reconcile.utils.secret_reader, "VaultClient", autospec=_VaultClient
+        reconcile.utils.secret_reader, "VaultClient", autospec=VaultClient
     )
 
     settings = {"vault": True}
@@ -144,7 +144,7 @@ def test_read_all_config_raises(mocker, patch_sleep):
     config.SecretNotFound.
     """
     mocker.patch.object(
-        reconcile.utils.secret_reader, "VaultClient", autospec=_VaultClient
+        reconcile.utils.secret_reader, "VaultClient", autospec=VaultClient
     )
 
     secret_reader = SecretReader()

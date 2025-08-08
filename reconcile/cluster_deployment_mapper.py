@@ -60,5 +60,4 @@ def run(dry_run: bool, vault_output_path: str | None) -> None:
                 "map": "\n".join(f"{item['id']}: {item['cluster']}" for item in results)
             },
         }
-        # mypy doesn't like our fancy way of creating a VaultClient
-        vault_client.write(secret, decode_base64=False)  # type: ignore[attr-defined]
+        vault_client.write(secret, decode_base64=False)

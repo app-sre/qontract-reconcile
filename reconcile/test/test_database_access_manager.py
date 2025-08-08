@@ -448,7 +448,7 @@ def dbam_state(mocker: MockerFixture) -> MockerFixture:
 
 @pytest.fixture
 def vault_mock(mocker: MockerFixture) -> MockerFixture:
-    return mocker.patch("reconcile.utils.vault._VaultClient", autospec=True)
+    return mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
 
 
 @pytest.fixture
