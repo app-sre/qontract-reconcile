@@ -47,12 +47,12 @@ class SecretFieldNotFoundError(Exception):
 class VaultConnectionError(Exception):
     pass
 
+
 class Secret(TypedDict):
     path: str
     field: str
     format: str | None
     version: str | None
-
 
 
 SECRET_VERSION_LATEST = "LATEST"
@@ -103,9 +103,7 @@ class VaultClient:
         server = config["vault"]["server"] if server is None else server
         self.kube_auth_enabled = False
         if "role_id" in config["vault"] or role_id is not None:
-            self.role_id = (
-                config["vault"]["role_id"] if role_id is None else role_id
-            )
+            self.role_id = config["vault"]["role_id"] if role_id is None else role_id
             self.secret_id = (
                 config["vault"]["secret_id"] if secret_id is None else secret_id
             )
