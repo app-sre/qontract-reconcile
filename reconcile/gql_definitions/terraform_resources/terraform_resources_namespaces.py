@@ -350,6 +350,12 @@ query TerraformResourcesNamespaces {
                         ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
                             source_ip
                         }
+                        ... on NamespaceTerraformResourceALBConditionQueryString_v1 {
+                            query_string {
+                                key
+                                value
+                            }
+                        }
                     }
                     action {
                         type
@@ -861,6 +867,15 @@ class NamespaceTerraformResourceALBConditionSourceIPV1(NamespaceTerraformResourc
     source_ip: list[str] = Field(..., alias="source_ip")
 
 
+class NamespaceTerraformResourceALBConditionQueryStringKeyValueV1(ConfiguredBaseModel):
+    key: Optional[str] = Field(..., alias="key")
+    value: str = Field(..., alias="value")
+
+
+class NamespaceTerraformResourceALBConditionQueryStringV1(NamespaceTerraformResourceALBConditionV1):
+    query_string: list[NamespaceTerraformResourceALBConditionQueryStringKeyValueV1] = Field(..., alias="query_string")
+
+
 class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
     q_type: str = Field(..., alias="type")
 
@@ -902,7 +917,7 @@ class NamespaceTerraformResourceALBActionRedirectV1(NamespaceTerraformResourceAL
 
 
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
+    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionQueryStringV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
     action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionRedirectV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
 
 

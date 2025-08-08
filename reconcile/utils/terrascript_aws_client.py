@@ -282,6 +282,7 @@ SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING = {
     "host-header": "host_header",
     "http-request-method": "http_request_method",
     "path-pattern": "path_pattern",
+    "query-string": "query_string",
     "source-ip": "source_ip",
 }
 
@@ -5346,6 +5347,11 @@ class TerrascriptClient:
         )
         if condition_type_key is None:
             raise KeyError(f"unknown alb rule condition type {condition_type}")
+
+        # Query string conditions use a different structure than other condition types
+        if condition_type == "query-string":
+            return {condition_type_key: condition[condition_type_key]}
+
         return {condition_type_key: {"values": condition[condition_type_key]}}
 
     @staticmethod
