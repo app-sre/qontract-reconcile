@@ -363,7 +363,8 @@ def test_create_job(
     controller.create_job(job)
 
     applied_kinds = [
-        call.kwargs["resource"].kind for call in controller.oc.apply.call_args_list
+        call.kwargs["resource"].kind
+        for call in controller.oc.apply.call_args_list  # type: ignore ## parts of OC are mocked
     ]
     assert applied_kinds == expected_applied_kinds
 

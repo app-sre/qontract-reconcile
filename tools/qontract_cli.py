@@ -2184,6 +2184,8 @@ def root_owner(
         init_api_resources=True,
     )
     oc = oc_map.get(cluster)
+    if isinstance(oc, OCLogMsg):
+        raise oc
     obj = oc.get(namespace, kind, name)
     root_owner = oc.get_obj_root_owner(
         namespace, obj, allow_not_found=True, allow_not_controller=True
@@ -2196,7 +2198,7 @@ def root_owner(
     if ctx.obj["options"]["output"] != "json":
         ctx.obj["options"]["output"] = "yaml"
 
-    print_output(ctx.obj["options"], root_owner)
+    print_output(ctx.obj["options"], root_owner)  # type: ignore
 
 
 @get.command()
