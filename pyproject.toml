@@ -260,9 +260,7 @@ disallow_incomplete_defs = true
 
 
 [[tool.mypy.overrides]]
-# Untyped modules
 module = [
-    "reconcile.utils.oc",
     "reconcile.utils.openshift_resource",
     "reconcile.utils.vault",
     # untyped tests
@@ -292,12 +290,11 @@ module = [
     "reconcile.test.utils.test_jira_client",
     "reconcile.test.utils.test_jsonpath",
     "reconcile.test.utils.test_models",
-    "reconcile.test.utils.test_oc",
     "reconcile.test.utils.test_parse_dhms_duration",
     "reconcile.test.utils.test_promotion_state",
     "reconcile.test.utils.test_semver_helper",
     "reconcile.test.utils.test_smtp_client",
-]
+] # Untyped modules
 check_untyped_defs = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

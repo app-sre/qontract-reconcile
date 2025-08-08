@@ -535,6 +535,10 @@ def apply(
             # take care of the resize ourselves.
             # ref: https://github.com/kubernetes/enhancements/pull/2842
             if resize_required:
+                if desired_storage is None:
+                    raise ValidationError(
+                        "Resource body does not contain storage information."
+                    ) from None
                 logging.info(["resizing_pvcs", cluster, namespace, owned_pvc_names])
                 oc.resize_pvcs(namespace, owned_pvc_names, desired_storage)
 

@@ -87,13 +87,14 @@ def fetch_desired_state(
         if not namespace.openshift_service_account_tokens:
             continue
 
-        if not (oc := oc_map.get(namespace.cluster.name)):
+        oc = oc_map.get(namespace.cluster.name)
+        if isinstance(oc, ob.OCLogMsg):
             logging.log(level=oc.log_level, msg=oc.message)
             continue
 
         for sat in namespace.openshift_service_account_tokens:
             oc = oc_map.get(sat.namespace.cluster.name)
-            if not oc:
+            if isinstance(oc, ob.OCLogMsg):
                 if oc.log_level >= logging.ERROR:
                     ri.register_error()
                 logging.log(level=oc.log_level, msg=oc.message)
