@@ -22,7 +22,6 @@ from reconcile.utils.vault import (
     SecretAccessForbiddenError,
     SecretNotFoundError,
     SecretVersionNotFoundError,
-    VaultClient,
 )
 
 fxt = Fixtures("vault_replication")
@@ -331,11 +330,9 @@ def test_deep_copy_versions_exception(
     current_source_version: int,
     path: str,
     mocker: MockerFixture,
-    vault_client_test: Any
+    vault_client_test: Any,
 ) -> None:
-    vault_client = mocker.patch(
-        "reconcile.utils.vault.VaultClient", autospec=True
-    )
+    vault_client = mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
     write_dummy_versions = mocker.patch(
         "reconcile.vault_replication.write_dummy_versions", autospec=True
     )
