@@ -1,11 +1,13 @@
 import logging
 import os
+from typing import Any, TypedDict, cast
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from kubernetes.dynamic import Resource
 from kubernetes.dynamic.exceptions import ResourceNotFoundError
+from pytest_mock import MockerFixture
 
 import reconcile.utils.oc
 from reconcile.utils.oc import (
@@ -34,7 +36,9 @@ from reconcile.utils.secret_reader import (
 class TestGetOwnedPods(TestCase):
     @patch.object(OCCli, "get")
     @patch.object(OCCli, "get_obj_root_owner")
-    def test_get_owned_pods(self, oc_get_obj_root_owner, oc_get):
+    def test_get_owned_pods(
+        self, oc_get_obj_root_owner: MagicMock, oc_get: MagicMock
+    ) -> None:
         owner_body = {"kind": "ownerkind", "metadata": {"name": "ownername"}}
         owner_resource = OR(owner_body, "", "")
 
@@ -87,7 +91,7 @@ class TestGetOwnedPods(TestCase):
             {"kind": "ownerkind", "metadata": {"name": "notownername"}},
         ]
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         pods = oc.get_owned_pods("namespace", owner_resource)
         self.assertEqual(len(pods), 1)
         self.assertEqual(pods[0]["metadata"]["name"], "pod1")
@@ -96,7 +100,7 @@ class TestGetOwnedPods(TestCase):
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestValidatePodReady(TestCase):
     @patch.object(OCCli, "get")
-    def test_validate_pod_ready_all_good(self, oc_get):
+    def test_validate_pod_ready_all_good(self, oc_get: MagicMock) -> None:
         oc_get.return_value = {
             "status": {
                 "containerStatuses": [
@@ -108,11 +112,11 @@ class TestValidatePodReady(TestCase):
                 ]
             }
         }
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         oc.validate_pod_ready("namespace", "podname")
 
     @patch.object(OCCli, "get")
-    def test_validate_pod_ready_one_missing(self, oc_get):
+    def test_validate_pod_ready_one_missing(self, oc_get: MagicMock) -> None:
         oc_get.return_value = {
             "status": {
                 "containerStatuses": [
@@ -125,7 +129,7 @@ class TestValidatePodReady(TestCase):
             }
         }
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         with self.assertRaises(PodNotReadyError):
             # Bypass the retry stuff
             oc.validate_pod_ready.__wrapped__(oc, "namespace", "podname")
@@ -134,7 +138,7 @@ class TestValidatePodReady(TestCase):
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestGetObjRootOwner(TestCase):
     @patch.object(OCCli, "get")
-    def test_owner(self, oc_get):
+    def test_owner(self, oc_get: MagicMock) -> None:
         obj = {
             "metadata": {
                 "name": "pod1",
@@ -147,31 +151,31 @@ class TestGetObjRootOwner(TestCase):
 
         oc_get.side_effect = [owner_obj]
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         result_owner_obj = oc.get_obj_root_owner("namespace", obj)
         self.assertEqual(result_owner_obj, owner_obj)
 
-    def test_no_owner(self):
+    def test_no_owner(self) -> None:
         obj = {
             "metadata": {
                 "name": "pod1",
             }
         }
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         result_obj = oc.get_obj_root_owner("namespace", obj)
         self.assertEqual(result_obj, obj)
 
-    def test_controller_false_return_obj(self):
+    def test_controller_false_return_obj(self) -> None:
         """Returns obj if all ownerReferences have controller set to false"""
         obj = {"metadata": {"name": "pod1", "ownerReferences": [{"controller": False}]}}
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         result_obj = oc.get_obj_root_owner("namespace", obj)
         self.assertEqual(result_obj, obj)
 
     @patch.object(OCCli, "get")
-    def test_controller_false_return_controller(self, oc_get):
+    def test_controller_false_return_controller(self, oc_get: MagicMock) -> None:
         """Returns owner if all ownerReferences have controller set to false
         and allow_not_controller is set to True
         """
@@ -186,12 +190,14 @@ class TestGetObjRootOwner(TestCase):
         owner_obj = {"kind": "ownerkind", "metadata": {"name": "ownername"}}
         oc_get.side_effect = [owner_obj]
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         result_obj = oc.get_obj_root_owner("namespace", obj, allow_not_controller=True)
         self.assertEqual(result_obj, owner_obj)
 
     @patch.object(OCCli, "get")
-    def test_cont_true_allow_true_ref_not_found_return_obj(self, oc_get):
+    def test_cont_true_allow_true_ref_not_found_return_obj(
+        self, oc_get: MagicMock
+    ) -> None:
         """Returns obj if controller is true, allow_not_found is true,
         but referenced object does not exist '{}'
         """
@@ -203,16 +209,18 @@ class TestGetObjRootOwner(TestCase):
                 ],
             }
         }
-        owner_obj = {}
+        owner_obj: dict[str, Any] = {}
 
         oc_get.side_effect = [owner_obj]
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         result_obj = oc.get_obj_root_owner("namespace", obj, allow_not_found=True)
         self.assertEqual(result_obj, obj)
 
     @patch.object(OCCli, "get")
-    def test_controller_true_allow_false_ref_not_found_raise(self, oc_get):
+    def test_controller_true_allow_false_ref_not_found_raise(
+        self, oc_get: MagicMock
+    ) -> None:
         """Throws an exception if controller is true, allow_not_found false,
         but referenced object does not exist
         """
@@ -227,28 +235,28 @@ class TestGetObjRootOwner(TestCase):
 
         oc_get.side_effect = StatusCodeError
 
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         with self.assertRaises(StatusCodeError):
             oc.get_obj_root_owner("namespace", obj, allow_not_found=False)
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestPodOwnedPVCNames(TestCase):
-    def test_no_volumes(self):
-        pods = [{"spec": {"volumes": []}}]
-        oc = OC("cluster", "server", "token", local=True)
+    def test_no_volumes(self) -> None:
+        pods: list[dict[str, Any]] = [{"spec": {"volumes": []}}]
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 0)
 
-    def test_other_volumes(self):
+    def test_other_volumes(self) -> None:
         pods = [{"spec": {"volumes": [{"configMap": {"name": "cm"}}]}}]
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 0)
 
-    def test_ok(self):
+    def test_ok(self) -> None:
         pods = [{"spec": {"volumes": [{"persistentVolumeClaim": {"claimName": "cm"}}]}}]
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         owned_pvc_names = oc.get_pod_owned_pvc_names(pods)
         self.assertEqual(len(owned_pvc_names), 1)
         self.assertEqual(next(iter(owned_pvc_names)), "cm")
@@ -256,13 +264,13 @@ class TestPodOwnedPVCNames(TestCase):
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
 class TestGetStorage(TestCase):
-    def test_none(self):
+    def test_none(self) -> None:
         resource = {"spec": {"what": "ever"}}
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         storage = oc.get_storage(resource)
         self.assertIsNone(storage)
 
-    def test_ok(self):
+    def test_ok(self) -> None:
         size = "100Gi"
         resource = {
             "spec": {
@@ -271,16 +279,16 @@ class TestGetStorage(TestCase):
                 ]
             }
         }
-        oc = OC("cluster", "server", "token", local=True)
+        oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         result = oc.get_storage(resource)
         self.assertEqual(result, size)
 
 
 class TestValidateLabels(TestCase):
-    def test_ok(self):
+    def test_ok(self) -> None:
         self.assertFalse(validate_labels({"my.company.com/key-name": "value"}))
 
-    def test_long_value(self):
+    def test_long_value(self) -> None:
         v = "a" * LABEL_MAX_VALUE_LENGTH
         self.assertFalse(validate_labels({"my.company.com/key-name": v}))
 
@@ -288,7 +296,7 @@ class TestValidateLabels(TestCase):
         r = validate_labels({"my.company.com/key-name": v})
         self.assertEqual(len(r), 1)
 
-    def test_long_keyname(self):
+    def test_long_keyname(self) -> None:
         kn = "a" * LABEL_MAX_KEY_NAME_LENGTH
         self.assertFalse(validate_labels({f"my.company.com/{kn}": "value"}))
 
@@ -296,7 +304,7 @@ class TestValidateLabels(TestCase):
         r = validate_labels({f"my.company.com/{kn}": "value"})
         self.assertEqual(len(r), 1)
 
-    def test_long_key_prefix(self):
+    def test_long_key_prefix(self) -> None:
         prefix = "a" * LABEL_MAX_KEY_PREFIX_LENGTH
         self.assertFalse(validate_labels({f"{prefix}/key": "value"}))
 
@@ -304,26 +312,26 @@ class TestValidateLabels(TestCase):
         r = validate_labels({f"{prefix}/key": "value"})
         self.assertEqual(len(r), 1)
 
-    def test_invalid_value(self):
+    def test_invalid_value(self) -> None:
         r = validate_labels({"my.company.com/key-name": "b@d"})
         self.assertEqual(len(r), 1)
 
-    def test_invalid_key_name(self):
+    def test_invalid_key_name(self) -> None:
         r = validate_labels({"my.company.com/key@name": "value"})
         self.assertEqual(len(r), 1)
 
-    def test_invalid_key_prefix(self):
+    def test_invalid_key_prefix(self) -> None:
         r = validate_labels({"my@company.com/key-name": "value"})
         self.assertEqual(len(r), 1)
 
-    def test_reserved_key_prefix(self):
+    def test_reserved_key_prefix(self) -> None:
         r = validate_labels({"kubernetes.io/key-name": "value"})
         self.assertEqual(len(r), 1)
 
         r = validate_labels({"k8s.io/key-name": "value"})
         self.assertEqual(len(r), 1)
 
-    def test_many_wrong(self):
+    def test_many_wrong(self) -> None:
         longstr = "a" * (LABEL_MAX_KEY_PREFIX_LENGTH + 1)
         key_prefix = "b@d." + longstr + ".com"
         key_name = "b@d-" + longstr
@@ -335,77 +343,99 @@ class TestValidateLabels(TestCase):
         self.assertEqual(len(r), 10)
 
 
+class Cluster(TypedDict):
+    name: str
+    serverUrl: str
+    automationToken: dict[str, str] | None
+    clusterAdminAutomationToken: dict[str, str] | None
+    internal: bool | None
+    disable: dict[str, list[str]] | None
+
+
 class TestOCMapInit(TestCase):
-    def test_missing_serverurl(self):
+    def test_missing_serverurl(self) -> None:
         """
         When a cluster with a missing serverUrl is passed into OC_Map, it
         should be skipped.
         """
-        cluster = {
+        cluster: Cluster = {
             "name": "test-1",
             "serverUrl": "",
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
-        oc_map = OC_Map(clusters=[cluster])
-
+        oc_map = OC_Map(clusters=[dict(cluster)])
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
-            oc_map.get(cluster["name"]).message, f"[{cluster['name']}] has no serverUrl"
+            oc_map.get(cluster["name"]).message,  # type: ignore ## mypy doesn't understand the assertIsInstance above
+            f"[{cluster['name']}] has no serverUrl",
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
-    def test_missing_automationtoken(self):
+    def test_missing_automationtoken(self) -> None:
         """
         When a cluster with a missing automationToken is passed into OC_Map, it
         should be skipped.
         """
-        cluster = {
+        cluster: Cluster = {
             "name": "test-1",
             "serverUrl": "http://localhost",
             "automationToken": None,
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
-        oc_map = OC_Map(clusters=[cluster])
+        oc_map = OC_Map(clusters=[dict(cluster)])
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
-            oc_map.get(cluster["name"]).message,
+            oc_map.get(cluster["name"]).message,  # type: ignore ## mypy doesn't understand the assertIsInstance above
             f"[{cluster['name']}] has no automation token",
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_automationtoken_not_found(self, mock_secret_reader):
+    def test_automationtoken_not_found(self, mock_secret_reader: MagicMock) -> None:
         mock_secret_reader.side_effect = SecretNotFoundError
 
-        cluster = {
+        cluster: Cluster = {
             "name": "test-1",
             "serverUrl": "http://localhost",
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
 
-        oc_map = OC_Map(clusters=[cluster])
+        oc_map = OC_Map(clusters=[dict(cluster)])
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
-            oc_map.get(cluster["name"]).message, f"[{cluster['name']}] secret not found"
+            oc_map.get(cluster["name"]).message,  # type: ignore ## mypy doesn't understand the assertIsInstance above
+            f"[{cluster['name']}] secret not found",
         )
         self.assertEqual(len(oc_map.clusters()), 0)
 
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_server_url_mismatch(self, mock_secret_reader):
+    def test_server_url_mismatch(self, mock_secret_reader: MagicMock) -> None:
         mock_secret_reader.return_value = {"server": "foo", "some-field": "bar"}
 
-        cluster = {
+        cluster: Cluster = {
             "name": "test-1",
             "serverUrl": "http://localhost",
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
 
-        oc_map = OC_Map(clusters=[cluster])
+        oc_map = OC_Map(clusters=[dict(cluster)])
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
-            oc_map.get(cluster["name"]).message,
+            oc_map.get(cluster["name"]).message,  # type: ignore ## mypy doesn't understand the assertIsInstance above
             f"[{cluster['name']}] server URL mismatch",
         )
         self.assertEqual(len(oc_map.clusters()), 0)
@@ -413,7 +443,7 @@ class TestOCMapInit(TestCase):
 
 class TestOCMapGetClusters(TestCase):
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_clusters_errors_empty_return(self, mock_secret_reader):
+    def test_clusters_errors_empty_return(self, mock_secret_reader: MagicMock) -> None:
         """
         clusters() shouldn't return the names of any clusters that didn't
         initialize a client successfully.
@@ -423,19 +453,25 @@ class TestOCMapGetClusters(TestCase):
             "some-field": "bar",
         }
 
-        cluster = {
+        cluster: Cluster = {
             "name": "test-1",
             "serverUrl": "http://localhost",
+            "automationToken": None,
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
 
-        oc_map = OC_Map(clusters=[cluster])
+        oc_map = OC_Map(clusters=[dict(cluster)])
 
         self.assertEqual(oc_map.clusters(), [])
         self.assertIsInstance(oc_map.oc_map.get(cluster["name"]), OCLogMsg)
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_clusters_errors_with_include_errors(self, mock_secret_reader, mock_oc):
+    def test_clusters_errors_with_include_errors(
+        self, mock_secret_reader: MagicMock, mock_oc: MagicMock
+    ) -> None:
         """
         With the include_errors kwarg set to true, clusters that didn't
         initialize a client are still included.
@@ -445,43 +481,56 @@ class TestOCMapGetClusters(TestCase):
             "some-field": "bar",
         }
 
-        cluster_1 = {
+        cluster_1: Cluster = {
             "name": "test-1",
             "serverUrl": "http://localhost",
+            "automationToken": None,
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
 
-        cluster_2 = {
+        cluster_2: Cluster = {
             "name": "test-2",
             "serverUrl": "http://localhost",
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
 
         cluster_names = [cluster_1["name"], cluster_2["name"]]
 
-        oc_map = OC_Map(clusters=[cluster_1, cluster_2])
+        oc_map = OC_Map(clusters=[dict(cluster_1), dict(cluster_2)])
 
         self.assertEqual(oc_map.clusters(include_errors=True), cluster_names)
         self.assertIsInstance(oc_map.oc_map.get(cluster_1["name"]), OCLogMsg)
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_namespace_with_cluster_admin(self, mock_secret_reader, mock_oc):
+    def test_namespace_with_cluster_admin(
+        self, mock_secret_reader: MagicMock, mock_oc: MagicMock
+    ) -> None:
         mock_secret_reader.return_value = {
             "server": "http://localhost",
             "some-field": "bar",
         }
 
-        cluster_1 = {
+        cluster_1: Cluster = {
             "name": "cl1",
             "serverUrl": "http://localhost",
             "clusterAdminAutomationToken": {"path": "some-path", "field": "some-field"},
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "internal": False,
+            "disable": None,
         }
-        cluster_2 = {
+        cluster_2: Cluster = {
             "name": "cl2",
             "serverUrl": "http://localhost",
             "clusterAdminAutomationToken": {"path": "some-path", "field": "some-field"},
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "internal": False,
+            "disable": None,
         }
         namespace_1 = {"name": "ns1", "clusterAdmin": True, "cluster": cluster_1}
 
@@ -502,16 +551,21 @@ class TestOCMapGetClusters(TestCase):
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_missing_cluster_automation_token(self, mock_secret_reader, mock_oc):
+    def test_missing_cluster_automation_token(
+        self, mock_secret_reader: MagicMock, mock_oc: MagicMock
+    ) -> None:
         mock_secret_reader.return_value = {
             "server": "http://localhost",
             "some-field": "bar",
         }
 
-        cluster_1 = {
+        cluster_1: Cluster = {
             "name": "cl1",
             "serverUrl": "http://localhost",
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "clusterAdminAutomationToken": None,
+            "internal": False,
+            "disable": None,
         }
         namespace_1 = {"name": "ns1", "clusterAdmin": True, "cluster": cluster_1}
 
@@ -529,17 +583,21 @@ class TestOCMapGetClusters(TestCase):
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_internal_clusters(self, mock_secret_reader, mock_oc):
+    def test_internal_clusters(
+        self, mock_secret_reader: MagicMock, mock_oc: MagicMock
+    ) -> None:
         mock_secret_reader.return_value = {
             "server": "http://localhost",
             "some-field": "bar",
         }
 
-        cluster = {
+        cluster: Cluster = {
             "name": "cl1",
             "serverUrl": "http://localhost",
             "internal": True,
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "clusterAdminAutomationToken": None,
+            "disable": None,
         }
         namespace = {"name": "ns1", "cluster": cluster}
 
@@ -553,18 +611,22 @@ class TestOCMapGetClusters(TestCase):
 
     @patch.object(reconcile.utils.oc, "OC", autospec=True)
     @patch.object(SecretReader, "read_all", autospec=True)
-    def test_disabled_integration(self, mock_secret_reader, mock_oc):
+    def test_disabled_integration(
+        self, mock_secret_reader: MagicMock, mock_oc: MagicMock
+    ) -> None:
         mock_secret_reader.return_value = {
             "server": "http://localhost",
             "some-field": "bar",
         }
 
         calling_int = "calling_integration"
-        cluster = {
+        cluster: Cluster = {
             "name": "cl1",
             "serverUrl": "http://localhost",
             "disable": {"integrations": [calling_int.replace("_", "-")]},
             "automationToken": {"path": "some-path", "field": "some-field"},
+            "clusterAdminAutomationToken": None,
+            "internal": False,
         }
         namespace = {"name": "ns1", "cluster": cluster}
 
@@ -573,13 +635,13 @@ class TestOCMapGetClusters(TestCase):
 
 
 @pytest.fixture
-def oc_cli(monkeypatch) -> OCCli:
+def oc_cli(monkeypatch: Any) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     return OC("cluster", "server", "token", local=True)  # type: ignore[return-value]
 
 
 @pytest.fixture
-def pod():
+def pod() -> dict[str, Any]:
     return {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -620,18 +682,22 @@ def pod():
     }
 
 
-def test_get_resources_used_in_pod_spec_unsupported_kind(oc_cli):
+def test_get_resources_used_in_pod_spec_unsupported_kind(oc_cli: OCCli) -> None:
     with pytest.raises(KeyError):
         oc_cli.get_resources_used_in_pod_spec({}, "Deployment")
 
 
-def test_get_resources_used_in_pod_spec_secret(oc_cli, pod):
+def test_get_resources_used_in_pod_spec_secret(
+    oc_cli: OCCli, pod: dict[str, Any]
+) -> None:
     expected = {"secret1": set(), "secret2": set(), "secret3": {"secretkey3"}}
     results = oc_cli.get_resources_used_in_pod_spec(pod["spec"], "Secret")
     assert results == expected
 
 
-def test_get_resources_used_in_pod_spec_configmap(oc_cli, pod):
+def test_get_resources_used_in_pod_spec_configmap(
+    oc_cli: OCCli, pod: dict[str, Any]
+) -> None:
     expected = {
         "configmap1": set(),
         "configmap2": set(),
@@ -641,33 +707,36 @@ def test_get_resources_used_in_pod_spec_configmap(oc_cli, pod):
     assert results == expected
 
 
-def test_secret_used_in_pod_true(oc_cli, pod):
+def test_secret_used_in_pod_true(oc_cli: OCCli, pod: dict[str, Any]) -> None:
     result = oc_cli.secret_used_in_pod("secret1", pod)
     assert result is True
 
 
-def test_secret_used_in_pod_false(oc_cli, pod):
+def test_secret_used_in_pod_false(oc_cli: OCCli, pod: dict[str, Any]) -> None:
     result = oc_cli.secret_used_in_pod("secret9999", pod)
     assert result is False
 
 
-def test_configmap_used_in_pod_true(oc_cli, pod):
+def test_configmap_used_in_pod_true(oc_cli: OCCli, pod: dict[str, Any]) -> None:
     result = oc_cli.configmap_used_in_pod("configmap1", pod)
     assert result is True
 
 
-def test_configmap_used_in_pod_false(oc_cli, pod):
+def test_configmap_used_in_pod_false(oc_cli: OCCli, pod: dict[str, Any]) -> None:
     result = oc_cli.configmap_used_in_pod("configmap9999", pod)
     assert result is False
 
 
-def test_oc_map_exception_on_missing_cluster():
-    cluster = {
+def test_oc_map_exception_on_missing_cluster() -> None:
+    cluster: Cluster = {
         "name": "test-1",
         "serverUrl": "",
         "automationToken": {"path": "some-path", "field": "some-field"},
+        "clusterAdminAutomationToken": None,
+        "internal": False,
+        "disable": None,
     }
-    oc_map = OC_Map(clusters=[cluster])
+    oc_map = OC_Map(clusters=[dict(cluster)])
 
     assert isinstance(oc_map.get(cluster["name"]), OCLogMsg)
     with pytest.raises(OCLogMsg) as ctx:
@@ -734,12 +803,14 @@ def test_oc_map_exception_on_missing_cluster():
         ),
     ],
 )
-def test_equal_spec_template(t1, t2, expected):
+def test_equal_spec_template(
+    t1: dict[str, Any], t2: dict[str, Any], expected: bool
+) -> None:
     assert equal_spec_template(t1, t2) == expected
 
 
 @pytest.fixture()
-def deployment():
+def deployment() -> dict[str, Any]:
     return {
         "apiVersion": "apps/v1",
         "kind": "Deployment",
@@ -773,7 +844,7 @@ def deployment():
 
 
 @pytest.fixture()
-def replicasets(deployment):
+def replicasets(deployment: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         # last active
         {
@@ -898,10 +969,10 @@ def replicasets(deployment):
 
 
 def test_get_owned_replicasets(
-    mocker,
+    mocker: MockerFixture,
     oc_cli: OCCli,
-    deployment,
-):
+    deployment: dict[str, Any],
+) -> None:
     oc__get = mocker.patch.object(oc_cli, "get", autospec=True)
     oc__get_obj_root_owner = mocker.patch.object(
         oc_cli, "get_obj_root_owner", autospec=True
@@ -917,12 +988,12 @@ def test_get_owned_replicasets(
 
 
 def test_get_replicaset(
-    patch_sleep,
-    mocker,
+    patch_sleep: MagicMock,
+    mocker: MockerFixture,
     oc_cli: OCCli,
-    deployment,
-    replicasets,
-):
+    deployment: dict[str, Any],
+    replicasets: list[dict[str, Any]],
+) -> None:
     oc__get_owned_replicasets = mocker.patch.object(
         oc_cli, "get_owned_replicasets", autospec=True
     )
@@ -935,11 +1006,11 @@ def test_get_replicaset(
 
 
 def test_get_replicaset_fail(
-    patch_sleep,
-    mocker,
+    patch_sleep: MagicMock,
+    mocker: MockerFixture,
     oc_cli: OCCli,
-    deployment,
-):
+    deployment: dict[str, Any],
+) -> None:
     oc__get_owned_replicasets = mocker.patch.object(
         oc_cli, "get_owned_replicasets", autospec=True
     )
@@ -951,11 +1022,11 @@ def test_get_replicaset_fail(
 
 
 def test_get_replicaset_allow_empty(
-    patch_sleep,
-    mocker,
+    patch_sleep: MagicMock,
+    mocker: MockerFixture,
     oc_cli: OCCli,
-    deployment,
-):
+    deployment: dict[str, Any],
+) -> None:
     oc__get_owned_replicasets = mocker.patch.object(
         oc_cli, "get_owned_replicasets", autospec=True
     )
@@ -964,7 +1035,7 @@ def test_get_replicaset_allow_empty(
 
 
 @pytest.fixture
-def api_resources():
+def api_resources() -> dict[str, list[Resource]]:
     k1_g1 = Resource(
         prefix="", kind="kind1", group="group1", api_version="v1", namespaced=True
     )
@@ -978,34 +1049,36 @@ def api_resources():
 
 
 @pytest.fixture
-def oc_api_resources(monkeypatch, mocker, api_resources) -> OCCli:
+def oc_api_resources(
+    monkeypatch: Any, mocker: MockerFixture, api_resources: dict[str, list[Resource]]
+) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
     get_api_resources.return_value = api_resources
     return OC("cluster", "server", "token", local=True, init_api_resources=True)  # type: ignore[return-value]
 
 
-def test_is_kind_namespaced(oc_api_resources):
+def test_is_kind_namespaced(oc_api_resources: OCCli) -> None:
     assert oc_api_resources.is_kind_namespaced("kind1")
 
 
-def test_is_kind_namespaced_full_name(oc_api_resources):
+def test_is_kind_namespaced_full_name(oc_api_resources: OCCli) -> None:
     assert oc_api_resources.is_kind_namespaced("kind1.group11")
 
 
-def test_is_kind_not_namespaced(oc_api_resources):
+def test_is_kind_not_namespaced(oc_api_resources: OCCli) -> None:
     assert not oc_api_resources.is_kind_namespaced("kind2")
 
 
-def test_is_kind_not_namespaced_full_name(oc_api_resources):
+def test_is_kind_not_namespaced_full_name(oc_api_resources: OCCli) -> None:
     assert not oc_api_resources.is_kind_namespaced("kind2.group2")
 
 
 @pytest.fixture
 def oc_native(
-    monkeypatch,
-    mocker,
-    api_resources: dict,
+    monkeypatch: Any,
+    mocker: MockerFixture,
+    api_resources: dict[str, list[Resource]],
 ) -> OCNative:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "True")
     get_api_resources = mocker.patch.object(OCCli, "get_api_resources", autospec=True)
