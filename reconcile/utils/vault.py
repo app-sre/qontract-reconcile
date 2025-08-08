@@ -47,6 +47,13 @@ class SecretFieldNotFoundError(Exception):
 class VaultConnectionError(Exception):
     pass
 
+class Secret(TypedDict):
+    path: str
+    field: str
+    format: str | None
+    version: str | None
+
+
 
 SECRET_VERSION_LATEST = "LATEST"
 
@@ -89,65 +96,66 @@ class VaultClient:
         kube_auth_mount: str | None = None,
         auto_refresh: bool = True,
     ):
-        if not hasattr(self, "initialized"):
-            config = get_config()
+        if hasattr(self, "initialized"):
+            return
+        config = get_config()
 
-            server = config["vault"]["server"] if server is None else server
-            self.kube_auth_enabled = False
-            if "role_id" in config["vault"] or role_id is not None:
-                self.role_id = (
-                    config["vault"]["role_id"] if role_id is None else role_id
-                )
-                self.secret_id = (
-                    config["vault"]["secret_id"] if secret_id is None else secret_id
-                )
-            else:
-                self.kube_auth_role = (
-                    config["vault"]["kube_auth_role"]
-                    if kube_auth_role is None
-                    else kube_auth_role
-                )
-                self.kube_auth_mount = (
-                    config["vault"]["kube_auth_mount"]
-                    if kube_auth_mount is None
-                    else kube_auth_mount
-                )
-                self.kube_sa_token_path = os.environ.get(
-                    "KUBE_SA_TOKEN_PATH",
-                    "/var/run/secrets/kubernetes.io/serviceaccount/token",
-                )
-                self.kube_auth_enabled = True
+        server = config["vault"]["server"] if server is None else server
+        self.kube_auth_enabled = False
+        if "role_id" in config["vault"] or role_id is not None:
+            self.role_id = (
+                config["vault"]["role_id"] if role_id is None else role_id
+            )
+            self.secret_id = (
+                config["vault"]["secret_id"] if secret_id is None else secret_id
+            )
+        else:
+            self.kube_auth_role = (
+                config["vault"]["kube_auth_role"]
+                if kube_auth_role is None
+                else kube_auth_role
+            )
+            self.kube_auth_mount = (
+                config["vault"]["kube_auth_mount"]
+                if kube_auth_mount is None
+                else kube_auth_mount
+            )
+            self.kube_sa_token_path = os.environ.get(
+                "KUBE_SA_TOKEN_PATH",
+                "/var/run/secrets/kubernetes.io/serviceaccount/token",
+            )
+            self.kube_auth_enabled = True
 
-            self._get_mount_version = lru_cache(maxsize=128)(self.__get_mount_version)
-            self._read_all_v2 = lru_cache(maxsize=2048)(self.__read_all_v2)
+        self._get_mount_version = lru_cache(maxsize=128)(self.__get_mount_version)
+        self._read_all_v2 = lru_cache(maxsize=2048)(self.__read_all_v2)
 
-            session = requests.Session()
-            # There are at most 10 working threads in reconcile, plus 1 daemon thread for auto refresh
-            adapter = HTTPAdapter(pool_maxsize=11)
-            session.mount("https://", adapter)
-            self._client = hvac.Client(url=server, session=session)
-            self._close_lock = threading.Lock()
-            self._closed = False
+        session = requests.Session()
+        # There are at most 10 working threads in reconcile, plus 1 daemon thread for auto refresh
+        adapter = HTTPAdapter(pool_maxsize=11)
+        session.mount("https://", adapter)
+        self._client = hvac.Client(url=server, session=session)
+        self._close_lock = threading.Lock()
+        self._closed = False
 
-            authenticated = False
-            for _ in range(0, 3):
-                try:
-                    self._refresh_client_auth()
-                    authenticated = self._client.is_authenticated()
-                    break
-                except (
-                    requests.exceptions.ConnectionError,
-                    requests.exceptions.TooManyRedirects,
-                ):
-                    time.sleep(1)
+        authenticated = False
+        for _ in range(0, 3):
+            try:
+                self._refresh_client_auth()
+                authenticated = self._client.is_authenticated()
+                break
+            except (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.TooManyRedirects,
+            ):
+                time.sleep(1)
 
-            if not authenticated:
-                raise VaultConnectionError()
+        if not authenticated:
+            raise VaultConnectionError()
 
-            if auto_refresh:
-                t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
-                t.start()
-            self.initialized = True
+        if auto_refresh:
+            t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
+            t.start()
+        self.initialized = True
 
     def __enter__(self) -> Self:
         return self
@@ -288,12 +296,6 @@ class VaultClient:
             raise SecretNotFoundError(path)
 
         return secret["data"]
-
-    class Secret(TypedDict):
-        path: str
-        field: str
-        format: str | None
-        version: str | None
 
     @retry()
     def read(self, secret: Secret) -> Any:
