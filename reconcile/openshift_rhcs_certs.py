@@ -127,7 +127,7 @@ def get_vault_cert_secret(
 ) -> dict | None:
     vault_cert_secret = None
     try:
-        vault_cert_secret = vault.read_all({  # type: ignore[attr-defined]
+        vault_cert_secret = vault.read_all({
             "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         })
     except SecretNotFoundError:
@@ -149,7 +149,7 @@ def generate_vault_cert_secret(
     logging.info(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
     )
-    sa_password = vault.read(cert_resource.service_account_password.dict())  # type: ignore[attr-defined]
+    sa_password = vault.read(cert_resource.service_account_password.dict())
     if dry_run:
         rhcs_cert = RhcsV2Cert(
             certificate="PLACEHOLDER_CERT",
@@ -169,7 +169,7 @@ def generate_vault_cert_secret(
         logging.info(
             f"Writing cert details to Vault at {vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         )
-        vault.write(  # type: ignore[attr-defined]
+        vault.write(
             secret={
                 "data": rhcs_cert.dict(by_alias=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",

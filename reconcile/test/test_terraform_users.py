@@ -33,7 +33,7 @@ def new_users() -> list[FakeUser]:
 def test_write_user_to_vault(
     mocker: MockerFixture, new_users: Iterable[FakeUser]
 ) -> None:
-    vm = mocker.patch("reconcile.terraform_users._VaultClient", autospec=True)
+    vm = mocker.patch("reconcile.terraform_users.VaultClient", autospec=True)
 
     write_user_to_vault(vm, "test", new_users, [])
 
@@ -54,7 +54,7 @@ def test_write_user_to_vault(
 def test_write_user_to_vault_skipped(
     mocker: MockerFixture, new_users: Iterable[FakeUser]
 ) -> None:
-    vm = mocker.patch("reconcile.terraform_users._VaultClient", autospec=True)
+    vm = mocker.patch("reconcile.terraform_users.VaultClient", autospec=True)
 
     write_user_to_vault(vm, "test", new_users, ["aws1"])
 
