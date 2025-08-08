@@ -73,6 +73,7 @@ def _build_infrastructure_assume_role(
     ocm: OCM | None,
     provided_assume_role: str | None,
 ) -> dict[str, Any] | None:
+    assume_role: str | None = None
     if provided_assume_role:
         assume_role = provided_assume_role
     elif cluster["spec"].get("account"):

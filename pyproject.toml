@@ -263,15 +263,11 @@ disallow_incomplete_defs = true
 # Untyped modules
 module = [
     "reconcile.utils.oc",
-    "reconcile.utils.ocm_base_client",
-    "reconcile.utils.ocm.ocm",
     "reconcile.utils.openshift_resource",
-    "reconcile.utils.raw_github_api",
     "reconcile.utils.vault",
     # untyped tests
     "reconcile.test.oc.test_oc_connection_parameters",
     "reconcile.test.oc.test_oc_map",
-    "reconcile.test.ocm_labels.test_ocm_labels_integration",
     "reconcile.test.test_acs_rbac",
     "reconcile.test.test_checkpoint",
     "reconcile.test.test_closedbox_endpoint_monitoring",
@@ -300,7 +296,6 @@ module = [
     "reconcile.test.utils.test_jsonpath",
     "reconcile.test.utils.test_models",
     "reconcile.test.utils.test_oc",
-    "reconcile.test.utils.test_ocm",
     "reconcile.test.utils.test_parse_dhms_duration",
     "reconcile.test.utils.test_promotion_state",
     "reconcile.test.utils.test_semver_helper",

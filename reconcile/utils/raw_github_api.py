@@ -1,7 +1,10 @@
 import os
+from typing import Any
 
 import requests
 from sretoolbox.utils import retry
+
+Headers = dict[str, str | bytes | None]
 
 
 class RawGithubApi:
@@ -18,10 +21,10 @@ class RawGithubApi:
         "application/vnd.github.dazzler-preview+json"
     }
 
-    def __init__(self, password):
+    def __init__(self, password: str) -> None:
         self.password = password
 
-    def headers(self, headers=None):
+    def headers(self, headers: Headers | None = None) -> Headers:
         if headers is None:
             headers = {}
         new_headers = headers.copy()
@@ -29,13 +32,13 @@ class RawGithubApi:
         new_headers["Authorization"] = "token %s" % (self.password,)
         return new_headers
 
-    def patch(self, url):
+    def patch(self, url: str) -> requests.Response:
         res = requests.patch(url, headers=self.headers(), timeout=60)
         res.raise_for_status()
         return res
 
     @retry()
-    def query(self, url, headers=None):
+    def query(self, url: str, headers: Headers | None = None) -> Any:
         if headers is None:
             headers = {}
         h = self.headers(headers)
@@ -64,7 +67,7 @@ class RawGithubApi:
 
         return result
 
-    def org_invitations(self, org):
+    def org_invitations(self, org: str) -> list[str]:
         invitations = self.query(f"/orgs/{org}/invitations")
 
         return [
@@ -73,7 +76,7 @@ class RawGithubApi:
             if login is not None
         ]
 
-    def team_invitations(self, org_id, team_id):
+    def team_invitations(self, org_id: str, team_id: str) -> list[str]:
         invitations = self.query(f"/organizations/{org_id}/team/{team_id}/invitations")
 
         return [
@@ -82,10 +85,10 @@ class RawGithubApi:
             if login is not None
         ]
 
-    def repo_invitations(self):
+    def repo_invitations(self) -> list[dict[str, Any]]:
         return self.query("/user/repository_invitations")
 
-    def accept_repo_invitation(self, invitation_id):
+    def accept_repo_invitation(self, invitation_id: int) -> None:
         url = self.BASE_URL + f"/user/repository_invitations/{invitation_id}"
         res = self.patch(url)
         res.raise_for_status()
