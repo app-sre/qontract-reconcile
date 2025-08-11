@@ -1,4 +1,5 @@
 import pytest
+import smtpdfix
 
 from reconcile.utils.smtp_client import (
     SmtpClient,
@@ -7,13 +8,13 @@ from reconcile.utils.smtp_client import (
 
 
 @pytest.fixture
-def patch_env(monkeypatch):
+def patch_env(monkeypatch: pytest.MonkeyPatch) -> None:
     # do not mess around with SSL and certificates
     monkeypatch.setenv("SMTPD_SSL_CERTS_PATH", "/do-not-create-a-certificate")
 
 
 @pytest.fixture
-def smtp_client(patch_env, smtpd):
+def smtp_client(patch_env: None, smtpd: smtpdfix.AuthController) -> SmtpClient:
     # Instead of mocking smtplib.SMTP, we are using a real testing SMTP server
     # (https://github.com/bebleo/smtpdfix) via pytest fixture (smtpd).
 
@@ -31,7 +32,9 @@ def smtp_client(patch_env, smtpd):
     )
 
 
-def test_smtp_client_init(smtp_client: SmtpClient, smtpd):
+def test_smtp_client_init(
+    smtp_client: SmtpClient, smtpd: smtpdfix.AuthController
+) -> None:
     assert smtp_client.host == smtpd.hostname
     assert smtp_client.user == smtpd.config.login_username
     assert smtp_client.passwd == smtpd.config.login_password
@@ -40,11 +43,13 @@ def test_smtp_client_init(smtp_client: SmtpClient, smtpd):
     assert smtp_client.timeout == 30
 
 
-def test_smtp_client_get_recipient(smtp_client: SmtpClient):
+def test_smtp_client_get_recipient(smtp_client: SmtpClient) -> None:
     assert smtp_client.get_recipient("benturner") == "benturner@mailAddress.com"
 
 
-def test_smtp_client_send_mail(smtp_client: SmtpClient, smtpd):
+def test_smtp_client_send_mail(
+    smtp_client: SmtpClient, smtpd: smtpdfix.AuthController
+) -> None:
     smtp_client.send_mail(["benturner"], "subject_subject", "body_body_body")
     assert len(smtpd.messages) == 1
     msg = smtpd.messages[0]
@@ -53,7 +58,9 @@ def test_smtp_client_send_mail(smtp_client: SmtpClient, smtpd):
     assert "\nbody_body_body" in msg.as_string()
 
 
-def test_smtp_client_send_mails(smtp_client: SmtpClient, smtpd):
+def test_smtp_client_send_mails(
+    smtp_client: SmtpClient, smtpd: smtpdfix.AuthController
+) -> None:
     smtp_client.send_mails([
         ("benturner", "subject_subject", "body_body_body"),
         ("2benturner2", "2subject_subject2", "2body_body_body2"),

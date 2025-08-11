@@ -258,46 +258,6 @@ show_error_codes = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
-
-[[tool.mypy.overrides]]
-# Untyped modules
-module = [
-    # untyped tests
-    "reconcile.test.oc.test_oc_connection_parameters",
-    "reconcile.test.oc.test_oc_map",
-    "reconcile.test.test_acs_rbac",
-    "reconcile.test.test_checkpoint",
-    "reconcile.test.test_closedbox_endpoint_monitoring",
-    "reconcile.test.test_dashdotdb_dora",
-    "reconcile.test.test_database_access_manager",
-    "reconcile.test.test_jenkins_worker_fleets",
-    "reconcile.test.test_jump_host",
-    "reconcile.test.test_openshift_namespaces",
-    "reconcile.test.test_openshift_saas_deploy_change_tester",
-    "reconcile.test.test_openshift_saas_deploy",
-    "reconcile.test.test_openshift_upgrade_watcher",
-    "reconcile.test.test_prometheus_rules_tester",
-    "reconcile.test.test_saasherder_allowed_secret_paths",
-    "reconcile.test.test_slack_base",
-    "reconcile.test.test_slack_usergroups",
-    "reconcile.test.test_three_way_diff_strategy",
-    "reconcile.test.utils.internal_groups.test_internal_groups_client",
-    "reconcile.test.utils.test_aws_rds",
-    "reconcile.test.utils.test_external_resource_spec",
-    "reconcile.test.utils.test_helm",
-    "reconcile.test.utils.test_jira_client",
-    "reconcile.test.utils.test_jsonpath",
-    "reconcile.test.utils.test_models",
-    "reconcile.test.utils.test_parse_dhms_duration",
-    "reconcile.test.utils.test_promotion_state",
-    "reconcile.test.utils.test_semver_helper",
-    "reconcile.test.utils.test_smtp_client",
-]
-check_untyped_defs = false
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-
 [[tool.mypy.overrides]]
 # Below are all of the packages that don't implement stub packages. Mypy will throw an error if we don't ignore the
 # missing imports. See: https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports

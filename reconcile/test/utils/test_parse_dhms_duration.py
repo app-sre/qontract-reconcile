@@ -30,7 +30,7 @@ def test_valid_duration(test_input: str, expected: int) -> None:
     "bad_input",
     ["2", "35", "1d1", "1d1j", "2hh", "ms"],
 )
-def test_invalid_duration(bad_input: str):
+def test_invalid_duration(bad_input: str) -> None:
     with pytest.raises(BadHDMSDurationError):
         dhms_to_seconds(bad_input)
 
@@ -51,5 +51,5 @@ def test_invalid_duration(bad_input: str):
         ("90m", "1h30m0s"),
     ],
 )
-def test_format_valid_duration(test_input: str, expected: int) -> None:
+def test_format_valid_duration(test_input: str, expected: str) -> None:
     assert seconds_to_hms(dhms_to_seconds(test_input)) == expected

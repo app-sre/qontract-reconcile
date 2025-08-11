@@ -81,7 +81,7 @@ def db_access_complete(
 
 
 @pytest.fixture
-def db_connection_parameter():
+def db_connection_parameter() -> DatabaseConnectionParameters:
     return DatabaseConnectionParameters(
         host="localhost",
         port="5432",
@@ -92,7 +92,7 @@ def db_connection_parameter():
 
 
 @pytest.fixture
-def db_admin_connection_parameter():
+def db_admin_connection_parameter() -> DatabaseConnectionParameters:
     return DatabaseConnectionParameters(
         host="localhost",
         port="5432",
@@ -193,7 +193,7 @@ def test_generate_access(
     db_access_access: DatabaseAccessAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
     db_admin_connection_parameter: DatabaseConnectionParameters,
-):
+) -> None:
     db_access.access = [db_access_access]
 
     s = PSQLScriptGenerator(
@@ -211,7 +211,7 @@ def test_generate_revoke_access(
     db_access_access: DatabaseAccessAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
     db_admin_connection_parameter: DatabaseConnectionParameters,
-):
+) -> None:
     db_access.access = [db_access_access]
 
     s = PSQLScriptGenerator(
@@ -272,7 +272,7 @@ def test_generate_revoke_changed(
     db_admin_connection_parameter: DatabaseConnectionParameters,
     expected: str,
     current: DatabaseAccessV1 | None,
-):
+) -> None:
     s = PSQLScriptGenerator(
         db_access=db_access_complete,
         current_db_access=current,
@@ -288,7 +288,7 @@ def test_generate_complete(
     db_access_complete: DatabaseAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
     db_admin_connection_parameter: DatabaseConnectionParameters,
-):
+) -> None:
     s = PSQLScriptGenerator(
         db_access=db_access_complete,
         connection_parameter=db_connection_parameter,
@@ -304,7 +304,7 @@ def test_generate_delete_complete(
     db_access_complete: DatabaseAccessV1,
     db_connection_parameter: DatabaseConnectionParameters,
     db_admin_connection_parameter: DatabaseConnectionParameters,
-):
+) -> None:
     db_access_complete.delete = True
     s = PSQLScriptGenerator(
         db_access=db_access_complete,
@@ -319,14 +319,14 @@ def test_generate_delete_complete(
 
 def test_db_access_acccess_is_valid(
     db_access_complete: DatabaseAccessV1, db_access_access: DatabaseAccessAccessV1
-):
+) -> None:
     assert db_access_complete.access
     assert _db_access_acccess_is_valid(db_access_complete)
     db_access_complete.access.append(db_access_access)
     assert not _db_access_acccess_is_valid(db_access_complete)
 
 
-def test_job_completion():
+def test_job_completion() -> None:
     s = JobStatus(conditions=[])
     assert s.is_complete() is False
 
@@ -335,7 +335,7 @@ def test_job_completion():
     assert s.has_errors() is False
 
 
-def test_has_errors():
+def test_has_errors() -> None:
     s = JobStatus(conditions=[JobStatusCondition(type="Failed")])
     assert s.is_complete()
     assert s.has_errors()
@@ -347,7 +347,7 @@ def test_populate_resources(
     db_connection_parameter: DatabaseConnectionParameters,
     db_admin_connection_parameter: DatabaseConnectionParameters,
     openshift_resource_secet: OpenshiftResource,
-):
+) -> None:
     mocker.patch(
         "reconcile.database_access_manager.orb.fetch_provider_vault_secret",
         return_value=openshift_resource_secet,
@@ -378,7 +378,7 @@ def test__create_database_connection_parameter_user_exists(
     db_access: DatabaseAccessV1,
     db_secret_dict: dict[str, dict[str, str]],
     mocker: MockerFixture,
-):
+) -> None:
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.return_value = db_secret_dict
     p = _create_database_connection_parameter(
@@ -405,7 +405,7 @@ def test__create_database_connection_parameter_user_missing(
     db_access: DatabaseAccessV1,
     db_secret_dict: dict[str, dict[str, str]],
     mocker: MockerFixture,
-):
+) -> None:
     pw_generated = "1N5j7oksB45l8w0RJD8qR0ENJP1yOAOs"  # notsecret
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.side_effect = [None, db_secret_dict]
@@ -436,18 +436,18 @@ def test__create_database_connection_parameter_user_missing(
     assert oc.get.call_count == 2
 
 
-def test_generate_password():
+def test_generate_password() -> None:
     assert len(_generate_password()) == 32
     assert _generate_password() != _generate_password()
 
 
 @pytest.fixture
-def dbam_state(mocker: MockerFixture) -> MockerFixture:
+def dbam_state(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("reconcile.database_access_manager.State", autospec=True)
 
 
 @pytest.fixture
-def vault_mock(mocker: MockerFixture) -> MockerFixture:
+def vault_mock(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
 
 
@@ -491,7 +491,7 @@ def test__process_db_access_job_pass(
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
     vault_mock: MagicMock,
-):
+) -> None:
     dbam_state.exists.return_value = False
     dbam_state.get.return_value = db_access
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -551,7 +551,7 @@ def test__process_db_access_job_error(
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
     vault_mock: MagicMock,
-):
+) -> None:
     dbam_state.exists.return_value = False
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
     oc.get.return_value = {"status": {"conditions": [{"type": "Failed"}]}}
@@ -581,7 +581,7 @@ def test__process_db_access_state_diff(
     mocker: MockerFixture,
     ai_settings: dict[str, Any],
     vault_mock: MagicMock,
-):
+) -> None:
     dba_current = db_access.dict(by_alias=True)
     dba_current["access"] = [{"grants": ["SELECT"], "target": {"dbschema": "test"}}]
     dbam_state.get.return_value = dba_current
@@ -627,7 +627,7 @@ def test__process_db_access_value_error_database(
     ai_settings: dict[str, Any],
     field: str,
     vault_mock: MagicMock,
-):
+) -> None:
     dba_current = db_access.dict(by_alias=True)
     dba_current[field] = "foo"
     dbam_state.get.return_value = dba_current
@@ -651,7 +651,7 @@ def test__process_db_access_state_exists_matched(
     db_access_namespace: NamespaceV1,
     dbam_state: MagicMock,
     vault_mock: MagicMock,
-):
+) -> None:
     dbam_state.exists.return_value = True
     dbam_state.get.return_value = db_access.dict(by_alias=True)
     # missing mocks would cause this to fail if not exit early

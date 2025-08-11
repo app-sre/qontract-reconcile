@@ -29,7 +29,7 @@ def test_saasherder_allowed_secret_paths(
         ...,
         SaasFile,
     ],
-):
+) -> None:
     """
     ensure a parent directory in allowed_secret_parameter_paths matches correctly
     """

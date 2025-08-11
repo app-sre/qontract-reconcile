@@ -1,3 +1,6 @@
+from collections.abc import Generator
+from typing import Any
+
 import pytest
 
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -12,12 +15,14 @@ fxt = Fixtures("openshift_resource")
 
 
 @pytest.fixture
-def deployment():
+def deployment() -> Generator[dict[str, Any], None, None]:
     resource = fxt.get_anymarkup("deployment.yml")
     yield resource
 
 
-def test_3wpd_change_current_not_in_desired_should_not_apply(deployment):
+def test_3wpd_change_current_not_in_desired_should_not_apply(
+    deployment: dict[str, Any],
+) -> None:
     d_item = OR(deployment, "", "")
     c_item = d_item.annotate(canonicalize=False)
 
@@ -25,7 +30,7 @@ def test_3wpd_change_current_not_in_desired_should_not_apply(deployment):
     assert three_way_diff_using_hash(c_item, d_item) is True
 
 
-def test_3wpd_equal_objects_should_not_apply(deployment):
+def test_3wpd_equal_objects_should_not_apply(deployment: dict[str, Any]) -> None:
     d_item = OR(deployment, "", "")
 
     # sha256 Hash is calculated over the DESIRED object
@@ -33,7 +38,7 @@ def test_3wpd_equal_objects_should_not_apply(deployment):
     assert three_way_diff_using_hash(c_item, d_item) is True
 
 
-def test_3wpd_change_desired_should_apply(deployment):
+def test_3wpd_change_desired_should_apply(deployment: dict[str, Any]) -> None:
     d_item = OR(deployment, "", "")
     c_item = d_item.annotate(canonicalize=False)
 
@@ -42,7 +47,7 @@ def test_3wpd_change_desired_should_apply(deployment):
 
 
 # Changes in current objects over attributes defined in desired
-def test_3wpd_change_current_should_apply(deployment):
+def test_3wpd_change_current_should_apply(deployment: dict[str, Any]) -> None:
     d_item = OR(deployment, "", "")
     c_item = d_item.annotate(canonicalize=False)
 
@@ -50,7 +55,7 @@ def test_3wpd_change_current_should_apply(deployment):
     assert three_way_diff_using_hash(c_item, d_item) is False
 
 
-def test_is_a_cpu_mutation(deployment):
+def test_is_a_cpu_mutation(deployment: dict[str, Any]) -> None:
     patch = {
         "op": "replace",
         "path": "/spec/template/spec/containers/0/resources/requests/cpu",
@@ -64,7 +69,7 @@ def test_is_a_cpu_mutation(deployment):
     assert is_cpu_mutation(current, desired, patch) is True
 
 
-def test_is_not_a_cpu_mutation(deployment):
+def test_is_not_a_cpu_mutation(deployment: dict[str, Any]) -> None:
     patch = {
         "op": "replace",
         "path": "/spec/template/spec/containers/0/resources/requests/cpu",
@@ -78,7 +83,7 @@ def test_is_not_a_cpu_mutation(deployment):
     assert is_cpu_mutation(current, desired, patch) is False
 
 
-def test_3wpd_change_valid_mutation_not_apply(deployment):
+def test_3wpd_change_valid_mutation_not_apply(deployment: dict[str, Any]) -> None:
     d_item = OR(deployment, "", "")
     d_item.body["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"][
         "cpu"
@@ -92,7 +97,9 @@ def test_3wpd_change_valid_mutation_not_apply(deployment):
     assert three_way_diff_using_hash(c_item, d_item) is True
 
 
-def test_3wpd_change_empty_env_value_should_not_apply(deployment):
+def test_3wpd_change_empty_env_value_should_not_apply(
+    deployment: dict[str, Any],
+) -> None:
     d_item = OR(deployment, "", "")
     d_item.body["spec"]["template"]["spec"]["containers"][0]["env"] = [
         {
@@ -111,7 +118,7 @@ def test_3wpd_change_empty_env_value_should_not_apply(deployment):
     assert three_way_diff_using_hash(c_item, d_item) is True
 
 
-def test_3wpd_diff_detects_missing_annotation(deployment):
+def test_3wpd_diff_detects_missing_annotation(deployment: dict[str, Any]) -> None:
     d_item = OR(deployment, "", "")
     d_item.body["metadata"]["annotations"]["new-annotation"] = "test-value"
     c_item = d_item.annotate(canonicalize=False)
@@ -121,7 +128,7 @@ def test_3wpd_diff_detects_missing_annotation(deployment):
     assert three_way_diff_using_hash(c_item, d_item) is False
 
 
-def test_3wpd_diff_detects_switch_integration(deployment):
+def test_3wpd_diff_detects_switch_integration(deployment: dict[str, Any]) -> None:
     d_item = OR(deployment, "same-integration", "")
     deployment["metadata"]["annotations"]["qontract.integration"] = (
         "different-integration"
