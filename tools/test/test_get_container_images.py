@@ -62,12 +62,6 @@ def test_fetch_no_filter(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
             "count": 1,
         },
         {
-            "name": "quay.io/app-sre/internal-redhat-ca",
-            "namespaces": "app-sre-observability-stage,app-sre-pipelines",
-            "namespace_apps": "app-sre,app-sre-observability",
-            "count": 3,
-        },
-        {
             "name": "quay.io/app-sre/prom-cloudwatch-exporter",
             "namespaces": "app-sre-observability-stage",
             "namespace_apps": "app-sre-observability",
@@ -84,6 +78,12 @@ def test_fetch_no_filter(namespaces: list[NamespaceV1], oc_map: OCMap) -> None:
             "namespaces": "app-sre-pipelines",
             "namespace_apps": "app-sre",
             "count": 1,
+        },
+        {
+            "name": "quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master",
+            "namespaces": "app-sre-observability-stage,app-sre-pipelines",
+            "namespace_apps": "app-sre,app-sre-observability",
+            "count": 3,
         },
         {
             "name": "quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main",
@@ -162,12 +162,6 @@ def test_fetch_exception(
 
     assert images == [
         {
-            "name": "quay.io/app-sre/internal-redhat-ca",
-            "namespaces": "app-sre-observability-stage",
-            "namespace_apps": "app-sre-observability",
-            "count": 2,
-        },
-        {
             "name": "quay.io/app-sre/prom-cloudwatch-exporter",
             "namespaces": "app-sre-observability-stage",
             "namespace_apps": "app-sre-observability",
@@ -178,6 +172,12 @@ def test_fetch_exception(
             "namespaces": "app-sre-observability-stage",
             "namespace_apps": "app-sre-observability",
             "count": 1,
+        },
+        {
+            "name": "quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master",
+            "namespaces": "app-sre-observability-stage",
+            "namespace_apps": "app-sre-observability",
+            "count": 2,
         },
         {
             "name": "quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main",
