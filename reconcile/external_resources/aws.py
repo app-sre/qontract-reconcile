@@ -319,3 +319,34 @@ class AWSMskFactory(AWSDefaultResourceFactory):
                 raise ValueError(
                     f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
                 )
+
+
+class AWSDynamodbTableFactory(AWSDefaultResourceFactory):
+    def validate(
+        self,
+        resource: ExternalResource,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> None:
+        data = resource.data
+        
+        # Early return if either prefix or name is missing
+        prefix = data.get("prefix")
+        name = data.get("name")
+        if not prefix or not name:
+            return
+            
+        # Validate that prefix is a substring of name
+        if prefix not in name:
+            raise ValueError(
+                f"prefix '{prefix}' must be a substring of name '{name}'"
+            )
+
+    def resolve(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> dict[str, Any]:
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+        data["output_prefix"] = spec.output_prefix
+        return data
