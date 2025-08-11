@@ -106,7 +106,8 @@ class RoleBindingSpec(BaseModel):
         else:
             openshift_client = None
         username_list = RoleBindingSpec.get_usernames_from_role(
-            users, ob.determine_user_keys_for_access(
+            users,
+            ob.determine_user_keys_for_access(
                 access.namespace.cluster.name,
                 access.namespace.cluster.auth,
                 enforced_user_keys,
@@ -316,7 +317,7 @@ def fetch_desired_state(
                         oc_resource.resource_name,
                         oc_resource.resource,
                         privileged=oc_resource.privileged,
-                    ) 
+                    )
     # print("************************************************")
     # print(f"namespace_mapping: {namespace_mapping}")
     # print("************************************************")
