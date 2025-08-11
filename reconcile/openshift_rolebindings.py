@@ -23,7 +23,6 @@ from reconcile.utils import (
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
-from reconcile.utils.oc import OCCli
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
@@ -72,7 +71,6 @@ class RoleBindingSpec(BaseModel):
     cluster: ClusterV1
     privileged: bool
     username_list: set[str]
-    openshift_client: OCCli | None = None
     openshift_service_accounts: list[ServiceAccountSpec]
 
     class Config:
@@ -103,8 +101,6 @@ class RoleBindingSpec(BaseModel):
             )
             if not openshift_client:
                 return None
-        else:
-            openshift_client = None
         username_list = RoleBindingSpec.get_usernames_from_role(
             users,
             ob.determine_user_keys_for_access(
@@ -121,7 +117,6 @@ class RoleBindingSpec(BaseModel):
             cluster=access.namespace.cluster,
             privileged=privileged,
             username_list=username_list,
-            openshift_client=openshift_client,
             openshift_service_accounts=service_accounts,
         )
 
@@ -134,10 +129,13 @@ class RoleBindingSpec(BaseModel):
         return [
             role_binding_spec
             for access in role.access or []
-            if access.namespace and is_valid_namespace(access.namespace)
             if (
-                role_binding_spec := RoleBindingSpec.create_role_binding_spec(
-                    access, oc_map, role.users, enforced_user_keys, role.bots
+                access.namespace
+                and is_valid_namespace(access.namespace)
+                and (
+                    role_binding_spec := RoleBindingSpec.create_role_binding_spec(
+                        access, oc_map, role.users, enforced_user_keys, role.bots
+                    )
                 )
             )
         ]
@@ -166,11 +164,7 @@ class RoleBindingSpec(BaseModel):
         }
         # if role does not exist use ClusterRole (will be cleaned up later)
         if force_cluster_role_ref:
-            print(
-                f"force_cluster_role_ref for role {self.role_name} namespace {self.namespace.name}"
-            )
             body["roleRef"]["kind"] = "ClusterRole"
-            print(f"body: {body}")
         return OCResource(
             resource=OR(
                 body,
@@ -182,34 +176,10 @@ class RoleBindingSpec(BaseModel):
             privileged=self.privileged,
         )
 
-    def if_role_exists(self, namespace_mapping: dict[str, bool]) -> bool:
-        if self.role_name in COMMON_CLUSTER_ROLES:
-            return False
-        if not self.openshift_client:
-            return False
-        key = f"{self.namespace.cluster.name}/{self.namespace.name}/{self.role_name}"
-        if key in namespace_mapping:
-            return namespace_mapping[key]
-        else:
-            try:
-                role_exist = bool(
-                    self.openshift_client.get(
-                        namespace=self.namespace.name,
-                        kind="Role",
-                        name=self.role_name,
-                        allow_not_found=True,
-                    )
-                )
-            except Exception as e:
-                print(f"Error checking if role {self.role_name} exists: {e}")
-                role_exist = False
-        namespace_mapping[key] = role_exist
-        return role_exist
-
-    def get_oc_resources(self, namespace_mapping: dict[str, bool]) -> list[OCResource]:
+    def get_oc_resources(self) -> list[OCResource]:
         force_cluster_role_ref = False
         if self.role_kind == "Role":
-            force_cluster_role_ref = not self.if_role_exists(namespace_mapping)
+            force_cluster_role_ref = True
         user_oc_resources = [
             self.construct_user_oc_resource(username, force_cluster_role_ref)
             for username in self.username_list
@@ -296,19 +266,15 @@ def fetch_desired_state(
 ) -> list[dict[str, str]]:
     roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
     users_desired_state = []
-    namespace_mapping: dict[str, bool] = {}
     for role in roles:
         rolebindings: list[RoleBindingSpec] = RoleBindingSpec.create_rb_specs_from_role(
             role, oc_map, enforced_user_keys
         )
         for rolebinding in rolebindings:
-            print("******************* USERS   *****************************")
-            print(f"rolebinding: {rolebinding.username_list}")
-            print("******************* USERS   *****************************")
             users_desired_state.extend(rolebinding.get_users_desired_state())
             if ri is None:
                 continue
-            for oc_resource in rolebinding.get_oc_resources(namespace_mapping):
+            for oc_resource in rolebinding.get_oc_resources():
                 with contextlib.suppress(ResourceKeyExistsError):
                     ri.add_desired(
                         rolebinding.cluster.name,
@@ -318,10 +284,6 @@ def fetch_desired_state(
                         oc_resource.resource,
                         privileged=oc_resource.privileged,
                     )
-    # print("************************************************")
-    # print(f"namespace_mapping: {namespace_mapping}")
-    # print("************************************************")
-    print(f"users_desired_state: {users_desired_state}")
     return users_desired_state
 
 
