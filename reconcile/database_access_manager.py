@@ -425,8 +425,9 @@ def _populate_resources(
     admin_connection: DatabaseConnectionParameters,
     current_db_access: DatabaseAccessV1 | None = None,
 ) -> list[DBAMResource]:
-    if user_connection.database == admin_connection.database:
-        raise ValueError(f"Can not use default database {admin_connection.database}")
+    # Allow the use of the admin database, as it is a common use case for most tenants.
+    # if user_connection.database == admin_connection.database:
+    #     raise ValueError(f"Can not use default database {admin_connection.database}")
 
     managed_resources: list[DBAMResource] = []
     # create service account
