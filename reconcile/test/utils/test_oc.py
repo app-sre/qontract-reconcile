@@ -366,7 +366,7 @@ class TestOCMapInit(TestCase):
             "internal": False,
             "disable": None,
         }
-        oc_map = OC_Map(clusters=[dict(cluster)])
+        oc_map = OC_Map(clusters=[cluster])
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
             oc_map.get(cluster["name"]).message,  # type: ignore ## mypy doesn't understand the assertIsInstance above
@@ -387,7 +387,7 @@ class TestOCMapInit(TestCase):
             "internal": False,
             "disable": None,
         }
-        oc_map = OC_Map(clusters=[dict(cluster)])
+        oc_map = OC_Map(clusters=[cluster])
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
@@ -409,7 +409,7 @@ class TestOCMapInit(TestCase):
             "disable": None,
         }
 
-        oc_map = OC_Map(clusters=[dict(cluster)])
+        oc_map = OC_Map(clusters=[cluster])
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
@@ -431,7 +431,7 @@ class TestOCMapInit(TestCase):
             "disable": None,
         }
 
-        oc_map = OC_Map(clusters=[dict(cluster)])
+        oc_map = OC_Map(clusters=[cluster])
 
         self.assertIsInstance(oc_map.get(cluster["name"]), OCLogMsg)
         self.assertEqual(
@@ -462,7 +462,7 @@ class TestOCMapGetClusters(TestCase):
             "disable": None,
         }
 
-        oc_map = OC_Map(clusters=[dict(cluster)])
+        oc_map = OC_Map(clusters=[cluster])
 
         self.assertEqual(oc_map.clusters(), [])
         self.assertIsInstance(oc_map.oc_map.get(cluster["name"]), OCLogMsg)
@@ -501,7 +501,7 @@ class TestOCMapGetClusters(TestCase):
 
         cluster_names = [cluster_1["name"], cluster_2["name"]]
 
-        oc_map = OC_Map(clusters=[dict(cluster_1), dict(cluster_2)])
+        oc_map = OC_Map(clusters=[cluster_1, cluster_2])
 
         self.assertEqual(oc_map.clusters(include_errors=True), cluster_names)
         self.assertIsInstance(oc_map.oc_map.get(cluster_1["name"]), OCLogMsg)
@@ -736,7 +736,7 @@ def test_oc_map_exception_on_missing_cluster() -> None:
         "internal": False,
         "disable": None,
     }
-    oc_map = OC_Map(clusters=[dict(cluster)])
+    oc_map = OC_Map(clusters=[cluster])
 
     assert isinstance(oc_map.get(cluster["name"]), OCLogMsg)
     with pytest.raises(OCLogMsg) as ctx:
