@@ -101,11 +101,12 @@ class RoleBindingSpec(BaseModel):
             )
             if not openshift_client:
                 return None
+        auth_dict = [auth.dict(by_alias=True) for auth in access.namespace.cluster.auth]
         username_list = RoleBindingSpec.get_usernames_from_role(
             users,
             ob.determine_user_keys_for_access(
                 access.namespace.cluster.name,
-                access.namespace.cluster.auth,
+                auth_dict,
                 enforced_user_keys,
             ),
         )
