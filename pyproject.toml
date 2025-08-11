@@ -262,7 +262,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Untyped modules
 module = [
-    "reconcile.utils.openshift_resource",
     # untyped tests
     "reconcile.test.oc.test_oc_connection_parameters",
     "reconcile.test.oc.test_oc_map",

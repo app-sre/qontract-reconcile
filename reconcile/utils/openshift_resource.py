@@ -1,4 +1,6 @@
 # ruff: noqa: SIM114
+from __future__ import annotations
+
 import base64
 import contextlib
 import copy
@@ -6,14 +8,17 @@ import datetime
 import hashlib
 import json
 import re
-from collections.abc import Mapping
 from threading import Lock
+from typing import TYPE_CHECKING, Any
 
 import semver
 from pydantic import BaseModel
 
 from reconcile.external_resources.meta import SECRET_UPDATED_AT
 from reconcile.utils.metrics import GaugeMetric
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Mapping
 
 SECRET_MAX_KEY_LENGTH = 253
 
@@ -27,7 +32,7 @@ class ResourceNotManagedError(Exception):
 
 
 class ConstructResourceError(Exception):
-    def __init__(self, msg):
+    def __init__(self, msg: str) -> None:
         super().__init__("error constructing openshift resource: " + str(msg))
 
 
@@ -73,13 +78,13 @@ QONTRACT_ANNOTATIONS = {
 class OpenshiftResource:
     def __init__(
         self,
-        body,
-        integration,
-        integration_version,
-        error_details="",
-        caller_name=None,
-        validate_k8s_object=True,
-    ):
+        body: dict[str, Any],
+        integration: str,
+        integration_version: str,
+        error_details: str = "",
+        caller_name: str | None = None,
+        validate_k8s_object: bool = True,
+    ) -> None:
         self.body = body
         self.integration = integration
         self.integration_version = integration_version
@@ -88,10 +93,12 @@ class OpenshiftResource:
         if validate_k8s_object:
             self.verify_valid_k8s_object()
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OpenshiftResource):
+            return False
         return self.obj_intersect_equal(self.body, other.body)
 
-    def obj_intersect_equal(self, obj1, obj2, depth=0):
+    def obj_intersect_equal(self, obj1: Any, obj2: Any, depth: int = 0) -> bool:
         # obj1 == d_item
         # obj2 == c_item
         if obj1.__class__ != obj2.__class__:
@@ -163,7 +170,7 @@ class OpenshiftResource:
         return True
 
     @staticmethod
-    def ignorable_field(val):
+    def ignorable_field(val: str) -> bool:
         ignorable_fields = [
             "kubectl.kubernetes.io/last-applied-configuration",
             "creationTimestamp",
@@ -176,14 +183,14 @@ class OpenshiftResource:
         return val in ignorable_fields
 
     @staticmethod
-    def ignorable_key_value_pair(key, val):
+    def ignorable_key_value_pair(key: str, val: Any) -> bool:
         ignorable_key_value_pair = {"annotations": None, "divisor": "0"}
         return bool(
             key in ignorable_key_value_pair and ignorable_key_value_pair[key] == val
         )
 
     @staticmethod
-    def cpu_equal(val1, val2):
+    def cpu_equal(val1: Any, val2: Any) -> bool:
         # normalize both to string
         with contextlib.suppress(Exception):
             val1 = f"{int(float(val1) * 1000)}m"
@@ -192,7 +199,7 @@ class OpenshiftResource:
         return val1 == val2
 
     @staticmethod
-    def api_version_mutation(val1, val2):
+    def api_version_mutation(val1: str, val2: str) -> bool:
         # required temporarily, pending response on
         # https://redhat.service-now.com/surl.do?n=INC1224482
         if val1 == "apps/v1" and val2 == "extensions/v1beta1":
@@ -204,7 +211,7 @@ class OpenshiftResource:
         return val1 == val2
 
     @property
-    def name(self):
+    def name(self) -> str:
         # PipelineRun name can be empty when creating
         if self.kind == "PipelineRun" and "name" not in self.body["metadata"]:
             return self.body["metadata"]["generateName"][:-1]
@@ -212,19 +219,19 @@ class OpenshiftResource:
             return self.body["metadata"]["name"]
 
     @property
-    def kind(self):
+    def kind(self) -> str:
         return self.body["kind"]
 
     @property
-    def annotations(self):
+    def annotations(self) -> dict[str, str]:
         return self.body["metadata"].get("annotations", {})
 
     @property
-    def kind_and_group(self):
+    def kind_and_group(self) -> str:
         return fully_qualified_kind(self.kind, self.body["apiVersion"])
 
     @property
-    def caller(self):
+    def caller(self) -> str | None:
         try:
             return (
                 self.caller_name
@@ -233,7 +240,7 @@ class OpenshiftResource:
         except KeyError:
             return None
 
-    def verify_valid_k8s_object(self):
+    def verify_valid_k8s_object(self) -> None:
         try:
             assert self.name
             assert self.kind
@@ -291,7 +298,7 @@ class OpenshiftResource:
             pass
 
     @staticmethod
-    def is_controller_managed_label(kind, label) -> bool:
+    def is_controller_managed_label(kind: str, label: str) -> bool:
         for il in CONTROLLER_MANAGED_LABELS.get(kind, []):
             if isinstance(il, str) and il == label:
                 return True
@@ -299,7 +306,7 @@ class OpenshiftResource:
                 return True
         return False
 
-    def has_qontract_annotations(self):
+    def has_qontract_annotations(self) -> bool:
         try:
             annotations = self.body["metadata"]["annotations"]
 
@@ -322,10 +329,10 @@ class OpenshiftResource:
 
         return True
 
-    def has_owner_reference(self):
+    def has_owner_reference(self) -> bool:
         return bool(self.body["metadata"].get("ownerReferences", []))
 
-    def has_valid_sha256sum(self):
+    def has_valid_sha256sum(self) -> bool:
         try:
             current_sha256sum = self.body["metadata"]["annotations"][
                 "qontract.sha256sum"
@@ -334,7 +341,7 @@ class OpenshiftResource:
         except KeyError:
             return False
 
-    def annotate(self, canonicalize=True):
+    def annotate(self, canonicalize: bool = True) -> OpenshiftResource:
         """
         Creates a OpenshiftResource with the qontract annotations, and removes
         unneeded Openshift fields.
@@ -368,17 +375,17 @@ class OpenshiftResource:
 
         return OpenshiftResource(body, self.integration, self.integration_version)
 
-    def sha256sum(self):
+    def sha256sum(self) -> str:
         body = self.annotate().body
 
         annotations = body["metadata"]["annotations"]
         return annotations["qontract.sha256sum"]
 
-    def to_json(self):
+    def to_json(self) -> str:
         return self.serialize(self.body)
 
     @staticmethod
-    def canonicalize(body):
+    def canonicalize(body: dict[str, Any]) -> dict[str, Any]:
         body = copy.deepcopy(body)
 
         # create annotations if not present
@@ -522,11 +529,11 @@ class OpenshiftResource:
         return body
 
     @staticmethod
-    def serialize(body):
+    def serialize(body: dict[str, Any]) -> str:
         return json.dumps(body, sort_keys=True)
 
     @staticmethod
-    def calculate_sha256sum(body):
+    def calculate_sha256sum(body: str) -> str:
         m = hashlib.sha256()
         m.update(body.encode("utf-8"))
         return m.hexdigest()
@@ -559,19 +566,19 @@ class OpenshiftResourceInventoryGauge(OpenshiftResourceBaseMetric, GaugeMetric):
 
 
 class ResourceInventory:
-    def __init__(self):
-        self._clusters = {}
+    def __init__(self) -> None:
+        self._clusters: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
         self._error_registered = False
-        self._error_registered_clusters = {}
+        self._error_registered_clusters: dict[str, bool] = {}
         self._lock = Lock()
 
     def initialize_resource_type(
         self,
-        cluster,
-        namespace,
-        resource_type,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
         managed_names: list[str] | None = None,
-    ):
+    ) -> None:
         self._clusters.setdefault(cluster, {})
         self._clusters[cluster].setdefault(namespace, {})
         self._clusters[cluster][namespace].setdefault(
@@ -608,8 +615,14 @@ class ResourceInventory:
         )
 
     def add_desired(
-        self, cluster, namespace, resource_type, name, value, privileged=False
-    ):
+        self,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
+        name: str,
+        value: OpenshiftResource,
+        privileged: bool = False,
+    ) -> None:
         # privileged permissions to apply resources to clusters are managed on
         # a per-namespace level in qontract-schema namespace files, but are
         # tracked on a per-resource level in ResourceInventory and the
@@ -633,41 +646,54 @@ class ResourceInventory:
             ]
             admin_token_usage[name] = privileged
 
-    def get_desired(self, cluster, namespace, resource_type, name):
+    def get_desired(
+        self, cluster: str, namespace: str, resource_type: str, name: str
+    ) -> OpenshiftResource | None:
         try:
             return self._clusters[cluster][namespace][resource_type]["desired"][name]
         except KeyError:
             return None
 
-    def get_desired_by_type(self, cluster, namespace, resource_type):
+    def get_desired_by_type(
+        self, cluster: str, namespace: str, resource_type: str
+    ) -> dict[str, OpenshiftResource] | None:
         try:
             return self._clusters[cluster][namespace][resource_type]["desired"]
         except KeyError:
             return None
 
-    def get_current(self, cluster, namespace, resource_type, name):
+    def get_current(
+        self, cluster: str, namespace: str, resource_type: str, name: str
+    ) -> OpenshiftResource | None:
         try:
             return self._clusters[cluster][namespace][resource_type]["current"][name]
         except KeyError:
             return None
 
-    def add_current(self, cluster, namespace, resource_type, name, value):
+    def add_current(
+        self,
+        cluster: str,
+        namespace: str,
+        resource_type: str,
+        name: str,
+        value: OpenshiftResource,
+    ) -> None:
         with self._lock:
             current = self._clusters[cluster][namespace][resource_type]["current"]
             current[name] = value
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[tuple[str, str, str, dict[str, Any]], None, None]:
         for cluster_name, cluster in self._clusters.items():
             for namespace_name, namespace in cluster.items():
                 for resource_type, resource in namespace.items():
                     yield (cluster_name, namespace_name, resource_type, resource)
 
-    def register_error(self, cluster=None):
+    def register_error(self, cluster: str | None = None) -> None:
         self._error_registered = True
         if cluster is not None:
             self._error_registered_clusters[cluster] = True
 
-    def has_error_registered(self, cluster=None):
+    def has_error_registered(self, cluster: str | None = None) -> bool:
         if cluster is not None:
             return self._error_registered_clusters.get(cluster, False)
         return self._error_registered
