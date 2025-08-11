@@ -192,7 +192,7 @@ def _setup_mocks(mocker: MockerFixture, filtered_clusters: list[ClusterV1]) -> M
     get_ocm_map.return_value = ocm_map
     mocker.patch("reconcile.openshift_cluster_bots.tempfile", autospec=True)
     oc = mocker.patch("reconcile.openshift_cluster_bots.oc", autospec=True)
-    vault = mocker.patch("reconcile.openshift_cluster_bots.VaultClient")
+    vault = mocker.patch("reconcile.openshift_cluster_bots.VaultClient.get_instance")
     submit_mr = mocker.patch(
         "reconcile.openshift_cluster_bots.submit_mr", autospec=True
     )
