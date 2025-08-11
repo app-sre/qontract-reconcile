@@ -504,11 +504,6 @@ class OCCli:
             raise Exception("Expecting items")
 
         return items_list["items"]
-        items = items_list.get("items")
-        if items is None:
-            raise Exception("Expecting items")
-
-        return items
 
     def get(
         self,
