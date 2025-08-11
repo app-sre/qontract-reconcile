@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from reconcile import queries
+from reconcile.openshift_base import OCLogMsg
 from reconcile.utils import (
     config,
     gpg,
@@ -80,6 +81,8 @@ class GPGEncryptCommand:
                 init_projects=False,
             )
             oc = oc_map.get(cluster_name)
+            if isinstance(oc, OCLogMsg):
+                raise oc
             data = oc.get(namespace, "Secret", name=secret, allow_not_found=False)[
                 "data"
             ]

@@ -319,7 +319,7 @@ def oc_map_api_resources(
     ocmap.clusters.side_effect = (
         lambda include_errors=False, privileged=False: ["cs1"] if not privileged else []
     )
-    return oc.OC_Map(clusters=["cs1"])
+    return ocmap
 
 
 def test_get_namespace_cluster_scoped_resources(
