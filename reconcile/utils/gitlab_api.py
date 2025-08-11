@@ -401,8 +401,12 @@ class GitLabApi:
     def get_merge_request(self, mr_id: str | int) -> ProjectMergeRequest:
         return self.project.mergerequests.get(mr_id)
 
-    def get_merge_requests(self, state: str) -> list[ProjectMergeRequest]:
-        return self.project.mergerequests.list(state=state, get_all=True)
+    def get_merge_requests(
+        self, state: str, order_by: str = "created_at"
+    ) -> list[ProjectMergeRequest]:
+        return self.project.mergerequests.list(
+            state=state, order_by=order_by, get_all=True
+        )
 
     @staticmethod
     def get_merge_request_label_events(
