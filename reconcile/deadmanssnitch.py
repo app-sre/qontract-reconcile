@@ -47,7 +47,7 @@ class DeadMansSnitchIntegration(QontractReconcileIntegration[NoParams]):
         super().__init__(NoParams())
         self.qontract_integration_version = make_semver(0, 1, 0)
         self.settings = get_deadmanssnitch_settings()
-        self.vault_client = VaultClient()
+        self.vault_client = VaultClient.get_instance()
 
     @staticmethod
     def get_snitch_name(cluster: ClusterV1) -> str:

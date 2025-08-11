@@ -231,7 +231,7 @@ def run(
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
     if not dry_run and vault_output_path:
-        write_outputs_to_vault(VaultClient(), vault_output_path, ri)
+        write_outputs_to_vault(VaultClient.get_instance(), vault_output_path, ri)
 
     if ri.has_error_registered():
         sys.exit(1)

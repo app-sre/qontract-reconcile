@@ -146,7 +146,7 @@ class VaultSecretReader(SecretReaderBase):
     @property
     def vault_client(self) -> VaultClient:
         if self._vault_client is None:
-            self._vault_client = VaultClient()
+            self._vault_client = VaultClient.get_instance()
         return self._vault_client
 
     def _read_all(
@@ -251,7 +251,7 @@ class SecretReader(SecretReaderBase):
     @property
     def vault_client(self) -> VaultClient:
         if self._vault_client is None:
-            self._vault_client = VaultClient()
+            self._vault_client = VaultClient.get_instance()
         return self._vault_client
 
     def _read(

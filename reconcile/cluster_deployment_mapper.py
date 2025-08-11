@@ -53,7 +53,7 @@ def run(dry_run: bool, vault_output_path: str | None) -> None:
 
     if not dry_run:
         logging.info("writing ClusterDeployments to vault")
-        vault_client = VaultClient()
+        vault_client = VaultClient.get_instance()
         secret = {
             "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}",
             "data": {

@@ -66,13 +66,14 @@ class VaultClient:
     and a version (no invalidation required).
     """
 
-    _instance_lock = threading.Lock()
     _instance = None
+    _lock = threading.Lock()
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
-        with cls._instance_lock:
+    @classmethod
+    def get_instance(cls) -> Self:
+        with cls._lock:
             if cls._instance is None:
-                cls._instance = super().__new__(cls)
+                cls._instance = cls()
                 return cls._instance
 
             try:
@@ -80,11 +81,11 @@ class VaultClient:
             except requests.exceptions.ConnectionError:
                 is_authenticated = False
 
-            if not is_authenticated:
-                cls._instance.close()
-                cls._instance = super().__new__(cls)
+            if is_authenticated:
                 return cls._instance
 
+            cls._instance.close()
+            cls._instance = cls()
             return cls._instance
 
     def __init__(
@@ -96,8 +97,6 @@ class VaultClient:
         kube_auth_mount: str | None = None,
         auto_refresh: bool = True,
     ):
-        if hasattr(self, "initialized"):
-            return
         config = get_config()
 
         server = config["vault"]["server"] if server is None else server
@@ -153,7 +152,6 @@ class VaultClient:
         if auto_refresh:
             t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
             t.start()
-        self.initialized = True
 
     def __enter__(self) -> Self:
         return self

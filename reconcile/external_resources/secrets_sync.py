@@ -422,7 +422,7 @@ def build_incluster_secrets_reconciler(
         ri=ri,
         oc=oc,
         vault_path=vault_path,
-        vault_client=VaultClient(),
+        vault_client=VaultClient.get_instance(),
         secrets_reader=secrets_reader,
         output_secrets_formatter=OutputSecretsFormatter(secrets_reader),
         thread_pool_size=thread_pool_size,

@@ -290,7 +290,7 @@ def get_vault_credentials(
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}
-    vault = VaultClient()
+    vault = VaultClient.get_instance()
 
     if not isinstance(
         vault_auth,

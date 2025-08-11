@@ -296,7 +296,7 @@ def run(
     new_users = tf.get_new_users()
 
     if reencrypt_settings:
-        vc = VaultClient()
+        vc = VaultClient.get_instance()
         write_user_to_vault(
             vc, reencrypt_settings.reencrypt_vault_path, new_users, skip_accounts
         )

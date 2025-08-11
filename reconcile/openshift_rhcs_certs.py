@@ -227,7 +227,7 @@ def fetch_desired_state(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    vault = VaultClient()
+    vault = VaultClient.get_instance()
     cert_provider = get_rhcs_provider_settings(query_func=query_func)
     for ns in namespaces:
         for cert_resource in ns.openshift_resources or []:

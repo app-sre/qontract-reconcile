@@ -279,7 +279,6 @@ module = [
     "reconcile.test.test_openshift_upgrade_watcher",
     "reconcile.test.test_prometheus_rules_tester",
     "reconcile.test.test_saasherder_allowed_secret_paths",
-    "reconcile.test.test_secret_reader",
     "reconcile.test.test_slack_base",
     "reconcile.test.test_slack_usergroups",
     "reconcile.test.test_three_way_diff_strategy",
