@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import json
 import logging
 import os
@@ -1769,7 +1770,9 @@ class OC_Map:  # noqa: N801
         return [k for k, v in cluster_map.items() if v]
 
     def cleanup(self) -> None:
-        for oc in list(self.oc_map.values()) + list(self.privileged_oc_map.values()):
+        for oc in itertools.chain(
+            self.oc_map.values(), self.privileged_oc_map.values()
+        ):
             if oc and isinstance(oc, OCClient):
                 oc.cleanup()
 
