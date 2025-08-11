@@ -491,20 +491,20 @@ class OCCli:
 
         resource_names = kwargs.get("resource_names")
         if resource_names:
-            items = []
+            resource_items = []
             for resource_name in resource_names:
                 resource_cmd = cmd + [resource_name]
                 item = self._run_json(resource_cmd, allow_not_found=True)
                 if item:
-                    items.append(item)
-            items_list = {"items": items}
+                    resource_items.append(item)
+            items_list = {"items": resource_items}
         else:
             items_list = self._run_json(cmd)
 
-        if "items" not in items_list:
+        items = items_list.get("items")
+        if items is None:
             raise Exception("Expecting items")
-
-        return items_list["items"]
+        return items
 
     def get(
         self,
@@ -1386,7 +1386,7 @@ class OCNative(OCCli):
 
         resource_names = kwargs.get("resource_names")
         if resource_names:
-            items = []
+            resource_items = []
             for resource_name in resource_names:
                 try:
                     item = obj_client.get(
@@ -1396,10 +1396,10 @@ class OCNative(OCCli):
                         _request_timeout=REQUEST_TIMEOUT,
                     )
                     if item:
-                        items.append(item.to_dict())
+                        resource_items.append(item.to_dict())
                 except NotFoundError:
                     pass
-            items_list = {"items": items}
+            items_list = {"items": resource_items}
         else:
             items_list = obj_client.get(
                 namespace=namespace,
@@ -1407,9 +1407,10 @@ class OCNative(OCCli):
                 _request_timeout=REQUEST_TIMEOUT,
             ).to_dict()
 
-        if "items" not in items_list:
+        items = items_list.get("items")
+        if items is None:
             raise Exception("Expecting items")
-        return items_list["items"]
+        return items
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError, ForbiddenError))
     def get(
@@ -1746,7 +1747,6 @@ class OC_Map:  # noqa: N801
             cluster,
             OCLogMsg(log_level=logging.DEBUG, message=f"[{cluster}] cluster skipped"),
         )
-        assert not isinstance(c, OC)  # make mypy happy
         return c
 
     def get_cluster(self, cluster: str, privileged: bool = False) -> OCClient:
