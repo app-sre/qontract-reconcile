@@ -3,7 +3,6 @@ from collections.abc import Iterable, Mapping
 from textwrap import indent
 from typing import (
     Any,
-    cast,
 )
 
 from reconcile import (
@@ -31,7 +30,6 @@ from reconcile.utils.terraform_client import TerraformClient as Terraform
 from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascript
 from reconcile.utils.vault import (
     VaultClient,
-    _VaultClient,
 )
 
 TF_POLICY = """
@@ -188,7 +186,7 @@ Encrypted password: {}
 
 
 def write_user_to_vault(
-    vault_client: _VaultClient,
+    vault_client: VaultClient,
     vault_path: str,
     new_users: Iterable[tuple[str, str, str, str]],
     skip_reencrypt_accounts: Iterable[str],
@@ -298,7 +296,7 @@ def run(
     new_users = tf.get_new_users()
 
     if reencrypt_settings:
-        vc = cast("_VaultClient", VaultClient())
+        vc = VaultClient.get_instance()
         write_user_to_vault(
             vc, reencrypt_settings.reencrypt_vault_path, new_users, skip_accounts
         )

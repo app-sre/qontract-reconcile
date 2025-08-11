@@ -5,7 +5,6 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
-from typing import cast
 from urllib.error import URLError
 
 from pydantic import BaseModel
@@ -24,7 +23,7 @@ from reconcile.utils.openshift_resource import (
     QONTRACT_ANNOTATION_INTEGRATION_VERSION,
 )
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.vault import VaultClient, _VaultClient
+from reconcile.utils.vault import VaultClient
 
 QONTRACT_INTEGRATION = "openshift-cluster-bots"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
@@ -238,7 +237,7 @@ def create_cluster_bots(
 def update_vault(
     cluster: ClusterV1, config: Config, token: str, admin_token: str | None
 ) -> None:
-    vault = cast("_VaultClient", VaultClient())
+    vault = VaultClient.get_instance()
     vault.write(
         {
             "path": vault_secret(cluster, config, cluster_admin=False)["path"],

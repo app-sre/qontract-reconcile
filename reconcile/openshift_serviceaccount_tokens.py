@@ -157,11 +157,11 @@ def write_outputs_to_vault(
                     f"{vault_path}/{integration_name}/{cluster}/{namespace}/{name}"
                 )
                 secret = {"path": secret_path, "data": body_data}
-                vault_client.write(secret)  # type: ignore
+                vault_client.write(secret)
                 # write secret to shared-resources location
                 secret_path = f"{vault_path}/{integration_name}/shared-resources/{name}"
                 secret = {"path": secret_path, "data": body_data}
-                vault_client.write(secret)  # type: ignore
+                vault_client.write(secret)
 
 
 def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[NamespaceV1]:
@@ -231,7 +231,7 @@ def run(
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
     if not dry_run and vault_output_path:
-        write_outputs_to_vault(VaultClient(), vault_output_path, ri)
+        write_outputs_to_vault(VaultClient.get_instance(), vault_output_path, ri)
 
     if ri.has_error_registered():
         sys.exit(1)
