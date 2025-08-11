@@ -97,8 +97,7 @@ def test_obj_intersect_equal_status_depth_not_0() -> None:
 def test_verify_valid_k8s_object() -> None:
     resource = fxt.get_anymarkup("valid_resource.yml")
     openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
-
-    assert openshift_resource.verify_valid_k8s_object() is None
+    openshift_resource.verify_valid_k8s_object()
 
 
 def test_verify_valid_k8s_object_false() -> None:
@@ -106,7 +105,7 @@ def test_verify_valid_k8s_object_false() -> None:
 
     with pytest.raises(ConstructResourceError):
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
-        assert openshift_resource.verify_valid_k8s_object() is None
+        openshift_resource.verify_valid_k8s_object()
 
 
 def test_invalid_name_format() -> None:
@@ -114,7 +113,7 @@ def test_invalid_name_format() -> None:
 
     with pytest.raises(ConstructResourceError):
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
-        assert openshift_resource.verify_valid_k8s_object() is None
+        openshift_resource.verify_valid_k8s_object()
 
 
 def test_invalid_name_too_long() -> None:
@@ -122,7 +121,7 @@ def test_invalid_name_too_long() -> None:
 
     with pytest.raises(ConstructResourceError):
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
-        assert openshift_resource.verify_valid_k8s_object() is None
+        openshift_resource.verify_valid_k8s_object()
 
 
 def test_invalid_container_name_format() -> None:
@@ -130,7 +129,7 @@ def test_invalid_container_name_format() -> None:
 
     with pytest.raises(ConstructResourceError):
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
-        assert openshift_resource.verify_valid_k8s_object() is None
+        openshift_resource.verify_valid_k8s_object()
 
 
 def test_invalid_container_name_too_long() -> None:
@@ -138,7 +137,7 @@ def test_invalid_container_name_too_long() -> None:
 
     with pytest.raises(ConstructResourceError):
         openshift_resource = OR(resource, TEST_INT, TEST_INT_VER)
-        assert openshift_resource.verify_valid_k8s_object() is None
+        openshift_resource.verify_valid_k8s_object()
 
 
 def test_annotates_resource() -> None:

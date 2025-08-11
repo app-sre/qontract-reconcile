@@ -3670,7 +3670,7 @@ def template(
             continue
         if openshift_resource.name != name:
             continue
-        print_output({"output": "yaml", "sort": False}, openshift_resource.body)
+        print_output({"output": "yaml", "sort": False}, openshift_resource.body)  # type: ignore
         break
 
 
