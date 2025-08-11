@@ -635,7 +635,7 @@ class TestOCMapGetClusters(TestCase):
 
 
 @pytest.fixture
-def oc_cli(monkeypatch: Any) -> OCCli:
+def oc_cli(monkeypatch: pytest.MonkeyPatch) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
     return OC("cluster", "server", "token", local=True)  # type: ignore[return-value]
 
