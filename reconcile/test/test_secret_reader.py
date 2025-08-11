@@ -107,13 +107,10 @@ def test_read_vault_raises(mocker: MockerFixture, patch_sleep: MagicMock) -> Non
     Ensure that secret_reader.SecretNotFound is raised instead of
     vault.SecretNotFound.
     """
-    mock_vault_client = create_autospec(VaultClient)
-    mock_vault_client.read.side_effect = vault.SecretNotFoundError
-
-    mocker.patch(
-        "reconcile.utils.secret_reader.VaultClient.get_instance",
-        return_value=mock_vault_client,
+    mock_vault_client = mocker.patch(
+        "reconcile.utils.secret_reader.VaultClient.get_instance"
     )
+    mock_vault_client.return_value.read.side_effect = vault.SecretNotFoundError
 
     settings = {"vault": True}
 

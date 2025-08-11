@@ -112,7 +112,7 @@ def test_list_invalid_paths() -> None:
 
 @pytest.fixture
 def vault_client_test(mocker: MockerFixture) -> Any:
-    return mocker.patch("reconcile.vault_replication.VaultClient.get_instance")
+    return mocker.patch("reconcile.vault_replication.VaultClient.get_instance", autospec=True)
 
 
 def test_get_jenkins_secret_list_w_content(
