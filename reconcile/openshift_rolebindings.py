@@ -95,12 +95,8 @@ class RoleBindingSpec(BaseModel):
         if not (access.role or access.cluster_role):
             return None
         privileged = access.namespace.cluster_admin or False
-        if oc_map:
-            openshift_client = oc_map.get(
-                access.namespace.cluster.name, privileged=privileged
-            )
-            if not openshift_client:
-                return None
+        if oc_map and not oc_map.get(access.namespace.cluster.name):
+            return None
         auth_dict = [auth.dict(by_alias=True) for auth in access.namespace.cluster.auth]
         username_list = RoleBindingSpec.get_usernames_from_role(
             users,
@@ -127,7 +123,7 @@ class RoleBindingSpec(BaseModel):
         oc_map: ob.ClusterMap | None = None,
         enforced_user_keys: list[str] | None = None,
     ) -> list["RoleBindingSpec"]:
-        return [
+        rolebinding_spec_list = [
             role_binding_spec
             for access in role.access or []
             if (
@@ -140,6 +136,7 @@ class RoleBindingSpec(BaseModel):
                 )
             )
         ]
+        return rolebinding_spec_list
 
     @staticmethod
     def get_usernames_from_role(
@@ -320,7 +317,6 @@ def run(
     )
     if defer:
         defer(oc_map.cleanup)
-    fetch_desired_state(ri, oc_map)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
