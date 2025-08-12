@@ -18,7 +18,7 @@ from reconcile.external_resources.meta import SECRET_UPDATED_AT
 from reconcile.utils.metrics import GaugeMetric
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Mapping
+    from collections.abc import Iterator, Mapping
 
 SECRET_MAX_KEY_LENGTH = 253
 
@@ -682,7 +682,7 @@ class ResourceInventory:
             current = self._clusters[cluster][namespace][resource_type]["current"]
             current[name] = value
 
-    def __iter__(self) -> Generator[tuple[str, str, str, dict[str, Any]], None, None]:
+    def __iter__(self) -> Iterator[tuple[str, str, str, dict[str, Any]]]:
         for cluster_name, cluster in self._clusters.items():
             for namespace_name, namespace in cluster.items():
                 for resource_type, resource in namespace.items():
