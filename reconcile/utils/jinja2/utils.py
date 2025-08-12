@@ -1,4 +1,3 @@
-import contextlib
 import datetime
 import os
 import subprocess
@@ -254,32 +253,30 @@ def sloth_alerts(
         "slos": [slo],
     }
 
-    # Generate rules using temporary files
-    input_fd, input_path = tempfile.mkstemp(suffix=".yml")
-    output_fd, output_path = tempfile.mkstemp(suffix=".yml")
-
-    try:
-        # Write spec to input file
-        with os.fdopen(input_fd, "w") as input_file:
-            yaml_content = yaml.dump(spec, allow_unicode=True)
-            input_file.write(yaml_content)
-        os.close(output_fd)
-        cmd = ["sloth", "generate", "-i", input_path, "-o", output_path]
-        subprocess.run(cmd, capture_output=True, check=True, text=True)
-        return process_sloth_output(output_path)
-    except subprocess.CalledProcessError as e:
-        error_msg = f"sloth generate failed: {e}"
-        if e.stdout:
-            error_msg += f"\nstdout: {e.stdout}"
-        if e.stderr:
-            error_msg += f"\nstderr: {e.stderr}"
-        raise Exception(error_msg) from e
-    finally:
-        # Clean up temporary files
-        with contextlib.suppress(OSError):
-            os.unlink(input_path)
-        with contextlib.suppress(OSError):
-            os.unlink(output_path)
+    result = ""
+    with (
+        tempfile.NamedTemporaryFile(
+            encoding="utf-8", mode="w", suffix=".yml"
+        ) as input_file,
+        tempfile.NamedTemporaryFile(
+            encoding="utf-8", mode="w", suffix=".yml"
+        ) as output_file,
+    ):
+        yaml_content = yaml.dump(spec, allow_unicode=True)
+        input_file.write(yaml_content)
+        input_file.flush()
+        try:
+            cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
+            subprocess.run(cmd, capture_output=True, check=True, text=True)
+            result = process_sloth_output(output_file.name)
+        except subprocess.CalledProcessError as e:
+            error_msg = f"sloth generate failed: {e}"
+            if e.stdout:
+                error_msg += f"\nstdout: {e.stdout}"
+            if e.stderr:
+                error_msg += f"\nstderr: {e.stderr}"
+            raise Exception(error_msg) from e
+    return result
 
 
 @retry()
