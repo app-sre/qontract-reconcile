@@ -894,14 +894,8 @@ def expected_alb_resource() -> aws_lb:
     )
 
 
-def test_populate_tf_resource_alb(
-    mocker: MockerFixture,
-    ts_for_alb: TerrascriptClient,
-    alb_spec: ExternalResourceSpec,
-    expected_alb_resource: aws_lb,
-) -> None:
-    mocked_add_resources = mocker.patch.object(ts_for_alb, "add_resources")
-    mocker.patch.object(ts_for_alb, "_multiregion_account", return_value=True)
+@pytest.fixture()
+def mock_alb_setup(mocker: MockerFixture) -> MagicMock:
     mock_awsapi = mocker.patch("reconcile.utils.terrascript_aws_client.AWSApi")
     mock_awsapi.get_alb_network_interface_ips.return_value = {
         "10.0.0.1",
@@ -918,7 +912,20 @@ def test_populate_tf_resource_alb(
     ocmmap_mock = MagicMock()
     ocmmap_mock.__getitem__.return_value = ocm_mock
 
-    ts_for_alb.populate_tf_resource_alb(spec=alb_spec, ocm_map=ocmmap_mock)
+    return ocmmap_mock
+
+
+def test_populate_tf_resource_alb(
+    mocker: MockerFixture,
+    ts_for_alb: TerrascriptClient,
+    alb_spec: ExternalResourceSpec,
+    expected_alb_resource: aws_lb,
+    mock_alb_setup: MagicMock,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts_for_alb, "add_resources")
+    mocker.patch.object(ts_for_alb, "_multiregion_account", return_value=True)
+
+    ts_for_alb.populate_tf_resource_alb(spec=alb_spec, ocm_map=mock_alb_setup)
 
     mocked_add_resources.assert_called_once()
     identifier, tf_resources = mocked_add_resources.call_args.args
@@ -1137,3 +1144,210 @@ def test_exclude_all_provisioners_throws_exception(
 
     with pytest.raises(ProviderExcludedError):
         ts.init_populate_specs(namespaces, "account")
+
+
+def test_get_alb_rule_condition_value_query_string(ts: TerrascriptClient) -> None:
+    condition = {
+        "type": "query-string",
+        "query_string": [
+            {"key": "version", "value": "v1"},
+            {"key": "env", "value": "prod"},
+        ],
+    }
+    result = ts._get_alb_rule_condition_value(condition)
+    expected = {
+        "query_string": [
+            {"key": "version", "value": "v1"},
+            {"key": "env", "value": "prod"},
+        ]
+    }
+    assert result == expected
+
+
+def test_get_alb_rule_condition_value_query_string_with_none_key(
+    ts: TerrascriptClient,
+) -> None:
+    condition = {
+        "type": "query-string",
+        "query_string": [
+            {"key": None, "value": "debug"},
+            {"key": "version", "value": "v2"},
+        ],
+    }
+    result = ts._get_alb_rule_condition_value(condition)
+    expected = {
+        "query_string": [
+            {"key": None, "value": "debug"},
+            {"key": "version", "value": "v2"},
+        ]
+    }
+    assert result == expected
+
+
+def test_get_alb_rule_condition_value_path_pattern(ts: TerrascriptClient) -> None:
+    condition = {"type": "path-pattern", "path_pattern": ["/api/*", "/health"]}
+    result = ts._get_alb_rule_condition_value(condition)
+    expected = {"path_pattern": {"values": ["/api/*", "/health"]}}
+    assert result == expected
+
+
+def test_get_alb_rule_condition_value_unknown_type(ts: TerrascriptClient) -> None:
+    condition = {"type": "unknown-type", "unknown_type": ["value"]}
+    with pytest.raises(KeyError, match="unknown alb rule condition type unknown-type"):
+        ts._get_alb_rule_condition_value(condition)
+
+
+@pytest.fixture()
+def alb_spec_with_query_string() -> ExternalResourceSpec:
+    alb_spec = {
+        "identifier": "alb-with-query-string",
+        "provider": "alb",
+        "vpc": {
+            "vpc_id": "vpc-id",
+            "cidr_block": "10.0.0.1/16",
+            "subnets": [{"id": "subnet-id-1"}, {"id": "subnet-id-2"}],
+        },
+        "ingress_cidr_blocks": ["0.0.0.0/0"],
+        "certificate_arn": "arn:aws:acm:us-east-1:0123456789012:certificate/some-uid",
+        "targets": [
+            {
+                "name": "api-v1",
+                "default": True,
+                "openshift_service": "api-service",
+                "protocol": "HTTP",
+            }
+        ],
+        "rules": [
+            {
+                "condition": [
+                    {
+                        "type": "query-string",
+                        "query_string": [
+                            {"key": "version", "value": "v1"},
+                            {"key": "env", "value": "prod"},
+                        ],
+                    }
+                ],
+                "action": {
+                    "type": "forward",
+                    "forward": {"target_group": [{"target": "api-v1", "weight": 100}]},
+                },
+            }
+        ],
+    }
+    return build_alb_spec(alb_spec)
+
+
+@pytest.fixture()
+def alb_spec_with_query_string_none_key() -> ExternalResourceSpec:
+    alb_spec = {
+        "identifier": "alb-with-query-string-none-key",
+        "provider": "alb",
+        "vpc": {
+            "vpc_id": "vpc-id",
+            "cidr_block": "10.0.0.1/16",
+            "subnets": [{"id": "subnet-id-1"}, {"id": "subnet-id-2"}],
+        },
+        "ingress_cidr_blocks": ["0.0.0.0/0"],
+        "certificate_arn": "arn:aws:acm:us-east-1:0123456789012:certificate/some-uid",
+        "targets": [
+            {
+                "name": "debug-target",
+                "default": True,
+                "openshift_service": "debug-service",
+                "protocol": "HTTP",
+            }
+        ],
+        "rules": [
+            {
+                "condition": [
+                    {
+                        "type": "query-string",
+                        "query_string": [
+                            {"key": None, "value": "debug"},
+                            {"key": "version", "value": "v2"},
+                        ],
+                    }
+                ],
+                "action": {
+                    "type": "forward",
+                    "forward": {
+                        "target_group": [{"target": "debug-target", "weight": 100}]
+                    },
+                },
+            }
+        ],
+    }
+    return build_alb_spec(alb_spec)
+
+
+def test_populate_tf_resource_alb_with_query_string_condition(
+    mocker: MockerFixture,
+    ts_for_alb: TerrascriptClient,
+    alb_spec_with_query_string: ExternalResourceSpec,
+    mock_alb_setup: MagicMock,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts_for_alb, "add_resources")
+    mocker.patch.object(ts_for_alb, "_multiregion_account", return_value=True)
+
+    ts_for_alb.populate_tf_resource_alb(
+        spec=alb_spec_with_query_string, ocm_map=mock_alb_setup
+    )
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    # Find the listener rule resource that should contain our query-string condition
+    listener_rules = [
+        r for r in tf_resources if str(type(r).__name__) == "aws_lb_listener_rule"
+    ]
+    assert len(listener_rules) == 1
+
+    listener_rule = listener_rules[0]
+    conditions = listener_rule.condition
+    assert len(conditions) == 1
+
+    condition = conditions[0]
+    assert "query_string" in condition
+    expected_query_string = [
+        {"key": "version", "value": "v1"},
+        {"key": "env", "value": "prod"},
+    ]
+    assert condition["query_string"] == expected_query_string
+
+
+def test_populate_tf_resource_alb_with_query_string_none_key_condition(
+    mocker: MockerFixture,
+    ts_for_alb: TerrascriptClient,
+    alb_spec_with_query_string_none_key: ExternalResourceSpec,
+    mock_alb_setup: MagicMock,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts_for_alb, "add_resources")
+    mocker.patch.object(ts_for_alb, "_multiregion_account", return_value=True)
+
+    ts_for_alb.populate_tf_resource_alb(
+        spec=alb_spec_with_query_string_none_key, ocm_map=mock_alb_setup
+    )
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    # Find the listener rule resource that should contain our query-string condition
+    listener_rules = [
+        r for r in tf_resources if str(type(r).__name__) == "aws_lb_listener_rule"
+    ]
+    assert len(listener_rules) == 1
+
+    listener_rule = listener_rules[0]
+    conditions = listener_rule.condition
+    assert len(conditions) == 1
+
+    condition = conditions[0]
+    assert "query_string" in condition
+    expected_query_string = [
+        {"key": None, "value": "debug"},
+        {"key": "version", "value": "v2"},
+    ]
+    assert condition["query_string"] == expected_query_string
