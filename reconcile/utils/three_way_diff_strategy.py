@@ -61,7 +61,7 @@ def normalize_object(item: OR) -> OR:
         validate_k8s_object=False,
     )
 
-    annotations = n.body.get("metadata", {}).get("annotations", {})
+    annotations = n.body.get("metadata", {}).get("annotations") or {}
     metadata["annotations"] = {
         k: v for k, v in annotations.items() if k not in NORMALIZE_IGNORE_ANNOTATIONS
     }
