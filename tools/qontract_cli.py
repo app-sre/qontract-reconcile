@@ -2297,11 +2297,7 @@ def gitlab_repo_merge_request(
         columns.append("remaining_tests")
     merge_queue_data = []
     for mr in merge_requests:
-        pipelines = gl.get_merge_request_pipelines(mr)
-        running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
         last_pipeline_result = None
-        if pipelines:
-            last_pipeline_result = pipelines[0].status
         if must_pass:
             commit = next(mr.commits())
             state_key = f"{gl.project.path_with_namespace}/{mr.iid}/{commit.id}"
@@ -2328,12 +2324,18 @@ def gitlab_repo_merge_request(
             merge_status = "awaiting_approval"
         elif rebase and not glhk.is_rebased(mr, gl):
             merge_status = "needs_rebase"
-        elif not pipelines:
-            merge_status = "no_pipelines"
-        elif running_pipelines:
-            merge_status = "pipeline_running"
-        elif last_pipeline_result != PipelineStatus.SUCCESS:
-            merge_status = "last_pipeline_failed"
+        else:
+            pipelines = gl.get_merge_request_pipelines(mr)
+            running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
+            last_pipeline_result = None
+            if pipelines:
+                last_pipeline_result = pipelines[0].status
+            if not pipelines:
+                merge_status = "no_pipelines"
+            elif running_pipelines:
+                merge_status = "pipeline_running"
+            elif last_pipeline_result != PipelineStatus.SUCCESS:
+                merge_status = "last_pipeline_failed"
 
         item = {
             "id": f"[{mr.iid}]({mr.web_url})",
