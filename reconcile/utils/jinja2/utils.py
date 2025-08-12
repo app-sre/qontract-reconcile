@@ -253,7 +253,6 @@ def sloth_alerts(
         "slos": [slo],
     }
 
-    result = ""
     with (
         tempfile.NamedTemporaryFile(
             encoding="utf-8", mode="w", suffix=".yml"
@@ -268,7 +267,7 @@ def sloth_alerts(
         try:
             cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
             subprocess.run(cmd, capture_output=True, check=True, text=True)
-            result = process_sloth_output(output_file.name)
+            return process_sloth_output(output_file.name)
         except subprocess.CalledProcessError as e:
             error_msg = f"sloth generate failed: {e}"
             if e.stdout:
@@ -276,7 +275,6 @@ def sloth_alerts(
             if e.stderr:
                 error_msg += f"\nstderr: {e.stderr}"
             raise Exception(error_msg) from e
-    return result
 
 
 @retry()
