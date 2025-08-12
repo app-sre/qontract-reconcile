@@ -10,7 +10,7 @@ from reconcile.utils.jinja2.filters import (
     matches_jsonpath,
     str_format,
 )
-from reconcile.utils.jinja2.utils import _process_sloth_output
+from reconcile.utils.sloth import process_sloth_output
 
 
 def test_hash_list_empty() -> None:
@@ -161,7 +161,7 @@ def test_process_sloth_output_schema_compliance() -> None:
     ) as f:
         f.write(mock_sloth_output)
         f.flush()
-        result = _process_sloth_output(f.name)
+        result = process_sloth_output(f.name)
         # Should remove document separator
         assert not result.startswith("---")
         # Should remove sloth_* labels

@@ -1,7 +1,6 @@
 import contextlib
 import datetime
 import os
-import re
 import subprocess
 import tempfile
 from collections.abc import Mapping
@@ -40,6 +39,7 @@ from reconcile.utils.secret_reader import (
     SecretReader,
     SecretReaderBase,
 )
+from reconcile.utils.sloth import process_sloth_output
 from reconcile.utils.vault import SecretFieldNotFoundError
 
 
@@ -193,29 +193,6 @@ def list_s3_objects(
         )
 
 
-def _process_sloth_output(output_file_path: str) -> str:
-    """Process sloth output to make it compliant with the prometheus-rule-1 schema"""
-    with open(output_file_path, encoding="utf-8") as f:
-        content = f.read()
-        # Strip leading whitespace and document separator since we're embedding in existing YAML
-        content = content.lstrip()
-        content = content.removeprefix("---\n")
-        # Remove sloth_* labels and title annotation
-        content = re.sub(r"^(\s+)sloth_\w+:.*\n", "", content, flags=re.MULTILINE)
-        content = re.sub(
-            r"^(\s+)title:.*\n(?:(?:\1\s+.*\n)*)", "", content, flags=re.MULTILINE
-        )
-        # Remove labels sections from recording rules
-        # sloth adds numerous labels that violate schema and we don't have any functionality based off recording rule labels
-        content = re.sub(
-            r"^(\s+)labels:\s*\n(?=\s*(?:- (?:record|alert|name):|$))",
-            "",
-            content,
-            flags=re.MULTILINE,
-        )
-        return content
-
-
 def sloth_alerts(
     service: str,
     slo_name: str,
@@ -289,7 +266,7 @@ def sloth_alerts(
         os.close(output_fd)
         cmd = ["sloth", "generate", "-i", input_path, "-o", output_path]
         subprocess.run(cmd, capture_output=True, check=True, text=True)
-        return _process_sloth_output(output_path)
+        return process_sloth_output(output_path)
     except subprocess.CalledProcessError as e:
         error_msg = f"sloth generate failed: {e}"
         if e.stdout:
