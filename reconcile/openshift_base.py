@@ -1099,11 +1099,11 @@ def _validate_resources_used_exist(
     )
     for used_name, used_keys in used_resources.items():
         # perhaps used resource is deployed together with the using resource?
-        resource = ri.get_desired(cluster, namespace, used_kind, used_name)
+        desired_resource = ri.get_desired(cluster, namespace, used_kind, used_name)
         # if not, perhaps it's a secret that will be created from a Service's
         # serving-cert that is deployed along with the using resource?
         # lets iterate through all resources and find Services that have the annotation
-        if not resource and used_kind == "Secret":
+        if not desired_resource and used_kind == "Secret":
             # consider only Service resources that are in the same cluster & namespace
             service_resources = []
             for cname, nname, restype, res in ri:
@@ -1127,12 +1127,12 @@ def _validate_resources_used_exist(
                 }:
                     # found a match. we assume the serving cert secret will
                     # be present at some point soon after the Service is deployed
-                    resource = service
+                    desired_resource = service
                     break
 
-        if resource:
+        if desired_resource:
             # get the body to match with the possible result from oc.get
-            resource = resource.body
+            resource = desired_resource.body
         else:
             # no. perhaps used resource exists in the namespace?
             resource = oc.get(
