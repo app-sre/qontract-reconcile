@@ -85,7 +85,7 @@ def get_selected_app_metadata(
                     }
 
                 selected_app_metadata[name] = {
-                    "deployment_saas_files": list(deployment_saas_files),
+                    "deployment_saas_files": deployment_saas_files,
                 }
 
                 child_dict = child.dict(by_alias=True)
