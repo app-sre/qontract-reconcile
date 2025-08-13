@@ -3,6 +3,7 @@ from collections.abc import (
     Callable,
     Mapping,
 )
+from typing import Any
 
 from reconcile.utils.promotion_state import (
     PromotionData,
@@ -11,7 +12,7 @@ from reconcile.utils.promotion_state import (
 from reconcile.utils.state import State
 
 
-def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]) -> None:
+def test_key_exists_v1(s3_state_builder: Callable[[Mapping[str, Any]], State]) -> None:
     state = s3_state_builder({
         "ls": ["/promotions_v2/channel/uid/sha"],
         "get": {
@@ -38,7 +39,7 @@ def test_key_exists_v1(s3_state_builder: Callable[[Mapping], State]) -> None:
     state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
 
 
-def test_key_exists_v2(s3_state_builder: Callable[[Mapping], State]) -> None:
+def test_key_exists_v2(s3_state_builder: Callable[[Mapping[str, Any]], State]) -> None:
     state = s3_state_builder({
         "ls": ["/promotions_v2/channel/uid/sha"],
         "get": {
@@ -63,7 +64,9 @@ def test_key_exists_v2(s3_state_builder: Callable[[Mapping], State]) -> None:
     state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
 
 
-def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]) -> None:
+def test_key_does_not_exist(
+    s3_state_builder: Callable[[Mapping[str, Any]], State],
+) -> None:
     state = s3_state_builder({
         "ls": [],
         "get": {},
@@ -79,7 +82,7 @@ def test_key_does_not_exist(s3_state_builder: Callable[[Mapping], State]) -> Non
 
 
 def test_key_does_not_exist_in_commit_shas(
-    s3_state_builder: Callable[[Mapping], State],
+    s3_state_builder: Callable[[Mapping[str, Any]], State],
 ) -> None:
     state = s3_state_builder({
         "ls": [],
@@ -96,7 +99,7 @@ def test_key_does_not_exist_in_commit_shas(
 
 
 def test_key_does_not_exist_in_commit_shas_disabled(
-    s3_state_builder: Callable[[Mapping], State],
+    s3_state_builder: Callable[[Mapping[str, Any]], State],
 ) -> None:
     state = s3_state_builder({
         "ls": [],
@@ -119,7 +122,7 @@ def test_key_does_not_exist_in_commit_shas_disabled(
     state.get.assert_called_once_with("promotions_v2/channel/uid/sha", None)  # type: ignore[attr-defined]
 
 
-def test_publish_info(s3_state_builder: Callable[[Mapping], State]) -> None:
+def test_publish_info(s3_state_builder: Callable[[Mapping[str, Any]], State]) -> None:
     state = s3_state_builder({
         "ls": [],
         "get": {},
@@ -155,7 +158,9 @@ def test_promotion_data_json_serializable() -> None:
     json.dumps(promotion_data.dict())
 
 
-def test_promotion_data_cache(s3_state_builder: Callable[[Mapping], State]) -> None:
+def test_promotion_data_cache(
+    s3_state_builder: Callable[[Mapping[str, Any]], State],
+) -> None:
     check_in = "2024-04-17 13:47:31.722437+00:00"
     state = s3_state_builder({
         "ls": [],
@@ -201,7 +206,7 @@ def test_promotion_data_cache(s3_state_builder: Callable[[Mapping], State]) -> N
 
 
 def test_promotion_data_disabled_cache_by_default(
-    s3_state_builder: Callable[[Mapping], State],
+    s3_state_builder: Callable[[Mapping[str, Any]], State],
 ) -> None:
     check_in = "2024-04-17 13:47:31.722437+00:00"
     state = s3_state_builder({

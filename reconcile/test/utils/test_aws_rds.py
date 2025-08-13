@@ -7,7 +7,7 @@ from reconcile.utils.cloud_resource_best_practice.aws_rds import (
 )
 
 
-def test_rds_best_practices_compliant_db():
+def test_rds_best_practices_compliant_db() -> None:
     db = aws_db_instance(
         "my-db",
         delete_automated_backups=False,
@@ -18,7 +18,7 @@ def test_rds_best_practices_compliant_db():
     verify_rds_best_practices(db, {"loss_impact": "high"})
 
 
-def test_rds_best_practices_non_compliant_db():
+def test_rds_best_practices_non_compliant_db() -> None:
     db = aws_db_instance(
         "my-db",
         delete_automated_backups=True,
