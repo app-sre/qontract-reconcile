@@ -135,4 +135,7 @@ def test_trigger_job_build_with_parameters(
 
     jenkins_api.trigger_job("test")
 
-    assert mocked_requests.post.call_args.args[0] == "http://example.com/job/test/buildWithParameters"
+    assert (
+        mocked_requests.post.call_args.args[0]
+        == "http://example.com/job/test/buildWithParameters"
+    )
