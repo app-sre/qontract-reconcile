@@ -246,11 +246,9 @@ class JenkinsApi:
 
         job_info = res.json()
 
-        for prop in job_info.get("property", []):
-            if "parameterDefinitions" in prop:
-                return True
-
-        return False
+        return any(
+            prop.get("parameterDefinitions") for prop in job_info.get("property", [])
+        )
 
     def trigger_job(self, job_name: str) -> None:
         kwargs = self.get_crumb_kwargs()
