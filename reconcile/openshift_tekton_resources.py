@@ -125,9 +125,12 @@ def fetch_tkn_providers(saas_file_name: str | None) -> dict[str, Any]:
 
         tkn_providers[provider_name]["saas_files"].append(sf)
 
+    for provider_name in tkn_providers:
+        tkn_providers[provider_name]["saas_files"].sort(key=lambda sf: sf["name"])
+
     return {
         provider_name: sf
-        for provider_name, sf in tkn_providers.items()
+        for provider_name, sf in sorted(tkn_providers.items())
         if is_in_shard(provider_name)
     }
 
@@ -467,3 +470,7 @@ def run(
         sys.exit(ExitCodes.ERROR)
 
     sys.exit(0)
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    return fetch_tkn_providers(saas_file_name=None)
