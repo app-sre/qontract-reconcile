@@ -216,17 +216,10 @@ def unpack_static_variables(
     collection_variables: TemplateCollectionVariablesV1,
     each: dict[str, Any],
 ) -> dict:
-    def process_value(v: Any) -> Any:
-        # If the value is a string that contains Jinja2 templates, process it directly
-        if isinstance(v, str) and ("{{" in v or "{%" in v):
-            return process_jinja2_template(body=v, vars={"each": each})
-        # Otherwise, use the original JSON round-trip method
-        else:
-            return json.loads(
-                process_jinja2_template(body=json.dumps(v), vars={"each": each})
-            )
-
-    return {k: process_value(v) for k, v in (collection_variables.static or {}).items()}
+    return {
+        k: json.loads(process_jinja2_template(body=json.dumps(v), vars={"each": each}))
+        for k, v in (collection_variables.static or {}).items()
+    }
 
 
 def unpack_dynamic_variables(
