@@ -2,7 +2,7 @@ import contextlib
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Self
 
 from pydantic.main import BaseModel
 
@@ -32,7 +32,7 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
 QONTRACT_INTEGRATION = "openshift-rolebindings"
-COMMON_CLUSTER_ROLES = ["view", "edit", "admin", "tekton-trigger-access"]
+FORCE_CLUSTER_ROLE_REF = True
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
 
@@ -50,10 +50,10 @@ class ServiceAccountSpec:
     sa_namespace_name: str
     sa_name: str
 
-    @staticmethod
-    def create_sa_spec(bots: list[BotV1] | None) -> list["ServiceAccountSpec"]:
+    @classmethod
+    def create_sa_spec(cls, bots: list[BotV1] | None) -> list[Self]:
         return [
-            ServiceAccountSpec(
+            cls(
                 sa_namespace_name=full_service_account[0],
                 sa_name=full_service_account[1],
             )
@@ -70,7 +70,7 @@ class RoleBindingSpec(BaseModel):
     namespace: NamespaceV1
     cluster: ClusterV1
     privileged: bool
-    username_list: set[str]
+    usernames: set[str]
     openshift_service_accounts: list[ServiceAccountSpec]
 
     class Config:
@@ -79,17 +79,18 @@ class RoleBindingSpec(BaseModel):
     def get_users_desired_state(self) -> list[dict[str, str]]:
         return [
             {"cluster": self.cluster.name, "user": username}
-            for username in self.username_list
+            for username in self.usernames
         ]
 
-    @staticmethod
+    @classmethod
     def create_role_binding_spec(
+        cls,
         access: AccessV1,
         oc_map: ob.ClusterMap | None = None,
         users: list[UserV1] | None = None,
         enforced_user_keys: list[str] | None = None,
         bots: list[BotV1] | None = None,
-    ) -> Optional["RoleBindingSpec"]:
+    ) -> Self | None:
         if not access.namespace:
             return None
         if not (access.role or access.cluster_role):
@@ -98,7 +99,7 @@ class RoleBindingSpec(BaseModel):
         if oc_map and not oc_map.get(access.namespace.cluster.name):
             return None
         auth_dict = [auth.dict(by_alias=True) for auth in access.namespace.cluster.auth]
-        username_list = RoleBindingSpec.get_usernames_from_role(
+        usernames = RoleBindingSpec.get_usernames_from_users(
             users,
             ob.determine_user_keys_for_access(
                 access.namespace.cluster.name,
@@ -107,13 +108,16 @@ class RoleBindingSpec(BaseModel):
             ),
         )
         service_accounts = ServiceAccountSpec.create_sa_spec(bots) if bots else []
-        return RoleBindingSpec(
+        role_kind = "Role" if access.role else "ClusterRole"
+        if FORCE_CLUSTER_ROLE_REF:
+            role_kind = "ClusterRole"
+        return cls(
             role_name=access.role or access.cluster_role,
-            role_kind="Role" if access.role else "ClusterRole",
+            role_kind=role_kind,
             namespace=access.namespace,
             cluster=access.namespace.cluster,
             privileged=privileged,
-            username_list=username_list,
+            usernames=usernames,
             openshift_service_accounts=service_accounts,
         )
 
@@ -139,19 +143,17 @@ class RoleBindingSpec(BaseModel):
         return rolebinding_spec_list
 
     @staticmethod
-    def get_usernames_from_role(
+    def get_usernames_from_users(
         users: list[UserV1] | None = None, user_keys: list[str] | None = None
     ) -> set[str]:
         return {
-            getattr(user, user_key)
+            name
             for user in users or []
             for user_key in user_keys or []
-            if hasattr(user, user_key)
+            if (name := getattr(user, user_key, None))
         }
 
-    def construct_user_oc_resource(
-        self, user: str, force_cluster_role_ref: bool
-    ) -> OCResource:
+    def construct_user_oc_resource(self, user: str) -> OCResource:
         name = f"{self.role_name}-{user}"
         body: dict[str, Any] = {
             "apiVersion": "rbac.authorization.k8s.io/v1",
@@ -160,9 +162,6 @@ class RoleBindingSpec(BaseModel):
             "roleRef": {"kind": self.role_kind, "name": self.role_name},
             "subjects": [{"kind": "User", "name": user}],
         }
-        # if role does not exist use ClusterRole (will be cleaned up later)
-        if force_cluster_role_ref:
-            body["roleRef"]["kind"] = "ClusterRole"
         return OCResource(
             resource=OR(
                 body,
@@ -175,23 +174,17 @@ class RoleBindingSpec(BaseModel):
         )
 
     def get_oc_resources(self) -> list[OCResource]:
-        force_cluster_role_ref = False
-        if self.role_kind == "Role":
-            force_cluster_role_ref = True
         user_oc_resources = [
-            self.construct_user_oc_resource(username, force_cluster_role_ref)
-            for username in self.username_list
+            self.construct_user_oc_resource(username) for username in self.usernames
         ]
         sa_oc_resources = [
-            self.construct_sa_oc_resource(
-                sa.sa_namespace_name, sa.sa_name, force_cluster_role_ref
-            )
+            self.construct_sa_oc_resource(sa.sa_namespace_name, sa.sa_name)
             for sa in self.openshift_service_accounts
         ]
         return user_oc_resources + sa_oc_resources
 
     def construct_sa_oc_resource(
-        self, sa_namespace_name: str, sa_name: str, force_cluster_role_ref: bool
+        self, sa_namespace_name: str, sa_name: str
     ) -> OCResource:
         name = f"{self.role_name}-{sa_namespace_name}-{sa_name}"
         body: dict[str, Any] = {
@@ -207,8 +200,6 @@ class RoleBindingSpec(BaseModel):
                 }
             ],
         }
-        if force_cluster_role_ref:
-            body["roleRef"]["kind"] = "ClusterRole"
         return OCResource(
             resource=OR(
                 body,

@@ -167,8 +167,9 @@ def test_get_oc_resources() -> None:
     role_binding_spec_list = RoleBindingSpec.create_rb_specs_from_role(
         test_role[0], None, None
     )
-    assert len(role_binding_spec_list) == 1
-    assert role_binding_spec_list[0].get_oc_resources()[0] == OCResource(
+    oc_resources = role_binding_spec_list[0].get_oc_resources()
+    assert len(oc_resources) == 2
+    assert oc_resources[0] == OCResource(
         resource=OR(
             integration="openshift-rolebindings",
             integration_version="0.3.0",
@@ -192,5 +193,32 @@ def test_get_oc_resources() -> None:
             },
         ),
         resource_name="test-role5-test-org-user",
+        privileged=False,
+    )
+    assert oc_resources[1] == OCResource(
+        resource=OR(
+            integration="openshift-rolebindings",
+            integration_version="0.3.0",
+            error_details="test-role5-test-namespace5-test-serviceaccount",
+            body={
+                "apiVersion": "rbac.authorization.k8s.io/v1",
+                "kind": "RoleBinding",
+                "metadata": {
+                    "name": "test-role5-test-namespace5-test-serviceaccount",
+                },
+                "roleRef": {
+                    "kind": "ClusterRole",
+                    "name": "test-role5",
+                },
+                "subjects": [
+                    {
+                        "kind": "ServiceAccount",
+                        "name": "test-serviceaccount",
+                        "namespace": "test-namespace5",
+                    },
+                ],
+            },
+        ),
+        resource_name="test-role5-test-namespace5-test-serviceaccount",
         privileged=False,
     )
