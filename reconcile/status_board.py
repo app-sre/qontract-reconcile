@@ -6,9 +6,8 @@ from abc import (
 from collections.abc import Iterable, Mapping
 from enum import Enum
 from itertools import chain
-from typing import Any
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
@@ -44,9 +43,6 @@ from reconcile.utils.runtime.integration import QontractReconcileIntegration
 
 QONTRACT_INTEGRATION = "status-board-exporter"
 
-# Type alias for metadata that accepts ApplicationMetadataSpec, ServiceMetadataSpec, or empty dict
-MetadataType = ApplicationMetadataSpec | ServiceMetadataSpec | dict[str, Any] | None
-
 
 class Action(Enum):
     create = "create"
@@ -61,45 +57,6 @@ class AbstractStatusBoard(ABC, BaseModel):
     id: str | None = None
     name: str
     fullname: str
-    metadata: MetadataType
-
-    @validator("metadata")
-    def validate_metadata(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
-        if v is None:
-            return v
-
-        if not isinstance(v, dict):
-            raise ValueError("metadata must be a dictionary")
-
-        # Allow empty dict
-        if not v:
-            return v
-
-        # Check if it's a valid ApplicationMetadataSpec
-        if set(v.keys()) == {"deployment_saas_files"}:
-            if isinstance(v.get("deployment_saas_files"), list):
-                return v
-
-        # Check if it's a valid ServiceMetadataSpec
-        expected_service_schema: dict[str, type | tuple[type, ...]] = {
-            "sli_type": str,
-            "sli_specification": str,
-            "slo_details": str,
-            "target": (int, float),
-            "target_unit": str,
-            "window": str,
-        }
-        if set(v.keys()) == set(expected_service_schema.keys()) and all(
-            isinstance(v.get(key), expected_type)
-            for key, expected_type in expected_service_schema.items()
-        ):
-            return v
-
-        raise ValueError(
-            "metadata must be either empty, a valid ApplicationMetadataSpec "
-            "(with 'deployment_saas_files' list), or a valid ServiceMetadataSpec "
-            "(with 'sli_type', 'sli_specification', 'slo_details', 'target', 'target_unit', 'window')"
-        )
 
     @abstractmethod
     def create(self, ocm: OCMBaseClient) -> None:
@@ -430,23 +387,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return return_value
 
     @staticmethod
-    def _status_board_objects_equal(
-        current: AbstractStatusBoard, desired: AbstractStatusBoard
-    ) -> bool:
-        """
-        Check if two AbstractStatusBoard objects are equal, including metadata comparison.
-
-        :param current: The current AbstractStatusBoard object
-        :param desired: The desired AbstractStatusBoard object
-        :return: True if objects are equal, False otherwise
-        """
-        # Check basic equality first (name, fullname)
-        if current.name != desired.name or current.fullname != desired.fullname:
-            return False
-
-        return current.metadata == desired.metadata
-
-    @staticmethod
     def get_diff(
         desired_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
         current_abstract_status_board_map: Mapping[str, AbstractStatusBoard],
@@ -456,7 +396,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         diff_result = diff_mappings(
             current_abstract_status_board_map,
             desired_abstract_status_board_map,
-            equal=StatusBoardExporterIntegration._status_board_objects_equal,
         )
 
         for pair in chain(diff_result.identical.values(), diff_result.change.values()):
