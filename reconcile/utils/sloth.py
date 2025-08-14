@@ -1,3 +1,5 @@
+from typing import Any
+
 import yaml
 from pydantic import BaseModel
 
@@ -46,6 +48,7 @@ def get_cleaned_rule(rule: PrometheusRule) -> PrometheusRule:
         annotations=get_cleaned_rule_annotations(rule),
     )
 
+
 def process_sloth_output(output_file_path: str) -> str:
     with open(output_file_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
@@ -59,4 +62,18 @@ def process_sloth_output(output_file_path: str) -> str:
             for group in rule_spec.groups
         ]
     )
-    return yaml.safe_dump(cleaned_rule_spec.dict(exclude_none=True))
+
+    # Custom yaml dump to format multi-line strings as literal block scalars
+    class LiteralDumper(yaml.SafeDumper):
+        def represent_str(self, data: str) -> Any:
+            if "\n" in data:
+                return self.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+            return self.represent_scalar("tag:yaml.org,2002:str", data)
+
+    LiteralDumper.add_representer(str, LiteralDumper.represent_str)
+    return yaml.dump(
+        cleaned_rule_spec.dict(exclude_none=True),
+        Dumper=LiteralDumper,
+        default_flow_style=False,
+        allow_unicode=True,
+    )
