@@ -343,6 +343,8 @@ objects:
           {{- if $integration.environmentAware }}
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
+          - name: GOV_SLACK
+            value: "${GOV_SLACK}"
           - name: IMAGE
             value: "${IMAGE}"
           - name: IMAGE_TAG
@@ -717,6 +719,8 @@ parameters:
   value: Always
 - name: ENVIRONMENT_NAME
   value: app-interface
+- name: GOV_SLACK
+  value: "{{ .Values.gov_slack }}"
 - name: DRY_RUN
   value: --dry-run
 - name: MANAGER_DRY_RUN

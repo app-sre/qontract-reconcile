@@ -240,6 +240,8 @@ parameters:
   value: Always
 - name: ENVIRONMENT_NAME
   value: app-interface
+- name: GOV_SLACK
+  value: ''
 - name: DRY_RUN
   value: --dry-run
 - name: MANAGER_DRY_RUN

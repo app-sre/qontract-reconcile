@@ -1,4 +1,5 @@
 excludeService: true
+gov_slack: "true"
 integrations:
 - name: integrations-manager
   resources:
