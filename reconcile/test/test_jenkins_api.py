@@ -1,4 +1,4 @@
-from unittest.mock import create_autospec
+from unittest.mock import call, create_autospec
 
 import pytest
 from pytest_mock import MockerFixture
@@ -90,6 +90,21 @@ def test_trigger_job_build(
 
     jenkins_api.trigger_job("test")
 
+    mocked_requests.get.assert_has_calls([
+        call(
+            "http://example.com/crumbIssuer/api/json",
+            verify=False,
+            auth=(user, password),
+            timeout=60,
+        ),
+        call(
+            "http://example.com/job/test/api/json?tree=property[parameterDefinitions[*]]",
+            verify=False,
+            auth=(user, password),
+            timeout=60,
+        ),
+    ])
+
     mocked_requests.post.assert_called_once_with(
         "http://example.com/job/test/build",
         auth=(user, password),
@@ -147,6 +162,21 @@ def test_trigger_job_build_with_parameters(
     ]
 
     jenkins_api.trigger_job("test")
+
+    mocked_requests.get.assert_has_calls([
+        call(
+            "http://example.com/crumbIssuer/api/json",
+            verify=False,
+            auth=("user", "password"),
+            timeout=60,
+        ),
+        call(
+            "http://example.com/job/test/api/json?tree=property[parameterDefinitions[*]]",
+            verify=False,
+            auth=("user", "password"),
+            timeout=60,
+        ),
+    ])
 
     mocked_requests.post.assert_called_once_with(
         "http://example.com/job/test/buildWithParameters",
