@@ -162,6 +162,15 @@ class Application(AbstractStatusBoard):
     def get_priority() -> int:
         return 1
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Application):
+            return NotImplemented
+        return (
+            self.name == other.name
+            and self.fullname == other.fullname
+            and self.metadata == other.metadata
+        )
+
 
 class Service(AbstractStatusBoard):
     application: Application
