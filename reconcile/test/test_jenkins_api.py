@@ -8,8 +8,18 @@ from reconcile.utils.jenkins_api import JenkinsApi
 
 
 @pytest.fixture
-def jenkins_api() -> JenkinsApi:
-    return JenkinsApi("http://example.com", "user", "password", ssl_verify=False)
+def user() -> str:
+    return "user"
+
+
+@pytest.fixture
+def password() -> str:
+    return "password"
+
+
+@pytest.fixture
+def jenkins_api(user: str, password: str) -> JenkinsApi:
+    return JenkinsApi("http://example.com", user, password, ssl_verify=False)
 
 
 def test_get_jobs_state(
@@ -53,8 +63,7 @@ def test_get_jobs_state(
 
 
 def test_trigger_job_build(
-    jenkins_api: JenkinsApi,
-    mocker: MockerFixture,
+    jenkins_api: JenkinsApi, mocker: MockerFixture, user: str, password: str
 ) -> None:
     mocked_requests = mocker.patch("reconcile.utils.jenkins_api.requests")
     first_mocked_response = create_autospec(Response)
@@ -81,12 +90,16 @@ def test_trigger_job_build(
 
     jenkins_api.trigger_job("test")
 
-    assert mocked_requests.post.call_args.args[0] == "http://example.com/job/test/build"
+    mocked_requests.post.assert_called_once_with(
+        "http://example.com/job/test/build",
+        auth=(user, password),
+        timeout=60,
+        verify=False,
+    )
 
 
 def test_trigger_job_build_with_parameters(
-    jenkins_api: JenkinsApi,
-    mocker: MockerFixture,
+    jenkins_api: JenkinsApi, mocker: MockerFixture, user: str, password: str
 ) -> None:
     mocked_requests = mocker.patch("reconcile.utils.jenkins_api.requests")
     first_mocked_response = create_autospec(Response)
@@ -135,7 +148,9 @@ def test_trigger_job_build_with_parameters(
 
     jenkins_api.trigger_job("test")
 
-    assert (
-        mocked_requests.post.call_args.args[0]
-        == "http://example.com/job/test/buildWithParameters"
+    mocked_requests.post.assert_called_once_with(
+        "http://example.com/job/test/buildWithParameters",
+        auth=(user, password),
+        timeout=60,
+        verify=False,
     )
