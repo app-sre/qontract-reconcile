@@ -10,6 +10,7 @@ from unittest.mock import (
 import pytest
 from pytest_httpserver import HTTPServer
 from pytest_mock import MockerFixture
+from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
 
@@ -28,6 +29,8 @@ SlackApiMock = namedtuple("SlackApiMock", "client mock_slack_client")
 
 @pytest.fixture
 def slack_api(mocker: MockerFixture) -> SlackApiMock:
+    # Mock the GOV_SLACK environment variable
+    mocker.patch.dict("os.environ", {"GOV_SLACK": "false"})
     mock_slack_client = mocker.patch.object(
         reconcile.utils.slack_api, "WebClient", autospec=True
     )
@@ -104,6 +107,8 @@ def test_instantiate_slack_api_with_config(mocker: MockerFixture) -> None:
     When SlackApiConfig is passed into SlackApi, the constructor shouldn't
     create a default configuration object.
     """
+    # Mock the GOV_SLACK environment variable
+    mocker.patch.dict("os.environ", {"GOV_SLACK": "false"})
     mock_slack_client = mocker.patch.object(
         reconcile.utils.slack_api, "WebClient", autospec=True
     )
@@ -537,13 +542,30 @@ def test_get_flat_conversation_history(
 # ServerErrorRetryHandler handler.
 #
 @pytest.fixture
-def slack_client(httpserver: HTTPServer) -> SlackApi:
-    return SlackApi(
+def slack_client(httpserver: HTTPServer, monkeypatch: pytest.MonkeyPatch) -> SlackApi:
+    # Mock the GOV_SLACK environment variable
+    monkeypatch.setenv("GOV_SLACK", "false")
+    # Create the SlackApi instance normally
+    api = SlackApi(
         "workspace",
         "token",
         init_usergroups=False,
-        slack_url=httpserver.url_for("/api/"),
     )
+
+    # Replace the WebClient with one pointing to our test server
+    # but preserve the retry handlers that were configured
+    test_client = WebClient(
+        token="token",
+        base_url=httpserver.url_for("/api/"),
+    )
+
+    # Copy the retry handlers from the original client
+    test_client.retry_handlers = api._sc.retry_handlers.copy()
+
+    # Replace the client
+    api._sc = test_client
+
+    return api
 
 
 class JsonResponse(TypedDict):
