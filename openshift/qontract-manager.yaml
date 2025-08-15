@@ -271,6 +271,7 @@ parameters:
   value: app-interface
 - name: GOV_SLACK
   value: "false"
+  required: false
 - name: DRY_RUN
   value: --dry-run
 - name: MANAGER_DRY_RUN
