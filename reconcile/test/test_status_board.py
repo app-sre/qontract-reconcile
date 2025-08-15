@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Any
 from unittest.mock import call
 
 import pytest
@@ -1499,3 +1500,52 @@ def test_get_diff_update_app_with_additional_saas_file(
     assert app_obj.name == "foo"
     assert "baz" in app_obj.metadata["deployment_saas_files"]
     assert "qux" in app_obj.metadata["deployment_saas_files"]
+
+
+def test_get_diff_noop_app_with_managed_metadata() -> None:
+    """Test that applications with additional managed metadata fields should not trigger updates"""
+    foo_product = Product(name="foo", fullname="foo", applications=[], id=None)
+
+    # Desired application metadata only has deployment_saas_files
+    desired_app_metadata: ApplicationMetadataSpec = {"deployment_saas_files": ["abc"]}
+
+    # Current application metadata has the same deployment_saas_files plus managedBy field
+    current_app_metadata: dict[str, Any] = {
+        "deployment_saas_files": ["abc"],
+        "managedBy": "qontract-reconcile",
+    }
+
+    desired_app = Application(
+        name="bar",
+        fullname="foo/bar",
+        services=[],
+        product=foo_product,
+        id=None,
+        metadata=desired_app_metadata,
+    )
+
+    current_foo = Product(id="1", name="foo", fullname="foo", applications=[])
+    current_app = Application(
+        id="2",
+        name="bar",
+        fullname="foo/bar",
+        services=[],
+        product=current_foo,
+        metadata=current_app_metadata,
+    )
+    current_foo.applications = [current_app]
+
+    h = StatusBoardExporterIntegration.get_diff(
+        desired_abstract_status_board_map={
+            "foo": foo_product,
+            "foo/bar": desired_app,
+        },
+        current_abstract_status_board_map={
+            "foo": current_foo,
+            "foo/bar": current_app,
+        },
+    )
+
+    # Should have no changes since current metadata has additional managed fields
+    # but contains all the desired fields with same values
+    assert len(h) == 0
