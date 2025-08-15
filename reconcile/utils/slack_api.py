@@ -37,16 +37,10 @@ def is_gov_slack_workspace() -> bool:
     Determine if a workspace is a government Slack workspace.
 
     :return: True if it's a gov-slack workspace, False otherwise
-    :raises: ValueError if GOV_SLACK environment variable is not set
     """
     # Check GOV_SLACK environment variable from OpenShift YAML configuration
-    # GOV_SLACK must always exist and be either "true" or "false"
-    gov_slack_env = os.getenv("GOV_SLACK")
-    if gov_slack_env is None:
-        raise ValueError(
-            "GOV_SLACK environment variable is required but not set. "
-            "It must be set to 'true' for government Slack workspaces or 'false' for regular Slack workspaces."
-        )
+    # If not set, defaults to False (regular Slack)
+    gov_slack_env = os.getenv("GOV_SLACK", "false")
 
     return gov_slack_env.lower() == "true"
 
