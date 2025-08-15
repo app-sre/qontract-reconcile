@@ -320,7 +320,6 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                 name=product_name,
                 fullname=product_name,
                 applications=[],
-                metadata=None,
             )
             desired_abstract_status_board_map[product_name] = product
             for a in apps:
