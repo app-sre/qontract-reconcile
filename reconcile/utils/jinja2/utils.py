@@ -261,9 +261,7 @@ def sloth_alerts(
             encoding="utf-8", mode="w", suffix=".yml"
         ) as output_file,
     ):
-        yaml_content = yaml.dump(spec, allow_unicode=True)
-        input_file.write(yaml_content)
-        input_file.flush()
+        yaml.dump(spec, input_file, allow_unicode=True)
         try:
             cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
             subprocess.run(cmd, capture_output=True, check=True, text=True)
