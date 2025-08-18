@@ -129,7 +129,8 @@ def test_fetch_desired_state_without_oc_map(mocker: MockerFixture) -> None:
         "reconcile.openshift_rolebindings.get_app_interface_roles"
     ).return_value = get_app_interface_test_roles()
     assert sorted(
-        fetch_desired_state(None, None), key=operator.itemgetter("cluster", "user")
+        fetch_desired_state(None, support_role_ref=False),
+        key=operator.itemgetter("cluster", "user"),
     ) == [
         {
             "cluster": "test-cluster",
@@ -162,10 +163,10 @@ def test_fetch_desired_state_without_oc_map(mocker: MockerFixture) -> None:
     ]
 
 
-def test_get_oc_resources() -> None:
+def test_get_oc_resources_without_support_role_ref() -> None:
     test_role = get_app_interface_test_roles()
     role_binding_spec_list = RoleBindingSpec.create_rb_specs_from_role(
-        test_role[0], None, None
+        test_role[0], None
     )
     oc_resources = role_binding_spec_list[0].get_oc_resources()
     assert len(oc_resources) == 2
@@ -208,6 +209,68 @@ def test_get_oc_resources() -> None:
                 },
                 "roleRef": {
                     "kind": "ClusterRole",
+                    "name": "test-role5",
+                },
+                "subjects": [
+                    {
+                        "kind": "ServiceAccount",
+                        "name": "test-serviceaccount",
+                        "namespace": "test-namespace5",
+                    },
+                ],
+            },
+        ),
+        resource_name="test-role5-test-namespace5-test-serviceaccount",
+        privileged=False,
+    )
+
+
+def test_get_oc_resources_with_support_role_ref() -> None:
+    test_role = get_app_interface_test_roles()
+    role_binding_spec_list = RoleBindingSpec.create_rb_specs_from_role(
+        test_role[0], None, support_role_ref=True
+    )
+    oc_resources = role_binding_spec_list[0].get_oc_resources()
+    assert len(oc_resources) == 2
+    assert oc_resources[0] == OCResource(
+        resource=OR(
+            integration="openshift-rolebindings",
+            integration_version="0.3.0",
+            error_details="test-role5-test-org-user",
+            body={
+                "kind": "RoleBinding",
+                "apiVersion": "rbac.authorization.k8s.io/v1",
+                "metadata": {
+                    "name": "test-role5-test-org-user",
+                },
+                "roleRef": {
+                    "kind": "Role",
+                    "name": "test-role5",
+                },
+                "subjects": [
+                    {
+                        "kind": "User",
+                        "name": "test-org-user",
+                    }
+                ],
+            },
+        ),
+        resource_name="test-role5-test-org-user",
+        privileged=False,
+    )
+    assert oc_resources[1] == OCResource(
+        resource=OR(
+            integration="openshift-rolebindings",
+            integration_version="0.3.0",
+            error_details="test-role5-test-namespace5-test-serviceaccount",
+            body={
+                "apiVersion": "rbac.authorization.k8s.io/v1",
+                "kind": "RoleBinding",
+                "metadata": {
+                    "name": "test-role5-test-namespace5-test-serviceaccount",
+                },
+                "roleRef": {
+                    "kind": "Role",
                     "name": "test-role5",
                 },
                 "subjects": [

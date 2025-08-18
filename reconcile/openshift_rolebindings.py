@@ -86,18 +86,16 @@ class RoleBindingSpec(BaseModel):
     def create_role_binding_spec(
         cls,
         access: AccessV1,
-        oc_map: ob.ClusterMap | None = None,
         users: list[UserV1] | None = None,
         enforced_user_keys: list[str] | None = None,
         bots: list[BotV1] | None = None,
+        support_role_ref: bool = False,
     ) -> Self | None:
         if not access.namespace:
             return None
         if not (access.role or access.cluster_role):
             return None
         privileged = access.namespace.cluster_admin or False
-        if oc_map and not oc_map.get(access.namespace.cluster.name):
-            return None
         auth_dict = [auth.dict(by_alias=True) for auth in access.namespace.cluster.auth]
         usernames = RoleBindingSpec.get_usernames_from_users(
             users,
@@ -108,9 +106,7 @@ class RoleBindingSpec(BaseModel):
             ),
         )
         service_accounts = ServiceAccountSpec.create_sa_spec(bots) if bots else []
-        role_kind = "Role" if access.role else "ClusterRole"
-        if FORCE_CLUSTER_ROLE_REF:
-            role_kind = "ClusterRole"
+        role_kind = "Role" if access.role and support_role_ref else "ClusterRole"
         return cls(
             role_name=access.role or access.cluster_role,
             role_kind=role_kind,
@@ -124,8 +120,8 @@ class RoleBindingSpec(BaseModel):
     @staticmethod
     def create_rb_specs_from_role(
         role: RoleV1,
-        oc_map: ob.ClusterMap | None = None,
         enforced_user_keys: list[str] | None = None,
+        support_role_ref: bool = False,
     ) -> list["RoleBindingSpec"]:
         rolebinding_spec_list = [
             role_binding_spec
@@ -135,7 +131,11 @@ class RoleBindingSpec(BaseModel):
                 and is_valid_namespace(access.namespace)
                 and (
                     role_binding_spec := RoleBindingSpec.create_role_binding_spec(
-                        access, oc_map, role.users, enforced_user_keys, role.bots
+                        access,
+                        role.users,
+                        enforced_user_keys,
+                        role.bots,
+                        support_role_ref,
                     )
                 )
             )
@@ -250,14 +250,14 @@ def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[O
 
 def fetch_desired_state(
     ri: ResourceInventory | None,
-    oc_map: ob.ClusterMap | None,
+    support_role_ref: bool = False,
     enforced_user_keys: list[str] | None = None,
 ) -> list[dict[str, str]]:
     roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
     users_desired_state = []
     for role in roles:
         rolebindings: list[RoleBindingSpec] = RoleBindingSpec.create_rb_specs_from_role(
-            role, oc_map, enforced_user_keys
+            role, enforced_user_keys, support_role_ref
         )
         for rolebinding in rolebindings:
             users_desired_state.extend(rolebinding.get_users_desired_state())
@@ -290,6 +290,7 @@ def run(
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     internal: bool | None = None,
     use_jump_host: bool = True,
+    support_role_ref: bool = False,
     defer: Callable | None = None,
 ) -> None:
     namespaces = [
@@ -308,7 +309,7 @@ def run(
     )
     if defer:
         defer(oc_map.cleanup)
-    fetch_desired_state(ri, oc_map)
+    fetch_desired_state(ri, support_role_ref)
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
