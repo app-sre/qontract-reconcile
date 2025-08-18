@@ -67,7 +67,7 @@ def template_simple(gql_class_factory: Callable) -> TemplateV1:
         {
             "name": "test",
             "condition": "{{1 == 1}}",
-            "targetPath": "/target_path",
+            "targetPath": "/data/target_path",
             "template": "template",
         },
     )
@@ -80,7 +80,7 @@ def template_overwrite(gql_class_factory: Callable) -> TemplateV1:
         {
             "name": "test",
             "condition": "{{1 == 1}}",
-            "targetPath": "/target_path",
+            "targetPath": "/data/target_path",
             "template": "template",
             "overwrite": True,
         },
@@ -93,7 +93,7 @@ def template_patch(gql_class_factory: Callable) -> TemplateV1:
         TemplateV1,
         {
             "name": "test",
-            "targetPath": "/target_path",
+            "targetPath": "/data/target_path",
             "template": "template",
             "patch": {"path": "$.patch_path", "identifier": "identifier"},
         },
@@ -116,8 +116,7 @@ def template_collection(
 
 @pytest.fixture
 def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
-    os.mkdir(tmp_path / "data")
-    return LocalFilePersistence(False, str(tmp_path / "data"))
+    return LocalFilePersistence(False, str(tmp_path))
 
 
 @pytest.fixture
@@ -278,20 +277,18 @@ def test_join_path() -> None:
 
 
 def test_local_file_persistence_write(tmp_path: Path) -> None:
-    os.makedirs(tmp_path / "data")
     with LocalFilePersistence(
-        dry_run=False, app_interface_data_path=str(tmp_path / "data")
+        dry_run=False, app_interface_data_path=str(tmp_path)
     ) as lfp:
-        lfp.write(TemplateOutput(path="/foo", content="bar"))
+        lfp.write(TemplateOutput(path="/data/foo", content="bar"))
     assert (tmp_path / "data" / "foo").read_text() == "bar"
 
 
 def test_local_file_persistence_write_dry_run(tmp_path: Path) -> None:
-    os.makedirs(tmp_path / "data")
     with LocalFilePersistence(
-        dry_run=True, app_interface_data_path=str(tmp_path / "data")
+        dry_run=True, app_interface_data_path=str(tmp_path)
     ) as lfp:
-        lfp.write(TemplateOutput(path="/foo", content="bar"))
+        lfp.write(TemplateOutput(path="/data/foo", content="bar"))
     assert not (tmp_path / "data" / "foo").exists()
 
 
@@ -300,8 +297,8 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
     os.makedirs(data_dir)
     test_file = data_dir / "foo"
     test_file.write_text("hello")
-    lfp = LocalFilePersistence(dry_run=False, app_interface_data_path=str(data_dir))
-    assert lfp.read("foo") == "hello"
+    lfp = LocalFilePersistence(dry_run=False, app_interface_data_path=str(tmp_path))
+    assert lfp.read("data/foo") == "hello"
 
 
 def test_crg_file_persistence_write(
@@ -314,7 +311,7 @@ def test_crg_file_persistence_write(
         dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
     ) as crg:
         crg.result = template_result
-        crg.write(TemplateOutput(path="/foo", content="bar"))
+        crg.write(TemplateOutput(path="/data/foo", content="bar"))
 
     mr_manager.housekeeping.assert_called_once()
     mr_manager.create_merge_request.assert_called_once_with(
@@ -332,7 +329,7 @@ def test_crg_file_persistence_write_dry_run(
         dry_run=True, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
     ) as crg:
         crg.result = template_result
-        crg.write(TemplateOutput(path="/foo", content="bar"))
+        crg.write(TemplateOutput(path="/data/foo", content="bar"))
 
     mr_manager.housekeeping.assert_not_called()
     mr_manager.create_merge_request.assert_not_called()
@@ -349,9 +346,9 @@ def test_crg_file_persistence_write_no_auto_approval(
         dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
     ) as crg:
         crg.result = template_result
-        tauto = TemplateOutput(path="/foo", content="bar", auto_approved=True)
+        tauto = TemplateOutput(path="/data/foo", content="bar", auto_approved=True)
         crg.write(tauto)
-        tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
+        tnoauto = TemplateOutput(path="/data/foo2", content="bar2", auto_approved=False)
         crg.write(tnoauto)
 
     assert crg.result.outputs == [tauto, tnoauto]
@@ -371,9 +368,9 @@ def test_crg_file_persistence_write_auto_approval(
         dry_run=False, local_path=str(tmp_path), vcs=vcs, mr_manager=mr_manager
     ) as crg:
         crg.result = template_result
-        tauto = TemplateOutput(path="/foo", content="bar", auto_approved=True)
+        tauto = TemplateOutput(path="/data/foo", content="bar", auto_approved=True)
         crg.write(tauto)
-        tnoauto = TemplateOutput(path="/foo2", content="bar2", auto_approved=False)
+        tnoauto = TemplateOutput(path="/data/foo2", content="bar2", auto_approved=False)
         crg.write(tnoauto)
 
     assert mr_manager.create_merge_request.call_count == 2
@@ -410,7 +407,7 @@ def test_crg_file_persistence_read_found(
     test_file = tmp_path / "data" / "foo"
     test_file.write_text("hello")
     crg = ClonedRepoGitlabPersistence(False, str(tmp_path), vcs, mr_manager)
-    assert crg.read("foo") == "hello"
+    assert crg.read("data/foo") == "hello"
 
 
 def test_crg_file_persistence_read_miss(
@@ -418,7 +415,7 @@ def test_crg_file_persistence_read_miss(
 ) -> None:
     vcs.get_file_content_from_app_interface_ref.side_effect = GitlabGetError()
     crg = ClonedRepoGitlabPersistence(False, str(tmp_path), vcs, mr_manager)
-    assert crg.read("foo") is None
+    assert crg.read("data/foo") is None
 
 
 def test_persistence_transaction_dry_run(mocker: MockerFixture) -> None:
@@ -484,7 +481,7 @@ def test_process_template_simple(
         template_simple, {}, local_file_persistence, ruaml_instance
     )
     assert output
-    assert output.path == "/target_path"
+    assert output.path == "/data/target_path"
     assert output.content == "template"
 
 
@@ -494,7 +491,9 @@ def test_process_template_skip(
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
 ) -> None:
-    local_file_persistence.write(TemplateOutput(path="/target_path", content="bar"))
+    local_file_persistence.write(
+        TemplateOutput(path="/data/target_path", content="bar")
+    )
     local_file_persistence.flush()
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
@@ -510,7 +509,9 @@ def test_process_template_overwrite(
     ruaml_instance: yaml.YAML,
     secret_reader: SecretReader,
 ) -> None:
-    local_file_persistence.write(TemplateOutput(path="/target_path", content="bar"))
+    local_file_persistence.write(
+        TemplateOutput(path="/data/target_path", content="bar")
+    )
     local_file_persistence.flush()
     t = TemplateRendererIntegration(TemplateRendererIntegrationParams())
     t._secret_reader = secret_reader
@@ -518,7 +519,7 @@ def test_process_template_overwrite(
         template_overwrite, {}, local_file_persistence, ruaml_instance
     )
     assert output
-    assert output.path == "/target_path"
+    assert output.path == "/data/target_path"
     assert output.content == "template"
 
 
@@ -573,7 +574,7 @@ def test_reconcile_simple(
         TemplateV1(
             name="test",
             condition="{{1 == 1}}",
-            targetPath="/target_path",
+            targetPath="/data/target_path",
             patch=None,
             template="template",
             autoApproved=None,
@@ -631,13 +632,13 @@ def test_reconcile_variables(
 
 
 def test__calc_result_hash(template_result: TemplateResult) -> None:
-    template_result.outputs = [TemplateOutput(path="/target_path", content="bar")]
+    template_result.outputs = [TemplateOutput(path="/data/target_path", content="bar")]
     assert (
         template_result.calc_result_hash()
-        == "3200b658845422f81a0abf1366289487e4223147c600b05be3a7ba02a44cddea"
+        == "168166ae4cc901088f1e6b714592c48bcbccfecdff6419b074718cba32d83253"
     )
-    template_result.outputs = [TemplateOutput(path="/target_path", content="foo")]
+    template_result.outputs = [TemplateOutput(path="/data/target_path", content="foo")]
     assert (
         template_result.calc_result_hash()
-        == "f0b8efdbeb2145808f3f8abe175b3e8eb971e1c86d35fc92dc598911d9d92eaa"
+        == "eb831a9330b7a33f4a5981dc67b67b88a798399c99f14a4d0bd06bd56a84f845"
     )

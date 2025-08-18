@@ -97,8 +97,6 @@ class LocalFilePersistence(FilePersistence):
 
     def __init__(self, dry_run: bool, app_interface_data_path: str) -> None:
         super().__init__(dry_run)
-        if not app_interface_data_path.endswith("/data"):
-            raise ValueError("app_interface_data_path should end with /data")
         self.app_interface_data_path = app_interface_data_path
 
     def read(self, path: str) -> str | None:
@@ -159,7 +157,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
         self, dry_run: bool, local_path: str, vcs: VCS, mr_manager: MergeRequestManager
     ):
         super().__init__(dry_run)
-        self.local_path = join_path(local_path, "data")
+        self.local_path = local_path
         self.vcs = vcs
         self.mr_manager = mr_manager
 
@@ -245,13 +243,7 @@ class TemplateRendererIntegrationParams(PydanticRunParams):
 
 
 def join_path(base: str, sub: str) -> str:
-    clean_sub = sub.lstrip(APP_INTERFACE_PATH_SEPERATOR)
-    # Handle special case: if targetPath starts with "resources",
-    # write to sibling resources/ directory instead of under data/
-    if clean_sub.startswith("resources/"):
-        base_parent = os.path.dirname(base)  # /foo/bar/data -> /foo/bar
-        return os.path.join(base_parent, clean_sub)
-    return os.path.join(base, clean_sub)
+    return os.path.join(base, sub.lstrip(APP_INTERFACE_PATH_SEPERATOR))
 
 
 class TemplateRendererIntegration(QontractReconcileIntegration):

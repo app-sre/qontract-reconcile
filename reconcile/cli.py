@@ -2166,7 +2166,7 @@ def template_validator(ctx: click.Context) -> None:
 @integration.command(short_help="Render datafile templates in app-interface.")
 @click.option(
     "--app-interface-data-path",
-    help="Path to data dir in app-interface repo. Use this for local rendering or in MR checks.",
+    help="Path to root of app-interface repo. Use this for local rendering or in MR checks.",
     required=False,
     envvar="APP_INTERFACE_DATA_PATH",
 )
