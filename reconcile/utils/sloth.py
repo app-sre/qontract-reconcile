@@ -1,79 +1,61 @@
-from typing import Any
+from io import StringIO
+from typing import NotRequired, TypedDict
 
-import yaml
-from pydantic import BaseModel
+from reconcile.utils.ruamel import create_ruamel_instance
 
 
-class PrometheusRule(BaseModel):
-    record: str | None = None
-    alert: str | None = None
+class PrometheusRule(TypedDict):
+    record: NotRequired[str]
+    alert: NotRequired[str]
     expr: str
-    labels: dict[str, str] | None = None
-    annotations: dict[str, str] | None = None
+    labels: NotRequired[dict[str, str]]
+    annotations: NotRequired[dict[str, str]]
 
 
-class PrometheusRuleGroup(BaseModel):
+class PrometheusRuleGroup(TypedDict):
     name: str
     rules: list[PrometheusRule]
 
 
-class PrometheusRuleSpec(BaseModel):
+class PrometheusRuleSpec(TypedDict):
     groups: list[PrometheusRuleGroup]
 
 
 def get_cleaned_rule_labels(rule: PrometheusRule) -> dict[str, str] | None:
-    if rule.record or not rule.labels:
+    if rule.get("record") or not rule.get("labels"):
         return None
     # sloth adds several sloth_* labels to rules that are not compliant with prometheus-rule-1 schema
     # see https://sloth.dev/examples/default/getting-started/#__tabbed_1_2
-    labels = {k: v for k, v in rule.labels.items() if not k.startswith("sloth")}
+    labels = {k: v for k, v in rule["labels"].items() if not k.startswith("sloth")}
     return labels or None
 
 
 def get_cleaned_rule_annotations(rule: PrometheusRule) -> dict[str, str] | None:
-    if rule.alert and rule.annotations:
+    if rule.get("alert") and rule.get("annotations"):
         # sloth adds a `title` key within annotations: https://sloth.dev/examples/default/getting-started/#__tabbed_1_2
         # not supported within schema: https://github.com/app-sre/qontract-schemas/blob/main/schemas/openshift/prometheus-rule-1.yml#L165-L192
-        annotations = {k: v for k, v in rule.annotations.items() if k != "title"}
+        annotations = {k: v for k, v in rule["annotations"].items() if k != "title"}
         return annotations or None
-    return rule.annotations
-
-
-def get_cleaned_rule(rule: PrometheusRule) -> PrometheusRule:
-    return PrometheusRule(
-        record=rule.record,
-        alert=rule.alert,
-        expr=rule.expr,
-        labels=get_cleaned_rule_labels(rule),
-        annotations=get_cleaned_rule_annotations(rule),
-    )
+    return rule.get("annotations")
 
 
 def process_sloth_output(output_file_path: str) -> str:
+    ruamel_instance = create_ruamel_instance()
     with open(output_file_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    rule_spec = PrometheusRuleSpec.parse_obj(data)
-    cleaned_rule_spec = PrometheusRuleSpec(
-        groups=[
-            PrometheusRuleGroup(
-                name=group.name,
-                rules=[get_cleaned_rule(r) for r in group.rules],
-            )
-            for group in rule_spec.groups
-        ]
-    )
+        data: PrometheusRuleSpec = ruamel_instance.load(f)
+    for group in data.get("groups", []):
+        for rule in group.get("rules", []):
+            cleaned_labels = get_cleaned_rule_labels(rule)
+            cleaned_annotations = get_cleaned_rule_annotations(rule)
+            if cleaned_labels is not None:
+                rule["labels"] = cleaned_labels
+            else:
+                rule.pop("labels", None)
+            if cleaned_annotations is not None:
+                rule["annotations"] = cleaned_annotations
+            else:
+                rule.pop("annotations", None)
 
-    # Custom yaml dump to format multi-line strings as literal block scalars
-    class LiteralDumper(yaml.SafeDumper):
-        def represent_str(self, data: str) -> Any:
-            if "\n" in data:
-                return self.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-            return self.represent_scalar("tag:yaml.org,2002:str", data)
-
-    LiteralDumper.add_representer(str, LiteralDumper.represent_str)
-    return yaml.dump(
-        cleaned_rule_spec.dict(exclude_none=True),
-        Dumper=LiteralDumper,
-        default_flow_style=False,
-        allow_unicode=True,
-    )
+    with StringIO() as s:
+        ruamel_instance.dump(data, s)
+        return s.getvalue()
