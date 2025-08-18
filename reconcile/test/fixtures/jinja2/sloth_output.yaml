@@ -1,0 +1,19 @@
+---
+groups:
+- name: test-group
+  rules:
+  - record: test_metric
+    expr: vector(1)
+    labels:
+      sloth_id: test-id
+      sloth_service: test-service
+      service: app-interface
+  - alert: TestAlert
+    expr: vector(1)
+    labels:
+      sloth_severity: critical
+      service: app-interface
+      severity: critical
+    annotations:
+      title: Test Alert Title
+      summary: Test summary

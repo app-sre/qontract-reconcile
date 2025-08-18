@@ -1,0 +1,12 @@
+groups:
+- name: test-group
+  rules:
+  - record: test_metric
+    expr: vector(1)
+  - alert: TestAlert
+    expr: vector(1)
+    labels:
+      service: app-interface
+      severity: critical
+    annotations:
+      summary: Test summary

@@ -1,6 +1,7 @@
-import tempfile
+import os
 
 import pytest
+import yaml
 from jsonpath_ng.exceptions import JsonPathParserError
 
 from reconcile.utils.jinja2.filters import (
@@ -134,43 +135,15 @@ def test_str_format() -> None:
 
 
 def test_process_sloth_output_schema_compliance() -> None:
-    """Test that _process_sloth_output removes non-schema-compliant elements."""
-    mock_sloth_output = """---
-        groups:
-        - name: test-group
-          rules:
-          - record: test_metric
-            expr: vector(1)
-            labels:
-              sloth_id: test-id
-              sloth_service: test-service
-              service: app-interface
-          - alert: TestAlert
-            expr: vector(1)
-            labels:
-              sloth_severity: critical
-              service: app-interface
-              severity: critical
-            annotations:
-              title: Test Alert Title
-              summary: Test summary
-    """
+    fixture_dir = os.path.join(os.path.dirname(__file__), "fixtures", "jinja2")
+    sloth_output_path = os.path.join(fixture_dir, "sloth_output.yaml")
+    expected_result_path = os.path.join(fixture_dir, "expected_result.yaml")
 
-    with tempfile.NamedTemporaryFile(
-        encoding="utf-8", mode="w", suffix=".yml", delete=False
-    ) as f:
-        f.write(mock_sloth_output)
-        f.flush()
-        result = process_sloth_output(f.name)
-        # Should remove document separator
-        assert not result.startswith("---")
-        # Should remove sloth_* labels
-        assert "sloth_id:" not in result
-        assert "sloth_service:" not in result
-        assert "sloth_severity:" not in result
-        # Should remove title annotations
-        assert "title:" not in result
-        # Should preserve schema-compliant elements
-        assert "service: app-interface" in result
-        assert "severity: critical" in result
-        assert "summary: Test summary" in result
+    with open(expected_result_path, encoding="utf-8") as f:
+        expected_result = f.read()
+    result = process_sloth_output(sloth_output_path)
+    # Parse both results as YAML for comparison
+    result_data = yaml.safe_load(result)
+    expected_data = yaml.safe_load(expected_result)
+
+    assert result_data == expected_data
