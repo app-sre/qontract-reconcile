@@ -262,17 +262,17 @@ def sloth_alerts(
         ) as output_file,
     ):
         yaml.dump(spec, input_file, allow_unicode=True)
+        cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
         try:
-            cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
             subprocess.run(cmd, capture_output=True, check=True, text=True)
-            return process_sloth_output(output_file.name)
         except subprocess.CalledProcessError as e:
-            error_msg = f"sloth generate failed: {e}"
+            error_msg = f"{e}"
             if e.stdout:
                 error_msg += f"\nstdout: {e.stdout}"
             if e.stderr:
                 error_msg += f"\nstderr: {e.stderr}"
-            raise Exception(error_msg) from e
+            raise SlothGenerateError(error_msg) from e
+        return process_sloth_output(output_file.name)
 
 
 @retry()
@@ -379,6 +379,11 @@ def process_extracurlyjinja2_template(
         secret_reader=secret_reader,
         template_render_options=template_render_options,
     )
+
+
+class SlothGenerateError(Exception):
+    def __init__(self, msg: Any):
+        super().__init__("sloth generate failed: " + str(msg))
 
 
 class FetchSecretError(Exception):
