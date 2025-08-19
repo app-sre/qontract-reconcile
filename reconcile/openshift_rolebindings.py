@@ -1,4 +1,3 @@
-import contextlib
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -26,7 +25,6 @@ from reconcile.utils.defer import defer
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import (
     ResourceInventory,
-    ResourceKeyExistsError,
 )
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
@@ -264,16 +262,26 @@ def fetch_desired_state(
             if ri is None:
                 continue
             for oc_resource in rolebinding.get_oc_resources():
-                with contextlib.suppress(ResourceKeyExistsError):
-                    ri.add_desired(
-                        rolebinding.cluster.name,
-                        rolebinding.namespace.name,
-                        "RoleBinding.rbac.authorization.k8s.io",
-                        oc_resource.resource_name,
-                        oc_resource.resource,
+                if should_add_desired_state(ri, oc_resource, rolebinding):
+                    ri.add_desired_resource(
+                        cluster=rolebinding.cluster.name,
+                        namespace=rolebinding.namespace.name,
+                        resource=oc_resource.resource,
                         privileged=oc_resource.privileged,
                     )
     return users_desired_state
+
+
+def should_add_desired_state(
+    ri: ResourceInventory, oc_resource: OCResource, rolebinding_spec: RoleBindingSpec
+) -> bool:
+    resource = ri.get_desired(
+        rolebinding_spec.cluster.name,
+        rolebinding_spec.namespace.name,
+        "RoleBinding.rbac.authorization.k8s.io",
+        oc_resource.resource_name,
+    )
+    return ri.is_cluster_present(rolebinding_spec.cluster.name) and not resource
 
 
 def is_valid_namespace(namespace: NamespaceV1 | CommonNamespaceV1) -> bool:
