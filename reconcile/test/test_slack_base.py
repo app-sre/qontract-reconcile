@@ -183,7 +183,7 @@ class ClientConfig(BaseModel):
     methods: list[ClientMethodConfig] | None
 
 
-def test_get_slackapi(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_slackapi() -> None:
     slack_api = get_slackapi(
         "workspace",
         "token",
