@@ -1,12 +1,7 @@
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
-
-try:
-    from typing import Self
-except ImportError:
-    from typing import Self
+from typing import Any, Self
 
 from pydantic.main import BaseModel
 
