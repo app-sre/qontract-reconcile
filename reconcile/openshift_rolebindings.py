@@ -1,7 +1,12 @@
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any
+
+try:
+    from typing import Self
+except ImportError:
+    from typing import Self
 
 from pydantic.main import BaseModel
 
@@ -115,12 +120,13 @@ class RoleBindingSpec(BaseModel):
             openshift_service_accounts=service_accounts,
         )
 
-    @staticmethod
+    @classmethod
     def create_rb_specs_from_role(
+        cls,
         role: RoleV1,
         enforced_user_keys: list[str] | None = None,
         support_role_ref: bool = False,
-    ) -> list["RoleBindingSpec"]:
+    ) -> list[Self]:
         rolebinding_spec_list = [
             role_binding_spec
             for access in role.access or []
@@ -128,7 +134,7 @@ class RoleBindingSpec(BaseModel):
                 access.namespace
                 and is_valid_namespace(access.namespace)
                 and (
-                    role_binding_spec := RoleBindingSpec.create_role_binding_spec(
+                    role_binding_spec := cls.create_role_binding_spec(
                         access,
                         role.users,
                         enforced_user_keys,
