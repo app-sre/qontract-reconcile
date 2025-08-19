@@ -10,10 +10,10 @@ from reconcile.utils.ruamel import create_ruamel_instance
 class PromoteQontractSchemas(MergeRequestBase):
     name = "promote_qontract_schemas"
 
-    def __init__(self, version: str, author_email: str | None = None):
+    def __init__(self, version: str, github_user_id: str | None = None):
         self.path = ".env"
         self.version = version
-        self.author_email = author_email
+        self.github_user_id = github_user_id
 
         super().__init__()
 
@@ -22,13 +22,13 @@ class PromoteQontractSchemas(MergeRequestBase):
     @property
     def title(self) -> str:
         author = self.infer_author(
-            author_email=self.author_email, all_users=get_users()
+            github_user_id=self.github_user_id, all_users=get_users()
         )
         return f"[{self.name}] promote qontract-schemas to version {self.version}" + (
             f" by @{author}"
             if author
-            else f" by {self.author_email}"
-            if self.author_email
+            else f" by {self.github_user_id}"
+            if self.github_user_id
             else ""
         )
 
@@ -61,10 +61,12 @@ class PromoteQontractSchemas(MergeRequestBase):
 class PromoteQontractReconcileCommercial(MergeRequestBase):
     name = "promote_qontract_reconcile"
 
-    def __init__(self, version: str, commit_sha: str, author_email: str | None = None):
+    def __init__(
+        self, version: str, commit_sha: str, github_user_id: str | None = None
+    ):
         self.version = version
         self.commit_sha = commit_sha
-        self.author_email = author_email
+        self.github_user_id = github_user_id
 
         super().__init__()
 
@@ -73,13 +75,13 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
     @property
     def title(self) -> str:
         author = self.infer_author(
-            author_email=self.author_email, all_users=get_users()
+            github_user_id=self.github_user_id, all_users=get_users()
         )
         return f"[{self.name}] promote qontract-reconcile to version {self.version}" + (
             f" by @{author}"
             if author
-            else f" by {self.author_email}"
-            if self.author_email
+            else f" by {self.github_user_id}"
+            if self.github_user_id
             else ""
         )
 
