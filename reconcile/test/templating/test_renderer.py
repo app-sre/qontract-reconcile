@@ -278,7 +278,7 @@ def test_join_path() -> None:
 
 def test_local_file_persistence_write(tmp_path: Path) -> None:
     with LocalFilePersistence(
-        dry_run=False, app_interface_data_path=str(tmp_path)
+        dry_run=False, app_interface_root_path=str(tmp_path)
     ) as lfp:
         lfp.write(TemplateOutput(path="/data/foo", content="bar"))
     assert (tmp_path / "data" / "foo").read_text() == "bar"
@@ -286,7 +286,7 @@ def test_local_file_persistence_write(tmp_path: Path) -> None:
 
 def test_local_file_persistence_write_dry_run(tmp_path: Path) -> None:
     with LocalFilePersistence(
-        dry_run=True, app_interface_data_path=str(tmp_path)
+        dry_run=True, app_interface_root_path=str(tmp_path)
     ) as lfp:
         lfp.write(TemplateOutput(path="/data/foo", content="bar"))
     assert not (tmp_path / "data" / "foo").exists()
@@ -297,7 +297,7 @@ def test_local_file_persistence_read(tmp_path: Path) -> None:
     os.makedirs(data_dir)
     test_file = data_dir / "foo"
     test_file.write_text("hello")
-    lfp = LocalFilePersistence(dry_run=False, app_interface_data_path=str(tmp_path))
+    lfp = LocalFilePersistence(dry_run=False, app_interface_root_path=str(tmp_path))
     assert lfp.read("data/foo") == "hello"
 
 

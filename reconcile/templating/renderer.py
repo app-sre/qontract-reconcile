@@ -95,16 +95,16 @@ class LocalFilePersistence(FilePersistence):
     This class provides a simple file persistence implementation for local files.
     """
 
-    def __init__(self, dry_run: bool, app_interface_data_path: str) -> None:
+    def __init__(self, dry_run: bool, app_interface_root_path: str) -> None:
         super().__init__(dry_run)
-        self.app_interface_data_path = app_interface_data_path
+        self.app_interface_root_path = app_interface_root_path
 
     def read(self, path: str) -> str | None:
-        return self._read_local_file(join_path(self.app_interface_data_path, path))
+        return self._read_local_file(join_path(self.app_interface_root_path, path))
 
     def flush(self) -> None:
         for output in self.outputs:
-            filepath = Path(join_path(self.app_interface_data_path, output.path))
+            filepath = Path(join_path(self.app_interface_root_path, output.path))
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(output.content, encoding="utf-8")
 
@@ -238,7 +238,7 @@ def unpack_dynamic_variables(
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
     clone_repo: bool = False
-    app_interface_data_path: str | None
+    app_interface_root_path: str | None
     template_collection_name: str | None
 
 
@@ -365,10 +365,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         persistence: FilePersistence
         ruaml_instance = create_ruamel_instance(explicit_start=True)
 
-        if not self.params.clone_repo and self.params.app_interface_data_path:
+        if not self.params.clone_repo and self.params.app_interface_root_path:
             persistence = LocalFilePersistence(
                 dry_run=dry_run,
-                app_interface_data_path=self.params.app_interface_data_path,
+                app_interface_root_path=self.params.app_interface_root_path,
             )
             self.reconcile(persistence, ruaml_instance)
 
@@ -409,4 +409,4 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 self.reconcile(persistence, ruaml_instance)
 
         else:
-            raise ValueError("App-interface-data-path must be set")
+            raise ValueError("App-interface-root-path must be set")
