@@ -35,7 +35,6 @@ from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.sharding import is_in_shard
 
 QONTRACT_INTEGRATION = "openshift-rolebindings"
-FORCE_CLUSTER_ROLE_REF = True
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
 
