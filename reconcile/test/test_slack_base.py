@@ -109,10 +109,7 @@ def test_slack_workspace_ok(
     patch_secret_reader: MagicMock,
     patch__initiate_usergroups: MagicMock,
     slack_workspace: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Mock the GOV_SLACK environment variable
-    monkeypatch.setenv("GOV_SLACK", "false")
     slack_api = slackapi_from_slack_workspace(slack_workspace, SecretReader(), "dummy")
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
@@ -125,10 +122,7 @@ def test_slack_workspace_channel_overwrite(
     patch_secret_reader: MagicMock,
     patch__initiate_usergroups: MagicMock,
     slack_workspace: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Mock the GOV_SLACK environment variable
-    monkeypatch.setenv("GOV_SLACK", "false")
     slack_api = slackapi_from_slack_workspace(
         slack_workspace, SecretReader(), "dummy", channel="foo"
     )
@@ -139,10 +133,7 @@ def test_unleash_workspace_ok(
     patch_secret_reader: MagicMock,
     patch__initiate_usergroups: MagicMock,
     unleash_slack_workspace: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Mock the GOV_SLACK environment variable
-    monkeypatch.setenv("GOV_SLACK", "false")
     slack_api = slackapi_from_slack_workspace(
         unleash_slack_workspace, SecretReader(), "slack-usergroups"
     )
@@ -157,10 +148,7 @@ def test_slack_workspace_no_init(
     patch_secret_reader: MagicMock,
     patch__initiate_usergroups: MagicMock,
     slack_workspace: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Mock the GOV_SLACK environment variable
-    monkeypatch.setenv("GOV_SLACK", "false")
     slackapi_from_slack_workspace(
         slack_workspace, SecretReader(), "dummy", init_usergroups=False
     )
@@ -171,10 +159,7 @@ def test_permissions_workspace(
     patch_secret_reader: MagicMock,
     patch__initiate_usergroups: MagicMock,
     permissions_workspace: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Mock the GOV_SLACK environment variable
-    monkeypatch.setenv("GOV_SLACK", "false")
     slack_api = slackapi_from_permissions(permissions_workspace, SecretReader())
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
@@ -199,8 +184,6 @@ class ClientConfig(BaseModel):
 
 
 def test_get_slackapi(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Mock the GOV_SLACK environment variable
-    monkeypatch.setenv("GOV_SLACK", "false")
     slack_api = get_slackapi(
         "workspace",
         "token",

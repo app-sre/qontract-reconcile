@@ -29,8 +29,6 @@ SlackApiMock = namedtuple("SlackApiMock", "client mock_slack_client")
 
 @pytest.fixture
 def slack_api(mocker: MockerFixture) -> SlackApiMock:
-    # Mock the GOV_SLACK environment variable
-    mocker.patch.dict("os.environ", {"GOV_SLACK": "false"})
     mock_slack_client = mocker.patch.object(
         reconcile.utils.slack_api, "WebClient", autospec=True
     )
@@ -107,8 +105,6 @@ def test_instantiate_slack_api_with_config(mocker: MockerFixture) -> None:
     When SlackApiConfig is passed into SlackApi, the constructor shouldn't
     create a default configuration object.
     """
-    # Mock the GOV_SLACK environment variable
-    mocker.patch.dict("os.environ", {"GOV_SLACK": "false"})
     mock_slack_client = mocker.patch.object(
         reconcile.utils.slack_api, "WebClient", autospec=True
     )
@@ -543,8 +539,6 @@ def test_get_flat_conversation_history(
 #
 @pytest.fixture
 def slack_client(httpserver: HTTPServer, monkeypatch: pytest.MonkeyPatch) -> SlackApi:
-    # Mock the GOV_SLACK environment variable
-    monkeypatch.setenv("GOV_SLACK", "false")
     # Create the SlackApi instance normally
     api = SlackApi(
         "workspace",
