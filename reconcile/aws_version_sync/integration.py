@@ -104,7 +104,6 @@ class ExternalResource(BaseModel):
             self.provisioner.uid,
             self.resource_provider,
             self.resource_identifier,
-            self.resource_engine,
         )
 
     @validator("resource_engine_version", pre=True)
@@ -220,6 +219,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         clusters: Iterable[ClusterV1],
         timeout: int,
         elasticache_replication_group_id_to_identifier: ReplicationGroupIdToIdentifier,
+        supported_providers: Iterable[str],
         prom_get_func: Callable = prom_get,
     ) -> list[ExternalResource]:
         metrics: list[ExternalResource] = []
@@ -232,82 +232,86 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             )
 
             # RDS resources
-            try:
-                rds_metrics = prom_get_func(
-                    url=cluster.prometheus_url,
-                    params={"query": "aws_resources_exporter_rds_engineversion"},
-                    token=token,
-                    timeout=timeout,
-                )
+            if SupportedResourceProvider.RDS in supported_providers:
+                try:
+                    rds_metrics = prom_get_func(
+                        url=cluster.prometheus_url,
+                        params={"query": "aws_resources_exporter_rds_engineversion"},
+                        token=token,
+                        timeout=timeout,
+                    )
 
-                for m in rds_metrics:
-                    try:
-                        metrics.append(
-                            ExternalResource(
-                                provider="aws",
-                                provisioner=ExternalResourceProvisioner(
-                                    uid=m["aws_account_id"]
-                                ),
-                                resource_provider=SupportedResourceProvider.RDS,
-                                resource_identifier=m["dbinstance_identifier"],
-                                resource_engine=m["engine"],
-                                resource_engine_version=m["engine_version"],
+                    for m in rds_metrics:
+                        try:
+                            metrics.append(
+                                ExternalResource(
+                                    provider="aws",
+                                    provisioner=ExternalResourceProvisioner(
+                                        uid=m["aws_account_id"]
+                                    ),
+                                    resource_provider=SupportedResourceProvider.RDS,
+                                    resource_identifier=m["dbinstance_identifier"],
+                                    resource_engine=m["engine"],
+                                    resource_engine_version=m["engine_version"],
+                                )
                             )
-                        )
-                    except ValidationError:
-                        # don't try to parse AWS extended support version numbers
-                        # See https://aws.amazon.com/about-aws/whats-new/2025/04/amazon-rds-postgresql-extended-support-11-22-rds-20250220-12-22-rds-20250220/ for more info
-                        if (
-                            EXTENDED_SUPPORT_VERSION_INDICATOR
-                            not in m["engine_version"]
-                        ):
-                            raise
-                    except Exception as e:
-                        logging.error(
-                            f"Failed to parse RDS metric for {m['dbinstance_identifier']}: {e}"
-                        )
-            except Exception as e:
-                logging.error(
-                    f"Failed to get 'aws_resources_exporter_rds_engineversion' metrics for cluster {cluster.name}: {e}"
-                )
+                        except ValidationError:
+                            # don't try to parse AWS extended support version numbers
+                            # See https://aws.amazon.com/about-aws/whats-new/2025/04/amazon-rds-postgresql-extended-support-11-22-rds-20250220-12-22-rds-20250220/ for more info
+                            if (
+                                EXTENDED_SUPPORT_VERSION_INDICATOR
+                                not in m["engine_version"]
+                            ):
+                                raise
+                        except Exception as e:
+                            logging.error(
+                                f"Failed to parse RDS metric for {m['dbinstance_identifier']}: {e}"
+                            )
+                except Exception as e:
+                    logging.error(
+                        f"Failed to get 'aws_resources_exporter_rds_engineversion' metrics for cluster {cluster.name}: {e}"
+                    )
 
             # ElastiCache resources
-            try:
-                elasticache_metrics = prom_get_func(
-                    url=cluster.prometheus_url,
-                    params={"query": "aws_resources_exporter_elasticache_redisversion"},
-                    token=token,
-                    timeout=timeout,
-                )
-                for m in elasticache_metrics:
-                    try:
-                        metrics.append(
-                            ExternalResource(
-                                provider="aws",
-                                provisioner=ExternalResourceProvisioner(
-                                    uid=m["aws_account_id"]
-                                ),
-                                resource_provider=SupportedResourceProvider.ELASTICACHE,
-                                # replication_group_id != resource_identifier!
-                                resource_identifier=elasticache_replication_group_id_to_identifier.get(
-                                    (
-                                        m["aws_account_id"],
+            if SupportedResourceProvider.ELASTICACHE in supported_providers:
+                try:
+                    elasticache_metrics = prom_get_func(
+                        url=cluster.prometheus_url,
+                        params={
+                            "query": "aws_resources_exporter_elasticache_redisversion"
+                        },
+                        token=token,
+                        timeout=timeout,
+                    )
+                    for m in elasticache_metrics:
+                        try:
+                            metrics.append(
+                                ExternalResource(
+                                    provider="aws",
+                                    provisioner=ExternalResourceProvisioner(
+                                        uid=m["aws_account_id"]
+                                    ),
+                                    resource_provider=SupportedResourceProvider.ELASTICACHE,
+                                    # replication_group_id != resource_identifier!
+                                    resource_identifier=elasticache_replication_group_id_to_identifier.get(
+                                        (
+                                            m["aws_account_id"],
+                                            m["replication_group_id"],
+                                        ),
                                         m["replication_group_id"],
                                     ),
-                                    m["replication_group_id"],
-                                ),
-                                resource_engine=m["engine"],
-                                resource_engine_version=m["engine_version"],
+                                    resource_engine=m["engine"],
+                                    resource_engine_version=m["engine_version"],
+                                )
                             )
-                        )
-                    except Exception as e:
-                        logging.error(
-                            f"Failed to parse ElastiCache metrics for {m['replication_group_id']}: {e}"
-                        )
-            except Exception as e:
-                logging.error(
-                    f"Failed to get 'aws_resources_exporter_elasticache_redisversion' metrics for cluster {cluster.name}: {e}"
-                )
+                        except Exception as e:
+                            logging.error(
+                                f"Failed to parse ElastiCache metrics for {m['replication_group_id']}: {e}"
+                            )
+                except Exception as e:
+                    logging.error(
+                        f"Failed to get 'aws_resources_exporter_elasticache_redisversion' metrics for cluster {cluster.name}: {e}"
+                    )
 
         return metrics
 
@@ -353,8 +357,8 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                         resource.provider == SupportedResourceProvider.ELASTICACHE
                         and str(values["engine_version"]).lower().endswith("x")
                     ):
-                        # AWS ElastiCache Redis 6 could use a version like 6.x. Then, we don't need to manage it
-                        continue
+                        # AWS ElastiCache Redis 6 could use a version like 6.x. Let's patch it to a fix version
+                        values["engine_version"] = "6.2"
 
                     if (
                         resource.provider == SupportedResourceProvider.RDS
@@ -400,7 +404,9 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             key=lambda r: r.key,
             equal=lambda external_resources_app_interface,
             external_resources_aws: external_resources_app_interface.resource_engine_version_string
-            == external_resources_aws.resource_engine_version_string,
+            == external_resources_aws.resource_engine_version_string
+            and external_resources_app_interface.resource_engine
+            == external_resources_aws.resource_engine,
         )
         for diff_pair in diff.change.values():
             aws_resource = diff_pair.desired
@@ -408,6 +414,8 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             if (
                 aws_resource.resource_engine_version
                 <= app_interface_resource.resource_engine_version
+                and aws_resource.resource_engine
+                == app_interface_resource.resource_engine
             ):
                 # do not downgrade the version
                 continue
@@ -422,7 +430,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                     provisioner_uid=app_interface_resource.provisioner.uid,
                     resource_provider=app_interface_resource.resource_provider,
                     resource_identifier=app_interface_resource.resource_identifier,
-                    resource_engine=app_interface_resource.resource_engine,
+                    resource_engine=aws_resource.resource_engine,
                     resource_engine_version=aws_resource.resource_engine_version_string,
                 )
             )
@@ -475,6 +483,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 for external_resource in external_resources_app_interface
                 if external_resource.redis_replication_group_id
             },
+            supported_providers=self.params.supported_providers,
         )
 
         self.reconcile(
