@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime
+from datetime import UTC
 
 import requests
 from cryptography import x509
@@ -17,6 +17,46 @@ class RhcsV2Cert(BaseModel):
 
     class Config:
         allow_population_by_field_name = True
+
+
+def extract_cert(text: str) -> re.Match:
+    # The CA webform returns an HTML page with inline JS that builds an array of “outputList”
+    # objects. Each object looks roughly like:
+    #   outputList = new Object;
+    #   outputList.outputId = "pretty_cert";
+    #   outputList.outputSyntax = "pretty_print";
+    #   outputList.outputVal = "    Certificate:\n ... Not  After: ...";
+    #   outputListSet[0] = outputList;
+    #
+    #   outputList = new Object;
+    #   outputList.outputId = "b64_cert";
+    #   outputList.outputSyntax = "pretty_print";
+    #   outputList.outputVal = "-----BEGIN CERTIFICATE-----\n...base64...\n-----END CERTIFICATE-----\n";
+    #   outputListSet[1] = outputList;
+    #
+    # We must extract the PEM from the *b64_cert* block (the pretty_cert block contains prose
+    # and formatting and is not reliable for parsing).
+    #
+    # The regex below:
+    # - Anchors on `outputId = "b64_cert"` so we only consider the base64 block.
+    # - Tolerates arbitrary whitespace around `=` and `.` (services sometimes reformat JS).
+    # - Jumps non-greedily over whatever properties sit between outputId and outputVal.
+    # - Captures only the PEM body (BEGIN…END), excluding any trailing newline/escape junk.
+    # - Accepts multiple terminators after the closing quote: literal "\\r\\n", literal "\\n",
+    #   or a real newline (`\r?\n`), followed by optional whitespace and the semicolon.
+    # - Uses DOTALL so `.` spans line breaks inside the JS/HTML blob.
+
+    cert_pem = re.search(
+        r'outputList\s*\.\s*outputId\s*=\s*"b64_cert".*?'
+        r'outputList\s*\.\s*outputVal\s*=\s*"'
+        r"(-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----)"
+        r"(?:\\r\\n|\\n|\r?\n)?\s*",
+        text,
+        re.DOTALL,
+    )
+    if not cert_pem:
+        raise ValueError("Could not extract certificate PEM from response")
+    return cert_pem
 
 
 def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cert:
@@ -42,13 +82,7 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
     response = requests.post(issuer_url, data=data)
     response.raise_for_status()
 
-    cert_pem = re.search(
-        r'outputList\.outputVal="(-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----(?:\\n|\r?\n)?)";',
-        response.text,
-        re.DOTALL,
-    )
-    if not cert_pem:
-        raise ValueError("Could not extract certificate PEM from response")
+    cert_pem = extract_cert(response.text)
     pem_raw = cert_pem.group(1).encode().decode("unicode_escape").replace("\\/", "/")
     cert = x509.load_pem_x509_certificate(pem_raw.encode())
     dt_expiry = cert.not_valid_after.replace(tzinfo=UTC)

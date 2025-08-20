@@ -1,0 +1,18 @@
+<html>
+<head><title>Certificate Authority - Certificate Request Result</title></head>
+<body>
+<script>
+outputList = new Object;
+outputList.outputId = "pretty_cert";
+outputList.outputSyntax = "pretty_print";
+outputList.outputVal = "    Certificate:\n        Data:\n            Version: 3 (0x2)\n            Serial Number:\n                01:23:45:67:89:ab:cd:ef\n        Signature Algorithm: sha256WithRSAEncryption\n        Issuer: CN=Test CA\n        Validity\n            Not Before: Jan  1 00:00:00 2024 GMT\n            Not After : Jan  1 00:00:00 2025 GMT\n        Subject: UID=testuser\n        Subject Public Key Info:\n            Public Key Algorithm: rsaEncryption\n                RSA Public-Key: (4096 bit)";
+outputListSet[0] = outputList;
+
+outputList = new Object;
+outputList.outputId = "b64_cert";
+outputList.outputSyntax = "pretty_print";
+outputList.outputVal = "-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAKoK/heBjcOuMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV\nBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX\naWRnaXRzIFB0eSBMdGQwHhcNMTcwNTE4MTAzNzI3WhcNMTgwNTE4MTAzNzI3WjBF\nMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50\nZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\nCgKCAQEA4f5wg5l2hKsTeNem/V41fGnJm6gOdrj8ym3rFkEjWT2btNioBpGU1qKo\n-----END CERTIFICATE-----\n";
+outputListSet[1] = outputList;
+</script>
+</body>
+</html>
