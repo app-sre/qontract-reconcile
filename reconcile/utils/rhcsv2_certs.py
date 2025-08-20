@@ -49,12 +49,9 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
     )
     if not cert_pem:
         raise ValueError("Could not extract certificate PEM from response")
-    cert_expiry = re.search(r"Not\s+After:\s+(.*?UTC)(?:\\n|\r?\n)?", response.text)
-    if not cert_expiry:
-        raise ValueError("Could not extract expiration date from response")
-    # Weekday, Month Day, Year HH:MM:SS PM/AM Timezone
-    dt_expiry = datetime.strptime(cert_expiry.group(1), "%A, %B %d, %Y %I:%M:%S %p %Z")
-    dt_expiry = dt_expiry.replace(tzinfo=UTC)
+    pem_raw = cert_pem.group(1).encode().decode("unicode_escape").replace("\\/", "/")
+    cert = x509.load_pem_x509_certificate(pem_raw.encode())
+    dt_expiry = cert.not_valid_after.replace(tzinfo=UTC)
     private_key_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
