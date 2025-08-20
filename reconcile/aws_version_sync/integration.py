@@ -267,34 +267,39 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 token=token,
                 timeout=timeout,
             )
-
-            for m in rds_metrics:
-                try:
-                    metrics.append(
-                        ExternalResource(
-                            provider="aws",
-                            provisioner=ExternalResourceProvisioner(
-                                uid=m["aws_account_id"]
-                            ),
-                            resource_provider=SupportedResourceProvider.RDS,
-                            resource_identifier=m["dbinstance_identifier"],
-                            resource_engine=m["engine"],
-                            resource_engine_version=m["engine_version"],
-                        )
-                    )
-                except ValidationError:
-                    # don't try to parse AWS extended support version numbers
-                    # See https://aws.amazon.com/about-aws/whats-new/2025/04/amazon-rds-postgresql-extended-support-11-22-rds-20250220-12-22-rds-20250220/ for more info
-                    if EXTENDED_SUPPORT_VERSION_INDICATOR not in m["engine_version"]:
-                        raise
-                except Exception as e:
-                    logging.error(
-                        f"Failed to parse RDS metric for {m['dbinstance_identifier']}: {e}"
-                    )
         except Exception as e:
             logging.error(
                 f"Failed to get 'aws_resources_exporter_rds_engineversion' metrics for cluster {cluster.name}: {e}"
             )
+            return []
+
+        for m in rds_metrics:
+            try:
+                metrics.append(
+                    ExternalResource(
+                        provider="aws",
+                        provisioner=ExternalResourceProvisioner(
+                            uid=m["aws_account_id"]
+                        ),
+                        resource_provider=SupportedResourceProvider.RDS,
+                        resource_identifier=m["dbinstance_identifier"],
+                        resource_engine=m["engine"],
+                        resource_engine_version=m["engine_version"],
+                    )
+                )
+            except ValidationError as e:
+                if EXTENDED_SUPPORT_VERSION_INDICATOR in m["engine_version"]:
+                    # don't try to parse AWS extended support version numbers
+                    # See https://aws.amazon.com/about-aws/whats-new/2025/04/amazon-rds-postgresql-extended-support-11-22-rds-20250220-12-22-rds-20250220/ for more info
+                    pass
+                else:
+                    logging.error(
+                        f"Failed to parse RDS metric for {m['dbinstance_identifier']}: {e}"
+                    )
+            except KeyError as e:
+                logging.error(
+                    f"Failed to parse RDS metric for {m['dbinstance_identifier']}: {e}"
+                )
         return metrics
 
     def _fetch_elasticache_metrics(
@@ -314,35 +319,37 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 token=token,
                 timeout=timeout,
             )
-            for m in elasticache_metrics:
-                try:
-                    metrics.append(
-                        ExternalResource(
-                            provider="aws",
-                            provisioner=ExternalResourceProvisioner(
-                                uid=m["aws_account_id"]
-                            ),
-                            resource_provider=SupportedResourceProvider.ELASTICACHE,
-                            # replication_group_id != resource_identifier!
-                            resource_identifier=elasticache_replication_group_id_to_identifier.get(
-                                (
-                                    m["aws_account_id"],
-                                    m["replication_group_id"],
-                                ),
-                                m["replication_group_id"],
-                            ),
-                            resource_engine=m["engine"],
-                            resource_engine_version=m["engine_version"],
-                        )
-                    )
-                except Exception as e:
-                    logging.error(
-                        f"Failed to parse ElastiCache metrics for {m['replication_group_id']}: {e}"
-                    )
         except Exception as e:
             logging.error(
                 f"Failed to get 'aws_resources_exporter_elasticache_redisversion' metrics for cluster {cluster.name}: {e}"
             )
+            return []
+
+        for m in elasticache_metrics:
+            try:
+                metrics.append(
+                    ExternalResource(
+                        provider="aws",
+                        provisioner=ExternalResourceProvisioner(
+                            uid=m["aws_account_id"]
+                        ),
+                        resource_provider=SupportedResourceProvider.ELASTICACHE,
+                        # replication_group_id != resource_identifier!
+                        resource_identifier=elasticache_replication_group_id_to_identifier.get(
+                            (
+                                m["aws_account_id"],
+                                m["replication_group_id"],
+                            ),
+                            m["replication_group_id"],
+                        ),
+                        resource_engine=m["engine"],
+                        resource_engine_version=m["engine_version"],
+                    )
+                )
+            except (ValidationError, KeyError) as e:
+                logging.error(
+                    f"Failed to parse ElastiCache metrics for {m['replication_group_id']}: {e}"
+                )
 
         return metrics
 
