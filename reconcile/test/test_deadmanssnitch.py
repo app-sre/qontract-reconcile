@@ -40,7 +40,7 @@ def deadmanssnitch_settings() -> DeadMansSnitchSettingsV1:
 
 @pytest.fixture
 def vault_mock(mocker: MockerFixture) -> MockerFixture:
-    return mocker.patch("reconcile.utils.vault._VaultClient")
+    return mocker.patch("reconcile.utils.vault.VaultClient")
 
 
 @pytest.fixture

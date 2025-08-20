@@ -19,7 +19,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 
 @pytest.fixture
-def cloudflare_records():
+def cloudflare_records() -> list[CloudflareDnsRecordV1]:
     return [
         CloudflareDnsRecordV1(
             identifier="id0",
@@ -45,7 +45,10 @@ def cloudflare_records():
 
 
 @pytest.fixture
-def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
+def cloudflare_dns_zones(
+    cloudflare_account: CloudflareAccountV1,
+    cloudflare_records: list[CloudflareDnsRecordV1],
+) -> list[CloudflareDnsZoneV1]:
     return [
         CloudflareDnsZoneV1(
             identifier="zoneid",
@@ -61,7 +64,7 @@ def cloudflare_dns_zones(cloudflare_account, cloudflare_records):
 
 
 @pytest.fixture
-def cloudflare_account(aws_account):
+def cloudflare_account(aws_account: AWSAccountV1) -> CloudflareAccountV1:
     return CloudflareAccountV1(
         name="fakeaccount",
         type="free",
@@ -77,7 +80,7 @@ def cloudflare_account(aws_account):
 
 
 @pytest.fixture
-def aws_account():
+def aws_account() -> AWSAccountV1:
     return AWSAccountV1(
         name="foo",
         consoleUrl="url",
@@ -87,7 +90,9 @@ def aws_account():
     )
 
 
-def test_cloudflare_dns_zone_to_external_resource(cloudflare_dns_zones):
+def test_cloudflare_dns_zone_to_external_resource(
+    cloudflare_dns_zones: list[CloudflareDnsZoneV1],
+) -> None:
     expected_external_resource = ExternalResourceSpec(
         provision_provider=DEFAULT_PROVISIONER_PROVIDER,
         provisioner={"name": "fakeaccount-zoneid"},
@@ -98,7 +103,7 @@ def test_cloudflare_dns_zone_to_external_resource(cloudflare_dns_zones):
     )
     expected_external_resource.resource["provider"] = DEFAULT_PROVIDER
     expected_external_resource.resource["records"] = [
-        record.dict(by_alias=True) for record in cloudflare_dns_zones[0].records
+        record.dict(by_alias=True) for record in cloudflare_dns_zones[0].records or []
     ]
     expected_result = [expected_external_resource]
 
@@ -107,11 +112,15 @@ def test_cloudflare_dns_zone_to_external_resource(cloudflare_dns_zones):
     assert result == expected_result
 
 
-def test_evaluate_record_number_too_many_raise_exception(cloudflare_dns_zones):
+def test_evaluate_record_number_too_many_raise_exception(
+    cloudflare_dns_zones: list[CloudflareDnsZoneV1],
+) -> None:
     with pytest.raises(RuntimeError):
         ensure_record_number_not_exceed_max(cloudflare_dns_zones, default_max_records=1)
 
 
-def test_evaluate_record_number_happy_path(cloudflare_dns_zones):
+def test_evaluate_record_number_happy_path(
+    cloudflare_dns_zones: list[CloudflareDnsZoneV1],
+) -> None:
     cloudflare_dns_zones[0].max_records = 2
     ensure_record_number_not_exceed_max(cloudflare_dns_zones, default_max_records=1)

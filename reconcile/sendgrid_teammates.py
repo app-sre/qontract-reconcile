@@ -1,5 +1,7 @@
 import logging
 import sys
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 import sendgrid
 from sretoolbox.utils import retry
@@ -17,18 +19,22 @@ class SendGridAPIError(Exception):
 
 
 class Teammate:
-    def __init__(self, email, pending_token=None, username=None):
+    def __init__(
+        self, email: str, pending_token: str | None = None, username: str | None = None
+    ) -> None:
         self.email = email
-        self.username = username or email.split("@")[0]
+        self.username = username or email.split("@", maxsplit=1)[0]
         self.pending_token = pending_token
 
     @property
-    def pending(self):
+    def pending(self) -> bool:
         return bool(self.pending_token)
 
 
-def fetch_desired_state(users):
-    desired_state = {}
+def fetch_desired_state(
+    users: Iterable[Mapping[str, Any]],
+) -> dict[str, list[Teammate]]:
+    desired_state: dict[str, list[Teammate]] = {}
     for user in users:
         roles = user.get("roles") or []
         for role in roles:
@@ -42,7 +48,7 @@ def fetch_desired_state(users):
 
 
 @retry()
-def fetch_current_state(sg_client):
+def fetch_current_state(sg_client: sendgrid.SendGridAPIClient) -> list[Teammate]:
     state = []
     limit = 100
 
@@ -79,7 +85,7 @@ def fetch_current_state(sg_client):
     return state
 
 
-def raise_if_error(response):
+def raise_if_error(response: Any) -> None:
     """
     Raises an SendGridAPIError if the request has returned an error
     """
@@ -87,7 +93,12 @@ def raise_if_error(response):
         raise SendGridAPIError(response.body.decode("utf-8"))
 
 
-def act(dry_run, sg_client, desired_state, current_state):
+def act(
+    dry_run: bool,
+    sg_client: sendgrid.SendGridAPIClient,
+    desired_state: Iterable[Teammate],
+    current_state: Iterable[Teammate],
+) -> bool:
     """
     Reconciles current state with desired state.
 
@@ -145,7 +156,7 @@ def act(dry_run, sg_client, desired_state, current_state):
     return error
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
 

@@ -39,7 +39,7 @@ def secret_reader(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture
-def s3_state_builder() -> Callable[[Mapping], State]:
+def s3_state_builder() -> Callable[[Mapping[str, Any]], State]:
     """
     Example input data:
     {
@@ -60,8 +60,8 @@ def s3_state_builder() -> Callable[[Mapping], State]:
     }
     """
 
-    def builder(data: Mapping) -> State:
-        def get(key: str, *args: Any) -> dict:
+    def builder(data: Mapping[str, Any]) -> State:
+        def get(key: str, *args: Any) -> dict[str, Any]:
             try:
                 return data["get"][key]
             except KeyError:
@@ -69,7 +69,7 @@ def s3_state_builder() -> Callable[[Mapping], State]:
                     return args[0]
                 raise
 
-        def __getitem__(self: Any, key: str) -> dict:  # noqa: N807
+        def __getitem__(self: Any, key: str) -> dict[str, Any]:  # noqa: N807
             return get(key)
 
         state = create_autospec(spec=State)

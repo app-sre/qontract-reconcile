@@ -15,7 +15,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 def test_json_path_selector_include(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "NAMESPACE": {
             "path": "/some/namespace.yml",
@@ -46,7 +46,7 @@ def test_json_path_selector_include(
 def test_json_path_selector_exclude(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "NAMESPACE": {
             "path": "/some/namespace.yml",

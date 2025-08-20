@@ -350,6 +350,12 @@ query TerraformResourcesNamespaces {
                         ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
                             source_ip
                         }
+                        ... on NamespaceTerraformResourceALBConditionQueryString_v1 {
+                            query_string {
+                                key
+                                value
+                            }
+                        }
                     }
                     action {
                         type
@@ -817,8 +823,8 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
 
 class NamespaceTerraformResourceALBMutualAuthenticationV1(ConfiguredBaseModel):
     mode: str = Field(..., alias="mode")
-    ca_cert_bundle_s3_bucket_name: str = Field(..., alias="ca_cert_bundle_s3_bucket_name")
-    ca_cert_bundle_s3_bucket_key: str = Field(..., alias="ca_cert_bundle_s3_bucket_key")
+    ca_cert_bundle_s3_bucket_name: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_name")
+    ca_cert_bundle_s3_bucket_key: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_key")
 
 
 class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
@@ -859,6 +865,15 @@ class NamespaceTerraformResourceALBConditionPathPatternV1(NamespaceTerraformReso
 
 class NamespaceTerraformResourceALBConditionSourceIPV1(NamespaceTerraformResourceALBConditionV1):
     source_ip: list[str] = Field(..., alias="source_ip")
+
+
+class NamespaceTerraformResourceALBConditionQueryStringKeyValueV1(ConfiguredBaseModel):
+    key: Optional[str] = Field(..., alias="key")
+    value: str = Field(..., alias="value")
+
+
+class NamespaceTerraformResourceALBConditionQueryStringV1(NamespaceTerraformResourceALBConditionV1):
+    query_string: list[NamespaceTerraformResourceALBConditionQueryStringKeyValueV1] = Field(..., alias="query_string")
 
 
 class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
@@ -902,7 +917,7 @@ class NamespaceTerraformResourceALBActionRedirectV1(NamespaceTerraformResourceAL
 
 
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
+    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionQueryStringV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
     action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionRedirectV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
 
 

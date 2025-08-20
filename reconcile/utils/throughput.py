@@ -1,7 +1,7 @@
 import os
 
 
-def change_files_ownership(directory):
+def change_files_ownership(directory: str) -> None:
     stat_info = os.stat(directory)
     uid = stat_info.st_uid
     gid = stat_info.st_gid

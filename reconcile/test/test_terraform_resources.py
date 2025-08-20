@@ -16,14 +16,14 @@ from reconcile.gql_definitions.terraform_resources.terraform_resources_namespace
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
-def test_cannot_use_exclude_accounts_if_not_dry_run():
+def test_cannot_use_exclude_accounts_if_not_dry_run() -> None:
     with pytest.raises(integ.ExcludeAccountsAndDryRunError) as excinfo:
         integ.run(False, exclude_accounts=("a", "b"))
 
     assert "--exclude-accounts is only supported in dry-run mode" in str(excinfo.value)
 
 
-def test_cannot_use_exclude_account_with_same_account_name():
+def test_cannot_use_exclude_account_with_same_account_name() -> None:
     with pytest.raises(integ.ExcludeAccountsAndAccountNameError) as excinfo:
         integ.run(True, exclude_accounts=("a", "b"), account_name=("b", "c", "d"))
 
@@ -33,7 +33,7 @@ def test_cannot_use_exclude_account_with_same_account_name():
     )
 
 
-def test_cannot_exclude_invalid_aws_account(mocker):
+def test_cannot_exclude_invalid_aws_account(mocker: MockerFixture) -> None:
     mocker.patch(
         "reconcile.queries.get_aws_accounts",
         return_value=[{"name": "a"}],
@@ -48,7 +48,7 @@ def test_cannot_exclude_invalid_aws_account(mocker):
     )
 
 
-def test_cannot_exclude_all_accounts(mocker):
+def test_cannot_exclude_all_accounts(mocker: MockerFixture) -> None:
     mocker.patch(
         "reconcile.queries.get_aws_accounts",
         return_value=[{"name": "a"}, {"name": "b"}],
@@ -61,7 +61,7 @@ def test_cannot_exclude_all_accounts(mocker):
     assert "You have excluded all aws accounts, verify your input" in str(excinfo.value)
 
 
-def test_cannot_pass_two_aws_account_if_not_dry_run():
+def test_cannot_pass_two_aws_account_if_not_dry_run() -> None:
     with pytest.raises(integ.MultipleAccountNamesInDryRunError) as excinfo:
         integ.run(False, account_name=("a", "b"))
 
@@ -70,7 +70,7 @@ def test_cannot_pass_two_aws_account_if_not_dry_run():
     )
 
 
-def test_filter_accounts_by_name():
+def test_filter_accounts_by_name() -> None:
     accounts = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
 
     filtered = integ.filter_accounts_by_name(accounts, names=("a", "b"))
@@ -78,7 +78,7 @@ def test_filter_accounts_by_name():
     assert filtered == [{"name": "a"}, {"name": "b"}]
 
 
-def test_exclude_accounts_by_name():
+def test_exclude_accounts_by_name() -> None:
     accounts = [{"name": "a"}, {"name": "b"}, {"name": "c"}]
 
     filtered = integ.exclude_accounts_by_name(accounts, names=("a", "b"))
@@ -86,7 +86,7 @@ def test_exclude_accounts_by_name():
     assert filtered == [{"name": "c"}]
 
 
-def test_cannot_pass_invalid_aws_account(mocker):
+def test_cannot_pass_invalid_aws_account(mocker: MockerFixture) -> None:
     mocker.patch(
         "reconcile.queries.get_aws_accounts",
         return_value=[{"name": "a"}],
@@ -120,7 +120,7 @@ def namespace_dict(
     return data
 
 
-def test_filter_namespaces_no_managed_tf_resources(gql_class_factory: Callable):
+def test_filter_namespaces_no_managed_tf_resources(gql_class_factory: Callable) -> None:
     ra = {"identifier": "a", "provider": "p"}
     ns1 = gql_class_factory(NamespaceV1, namespace_dict("ns1", [], managed=False))
     ns2 = gql_class_factory(
@@ -135,7 +135,7 @@ def test_filter_namespaces_no_managed_tf_resources(gql_class_factory: Callable):
     assert filtered == [ns2]
 
 
-def test_filter_namespaces_with_accounts_filter(gql_class_factory: Callable):
+def test_filter_namespaces_with_accounts_filter(gql_class_factory: Callable) -> None:
     ra = {"identifier": "a", "provider": "p"}
     rb = {"identifier": "b", "provider": "p"}
     rc = {"identifier": "c", "provider": "p"}
@@ -166,7 +166,7 @@ def test_filter_namespaces_with_accounts_filter(gql_class_factory: Callable):
     assert filtered == [ns1, ns2]
 
 
-def test_filter_namespaces_no_accounts_filter(gql_class_factory: Callable):
+def test_filter_namespaces_no_accounts_filter(gql_class_factory: Callable) -> None:
     ra = {"identifier": "a", "provider": "p"}
     rb = {"identifier": "b", "provider": "p"}
     ns1 = gql_class_factory(
@@ -190,7 +190,7 @@ def test_filter_namespaces_no_accounts_filter(gql_class_factory: Callable):
 
 def test_filter_namespaces_no_tf_resources_no_accounts_filter(
     gql_class_factory: Callable,
-):
+) -> None:
     """
     this test makes sure that a namespace is returned even if it has no resources
     attached. this way we can delete the last terraform resources that might have been
@@ -213,7 +213,7 @@ def test_filter_namespaces_no_tf_resources_no_accounts_filter(
 
 def test_filter_tf_namespaces_no_tf_resources_with_accounts_filter(
     gql_class_factory: Callable,
-):
+) -> None:
     """
     even if an account filter is defined, a namespace without resources is returned
     to enable terraform resource deletion. in contrast to that, a namespace with a resource
@@ -233,7 +233,7 @@ def test_filter_tf_namespaces_no_tf_resources_with_accounts_filter(
     assert filtered == [ns1]
 
 
-def test_filter_tf_namespaces_namespace_deleted(gql_class_factory: Callable):
+def test_filter_tf_namespaces_namespace_deleted(gql_class_factory: Callable) -> None:
     """
     test that a deleted namespace is not returned
     """

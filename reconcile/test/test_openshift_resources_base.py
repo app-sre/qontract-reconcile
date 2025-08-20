@@ -23,6 +23,7 @@ from reconcile.openshift_resources_base import (
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
+from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
 fxt = Fixtures("namespaces")
@@ -319,7 +320,7 @@ def oc_map_api_resources(
     ocmap.clusters.side_effect = (
         lambda include_errors=False, privileged=False: ["cs1"] if not privileged else []
     )
-    return oc.OC_Map(clusters=["cs1"])
+    return ocmap
 
 
 def test_get_namespace_cluster_scoped_resources(
@@ -389,16 +390,35 @@ def test_find_resource_duplicates(oc_map_api_resources: oc.OC_Map) -> None:
 
 
 @pytest.fixture
-def resource_inventory_csr_tests() -> ResourceInventory:
+def fake_or_resource() -> OR:
+    return OR(
+        body={
+            "apiVersion": "v1",
+            "kind": "ConfigMap",
+            "metadata": {
+                "name": "name",
+            },
+            "data": {
+                "edge": "false",
+                "name": "name",
+            },
+        },
+        integration="integration",
+        integration_version="1.0",
+    )
+
+
+@pytest.fixture
+def resource_inventory_csr_tests(fake_or_resource: OR) -> ResourceInventory:
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "ClusterRole")
     ri.initialize_resource_type("cs1", "ns1", "Project.config.openshift.io")
-    ri.add_desired("cs1", "ns1", "ClusterRole", "cr1", "dummy_values", True)
+    ri.add_desired("cs1", "ns1", "ClusterRole", "cr1", fake_or_resource, True)
     ri.add_desired(
-        "cs1", "ns1", "Project.config.openshift.io", "pr1", "dummy_values", True
+        "cs1", "ns1", "Project.config.openshift.io", "pr1", fake_or_resource, True
     )
     ri.add_desired(
-        "cs1", "ns1", "Project.config.openshift.io", "pr2", "dummy_values", True
+        "cs1", "ns1", "Project.config.openshift.io", "pr2", fake_or_resource, True
     )
     return ri
 
@@ -419,12 +439,13 @@ def test_check_cluster_scoped_resources_ok(
 
 
 def test_check_cluster_scoper_resources_non_declared(
+    fake_or_resource: OR,
     oc_map_api_resources: oc.OC_Map,
     resource_inventory_csr_tests: ResourceInventory,
     nss_csr_overrides: Sequence[dict[str, Any]],
 ) -> None:
     resource_inventory_csr_tests.add_desired(
-        "cs1", "ns1", "ClusterRole", "cr3", "dummy_value", True
+        "cs1", "ns1", "ClusterRole", "cr3", fake_or_resource, True
     )
     error = orb.check_cluster_scoped_resources(
         oc_map_api_resources,

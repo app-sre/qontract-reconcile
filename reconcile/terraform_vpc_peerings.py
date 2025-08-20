@@ -73,6 +73,7 @@ def _build_infrastructure_assume_role(
     ocm: OCM | None,
     provided_assume_role: str | None,
 ) -> dict[str, Any] | None:
+    assume_role: str | None = None
     if provided_assume_role:
         assume_role = provided_assume_role
     elif cluster["spec"].get("account"):
@@ -565,7 +566,7 @@ def build_desired_state_vpc(
 @defer
 def run(
     dry_run: bool,
-    print_to_file: bool | None = None,
+    print_to_file: str | None = None,
     enable_deletion: bool = False,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,

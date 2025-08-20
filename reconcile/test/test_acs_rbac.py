@@ -362,7 +362,7 @@ def test_get_desired_state(
     mocker: MockerFixture,
     query_data_desired_state: AcsRbacQueryData,
     modeled_acs_roles: list[AcsRole],
-):
+) -> None:
     query_func = mocker.patch("reconcile.acs_rbac.acs_rbac_query", autospec=True)
     query_func.return_value = query_data_desired_state
 
@@ -378,7 +378,7 @@ def test_get_current_state(
     api_response_groups: list[rbac.Group],
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_permission_sets: list[rbac.PermissionSet],
-):
+) -> None:
     integration = AcsRbacIntegration()
     result = integration.get_current_state(
         AUTH_PROVIDER_ID,
@@ -398,7 +398,7 @@ def test_add_rbac_dry_run(
     modeled_acs_roles: list[AcsRole],
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_permission_sets: list[rbac.PermissionSet],
-):
+) -> None:
     dry_run = True
     desired = modeled_acs_roles
 
@@ -439,7 +439,7 @@ def test_add_rbac(
     modeled_acs_roles: list[AcsRole],
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_permission_sets: list[rbac.PermissionSet],
-):
+) -> None:
     dry_run = False
     desired = modeled_acs_roles
 
@@ -504,7 +504,7 @@ def test_delete_rbac_dry_run(
     modeled_acs_roles: list[AcsRole],
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_groups: list[rbac.Group],
-):
+) -> None:
     dry_run = True
     current = modeled_acs_roles
     desired = modeled_acs_roles[:-1]  # remove 'cluster-analyst' role
@@ -541,7 +541,7 @@ def test_delete_rbac(
     modeled_acs_roles: list[AcsRole],
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_groups: list[rbac.Group],
-):
+) -> None:
     dry_run = False
     current = modeled_acs_roles
     desired = (
@@ -585,7 +585,7 @@ def test_update_rbac_groups_only(
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_permission_sets: list[rbac.PermissionSet],
     api_response_groups: list[rbac.Group],
-):
+) -> None:
     dry_run = False
     desired = modeled_acs_roles
 
@@ -641,7 +641,7 @@ def test_full_reconcile(
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_permission_sets: list[rbac.PermissionSet],
     api_response_groups: list[rbac.Group],
-):
+) -> None:
     dry_run = False
 
     # trigger creation of new role and deletion of existing 'service-vuln-admin' role
@@ -758,7 +758,7 @@ def test_full_reconcile_with_errors(
     api_response_access_scopes: list[rbac.AccessScope],
     api_response_permission_sets: list[rbac.PermissionSet],
     api_response_groups: list[rbac.Group],
-):
+) -> None:
     dry_run = False
 
     desired = modeled_acs_roles[:-1] + [
