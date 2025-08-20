@@ -17,8 +17,14 @@ from reconcile.openshift_rolebindings import (
     OCResource,
     RoleBindingSpec,
     fetch_desired_state,
+    should_add_desired_state,
 )
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.openshift_resource import (
+    OpenshiftResource as OR,
+)
+from reconcile.utils.openshift_resource import (
+    ResourceInventory,
+)
 
 
 def get_app_interface_test_roles() -> list[RoleV1]:
@@ -284,4 +290,59 @@ def test_get_oc_resources_with_support_role_ref() -> None:
         ),
         resource_name="test-role5-test-namespace5-test-serviceaccount",
         privileged=False,
+    )
+
+
+def test_should_add_desired_state_cluster_not_present() -> None:
+    # ri does not have the cluster
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        "test-cluster", "test-namespace", "RoleBinding.rbac.authorization.k8s.io"
+    )
+    test_role = get_app_interface_test_roles()
+    role_binding_specs = RoleBindingSpec.create_rb_specs_from_role(test_role[0], None)
+    assert not should_add_desired_state(
+        ri, role_binding_specs[0].get_oc_resources()[0], role_binding_specs[0]
+    )
+
+
+def test_should_add_desired_state_cluster_present_and_resource_not_present() -> None:
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        "test-cluster5", "test-namespace5", "RoleBinding.rbac.authorization.k8s.io"
+    )
+    test_role = get_app_interface_test_roles()
+    role_binding_specs = RoleBindingSpec.create_rb_specs_from_role(test_role[0], None)
+    assert should_add_desired_state(
+        ri, role_binding_specs[0].get_oc_resources()[0], role_binding_specs[0]
+    )
+
+
+def test_should_add_desired_state_cluster_present_and_resource_present() -> None:
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        "test-cluster5", "test-namespace5", "RoleBinding.rbac.authorization.k8s.io"
+    )
+    ri.add_desired(
+        cluster="test-cluster5",
+        namespace="test-namespace5",
+        resource_type="RoleBinding.rbac.authorization.k8s.io",
+        name="test-role5-test-org-user",
+        value=OR(
+            integration="openshift-rolebindings",
+            integration_version="0.3.0",
+            error_details="test-role5-test-org-user",
+            body={
+                "kind": "RoleBinding",
+                "apiVersion": "rbac.authorization.k8s.io/v1",
+                "metadata": {
+                    "name": "test-role5-test-org-user",
+                },
+            },
+        ),
+    )
+    test_role = get_app_interface_test_roles()
+    role_binding_specs = RoleBindingSpec.create_rb_specs_from_role(test_role[0], None)
+    assert not should_add_desired_state(
+        ri, role_binding_specs[0].get_oc_resources()[0], role_binding_specs[0]
     )

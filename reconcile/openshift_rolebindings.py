@@ -262,12 +262,7 @@ def fetch_desired_state(
             if ri is None:
                 continue
             for oc_resource in rolebinding.get_oc_resources():
-                if not ri.get_desired(
-                    rolebinding.cluster.name,
-                    rolebinding.namespace.name,
-                    "RoleBinding.rbac.authorization.k8s.io",
-                    oc_resource.resource_name,
-                ):
+                if should_add_desired_state(ri, oc_resource, rolebinding):
                     ri.add_desired_resource(
                         cluster=rolebinding.cluster.name,
                         namespace=rolebinding.namespace.name,
