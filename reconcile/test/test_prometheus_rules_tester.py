@@ -1,5 +1,6 @@
 from typing import Any
 from unittest.mock import (
+    MagicMock,
     create_autospec,
     patch,
 )
@@ -64,7 +65,7 @@ class TestPrometheusRulesTester:
         """cleanup patches created in setup_method"""
         self.gql_patcher.stop()
 
-    def run_check(self, cluster_name=None) -> list[PTest]:
+    def run_check(self, cluster_name: str | None = None) -> list[PTest]:
         return check_rules_and_tests(
             vault_settings=self.vault_settings,
             alerting_services=self.alerting_services,
@@ -131,7 +132,10 @@ class TestPrometheusRulesTester:
         "reconcile.prometheus_rules_tester.integration.get_app_interface_vault_settings"
     )
     def test_run_logs_error(
-        self, mocker_vault_settings, mocker_alerting_services, caplog
+        self,
+        mocker_vault_settings: MagicMock,
+        mocker_alerting_services: MagicMock,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         self.ns_data = self.fxt.get_anymarkup("ns-bad-test.yaml")
         mocker_alerting_services.return_value = {"yak-shaver"}

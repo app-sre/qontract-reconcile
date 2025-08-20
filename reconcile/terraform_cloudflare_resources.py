@@ -1,9 +1,8 @@
 import logging
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import (
     Any,
-    cast,
 )
 
 from sretoolbox.utils import threaded
@@ -66,7 +65,6 @@ from reconcile.utils.terrascript.cloudflare_client import (
 )
 from reconcile.utils.vault import (
     VaultClient,
-    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "terraform_cloudflare_resources"
@@ -193,7 +191,7 @@ def _populate_oc_resources(
     spec: CurrentStateSpec,
     ri: ResourceInventory,
     account_names: Iterable[str] | None,
-):
+) -> None:
     """
     This was taken from terraform_resources and might be a later candidate for DRY.
     """
@@ -272,7 +270,7 @@ def _write_external_resource_secrets_to_vault(
     separate module if we have additional needs for a similar function.
     """
     integration_name = integration_name.replace("_", "-")
-    vault_client = cast("_VaultClient", VaultClient())
+    vault_client = VaultClient.get_instance()
     for spec in resource_specs.values():
         # A secret can be empty if the terraform-* integrations are not enabled on the cluster
         # the resource is defined on - lets skip vault writes for those right now and
@@ -315,7 +313,7 @@ def run(
     vault_output_path: str = "",
     internal: bool | None = None,
     use_jump_host: bool = True,
-    defer=None,
+    defer: Callable | None = None,
 ) -> None:
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
@@ -392,7 +390,8 @@ def run(
         working_dirs,
         thread_pool_size,
     )
-    defer(tf.cleanup)
+    if defer:
+        defer(tf.cleanup)
 
     disabled_deletions_detected, err = tf.plan(enable_deletion)
     if err:
@@ -440,7 +439,7 @@ def _get_cloudflare_desired_state() -> tuple[
     return query_accounts, query_resources
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     desired_state = _get_cloudflare_desired_state()
 
     return {state.__repr_name__(): state.dict() for state in desired_state}

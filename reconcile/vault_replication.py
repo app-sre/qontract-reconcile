@@ -1,9 +1,6 @@
 import logging
 import re
 from collections.abc import Iterable
-from typing import (
-    cast,
-)
 
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
@@ -30,7 +27,6 @@ from reconcile.utils.vault import (
     SecretNotFoundError,
     SecretVersionNotFoundError,
     VaultClient,
-    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "vault-replication"
@@ -51,8 +47,8 @@ class VaultInvalidPolicyError(Exception):
 
 def deep_copy_versions(
     dry_run: bool,
-    source_vault: _VaultClient,
-    dest_vault: _VaultClient,
+    source_vault: VaultClient,
+    dest_vault: VaultClient,
     current_dest_version: int,
     current_source_version: int,
     path: str,
@@ -90,7 +86,7 @@ def deep_copy_versions(
 
 def write_dummy_versions(
     dry_run: bool,
-    dest_vault: _VaultClient,
+    dest_vault: VaultClient,
     secret_version: int,
     path: str,
 ) -> None:
@@ -112,7 +108,7 @@ def write_dummy_versions(
 
 
 def copy_vault_secret(
-    dry_run: bool, source_vault: _VaultClient, dest_vault: _VaultClient, path: str
+    dry_run: bool, source_vault: VaultClient, dest_vault: VaultClient, path: str
 ) -> None:
     """Copies a secret from the source vault to the destination vault"""
     secret_dict = {"path": path, "version": "LATEST"}
@@ -228,7 +224,7 @@ def get_policy_paths(
 
 
 def get_policy_secret_list(
-    vault_instance: _VaultClient, policy_paths: Iterable[str]
+    vault_instance: VaultClient, policy_paths: Iterable[str]
 ) -> list[str]:
     """Returns a list of secrets to be copied from the given policy"""
     secrets = set()
@@ -249,7 +245,7 @@ def get_policy_secret_list(
 
 
 def get_jenkins_secret_list(
-    vault_instance: _VaultClient,
+    vault_instance: VaultClient,
     jenkins_instance: str,
     query_data: JenkinsConfigsQueryData,
 ) -> list[str]:
@@ -294,7 +290,7 @@ def get_vault_credentials(
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}
-    vault = cast("_VaultClient", VaultClient())
+    vault = VaultClient.get_instance()
 
     if not isinstance(
         vault_auth,
@@ -324,8 +320,8 @@ def get_vault_credentials(
 
 def replicate_paths(
     dry_run: bool,
-    source_vault: _VaultClient,
-    dest_vault: _VaultClient,
+    source_vault: VaultClient,
+    dest_vault: VaultClient,
     replications: VaultReplicationConfigV1,
 ) -> None:
     """For each path present in the definition of the vault instance, replicate
@@ -435,16 +431,16 @@ def run(dry_run: bool) -> None:
                         replication.dest_auth, replication.vault_instance.address
                     )
 
-                    # Private class _VaultClient is used because the public class is
+                    # Private class VaultClient is used because the public class is
                     # defined as a singleton, and we need to create multiple instances
                     # as the source vault is different than the replication.
                     with (
-                        _VaultClient(
+                        VaultClient(
                             server=source_creds["server"],
                             role_id=source_creds["role_id"],
                             secret_id=source_creds["secret_id"],
                         ) as source_vault,
-                        _VaultClient(
+                        VaultClient(
                             server=dest_creds["server"],
                             role_id=dest_creds["role_id"],
                             secret_id=dest_creds["secret_id"],

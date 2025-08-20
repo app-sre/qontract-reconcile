@@ -874,7 +874,9 @@ class SaasHerder:
                 return True
         return False
 
-    def _process_template(self, spec: TargetSpec) -> tuple[list[Any], Promotion | None]:
+    def _process_template(
+        self, spec: TargetSpec
+    ) -> tuple[Iterable[Any], Promotion | None]:
         saas_file_name = spec.saas_file_name
         resource_template_name = spec.resource_template_name
         url = spec.url
@@ -959,7 +961,9 @@ class SaasHerder:
 
             oc = OCLocal("cluster", None, None, local=True)
             try:
-                resources = oc.process(template, consolidated_parameters)
+                resources: Iterable[Mapping[str, Any]] = oc.process(
+                    template, consolidated_parameters
+                )
             except StatusCodeError as e:
                 logging.error(f"{error_prefix} error processing template: {e!s}")
 

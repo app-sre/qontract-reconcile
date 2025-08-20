@@ -61,7 +61,7 @@ def status_board_product(
     )
 
 
-def test_get_selected_app_names(status_board_product):
+def test_get_selected_app_names(status_board_product: StatusBoardProductV1) -> None:
     app_names = get_selected_app_names(
         ['apps[?@.name=="excluded"]'], status_board_product
     )

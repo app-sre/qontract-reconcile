@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from unittest.mock import create_autospec, patch
 
 import pytest
@@ -181,7 +181,7 @@ def test_process_repos_query_ok(mocker: MockerFixture) -> None:
 
 
 def test_process_repos_query_public_dockerhub(
-    mocker: MockerFixture, caplog: Any
+    mocker: MockerFixture, caplog: pytest.LogCaptureFixture
 ) -> None:
     repos_query = mocker.patch.object(queries, "get_quay_repos")
     repos_query.return_value = fxt.get_anymarkup("get_quay_repos_public_dockerhub.yaml")

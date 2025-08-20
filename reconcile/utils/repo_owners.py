@@ -1,8 +1,12 @@
 import logging
 import os
 import pathlib
+from collections.abc import Iterable, Mapping
 
 from ruamel import yaml
+
+from reconcile.utils.github_api import GithubRepositoryApi
+from reconcile.utils.gitlab_api import GitLabApi
 
 _LOG = logging.getLogger(__name__)
 
@@ -12,38 +16,24 @@ class RepoOwners:
     Abstracts the owners of a repository with per-path granularity.
     """
 
-    def __init__(self, git_cli, ref="master", recursive=True):
+    def __init__(
+        self,
+        git_cli: GitLabApi | GithubRepositoryApi,
+        ref: str = "master",
+        recursive: bool = True,
+    ) -> None:
         self._git_cli = git_cli
         self._ref = ref
-        self._owners_map = None
+        self._owners_map: dict[str, dict[str, set[str]]] | None = None
         self._recursive = recursive
 
     @property
-    def owners_map(self):
+    def owners_map(self) -> dict[str, dict[str, set[str]]]:
         if self._owners_map is None:
             self._owners_map = self._get_owners_map()
         return self._owners_map
 
-    def get_owners(self):
-        """
-        Gets all the owners of the repository.
-
-        :return: the repository owners
-        :rtype: dict
-        """
-        repo_owners = {"approvers": set(), "reviewers": set()}
-
-        if "." in self.owners_map:
-            repo_owners["approvers"].update(self.owners_map["."]["approvers"])
-            repo_owners["reviewers"].update(self.owners_map["."]["reviewers"])
-
-        for owners in self.owners_map.values():
-            repo_owners["approvers"].update(owners["approvers"])
-            repo_owners["reviewers"].update(owners["reviewers"])
-
-        return repo_owners
-
-    def get_root_owners(self):
+    def get_root_owners(self) -> dict[str, list[str]]:
         """
         Gets all the owners defined in the repository root.
 
@@ -56,7 +46,7 @@ class RepoOwners:
 
         return {"approvers": [], "reviewers": []}
 
-    def get_path_owners(self, path):
+    def get_path_owners(self, path: str) -> dict[str, list[str]]:
         """
         Gets all the owners of a given path, no matter in which
         level of the filesystem tree the owner was specified.
@@ -67,7 +57,7 @@ class RepoOwners:
         :return: the path owners
         :rtype: dict
         """
-        path_owners = {"approvers": set(), "reviewers": set()}
+        path_owners: dict[str, set[str]] = {"approvers": set(), "reviewers": set()}
 
         if "." in self.owners_map:
             path_owners["approvers"].update(self.owners_map["."]["approvers"])
@@ -80,7 +70,7 @@ class RepoOwners:
 
         return self._set_to_sorted_list(path_owners)
 
-    def get_path_closest_owners(self, path):
+    def get_path_closest_owners(self, path: str) -> dict[str, list[str]]:
         """
         Gets all closest owners of a given path, no matter in which
         level of the filesystem tree the owner was specified.
@@ -108,7 +98,7 @@ class RepoOwners:
 
         return {"approvers": [], "reviewers": []}
 
-    def _get_owners_map(self):
+    def _get_owners_map(self) -> dict[str, dict[str, set[str]]]:
         """
         Maps all the OWNERS files content to their respective
         owned directory.
@@ -173,7 +163,7 @@ class RepoOwners:
             }
         return owners_map
 
-    def _get_aliases(self):
+    def _get_aliases(self) -> dict[str, list[str]] | None:
         """
         Retrieves the approvers aliases from the OWNERS_ALIASES file.
 
@@ -191,7 +181,9 @@ class RepoOwners:
         return aliases["aliases"]
 
     @staticmethod
-    def _set_to_sorted_list(owners):
+    def _set_to_sorted_list(
+        owners: Mapping[str, Iterable[str]],
+    ) -> dict[str, list[str]]:
         approvers = owners["approvers"]
         sorted_approvers = sorted(approvers) if approvers else []
 

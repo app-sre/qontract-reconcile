@@ -1299,7 +1299,7 @@ def user_credentials_migrate_output(ctx: click.Context, account_name: str) -> No
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
-        False,
+        None,
         1,
         skip_accounts,
         account_name=account_name,
@@ -2184,6 +2184,8 @@ def root_owner(
         init_api_resources=True,
     )
     oc = oc_map.get(cluster)
+    if isinstance(oc, OCLogMsg):
+        raise oc
     obj = oc.get(namespace, kind, name)
     root_owner = oc.get_obj_root_owner(
         namespace, obj, allow_not_found=True, allow_not_controller=True
@@ -2196,7 +2198,7 @@ def root_owner(
     if ctx.obj["options"]["output"] != "json":
         ctx.obj["options"]["output"] = "yaml"
 
-    print_output(ctx.obj["options"], root_owner)
+    print_output(ctx.obj["options"], root_owner)  # type: ignore
 
 
 @get.command()
@@ -3668,7 +3670,7 @@ def template(
             continue
         if openshift_resource.name != name:
             continue
-        print_output({"output": "yaml", "sort": False}, openshift_resource.body)
+        print_output({"output": "yaml", "sort": False}, openshift_resource.body)  # type: ignore
         break
 
 

@@ -1,4 +1,5 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
@@ -13,9 +14,12 @@ from reconcile.terraform_users import (
 )
 from reconcile.utils.gql import GqlApi
 
+# account, console_url, user_name, encrypted_password
+FakeUser = tuple[str, str, str, str]
+
 
 @pytest.fixture
-def new_users() -> list[tuple[str, str, str, str]]:
+def new_users() -> list[FakeUser]:
     return [
         (
             "aws1",
@@ -26,8 +30,10 @@ def new_users() -> list[tuple[str, str, str, str]]:
     ]
 
 
-def test_write_user_to_vault(mocker, new_users):
-    vm = mocker.patch("reconcile.terraform_users._VaultClient", autospec=True)
+def test_write_user_to_vault(
+    mocker: MockerFixture, new_users: Iterable[FakeUser]
+) -> None:
+    vm = mocker.patch("reconcile.terraform_users.VaultClient", autospec=True)
 
     write_user_to_vault(vm, "test", new_users, [])
 
@@ -45,21 +51,27 @@ def test_write_user_to_vault(mocker, new_users):
     )
 
 
-def test_write_user_to_vault_skipped(mocker, new_users):
-    vm = mocker.patch("reconcile.terraform_users._VaultClient", autospec=True)
+def test_write_user_to_vault_skipped(
+    mocker: MockerFixture, new_users: Iterable[FakeUser]
+) -> None:
+    vm = mocker.patch("reconcile.terraform_users.VaultClient", autospec=True)
 
     write_user_to_vault(vm, "test", new_users, ["aws1"])
 
     vm.write.assert_not_called()
 
 
-def test_send_email_invites(mocker, new_users):
+def test_send_email_invites(
+    mocker: MockerFixture, new_users: Iterable[FakeUser]
+) -> None:
     sm = mocker.patch("reconcile.terraform_users.SmtpClient", autospec=True)
     send_email_invites(new_users, sm, ["aws1"])
     sm.send_mails.assert_called_once()
 
 
-def test_send_email_invites_skip(mocker, new_users):
+def test_send_email_invites_skip(
+    mocker: MockerFixture, new_users: Iterable[FakeUser]
+) -> None:
     sm = mocker.patch("reconcile.terraform_users.SmtpClient", autospec=True)
     send_email_invites(new_users, sm, [])
     sm.send_mails.assert_not_called()
@@ -78,7 +90,7 @@ def pgp_reencryption_settings(
 
 
 @pytest.fixture
-def test_aws_account_role() -> dict:
+def test_aws_account_role() -> dict[str, Any]:
     return {
         "name": "test_aws_account",
         "users": [{"name": "test-user"}],
@@ -102,7 +114,7 @@ def test_aws_account_role() -> dict:
 
 
 @pytest.fixture
-def test_aws_account() -> dict:
+def test_aws_account() -> dict[str, str]:
     return {
         "name": "test-account",
     }
@@ -110,8 +122,8 @@ def test_aws_account() -> dict:
 
 def test_setup(
     mocker: MockerFixture,
-    test_aws_account: dict,
-    test_aws_account_role: dict,
+    test_aws_account: dict[str, str],
+    test_aws_account_role: dict[str, Any],
     gql_api_builder: Callable[..., GqlApi],
 ) -> None:
     mocked_gql_api = gql_api_builder({"roles": [test_aws_account_role]})
@@ -123,9 +135,7 @@ def test_setup(
     mocked_aws = mocker.patch("reconcile.terraform_users.AWSApi", autospec=True)
     thread_pool_size = 1
 
-    accounts, working_dirs, setup_err, aws_api = integ.setup(
-        False, thread_pool_size, []
-    )
+    accounts, working_dirs, setup_err, aws_api = integ.setup(None, thread_pool_size, [])
 
     assert accounts == [test_aws_account]
     assert working_dirs == mocked_ts.return_value.dump.return_value

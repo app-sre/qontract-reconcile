@@ -33,7 +33,7 @@ class LdapGroupMemberProvider(GroupMemberProvider):
         if len(group_ids) == 0:
             return {}
         with self.ldap_client as lc:
-            groups_members_by_dn = lc.get_group_members(group_dn_mapping.keys())
+            groups_members_by_dn = lc.get_group_members(set(group_dn_mapping.keys()))
         return {
             group_dn_mapping[dn]: members
             for dn, members in groups_members_by_dn.items()

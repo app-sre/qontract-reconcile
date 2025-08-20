@@ -243,10 +243,15 @@ def act(diff: Mapping[str, str | None], oc_map: ClusterMap) -> None:
         return None
 
     if action == "create_group":
+        assert group  # make mypy happy
         oc.create_group(group)
     elif action == "add_user_to_group":
+        assert group  # make mypy happy
+        assert user  # make mypy happy
         oc.add_user_to_group(group, user)
     elif action == "del_user_from_group":
+        assert group  # make mypy happy
+        assert user  # make mypy happy
         oc.del_user_from_group(group, user)
     elif action == "delete_group":
         logging.debug("skipping group deletion")

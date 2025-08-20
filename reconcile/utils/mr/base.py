@@ -11,7 +11,6 @@ from uuid import uuid4
 from gitlab.exceptions import GitlabError
 from jinja2 import Template
 
-from reconcile import typed_queries
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
@@ -45,14 +44,14 @@ class MergeRequestBase(ABC):
 
     name = "merge-request-base"
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Let's first get all the attributes from the instance
         # and use for the SQS Msg payload. With that, the msg
         # to the SQS is enough to create a new, similar, instance
         # of the child class.
         self.sqs_msg_data = {**self.__dict__}
 
-        self.labels = [DO_NOT_MERGE_HOLD]
+        self.labels: Iterable[str] = [DO_NOT_MERGE_HOLD]
 
         random_id = str(uuid4())[:6]
         self.branch = f"{self.name}-{random_id}"
@@ -110,19 +109,14 @@ class MergeRequestBase(ABC):
         }
 
     def infer_author(
-        self, author_email: str | None, all_users: Iterable[User] | None = None
+        self, github_user_id: str | None, all_users: Iterable[User] | None = None
     ) -> str | None:
-        if not author_email:
+        if not github_user_id:
             return None
         if not all_users:
             return None
 
-        username = author_email.split("@")[0]
-        users = None
-        if author_email.endswith(typed_queries.smtp.settings().mail_address):
-            users = [u for u in all_users if username == u.org_username]
-        elif author_email.endswith("users.noreply.github.com"):
-            users = [u for u in all_users if username == u.github_username]
+        users = [u for u in all_users if u.github_username == github_user_id]
 
         if users:
             return users[0].org_username

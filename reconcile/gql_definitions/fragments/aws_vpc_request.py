@@ -54,6 +54,8 @@ class VPCRequestSubnetsListsV1(ConfiguredBaseModel):
     private: Optional[list[str]] = Field(..., alias="private")
     public: Optional[list[str]] = Field(..., alias="public")
     availability_zones: Optional[list[str]] = Field(..., alias="availability_zones")
+    private_subnet_tags: Optional[Json] = Field(..., alias="private_subnet_tags")
+    public_subnet_tags: Optional[Json] = Field(..., alias="public_subnet_tags")
 
 
 class VPCRequest(ConfiguredBaseModel):
@@ -62,4 +64,5 @@ class VPCRequest(ConfiguredBaseModel):
     account: AWSAccountV1 = Field(..., alias="account")
     region: str = Field(..., alias="region")
     cidr_block: NetworkV1 = Field(..., alias="cidr_block")
+    vpc_tags: Optional[Json] = Field(..., alias="vpc_tags")
     subnets: Optional[VPCRequestSubnetsListsV1] = Field(..., alias="subnets")

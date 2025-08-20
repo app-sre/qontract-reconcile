@@ -28,7 +28,9 @@ from reconcile.utils.runtime.integration import DesiredStateShardConfig
 #
 
 
-def test_desired_state_diff_building(simple_test_integration: SimpleTestIntegration):
+def test_desired_state_diff_building(
+    simple_test_integration: SimpleTestIntegration,
+) -> None:
     desired_state_diff = build_desired_state_diff(
         simple_test_integration.get_desired_state_shard_config(),
         previous_desired_state={"data": "old"},
@@ -40,7 +42,7 @@ def test_desired_state_diff_building(simple_test_integration: SimpleTestIntegrat
 
 def test_desired_state_diff_building_no_diffs(
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     desired_state_diff = build_desired_state_diff(
         simple_test_integration.get_desired_state_shard_config(),
         previous_desired_state={"data": [{"name": "a"}, {"name": "b"}]},
@@ -52,7 +54,7 @@ def test_desired_state_diff_building_no_diffs(
 
 def test_desired_state_diff_building_unshardable_integration(
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     desired_state_diff = build_desired_state_diff(
         simple_test_integration.get_desired_state_shard_config(),
         previous_desired_state={
@@ -73,7 +75,7 @@ def test_desired_state_diff_building_unshardable_integration(
 
 def test_desired_state_diff_building_shardable_integration(
     shardable_test_integration: ShardableTestIntegration,
-):
+) -> None:
     desired_state_diff = build_desired_state_diff(
         shardable_test_integration.get_desired_state_shard_config(),
         previous_desired_state={
@@ -120,7 +122,7 @@ def diff_extration_with_exception(
 
 def test_desired_state_diff_building_time(
     mocker: MockerFixture, shardable_test_integration: ShardableTestIntegration
-):
+) -> None:
     extract_diffs_with_timeout_mock = mocker.patch.object(
         desired_state_diff, "extract_diffs_with_timeout"
     )
@@ -148,7 +150,7 @@ def test_desired_state_diff_building_time(
 #
 
 
-def test_extract_diffs_with_timeout():
+def test_extract_diffs_with_timeout() -> None:
     """
     test timeout behaviour of diff extraction
     """
@@ -185,7 +187,7 @@ def test_extract_diffs_with_timeout():
     assert isinstance(diffs[0], Diff)
 
 
-def test_extract_diffs_with_recursion_issue():
+def test_extract_diffs_with_recursion_issue() -> None:
     """
     test if a max recursion issue is caught properly
     """
@@ -198,7 +200,7 @@ def test_extract_diffs_with_recursion_issue():
         )
 
 
-def test_extract_diffs_with_exception():
+def test_extract_diffs_with_exception() -> None:
     """
     test with exception
     """
@@ -216,7 +218,7 @@ def test_extract_diffs_with_exception():
 #
 
 
-def test_config_removed_from_shard():
+def test_config_removed_from_shard() -> None:
     """
     when something is removed from a shard, that shard is affected
     """
@@ -240,7 +242,7 @@ def test_config_removed_from_shard():
     ).affected_shards == {"a"}
 
 
-def test_config_added_into_shard():
+def test_config_added_into_shard() -> None:
     """
     when something is added to a shard, that shard is affected
     """
@@ -264,7 +266,7 @@ def test_config_added_into_shard():
     ).affected_shards == {"a"}
 
 
-def test_config_in_shard_changes():
+def test_config_in_shard_changes() -> None:
     """
     when something in a shard changes, that chard is affected
     """
@@ -289,7 +291,7 @@ def test_config_in_shard_changes():
     ).affected_shards == {"b"}
 
 
-def test_config_moved_to_another_shard():
+def test_config_moved_to_another_shard() -> None:
     """
     when something moves to another shard, both shards are affected
     """
@@ -317,7 +319,7 @@ def test_config_moved_to_another_shard():
     }
 
 
-def test_find_changed_shards_mixed_diff():
+def test_find_changed_shards_mixed_diff() -> None:
     assert build_desired_state_diff(
         sharding_config=DesiredStateShardConfig(
             shard_arg_name="shard",
@@ -343,7 +345,7 @@ def test_find_changed_shards_mixed_diff():
     }
 
 
-def test_find_changed_shards_no_diff():
+def test_find_changed_shards_no_diff() -> None:
     assert (
         build_desired_state_diff(
             sharding_config=DesiredStateShardConfig(

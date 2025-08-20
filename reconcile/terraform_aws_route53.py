@@ -1,6 +1,7 @@
 import logging
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -25,8 +26,10 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def build_desired_state(
-    zones: Iterable[Mapping], all_accounts: Iterable[Mapping], settings: Mapping
-) -> list[dict]:
+    zones: Iterable[Mapping[str, Any]],
+    all_accounts: Iterable[Mapping[str, Any]],
+    settings: Mapping[str, Any],
+) -> list[dict[str, Any]]:
     """
     Build the desired state from the app-interface resources
 
@@ -36,7 +39,7 @@ def build_desired_state(
     :rtype: list of dict
     """
 
-    desired_state = []
+    desired_state: list[dict[str, Any]] = []
     for zone in zones:
         account = zone["account"]
         account_name = account["name"]
@@ -208,8 +211,8 @@ def run(
     enable_deletion: bool = True,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
-    defer=None,
-):
+    defer: Callable | None = None,
+) -> None:
     settings = queries.get_app_interface_settings()
     zones = queries.get_dns_zones(account_name=account_name)
 
@@ -255,7 +258,8 @@ def run(
     if tf is None:
         sys.exit(ExitCodes.ERROR)
 
-    defer(tf.cleanup)
+    if defer:
+        defer(tf.cleanup)
 
     _, err = tf.plan(enable_deletion)
     if err:
@@ -269,7 +273,7 @@ def run(
         sys.exit(ExitCodes.ERROR)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "zones": queries.get_dns_zones(),
     }

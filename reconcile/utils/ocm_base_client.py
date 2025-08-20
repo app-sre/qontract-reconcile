@@ -49,7 +49,7 @@ class OCMBaseClient:
         self._init_request_headers()
 
     @retry()
-    def _init_access_token(self):
+    def _init_access_token(self) -> None:
         data = {
             "grant_type": "client_credentials",
             "client_id": self._access_token_client_id,
@@ -61,7 +61,7 @@ class OCMBaseClient:
         r.raise_for_status()
         self._access_token = r.json().get("access_token")
 
-    def _init_request_headers(self):
+    def _init_request_headers(self) -> None:
         self._session.headers.update({
             "Authorization": f"Bearer {self._access_token}",
             "accept": "application/json",
@@ -130,7 +130,7 @@ class OCMBaseClient:
         api_path: str,
         data: Mapping[str, Any],
         params: Mapping[str, str] | None = None,
-    ):
+    ) -> None:
         ocm_request.labels(verb="PATCH", client_id=self._access_token_client_id).inc()
         r = self._session.patch(
             f"{self._url}{api_path}",
@@ -144,7 +144,7 @@ class OCMBaseClient:
             logging.error(r.text)
             raise e
 
-    def delete(self, api_path: str):
+    def delete(self, api_path: str) -> None:
         ocm_request.labels(verb="DELETE", client_id=self._access_token_client_id).inc()
         r = self._session.delete(f"{self._url}{api_path}", timeout=REQUEST_TIMEOUT_SEC)
         try:

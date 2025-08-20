@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Iterable
+from typing import Any, Self
 
 from ldap3 import (
     ALL,
@@ -17,15 +18,15 @@ class LdapClient:
     appropriately.
     """
 
-    def __init__(self, base_dn: str, connection: Connection):
+    def __init__(self, base_dn: str, connection: Connection) -> None:
         self.base_dn = base_dn
         self.connection = connection
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.connection.bind()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.connection.unbind()
 
     def get_users(self, uids: Iterable[str]) -> set[str]:
