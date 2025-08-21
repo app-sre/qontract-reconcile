@@ -83,6 +83,8 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
     response.raise_for_status()
 
     cert_pem = extract_cert(response.text)
+    # Convert JavaScript-escaped PEM to proper format: .encode() is needed because 
+    # unicode_escape decoder only works on bytes, then decode JS escape sequences
     pem_raw = cert_pem.group(1).encode().decode("unicode_escape").replace("\\/", "/")
     cert = x509.load_pem_x509_certificate(pem_raw.encode())
     dt_expiry = cert.not_valid_after.replace(tzinfo=UTC)
