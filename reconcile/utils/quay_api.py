@@ -289,7 +289,7 @@ class QuayApi:
         r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
 
-    def list_robot_accounts(self) -> list[dict[str, str | None]] | None:
+    def list_robot_accounts(self) -> list[dict[str, Any]]:
         url = f"{self.api_url}/organization/{self.organization}/robots"
         r = requests.get(
             url,
@@ -298,9 +298,9 @@ class QuayApi:
             timeout=self._timeout,
         )
         r.raise_for_status()
-        return r.json().get("robots", []) or None
+        return r.json().get("robots", []) or []
 
-    def create_robot_account(self, robot_name, description):
+    def create_robot_account(self, robot_name: str, description: str) -> None:
         url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}"
         params = {"description": description}
         r = requests.put(
@@ -308,7 +308,7 @@ class QuayApi:
         )
         r.raise_for_status()
 
-    def delete_robot_account(self, robot_name):
+    def delete_robot_account(self, robot_name: str) -> None:
         url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}"
         r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
@@ -324,7 +324,7 @@ class QuayApi:
         robot_data = r.json()
 
         # Get team memberships for this robot
-        teams = []
+        teams: list[dict[str, str]] = []
         try:
             teams_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}/permissions"
             teams_r = requests.get(
@@ -341,7 +341,7 @@ class QuayApi:
             pass
 
         # Get repository permissions for this robot
-        repositories = []
+        repositories: list[dict[str, str]] = []
         try:
             repos_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}/permissions"
             repos_r = requests.get(
