@@ -10,10 +10,14 @@ from reconcile.utils.ruamel import create_ruamel_instance
 class PromoteQontractSchemas(MergeRequestBase):
     name = "promote_qontract_schemas"
 
-    def __init__(self, version: str, github_user_id: str | None = None):
+    def __init__(
+        self, version: str, commit_sha: str, github_user_id: str | None = None
+    ):
         self.path = ".env"
         self.version = version
         self.github_user_id = github_user_id
+        # This is currently unused, however, we keep it to conform with general SQS message format
+        self.commit_sha = commit_sha
 
         super().__init__()
 
@@ -34,7 +38,12 @@ class PromoteQontractSchemas(MergeRequestBase):
 
     @property
     def description(self) -> str:
-        return f"promote qontract-schemas to version {self.version}"
+        return f"""
+promote qontract-schemas to version {self.version}.
+
+At the time of creating this MR, the konflux RPA most likely didn't finish yet, so this MR will likely fail first.
+Please use `/retest` once the RPA finished (that should be the case after ~5min of creating this MR).
+        """
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         raw_file = gitlab_cli.get_raw_file(
@@ -87,7 +96,12 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
 
     @property
     def description(self) -> str:
-        return f"promote qontract-reconcile to version {self.version}"
+        return f"""
+promote qontract-reconcile to version {self.version}.
+
+At the time of creating this MR, the konflux RPA most likely didn't finish yet, so this MR will likely fail first.
+Please use `/retest` once the RPA finished (that should be the case after ~5min of creating this MR).
+"""
 
     def _process_by_line_search(
         self, raw_file: bytes, search_text: str, replace_text: str
