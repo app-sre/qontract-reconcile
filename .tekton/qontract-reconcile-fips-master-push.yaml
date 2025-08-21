@@ -10,8 +10,8 @@ metadata:
     # run on the same push as the primary non-fips build
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "master"
   labels:
-    appstudio.openshift.io/application: qontract-reconcile-fips-master
-    appstudio.openshift.io/component: qontract-reconcile-master
+    appstudio.openshift.io/application: qontract-reconcile-master
+    appstudio.openshift.io/component: qontract-reconcile-fips-master
     pipelines.appstudio.openshift.io/type: build
   name: qontract-reconcile-fips-master-on-push
   namespace: app-sre-tenant
