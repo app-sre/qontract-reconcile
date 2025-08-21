@@ -10,10 +10,14 @@ from reconcile.utils.ruamel import create_ruamel_instance
 class PromoteQontractSchemas(MergeRequestBase):
     name = "promote_qontract_schemas"
 
-    def __init__(self, version: str, github_user_id: str | None = None):
+    def __init__(
+        self, version: str, commit_sha: str, github_user_id: str | None = None
+    ):
         self.path = ".env"
         self.version = version
         self.github_user_id = github_user_id
+        # This is currently unused, however, we keep it to conform with general SQS message format
+        self.commit_sha = commit_sha
 
         super().__init__()
 
