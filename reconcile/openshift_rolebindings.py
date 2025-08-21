@@ -250,6 +250,7 @@ def fetch_desired_state(
     ri: ResourceInventory | None,
     support_role_ref: bool = False,
     enforced_user_keys: list[str] | None = None,
+    allowed_clusters: list[str] | None = None,
 ) -> list[dict[str, str]]:
     roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
     users_desired_state = []
@@ -257,12 +258,23 @@ def fetch_desired_state(
         rolebindings: list[RoleBindingSpec] = RoleBindingSpec.create_rb_specs_from_role(
             role, enforced_user_keys, support_role_ref
         )
+        if allowed_clusters:
+            rolebindings = [
+                rolebinding
+                for rolebinding in rolebindings
+                if rolebinding.cluster.name in allowed_clusters
+            ]
         for rolebinding in rolebindings:
             users_desired_state.extend(rolebinding.get_users_desired_state())
             if ri is None:
                 continue
             for oc_resource in rolebinding.get_oc_resources():
-                if should_add_desired_state(ri, oc_resource, rolebinding):
+                if not ri.get_desired(
+                    rolebinding.cluster.name,
+                    rolebinding.namespace.name,
+                    "RoleBinding.rbac.authorization.k8s.io",
+                    oc_resource.resource_name,
+                ):
                     ri.add_desired_resource(
                         cluster=rolebinding.cluster.name,
                         namespace=rolebinding.namespace.name,
@@ -270,18 +282,6 @@ def fetch_desired_state(
                         privileged=oc_resource.privileged,
                     )
     return users_desired_state
-
-
-def should_add_desired_state(
-    ri: ResourceInventory, oc_resource: OCResource, rolebinding_spec: RoleBindingSpec
-) -> bool:
-    resource = ri.get_desired(
-        rolebinding_spec.cluster.name,
-        rolebinding_spec.namespace.name,
-        "RoleBinding.rbac.authorization.k8s.io",
-        oc_resource.resource_name,
-    )
-    return ri.is_cluster_present(rolebinding_spec.cluster.name) and not resource
 
 
 def is_valid_namespace(namespace: NamespaceV1 | CommonNamespaceV1) -> bool:
@@ -317,7 +317,7 @@ def run(
     )
     if defer:
         defer(oc_map.cleanup)
-    fetch_desired_state(ri, support_role_ref)
+    fetch_desired_state(ri, support_role_ref, allowed_clusters=oc_map.clusters())
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
