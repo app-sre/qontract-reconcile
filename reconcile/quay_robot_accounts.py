@@ -124,7 +124,7 @@ def build_current_state(
             description = robot_data.get("description")
 
             # Get team memberships
-            teams = set()
+            teams: set[str] = set()
             team_permissions = robot_data.get("teams", [])
             teams.update(team_perm["name"] for team_perm in team_permissions)
 
@@ -307,6 +307,8 @@ def apply_action(
             logging.info(
                 f"Adding robot {action.robot_name} to team {action.team} in {action.org_name}"
             )
+            if not action.team:
+                raise ValueError(f"Team is required for add_team action: {action}")
             quay_api.add_user_to_team(
                 f"{action.org_name}+{action.robot_name}", action.team
             )
@@ -315,6 +317,8 @@ def apply_action(
             logging.info(
                 f"Removing robot {action.robot_name} from team {action.team} in {action.org_name}"
             )
+            if not action.team:
+                raise ValueError(f"Team is required for remove_team action: {action}")
             quay_api.remove_user_from_team(
                 f"{action.org_name}+{action.robot_name}", action.team
             )
@@ -323,6 +327,14 @@ def apply_action(
             logging.info(
                 f"Setting {action.permission} permission for robot {action.robot_name} on repo {action.repo}"
             )
+            if not action.repo:
+                raise ValueError(
+                    f"Repo is required for set_repo_permission action: {action}"
+                )
+            if not action.permission:
+                raise ValueError(
+                    f"Permission is required for set_repo_permission action: {action}"
+                )
             quay_api.set_repo_robot_permissions(
                 action.repo, action.robot_name, action.permission
             )
@@ -331,6 +343,10 @@ def apply_action(
             logging.info(
                 f"Removing permissions for robot {action.robot_name} from repo {action.repo}"
             )
+            if not action.repo:
+                raise ValueError(
+                    f"Repo is required for set_repo_permissions action: {action}"
+                )
             quay_api.delete_repo_robot_permissions(action.repo, action.robot_name)
 
     except Exception as e:
