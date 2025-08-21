@@ -89,7 +89,7 @@ def test_list_team_members_raises_other_status_codes(quay_api: QuayApi) -> None:
 
 
 @responses.activate
-def test_list_robot_accounts(quay_api):
+def test_list_robot_accounts(quay_api: QuayApi) -> None:
     responses.add(
         responses.GET,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/robots",
@@ -129,7 +129,7 @@ def test_list_robot_accounts(quay_api):
 
 
 @responses.activate
-def test_list_robot_accounts_raises_other_status_codes(quay_api):
+def test_list_robot_accounts_raises_other_status_codes(quay_api: QuayApi) -> None:
     responses.add(
         responses.GET,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/robots",
@@ -141,7 +141,7 @@ def test_list_robot_accounts_raises_other_status_codes(quay_api):
 
 
 @responses.activate
-def test_create_robot_account(quay_api):
+def test_create_robot_account(quay_api: QuayApi) -> None:
     responses.add(
         responses.PUT,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1",
@@ -155,7 +155,7 @@ def test_create_robot_account(quay_api):
 
 
 @responses.activate
-def test_create_robot_account_raises_other_status_codes(quay_api):
+def test_create_robot_account_raises_other_status_codes(quay_api: QuayApi) -> None:
     responses.add(
         responses.PUT,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1",
@@ -167,7 +167,7 @@ def test_create_robot_account_raises_other_status_codes(quay_api):
 
 
 @responses.activate
-def test_delete_robot_account(quay_api):
+def test_delete_robot_account(quay_api: QuayApi) -> None:
     responses.add(
         responses.DELETE,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1",
@@ -183,7 +183,7 @@ def test_delete_robot_account(quay_api):
 
 
 @responses.activate
-def test_delete_robot_account_raises_other_status_codes(quay_api):
+def test_delete_robot_account_raises_other_status_codes(quay_api: QuayApi) -> None:
     responses.add(
         responses.DELETE,
         f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/robot1",
@@ -195,7 +195,7 @@ def test_delete_robot_account_raises_other_status_codes(quay_api):
 
 
 @responses.activate
-def test_get_repo_robot_permissions(quay_api):
+def test_get_repo_robot_permissions(quay_api: QuayApi) -> None:
     responses.add(
         responses.GET,
         f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
@@ -208,7 +208,7 @@ def test_get_repo_robot_permissions(quay_api):
 
 
 @responses.activate
-def test_get_repo_robot_permissions_no_permission(quay_api):
+def test_get_repo_robot_permissions_no_permission(quay_api: QuayApi) -> None:
     responses.add(
         responses.GET,
         f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
@@ -221,7 +221,9 @@ def test_get_repo_robot_permissions_no_permission(quay_api):
 
 
 @responses.activate
-def test_get_repo_robot_permissions_raises_other_status_codes(quay_api):
+def test_get_repo_robot_permissions_raises_other_status_codes(
+    quay_api: QuayApi,
+) -> None:
     responses.add(
         responses.GET,
         f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
@@ -233,7 +235,7 @@ def test_get_repo_robot_permissions_raises_other_status_codes(quay_api):
 
 
 @responses.activate
-def test_set_repo_robot_permissions(quay_api):
+def test_set_repo_robot_permissions(quay_api: QuayApi) -> None:
     responses.add(
         responses.PUT,
         f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
@@ -246,7 +248,9 @@ def test_set_repo_robot_permissions(quay_api):
 
 
 @responses.activate
-def test_set_repo_robot_permissions_raises_other_status_codes(quay_api):
+def test_set_repo_robot_permissions_raises_other_status_codes(
+    quay_api: QuayApi,
+) -> None:
     responses.add(
         responses.PUT,
         f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
@@ -258,7 +262,7 @@ def test_set_repo_robot_permissions_raises_other_status_codes(quay_api):
 
 
 @responses.activate
-def test_delete_repo_robot_permissions(quay_api):
+def test_delete_repo_robot_permissions(quay_api: QuayApi) -> None:
     responses.add(
         responses.DELETE,
         f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
@@ -275,7 +279,9 @@ def test_delete_repo_robot_permissions(quay_api):
 
 
 @responses.activate
-def test_delete_repo_robot_permissions_raises_other_status_codes(quay_api):
+def test_delete_repo_robot_permissions_raises_other_status_codes(
+    quay_api: QuayApi,
+) -> None:
     responses.add(
         responses.DELETE,
         f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
@@ -344,7 +350,7 @@ def test_list_robot_accounts_detailed(quay_api: QuayApi) -> None:
     robots_data = {"robots": [{"name": "robot1"}, {"name": "robot2"}]}
     robot1_details = {"name": "robot1", "description": "Robot 1"}
     robot2_details = {"name": "robot2", "description": "Robot 2"}
-    permissions_data = {"permissions": []}
+    permissions_data: dict[str, list[dict[str, str]]] = {"permissions": []}
 
     responses.add(
         responses.GET,
