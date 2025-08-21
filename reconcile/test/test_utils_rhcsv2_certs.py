@@ -36,3 +36,17 @@ def test_extract_cert_invalid_cert_format(fx: Callable) -> None:
         ValueError, match="Could not extract certificate PEM from response"
     ):
         extract_cert(html_response)
+
+
+def test_unicode_escape_processing() -> None:
+    # Test the encode().decode("unicode_escape").replace() logic used in generate_cert
+    js_escaped_pem = "-----BEGIN CERTIFICATE-----\\nMIIDXTCCAkWgAwIBAgIJAKoK\\/heBjcOuMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV\\nBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX\\naWRnaXRzIFB0eSBMdGQwHhcNMTcwNTE4MTAzNzI3WhcNMTgwNTE4MTAzNzI3WjBF\\n-----END CERTIFICATE-----"
+    processed_pem = js_escaped_pem.encode().decode("unicode_escape").replace("\\/", "/")
+    expected_pem = "-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAKoK/heBjcOuMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV\nBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX\naWRnaXRzIFB0eSBMdGQwHhcNMTcwNTE4MTAzNzI3WhcNMTgwNTE4MTAzNzI3WjBF\n-----END CERTIFICATE-----"
+    assert processed_pem == expected_pem
+    # Verify newlines are properly decoded
+    assert "\\n" not in processed_pem
+    assert "\n" in processed_pem
+    # Verify forward slashes are unescaped
+    assert "\\/" not in processed_pem
+    assert "/" in processed_pem
