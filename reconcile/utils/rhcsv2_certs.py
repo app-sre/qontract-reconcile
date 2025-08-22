@@ -1,5 +1,5 @@
 import re
-from datetime import UTC
+from datetime import UTC, datetime
 
 import requests
 from cryptography import x509
@@ -59,6 +59,17 @@ def extract_cert(text: str) -> re.Match:
     return cert_pem
 
 
+def get_cert_expiry_timestamp(js_escaped_pem: str) -> int:
+    """Extract certificate expiry timestamp from JavaScript-escaped PEM."""
+
+    # Convert JavaScript-escaped PEM to proper format: .encode() is needed because
+    # unicode_escape decoder only works on bytes, then decode JS escape sequences
+    pem_raw = js_escaped_pem.encode().decode("unicode_escape").replace("\\/", "/")
+    cert = x509.load_pem_x509_certificate(pem_raw.encode())
+    dt_expiry = cert.not_valid_after.replace(tzinfo=UTC)
+    return int(dt_expiry.timestamp())
+
+
 def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cert:
     private_key = rsa.generate_private_key(65537, 4096)
     csr = (
@@ -83,11 +94,7 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
     response.raise_for_status()
 
     cert_pem = extract_cert(response.text)
-    # Convert JavaScript-escaped PEM to proper format: .encode() is needed because
-    # unicode_escape decoder only works on bytes, then decode JS escape sequences
-    pem_raw = cert_pem.group(1).encode().decode("unicode_escape").replace("\\/", "/")
-    cert = x509.load_pem_x509_certificate(pem_raw.encode())
-    dt_expiry = cert.not_valid_after.replace(tzinfo=UTC)
+    cert_expiry_timestamp = get_cert_expiry_timestamp(cert_pem.group(1))
     private_key_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
@@ -105,5 +112,5 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
         .decode("unicode_escape")
         .replace("\\/", "/"),
         ca_cert=ca_pem,
-        expiration_timestamp=int(dt_expiry.timestamp()),
+        expiration_timestamp=cert_expiry_timestamp,
     )
