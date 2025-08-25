@@ -260,12 +260,7 @@ class QuayApi:
             + f"{repo_name}/permissions/user/{self.organization}+{robot_name}"
         )
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
-        if not r.ok:
-            message = r.json().get("message")
-            expected_message = "User does not have permission for repo."
-            if message == expected_message:
-                return None
-            r.raise_for_status()
+        r.raise_for_status()
         return r.json().get("role") or None
 
     def set_repo_robot_permissions(
