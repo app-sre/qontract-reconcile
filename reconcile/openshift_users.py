@@ -110,7 +110,7 @@ def fetch_desired_state(
     desired_state.extend(flat_rolebindings_desired_state)
 
     groups_desired_state = openshift_groups.fetch_desired_state(
-        clusters=filtered_clusters if filtered_clusters else [],
+        clusters=filtered_clusters or [],
         enforced_user_keys=enforced_user_keys,
     )
     flat_groups_desired_state = [
