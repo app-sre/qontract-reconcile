@@ -3,6 +3,9 @@ groups:
   rules:
   - record: test_metric
     expr: vector(1)
+    labels:
+      sloth_id: test-id
+      sloth_service: test-service
   - alert: TestAlert
     expr: |
       sum(rate(http_requests_total{status=~"5.."}[5m]))
