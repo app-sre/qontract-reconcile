@@ -33,6 +33,10 @@ QONTRACT_INTEGRATION = "openshift-rolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
 
+class FetchDesiredStateError(Exception):
+    pass
+
+
 class OCResource(BaseModel):
     resource: OR
     resource_name: str
@@ -250,7 +254,7 @@ def fetch_desired_state(
     ri: ResourceInventory | None,
     support_role_ref: bool = False,
     enforced_user_keys: list[str] | None = None,
-    allowed_clusters: list[str] | None = None,
+    allowed_clusters: set[str] | None = None,
 ) -> list[dict[str, str]]:
     roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
     users_desired_state = []
@@ -258,7 +262,11 @@ def fetch_desired_state(
         rolebindings: list[RoleBindingSpec] = RoleBindingSpec.create_rb_specs_from_role(
             role, enforced_user_keys, support_role_ref
         )
-        if allowed_clusters:
+        if allowed_clusters is not None:
+            if not allowed_clusters:
+                raise FetchDesiredStateError(
+                    "fetch_desired_state: failed to connect to any cluster."
+                )
             rolebindings = [
                 rolebinding
                 for rolebinding in rolebindings
@@ -317,7 +325,7 @@ def run(
     )
     if defer:
         defer(oc_map.cleanup)
-    fetch_desired_state(ri, support_role_ref, allowed_clusters=oc_map.clusters())
+    fetch_desired_state(ri, support_role_ref, allowed_clusters=set(oc_map.clusters()))
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

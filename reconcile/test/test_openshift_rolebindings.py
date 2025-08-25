@@ -2,6 +2,7 @@
 
 import operator
 
+import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.app_interface_roles import (
@@ -14,6 +15,7 @@ from reconcile.gql_definitions.common.app_interface_roles import (
     UserV1,
 )
 from reconcile.openshift_rolebindings import (
+    FetchDesiredStateError,
     OCResource,
     RoleBindingSpec,
     fetch_desired_state,
@@ -174,7 +176,7 @@ def test_fetch_desired_state_with_filtered_clusters(mocker: MockerFixture) -> No
     ).return_value = get_app_interface_test_roles()
     assert sorted(
         fetch_desired_state(
-            None, support_role_ref=False, allowed_clusters=["test-cluster"]
+            None, support_role_ref=False, allowed_clusters={"test-cluster"}
         ),
         key=operator.itemgetter("cluster", "user"),
     ) == [
@@ -326,7 +328,7 @@ def test_fetch_desired_state_contents_with_filtered_clusters(
     mocker.patch(
         "reconcile.openshift_rolebindings.get_app_interface_roles"
     ).return_value = get_app_interface_test_roles()
-    fetch_desired_state(ri, allowed_clusters=["test-cluster5"])
+    fetch_desired_state(ri, allowed_clusters={"test-cluster5"})
     assert ri.get_desired(
         "test-cluster5",
         "test-namespace5",
@@ -370,3 +372,15 @@ def test_fetch_desired_state_contents_without_filtered_clusters(
         "RoleBinding.rbac.authorization.k8s.io",
         "test-role-access-test-org-user",
     )
+
+
+def test_fetch_desired_state_error(mocker: MockerFixture) -> None:
+    ri = ResourceInventory()
+    ri.initialize_resource_type(
+        "test-cluster5", "test-namespace5", "RoleBinding.rbac.authorization.k8s.io"
+    )
+    mocker.patch(
+        "reconcile.openshift_rolebindings.get_app_interface_roles"
+    ).return_value = get_app_interface_test_roles()
+    with pytest.raises(FetchDesiredStateError):
+        fetch_desired_state(ri, allowed_clusters=set())
