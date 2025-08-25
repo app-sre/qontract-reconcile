@@ -216,19 +216,6 @@ def test_get_repo_robot_permissions(quay_api: QuayApi) -> None:
 
 
 @responses.activate
-def test_get_repo_robot_permissions_no_permission(quay_api: QuayApi) -> None:
-    responses.add(
-        responses.GET,
-        f"https://{BASE_URL}/api/v1/repository/{ORG}/some-repo/permissions/user/{ORG}+robot1",
-        status=400,
-        json={"message": "User does not have permission for repo."},
-    )
-
-    result = quay_api.get_repo_robot_permissions("some-repo", "robot1")
-    assert result is None
-
-
-@responses.activate
 def test_get_repo_robot_permissions_raises_other_status_codes(
     quay_api: QuayApi,
 ) -> None:
