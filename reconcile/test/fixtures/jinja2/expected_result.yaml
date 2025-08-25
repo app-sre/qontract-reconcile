@@ -1,0 +1,15 @@
+groups:
+- name: test-group
+  rules:
+  - record: test_metric
+    expr: vector(1)
+  - alert: TestAlert
+    expr: |
+      sum(rate(http_requests_total{status=~"5.."}[5m]))
+      /
+      sum(rate(http_requests_total[5m]))
+    labels:
+      service: app-interface
+      severity: critical
+    annotations:
+      summary: Test summary
