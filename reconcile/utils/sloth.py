@@ -22,11 +22,15 @@ class PrometheusRuleSpec(TypedDict):
 
 
 def get_cleaned_rule_labels(rule: PrometheusRule) -> dict[str, str] | None:
-    if rule.get("record") or not rule.get("labels"):
-        return None
-    # sloth adds several sloth_* labels to rules that are not compliant with prometheus-rule-1 schema
-    # see https://sloth.dev/examples/default/getting-started/#__tabbed_1_2
-    labels = {k: v for k, v in rule["labels"].items() if not k.startswith("sloth")}
+    labels = {}
+    if rule.get("record"):
+        # sloth record rules include several sloth_* labels that are later utilized in alert rule expressions
+        # and must be retained
+        labels = {k: v for k, v in rule["labels"].items() if k.startswith("sloth")}
+    elif rule.get("alert"):
+        # sloth adds several sloth_* labels to alerting rules that are not compliant with prometheus-rule-1 schema
+        # see https://sloth.dev/examples/default/getting-started/#__tabbed_1_2
+        labels = {k: v for k, v in rule["labels"].items() if not k.startswith("sloth")}
     return labels or None
 
 
