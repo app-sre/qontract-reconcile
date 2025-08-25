@@ -108,14 +108,14 @@ class TemplateRenderingMR(MergeRequestBase):
             if content.is_new:
                 gitlab_cli.create_file(
                     branch_name=self.branch,
-                    file_path=f"data{content.path}",
+                    file_path=content.path.lstrip("/"),
                     commit_message="termplate rendering output",
                     content=content.content,
                 )
             else:
                 gitlab_cli.update_file(
                     branch_name=self.branch,
-                    file_path=f"data{content.path}",
+                    file_path=content.path.lstrip("/"),
                     commit_message="termplate rendering output",
                     content=content.content,
                 )
