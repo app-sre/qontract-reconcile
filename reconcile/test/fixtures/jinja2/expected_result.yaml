@@ -6,6 +6,8 @@ groups:
     labels:
       sloth_id: test-id
       sloth_service: test-service
+      sloth_slo: apiLatency
+      sloth_window: 3d
   - alert: TestAlert
     expr: |
       sum(rate(http_requests_total{status=~"5.."}[5m]))
