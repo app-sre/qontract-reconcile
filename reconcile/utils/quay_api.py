@@ -310,7 +310,10 @@ class QuayApi:
 
     def get_robot_account_details(self, robot_name: str) -> dict[str, Any] | None:
         """Get detailed information about a robot account including teams and repositories"""
-        url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}"
+        robot_short_name = robot_name.split("+")[1]
+        url = (
+            f"{self.api_url}/organization/{self.organization}/robots/{robot_short_name}"
+        )
         r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
         if r.status_code == 404:
             return None
@@ -321,7 +324,7 @@ class QuayApi:
         # Get team memberships for this robot
         teams: list[dict[str, str]] = []
         try:
-            teams_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}/permissions"
+            teams_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_short_name}/permissions"
             teams_r = requests.get(
                 teams_url, headers=self.auth_header, timeout=self._timeout
             )
@@ -338,7 +341,7 @@ class QuayApi:
         # Get repository permissions for this robot
         repositories: list[dict[str, str]] = []
         try:
-            repos_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_name}/permissions"
+            repos_url = f"{self.api_url}/organization/{self.organization}/robots/{robot_short_name}/permissions"
             repos_r = requests.get(
                 repos_url, headers=self.auth_header, timeout=self._timeout
             )
