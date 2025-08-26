@@ -289,7 +289,7 @@ def test_delete_repo_robot_permissions_raises_other_status_codes(
 
 @responses.activate
 def test_get_robot_account_details_success(quay_api: QuayApi) -> None:
-    robot_data = {"name": "test-robot", "description": "Test robot account"}
+    robot_data = {"name": f"{ORG}+test-robot", "description": "Test robot account"}
     permissions_data = {
         "permissions": [
             {"role": "team", "team": {"name": "test-team"}},
@@ -316,10 +316,10 @@ def test_get_robot_account_details_success(quay_api: QuayApi) -> None:
         status=200,
     )
 
-    result = quay_api.get_robot_account_details("test-robot")
+    result = quay_api.get_robot_account_details(f"{ORG}+test-robot")
 
     assert result is not None
-    assert result["name"] == "test-robot"
+    assert result["name"] == f"{ORG}+test-robot"
     assert result["description"] == "Test robot account"
     assert len(result["teams"]) == 1
     assert result["teams"][0]["name"] == "test-team"
@@ -336,15 +336,15 @@ def test_get_robot_account_details_not_found(quay_api: QuayApi) -> None:
         status=404,
     )
 
-    result = quay_api.get_robot_account_details("test-robot")
+    result = quay_api.get_robot_account_details(f"{ORG}+test-robot")
     assert result is None
 
 
 @responses.activate
 def test_list_robot_accounts_detailed(quay_api: QuayApi) -> None:
-    robots_data = {"robots": [{"name": "robot1"}, {"name": "robot2"}]}
-    robot1_details = {"name": "robot1", "description": "Robot 1"}
-    robot2_details = {"name": "robot2", "description": "Robot 2"}
+    robots_data = {"robots": [{"name": f"{ORG}+robot1"}, {"name": f"{ORG}+robot2"}]}
+    robot1_details = {"name": f"{ORG}+robot1", "description": "Robot 1"}
+    robot2_details = {"name": f"{ORG}+robot2", "description": "Robot 2"}
     permissions_data: dict[str, list[dict[str, str]]] = {"permissions": []}
 
     responses.add(
@@ -393,5 +393,5 @@ def test_list_robot_accounts_detailed(quay_api: QuayApi) -> None:
     result = quay_api.list_robot_accounts_detailed()
 
     assert len(result) == 2
-    assert result[0]["name"] == "robot1"
-    assert result[1]["name"] == "robot2"
+    assert result[0]["name"] == f"{ORG}+robot1"
+    assert result[1]["name"] == f"{ORG}+robot2"
