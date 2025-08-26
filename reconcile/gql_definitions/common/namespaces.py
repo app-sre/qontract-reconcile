@@ -30,20 +30,20 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment ResourceValues on ResourceValues_v1 {
-    cpu
-    memory
+  cpu
+  memory
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query Namespaces {
@@ -63,27 +63,27 @@ query Namespaces {
       }
     }
     openshiftResources {
-        provider
-        ... on NamespaceOpenshiftResourceResource_v1 {
-          path {
-            content
-          }
+      provider
+      ... on NamespaceOpenshiftResourceResource_v1 {
+        path {
+          content
         }
-        ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
-          path {
-            content
-          }
+      }
+      ... on NamespaceOpenshiftResourceResourceTemplate_v1 {
+        path {
+          content
         }
-        ... on NamespaceOpenshiftResourceRoute_v1 {
-          path {
-            content
-          }
+      }
+      ... on NamespaceOpenshiftResourceRoute_v1 {
+        path {
+          content
         }
-        ... on NamespaceOpenshiftResourcePrometheusRule_v1 {
-          path {
-            content
-          }
+      }
+      ... on NamespaceOpenshiftResourcePrometheusRule_v1 {
+        path {
+          content
         }
+      }
     }
     managedExternalResources
     externalResources {
@@ -94,22 +94,20 @@ query Namespaces {
       ... on NamespaceTerraformProviderResourceAWS_v1 {
         resources {
           provider
-          ... on NamespaceTerraformResourceRDS_v1
-          {
+          ... on NamespaceTerraformResourceRDS_v1 {
             identifier
             output_resource_name
             defaults
             replica_source
           }
-          ... on NamespaceTerraformResourceECR_v1
-          {
+          ... on NamespaceTerraformResourceECR_v1 {
             region
             identifier
             output_resource_name
             mirror {
               url
               pullCredentials {
-                ... VaultSecret
+                ...VaultSecret
               }
               tags
               tagsExclude
@@ -123,13 +121,13 @@ query Namespaces {
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        ... CommonJumphostFields
+        ...CommonJumphostFields
       }
       automationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       clusterAdminAutomationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       internal
       disable {
@@ -144,19 +142,19 @@ query Namespaces {
       name
       limits {
         default {
-          ... ResourceValues
+          ...ResourceValues
         }
         defaultRequest {
-          ... ResourceValues
+          ...ResourceValues
         }
         max {
-          ... ResourceValues
+          ...ResourceValues
         }
         maxLimitRequestRatio {
-          ... ResourceValues
+          ...ResourceValues
         }
         min {
-          ... ResourceValues
+          ...ResourceValues
         }
         type
       }
@@ -166,10 +164,10 @@ query Namespaces {
         name
         resources {
           limits {
-            ... ResourceValues
+            ...ResourceValues
           }
           requests {
-            ... ResourceValues
+            ...ResourceValues
           }
           pods
         }

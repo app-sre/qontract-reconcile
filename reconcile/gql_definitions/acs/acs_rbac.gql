@@ -1,6 +1,6 @@
 # qenerate: plugin=pydantic_v1
 
-query AcsRbac  {
+query AcsRbac {
   acs_rbacs: users_v1 {
     org_username
     roles {

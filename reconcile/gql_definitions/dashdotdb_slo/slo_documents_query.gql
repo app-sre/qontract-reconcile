@@ -2,6 +2,6 @@
 
 query SLODocuments {
   slo_documents: slo_document_v1 {
-  ... SLODocument
+    ...SLODocument
   }
 }

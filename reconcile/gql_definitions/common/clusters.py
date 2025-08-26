@@ -33,7 +33,7 @@ fragment AWSInfrastructureManagementAccount on AWSInfrastructureManagementAccoun
     terraformUsername
     resourcesDefaultRegion
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
   accessLevel
@@ -48,7 +48,7 @@ fragment AWSVPC on AWSVPC_v1 {
     uid
     terraformUsername
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
   region
@@ -78,27 +78,27 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
-    name
-    description
-    labels
-    url
-    accessTokenClientId
-    accessTokenUrl
-    accessTokenClientSecret {
-        ... VaultSecret
-    }
+  name
+  description
+  labels
+  url
+  accessTokenClientId
+  accessTokenUrl
+  accessTokenClientSecret {
+    ...VaultSecret
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query Clusters($name: String) {
@@ -114,7 +114,7 @@ query Clusters($name: String) {
     managedClusterRoles
     insecureSkipTLSVerify
     jumpHost {
-      ... CommonJumphostFields
+      ...CommonJumphostFields
     }
     auth {
       service
@@ -131,13 +131,13 @@ query Clusters($name: String) {
     ocm {
       name
       environment {
-        ... OCMEnvironment
+        ...OCMEnvironment
       }
       orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        ... VaultSecret
+        ...VaultSecret
       }
       blockedVersions
       inheritVersionData {
@@ -158,7 +158,7 @@ query Clusters($name: String) {
       }
     }
     awsInfrastructureManagementAccounts {
-      ... AWSInfrastructureManagementAccount
+      ...AWSInfrastructureManagementAccount
     }
     spec {
       product
@@ -176,7 +176,7 @@ query Clusters($name: String) {
           uid
           terraformUsername
           automationToken {
-            ... VaultSecret
+            ...VaultSecret
           }
           resourcesDefaultRegion
           rosa {
@@ -212,7 +212,7 @@ query Clusters($name: String) {
       labels
     }
     upgradePolicy {
-      ... ClusterUpgradePolicyV1
+      ...ClusterUpgradePolicyV1
     }
     additionalRouters {
       private
@@ -248,7 +248,7 @@ query Clusters($name: String) {
         delete
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
-            ... AWSVPC
+            ...AWSVPC
           }
           assumeRole
         }
@@ -258,7 +258,7 @@ query Clusters($name: String) {
             uid
             terraformUsername
             automationToken {
-              ... VaultSecret
+              ...VaultSecret
             }
           }
           tags
@@ -269,7 +269,7 @@ query Clusters($name: String) {
             uid
             terraformUsername
             automationToken {
-              ... VaultSecret
+              ...VaultSecret
             }
           }
           tags
@@ -293,14 +293,14 @@ query Clusters($name: String) {
                   uid
                   terraformUsername
                   automationToken {
-                    ... VaultSecret
+                    ...VaultSecret
                   }
                 }
               }
               accessLevel
             }
             awsInfrastructureManagementAccounts {
-              ... AWSInfrastructureManagementAccount
+              ...AWSInfrastructureManagementAccount
             }
             peering {
               connections {
@@ -317,7 +317,7 @@ query Clusters($name: String) {
                     uid
                     terraformUsername
                     automationToken {
-                      ... VaultSecret
+                      ...VaultSecret
                     }
                   }
                 }
@@ -335,11 +335,11 @@ query Clusters($name: String) {
       }
     }
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     clusterAdmin
     clusterAdminAutomationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     internal
     disable {

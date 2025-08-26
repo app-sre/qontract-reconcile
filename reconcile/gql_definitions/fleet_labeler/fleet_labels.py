@@ -22,46 +22,46 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query FleetLabelSpecs {
-    fleet_labels_specs: fleet_labels_specs_v1 {
-        name
-        path
-        managedSubscriptionLabelPrefix
-        dryRunLabelSynchronization
-        ocmEnv {
-            name
-            url
-            accessTokenClientId
-            accessTokenClientSecret {
-                ... VaultSecret
-            }
-            accessTokenUrl
-        }
-        labelDefaults {
-            name
-            matchSubscriptionLabels
-            subscriptionLabelTemplate {
-                path {
-                    content
-                }
-                type
-                variables
-            }
-        }
-        clusters {
-            name
-            serverUrl
-            subscriptionId
-            clusterId
-            subscriptionLabels
-        }
+  fleet_labels_specs: fleet_labels_specs_v1 {
+    name
+    path
+    managedSubscriptionLabelPrefix
+    dryRunLabelSynchronization
+    ocmEnv {
+      name
+      url
+      accessTokenClientId
+      accessTokenClientSecret {
+        ...VaultSecret
+      }
+      accessTokenUrl
     }
+    labelDefaults {
+      name
+      matchSubscriptionLabels
+      subscriptionLabelTemplate {
+        path {
+          content
+        }
+        type
+        variables
+      }
+    }
+    clusters {
+      name
+      serverUrl
+      subscriptionId
+      clusterId
+      subscriptionLabels
+    }
+  }
 }
 """
 
