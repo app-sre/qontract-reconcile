@@ -29,15 +29,15 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query Projects {
@@ -99,7 +99,7 @@ query Projects {
       }
     }
     app {
-    # for glitchtip access revalidation
+      # for glitchtip access revalidation
       path
       # for the qontract-cli glitchtip subcommands
       escalationPolicy {

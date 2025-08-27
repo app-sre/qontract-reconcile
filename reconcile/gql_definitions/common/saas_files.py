@@ -31,7 +31,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
@@ -55,47 +55,47 @@ fragment OcConnectionCluster on Cluster_v1 {
 }
 
 fragment SLODocument on SLODocument_v1 {
-    name
-    namespaces {
-      prometheusAccess {
-         url
-         username {
-         ... VaultSecret
-         }
-         password {
-           ... VaultSecret
-         }
+  name
+  namespaces {
+    prometheusAccess {
+      url
+      username {
+        ...VaultSecret
       }
-      namespace {
-        name
-        app {
-          name
-        }
-        cluster {
-          name
-          automationToken {
-          ... VaultSecret
-          }
-          prometheusUrl
-          spec {
-            private
-          }
-        }
-      }
-      SLONamespace {
-        name
+      password {
+        ...VaultSecret
       }
     }
-    slos {
+    namespace {
       name
-      expr
-      SLIType
-      SLOParameters {
-        window
+      app {
+        name
       }
-      SLOTarget
-      SLOTargetUnit
+      cluster {
+        name
+        automationToken {
+          ...VaultSecret
+        }
+        prometheusUrl
+        spec {
+          private
+        }
+      }
     }
+    SLONamespace {
+      name
+    }
+  }
+  slos {
+    name
+    expr
+    SLIType
+    SLOParameters {
+      window
+    }
+    SLOTarget
+    SLOTargetUnit
+  }
 }
 
 fragment SaasTargetNamespace on Namespace_v1 {
@@ -164,10 +164,10 @@ fragment SaasTargetNamespace on Namespace_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query SaasFiles {
@@ -299,7 +299,7 @@ query SaasFiles {
           ...SaasTargetNamespace
         }
         slos {
-         ...SLODocument 
+          ...SLODocument
         }
         namespaceSelector {
           jsonPathSelectors {

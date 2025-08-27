@@ -2,6 +2,6 @@
 
 query AUSOrganizations($name: String) {
   organizations: ocm_instances_v1(name: $name) {
-    ... AUSOCMOrganization
+    ...AUSOCMOrganization
   }
 }

@@ -19,7 +19,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query AppInterfaceSettingCloudflareAndVault{
+query AppInterfaceSettingCloudflareAndVault {
   settings: app_interface_settings_v1 {
     cloudflareEmailDomainAllowList
     vault

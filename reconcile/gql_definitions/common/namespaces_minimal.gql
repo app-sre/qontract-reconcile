@@ -11,13 +11,13 @@ query NamespacesMinimal {
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        ... CommonJumphostFields
+        ...CommonJumphostFields
       }
       automationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       clusterAdminAutomationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       internal
       disable {

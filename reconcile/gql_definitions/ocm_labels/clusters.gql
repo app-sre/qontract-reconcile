@@ -11,7 +11,6 @@ query OcmSubscriptionLabel {
         ...OCMEnvironment
       }
       orgId
-
     }
     disable {
       integrations
