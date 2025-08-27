@@ -144,7 +144,7 @@ class ExternalResourcesInventory(MutableMapping):
                     MODULE_OVERRIDES,
                 }
             ),
-            namespace=namespace.dict(),
+            namespace=namespace.dict(by_alias=True),
         )
         spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete
         spec.metadata[MODULE_OVERRIDES] = resource.module_overrides
