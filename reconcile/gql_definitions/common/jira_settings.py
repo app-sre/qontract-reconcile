@@ -20,12 +20,12 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 DEFINITION = """
 query JiraSettings {
-    jira_settings: app_interface_settings_v1 {
-        jiraWatcher {
-            readTimeout
-            connectTimeout
-        }
+  jira_settings: app_interface_settings_v1 {
+    jiraWatcher {
+      readTimeout
+      connectTimeout
     }
+  }
 }
 """
 

@@ -1,7 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
 fragment PipelineProviderRetention on PipelinesProviderRetention_v1 {
-    days
-    minimum
-    maximum
+  days
+  minimum
+  maximum
 }

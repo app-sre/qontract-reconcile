@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime
+from datetime import UTC
 
 import requests
 from cryptography import x509
@@ -17,6 +17,57 @@ class RhcsV2Cert(BaseModel):
 
     class Config:
         allow_population_by_field_name = True
+
+
+def extract_cert(text: str) -> re.Match:
+    # The CA webform returns an HTML page with inline JS that builds an array of “outputList”
+    # objects. Each object looks roughly like:
+    #   outputList = new Object;
+    #   outputList.outputId = "pretty_cert";
+    #   outputList.outputSyntax = "pretty_print";
+    #   outputList.outputVal = "    Certificate:\n ... Not  After: ...";
+    #   outputListSet[0] = outputList;
+    #
+    #   outputList = new Object;
+    #   outputList.outputId = "b64_cert";
+    #   outputList.outputSyntax = "pretty_print";
+    #   outputList.outputVal = "-----BEGIN CERTIFICATE-----\n...base64...\n-----END CERTIFICATE-----\n";
+    #   outputListSet[1] = outputList;
+    #
+    # We must extract the PEM from the *b64_cert* block (the pretty_cert block contains prose
+    # and formatting and is not reliable for parsing).
+    #
+    # The regex below:
+    # - Anchors on `outputId = "b64_cert"` so we only consider the base64 block.
+    # - Tolerates arbitrary whitespace around `=` and `.` (services sometimes reformat JS).
+    # - Jumps non-greedily over whatever properties sit between outputId and outputVal.
+    # - Captures only the PEM body (BEGIN…END), excluding any trailing newline/escape junk.
+    # - Accepts multiple terminators after the closing quote: literal "\\r\\n", literal "\\n",
+    #   or a real newline (`\r?\n`), followed by optional whitespace and the semicolon.
+    # - Uses DOTALL so `.` spans line breaks inside the JS/HTML blob.
+
+    cert_pem = re.search(
+        r'outputList\s*\.\s*outputId\s*=\s*"b64_cert".*?'
+        r'outputList\s*\.\s*outputVal\s*=\s*"'
+        r"(-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----)"
+        r"(?:\\r\\n|\\n|\r?\n)?\s*",
+        text,
+        re.DOTALL,
+    )
+    if not cert_pem:
+        raise ValueError("Could not extract certificate PEM from response")
+    return cert_pem
+
+
+def get_cert_expiry_timestamp(js_escaped_pem: str) -> int:
+    """Extract certificate expiry timestamp from JavaScript-escaped PEM."""
+
+    # Convert JavaScript-escaped PEM to proper format: .encode() is needed because
+    # unicode_escape decoder only works on bytes, then decode JS escape sequences
+    pem_raw = js_escaped_pem.encode().decode("unicode_escape").replace("\\/", "/")
+    cert = x509.load_pem_x509_certificate(pem_raw.encode())
+    dt_expiry = cert.not_valid_after.replace(tzinfo=UTC)
+    return int(dt_expiry.timestamp())
 
 
 def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cert:
@@ -42,19 +93,8 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
     response = requests.post(issuer_url, data=data)
     response.raise_for_status()
 
-    cert_pem = re.search(
-        r'outputList\.outputVal="(-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----(?:\\n|\r?\n)?)";',
-        response.text,
-        re.DOTALL,
-    )
-    if not cert_pem:
-        raise ValueError("Could not extract certificate PEM from response")
-    cert_expiry = re.search(r"Not\s+After:\s+(.*?UTC)(?:\\n|\r?\n)?", response.text)
-    if not cert_expiry:
-        raise ValueError("Could not extract expiration date from response")
-    # Weekday, Month Day, Year HH:MM:SS PM/AM Timezone
-    dt_expiry = datetime.strptime(cert_expiry.group(1), "%A, %B %d, %Y %I:%M:%S %p %Z")
-    dt_expiry = dt_expiry.replace(tzinfo=UTC)
+    cert_pem = extract_cert(response.text)
+    cert_expiry_timestamp = get_cert_expiry_timestamp(cert_pem.group(1))
     private_key_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
@@ -72,5 +112,5 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
         .decode("unicode_escape")
         .replace("\\/", "/"),
         ca_cert=ca_pem,
-        expiration_timestamp=int(dt_expiry.timestamp()),
+        expiration_timestamp=cert_expiry_timestamp,
     )

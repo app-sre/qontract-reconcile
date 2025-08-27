@@ -11,14 +11,14 @@ query CloudflareDnsZone {
       providerVersion
       enforceTwofactor
       apiCredentials {
-        ... VaultSecret
+        ...VaultSecret
       }
       terraformStateAccount {
         name
         consoleUrl
         terraformUsername
         automationToken {
-          ... VaultSecret
+          ...VaultSecret
         }
         terraformState {
           provider
