@@ -61,6 +61,7 @@ query ExternalResourcesNamespaces {
               ...VaultSecret
             }
             annotations
+            tags
             event_notifications {
               destination
               source_type
@@ -93,6 +94,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             storage_class
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceElastiCache_v1 {
             identifier
@@ -102,6 +104,7 @@ query ExternalResourcesNamespaces {
             overrides
             output_resource_name
             annotations
+            tags
             managed_by_erv2
             delete
             module_overrides {
@@ -115,6 +118,7 @@ query ExternalResourcesNamespaces {
             user_policy
             output_resource_name
             annotations
+            tags
             aws_infrastructure_access {
               cluster {
                 name
@@ -128,6 +132,7 @@ query ExternalResourcesNamespaces {
             secrets_prefix
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceRole_v1 {
             identifier
@@ -141,6 +146,7 @@ query ExternalResourcesNamespaces {
             inline_policy
             output_resource_name
             annotations
+            tags
             managed_by_erv2
             max_session_duration
           }
@@ -149,6 +155,7 @@ query ExternalResourcesNamespaces {
             identifier
             output_resource_name
             annotations
+            tags
             specs {
               defaults
               queues {
@@ -165,6 +172,7 @@ query ExternalResourcesNamespaces {
             fifo_topic
             inline_policy
             annotations
+            tags
             subscriptions {
               protocol
               endpoint
@@ -175,6 +183,7 @@ query ExternalResourcesNamespaces {
             identifier
             output_resource_name
             annotations
+            tags
             specs {
               defaults
               tables {
@@ -189,6 +198,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             public
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceS3CloudFront_v1 {
             region
@@ -197,6 +207,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             storage_class
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceS3SQS_v1 {
             region
@@ -206,6 +217,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             storage_class
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceCloudWatch_v1 {
             region
@@ -220,6 +232,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceKMS_v1 {
             region
@@ -228,6 +241,7 @@ query ExternalResourcesNamespaces {
             overrides
             output_resource_name
             annotations
+            tags
             managed_by_erv2
             delete
             module_overrides {
@@ -240,6 +254,7 @@ query ExternalResourcesNamespaces {
             defaults
             output_resource_name
             annotations
+            tags
             publish_log_types
           }
           ... on NamespaceTerraformResourceACM_v1 {
@@ -254,6 +269,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceKinesis_v1 {
             region
@@ -262,6 +278,7 @@ query ExternalResourcesNamespaces {
             es_identifier
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
             region
@@ -271,6 +288,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceALB_v1 {
             region
@@ -329,6 +347,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceSecretsManager_v1 {
             region
@@ -338,6 +357,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceASG_v1 {
             region
@@ -374,6 +394,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceRoute53Zone_v1 {
             region
@@ -381,6 +402,7 @@ query ExternalResourcesNamespaces {
             name
             output_resource_name
             annotations
+            tags
             records {
               name
               type
@@ -414,6 +436,7 @@ query ExternalResourcesNamespaces {
             insights_callback_urls
             output_resource_name
             annotations
+            tags
             vpc_id
             subnet_ids
             vpce_id
@@ -426,6 +449,7 @@ query ExternalResourcesNamespaces {
             vpc_id
             output_resource_name
             annotations
+            tags
             defaults
           }
           ... on NamespaceTerraformResourceMsk_v1 {
@@ -434,6 +458,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             defaults
             annotations
+            tags
             users {
               name
               secret {
@@ -452,10 +477,13 @@ query ExternalResourcesNamespaces {
     environment {
       name
       labels
+      servicePhase
     }
     app {
       path
       name
+      appCode
+      costCenter
     }
     cluster {
       name
