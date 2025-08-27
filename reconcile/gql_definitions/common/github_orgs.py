@@ -22,17 +22,17 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query GithubOrgs {
   orgs: githuborg_v1 {
     name
     token {
-      ... VaultSecret
+      ...VaultSecret
     }
     default
     managedTeams

@@ -6,12 +6,12 @@ query TerraformCloudflareAccounts {
     description
     providerVersion
     apiCredentials {
-      ... VaultSecret
+      ...VaultSecret
     }
     terraformStateAccount {
       name
       automationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       terraformState {
         provider

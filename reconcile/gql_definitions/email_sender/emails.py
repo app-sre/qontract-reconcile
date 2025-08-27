@@ -39,7 +39,7 @@ query Emails {
     to {
       aliases
       services {
-        ... EmailServiceOwners
+        ...EmailServiceOwners
       }
       clusters {
         name
@@ -54,11 +54,11 @@ query Emails {
       }
       roles {
         users {
-          ... EmailUser
+          ...EmailUser
         }
       }
       users {
-        ... EmailUser
+        ...EmailUser
       }
     }
     body

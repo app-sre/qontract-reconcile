@@ -30,31 +30,31 @@ fragment PrometheusInstance on PrometheusInstance_v1 {
     provider
     ... on PrometheusInstanceBearerAuth_v1 {
       token {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
     ... on PrometheusInstanceOidcAuth_v1 {
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
   }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query OCMEnvTelemeter($name: String) {
   ocm_envs: ocm_environments_v1(name: $name) {
     name
     telemeter {
-      ... PrometheusInstance
+      ...PrometheusInstance
     }
   }
 }

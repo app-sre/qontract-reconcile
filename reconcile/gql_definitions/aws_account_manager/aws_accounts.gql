@@ -2,7 +2,7 @@
 
 query AWSAccountManagerAccounts {
   accounts: awsaccounts_v1 {
-    ... AWSAccountManaged
+    ...AWSAccountManaged
     resourcesDefaultRegion
     automationToken {
       ...VaultSecret
@@ -39,7 +39,7 @@ query AWSAccountManagerAccounts {
       accountFileTargetPath
     }
     organization_accounts {
-      ... AWSAccountManaged
+      ...AWSAccountManaged
     }
     organizationAccountTags
   }

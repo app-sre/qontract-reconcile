@@ -31,7 +31,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
@@ -52,10 +52,10 @@ fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query Integrations {
@@ -79,7 +79,7 @@ query Integrations {
             ...CommonJumphostFields
           }
           automationToken {
-            ... VaultSecret
+            ...VaultSecret
           }
         }
       }
@@ -101,10 +101,10 @@ query Integrations {
           googleChat
         }
         resources {
-          ... DeployResourcesFields
+          ...DeployResourcesFields
         }
         fluentdResources {
-          ... DeployResourcesFields
+          ...DeployResourcesFields
         }
         sleepDurationSecs
         state
@@ -128,55 +128,52 @@ query Integrations {
         }
 
         ... on OpenshiftClusterSharding_v1 {
-            shardSpecOverrides {
-              shard {
-                  name
-              }
-              imageRef
-              disabled
-              resources {
-                ... DeployResourcesFields
-              }
-              subSharding {
-                strategy
-                ... on StaticSubSharding_v1 {
-                  shards
-                }
+          shardSpecOverrides {
+            shard {
+              name
+            }
+            imageRef
+            disabled
+            resources {
+              ...DeployResourcesFields
+            }
+            subSharding {
+              strategy
+              ... on StaticSubSharding_v1 {
+                shards
               }
             }
+          }
         }
-
 
         ... on OCMOrganizationSharding_v1 {
-            shardSpecOverrides {
-              shard {
-                  ... MinimalOCMOrganization
-              }
-              imageRef
-              disabled
-              resources {
-                ... DeployResourcesFields
-              }
+          shardSpecOverrides {
+            shard {
+              ...MinimalOCMOrganization
             }
+            imageRef
+            disabled
+            resources {
+              ...DeployResourcesFields
+            }
+          }
         }
-
 
         ... on AWSAccountSharding_v1 {
-            shardSpecOverrides {
-              shard {
-                name
-                disable {
-                  integrations
-                }
-              }
-              imageRef
-              disabled
-              resources {
-                ... DeployResourcesFields
+          shardSpecOverrides {
+            shard {
+              name
+              disable {
+                integrations
               }
             }
+            imageRef
+            disabled
+            resources {
+              ...DeployResourcesFields
+            }
+          }
         }
-
 
         ... on CloudflareDNSZoneSharding_v1 {
           shardSpecOverrides {
@@ -187,7 +184,7 @@ query Integrations {
             imageRef
             disabled
             resources {
-              ... DeployResourcesFields
+              ...DeployResourcesFields
             }
           }
         }
