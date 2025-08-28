@@ -106,7 +106,7 @@ ENV OC_VERSION=4.16.2
 
 # oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
 # versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1@sha256:b7d06973a9e058a5dd6068566d6b1358fdc1a1c9b4653e39dbac018f74f2c8d1 \
+COPY --chown=0:0 --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-oc-master:1.0.1-1@sha256:41643b95b5fd875a096ed7123f68e9f82d10d7ad4a6728ef79e21abcadec199b \
     /work/${OC_VERSION}/ /usr/local/bin/
 
 # Lets make sure we run tests when targeting fips-prod-image
