@@ -795,9 +795,18 @@ def openshift_clusterrolebindings(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
+@click.option(
+    "--support-role-ref",
+    default=False,
+    help="Support roleRef in Rolebindings.",
+)
 @click.pass_context
 def openshift_rolebindings(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    support_role_ref: bool,
 ) -> None:
     import reconcile.openshift_rolebindings
 
@@ -807,6 +816,7 @@ def openshift_rolebindings(
         thread_pool_size,
         internal,
         use_jump_host,
+        support_role_ref,
     )
 
 
