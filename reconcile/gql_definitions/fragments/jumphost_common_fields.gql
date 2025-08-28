@@ -7,6 +7,6 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }

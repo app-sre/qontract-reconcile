@@ -2175,10 +2175,10 @@ def template_validator(ctx: click.Context) -> None:
 
 @integration.command(short_help="Render datafile templates in app-interface.")
 @click.option(
-    "--app-interface-data-path",
-    help="Path to data dir in app-interface repo. Use this for local rendering or in MR checks.",
+    "--app-interface-root-path",
+    help="Path to root of app-interface repo. Use this for local rendering or in MR checks.",
     required=False,
-    envvar="APP_INTERFACE_DATA_PATH",
+    envvar="APP_INTERFACE_ROOT_PATH",
 )
 @click.option(
     "--clone-repo",
@@ -2194,7 +2194,7 @@ def template_validator(ctx: click.Context) -> None:
 @click.pass_context
 def template_renderer(
     ctx: click.Context,
-    app_interface_data_path: str | None,
+    app_interface_root_path: str | None,
     clone_repo: bool,
     template_collection_name: str | None,
 ) -> None:
@@ -2206,7 +2206,7 @@ def template_renderer(
     run_class_integration(
         integration=TemplateRendererIntegration(
             TemplateRendererIntegrationParams(
-                app_interface_data_path=app_interface_data_path,
+                app_interface_root_path=app_interface_root_path,
                 clone_repo=clone_repo,
                 template_collection_name=template_collection_name,
             )

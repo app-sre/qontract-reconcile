@@ -1,0 +1,23 @@
+---
+groups:
+- name: test-group
+  rules:
+  - record: test_metric
+    expr: vector(1)
+    labels:
+      sloth_id: test-id
+      sloth_service: test-service
+      sloth_slo: apiLatency
+      sloth_window: 3d
+  - alert: TestAlert
+    expr: |
+      sum(rate(http_requests_total{status=~"5.."}[5m]))
+      /
+      sum(rate(http_requests_total[5m]))
+    labels:
+      sloth_severity: critical
+      service: app-interface
+      severity: critical
+    annotations:
+      title: Test Alert Title
+      summary: Test summary

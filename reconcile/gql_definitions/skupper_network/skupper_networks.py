@@ -30,7 +30,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
@@ -40,10 +40,10 @@ fragment SkupperSiteControllerTemplate on SkupperSiteControllerTemplate_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query SkupperNetworks {

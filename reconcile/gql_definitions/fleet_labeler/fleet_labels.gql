@@ -1,37 +1,37 @@
 # qenerate: plugin=pydantic_v1
 
 query FleetLabelSpecs {
-    fleet_labels_specs: fleet_labels_specs_v1 {
-        name
-        path
-        managedSubscriptionLabelPrefix
-        dryRunLabelSynchronization
-        ocmEnv {
-            name
-            url
-            accessTokenClientId
-            accessTokenClientSecret {
-                ... VaultSecret
-            }
-            accessTokenUrl
-        }
-        labelDefaults {
-            name
-            matchSubscriptionLabels
-            subscriptionLabelTemplate {
-                path {
-                    content
-                }
-                type
-                variables
-            }
-        }
-        clusters {
-            name
-            serverUrl
-            subscriptionId
-            clusterId
-            subscriptionLabels
-        }
+  fleet_labels_specs: fleet_labels_specs_v1 {
+    name
+    path
+    managedSubscriptionLabelPrefix
+    dryRunLabelSynchronization
+    ocmEnv {
+      name
+      url
+      accessTokenClientId
+      accessTokenClientSecret {
+        ...VaultSecret
+      }
+      accessTokenUrl
     }
+    labelDefaults {
+      name
+      matchSubscriptionLabels
+      subscriptionLabelTemplate {
+        path {
+          content
+        }
+        type
+        variables
+      }
+    }
+    clusters {
+      name
+      serverUrl
+      subscriptionId
+      clusterId
+      subscriptionLabels
+    }
+  }
 }

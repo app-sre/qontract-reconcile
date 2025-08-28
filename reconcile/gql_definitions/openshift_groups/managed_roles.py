@@ -33,7 +33,7 @@ query OpenshiftGroupsManagedRoles {
   roles: roles_v1 {
     name
     users {
-      ... User
+      ...User
     }
     expirationDate
     access {

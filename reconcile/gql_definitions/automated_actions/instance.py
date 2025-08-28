@@ -28,7 +28,7 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
@@ -52,10 +52,10 @@ fragment OcConnectionCluster on Cluster_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query AutomatedActionsInstances {

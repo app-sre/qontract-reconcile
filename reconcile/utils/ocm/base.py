@@ -572,7 +572,7 @@ class OCMOIdentityProviderGithub(OCMOIdentityProvider):
 
 class OCMOIdentityProviderOidcOpenIdClaims(BaseModel):
     email: list[str]
-    name: list[str]
+    name: list[str] = []
     preferred_username: list[str]
     groups: list[str] = []
 
