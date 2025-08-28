@@ -45,7 +45,7 @@ spec:
         value: pipelines/multi-arch-build-pipeline.yaml
     resolver: git
   taskRunTemplate:
-    serviceAccountName: build-pipeline-qontract-reconcile-master
+    serviceAccountName: build-pipeline-qontract-reconcile-fips-master
   workspaces:
     - name: workspace
       volumeClaimTemplate:
