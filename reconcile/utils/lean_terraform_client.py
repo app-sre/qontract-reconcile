@@ -39,13 +39,14 @@ def state_update_access_key_status(
             continue
 
         # Import all keys for this account in batch
+        # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_access_key#import
         for key_info in keys:
             user = key_info["user"]
             key_id = key_info["key_id"]
 
             resource = f"aws_iam_access_key.{user}"
             import_result = subprocess.run(
-                ["terraform", "import", resource, f"{user}:{key_id}"],
+                ["terraform", "import", resource, key_id],
                 check=False,
                 cwd=wd,
                 capture_output=True,
