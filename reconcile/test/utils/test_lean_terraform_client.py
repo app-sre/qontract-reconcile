@@ -256,7 +256,7 @@ def test_state_update_access_key_status_empty_keys(mocker: MockerFixture) -> Non
     mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
 
     working_dirs = {"account1": "/path/to/account1"}
-    keys_by_account = {"account1": []}
+    keys_by_account: dict[str, list[dict[str, str]]] = {"account1": []}
 
     result = lean_terraform_client.state_update_access_key_status(
         working_dirs, keys_by_account
