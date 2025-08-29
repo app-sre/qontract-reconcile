@@ -170,6 +170,103 @@ def test_show_json(mocker: MockerFixture) -> None:
     )
 
 
+def test_state_update_access_key_status_success(mocker: MockerFixture) -> None:
+    mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
+    mocked_subprocess.run.return_value = CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout=b"Success",
+        stderr=b"",
+    )
+
+    working_dirs = {"account1": "/path/to/account1", "account2": "/path/to/account2"}
+    keys_by_account = {
+        "account1": [
+            {"user": "user1", "key_id": "AKIA123", "status": "Inactive"},
+            {"user": "user2", "key_id": "AKIA456", "status": "Inactive"},
+        ],
+        "account2": [{"user": "user3", "key_id": "AKIA789", "status": "Inactive"}],
+    }
+
+    result = lean_terraform_client.state_update_access_key_status(
+        working_dirs, keys_by_account
+    )
+
+    assert result is True
+    # Should have called terraform init for each account
+    init_calls = [
+        call for call in mocked_subprocess.run.call_args_list if call[0][0][1] == "init"
+    ]
+    assert len(init_calls) == 2
+
+    # Should have called terraform import for each key
+    import_calls = [
+        call
+        for call in mocked_subprocess.run.call_args_list
+        if call[0][0][1] == "import"
+    ]
+    assert len(import_calls) == 3
+
+
+def test_state_update_access_key_status_init_failure(mocker: MockerFixture) -> None:
+    mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
+    # First call (init) fails, subsequent calls succeed
+    mocked_subprocess.run.side_effect = [
+        CompletedProcess(args=[], returncode=1, stdout=b"", stderr=b"Init failed"),
+        CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b""),
+        CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b""),
+    ]
+
+    working_dirs = {"account1": "/path/to/account1", "account2": "/path/to/account2"}
+    keys_by_account = {
+        "account1": [{"user": "user1", "key_id": "AKIA123", "status": "Inactive"}],
+        "account2": [{"user": "user2", "key_id": "AKIA456", "status": "Inactive"}],
+    }
+
+    result = lean_terraform_client.state_update_access_key_status(
+        working_dirs, keys_by_account
+    )
+
+    assert result is False
+
+
+def test_state_update_access_key_status_import_failure(mocker: MockerFixture) -> None:
+    mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
+    # Init succeeds, import fails
+    mocked_subprocess.run.side_effect = [
+        CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b""),  # init
+        CompletedProcess(
+            args=[], returncode=1, stdout=b"", stderr=b"Import failed"
+        ),  # import
+    ]
+
+    working_dirs = {"account1": "/path/to/account1"}
+    keys_by_account = {
+        "account1": [{"user": "user1", "key_id": "AKIA123", "status": "Inactive"}]
+    }
+
+    result = lean_terraform_client.state_update_access_key_status(
+        working_dirs, keys_by_account
+    )
+
+    assert result is False
+
+
+def test_state_update_access_key_status_empty_keys(mocker: MockerFixture) -> None:
+    mocked_subprocess = mocker.patch("reconcile.utils.lean_terraform_client.subprocess")
+
+    working_dirs = {"account1": "/path/to/account1"}
+    keys_by_account = {"account1": []}
+
+    result = lean_terraform_client.state_update_access_key_status(
+        working_dirs, keys_by_account
+    )
+
+    assert result is True
+    # Should not have called any terraform commands
+    mocked_subprocess.run.assert_not_called()
+
+
 def test_terraform_component() -> None:
     with tempfile.TemporaryDirectory() as working_dir:
         with open(os.path.join(working_dir, "main.tf"), "w", encoding="locale"):
