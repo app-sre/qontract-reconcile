@@ -156,7 +156,7 @@ objects:
           - name: INTEGRATION_NAME
             value: integrations-manager
           - name: INTEGRATION_EXTRA_ARGS
-            value: "-i quay.io/app-sre/qontract-reconcile-fips"
+            value: "-i quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/qontract-reconcile-fips-master"
           - name: SLEEP_DURATION_SECS
             value: ${SLEEP_DURATION_SECS}
           - name: GITHUB_API
