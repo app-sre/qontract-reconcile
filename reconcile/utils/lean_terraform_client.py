@@ -19,36 +19,45 @@ def state_rm_access_key(
 
 
 def state_update_access_key_status(
-    working_dirs: Mapping[str, str], account: str, user: str, key_id: str, status: str
+    working_dirs: Mapping[str, str], keys_by_account: Mapping[str, list[dict[str, str]]]
 ) -> bool:
     """
-    Update terraform state to reflect access key status change.
+    Update terraform state to reflect access key status changes for multiple keys.
     This uses terraform import to sync the current AWS state.
     """
-    wd = working_dirs[account]
-    init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
-    if init_result.returncode != 0:
-        return False
+    overall_success = True
 
-    # Import the current state from AWS to sync the status
-    resource = f"aws_iam_access_key.{user}"
-    import_result = subprocess.run(
-        ["terraform", "import", resource, f"{user}:{key_id}"],
-        check=False,
-        cwd=wd,
-        capture_output=True,
-    )
+    for account, keys in keys_by_account.items():
+        if not keys:
+            continue
 
-    if import_result.returncode != 0:
-        logging.warning(
-            f"Failed to import terraform state for {resource}: {import_result.stderr.decode()}"
-        )
-        return False
+        wd = working_dirs[account]
+        init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
+        if init_result.returncode != 0:
+            logging.warning(f"Failed to init terraform for account {account}")
+            overall_success = False
+            continue
 
-    logging.info(
-        f"Successfully updated terraform state for {resource} to status {status}"
-    )
-    return True
+        # Import all keys for this account in batch
+        for key_info in keys:
+            user = key_info["user"]
+            key_id = key_info["key_id"]
+
+            resource = f"aws_iam_access_key.{user}"
+            import_result = subprocess.run(
+                ["terraform", "import", resource, f"{user}:{key_id}"],
+                check=False,
+                cwd=wd,
+                capture_output=True,
+            )
+
+            if import_result.returncode != 0:
+                logging.warning(
+                    f"Failed to import terraform state for {resource}: {import_result.stderr.decode()}"
+                )
+                overall_success = False
+
+    return overall_success
 
 
 def _compute_terraform_env(

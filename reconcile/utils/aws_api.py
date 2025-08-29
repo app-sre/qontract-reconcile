@@ -591,6 +591,10 @@ class AWSApi:
     ) -> bool:
         error = False
         users_keys = self.get_users_keys()
+        keys_to_import: dict[
+            str, list[dict[str, str]]
+        ] = {}  # Track keys that need terraform state update
+
         for account, s in self.sessions.items():
             iam = self.get_session_client(s, "iam")
             keys = keys_to_disable.get(account, [])
@@ -614,15 +618,28 @@ class AWSApi:
                         iam.update_access_key(
                             UserName=user, AccessKeyId=key, Status="Inactive"
                         )
-                        # Update terraform state to sync with AWS
                         if working_dirs:
-                            import reconcile.utils.lean_terraform_client as terraform  # noqa: PLC0415
-
-                            terraform.state_update_access_key_status(
-                                working_dirs, account, user, key, "Inactive"
-                            )
+                            if account not in keys_to_import:
+                                keys_to_import[account] = []
+                            keys_to_import[account].append({
+                                "user": user,
+                                "key_id": key,
+                                "status": "Inactive",
+                            })
                 else:
                     logging.info(["key_already_disabled", account, user, key])
+
+        # to prevent an infinite reconcile loop between aws-iam-keys and terraform-resources,
+        # we need to update the terraform state for all disabled keys in batch
+        if keys_to_import and working_dirs and not dry_run:
+            import reconcile.utils.lean_terraform_client as terraform  # noqa: PLC0415
+
+            terraform_success = terraform.state_update_access_key_status(
+                working_dirs, keys_to_import
+            )
+            if not terraform_success:
+                error = True
+
         return error
 
     def get_users_keys(self) -> dict:
