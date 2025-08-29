@@ -18,6 +18,39 @@ def state_rm_access_key(
     return result.returncode == 0
 
 
+def state_update_access_key_status(
+    working_dirs: Mapping[str, str], account: str, user: str, key_id: str, status: str
+) -> bool:
+    """
+    Update terraform state to reflect access key status change.
+    This uses terraform import to sync the current AWS state.
+    """
+    wd = working_dirs[account]
+    init_result = subprocess.run(["terraform", "init"], check=False, cwd=wd)
+    if init_result.returncode != 0:
+        return False
+
+    # Import the current state from AWS to sync the status
+    resource = f"aws_iam_access_key.{user}"
+    import_result = subprocess.run(
+        ["terraform", "import", resource, f"{user}:{key_id}"],
+        check=False,
+        cwd=wd,
+        capture_output=True,
+    )
+
+    if import_result.returncode != 0:
+        logging.warning(
+            f"Failed to import terraform state for {resource}: {import_result.stderr.decode()}"
+        )
+        return False
+
+    logging.info(
+        f"Successfully updated terraform state for {resource} to status {status}"
+    )
+    return True
+
+
 def _compute_terraform_env(
     env: Mapping[str, str] | None = None,
 ) -> Mapping[str, str]:

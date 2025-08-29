@@ -587,6 +587,7 @@ class AWSApi:
         self,
         dry_run: bool,
         keys_to_disable: Mapping,
+        working_dirs: Mapping[str, str] | None = None,
     ) -> bool:
         error = False
         users_keys = self.get_users_keys()
@@ -613,6 +614,13 @@ class AWSApi:
                         iam.update_access_key(
                             UserName=user, AccessKeyId=key, Status="Inactive"
                         )
+                        # Update terraform state to sync with AWS
+                        if working_dirs:
+                            import reconcile.utils.lean_terraform_client as terraform  # noqa: PLC0415
+
+                            terraform.state_update_access_key_status(
+                                working_dirs, account, user, key, "Inactive"
+                            )
                 else:
                     logging.info(["key_already_disabled", account, user, key])
         return error

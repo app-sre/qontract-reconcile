@@ -138,7 +138,7 @@ def run(
             dry_run, keys_to_delete, working_dirs, disable_service_account_keys
         )
         if keys_to_disable:
-            disable_error = aws.disable_keys(dry_run, keys_to_disable)
+            disable_error = aws.disable_keys(dry_run, keys_to_disable, working_dirs)
             # combine errors from both operations
             error = error or disable_error
     if error:
