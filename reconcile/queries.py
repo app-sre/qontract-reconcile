@@ -476,6 +476,7 @@ AWS_ACCOUNTS_QUERY = """
     disable {
       integrations
     }
+    disableKeys
     deleteKeys
     {% if reset_passwords %}
     resetPasswords {

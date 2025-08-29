@@ -17,7 +17,7 @@ QONTRACT_INTEGRATION = "aws-iam-keys"
 def filter_accounts(
     accounts: Iterable[dict[str, Any]], account_name: str | None
 ) -> list[dict[str, Any]]:
-    accounts = [a for a in accounts if a.get("deleteKeys")]
+    accounts = [a for a in accounts if a.get("deleteKeys") or a.get("disableKeys")]
     if account_name:
         accounts = [a for a in accounts if a["name"] == account_name]
     return accounts
@@ -31,17 +31,43 @@ def get_keys_to_delete(accounts: Iterable[dict[str, Any]]) -> dict[str, list[str
     }
 
 
-def should_run(state: State, keys_to_delete: dict[str, list[str]]) -> bool:
+def get_keys_to_disable(accounts: Iterable[dict[str, Any]]) -> dict[str, list[str]]:
+    return {
+        account["name"]: account["disableKeys"]
+        for account in accounts
+        if account.get("disableKeys")
+    }
+
+
+def should_run(
+    state: State,
+    keys_to_delete: dict[str, list[str]],
+    keys_to_disable: dict[str, list[str]] | None = None,
+) -> bool:
     for account_name, keys in keys_to_delete.items():
         if state.get(account_name, []) != keys:
             return True
+    if keys_to_disable:
+        for account_name, keys in keys_to_disable.items():
+            disable_state_key = f"{account_name}_disable"
+            if state.get(disable_state_key, []) != keys:
+                return True
     return False
 
 
-def update_state(state: State, keys_to_update: dict[str, list[str]]) -> None:
+def update_state(
+    state: State,
+    keys_to_update: dict[str, list[str]],
+    keys_to_disable: dict[str, list[str]] | None = None,
+) -> None:
     for account_name, keys in keys_to_update.items():
         if state.get(account_name, []) != keys:
             state.add(account_name, keys, force=True)
+    if keys_to_disable:
+        for account_name, keys in keys_to_disable.items():
+            disable_state_key = f"{account_name}_disable"
+            if state.get(disable_state_key, []) != keys:
+                state.add(disable_state_key, keys, force=True)
 
 
 def init_tf_working_dirs(
@@ -96,7 +122,8 @@ def run(
     if defer:
         defer(state.cleanup)
     keys_to_delete = get_keys_to_delete(accounts)
-    if not should_run(state, keys_to_delete):
+    keys_to_disable = get_keys_to_disable(accounts)
+    if not should_run(state, keys_to_delete, keys_to_disable):
         logging.debug("nothing to do here")
         # using return because terraform-resources
         # may be the calling entity, and has more to do
@@ -110,6 +137,10 @@ def run(
         error, service_account_recycle_complete = aws.delete_keys(
             dry_run, keys_to_delete, working_dirs, disable_service_account_keys
         )
+        if keys_to_disable:
+            disable_error = aws.disable_keys(dry_run, keys_to_disable)
+            # combine errors from both operations
+            error = error or disable_error
     if error:
         sys.exit(1)
 
@@ -118,8 +149,12 @@ def run(
         and not disable_service_account_keys
         and service_account_recycle_complete
     ):
-        update_state(state, keys_to_delete)
+        update_state(state, keys_to_delete, keys_to_disable)
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return {"keys": get_keys_to_delete(queries.get_aws_accounts(terraform_state=True))}
+    accounts = queries.get_aws_accounts(terraform_state=True)
+    return {
+        "keys": get_keys_to_delete(accounts),
+        "disable_keys": get_keys_to_disable(accounts),
+    }
