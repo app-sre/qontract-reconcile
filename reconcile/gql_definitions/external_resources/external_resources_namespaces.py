@@ -143,6 +143,7 @@ query ExternalResourcesNamespaces {
               ...VaultSecret
             }
             annotations
+            tags
             event_notifications {
               destination
               source_type
@@ -175,6 +176,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             storage_class
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceElastiCache_v1 {
             identifier
@@ -184,6 +186,7 @@ query ExternalResourcesNamespaces {
             overrides
             output_resource_name
             annotations
+            tags
             managed_by_erv2
             delete
             module_overrides {
@@ -197,6 +200,7 @@ query ExternalResourcesNamespaces {
             user_policy
             output_resource_name
             annotations
+            tags
             aws_infrastructure_access {
               cluster {
                 name
@@ -210,6 +214,7 @@ query ExternalResourcesNamespaces {
             secrets_prefix
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceRole_v1 {
             identifier
@@ -223,6 +228,7 @@ query ExternalResourcesNamespaces {
             inline_policy
             output_resource_name
             annotations
+            tags
             managed_by_erv2
             max_session_duration
           }
@@ -231,6 +237,7 @@ query ExternalResourcesNamespaces {
             identifier
             output_resource_name
             annotations
+            tags
             specs {
               defaults
               queues {
@@ -247,6 +254,7 @@ query ExternalResourcesNamespaces {
             fifo_topic
             inline_policy
             annotations
+            tags
             subscriptions {
               protocol
               endpoint
@@ -257,6 +265,7 @@ query ExternalResourcesNamespaces {
             identifier
             output_resource_name
             annotations
+            tags
             specs {
               defaults
               tables {
@@ -271,6 +280,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             public
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceS3CloudFront_v1 {
             region
@@ -279,6 +289,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             storage_class
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceS3SQS_v1 {
             region
@@ -288,6 +299,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             storage_class
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceCloudWatch_v1 {
             region
@@ -302,6 +314,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceKMS_v1 {
             region
@@ -310,6 +323,7 @@ query ExternalResourcesNamespaces {
             overrides
             output_resource_name
             annotations
+            tags
             managed_by_erv2
             delete
             module_overrides {
@@ -322,6 +336,7 @@ query ExternalResourcesNamespaces {
             defaults
             output_resource_name
             annotations
+            tags
             publish_log_types
           }
           ... on NamespaceTerraformResourceACM_v1 {
@@ -336,6 +351,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceKinesis_v1 {
             region
@@ -344,6 +360,7 @@ query ExternalResourcesNamespaces {
             es_identifier
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
             region
@@ -353,6 +370,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceALB_v1 {
             region
@@ -411,6 +429,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceSecretsManager_v1 {
             region
@@ -420,6 +439,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceASG_v1 {
             region
@@ -456,6 +476,7 @@ query ExternalResourcesNamespaces {
             }
             output_resource_name
             annotations
+            tags
           }
           ... on NamespaceTerraformResourceRoute53Zone_v1 {
             region
@@ -463,6 +484,7 @@ query ExternalResourcesNamespaces {
             name
             output_resource_name
             annotations
+            tags
             records {
               name
               type
@@ -496,6 +518,7 @@ query ExternalResourcesNamespaces {
             insights_callback_urls
             output_resource_name
             annotations
+            tags
             vpc_id
             subnet_ids
             vpce_id
@@ -508,6 +531,7 @@ query ExternalResourcesNamespaces {
             vpc_id
             output_resource_name
             annotations
+            tags
             defaults
           }
           ... on NamespaceTerraformResourceMsk_v1 {
@@ -516,6 +540,7 @@ query ExternalResourcesNamespaces {
             output_resource_name
             defaults
             annotations
+            tags
             users {
               name
               secret {
@@ -534,10 +559,13 @@ query ExternalResourcesNamespaces {
     environment {
       name
       labels
+      servicePhase
     }
     app {
       path
       name
+      appCode
+      costCenter
     }
     cluster {
       name
@@ -643,6 +671,7 @@ class NamespaceTerraformResourceRDSV1(NamespaceTerraformResourceAWSV1):
     reset_password: Optional[str] = Field(..., alias="reset_password")
     ca_cert: Optional[VaultSecret] = Field(..., alias="ca_cert")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     event_notifications: Optional[list[AWSRDSEventNotificationV1]] = Field(..., alias="event_notifications")
     data_classification: Optional[AWSRDSDataClassificationV1] = Field(..., alias="data_classification")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
@@ -670,6 +699,7 @@ class NamespaceTerraformResourceS3V1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     storage_class: Optional[str] = Field(..., alias="storage_class")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
@@ -680,6 +710,7 @@ class NamespaceTerraformResourceElastiCacheV1(NamespaceTerraformResourceAWSV1):
     overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
@@ -702,6 +733,7 @@ class NamespaceTerraformResourceServiceAccountV1(NamespaceTerraformResourceAWSV1
     user_policy: Optional[str] = Field(..., alias="user_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     aws_infrastructure_access: Optional[NamespaceTerraformResourceServiceAccountAWSInfrastructureAccessV1] = Field(..., alias="aws_infrastructure_access")
 
 
@@ -710,6 +742,7 @@ class NamespaceTerraformResourceSecretsManagerServiceAccountV1(NamespaceTerrafor
     secrets_prefix: str = Field(..., alias="secrets_prefix")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class AssumeRoleV1(ConfiguredBaseModel):
@@ -726,6 +759,7 @@ class NamespaceTerraformResourceRoleV1(NamespaceTerraformResourceAWSV1):
     inline_policy: Optional[str] = Field(..., alias="inline_policy")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     max_session_duration: Optional[int] = Field(..., alias="max_session_duration")
 
@@ -745,6 +779,7 @@ class NamespaceTerraformResourceSQSV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     specs: list[SQSQueuesSpecsV1] = Field(..., alias="specs")
 
 
@@ -761,6 +796,7 @@ class NamespaceTerraformResourceSNSTopicV1(NamespaceTerraformResourceAWSV1):
     fifo_topic: Optional[bool] = Field(..., alias="fifo_topic")
     inline_policy: Optional[str] = Field(..., alias="inline_policy")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     subscriptions: Optional[list[NamespaceTerraformResourceSNSSubscriptionV1]] = Field(..., alias="subscriptions")
 
 
@@ -779,6 +815,7 @@ class NamespaceTerraformResourceDynamoDBV1(NamespaceTerraformResourceAWSV1):
     identifier: str = Field(..., alias="identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     specs: list[DynamoDBTableSpecsV1] = Field(..., alias="specs")
 
 
@@ -788,6 +825,7 @@ class NamespaceTerraformResourceECRV1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     public: Optional[bool] = Field(..., alias="public")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceS3CloudFrontV1(NamespaceTerraformResourceAWSV1):
@@ -797,6 +835,7 @@ class NamespaceTerraformResourceS3CloudFrontV1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     storage_class: Optional[str] = Field(..., alias="storage_class")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceS3SQSV1(NamespaceTerraformResourceAWSV1):
@@ -807,6 +846,7 @@ class NamespaceTerraformResourceS3SQSV1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     storage_class: Optional[str] = Field(..., alias="storage_class")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
@@ -820,6 +860,7 @@ class NamespaceTerraformResourceCloudWatchV1(NamespaceTerraformResourceAWSV1):
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceKMSV1(NamespaceTerraformResourceAWSV1):
@@ -829,6 +870,7 @@ class NamespaceTerraformResourceKMSV1(NamespaceTerraformResourceAWSV1):
     overrides: Optional[str] = Field(..., alias="overrides")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
@@ -840,6 +882,7 @@ class NamespaceTerraformResourceElasticSearchV1(NamespaceTerraformResourceAWSV1)
     defaults: str = Field(..., alias="defaults")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     publish_log_types: Optional[list[str]] = Field(..., alias="publish_log_types")
 
 
@@ -855,6 +898,7 @@ class NamespaceTerraformResourceACMV1(NamespaceTerraformResourceAWSV1):
     domain: Optional[ACMDomainV1] = Field(..., alias="domain")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceKinesisV1(NamespaceTerraformResourceAWSV1):
@@ -864,6 +908,7 @@ class NamespaceTerraformResourceKinesisV1(NamespaceTerraformResourceAWSV1):
     es_identifier: Optional[str] = Field(..., alias="es_identifier")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResourceAWSV1):
@@ -872,6 +917,7 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
     secret: Optional[VaultSecret] = Field(..., alias="secret")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceALBTargetsV1(ConfiguredBaseModel):
@@ -949,6 +995,7 @@ class NamespaceTerraformResourceALBV1(NamespaceTerraformResourceAWSV1):
     rules: list[NamespaceTerraformResourceALBRulesV1] = Field(..., alias="rules")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class NamespaceTerraformResourceSecretsManagerV1(NamespaceTerraformResourceAWSV1):
@@ -957,6 +1004,7 @@ class NamespaceTerraformResourceSecretsManagerV1(NamespaceTerraformResourceAWSV1
     secret: Optional[VaultSecret] = Field(..., alias="secret")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class CloudinitConfigV1(ConfiguredBaseModel):
@@ -1002,6 +1050,7 @@ class NamespaceTerraformResourceASGV1(NamespaceTerraformResourceAWSV1):
     image: list[Union[ASGImageGitV1, ASGImageStaticV1, ASGImageV1]] = Field(..., alias="image")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class DnsRecordAliasV1(ConfiguredBaseModel):
@@ -1037,6 +1086,7 @@ class NamespaceTerraformResourceRoute53ZoneV1(NamespaceTerraformResourceAWSV1):
     name: str = Field(..., alias="name")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     records: Optional[list[DnsRecordV1]] = Field(..., alias="records")
 
 
@@ -1052,6 +1102,7 @@ class NamespaceTerraformResourceRosaAuthenticatorV1(NamespaceTerraformResourceAW
     insights_callback_urls: Optional[list[str]] = Field(..., alias="insights_callback_urls")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     vpc_id: str = Field(..., alias="vpc_id")
     subnet_ids: list[str] = Field(..., alias="subnet_ids")
     vpce_id: Optional[str] = Field(..., alias="vpce_id")
@@ -1065,6 +1116,7 @@ class NamespaceTerraformResourceRosaAuthenticatorVPCEV1(NamespaceTerraformResour
     vpc_id: str = Field(..., alias="vpc_id")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     defaults: str = Field(..., alias="defaults")
 
 
@@ -1079,6 +1131,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     defaults: str = Field(..., alias="defaults")
     annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
     users: Optional[list[MskSecretParametersV1]] = Field(..., alias="users")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     delete: Optional[bool] = Field(..., alias="delete")
@@ -1093,11 +1146,14 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     labels: str = Field(..., alias="labels")
+    service_phase: str = Field(..., alias="servicePhase")
 
 
 class AppV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    app_code: str = Field(..., alias="appCode")
+    cost_center: str = Field(..., alias="costCenter")
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
