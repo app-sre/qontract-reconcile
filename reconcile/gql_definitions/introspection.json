@@ -35545,7 +35545,7 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "defaultTags",
+                            "name": "default_tags",
                             "description": null,
                             "args": [],
                             "type": {
