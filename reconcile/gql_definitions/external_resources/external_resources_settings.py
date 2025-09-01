@@ -54,6 +54,7 @@ query ExternalResourcesSettings {
     module_default_resources {
       ...DeployResourcesFields
     }
+    defaultTags
   }
 }
 """
@@ -90,6 +91,7 @@ class ExternalResourcesSettingsV1(ConfiguredBaseModel):
     outputs_secret_image: str = Field(..., alias="outputs_secret_image")
     outputs_secret_version: str = Field(..., alias="outputs_secret_version")
     module_default_resources: DeployResourcesFields = Field(..., alias="module_default_resources")
+    default_tags: Json = Field(..., alias="defaultTags")
 
 
 class ExternalResourcesSettingsQueryData(ConfiguredBaseModel):

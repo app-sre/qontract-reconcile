@@ -150,11 +150,14 @@ class ExternalResourceSpec:
             "namespace": self.namespace_name,
             "environment": self.namespace["environment"]["name"],
             "app": self.namespace["app"]["name"],
-            # The attributes below are required by the schema but not all integrations query them yet!
-            "app-code": self.namespace["app"].get("appCode", "unknown"),
-            "cost-center": self.namespace["app"].get("costCenter", "999"),
-            "service-phase": self.namespace["environment"].get("servicePhase", "prod"),
         }
+        if app_code := self.namespace["app"].get("appCode"):
+            tags["app-code"] = app_code
+        if cost_center := self.namespace["app"].get("costCenter"):
+            tags["cost-center"] = cost_center
+        if service_phase := self.namespace["environment"].get("servicePhase"):
+            tags["service-phase"] = service_phase
+
         resource_tags_str = self.resource.get("tags")
         if resource_tags_str:
             resource_tags = json.loads(resource_tags_str)
