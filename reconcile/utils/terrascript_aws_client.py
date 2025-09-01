@@ -287,12 +287,6 @@ SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING = {
     "source-ip": "source_ip",
 }
 
-DEFAULT_TAGS = {
-    "tags": {
-        "app": "app-sre-infra",
-    },
-}
-
 AWS_ELB_ACCOUNT_IDS = {
     "us-east-1": "127311923021",
     "us-east-2": "033677994240",
@@ -479,6 +473,7 @@ class TerrascriptClient:
         settings: Mapping[str, Any] | None = None,
         prefetch_resources_by_schemas: Iterable[str] | None = None,
         secret_reader: SecretReaderBase | None = None,
+        default_tags: Mapping[str, str] | None = None,
     ) -> None:
         self.integration = integration
         self.integration_prefix = integration_prefix
@@ -492,6 +487,9 @@ class TerrascriptClient:
         self.populate_configs(filtered_accounts)
         self.versions: dict[str, str] = {
             a["name"]: a["providerVersion"] for a in filtered_accounts
+        }
+        self.default_tags = default_tags or {
+            "app": "app-sre-infra",
         }
         tss = {}
         locks = {}
@@ -509,7 +507,7 @@ class TerrascriptClient:
                         region=region,
                         alias=region,
                         skip_region_validation=True,
-                        default_tags=DEFAULT_TAGS,
+                        default_tags={"tags": self.default_tags},
                     )
 
             # Add default region, which will be in resourcesDefaultRegion
@@ -518,7 +516,7 @@ class TerrascriptClient:
                 secret_key=config["aws_secret_access_key"],
                 region=config["resourcesDefaultRegion"],
                 skip_region_validation=True,
-                default_tags=DEFAULT_TAGS,
+                default_tags={"tags": self.default_tags},
             )
 
             ts += Terraform(
@@ -1078,7 +1076,7 @@ class TerrascriptClient:
                         alias=alias,
                         assume_role={"role_arn": assume_role},
                         skip_region_validation=True,
-                        default_tags=DEFAULT_TAGS,
+                        default_tags={"tags": self.default_tags},
                     )
                 else:
                     ts += provider.aws(
@@ -1087,7 +1085,7 @@ class TerrascriptClient:
                         region=region,
                         alias=alias,
                         skip_region_validation=True,
-                        default_tags=DEFAULT_TAGS,
+                        default_tags={"tags": self.default_tags},
                     )
 
     def populate_route53(
