@@ -16,7 +16,7 @@ integrations:
       memory: 240Mi
   environmentAware: true
   logs:
-    slack: false
+    slack: true
     googleChat: true
   disableUnleash: true
   unleashConnectionPool: true
