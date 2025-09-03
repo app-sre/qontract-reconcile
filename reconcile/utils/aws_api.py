@@ -583,40 +583,6 @@ class AWSApi:
 
         return error, service_account_recycle_complete
 
-    def disable_keys(
-        self,
-        dry_run: bool,
-        keys_to_disable: Mapping,
-    ) -> bool:
-        error = False
-        users_keys = self.get_users_keys()
-        for account, s in self.sessions.items():
-            iam = self.get_session_client(s, "iam")
-            keys = keys_to_disable.get(account, [])
-            for key in keys:
-                user_and_user_keys = [
-                    (user, user_keys)
-                    for user, user_keys in users_keys[account].items()
-                    if key in user_keys
-                ]
-                if not user_and_user_keys:
-                    continue
-                if len(user_and_user_keys) > 1:
-                    raise RuntimeError(
-                        f"key {key} returned multiple users: {user_and_user_keys}"
-                    )
-                user = user_and_user_keys[0][0]
-                key_status = self.get_user_key_status(iam, user, key)
-                if key_status == "Active":
-                    logging.info(["disable_key", account, user, key])
-                    if not dry_run:
-                        iam.update_access_key(
-                            UserName=user, AccessKeyId=key, Status="Inactive"
-                        )
-                else:
-                    logging.info(["key_already_disabled", account, user, key])
-        return error
-
     def get_users_keys(self) -> dict:
         users_keys = {}
         for account, s in self.sessions.items():
