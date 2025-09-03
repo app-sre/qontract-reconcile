@@ -67,6 +67,7 @@ def setup_factories(
                 resource_factories=setup_aws_resource_factories(
                     er_inventory, secret_reader
                 ),
+                default_tags=settings.default_tags,
             )
         }
     )

@@ -22,5 +22,6 @@ query ExternalResourcesSettings {
     module_default_resources {
       ...DeployResourcesFields
     }
+    default_tags
   }
 }
