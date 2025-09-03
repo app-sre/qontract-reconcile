@@ -1,4 +1,3 @@
-import json
 import logging
 from abc import (
     ABC,
@@ -14,6 +13,7 @@ from jinja2 import Template
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
 from reconcile.utils.sqs_gateway import SQSGateway
 
@@ -193,7 +193,7 @@ class MergeRequestBase(ABC):
             # logging this exception
             raise MergeRequestProcessingError(
                 f"error processing {self.name} changes "
-                f"{json.dumps(self.sqs_msg_data)} "
+                f"{json_dumps(self.sqs_msg_data)} "
                 f"into temporary branch {self.branch}. "
                 f"Reason: {err}"
             ) from err

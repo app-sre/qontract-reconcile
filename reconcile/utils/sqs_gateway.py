@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 from typing import Any, Self
 
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.secret_reader import SecretReader
 
 
@@ -54,7 +55,7 @@ class SQSGateway:
         return queue_account_name[0]
 
     def send_message(self, body: Mapping[str, Any]) -> None:
-        self.sqs.send_message(QueueUrl=self.queue_url, MessageBody=json.dumps(body))
+        self.sqs.send_message(QueueUrl=self.queue_url, MessageBody=json_dumps(body))
 
     def receive_messages(
         self,

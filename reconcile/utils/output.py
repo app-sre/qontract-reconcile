@@ -1,9 +1,10 @@
-import json
 import re
 from collections.abc import Iterable, Mapping
 
 import yaml
 from tabulate import tabulate
+
+from reconcile.utils.json import json_dumps
 
 
 def print_output(
@@ -30,7 +31,7 @@ def print_output(
         )
         print(formatted_content)
     elif output == "json":
-        formatted_content = json.dumps(content)
+        formatted_content = json_dumps(content)
         print(formatted_content)
     elif output == "yaml":
         formatted_content = yaml.dump(content)

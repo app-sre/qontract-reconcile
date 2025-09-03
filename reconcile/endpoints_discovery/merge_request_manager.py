@@ -1,5 +1,4 @@
 import hashlib
-import json
 import logging
 from collections.abc import Sequence
 from typing import Any, TypeAlias
@@ -16,6 +15,7 @@ from reconcile.endpoints_discovery.merge_request import (
     Renderer,
 )
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.merge_request_manager.merge_request_manager import (
     MergeRequestManagerBase,
 )
@@ -64,9 +64,7 @@ class Endpoint(BaseModel):
 
     @property
     def hash(self) -> str:
-        return hashlib.sha256(
-            json.dumps(self.dict(), sort_keys=True).encode()
-        ).hexdigest()
+        return hashlib.sha256(json_dumps(self.dict()).encode()).hexdigest()
 
 
 EndpointsToAdd: TypeAlias = list[Endpoint]

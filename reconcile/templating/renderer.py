@@ -33,6 +33,7 @@ from reconcile.utils import gql
 from reconcile.utils.git import checkout, clone
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
+from reconcile.utils.json import json_dumps
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -215,7 +216,7 @@ def unpack_static_variables(
     each: dict[str, Any],
 ) -> dict:
     return {
-        k: json.loads(process_jinja2_template(body=json.dumps(v), vars={"each": each}))
+        k: json.loads(process_jinja2_template(body=json_dumps(v), vars={"each": each}))
         for k, v in (collection_variables.static or {}).items()
     }
 
