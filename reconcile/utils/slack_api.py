@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -25,6 +26,23 @@ if TYPE_CHECKING:
 
 MAX_RETRIES = 5
 TIMEOUT = 30
+
+# Slack API base URLs for different workspace types
+SLACK_API_BASE_URL = "https://slack.com/api/"
+SLACK_GOV_API_BASE_URL = "https://slack-gov.com/api/"
+
+
+def is_gov_slack_workspace() -> bool:
+    """
+    Determine if a workspace is a government Slack workspace.
+
+    :return: True if it's a gov-slack workspace, False otherwise
+    """
+    # Check GOV_SLACK environment variable from OpenShift YAML configuration
+    # If not set, defaults to False (regular Slack)
+    gov_slack_env = os.getenv("GOV_SLACK", "false")
+
+    return gov_slack_env.lower() == "true"
 
 
 class UserNotFoundError(Exception):
@@ -165,7 +183,6 @@ class SlackApi:
         api_config: SlackApiConfig | None = None,
         init_usergroups: bool = True,
         channel: str | None = None,
-        slack_url: str | None = None,
         **chat_kwargs: Any,
     ) -> None:
         """
@@ -187,10 +204,15 @@ class SlackApi:
         else:
             self.config = SlackApiConfig()
 
+        # Determine the appropriate Slack API base URL based on GOV_SLACK environment variable
+        base_url = (
+            SLACK_GOV_API_BASE_URL if is_gov_slack_workspace() else SLACK_API_BASE_URL
+        )
+
         self._sc = WebClient(
             token=token,
             timeout=self.config.timeout,
-            base_url=slack_url or WebClient.BASE_URL,
+            base_url=base_url,
         )
         self._configure_client_retry()
 
