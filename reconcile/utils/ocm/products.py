@@ -178,7 +178,7 @@ class OCMProductOsd(OCMProduct):
             ],
             provision_shard_id=provision_shard_id,
             hypershift=cluster["hypershift"]["enabled"],
-            fips=cluster.get("fips", False),
+            fips=cluster.get("fips"),
         )
 
         if not cluster["ccs"]["enabled"]:
@@ -429,7 +429,7 @@ class OCMProductRosa(OCMProduct):
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
             oidc_endpoint_url=oidc_endpoint_url,
-            fips=cluster.get("fips", False),
+            fips=cluster.get("fips"),
         )
 
         machine_pools = [
@@ -706,7 +706,7 @@ class OCMProductHypershift(OCMProduct):
             availability_zones=cluster["nodes"].get("availability_zones"),
             hypershift=cluster["hypershift"]["enabled"],
             oidc_endpoint_url=oidc_endpoint_url,
-            fips=cluster.get("fips", False),
+            fips=cluster.get("fips"),
         )
 
         network = OCMClusterNetwork(
