@@ -1,6 +1,4 @@
 import os
-import tempfile
-from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -15,7 +13,6 @@ from reconcile.utils.jinja2.filters import (
     str_format,
 )
 from reconcile.utils.jinja2.utils import sloth_alerts
-from reconcile.utils.sloth import process_sloth_output
 
 
 def test_hash_list_empty() -> None:
