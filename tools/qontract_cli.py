@@ -887,7 +887,9 @@ def alert_report(
             "Triggered": str(data.triggered_alerts),
             "Resolved": str(data.resolved_alerts),
             "Median time to resolve (h:mm:ss)": median_elapsed,
-            "Response Rate": f"{data.responsed_alerts / data.triggered_alerts * 100:.2f}%",
+            "Response Rate": f"{data.responsed_alerts / data.triggered_alerts * 100:.2f}%"
+            if data.triggered_alerts != 0
+            else "0.00%",
         })
 
     # TODO(mafriedm, rporres): Fix this
