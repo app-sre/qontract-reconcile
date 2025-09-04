@@ -1,7 +1,8 @@
-import json
 import logging
 from collections.abc import Callable, KeysView
 from typing import Any, TypedDict
+
+from reconcile.utils.json import json_dumps
 
 Action = Callable[[Any, list[Any]], bool]
 Cond = Callable[[Any], bool]
@@ -89,11 +90,11 @@ class AggregatedList:
         return list(self._dict.values())
 
     def to_json(self) -> str:
-        return json.dumps(self.dump(), indent=4)
+        return json_dumps(self.dump(), indent=4)
 
     @staticmethod
     def hash_params(params: Any) -> int:
-        return hash(json.dumps(params, sort_keys=True))
+        return hash(json_dumps(params))
 
 
 class AggregatedDiffRunner:

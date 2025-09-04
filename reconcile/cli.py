@@ -1,6 +1,5 @@
 # ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 import faulthandler
-import json
 import logging
 import os
 import re
@@ -31,6 +30,7 @@ from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
+from reconcile.utils.json import json_dumps
 from reconcile.utils.promtool import PROMTOOL_VERSION, PROMTOOL_VERSION_REGEX
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
@@ -608,7 +608,7 @@ def run_class_integration(
         if dump_schemas_file:
             gqlapi = gql.get_api()
             with open(dump_schemas_file, "w", encoding="locale") as f:
-                f.write(json.dumps(gqlapi.get_queried_schemas()))
+                f.write(json_dumps(gqlapi.get_queried_schemas()))
 
 
 @click.group()

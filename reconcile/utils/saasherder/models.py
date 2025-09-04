@@ -16,6 +16,7 @@ from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLODocument,
 )
 from reconcile.utils.jenkins_api import JobBuildState
+from reconcile.utils.json import json_dumps
 from reconcile.utils.oc_connection_parameters import Cluster
 from reconcile.utils.saasherder.interfaces import (
     HasParameters,
@@ -422,7 +423,7 @@ class TargetSpec:
                 elif v is False:
                     parameters[k] = "false"
                 elif any(isinstance(v, t) for t in [dict, list, tuple]):
-                    parameters[k] = json.dumps(v)
+                    parameters[k] = json_dumps(v)
         return parameters
 
     def _collect_secret_parameters(

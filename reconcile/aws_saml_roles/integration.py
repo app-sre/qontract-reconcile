@@ -1,4 +1,3 @@
-import json
 import logging
 import sys
 from collections.abc import (
@@ -32,6 +31,7 @@ from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
     extended_early_exit_run,
 )
+from reconcile.utils.json import json_dumps
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -87,7 +87,7 @@ class CustomPolicy(BaseModel):
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
         """
-        if len(json.dumps(v, separators=(",", ":"))) > 6144:
+        if len(json_dumps(v, compact=True)) > 6144:
             raise ValueError(
                 f"The policy document '{v}' is too large. AWS policy documents must be 6144 characters or less (w/o white spaces)."
             )
