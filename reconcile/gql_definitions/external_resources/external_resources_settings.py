@@ -33,28 +33,29 @@ fragment DeployResourcesFields on DeployResources_v1 {
 }
 
 query ExternalResourcesSettings {
-    settings: external_resources_settings_v1 {
-        state_dynamodb_account {
-            name
-        }
-        state_dynamodb_table
-        state_dynamodb_region
-        workers_cluster {
-            name
-        }
-        workers_namespace {
-            name
-        }
-        tf_state_bucket
-        tf_state_region
-        tf_state_dynamodb_table
-        vault_secrets_path
-        outputs_secret_image
-        outputs_secret_version
-        module_default_resources {
-          ... DeployResourcesFields
-        }
+  settings: external_resources_settings_v1 {
+    state_dynamodb_account {
+      name
     }
+    state_dynamodb_table
+    state_dynamodb_region
+    workers_cluster {
+      name
+    }
+    workers_namespace {
+      name
+    }
+    tf_state_bucket
+    tf_state_region
+    tf_state_dynamodb_table
+    vault_secrets_path
+    outputs_secret_image
+    outputs_secret_version
+    module_default_resources {
+      ...DeployResourcesFields
+    }
+    default_tags
+  }
 }
 """
 
@@ -90,6 +91,7 @@ class ExternalResourcesSettingsV1(ConfiguredBaseModel):
     outputs_secret_image: str = Field(..., alias="outputs_secret_image")
     outputs_secret_version: str = Field(..., alias="outputs_secret_version")
     module_default_resources: DeployResourcesFields = Field(..., alias="module_default_resources")
+    default_tags: Json = Field(..., alias="default_tags")
 
 
 class ExternalResourcesSettingsQueryData(ConfiguredBaseModel):

@@ -27,7 +27,7 @@ fragment EmailUser on User_v1 {
 
 query EmailUsers {
   users: users_v1 {
-    ... EmailUser
+    ...EmailUser
   }
 }
 """

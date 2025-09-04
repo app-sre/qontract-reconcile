@@ -1,6 +1,5 @@
 # ruff: noqa: PLC0415 - `import` should be at the top-level of a file
 import faulthandler
-import json
 import logging
 import os
 import re
@@ -31,6 +30,7 @@ from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.exceptions import PrintToFileInGitRepositoryError
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gql import GqlApiSingleton
+from reconcile.utils.json import json_dumps
 from reconcile.utils.promtool import PROMTOOL_VERSION, PROMTOOL_VERSION_REGEX
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.runtime.integration import (
@@ -608,7 +608,7 @@ def run_class_integration(
         if dump_schemas_file:
             gqlapi = gql.get_api()
             with open(dump_schemas_file, "w", encoding="locale") as f:
-                f.write(json.dumps(gqlapi.get_queried_schemas()))
+                f.write(json_dumps(gqlapi.get_queried_schemas()))
 
 
 @click.group()
@@ -795,9 +795,18 @@ def openshift_clusterrolebindings(
 @binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
 @internal()
 @use_jump_host()
+@click.option(
+    "--support-role-ref",
+    default=False,
+    help="Support roleRef in Rolebindings.",
+)
 @click.pass_context
 def openshift_rolebindings(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    support_role_ref: bool,
 ) -> None:
     import reconcile.openshift_rolebindings
 
@@ -807,6 +816,7 @@ def openshift_rolebindings(
         thread_pool_size,
         internal,
         use_jump_host,
+        support_role_ref,
     )
 
 
@@ -2165,10 +2175,10 @@ def template_validator(ctx: click.Context) -> None:
 
 @integration.command(short_help="Render datafile templates in app-interface.")
 @click.option(
-    "--app-interface-data-path",
-    help="Path to data dir in app-interface repo. Use this for local rendering or in MR checks.",
+    "--app-interface-root-path",
+    help="Path to root of app-interface repo. Use this for local rendering or in MR checks.",
     required=False,
-    envvar="APP_INTERFACE_DATA_PATH",
+    envvar="APP_INTERFACE_ROOT_PATH",
 )
 @click.option(
     "--clone-repo",
@@ -2184,7 +2194,7 @@ def template_validator(ctx: click.Context) -> None:
 @click.pass_context
 def template_renderer(
     ctx: click.Context,
-    app_interface_data_path: str | None,
+    app_interface_root_path: str | None,
     clone_repo: bool,
     template_collection_name: str | None,
 ) -> None:
@@ -2196,7 +2206,7 @@ def template_renderer(
     run_class_integration(
         integration=TemplateRendererIntegration(
             TemplateRendererIntegrationParams(
-                app_interface_data_path=app_interface_data_path,
+                app_interface_root_path=app_interface_root_path,
                 clone_repo=clone_repo,
                 template_collection_name=template_collection_name,
             )

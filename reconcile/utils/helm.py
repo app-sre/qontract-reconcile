@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 
 from reconcile.utils import git
+from reconcile.utils.json import json_dumps
 from reconcile.utils.runtime.sharding import ShardSpec
 
 
@@ -70,7 +71,7 @@ def do_template(
             with tempfile.NamedTemporaryFile(
                 mode="w+", encoding="locale"
             ) as values_file:
-                values_file.write(json.dumps(values, cls=JSONEncoder))
+                values_file.write(json_dumps(values, cls=JSONEncoder))
                 values_file.flush()
                 cmd = [
                     "helm",

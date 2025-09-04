@@ -309,28 +309,14 @@ def smtp_settings() -> SmtpSettingsV1:
     )
 
 
-def test_author_email_empty(users: list[User]) -> None:
+def test_github_user_id_empty(users: list[User]) -> None:
     mr = PromoteQontractReconcileCommercial(
         version="1q2w3e4",
         commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
     )
 
-    assert mr.author_email is None
-    assert mr.infer_author(mr.author_email, all_users=users) is None
-
-
-@patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
-def test_author_org_username(
-    settings: MagicMock, users: list[User], smtp_settings: SmtpSettingsV1
-) -> None:
-    mr = PromoteQontractReconcileCommercial(
-        version="1q2w3e4",
-        commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
-        author_email="org_user@redhat.com",
-    )
-    settings.return_value = smtp_settings
-
-    assert mr.infer_author(author_email=mr.author_email, all_users=users) == "org_user"
+    assert mr.github_user_id is None
+    assert mr.infer_author(mr.github_user_id, all_users=users) is None
 
 
 @patch.object(reconcile.typed_queries.smtp, "settings", autospec=True)
@@ -338,10 +324,12 @@ def test_author_github_username(
     settings: MagicMock, users: list[User], smtp_settings: SmtpSettingsV1
 ) -> None:
     mr = PromoteQontractReconcileCommercial(
-        "1q2w3e4",
-        "1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
-        author_email="github_user@users.noreply.github.com",
+        version="1q2w3e4",
+        commit_sha="1q2w3e4r5t6y7u8i9o0p1q2w3e4r5t6y7u8i9o0p",
+        github_user_id="github_user",
     )
     settings.return_value = smtp_settings
 
-    assert mr.infer_author(author_email=mr.author_email, all_users=users) == "org_user"
+    assert (
+        mr.infer_author(github_user_id=mr.github_user_id, all_users=users) == "org_user"
+    )

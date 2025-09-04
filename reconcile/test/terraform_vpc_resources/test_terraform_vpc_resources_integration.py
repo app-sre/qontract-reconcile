@@ -313,3 +313,6 @@ def test_vpc_and_subnet_tags(
     expected_public_tags = {"kubernetes.io/role/elb": "1", "Type": "public"}
     assert subnets["private_subnet_tags"] == expected_private_tags
     assert subnets["public_subnet_tags"] == expected_public_tags
+
+    expected_availability_zones = ["us-east-1a", "us-east-1b"]
+    assert subnets["availability_zones"] == expected_availability_zones

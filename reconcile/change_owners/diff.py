@@ -1,5 +1,4 @@
 import copy
-import json
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
@@ -11,6 +10,7 @@ from deepdiff.helper import CannotCompare
 from deepdiff.model import DiffLevel
 from deepdiff.path import parse_path
 
+from reconcile.utils.json import json_dumps
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
@@ -75,7 +75,7 @@ class Diff:
     def _value_repr(self, value: Any | None) -> str | None:
         if value:
             if isinstance(value, dict | list):
-                return json.dumps(value, indent=2)
+                return json_dumps(value, indent=2)
             return str(value)
         return value
 

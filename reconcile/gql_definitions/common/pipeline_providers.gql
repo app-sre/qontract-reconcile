@@ -4,13 +4,13 @@ query PipelineProviders {
   pipelines_providers: pipelines_providers_v1 {
     name
     provider
-    ...on PipelinesProviderTekton_v1 {
+    ... on PipelinesProviderTekton_v1 {
       defaults {
         retention {
-          ... PipelineProviderRetention
+          ...PipelineProviderRetention
         }
         taskTemplates {
-          ...on PipelinesProviderTektonObjectTemplate_v1 {
+          ... on PipelinesProviderTektonObjectTemplate_v1 {
             name
             type
             path
@@ -27,10 +27,10 @@ query PipelineProviders {
         }
         deployResources {
           requests {
-            ... ResourceRequestsRequirements
+            ...ResourceRequestsRequirements
           }
           limits {
-            ... ResourceLimitsRequirements
+            ...ResourceLimitsRequirements
           }
         }
       }
@@ -47,13 +47,13 @@ query PipelineProviders {
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            ... CommonJumphostFields
+            ...CommonJumphostFields
           }
           automationToken {
-            ... VaultSecret
+            ...VaultSecret
           }
           clusterAdminAutomationToken {
-            ... VaultSecret
+            ...VaultSecret
           }
           internal
           disable {
@@ -62,10 +62,10 @@ query PipelineProviders {
         }
       }
       retention {
-        ... PipelineProviderRetention
+        ...PipelineProviderRetention
       }
       taskTemplates {
-        ...on PipelinesProviderTektonObjectTemplate_v1 {
+        ... on PipelinesProviderTektonObjectTemplate_v1 {
           name
           type
           path
@@ -82,10 +82,10 @@ query PipelineProviders {
       }
       deployResources {
         requests {
-          ... ResourceRequestsRequirements
+          ...ResourceRequestsRequirements
         }
         limits {
-          ... ResourceLimitsRequirements
+          ...ResourceLimitsRequirements
         }
       }
     }

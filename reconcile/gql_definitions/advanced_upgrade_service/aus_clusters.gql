@@ -4,19 +4,19 @@ query AUSClusters($name: String) {
   clusters: clusters_v1(name: $name) {
     name
     ocm {
-        ... AUSOCMOrganization
+      ...AUSOCMOrganization
     }
     upgradePolicy {
-        ... ClusterUpgradePolicyV1
+      ...ClusterUpgradePolicyV1
     }
     spec {
-        product
-        id
-        external_id
-        version
+      product
+      id
+      external_id
+      version
     }
     disable {
-        integrations
+      integrations
     }
   }
 }

@@ -179,6 +179,7 @@ from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
 from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
+from reconcile.utils.json import json_dumps
 from reconcile.utils.password_validator import (
     PasswordPolicy,
     PasswordValidator,
@@ -1947,7 +1948,7 @@ class TerrascriptClient:
             em_identifier = f"{identifier}-enhanced-monitoring"
             em_values = {
                 "name": em_identifier,
-                "assume_role_policy": json.dumps(assume_role_policy, sort_keys=True),
+                "assume_role_policy": json_dumps(assume_role_policy),
             }
             role_tf_resource = aws_iam_role(em_identifier, **em_values)
             tf_resources.append(role_tf_resource)
@@ -2345,7 +2346,7 @@ class TerrascriptClient:
                         }
                     ],
                 }
-                rc_values["assume_role_policy"] = json.dumps(role, sort_keys=True)
+                rc_values["assume_role_policy"] = json_dumps(role)
                 role_resource = aws_iam_role(id, **rc_values)
                 tf_resources.append(role_resource)
 
@@ -2383,7 +2384,7 @@ class TerrascriptClient:
                         },
                     ],
                 }
-                rc_values["policy"] = json.dumps(policy, sort_keys=True)
+                rc_values["policy"] = json_dumps(policy)
                 policy_resource = aws_iam_policy(id, **rc_values)
                 tf_resources.append(policy_resource)
 
@@ -2598,7 +2599,7 @@ class TerrascriptClient:
                 },
             ],
         }
-        values["policy"] = json.dumps(policy, sort_keys=True)
+        values["policy"] = json_dumps(policy)
         values["depends_on"] = self.get_dependencies([user_tf_resource])
 
         tf_aws_iam_policy = aws_iam_policy(identifier, **values)
@@ -2877,7 +2878,7 @@ class TerrascriptClient:
         values: dict[str, Any] = {
             "name": identifier,
             "tags": common_values["tags"],
-            "assume_role_policy": json.dumps(assume_role_policy),
+            "assume_role_policy": json_dumps(assume_role_policy),
         }
 
         inline_policy = common_values.get("inline_policy")
@@ -2931,7 +2932,7 @@ class TerrascriptClient:
         self, account: str, name: str, policy: Mapping[str, Any]
     ) -> None:
         tf_aws_iam_policy = aws_iam_policy(
-            f"{account}-{name}", name=name, policy=json.dumps(policy)
+            f"{account}-{name}", name=name, policy=json_dumps(policy)
         )
         self.add_resource(account, tf_aws_iam_policy)
 
@@ -2973,7 +2974,7 @@ class TerrascriptClient:
         role_tf_resource = aws_iam_role(
             f"{account}-{name}",
             name=name,
-            assume_role_policy=json.dumps(assume_role_policy),
+            assume_role_policy=json_dumps(assume_role_policy),
             managed_policy_arns=managed_policy_arns,
             max_session_duration=max_session_duration_hours * 3600,
         )
@@ -3017,7 +3018,7 @@ class TerrascriptClient:
                 all_queues.append(queue_name)
                 sqs_policy = values.pop("sqs_policy", None)
                 if sqs_policy is not None:
-                    values["policy"] = json.dumps(sqs_policy, sort_keys=True)
+                    values["policy"] = json_dumps(sqs_policy)
                 dl_queue = values.pop("dl_queue", None)
                 if dl_queue is not None:
                     max_receive_count = int(values.pop("max_receive_count", 10))
@@ -3031,9 +3032,7 @@ class TerrascriptClient:
                         "deadLetterTargetArn": "${" + dl_data.arn + "}",
                         "maxReceiveCount": max_receive_count,
                     }
-                    values["redrive_policy"] = json.dumps(
-                        redrive_policy, sort_keys=True
-                    )
+                    values["redrive_policy"] = json_dumps(redrive_policy)
                 kms_master_key_id = values.pop("kms_master_key_id", None)
                 if kms_master_key_id is not None:
                     if kms_master_key_id.startswith("arn:"):
@@ -3106,7 +3105,7 @@ class TerrascriptClient:
                     "Resource": list(kms_keys),
                 }
                 policy["Statement"].append(kms_statement)
-            values["policy"] = json.dumps(policy, sort_keys=True)
+            values["policy"] = json_dumps(policy)
             policy_tf_resource = aws_iam_policy(policy_identifier, **values)
             tf_resources.append(policy_tf_resource)
 
@@ -3256,7 +3255,7 @@ class TerrascriptClient:
                 }
             ],
         }
-        values["policy"] = json.dumps(policy, sort_keys=True)
+        values["policy"] = json_dumps(policy)
         values["depends_on"] = self.get_dependencies([user_tf_resource])
 
         tf_aws_iam_policy = aws_iam_policy(identifier, **values)
@@ -3366,7 +3365,7 @@ class TerrascriptClient:
                 },
             ],
         }
-        values_policy["policy"] = json.dumps(policy, sort_keys=True)
+        values_policy["policy"] = json_dumps(policy)
         values_policy["depends_on"] = self.get_dependencies([user_tf_resource])
 
         tf_aws_iam_policy = aws_iam_policy(identifier, **values_policy)
@@ -3416,7 +3415,7 @@ class TerrascriptClient:
                 }
             ],
         }
-        values_policy["policy"] = json.dumps(policy, sort_keys=True)
+        values_policy["policy"] = json_dumps(policy)
         values_policy["depends_on"] = self.get_dependencies([bucket_tf_resource])
         region = common_values.get("region") or self.default_regions.get(account)
         assert region  # make mypy happy
@@ -3562,7 +3561,7 @@ class TerrascriptClient:
                 }
             ],
         }
-        sqs_values["policy"] = json.dumps(sqs_policy, sort_keys=True)
+        sqs_values["policy"] = json_dumps(sqs_policy)
 
         kms_encryption = common_values.get("kms_encryption", False)
         if kms_encryption:
@@ -3598,7 +3597,7 @@ class TerrascriptClient:
                     },
                 ],
             }
-            kms_values["policy"] = json.dumps(kms_policy, sort_keys=True)
+            kms_values["policy"] = json_dumps(kms_policy)
             if provider:
                 kms_values["provider"] = provider
 
@@ -3696,7 +3695,7 @@ class TerrascriptClient:
                 "Resource": [sqs_values["kms_master_key_id"]],
             }
             policy["Statement"].append(kms_statement)
-        values_policy["policy"] = json.dumps(policy, sort_keys=True)
+        values_policy["policy"] = json_dumps(policy)
         policy_tf_resource = aws_iam_policy(sqs_identifier, **values_policy)
         tf_resources.append(policy_tf_resource)
 
@@ -3767,7 +3766,7 @@ class TerrascriptClient:
             role_identifier = f"{identifier}-lambda-execution-role"
             role_values = {
                 "name": role_identifier,
-                "assume_role_policy": json.dumps(assume_role_policy, sort_keys=True),
+                "assume_role_policy": json_dumps(assume_role_policy),
             }
 
             role_tf_resource = aws_iam_role(role_identifier, **role_values)
@@ -3799,7 +3798,7 @@ class TerrascriptClient:
 
             policy_values = {
                 "role": "${" + role_tf_resource.id + "}",
-                "policy": json.dumps(policy, sort_keys=True),
+                "policy": json_dumps(policy),
             }
             policy_tf_resource = aws_iam_role_policy(policy_identifier, **policy_values)
             tf_resources.append(policy_tf_resource)
@@ -3927,7 +3926,7 @@ class TerrascriptClient:
         }
         values = {
             "name": identifier,
-            "policy": json.dumps(policy, sort_keys=True),
+            "policy": json_dumps(policy),
             "depends_on": self.get_dependencies([user_tf_resource]),
         }
 
@@ -4048,7 +4047,7 @@ class TerrascriptClient:
             role_identifier = f"{identifier}-lambda-execution-role"
             role_values = {
                 "name": role_identifier,
-                "assume_role_policy": json.dumps(assume_role_policy, sort_keys=True),
+                "assume_role_policy": json_dumps(assume_role_policy),
                 "tags": tags,
             }
 
@@ -4085,7 +4084,7 @@ class TerrascriptClient:
             policy_tf_resource = aws_iam_policy(
                 policy_identifier,
                 name=policy_identifier,
-                policy=json.dumps(policy, sort_keys=True),
+                policy=json_dumps(policy),
                 tags=tags,
             )
             tf_resources.append(policy_tf_resource)
@@ -4300,7 +4299,7 @@ class TerrascriptClient:
         # iam user policy
         values_policy: dict[str, Any] = {
             "name": identifier,
-            "policy": json.dumps(policy, sort_keys=True),
+            "policy": json_dumps(policy),
             "depends_on": self.get_dependencies([user_tf_resource]),
         }
 
@@ -4418,10 +4417,7 @@ class TerrascriptClient:
 
         :return: key is AWS account name and value is terraform configuration
         """
-        return {
-            name: json.dumps(ts, indent=2, sort_keys=True)
-            for name, ts in self.tss.items()
-        }
+        return {name: json_dumps(ts, indent=2) for name, ts in self.tss.items()}
 
     def init_values(
         self, spec: ExternalResourceSpec, init_tags: bool = True
@@ -4533,7 +4529,7 @@ class TerrascriptClient:
             output_name = output_format.format(
                 spec.output_prefix, self.integration_prefix, "annotations"
             )
-            anno_json = json.dumps(spec.annotations()).encode("utf-8")
+            anno_json = json_dumps(spec.annotations()).encode("utf-8")
             output_value = base64.b64encode(anno_json).decode()
             tf_resources.append(Output(output_name, value=output_value))
 
@@ -4673,7 +4669,7 @@ class TerrascriptClient:
         }
         log_groups_policy_values = {
             "policy_name": "es-log-publishing-permissions",
-            "policy_document": json.dumps(log_groups_policy, sort_keys=True),
+            "policy_document": json_dumps(log_groups_policy),
         }
         resource_policy = aws_cloudwatch_log_resource_policy(
             "es_log_publishing_resource_policy",
@@ -5005,7 +5001,7 @@ class TerrascriptClient:
                 }
             ],
         }
-        es_values["access_policies"] = json.dumps(access_policies, sort_keys=True)
+        es_values["access_policies"] = json_dumps(access_policies)
 
         region = values.get("region") or self.default_regions.get(account)
         assert region  # make mypy happy
@@ -5061,7 +5057,7 @@ class TerrascriptClient:
 
                 version_values = {
                     "secret_id": "${" + aws_secret_resource.id + "}",
-                    "secret_string": json.dumps(master_user, sort_keys=True),
+                    "secret_string": json_dumps(master_user),
                 }
                 if provider:
                     version_values["provider"] = provider
@@ -5088,7 +5084,7 @@ class TerrascriptClient:
                 iam_policy_resource = aws_iam_policy(
                     secret_identifier,
                     name=f"{identifier}-secretsmanager-policy",
-                    policy=json.dumps(policy, sort_keys=True),
+                    policy=json_dumps(policy),
                     tags=tags,
                 )
                 tf_resources.append(iam_policy_resource)
@@ -5500,7 +5496,7 @@ class TerrascriptClient:
             lb_access_logs_s3_bucket_policy_values = {
                 "provider": provider,
                 "bucket": f"${{{lb_access_logs_s3_bucket_tf_resource.id}}}",
-                "policy": json.dumps(policy, sort_keys=True),
+                "policy": json_dumps(policy),
             }
             lb_access_logs_s3_bucket_policy_tf_resource = aws_s3_bucket_policy(
                 policy_identifier, **lb_access_logs_s3_bucket_policy_values
@@ -5815,7 +5811,7 @@ class TerrascriptClient:
 
         version_values: dict[str, Any] = {
             "secret_id": "${" + aws_secret_resource.id + "}",
-            "secret_string": json.dumps(secret_data, sort_keys=True),
+            "secret_string": json_dumps(secret_data),
         }
 
         if self._multiregion_account(account):
@@ -6135,7 +6131,7 @@ class TerrascriptClient:
         lambda_iam_role_resource = aws_iam_role(
             "lambda_role",
             name=f"ocm-{identifier}-cognito-lambda-role",
-            assume_role_policy=json.dumps(lambda_role_policy),
+            assume_role_policy=json_dumps(lambda_role_policy),
             managed_policy_arns=[lambda_managed_policy_arn],
             force_detach_policies=False,
             max_session_duration=3600,
@@ -6810,7 +6806,7 @@ class TerrascriptClient:
         )
         tf_resources.append(api_gateway_stage_resource)
 
-        rest_api_policy = json.dumps({
+        rest_api_policy = json_dumps({
             "Version": "2012-10-17",
             "Statement": [
                 {
@@ -6914,7 +6910,7 @@ class TerrascriptClient:
                 },
             ],
         }
-        cloudwatch_assume_role_policy = json.dumps(policy, sort_keys=True)
+        cloudwatch_assume_role_policy = json_dumps(policy)
 
         cloudwatch_iam_role_resource = aws_iam_role(
             "cloudwatch_assume_role",
@@ -6942,7 +6938,7 @@ class TerrascriptClient:
             ],
         }
 
-        cloudwatch_iam_policy_document = json.dumps(policy, sort_keys=True)
+        cloudwatch_iam_policy_document = json_dumps(policy)
 
         cloudwatch_iam_policy_resource = aws_iam_policy(
             "cloudwatch",
@@ -7187,7 +7183,7 @@ class TerrascriptClient:
 
                 version_values = {
                     "secret_id": "${" + secret_resource.arn + "}",
-                    "secret_string": json.dumps(secret, sort_keys=True),
+                    "secret_string": json_dumps(secret),
                 }
                 version_resource = aws_secretsmanager_secret_version(
                     secret_identifier, **version_values
@@ -7196,7 +7192,7 @@ class TerrascriptClient:
 
                 secret_policy_values = {
                     "secret_arn": "${" + secret_resource.arn + "}",
-                    "policy": json.dumps({
+                    "policy": json_dumps({
                         "Version": "2012-10-17",
                         "Statement": [
                             {

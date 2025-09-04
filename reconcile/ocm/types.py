@@ -36,6 +36,7 @@ class OCMClusterSpec(BaseModel):
     initial_version: str | None
     version: str
     hypershift: bool | None
+    fips: bool | None
 
     class Config:
         extra = Extra.forbid

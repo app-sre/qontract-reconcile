@@ -20,7 +20,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 DEFINITION = """
 query PgpReencryptionSettings {
-  pgp_reencryption_settings: pgp_reencrypt_settings_v1{
+  pgp_reencryption_settings: pgp_reencrypt_settings_v1 {
     public_gpg_key
     aws_account_output_vault_path
     reencrypt_vault_path

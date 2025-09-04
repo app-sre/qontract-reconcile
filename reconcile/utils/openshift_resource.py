@@ -6,7 +6,6 @@ import contextlib
 import copy
 import datetime
 import hashlib
-import json
 import re
 from threading import Lock
 from typing import TYPE_CHECKING, Any
@@ -15,6 +14,7 @@ import semver
 from pydantic import BaseModel
 
 from reconcile.external_resources.meta import SECRET_UPDATED_AT
+from reconcile.utils.json import json_dumps
 from reconcile.utils.metrics import GaugeMetric
 
 if TYPE_CHECKING:
@@ -530,7 +530,7 @@ class OpenshiftResource:
 
     @staticmethod
     def serialize(body: dict[str, Any]) -> str:
-        return json.dumps(body, sort_keys=True)
+        return json_dumps(body)
 
     @staticmethod
     def calculate_sha256sum(body: str) -> str:

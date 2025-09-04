@@ -20,8 +20,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 DEFINITION = """
 query AWSAccountsCloudwatchLogRetentionCleanup {
-  accounts: awsaccounts_v1
-  {
+  accounts: awsaccounts_v1 {
     path
     name
     uid

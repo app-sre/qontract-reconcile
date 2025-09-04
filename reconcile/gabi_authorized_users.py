@@ -1,4 +1,3 @@
-import json
 import logging
 import sys
 from collections.abc import (
@@ -20,6 +19,7 @@ from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import get_external_resource_specs
+from reconcile.utils.json import json_dumps
 from reconcile.utils.openshift_resource import (
     OpenshiftResource,
     ResourceInventory,
@@ -39,12 +39,12 @@ def construct_gabi_oc_resource(
         "kind": "ConfigMap",
         "metadata": {"name": name, "annotations": {"qontract.recycle": "true"}},
         "data": {
-            "config.json": json.dumps(
+            "config.json": json_dumps(
                 {
                     "expiration": str(expiration_date),
                     "users": users,
                 },
-                separators=(",", ":"),
+                compact=True,
             ),
         },
     }

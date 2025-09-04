@@ -29,15 +29,15 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query TerraformCloudflareResources {
@@ -49,13 +49,13 @@ query TerraformCloudflareResources {
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        ... CommonJumphostFields
+        ...CommonJumphostFields
       }
       automationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       clusterAdminAutomationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       spec {
         region
@@ -75,8 +75,7 @@ query TerraformCloudflareResources {
         }
         resources {
           provider
-          ... on NamespaceTerraformResourceCloudflareWorkerScript_v1
-          {
+          ... on NamespaceTerraformResourceCloudflareWorkerScript_v1 {
             identifier
             name
             content_from_github {
@@ -89,8 +88,7 @@ query TerraformCloudflareResources {
               text
             }
           }
-          ... on NamespaceTerraformResourceCloudflareZone_v1
-          {
+          ... on NamespaceTerraformResourceCloudflareZone_v1 {
             identifier
             zone
             plan
@@ -136,22 +134,20 @@ query TerraformCloudflareResources {
               geo_restrictions
               certificate_secret {
                 certificate {
-                  ... VaultSecret
+                  ...VaultSecret
                 }
                 key {
-                  ... VaultSecret
+                  ...VaultSecret
                 }
               }
             }
           }
-          ... on NamespaceTerraformResourceLogpushOwnershipChallenge_v1
-          {
+          ... on NamespaceTerraformResourceLogpushOwnershipChallenge_v1 {
             destination_conf
             zone_name: zone
             identifier
           }
-          ... on NamespaceTerraformResourceLogpushJob_v1
-          {
+          ... on NamespaceTerraformResourceLogpushJob_v1 {
             destination_conf
             zone_name: zone
             identifier
@@ -164,8 +160,7 @@ query TerraformCloudflareResources {
             filter
             kind
           }
-          ... on NamespaceTerraformResourceLogpullRetention_v1
-          {
+          ... on NamespaceTerraformResourceLogpullRetention_v1 {
             zone
             enabled_flag: enabled
             identifier

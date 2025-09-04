@@ -20,10 +20,10 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 DEFINITION = """
 query AlertingServicesSettings {
-   settings: app_interface_settings_v1 {
-      alertingServices
-   }
- }
+  settings: app_interface_settings_v1 {
+    alertingServices
+  }
+}
 """
 
 

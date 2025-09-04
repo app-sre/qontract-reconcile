@@ -1,11 +1,11 @@
 import base64
-import json
 import logging
 from collections.abc import Mapping
 from typing import Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.vault import VaultClient
 
 QONTRACT_INTEGRATION = "aws-ecr-image-pull-secrets"
@@ -35,7 +35,7 @@ def construct_dockercfg_secret_data(data: Mapping[str, Any]) -> dict[str, str]:
         }
     }
 
-    return {".dockerconfigjson": enc_dec(json.dumps(data))}
+    return {".dockerconfigjson": enc_dec(json_dumps(data))}
 
 
 def construct_basic_auth_secret_data(data: Mapping[str, Any]) -> dict[str, str]:

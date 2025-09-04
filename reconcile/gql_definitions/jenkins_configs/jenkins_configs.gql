@@ -7,12 +7,12 @@ query JenkinsConfigs {
     app {
       name
     }
-    ...on JenkinsConfig_v1 {
+    ... on JenkinsConfig_v1 {
       instance {
         name
         serverUrl
         token {
-          ... VaultSecret
+          ...VaultSecret
         }
         deleteMethod
       }

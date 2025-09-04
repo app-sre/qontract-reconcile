@@ -39,6 +39,12 @@ spec:
     value: '100000'
   - name: goss-container-structure-test-file
     value: dockerfiles/goss.yaml
+  - name: github-user-id
+    # https://pipelinesascode.com/docs/guide/authoringprs/
+    value: |-
+      {{sender}}
+  - name: sqs-pr-type
+    value: promote_qontract_reconcile
   pipelineRef:
     params:
     - name: url

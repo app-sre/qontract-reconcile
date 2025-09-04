@@ -1,6 +1,5 @@
 import difflib
 import filecmp
-import json
 import logging
 import os
 import re
@@ -26,6 +25,7 @@ from sretoolbox.utils import retry
 
 from reconcile.utils import throughput
 from reconcile.utils.helpers import toggle_logger
+from reconcile.utils.json import json_dumps
 from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State
 from reconcile.utils.vcs import GITHUB_BASE_URL
@@ -399,7 +399,7 @@ class JJB:
                 found = True
         if not found:
             raise ValueError(f"job name {job_name} is not found")
-        print(json.dumps(all_jobs, indent=2))
+        print(json_dumps(all_jobs, indent=2))
 
     def get_job_by_repo_url(self, repo_url: str, job_type: str) -> dict[str, Any]:
         for jobs in self.get_all_jobs(job_types=[job_type]).values():

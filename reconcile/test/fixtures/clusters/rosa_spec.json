@@ -35,9 +35,7 @@
     "master": 3,
     "infra": 2,
     "compute": 2,
-    "availability_zones": [
-      "us-east-1a"
-    ],
+    "availability_zones": ["us-east-1a"],
     "compute_machine_type": {
       "kind": "MachineTypeLink",
       "id": "m5.xlarge",
@@ -158,12 +156,7 @@
     "href": "/api/clusters_mgmt/v1/versions/openshift-v4.10.5",
     "raw_id": "4.10.16",
     "channel_group": "stable",
-    "available_upgrades": [
-      "4.11.33",
-      "4.12.1",
-      "4.12.8",
-      "4.12.9"
-    ],
+    "available_upgrades": ["4.11.33", "4.12.1", "4.12.8", "4.12.9"],
     "end_of_life_timestamp": "2022-12-10T00:00:00Z"
   },
   "identity_providers": {
@@ -212,5 +205,6 @@
   },
   "hypershift": {
     "enabled": false
-  }
+  },
+  "fips": false
 }

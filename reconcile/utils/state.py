@@ -28,6 +28,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.get_state_aws_account import get_state_aws_account
 from reconcile.utils.aws_api import aws_config_file_path
+from reconcile.utils.json import json_dumps
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -355,7 +356,7 @@ class State:
         self.client.put_object(
             Bucket=self.bucket,
             Key=f"{self.state_path}/{key}",
-            Body=json.dumps(value),
+            Body=json_dumps(value),
             Metadata=metadata or {},
         )
 

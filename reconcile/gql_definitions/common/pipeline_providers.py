@@ -32,44 +32,44 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment PipelineProviderRetention on PipelinesProviderRetention_v1 {
-    days
-    minimum
-    maximum
+  days
+  minimum
+  maximum
 }
 
 fragment ResourceLimitsRequirements on ResourceLimitsRequirements_v1 {
-    cpu
-    memory
+  cpu
+  memory
 }
 
 fragment ResourceRequestsRequirements on ResourceRequestsRequirements_v1 {
-    cpu
-    memory
+  cpu
+  memory
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query PipelineProviders {
   pipelines_providers: pipelines_providers_v1 {
     name
     provider
-    ...on PipelinesProviderTekton_v1 {
+    ... on PipelinesProviderTekton_v1 {
       defaults {
         retention {
-          ... PipelineProviderRetention
+          ...PipelineProviderRetention
         }
         taskTemplates {
-          ...on PipelinesProviderTektonObjectTemplate_v1 {
+          ... on PipelinesProviderTektonObjectTemplate_v1 {
             name
             type
             path
@@ -86,10 +86,10 @@ query PipelineProviders {
         }
         deployResources {
           requests {
-            ... ResourceRequestsRequirements
+            ...ResourceRequestsRequirements
           }
           limits {
-            ... ResourceLimitsRequirements
+            ...ResourceLimitsRequirements
           }
         }
       }
@@ -106,13 +106,13 @@ query PipelineProviders {
           serverUrl
           insecureSkipTLSVerify
           jumpHost {
-            ... CommonJumphostFields
+            ...CommonJumphostFields
           }
           automationToken {
-            ... VaultSecret
+            ...VaultSecret
           }
           clusterAdminAutomationToken {
-            ... VaultSecret
+            ...VaultSecret
           }
           internal
           disable {
@@ -121,10 +121,10 @@ query PipelineProviders {
         }
       }
       retention {
-        ... PipelineProviderRetention
+        ...PipelineProviderRetention
       }
       taskTemplates {
-        ...on PipelinesProviderTektonObjectTemplate_v1 {
+        ... on PipelinesProviderTektonObjectTemplate_v1 {
           name
           type
           path
@@ -141,10 +141,10 @@ query PipelineProviders {
       }
       deployResources {
         requests {
-          ... ResourceRequestsRequirements
+          ...ResourceRequestsRequirements
         }
         limits {
-          ... ResourceLimitsRequirements
+          ...ResourceLimitsRequirements
         }
       }
     }

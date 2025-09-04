@@ -25,16 +25,16 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   name
   labels
   environment {
-    ... OCMEnvironment
+    ...OCMEnvironment
   }
   orgId
   accessTokenClientId
   accessTokenUrl
   accessTokenClientSecret {
-    ... VaultSecret
+    ...VaultSecret
   }
   disable {
-    ... DisableAutomations
+    ...DisableAutomations
   }
   blockedVersions
   addonManagedUpgrades
@@ -45,7 +45,7 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
     instance {
       name
       token {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
     name
@@ -57,11 +57,11 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       name
     }
     publishVersionData {
-      ... MinimalOCMOrganization
+      ...MinimalOCMOrganization
     }
   }
   publishVersionData {
-    ... MinimalOCMOrganization
+    ...MinimalOCMOrganization
   }
   sectors {
     name
@@ -81,7 +81,7 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       id
     }
     upgradePolicy {
-      ... ClusterUpgradePolicyV1
+      ...ClusterUpgradePolicyV1
     }
   }
   ausClusterHealthChecks {
@@ -112,27 +112,27 @@ fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
 }
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
-    name
-    description
-    labels
-    url
-    accessTokenClientId
-    accessTokenUrl
-    accessTokenClientSecret {
-        ... VaultSecret
-    }
+  name
+  description
+  labels
+  url
+  accessTokenClientId
+  accessTokenUrl
+  accessTokenClientSecret {
+    ...VaultSecret
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query AUSOrganizations($name: String) {
   organizations: ocm_instances_v1(name: $name) {
-    ... AUSOCMOrganization
+    ...AUSOCMOrganization
   }
 }
 """

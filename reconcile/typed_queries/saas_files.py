@@ -1,5 +1,4 @@
 import hashlib
-import json
 from collections.abc import Callable
 from threading import Lock
 from typing import Any
@@ -48,6 +47,7 @@ from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     ParameterError,
 )
+from reconcile.utils.json import json_dumps
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
@@ -302,7 +302,7 @@ def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
     """Find all parameter occurrences and convert them to a json string."""
     for key, value in root.items():
         if key in {"parameters", "labels"}:
-            root[key] = json.dumps(value) if value is not None else None
+            root[key] = json_dumps(value) if value is not None else None
         elif isinstance(value, dict):
             root[key] = convert_parameters_to_json_string(value)
         elif isinstance(value, list):

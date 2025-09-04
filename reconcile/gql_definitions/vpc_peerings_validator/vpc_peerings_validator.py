@@ -51,7 +51,7 @@ query VpcPeeringsValidator {
             name
           }
         }
-        ... on ClusterPeeringConnectionAccountVPCMesh_v1{
+        ... on ClusterPeeringConnectionAccountVPCMesh_v1 {
           name
           account {
             name
@@ -61,12 +61,12 @@ query VpcPeeringsValidator {
         }
         ... on ClusterPeeringConnectionClusterRequester_v1 {
           cluster {
-            ... VpcPeeringsValidatorPeeredCluster
+            ...VpcPeeringsValidatorPeeredCluster
           }
         }
         ... on ClusterPeeringConnectionClusterAccepter_v1 {
           cluster {
-            ... VpcPeeringsValidatorPeeredCluster
+            ...VpcPeeringsValidatorPeeredCluster
           }
         }
       }

@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -28,6 +27,7 @@ from reconcile.typed_queries.saas_files import (
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
 from reconcile.utils.secret_reader import create_secret_reader
@@ -346,4 +346,4 @@ def run(
         if image_auth.auth_server:
             json_file = os.path.join(io_dir, "dockerconfigjson")
             with open(json_file, "w", encoding="locale") as f:
-                f.write(json.dumps(image_auth.get_docker_config_json(), indent=2))
+                f.write(json_dumps(image_auth.get_docker_config_json(), indent=2))

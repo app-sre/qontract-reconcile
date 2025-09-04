@@ -52,6 +52,7 @@ def settings() -> ExternalResourcesSettingsV1:
             requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
             limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
         ),
+        default_tags='{"env": "test"}',
     )
 
 

@@ -16,6 +16,7 @@ from reconcile.gql_definitions.openshift_cluster_bots.clusters import ClusterV1
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.json import json_dumps
 from reconcile.utils.mr import clusters_updates
 from reconcile.utils.ocm import OCM, OCMMap
 from reconcile.utils.openshift_resource import (
@@ -102,7 +103,7 @@ def oc(
 
 def oc_apply(kubeconfig: str, namespace: str, items: list[dict]) -> None:
     for item in items:
-        stdin = json.dumps(item).encode()
+        stdin = json_dumps(item).encode()
         oc(kubeconfig, namespace, ["apply", "-f", "-"], stdin)
 
 

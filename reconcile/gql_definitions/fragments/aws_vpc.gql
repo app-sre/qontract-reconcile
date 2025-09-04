@@ -8,7 +8,7 @@ fragment AWSVPC on AWSVPC_v1 {
     uid
     terraformUsername
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
   region

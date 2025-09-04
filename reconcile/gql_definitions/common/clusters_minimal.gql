@@ -8,21 +8,21 @@ query ClustersMinimal($name: String) {
     prometheusUrl
     insecureSkipTLSVerify
     jumpHost {
-      ... CommonJumphostFields
+      ...CommonJumphostFields
     }
     managedGroups
     ocm {
       name
     }
     spec {
-        private
+      private
     }
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     clusterAdmin
     clusterAdminAutomationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     internal
     disable {

@@ -29,6 +29,7 @@ from reconcile.utils.differ import diff_mappings
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
+from reconcile.utils.json import json_dumps
 from reconcile.utils.oc import (
     OCCli,
 )
@@ -154,7 +155,7 @@ class SecretsReconciler:
         annotations[SECRET_ANN_PROVIDER] = spec.provider
         annotations[SECRET_ANN_IDENTIFIER] = spec.identifier
         annotations[SECRET_UPDATED_AT] = spec.metadata[SECRET_UPDATED_AT]
-        spec.resource["annotations"] = json.dumps(annotations)
+        spec.resource["annotations"] = json_dumps(annotations)
 
     def _specs_with_secret(
         self,

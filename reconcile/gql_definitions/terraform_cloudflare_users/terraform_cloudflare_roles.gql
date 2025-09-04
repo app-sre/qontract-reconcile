@@ -1,7 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
 query CloudflareAccountRole {
-  cloudflare_account_roles:	cloudflare_account_role_v1 {
+  cloudflare_account_roles: cloudflare_account_role_v1 {
     name
     roles
     access_roles {
@@ -14,12 +14,12 @@ query CloudflareAccountRole {
       name
       providerVersion
       apiCredentials {
-        ... VaultSecret
+        ...VaultSecret
       }
       terraformStateAccount {
         name
         automationToken {
-          ... VaultSecret
+          ...VaultSecret
         }
         terraformState {
           provider

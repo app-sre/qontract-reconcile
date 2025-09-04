@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 import pytest
@@ -198,35 +199,139 @@ def test_spec_annotation_parsing_none_present() -> None:
     assert s.annotations() == {}
 
 
-def test_spec_tags() -> None:
-    s = ExternalResourceSpec(
-        provision_provider="aws",
-        provisioner={"name": "a"},
-        resource={
-            "identifier": "i",
-            "provider": "p",
-        },
-        namespace={
-            "name": "ns",
-            "cluster": {
-                "name": "c",
+@pytest.mark.parametrize(
+    "external_resource, expected_tags",
+    [
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={"identifier": "i", "provider": "p"},
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {"name": "env"},
+                    "app": {"name": "app"},
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
             },
-            "environment": {
-                "name": "env",
+        ),
+        # appCode, costCenter, servicePhase, and custom tags
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                    "tags": json.dumps({"resource_tag": "value"}),
+                },
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {
+                        "name": "env",
+                        "servicePhase": "sp",
+                    },
+                    "app": {
+                        "name": "app",
+                        "appCode": "a",
+                        "costCenter": "cc",
+                    },
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
+                "app-code": "a",
+                "cost-center": "cc",
+                "service-phase": "sp",
+                "resource_tag": "value",
             },
-            "app": {
-                "name": "app",
+        ),
+        # overrides
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                    "tags": json.dumps({
+                        "app-code": "resource_app_code",
+                        "cost-center": "resource_cost_center",
+                        "service-phase": "resource_service_phase",
+                        "resource_tag": "value",
+                    }),
+                },
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {"name": "env", "servicePhase": "sp"},
+                    "app": {"name": "app", "appCode": "a", "costCenter": "cc"},
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
+                "app-code": "resource_app_code",
+                "cost-center": "resource_cost_center",
+                "service-phase": "resource_service_phase",
+                "resource_tag": "value",
             },
-        },
-    )
-    expected = {
-        "managed_by_integration": "int",
-        "cluster": "c",
-        "namespace": "ns",
-        "environment": "env",
-        "app": "app",
-    }
-    assert s.tags("int") == expected
+        ),
+        # overrides and kebab-case
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                    "tags": json.dumps({
+                        "appCode": "resource_app_code",
+                        "costCenter": "resource_cost_center",
+                        "servicePhase": "resource_service_phase",
+                        "resource_tag": "value",
+                    }),
+                },
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {"name": "env", "servicePhase": "sp"},
+                    "app": {"name": "app", "appCode": "a", "costCenter": "cc"},
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
+                "app-code": "resource_app_code",
+                "cost-center": "resource_cost_center",
+                "service-phase": "resource_service_phase",
+                "resource_tag": "value",
+            },
+        ),
+    ],
+)
+def test_spec_tags(
+    external_resource: ExternalResourceSpec, expected_tags: dict[str, str]
+) -> None:
+    assert external_resource.tags("int") == expected_tags
 
 
 @pytest.fixture

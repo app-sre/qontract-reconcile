@@ -69,10 +69,10 @@ fragment VPCRequest on VPCRequest_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query VPCRequest {

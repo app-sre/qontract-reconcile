@@ -47,6 +47,7 @@ from sretoolbox.utils import (
 )
 
 from reconcile.status import RunningState
+from reconcile.utils.json import json_dumps
 from reconcile.utils.jump_host import (
     JumphostParameters,
     JumpHostSSH,
@@ -563,7 +564,7 @@ class OCCli:
             "-f",
             "-",
         ] + parameters_to_process
-        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
+        result = self._run(cmd, stdin=json_dumps(template))
         return json.loads(result)["items"]
 
     @OCDecorators.process_reconcile_time
@@ -592,7 +593,7 @@ class OCCli:
     def patch(
         self, namespace: str, kind: str, name: str, patch: Mapping[str, Any]
     ) -> OCProcessReconcileTimeDecoratorMsg:
-        cmd = ["patch", "-n", namespace, kind, name, "-p", json.dumps(patch)]
+        cmd = ["patch", "-n", namespace, kind, name, "-p", json_dumps(patch)]
         self._run(cmd)
         resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
@@ -1020,7 +1021,7 @@ class OCCli:
             a["recycle.time"] = recycle_time
             obj["spec"]["template"]["metadata"]["annotations"] = a
             cmd = ["apply", "-n", namespace, "-f", "-"]
-            stdin = json.dumps(obj, sort_keys=True)
+            stdin = json_dumps(obj)
             self._run(cmd, stdin=stdin, apply=True)
 
     def get_obj_root_owner(

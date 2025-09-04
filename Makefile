@@ -112,12 +112,6 @@ qenerate: gql-introspection gql-query-classes
 localstack:
 	@$(CONTAINER_ENGINE) compose -f dev/localstack/docker-compose.yml up
 
-sqs:
-	@AWS_ACCESS_KEY_ID=$(APP_INTERFACE_SQS_AWS_ACCESS_KEY_ID) \
-	AWS_SECRET_ACCESS_KEY=$(APP_INTERFACE_SQS_AWS_SECRET_ACCESS_KEY) \
-	AWS_REGION=$(APP_INTERFACE_SQS_AWS_REGION) \
-	aws sqs send-message --queue-url $(APP_INTERFACE_SQS_QUEUE_URL) --message-body "{\"pr_type\": \"promote_qontract_reconcile\", \"version\": \"$(IMAGE_TAG)\", \"commit_sha\": \"$(COMMIT_SHA)\", \"author_email\": \"$(COMMIT_AUTHOR_EMAIL)\"}"
-
 all-tests: linter-test types-test qenerate-test helm-test unittest
 
 linter-test:

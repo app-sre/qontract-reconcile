@@ -1,4 +1,3 @@
-import json
 import logging
 from abc import (
     ABC,
@@ -11,10 +10,10 @@ from uuid import uuid4
 from gitlab.exceptions import GitlabError
 from jinja2 import Template
 
-from reconcile import typed_queries
 from reconcile.gql_definitions.fragments.user import User
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.mr.labels import DO_NOT_MERGE_HOLD
 from reconcile.utils.sqs_gateway import SQSGateway
 
@@ -110,19 +109,14 @@ class MergeRequestBase(ABC):
         }
 
     def infer_author(
-        self, author_email: str | None, all_users: Iterable[User] | None = None
+        self, github_user_id: str | None, all_users: Iterable[User] | None = None
     ) -> str | None:
-        if not author_email:
+        if not github_user_id:
             return None
         if not all_users:
             return None
 
-        username = author_email.split("@")[0]
-        users = None
-        if author_email.endswith(typed_queries.smtp.settings().mail_address):
-            users = [u for u in all_users if username == u.org_username]
-        elif author_email.endswith("users.noreply.github.com"):
-            users = [u for u in all_users if username == u.github_username]
+        users = [u for u in all_users if u.github_username == github_user_id]
 
         if users:
             return users[0].org_username
@@ -199,7 +193,7 @@ class MergeRequestBase(ABC):
             # logging this exception
             raise MergeRequestProcessingError(
                 f"error processing {self.name} changes "
-                f"{json.dumps(self.sqs_msg_data)} "
+                f"{json_dumps(self.sqs_msg_data)} "
                 f"into temporary branch {self.branch}. "
                 f"Reason: {err}"
             ) from err

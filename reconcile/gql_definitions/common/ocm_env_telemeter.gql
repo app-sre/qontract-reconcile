@@ -4,7 +4,7 @@ query OCMEnvTelemeter($name: String) {
   ocm_envs: ocm_environments_v1(name: $name) {
     name
     telemeter {
-      ... PrometheusInstance
+      ...PrometheusInstance
     }
   }
 }
