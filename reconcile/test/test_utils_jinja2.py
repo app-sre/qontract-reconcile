@@ -1,8 +1,11 @@
 import os
+import tempfile
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
 from jsonpath_ng.exceptions import JsonPathParserError
+from pytest_mock import MockerFixture
 
 from reconcile.utils.jinja2.filters import (
     extract_jsonpath,
@@ -11,6 +14,7 @@ from reconcile.utils.jinja2.filters import (
     matches_jsonpath,
     str_format,
 )
+from reconcile.utils.jinja2.utils import sloth_alerts
 from reconcile.utils.sloth import process_sloth_output
 
 
@@ -134,15 +138,34 @@ def test_str_format() -> None:
     assert str_format(value, format) == "s3://path/to/object"
 
 
-def test_process_sloth_output_schema_compliance() -> None:
-    fixture_dir = os.path.join(os.path.dirname(__file__), "fixtures", "jinja2")
-    sloth_output_path = os.path.join(fixture_dir, "sloth_output.yaml")
-    expected_result_path = os.path.join(fixture_dir, "expected_result.yaml")
+def test_sloth_alerts(mocker: MockerFixture) -> None:
+    """Test sloth_alerts function with SLO input processing"""
+    # Sample SLO input data
+    slos = [
+        {
+            "app_name": "test-app",
+            "name": "Availability",
+            "target": 95,
+            "error_query": 'sum(rate(http_requests_total{status=~"5.."}[{{window}}]))',
+            "total_query": "sum(rate(http_requests_total{}[{{window}}]))",
+        },
+        {
+            "app_name": "test-app",
+            "name": "Latency",
+            "target": 99,
+            "error_query": 'sum(rate(http_requests_latency_bucket{le="+Inf"}[{{window}}])) - sum(rate(http_requests_latency_bucket{le="1.0"}[{{window}}]))',
+            "total_query": "sum(rate(http_requests_latency_bucket{}[{{window}}]))",
+        },
+    ]
+    service = "test-app"
 
+    fixture_dir = os.path.join(os.path.dirname(__file__), "fixtures", "jinja2")
+    expected_result_path = os.path.join(
+        fixture_dir, "sloth_alerts_expected_result.yaml"
+    )
     with open(expected_result_path, encoding="utf-8") as f:
         expected_result = f.read()
-    result = process_sloth_output(sloth_output_path)
-    # Parse both results as YAML for comparison
+    result = sloth_alerts(slos, service)
     result_data = yaml.safe_load(result)
     expected_data = yaml.safe_load(expected_result)
 

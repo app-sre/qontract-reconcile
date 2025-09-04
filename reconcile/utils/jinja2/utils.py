@@ -193,64 +193,70 @@ def list_s3_objects(
 
 
 def sloth_alerts(
+    slos: list[dict[str, Any]],
     service: str,
-    slo_name: str,
-    objective: float,
-    error_query: str,
-    total_query: str,
     version: str = "prometheus/v1",
 ) -> str:
     """Generate Prometheus rules using sloth: https://sloth.dev
 
     Args:
+        slos: List of slo objects containing following attributes:
+            - app_name
+            - name
+            - target
+            - error_query
+            - total_query
         service: Service name identifier
-        slo_name: Name of the SLO
-        objective: Target percentage (e.g. 99.9)
-        error_query: Prometheus query for error events
-        total_query: Prometheus query for total events
         version: Spec version (default: "prometheus/v1")
 
     Returns:
         Generated Prometheus rules as YAML string
     """
-    # Build the SLO definition
-    slo = {
-        "name": slo_name,
-        "objective": objective,
-        "description": f"{slo_name} SLO for {service}",
-        "sli": {
-            "events": {
-                "error_query": error_query.replace("{{window}}", "{{.window}}"),
-                "total_query": total_query.replace("{{window}}", "{{.window}}"),
-            }
-        },
-        "alerting": {
-            "name": f"{service.title()}{slo_name.title()}",
-            "annotations": {
-                "summary": f"High error rate on '{service}' {slo_name}",
-                "message": f"High error rate on '{service}' {slo_name}",
-            },
-            "page_alert": {
-                "labels": {
-                    "severity": "critical",
-                    "service": service,
-                    "slo": slo_name,
+    # Build the SLO definitions
+    slos_input = [
+        {
+            "name": slo["name"],
+            "objective": slo["target"],
+            "description": f"{slo['name']} SLO for {service}",
+            "sli": {
+                "events": {
+                    "error_query": slo["error_query"].replace(
+                        "{{window}}", "{{.window}}"
+                    ),
+                    "total_query": slo["total_query"].replace(
+                        "{{window}}", "{{.window}}"
+                    ),
                 }
             },
-            "ticket_alert": {
-                "labels": {
-                    "severity": "medium",
-                    "service": service,
-                    "slo": slo_name,
-                }
+            "alerting": {
+                "name": f"{service.title()}{slo['name'].title()}",
+                "annotations": {
+                    "summary": f"High error rate on {service} {slo['name']}",
+                    "message": f"High error rate on {service} {slo['name']}",
+                },
+                "page_alert": {
+                    "labels": {
+                        "severity": "critical",
+                        "service": service,
+                        "slo": slo["name"],
+                    }
+                },
+                "ticket_alert": {
+                    "labels": {
+                        "severity": "medium",
+                        "service": service,
+                        "slo": slo["name"],
+                    }
+                },
             },
-        },
-    }
+        }
+        for slo in slos
+    ]
 
     spec = {
         "version": version,
         "service": service,
-        "slos": [slo],
+        "slos": slos_input,
     }
 
     with (
