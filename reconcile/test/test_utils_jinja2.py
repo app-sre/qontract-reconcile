@@ -140,14 +140,12 @@ def test_sloth_alerts(mocker: MockerFixture) -> None:
     # Sample SLO input data
     slos = [
         {
-            "app_name": "test-app",
             "name": "Availability",
             "target": 95,
             "error_query": 'sum(rate(http_requests_total{status=~"5.."}[{{window}}]))',
             "total_query": "sum(rate(http_requests_total{}[{{window}}]))",
         },
         {
-            "app_name": "test-app",
             "name": "Latency",
             "target": 99,
             "error_query": 'sum(rate(http_requests_latency_bucket{le="+Inf"}[{{window}}])) - sum(rate(http_requests_latency_bucket{le="1.0"}[{{window}}]))',
