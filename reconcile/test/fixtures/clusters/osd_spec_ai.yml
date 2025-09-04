@@ -39,6 +39,7 @@ spec:
   provision_shard_id: provision_shard_id
   disable_user_workload_monitoring: false
   hypershift: null
+  fips: false
 machinePools:
 - id: worker
   instance_type: m5.2xlarge

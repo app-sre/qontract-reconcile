@@ -72,6 +72,7 @@ def add_cluster(
             product="",
             provider="",
             region="",
+            fips=False,
         ),
     )
 

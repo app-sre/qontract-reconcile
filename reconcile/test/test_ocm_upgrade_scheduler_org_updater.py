@@ -36,6 +36,7 @@ def cluster_ocm_spec() -> Generator[OCMSpec, None, None]:
         nodes=None,
         provision_shard_id=None,
         initial_version=None,
+        fips=False,
     )
     obj = OCMSpec(
         spec=spec,

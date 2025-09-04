@@ -102,6 +102,7 @@ def ocm_osd_cluster_spec() -> Generator[OCMSpec, None, None]:
         nodes=None,
         initial_version=None,
         hypershift=None,
+        fips=None,
     )
     machine_pools = [
         ClusterMachinePool(
@@ -142,6 +143,7 @@ def osd_cluster_fxt() -> dict[str, Any]:
             "private": False,
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
+            "fips": False,
         },
         "machinePools": [
             {
@@ -220,6 +222,7 @@ def rosa_cluster_fxt() -> dict[str, Any]:
             "private": False,
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
+            "fips": False,
         },
         "machinePools": [
             {
@@ -300,6 +303,7 @@ def rosa_hosted_cp_cluster_fxt() -> dict[str, Any]:
             "provision_shard_id": "the-cluster-provision_shard_id",
             "disable_user_workload_monitoring": True,
             "hypershift": True,
+            "fips": False,
         },
         "network": {
             "type": None,
