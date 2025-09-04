@@ -9,6 +9,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Mapping
 from os import path
+from pathlib import Path
 from subprocess import (
     PIPE,
     STDOUT,
@@ -17,10 +18,9 @@ from subprocess import (
 from typing import Any
 
 import yaml
-from jenkins_jobs.builder import JenkinsManager
 from jenkins_jobs.errors import JenkinsJobsException
-from jenkins_jobs.parser import YamlParser
-from jenkins_jobs.registry import ModuleRegistry
+from jenkins_jobs.loader import load_files
+from jenkins_jobs.roots import Roots
 from sretoolbox.utils import retry
 
 from reconcile.utils import throughput
@@ -292,13 +292,10 @@ class JJB:
 
         args = ["--conf", ini_path, "test", config_path]
         jjb = self.get_jjb(args)
-        builder = JenkinsManager(jjb.jjb_config)
-        registry = ModuleRegistry(jjb.jjb_config, builder.plugins_list)
-        parser = YamlParser(jjb.jjb_config)
-        parser.load_files(jjb.options.path)
-        jobs, _ = parser.expandYaml(registry, jjb.options.names)
-
-        return jobs
+        roots = Roots(jjb.jjb_config)
+        load_files(jjb.jjb_config, roots, [Path(config_path)])
+        job_view_data_list = roots.generate_jobs()
+        return [job.data for job in job_view_data_list]
 
     def get_job_webhooks_data(self) -> dict[str, list[dict[str, Any]]]:
         job_webhooks_data: dict[str, list[dict[str, Any]]] = {}
