@@ -47,6 +47,7 @@ SPEC_ATTR_MULTI_AZ = "multi_az"
 SPEC_ATTR_HYPERSHIFT = "hypershift"
 SPEC_ATTR_SUBNET_IDS = "subnet_ids"
 SPEC_ATTR_AVAILABILITY_ZONES = "availability_zones"
+SPEC_ATTR_FIPS = "fips"
 
 SPEC_ATTR_NETWORK = "network"
 IGNORE_NETWORK_TYPE_ATTR = "type"
@@ -177,6 +178,7 @@ class OCMProductOsd(OCMProduct):
             ],
             provision_shard_id=provision_shard_id,
             hypershift=cluster["hypershift"]["enabled"],
+            fips=cluster["fips"],
         )
 
         if not cluster["ccs"]["enabled"]:
@@ -257,6 +259,7 @@ class OCMProductOsd(OCMProduct):
                 if (duwm := cluster.spec.disable_user_workload_monitoring) is not None
                 else True
             ),
+            "fips": bool(cluster.spec.fips),
         }
 
         # Workaround to enable type checks.
@@ -426,6 +429,7 @@ class OCMProductRosa(OCMProduct):
             subnet_ids=cluster["aws"].get("subnet_ids"),
             availability_zones=cluster["nodes"].get("availability_zones"),
             oidc_endpoint_url=oidc_endpoint_url,
+            fips=cluster["fips"],
         )
 
         machine_pools = [
@@ -513,6 +517,7 @@ class OCMProductRosa(OCMProduct):
                 if (duwm := cluster.spec.disable_user_workload_monitoring) is not None
                 else True
             ),
+            "fips": bool(cluster.spec.fips),
         }
 
         provision_shard_id = cluster.spec.provision_shard_id
@@ -701,6 +706,7 @@ class OCMProductHypershift(OCMProduct):
             availability_zones=cluster["nodes"].get("availability_zones"),
             hypershift=cluster["hypershift"]["enabled"],
             oidc_endpoint_url=oidc_endpoint_url,
+            fips=cluster["fips"],
         )
 
         network = OCMClusterNetwork(

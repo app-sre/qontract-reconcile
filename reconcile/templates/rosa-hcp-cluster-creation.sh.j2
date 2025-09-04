@@ -59,4 +59,7 @@ rosa create cluster --cluster-name={{ cluster_name }} \
     {% if cluster.spec.provision_shard_id -%}
     --properties provision_shard_id:{{ cluster.spec.provision_shard_id }} \
     {% endif -%}
+    {% if cluster.spec.fips -%}
+    --fips \
+    {% endif -%}
     --channel-group {{ cluster.spec.channel }}

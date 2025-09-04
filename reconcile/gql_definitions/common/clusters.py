@@ -207,6 +207,7 @@ query Clusters($name: String) {
       private
       provision_shard_id
       disable_user_workload_monitoring
+      fips
     }
     externalConfiguration {
       labels
@@ -419,6 +420,7 @@ class ClusterSpecV1(ConfiguredBaseModel):
     private: bool = Field(..., alias="private")
     provision_shard_id: Optional[str] = Field(..., alias="provision_shard_id")
     disable_user_workload_monitoring: Optional[bool] = Field(..., alias="disable_user_workload_monitoring")
+    fips: Optional[bool] = Field(..., alias="fips")
 
 
 class ClusterSpecOSDV1(ClusterSpecV1):
