@@ -113,7 +113,9 @@ class ExternalResourcesInventory(MutableMapping):
             (rp, ns)
             for ns in namespaces
             for rp in ns.external_resources or []
-            if isinstance(rp, SUPPORTED_RESOURCE_PROVIDERS) and rp.resources
+            if isinstance(rp, SUPPORTED_RESOURCE_PROVIDERS)
+            and rp.resources
+            and ns.managed_external_resources
         ]
 
         desired_specs = [
@@ -144,7 +146,7 @@ class ExternalResourcesInventory(MutableMapping):
             ),
             namespace=namespace.dict(by_alias=True),
         )
-        spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete
+        spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete or namespace.delete
         spec.metadata[MODULE_OVERRIDES] = resource.module_overrides
         return spec
 
