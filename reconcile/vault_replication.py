@@ -158,7 +158,11 @@ def copy_vault_secret(
                 path=path,
             )
     except (SecretVersionNotFoundError, SecretNotFoundError):
-        logging.info(["replicate_vault_secret", "Secret not found", path])
+        # Handle cases where:
+        # 1. Secret doesn't exist in destination vault (SecretNotFoundError)
+        # 2. Secret exists but all versions are deleted (SecretVersionNotFoundError)
+        # In both cases, we need to replicate from source starting from version 0
+        logging.info(["replicate_vault_secret", "Secret not found or versions deleted", path])
         # Handle v1 secrets where version is None and we don't need to deep sync.
         if version is None:
             logging.info(["replicate_vault_secret", path])
