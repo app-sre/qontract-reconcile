@@ -103,10 +103,7 @@ def expected_default_region_aws_provider() -> dict[str, Any]:
 
 
 def test_init_with_default_tags(
-    mocker: MockerFixture,
-    default_account: dict[str, Any],
-    expected_supported_region_aws_provider: dict[str, Any],
-    expected_default_region_aws_provider: dict[str, Any],
+    mocker: MockerFixture, default_account: dict[str, Any]
 ) -> None:
     mocked_secret_reader = mocker.patch(
         "reconcile.utils.terrascript_aws_client.SecretReader",
@@ -117,16 +114,31 @@ def test_init_with_default_tags(
         "aws_secret_access_key": "some-secret-key",
     }
 
+    default_tags = {"tag1": "value1", "tag2": "value2"}
     ts = TerrascriptClient(
         "a_integration",
         "prefix",
         1,
         [default_account],
+        default_tags=default_tags,
     )
 
     assert ts.tss["account1"]["provider"]["aws"] == [
-        expected_supported_region_aws_provider,
-        expected_default_region_aws_provider,
+        {
+            "access_key": "some-key-id",
+            "secret_key": "some-secret-key",
+            "region": "us-east-1",
+            "alias": "us-east-1",
+            "skip_region_validation": True,
+            "default_tags": {"tags": default_tags},
+        },
+        {
+            "access_key": "some-key-id",
+            "secret_key": "some-secret-key",
+            "region": "us-east-1",
+            "skip_region_validation": True,
+            "default_tags": {"tags": default_tags},
+        },
     ]
 
 
@@ -203,6 +215,7 @@ def test_populate_additional_providers(
         "prefix",
         1,
         [default_account],
+        default_tags=None,
     )
     ts.populate_configs([cluster_account_no_assume_role])
     ts.populate_additional_providers(
@@ -219,7 +232,7 @@ def test_populate_additional_providers(
 
 @pytest.fixture
 def ts() -> TerrascriptClient:
-    return TerrascriptClient("", "", 1, [])
+    return TerrascriptClient("", "", 1, [], default_tags=None)
 
 
 def test_aws_username_org(ts: TerrascriptClient) -> None:
@@ -779,6 +792,7 @@ def ts_for_alb(mocker: MockerFixture) -> TerrascriptClient:
                 "resourcesDefaultRegion": "us-east-1",
             }
         ],
+        default_tags=None,
     )
 
 

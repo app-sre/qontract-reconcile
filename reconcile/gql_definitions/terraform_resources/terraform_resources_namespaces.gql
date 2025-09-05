@@ -23,6 +23,7 @@ query TerraformResourcesNamespaces {
             }
           }
           provider
+          tags
           ... on NamespaceTerraformResourceRDS_v1 {
             region
             identifier
@@ -448,9 +449,12 @@ query TerraformResourcesNamespaces {
     }
     environment {
       name
+      servicePhase
     }
     app {
       name
+      appCode
+      costCenter
     }
     cluster {
       name
