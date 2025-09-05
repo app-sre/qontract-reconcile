@@ -488,8 +488,11 @@ class TerrascriptClient:
         self.versions: dict[str, str] = {
             a["name"]: a["providerVersion"] for a in filtered_accounts
         }
-        self.default_tags = default_tags or {
-            "app": "app-sre-infra",
+        self.default_tags = {
+            "tags": default_tags
+            or {
+                "app": "app-sre-infra",
+            }
         }
         tss = {}
         locks = {}
@@ -507,7 +510,7 @@ class TerrascriptClient:
                         region=region,
                         alias=region,
                         skip_region_validation=True,
-                        default_tags={"tags": self.default_tags},
+                        default_tags=self.default_tags,
                     )
 
             # Add default region, which will be in resourcesDefaultRegion
@@ -516,7 +519,7 @@ class TerrascriptClient:
                 secret_key=config["aws_secret_access_key"],
                 region=config["resourcesDefaultRegion"],
                 skip_region_validation=True,
-                default_tags={"tags": self.default_tags},
+                default_tags=self.default_tags,
             )
 
             ts += Terraform(
@@ -1076,7 +1079,7 @@ class TerrascriptClient:
                         alias=alias,
                         assume_role={"role_arn": assume_role},
                         skip_region_validation=True,
-                        default_tags={"tags": self.default_tags},
+                        default_tags=self.default_tags,
                     )
                 else:
                     ts += provider.aws(
@@ -1085,7 +1088,7 @@ class TerrascriptClient:
                         region=region,
                         alias=alias,
                         skip_region_validation=True,
-                        default_tags={"tags": self.default_tags},
+                        default_tags=self.default_tags,
                     )
 
     def populate_route53(
