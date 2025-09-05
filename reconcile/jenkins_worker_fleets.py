@@ -195,6 +195,7 @@ def run(dry_run: bool) -> None:
         accounts=[],
         settings=settings,
         prefetch_resources_by_schemas=["/aws/asg-defaults-1.yml"],
+        default_tags=None,
     )
 
     for instance in jenkins_instances:

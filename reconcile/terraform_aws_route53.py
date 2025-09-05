@@ -9,6 +9,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import dnsutils
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
@@ -227,13 +228,18 @@ def run(
             f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
         )
         return
-
+    try:
+        default_tags = get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         "",
         thread_pool_size,
         participating_accounts,
         settings=settings,
+        default_tags=default_tags,
     )
 
     desired_state = build_desired_state(zones, all_accounts, settings)
