@@ -161,6 +161,10 @@ def test_dry_run(
         autospec=True,
     )
     mocked_query.return_value = [gql_class_factory(VPCRequest, vpc_request_dict())]
+    mocked_get_settings = mocker.patch(
+        "reconcile.terraform_vpc_resources.integration.get_settings"
+    )
+    mocked_get_settings.return_value.default_tags = None
 
     secret_reader = mocker.Mock(SecretReaderBase)
     secret_reader.read_all.side_effect = secret_reader_side_effect

@@ -470,10 +470,10 @@ class TerrascriptClient:
         integration_prefix: str,
         thread_pool_size: int,
         accounts: Iterable[MutableMapping[str, Any]],
+        default_tags: Mapping[str, str] | None,
         settings: Mapping[str, Any] | None = None,
         prefetch_resources_by_schemas: Iterable[str] | None = None,
         secret_reader: SecretReaderBase | None = None,
-        default_tags: Mapping[str, str] | None = None,
     ) -> None:
         self.integration = integration
         self.integration_prefix = integration_prefix
