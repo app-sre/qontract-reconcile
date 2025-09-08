@@ -270,6 +270,10 @@ def setup_mocks(
     mocked_queries = mocker.patch("reconcile.terraform_resources.queries")
     mocked_queries.get_aws_accounts.return_value = aws_accounts
     mocked_queries.get_app_interface_settings.return_value = []
+    mocked_external_resources_settings = mocker.patch(
+        "reconcile.terraform_resources.get_settings"
+    )
+    mocked_external_resources_settings.return_value.default_tags = {"tag1": "value1"}
 
     mocker.patch(
         "reconcile.terraform_resources.get_namespaces"
