@@ -455,7 +455,7 @@ def _generate_password() -> str:
     return "".join(choices(ascii_letters + digits, k=32))
 
 
-class _DBDonnections(TypedDict):
+class DBConnections(TypedDict):
     user: DatabaseConnectionParameters
     admin: DatabaseConnectionParameters
 
@@ -465,7 +465,7 @@ def _create_database_connection_parameter(
     namespace_name: str,
     oc: OCClient,
     admin_secret_name: str,
-) -> _DBDonnections:
+) -> DBConnections:
     def _decode_secret_value(value: str) -> str:
         return base64.b64decode(value).decode("utf-8")
 
@@ -481,7 +481,7 @@ def _create_database_connection_parameter(
     user = db_access.username
     password = _generate_password()
     database = db_access.database
-    return _DBDonnections(
+    return DBConnections(
         user=DatabaseConnectionParameters(
             host=host,
             port=port,

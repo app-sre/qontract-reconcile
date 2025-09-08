@@ -8,6 +8,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.database_access_manager import (
     DatabaseConnectionParameters,
+    DBConnections,
     JobData,
     JobFailedError,
     JobStatus,
@@ -15,7 +16,6 @@ from reconcile.database_access_manager import (
     PSQLScriptGenerator,
     _create_database_connection_parameter,
     _db_access_access_is_valid,
-    _DBDonnections,
     _generate_password,
     _populate_resources,
     _process_db_access,
@@ -430,7 +430,7 @@ def dbam_process_mocks(
 ) -> OpenshiftResource:
     mocker.patch(
         "reconcile.database_access_manager._create_database_connection_parameter",
-        return_value=_DBDonnections(
+        return_value=DBConnections(
             user=db_connection_parameter,
             admin=db_admin_connection_parameter,
         ),
