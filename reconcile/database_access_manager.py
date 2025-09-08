@@ -30,7 +30,6 @@ from reconcile.utils.oc import (
 )
 from reconcile.utils.openshift_resource import (
     OpenshiftResource,
-    base64_encode_secret_field_value,
 )
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -182,24 +181,6 @@ def secret_head(name: str) -> dict[str, Any]:
     }
 
 
-def generate_user_secret_spec(
-    name: str, db_connection: DatabaseConnectionParameters
-) -> OpenshiftResource:
-    secret = secret_head(name)
-    secret["data"] = {
-        "db.host": base64_encode_secret_field_value(db_connection.host),
-        "db.name": base64_encode_secret_field_value(db_connection.database),
-        "db.password": base64_encode_secret_field_value(db_connection.password),
-        "db.port": base64_encode_secret_field_value(db_connection.port),
-        "db.user": base64_encode_secret_field_value(db_connection.user),
-    }
-    return OpenshiftResource(
-        body=secret,
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-    )
-
-
 def generate_script_secret_spec(name: str, script: str) -> OpenshiftResource:
     secret = secret_head(name)
     secret["data"] = {
@@ -225,7 +206,7 @@ def get_db_engine(resource: NamespaceTerraformResourceRDSV1) -> str:
 
 class JobData(BaseModel):
     engine: str
-    name_suffix: str
+    name: str
     image: str
     service_account_name: str
     rds_admin_secret_name: str
@@ -234,7 +215,7 @@ class JobData(BaseModel):
 
 
 def get_job_spec(job_data: JobData) -> OpenshiftResource:
-    job_name = f"dbam-{job_data.name_suffix}"
+    job_name = job_data.name
 
     image_tag = Image(job_data.image).tag
     image_pull_policy = "Always" if image_tag == "latest" else "IfNotPresent"
@@ -428,13 +409,10 @@ def _populate_resources(
     if user_connection.database == admin_connection.database:
         raise ValueError(f"Can not use default database {admin_connection.database}")
 
-    managed_resources: list[DBAMResource] = []
     # create service account
-    managed_resources.append(
-        DBAMResource(
-            resource=get_service_account_spec(resource_prefix),
-            clean_up=True,
-        )
+    service_account_resource = DBAMResource(
+        resource=get_service_account_spec(resource_prefix),
+        clean_up=True,
     )
 
     # create script secret
@@ -446,53 +424,53 @@ def _populate_resources(
         engine=engine,
     )
     script_secret_name = f"{resource_prefix}-script"
-    managed_resources.extend([
-        DBAMResource(
-            resource=generate_script_secret_spec(
-                script_secret_name,
-                generator.generate_script(),
-            ),
-            clean_up=True,
+    secret_script_resource = DBAMResource(
+        resource=generate_script_secret_spec(
+            script_secret_name,
+            generator.generate_script(),
         ),
-        # create user secret
-        DBAMResource(
-            resource=generate_user_secret_spec(resource_prefix, user_connection),
-            clean_up=False,
-        ),
-    ])
-    # create pull secret
-    labels = pull_secret["labels"] or {}
-    pull_secret_resources = orb.fetch_provider_vault_secret(
-        path=pull_secret["path"],
-        version=pull_secret["version"],
-        name=f"{resource_prefix}-pull-secret",
-        labels=labels,
-        annotations=pull_secret["annotations"] or {},
-        type=pull_secret["type"],
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-        settings=settings,
+        clean_up=True,
     )
-    managed_resources.extend([
-        DBAMResource(resource=pull_secret_resources, clean_up=True),
-        # create job
-        DBAMResource(
-            resource=get_job_spec(
-                JobData(
-                    engine=engine,
-                    name_suffix=db_access.name,
-                    image=job_image,
-                    service_account_name=resource_prefix,
-                    rds_admin_secret_name=admin_secret_name,
-                    script_secret_name=script_secret_name,
-                    pull_secret=f"{resource_prefix}-pull-secret",
-                )
-            ),
-            clean_up=True,
-        ),
-    ])
 
-    return managed_resources
+    # create pull secret
+    pull_secret_resource = DBAMResource(
+        resource=(
+            orb.fetch_provider_vault_secret(
+                path=pull_secret["path"],
+                version=pull_secret["version"],
+                name=f"{resource_prefix}-pull-secret",
+                labels=pull_secret["labels"] or {},
+                annotations=pull_secret["annotations"] or {},
+                type=pull_secret["type"],
+                integration=QONTRACT_INTEGRATION,
+                integration_version=QONTRACT_INTEGRATION_VERSION,
+                settings=settings,
+            )
+        ),
+        clean_up=True,
+    )
+
+    job_resource = DBAMResource(
+        resource=get_job_spec(
+            JobData(
+                engine=engine,
+                name=resource_prefix,
+                image=job_image,
+                service_account_name=resource_prefix,
+                rds_admin_secret_name=admin_secret_name,
+                script_secret_name=script_secret_name,
+                pull_secret=f"{resource_prefix}-pull-secret",
+            )
+        ),
+        clean_up=True,
+    )
+
+    return [
+        service_account_resource,
+        secret_script_resource,
+        pull_secret_resource,
+        job_resource,
+    ]
 
 
 def _generate_password() -> str:
@@ -509,17 +487,10 @@ def _create_database_connection_parameter(
     namespace_name: str,
     oc: OCClient,
     admin_secret_name: str,
-    user_secret_name: str,
 ) -> _DBDonnections:
     def _decode_secret_value(value: str) -> str:
         return base64.b64decode(value).decode("utf-8")
 
-    user_secret = oc.get(
-        namespace_name,
-        "Secret",
-        user_secret_name,
-        allow_not_found=True,
-    )
     admin_secret = oc.get(
         namespace_name,
         "Secret",
@@ -527,18 +498,11 @@ def _create_database_connection_parameter(
         allow_not_found=False,
     )
 
-    if user_secret:
-        password = _decode_secret_value(user_secret["data"]["db.password"])
-        host = _decode_secret_value(user_secret["data"]["db.host"])
-        user = _decode_secret_value(user_secret["data"]["db.user"])
-        port = _decode_secret_value(user_secret["data"]["db.port"])
-        database = _decode_secret_value(user_secret["data"]["db.name"])
-    else:
-        host = _decode_secret_value(admin_secret["data"]["db.host"])
-        port = _decode_secret_value(admin_secret["data"]["db.port"])
-        user = db_access.username
-        password = _generate_password()
-        database = db_access.database
+    host = _decode_secret_value(admin_secret["data"]["db.host"])
+    port = _decode_secret_value(admin_secret["data"]["db.port"])
+    user = db_access.username
+    password = _generate_password()
+    database = db_access.database
     return _DBDonnections(
         user=DatabaseConnectionParameters(
             host=host,
@@ -601,7 +565,7 @@ def _process_db_access(
     cluster_name = namespace.cluster.name
     namespace_name = namespace.name
 
-    resource_prefix = f"dbam-{db_access.name}"
+    resource_prefix = f"dbam-{state_key.replace('/', '-')}"
     with OC_Map(
         clusters=[namespace.cluster.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
@@ -614,7 +578,6 @@ def _process_db_access(
             namespace_name,
             oc,
             admin_secret_name,
-            resource_prefix,
         )
 
         sql_query_settings = settings.get("sqlQuery")
@@ -643,7 +606,7 @@ def _process_db_access(
         job = oc.get(
             namespace_name,
             "Job",
-            f"dbam-{db_access.name}",
+            resource_prefix,
             allow_not_found=True,
         )
         if not job:
@@ -666,9 +629,7 @@ def _process_db_access(
         )
         if job_status.is_complete():
             if job_status.has_errors():
-                raise JobFailedError(
-                    f"Job dbam-{db_access.name} failed, please check logs"
-                )
+                raise JobFailedError(f"Job {resource_prefix} failed, please check logs")
             if not dry_run and not db_access.delete:
                 secret = {
                     "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{state_key}",
@@ -693,7 +654,7 @@ def _process_db_access(
                 force=True,
             )
         else:
-            logging.info(f"Job dbam-{db_access.name} appears to be still running")
+            logging.info(f"Job {resource_prefix} appears to be still running")
 
 
 class DBAMIntegrationParams(PydanticRunParams):

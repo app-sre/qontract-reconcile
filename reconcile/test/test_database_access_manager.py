@@ -371,34 +371,7 @@ def test_populate_resources(
     )
 
     r_kinds = [r.resource.kind for r in reources]
-    assert sorted(r_kinds) == ["Job", "Secret", "Secret", "ServiceAccount", "secret"]
-
-
-def test__create_database_connection_parameter_user_exists(
-    db_access: DatabaseAccessV1,
-    db_secret_dict: dict[str, dict[str, str]],
-    mocker: MockerFixture,
-) -> None:
-    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.return_value = db_secret_dict
-    p = _create_database_connection_parameter(
-        db_access=db_access,
-        namespace_name="foo",
-        oc=oc,
-        admin_secret_name="db-secret",
-        user_secret_name="db-user-secret",
-    )
-    conn = DatabaseConnectionParameters(
-        host="localhost",
-        port="5432",
-        user="test",
-        password="hduhsdfuhsdf",
-        database="test",
-    )
-
-    assert p["user"] == conn
-    assert p["admin"] == conn
-    assert oc.get.call_count == 2
+    assert sorted(r_kinds) == ["Job", "Secret", "ServiceAccount", "secret"]
 
 
 def test__create_database_connection_parameter_user_missing(
@@ -408,7 +381,7 @@ def test__create_database_connection_parameter_user_missing(
 ) -> None:
     pw_generated = "1N5j7oksB45l8w0RJD8qR0ENJP1yOAOs"  # notsecret
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.side_effect = [None, db_secret_dict]
+    oc.get.return_value = db_secret_dict
     mocker.patch(
         "reconcile.database_access_manager._generate_password",
         return_value=pw_generated,
@@ -418,7 +391,6 @@ def test__create_database_connection_parameter_user_missing(
         namespace_name="foo",
         oc=oc,
         admin_secret_name="db-secret",
-        user_secret_name="db-user-secret",
     )
     conn = DatabaseConnectionParameters(
         host="localhost",
@@ -433,7 +405,6 @@ def test__create_database_connection_parameter_user_missing(
 
     assert p["user"] == conn
     assert p["admin"] == admin_conn
-    assert oc.get.call_count == 2
 
 
 def test_generate_password() -> None:
@@ -676,7 +647,7 @@ def test__process_db_access_state_exists_matched(
 def test_get_job_spec(fxt: Fixtures) -> None:
     job_data = JobData(
         engine="postgres",
-        name_suffix="test-database",
+        name="dbam-test-database",
         image="quay.io/app-sre/yet-another-debug-container",
         service_account_name="service-account-name",
         rds_admin_secret_name="rds-admin-secret-name",
