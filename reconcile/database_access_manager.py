@@ -557,10 +557,10 @@ def _create_database_connection_parameter(
     )
 
 
-def _db_access_acccess_is_valid(db_acces: DatabaseAccessV1) -> bool:
+def _db_access_access_is_valid(db_access: DatabaseAccessV1) -> bool:
     found_schema: set[str] = set()
 
-    for schema in db_acces.access or []:
+    for schema in db_access.access or []:
         if schema.target.dbschema in found_schema:
             return False
         found_schema.add(schema.target.dbschema)
@@ -575,6 +575,7 @@ class JobFailedError(Exception):
 def _process_db_access(
     dry_run: bool,
     state: State,
+    state_key: str,
     db_access: DatabaseAccessV1,
     namespace: NamespaceV1,
     admin_secret_name: str,
@@ -583,12 +584,12 @@ def _process_db_access(
     vault_output_path: str,
     vault_client: VaultClient,
 ) -> None:
-    if not _db_access_acccess_is_valid(db_access):
+    if not _db_access_access_is_valid(db_access):
         raise ValueError("Duplicate schema in access list.")
 
     current_db_access: DatabaseAccessV1 | None = None
-    if state.exists(db_access.name):
-        current_state = state.get(db_access.name)
+    if state.exists(state_key):
+        current_state = state.get(state_key)
         if current_state == db_access.dict(by_alias=True):
             return
         current_db_access = DatabaseAccessV1(**current_state)
@@ -670,7 +671,7 @@ def _process_db_access(
                 )
             if not dry_run and not db_access.delete:
                 secret = {
-                    "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{cluster_name}/{namespace_name}/{db_access.name}",
+                    "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{state_key}",
                     "data": connections["user"].dict(by_alias=True),
                 }
                 vault_client.write(secret, decode_base64=False)
@@ -687,7 +688,7 @@ def _process_db_access(
                         enable_deletion=True,
                     )
             state.add(
-                db_access.name,
+                state_key,
                 value=db_access.dict(by_alias=True),
                 force=True,
             )
@@ -734,9 +735,11 @@ class DatabaseAccessManagerIntegration(QontractReconcileIntegration):
 
                     for db_access in resource.database_access or []:
                         try:
+                            state_key = f"{external_resource.provisioner.name}/{resource.identifier}/{db_access.name}"
                             _process_db_access(
                                 dry_run,
                                 state,
+                                state_key,
                                 db_access,
                                 namespace,
                                 admin_secret_name,

@@ -15,7 +15,7 @@ from reconcile.database_access_manager import (
     JobStatusCondition,
     PSQLScriptGenerator,
     _create_database_connection_parameter,
-    _db_access_acccess_is_valid,
+    _db_access_access_is_valid,
     _DBDonnections,
     _generate_password,
     _populate_resources,
@@ -317,13 +317,13 @@ def test_generate_delete_complete(
     _assert_revoke_access(script)
 
 
-def test_db_access_acccess_is_valid(
+def test_db_access_access_is_valid(
     db_access_complete: DatabaseAccessV1, db_access_access: DatabaseAccessAccessV1
 ) -> None:
     assert db_access_complete.access
-    assert _db_access_acccess_is_valid(db_access_complete)
+    assert _db_access_access_is_valid(db_access_complete)
     db_access_complete.access.append(db_access_access)
-    assert not _db_access_acccess_is_valid(db_access_complete)
+    assert not _db_access_access_is_valid(db_access_complete)
 
 
 def test_job_completion() -> None:
@@ -508,7 +508,8 @@ def test__process_db_access_job_pass(
     _process_db_access(
         False,
         dbam_state,
-        db_access,
+        state_key="test-provisioner/test-db/test",
+        db_access=db_access,
         namespace=db_access_namespace,
         admin_secret_name="db-secret",
         engine="postgres",
@@ -519,7 +520,7 @@ def test__process_db_access_job_pass(
 
     vault_mock.write.assert_called_once_with(
         {
-            "path": "foo/database-access-manager/test-cluster/test-namespace/test",
+            "path": "foo/database-access-manager/test-provisioner/test-db/test",
             "data": {
                 "host": "localhost",
                 "port": "5432",
@@ -563,7 +564,8 @@ def test__process_db_access_job_error(
         _process_db_access(
             False,
             dbam_state,
-            db_access,
+            state_key="test-provisioner/test-db/test",
+            db_access=db_access,
             namespace=db_access_namespace,
             admin_secret_name="db-secret",
             engine="postgres",
@@ -597,7 +599,8 @@ def test__process_db_access_state_diff(
     _process_db_access(
         False,
         dbam_state,
-        db_access,
+        state_key="test-provisioner/test-db/test",
+        db_access=db_access,
         namespace=db_access_namespace,
         admin_secret_name="db-secret",
         engine="postgres",
@@ -636,7 +639,8 @@ def test__process_db_access_value_error_database(
         _process_db_access(
             False,
             dbam_state,
-            db_access,
+            state_key="test-provisioner/test-db/test",
+            db_access=db_access,
             namespace=db_access_namespace,
             admin_secret_name="db-secret",
             engine="postgres",
@@ -658,7 +662,8 @@ def test__process_db_access_state_exists_matched(
     _process_db_access(
         False,
         dbam_state,
-        db_access,
+        state_key="test-provisioner/test-db/test",
+        db_access=db_access,
         namespace=db_access_namespace,
         admin_secret_name="db-secret",
         engine="postgres",
