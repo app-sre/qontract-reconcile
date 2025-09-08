@@ -3,13 +3,13 @@ import os
 import pytest
 import yaml
 
-from reconcile.utils.sloth import SLODocumentDict, SlothInputError, generate_sloth_rules
+from reconcile.utils.sloth import SLODocument, SlothInputError, generate_sloth_rules
 
 
 def test_generate_sloth_rules_success() -> None:
     """Test generate_sloth_rules function with valid SLO document input"""
     # Sample SLO document with new format
-    slo_document: SLODocumentDict = {
+    slo_document: SLODocument = {
         "name": "test-app",
         "app": {"name": "test-app"},
         "slos": [
@@ -56,7 +56,7 @@ def test_generate_sloth_rules_success() -> None:
 
 def test_generate_sloth_rules_no_slos() -> None:
     """Test generate_sloth_rules raises SlothInputError when no SLOs defined"""
-    slo_document: SLODocumentDict = {
+    slo_document: SLODocument = {
         "name": "test-app",
         "app": {"name": "test-app"},
     }
@@ -67,7 +67,7 @@ def test_generate_sloth_rules_no_slos() -> None:
 
 def test_generate_sloth_rules_empty_slos() -> None:
     """Test generate_sloth_rules raises SlothInputError when SLOs list is empty"""
-    slo_document: SLODocumentDict = {
+    slo_document: SLODocument = {
         "name": "test-app",
         "app": {"name": "test-app"},
         "slos": [],
@@ -79,7 +79,7 @@ def test_generate_sloth_rules_empty_slos() -> None:
 
 def test_generate_sloth_rules_no_valid_slos() -> None:
     """Test generate_sloth_rules raises SlothInputError when no SLOs have required queries"""
-    slo_document: SLODocumentDict = {
+    slo_document: SLODocument = {
         "name": "test-app",
         "app": {"name": "test-app"},
         "slos": [

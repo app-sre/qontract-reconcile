@@ -29,7 +29,7 @@ class SLOParametersDict(TypedDict):
     window: str
 
 
-class SLODict(TypedDict):
+class SLO(TypedDict):
     name: str
     SLIType: str
     SLISpecification: str
@@ -42,14 +42,14 @@ class SLODict(TypedDict):
     SLITotalQuery: NotRequired[str]
 
 
-class AppDict(TypedDict):
+class App(TypedDict):
     name: str
 
 
-class SLODocumentDict(TypedDict):
+class SLODocument(TypedDict):
     name: str
-    app: AppDict
-    slos: NotRequired[list[SLODict]]
+    app: App
+    slos: NotRequired[list[SLO]]
 
 
 class SlothGenerateError(Exception):
@@ -119,7 +119,7 @@ def run_sloth(spec: dict[str, Any]) -> str:
 
 
 def generate_sloth_rules(
-    slo_document: SLODocumentDict,
+    slo_document: SLODocument,
     version: str = "prometheus/v1",
 ) -> str:
     """Generate Prometheus rules for an slo_document_v1 using sloth
