@@ -372,14 +372,6 @@ def get_service_account_spec(name: str) -> OpenshiftResource:
     )
 
 
-class DBAMResource(BaseModel):
-    resource: OpenshiftResource
-    clean_up: bool
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
 class JobStatusCondition(BaseModel):
     type: str
 
@@ -405,15 +397,12 @@ def _populate_resources(
     user_connection: DatabaseConnectionParameters,
     admin_connection: DatabaseConnectionParameters,
     current_db_access: DatabaseAccessV1 | None = None,
-) -> list[DBAMResource]:
+) -> list[OpenshiftResource]:
     if user_connection.database == admin_connection.database:
         raise ValueError(f"Can not use default database {admin_connection.database}")
 
     # create service account
-    service_account_resource = DBAMResource(
-        resource=get_service_account_spec(resource_prefix),
-        clean_up=True,
-    )
+    service_account_resource = get_service_account_spec(resource_prefix)
 
     # create script secret
     generator = PSQLScriptGenerator(
@@ -424,45 +413,34 @@ def _populate_resources(
         engine=engine,
     )
     script_secret_name = f"{resource_prefix}-script"
-    secret_script_resource = DBAMResource(
-        resource=generate_script_secret_spec(
-            script_secret_name,
-            generator.generate_script(),
-        ),
-        clean_up=True,
+    secret_script_resource = generate_script_secret_spec(
+        script_secret_name,
+        generator.generate_script(),
     )
 
     # create pull secret
-    pull_secret_resource = DBAMResource(
-        resource=(
-            orb.fetch_provider_vault_secret(
-                path=pull_secret["path"],
-                version=pull_secret["version"],
-                name=f"{resource_prefix}-pull-secret",
-                labels=pull_secret["labels"] or {},
-                annotations=pull_secret["annotations"] or {},
-                type=pull_secret["type"],
-                integration=QONTRACT_INTEGRATION,
-                integration_version=QONTRACT_INTEGRATION_VERSION,
-                settings=settings,
-            )
-        ),
-        clean_up=True,
+    pull_secret_resource = orb.fetch_provider_vault_secret(
+        path=pull_secret["path"],
+        version=pull_secret["version"],
+        name=f"{resource_prefix}-pull-secret",
+        labels=pull_secret["labels"] or {},
+        annotations=pull_secret["annotations"] or {},
+        type=pull_secret["type"],
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+        settings=settings,
     )
 
-    job_resource = DBAMResource(
-        resource=get_job_spec(
-            JobData(
-                engine=engine,
-                name=resource_prefix,
-                image=job_image,
-                service_account_name=resource_prefix,
-                rds_admin_secret_name=admin_secret_name,
-                script_secret_name=script_secret_name,
-                pull_secret=f"{resource_prefix}-pull-secret",
-            )
-        ),
-        clean_up=True,
+    job_resource = get_job_spec(
+        JobData(
+            engine=engine,
+            name=resource_prefix,
+            image=job_image,
+            service_account_name=resource_prefix,
+            rds_admin_secret_name=admin_secret_name,
+            script_secret_name=script_secret_name,
+            pull_secret=f"{resource_prefix}-pull-secret",
+        )
     )
 
     return [
@@ -616,8 +594,8 @@ def _process_db_access(
                     oc_map=oc_map,
                     cluster=cluster_name,
                     namespace=namespace_name,
-                    resource_type=r.resource.kind,
-                    resource=r.resource,
+                    resource_type=r.kind,
+                    resource=r,
                     wait_for_namespace=False,
                 )
             return
@@ -638,16 +616,15 @@ def _process_db_access(
                 vault_client.write(secret, decode_base64=False)
             logging.debug("job completed, cleaning up")
             for r in managed_resources:
-                if r.clean_up:
-                    openshift_base.delete(
-                        dry_run=dry_run,
-                        oc_map=oc_map,
-                        cluster=cluster_name,
-                        namespace=namespace_name,
-                        resource_type=r.resource.kind,
-                        name=r.resource.name,
-                        enable_deletion=True,
-                    )
+                openshift_base.delete(
+                    dry_run=dry_run,
+                    oc_map=oc_map,
+                    cluster=cluster_name,
+                    namespace=namespace_name,
+                    resource_type=r.kind,
+                    name=r.name,
+                    enable_deletion=True,
+                )
             state.add(
                 state_key,
                 value=db_access.dict(by_alias=True),
