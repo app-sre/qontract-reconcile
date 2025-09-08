@@ -23,7 +23,6 @@ def test_generate_sloth_rules_success() -> None:
                 "SLISpecification": "availability",
                 "SLOParameters": {"window": "30d"},
                 "SLODetails": "test details",
-                "dashboard": "test-dashboard",
                 "expr": "test-expr",
             },
             {
@@ -36,7 +35,6 @@ def test_generate_sloth_rules_success() -> None:
                 "SLISpecification": "latency",
                 "SLOParameters": {"window": "30d"},
                 "SLODetails": "test details",
-                "dashboard": "test-dashboard",
                 "expr": "test-expr",
             },
         ],
@@ -94,7 +92,6 @@ def test_generate_sloth_rules_no_valid_slos() -> None:
                 "SLISpecification": "availability",
                 "SLOParameters": {"window": "30d"},
                 "SLODetails": "test details",
-                "dashboard": "test-dashboard",
                 "expr": "test-expr",
             },
             {
@@ -107,7 +104,6 @@ def test_generate_sloth_rules_no_valid_slos() -> None:
                 "SLISpecification": "latency",
                 "SLOParameters": {"window": "30d"},
                 "SLODetails": "test details",
-                "dashboard": "test-dashboard",
                 "expr": "test-expr",
             },
         ],

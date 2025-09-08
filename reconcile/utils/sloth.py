@@ -31,7 +31,6 @@ class SLOParametersDict(TypedDict):
 
 class SLODict(TypedDict):
     name: str
-    dashboard: str
     SLIType: str
     SLISpecification: str
     SLOTarget: float
@@ -49,9 +48,7 @@ class AppDict(TypedDict):
 
 class SLODocumentDict(TypedDict):
     name: str
-    labels: NotRequired[Any]
     app: AppDict
-    namespaces: NotRequired[list[Any]]
     slos: NotRequired[list[SLODict]]
 
 
