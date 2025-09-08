@@ -58,33 +58,4 @@ as the `CMD` in the 3rd build stage labeled prod-image.
 ## Testing
 
 The [Makefile](../Makefile) has the target `test` that runs the tests for the
-qontract reconcile:
-
-```Makefile
-test: test-app test-container-image
-```
-
-The relationship for the targets is as follows:
-
-```text
-                +------+
-                | test |
-                +------+
-                 /   \
-                v     v
-      +----------+ +----------------------+
-      | test-app | | test-container-image |
-      +----------+ +----------------------+
-           |                 |
-           |                 |
-           v                 |
-     +------------+          |
-     | all-tests  |          |
-     +------------+          v
-                        +---------+
-                        |  build  |
-                        +---------+
-```
-
-The target `test-container-image` builds the image and runs structure tests to test
-the images structure, `test-app` builds the image for testing and runs the unit tests `all-tests`
+qontract reconcile.
