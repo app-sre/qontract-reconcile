@@ -1,5 +1,9 @@
+import subprocess
+import tempfile
 from io import StringIO
-from typing import NotRequired, TypedDict
+from typing import Any, NotRequired, TypedDict
+
+import yaml
 
 from reconcile.utils.ruamel import create_ruamel_instance
 
@@ -19,6 +23,46 @@ class PrometheusRuleGroup(TypedDict):
 
 class PrometheusRuleSpec(TypedDict):
     groups: list[PrometheusRuleGroup]
+
+
+class SLOParametersDict(TypedDict):
+    window: str
+
+
+class SLODict(TypedDict):
+    name: str
+    dashboard: str
+    SLIType: str
+    SLISpecification: str
+    SLOTarget: float
+    SLOTargetUnit: str
+    SLOParameters: SLOParametersDict
+    SLODetails: str
+    expr: str
+    SLIErrorQuery: NotRequired[str]
+    SLITotalQuery: NotRequired[str]
+
+
+class AppDict(TypedDict):
+    name: str
+
+
+class SLODocumentDict(TypedDict):
+    name: str
+    labels: NotRequired[Any]
+    app: AppDict
+    namespaces: NotRequired[list[Any]]
+    slos: NotRequired[list[SLODict]]
+
+
+class SlothGenerateError(Exception):
+    def __init__(self, msg: Any):
+        super().__init__("sloth generate failed: " + str(msg))
+
+
+class SlothInputError(Exception):
+    def __init__(self, msg: Any):
+        super().__init__("sloth input validation failed: " + str(msg))
 
 
 def process_sloth_output(output_file_path: str) -> str:
@@ -49,7 +93,129 @@ def process_sloth_output(output_file_path: str) -> str:
                 rule["annotations"] = annotations
             else:
                 rule.pop("annotations", None)
-
     with StringIO() as s:
         ruamel_instance.dump(data, s)
         return s.getvalue()
+
+
+def run_sloth(spec: dict[str, Any]) -> str:
+    with (
+        tempfile.NamedTemporaryFile(
+            encoding="utf-8", mode="w", suffix=".yml"
+        ) as input_file,
+        tempfile.NamedTemporaryFile(
+            encoding="utf-8", mode="w", suffix=".yml"
+        ) as output_file,
+    ):
+        yaml.dump(spec, input_file, allow_unicode=True)
+        cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
+        try:
+            subprocess.run(cmd, capture_output=True, check=True, text=True)
+        except subprocess.CalledProcessError as e:
+            error_msg = f"{e}"
+            if e.stdout:
+                error_msg += f"\nstdout: {e.stdout}"
+            if e.stderr:
+                error_msg += f"\nstderr: {e.stderr}"
+            raise SlothGenerateError(error_msg) from e
+        return process_sloth_output(output_file.name)
+
+
+def generate_sloth_rules(
+    slo_document: SLODocumentDict,
+    version: str = "prometheus/v1",
+) -> str:
+    """Generate Prometheus rules for an slo_document_v1 using sloth
+
+    Args:
+        slo_document query:
+            {
+                slo_docs: slo_document_v1(filter: {name: "foo"}) {
+                    name
+                    app {
+                        name
+                    }
+                    slos {
+                        name
+                        SLIType
+                        SLOTargetUnit
+                        SLOParameters {
+                            window
+                        }
+                        expr
+                        SLOTarget
+                        SLIErrorQuery
+                        SLITotalQuery
+                    }
+                }
+            }
+        version: Spec version (default: "prometheus/v1")
+
+    Returns:
+        Generated Prometheus rules as YAML string
+    """
+    if not slo_document.get("slos"):
+        raise SlothInputError("SLO document has no SLOs defined")
+
+    service = slo_document["app"]["name"]
+    # only process SLOs that have both error and total queries defined
+    slos_input = []
+    for slo in slo_document["slos"]:
+        if not (slo.get("SLIErrorQuery") and slo.get("SLITotalQuery")):
+            continue
+
+        # Convert SLOTargetUnit to sloth expected unit
+        if slo["SLOTargetUnit"] == "percent_0_1":
+            slo_target = slo["SLOTarget"] * 100
+        else:
+            slo_target = slo["SLOTarget"]
+
+        slo_input = {
+            "name": slo["name"],
+            "objective": slo_target,
+            "description": f"{slo['name']} SLO for {service}",
+            "sli": {
+                "events": {
+                    "error_query": slo["SLIErrorQuery"].replace(
+                        "{{window}}", "{{.window}}"
+                    ),
+                    "total_query": slo["SLITotalQuery"].replace(
+                        "{{window}}", "{{.window}}"
+                    ),
+                }
+            },
+            "alerting": {
+                "name": f"{service.title()}{slo['name'].title()}",
+                "annotations": {
+                    "summary": f"High error rate on {service} {slo['name']}",
+                    "message": f"High error rate on {service} {slo['name']}",
+                },
+                "page_alert": {
+                    "labels": {
+                        "severity": "critical",
+                        "service": service,
+                        "slo": slo["name"],
+                    }
+                },
+                "ticket_alert": {
+                    "labels": {
+                        "severity": "medium",
+                        "service": service,
+                        "slo": slo["name"],
+                    }
+                },
+            },
+        }
+        slos_input.append(slo_input)
+
+    if not slos_input:
+        raise SlothInputError(
+            "No SLOs found with both SLIErrorQuery and SLITotalQuery defined"
+        )
+
+    spec = {
+        "version": version,
+        "service": service,
+        "slos": slos_input,
+    }
+    return run_sloth(spec)

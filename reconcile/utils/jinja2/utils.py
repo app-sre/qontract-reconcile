@@ -1,13 +1,10 @@
 import datetime
 import os
-import subprocess
-import tempfile
 from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
 
 import jinja2
-import yaml
 from github import Github
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
@@ -38,7 +35,7 @@ from reconcile.utils.secret_reader import (
     SecretReader,
     SecretReaderBase,
 )
-from reconcile.utils.sloth import process_sloth_output
+from reconcile.utils.sloth import generate_sloth_rules
 from reconcile.utils.vault import SecretFieldNotFoundError
 
 
@@ -192,95 +189,6 @@ def list_s3_objects(
         )
 
 
-def sloth_alerts(
-    slos: list[dict[str, Any]],
-    service: str,
-    version: str = "prometheus/v1",
-) -> str:
-    """Generate Prometheus rules using sloth: https://sloth.dev
-
-    Args:
-        slos: List of slo objects containing following attributes:
-            - app_name
-            - name
-            - target
-            - error_query
-            - total_query
-        service: Service name identifier
-        version: Spec version (default: "prometheus/v1")
-
-    Returns:
-        Generated Prometheus rules as YAML string
-    """
-    # Build the SLO definitions
-    slos_input = [
-        {
-            "name": slo["name"],
-            "objective": slo["target"],
-            "description": f"{slo['name']} SLO for {service}",
-            "sli": {
-                "events": {
-                    "error_query": slo["error_query"].replace(
-                        "{{window}}", "{{.window}}"
-                    ),
-                    "total_query": slo["total_query"].replace(
-                        "{{window}}", "{{.window}}"
-                    ),
-                }
-            },
-            "alerting": {
-                "name": f"{service.title()}{slo['name'].title()}",
-                "annotations": {
-                    "summary": f"High error rate on {service} {slo['name']}",
-                    "message": f"High error rate on {service} {slo['name']}",
-                },
-                "page_alert": {
-                    "labels": {
-                        "severity": "critical",
-                        "service": service,
-                        "slo": slo["name"],
-                    }
-                },
-                "ticket_alert": {
-                    "labels": {
-                        "severity": "medium",
-                        "service": service,
-                        "slo": slo["name"],
-                    }
-                },
-            },
-        }
-        for slo in slos
-    ]
-
-    spec = {
-        "version": version,
-        "service": service,
-        "slos": slos_input,
-    }
-
-    with (
-        tempfile.NamedTemporaryFile(
-            encoding="utf-8", mode="w", suffix=".yml"
-        ) as input_file,
-        tempfile.NamedTemporaryFile(
-            encoding="utf-8", mode="w", suffix=".yml"
-        ) as output_file,
-    ):
-        yaml.dump(spec, input_file, allow_unicode=True)
-        cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
-        try:
-            subprocess.run(cmd, capture_output=True, check=True, text=True)
-        except subprocess.CalledProcessError as e:
-            error_msg = f"{e}"
-            if e.stdout:
-                error_msg += f"\nstdout: {e.stdout}"
-            if e.stderr:
-                error_msg += f"\nstderr: {e.stderr}"
-            raise SlothGenerateError(error_msg) from e
-        return process_sloth_output(output_file.name)
-
-
 @retry()
 def lookup_secret(
     path: str,
@@ -354,7 +262,7 @@ def process_jinja2_template(
         "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
             "%Y-%m-%d"
         ),
-        "sloth_alerts": sloth_alerts,
+        "sloth_alerts": generate_sloth_rules,
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():
@@ -385,11 +293,6 @@ def process_extracurlyjinja2_template(
         secret_reader=secret_reader,
         template_render_options=template_render_options,
     )
-
-
-class SlothGenerateError(Exception):
-    def __init__(self, msg: Any):
-        super().__init__("sloth generate failed: " + str(msg))
 
 
 class FetchSecretError(Exception):
