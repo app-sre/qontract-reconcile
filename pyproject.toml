@@ -82,7 +82,7 @@ dev = [
     "pytest-mock ~=3.6",
     "qenerate==0.8.0",
     "responses ~=0.25.0",
-    "ruff ~=0.12.4",
+    "ruff==0.12.12",
     "smtpdfix ~=0.5.2",
     "snakeviz ~=2.2.2",
     "testslide ~=2.7.1",
