@@ -118,6 +118,15 @@ def run_sloth(spec: dict[str, Any]) -> str:
         return process_sloth_output(output_file.name)
 
 
+def get_slo_target(slo: SLO) -> float:
+    """
+    Ensure SLO target unit aligns with format expected by sloth for 'Objective' attribute
+    https://pkg.go.dev/github.com/slok/sloth/pkg/prometheus/api/v1#section-readme
+    """
+    val = float(slo["SLOTarget"])
+    return val * (100.0 if slo.get("SLOTargetUnit") == "percent_0_1" else 1.0)
+
+
 def generate_sloth_rules(
     slo_document: SLODocument,
     version: str = "prometheus/v1",
@@ -156,20 +165,10 @@ def generate_sloth_rules(
 
     service = slo_document["app"]["name"]
     # only process SLOs that have both error and total queries defined
-    slos_input = []
-    for slo in slo_document["slos"]:
-        if not (slo.get("SLIErrorQuery") and slo.get("SLITotalQuery")):
-            continue
-
-        # Convert SLOTargetUnit to sloth expected unit
-        if slo["SLOTargetUnit"] == "percent_0_1":
-            slo_target = slo["SLOTarget"] * 100
-        else:
-            slo_target = slo["SLOTarget"]
-
-        slo_input = {
+    slo_input = [
+        {
             "name": slo["name"],
-            "objective": slo_target,
+            "objective": get_slo_target(slo),
             "description": f"{slo['name']} SLO for {service}",
             "sli": {
                 "events": {
@@ -203,9 +202,11 @@ def generate_sloth_rules(
                 },
             },
         }
-        slos_input.append(slo_input)
+        for slo in slo_document["slos"]
+        if slo.get("SLIErrorQuery") and slo.get("SLITotalQuery")
+    ]
 
-    if not slos_input:
+    if not slo_input:
         raise SlothInputError(
             "No SLOs found with both SLIErrorQuery and SLITotalQuery defined"
         )
@@ -213,6 +214,6 @@ def generate_sloth_rules(
     spec = {
         "version": version,
         "service": service,
-        "slos": slos_input,
+        "slos": slo_input,
     }
     return run_sloth(spec)
