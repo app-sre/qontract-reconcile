@@ -181,33 +181,35 @@ def test_print_diff_with_invalid_job_name(
     assert str(e_info.value) == "Invalid job name contains '/' in ci-int: group/project"
 
 
-
 def test_get_jobs_parses_jjb_templates() -> None:
     """Test that get_jobs parses JJB templates and generates job definitions using real jenkins-jobs library"""
     fixtures_dir = Path(__file__).parent.parent / "fixtures" / "jjb"
     ini_path = fixtures_dir / "jenkins.ini"
     config_path = fixtures_dir / "jobs.yaml"
-    
+
     with tempfile.TemporaryDirectory() as temp_dir:
         instance_ini = Path(temp_dir) / "jenkins.ini"
         jjb_config = Path(temp_dir) / "config.yaml"
-        
+
         instance_ini.write_text(ini_path.read_text())
         jjb_config.write_text(config_path.read_text())
-        
+
         jjb = JJB(configs=[], print_only=True)
-        
+
         jobs = jjb.get_jobs(temp_dir, "jenkins")
-        
+
         assert isinstance(jobs, list)
         assert len(jobs) == 2
-        
-        job_names = [job['name'] for job in jobs]
-        assert 'sample-service-build' in job_names
-        assert 'sample-service-pr-check' in job_names
-        
+
+        job_names = [job["name"] for job in jobs]
+        assert "sample-service-build" in job_names
+        assert "sample-service-pr-check" in job_names
+
         for job in jobs:
-            assert 'name' in job
-            assert 'properties' in job
-            assert 'github' in job['properties'][0]
-            assert job['properties'][0]['github']['url'] == 'https://github.com/example/sample-service'
+            assert "name" in job
+            assert "properties" in job
+            assert "github" in job["properties"][0]
+            assert (
+                job["properties"][0]["github"]["url"]
+                == "https://github.com/example/sample-service"
+            )
