@@ -84,6 +84,47 @@ def deep_copy_versions(
             dest_vault.write(secret=write_dict, decode_base64=False, force=True)
 
 
+def _handle_missing_destination_secret(
+    dry_run: bool,
+    source_vault: VaultClient,
+    dest_vault: VaultClient,
+    source_version: int | None,
+    path: str,
+) -> None:
+    """Handles replication when destination secret is missing or has no accessible versions.
+
+    This covers two scenarios:
+    1. Secret doesn't exist at all in destination vault (SecretNotFoundError)
+    2. Secret exists but all versions are deleted in KV v2 (SecretVersionNotFoundError)
+
+    For both cases, we replicate from source starting from version 0 (or copy directly for v1).
+    """
+    secret_dict = {"path": path, "version": "LATEST"}
+
+    if source_version is None:
+        # v1 secret - just copy it over
+        logging.info(["replicate_vault_secret", "Copying v1 secret", path])
+        if not dry_run:
+            secret, _ = source_vault.read_all_with_version(secret_dict)
+            write_dict = {"path": path, "data": secret}
+            dest_vault.write(secret=write_dict, decode_base64=False, force=True)
+    else:
+        # v2 secret - deep copy all versions starting from 0
+        logging.info([
+            "replicate_vault_secret",
+            "Deep copying v2 secret versions",
+            path,
+        ])
+        deep_copy_versions(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            current_dest_version=0,
+            current_source_version=source_version,
+            path=path,
+        )
+
+
 def write_dummy_versions(
     dry_run: bool,
     dest_vault: VaultClient,
@@ -136,44 +177,34 @@ def copy_vault_secret(
     except SecretVersionNotFoundError:
         # Handle KV v2 case where secret metadata exists but latest version is deleted
         # This occurs when someone manually deletes the latest version but the secret
-        # metadata still exists in Vault. Treat this as if the secret doesn't exist
-        # in the destination and replicate all versions from source.
-        logging.info(["replicate_vault_secret", "Latest version deleted, replicating all versions", path])
-        if version is None:
-            # v1 secret - just copy it over
-            if not dry_run:
-                secret, _ = source_vault.read_all_with_version(secret_dict)
-                write_dict = {"path": path, "data": secret}
-                dest_vault.write(secret=write_dict, decode_base64=False, force=True)
-        else:
-            # v2 secret - deep copy all versions starting from 0
-            deep_copy_versions(
-                dry_run=dry_run,
-                source_vault=source_vault,
-                dest_vault=dest_vault,
-                current_dest_version=0,
-                current_source_version=version,
-                path=path,
-            )
+        # metadata still exists in Vault. This should only happen for v2 secrets.
+        logging.info([
+            "replicate_vault_secret",
+            "KV v2 latest version deleted, replicating all versions",
+            path,
+        ])
+        _handle_missing_destination_secret(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            source_version=version,
+            path=path,
+        )
         return
     except SecretNotFoundError:
         # Handle case where secret doesn't exist at all in destination vault
-        logging.info(["replicate_vault_secret", "Secret not found", path])
-        if version is None:
-            logging.info(["replicate_vault_secret", path])
-            if not dry_run:
-                secret, _ = source_vault.read_all_with_version(secret_dict)
-                write_dict = {"path": path, "data": secret}
-                dest_vault.write(secret=write_dict, decode_base64=False, force=True)
-        else:
-            deep_copy_versions(
-                dry_run=dry_run,
-                source_vault=source_vault,
-                dest_vault=dest_vault,
-                current_dest_version=0,
-                current_source_version=version,
-                path=path,
-            )
+        logging.info([
+            "replicate_vault_secret",
+            "Secret not found in destination",
+            path,
+        ])
+        _handle_missing_destination_secret(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            source_version=version,
+            path=path,
+        )
         return
 
     # If we reach here, we successfully read the destination secret

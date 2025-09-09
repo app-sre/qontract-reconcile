@@ -393,6 +393,33 @@ def test_copy_vault_secret_not_found_v2(mocker: MockerFixture) -> None:
     deep_copy_versions.assert_called()
 
 
+def test_copy_vault_secret_version_not_found_v2(mocker: MockerFixture) -> None:
+    """Test handling of KV v2 secret where metadata exists but latest version is deleted."""
+    dry_run = True
+    vault_client = mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
+
+    # Source has version 2, destination throws SecretVersionNotFoundError 
+    # (metadata exists but no accessible versions)
+    vault_client.read_all_with_version.side_effect = [
+        ["secret", 2],  # source read succeeds
+        SecretVersionNotFoundError(),  # destination read fails - deleted latest version
+    ]
+    deep_copy_versions = mocker.patch(
+        "reconcile.vault_replication.deep_copy_versions", autospec=True
+    )
+
+    integ.copy_vault_secret(
+        dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
+    )
+    
+    # Should call read_all_with_version twice: source and destination
+    assert vault_client.read_all_with_version.call_count == 2
+    # Should call deep_copy_versions to replicate all versions starting from 0
+    deep_copy_versions.assert_called_once_with(
+        dry_run, vault_client, vault_client, 0, 2, "path"
+    )
+
+
 @pytest.mark.parametrize("dry_run, path", [[False, "path"], [True, "path"]])
 def test_copy_vault_secret_not_found_v1(
     dry_run: bool, path: str, mocker: MockerFixture
