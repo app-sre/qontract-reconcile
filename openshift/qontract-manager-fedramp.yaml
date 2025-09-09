@@ -40,6 +40,15 @@ objects:
             limits:
               memory: 20Mi
           env:
+          - name: SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.webhook_url
+                name: app-interface
+          - name: SLACK_CHANNEL
+            value: ${SLACK_CHANNEL}
+          - name: SLACK_ICON_EMOJI
+            value: ${SLACK_ICON_EMOJI}
           - name: GOOGLE_CHAT_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -95,6 +104,15 @@ objects:
 
             <match integration>
               @type copy
+              <store>
+                @type slack
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                icon_emoji ${SLACK_ICON_EMOJI}
+                username sd-app-sre-bot
+                flush_interval 10s
+                message "\`\`\`[integrations-manager] %s\`\`\`"
+              </store>
               <store>
                 @type cloudwatch_logs
                 log_group_name ${LOG_GROUP_NAME}

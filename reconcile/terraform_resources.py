@@ -27,6 +27,7 @@ from reconcile.gql_definitions.terraform_resources.terraform_resources_namespace
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
@@ -158,6 +159,7 @@ def init_working_dirs(
     accounts: list[dict[str, Any]],
     thread_pool_size: int,
     settings: Mapping[str, Any] | None = None,
+    default_tags: Mapping[str, str] | None = None,
 ) -> tuple[Terrascript, dict[str, str]]:
     ts = Terrascript(
         QONTRACT_INTEGRATION,
@@ -165,6 +167,7 @@ def init_working_dirs(
         thread_pool_size,
         accounts,
         settings=settings,
+        default_tags=default_tags,
     )
     working_dirs = ts.dump()
     return ts, working_dirs
@@ -241,8 +244,15 @@ def setup(
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     settings = queries.get_app_interface_settings() or {}
+    try:
+        default_tags = get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     # initialize terrascript (scripting engine to generate terraform manifests)
-    ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
+    ts, working_dirs = init_working_dirs(
+        accounts, thread_pool_size, settings=settings, default_tags=default_tags
+    )
 
     # initialize terraform client
     # it is used to plan and apply according to the output of terrascript
