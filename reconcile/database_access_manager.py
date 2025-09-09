@@ -30,6 +30,7 @@ from reconcile.utils.oc import (
 )
 from reconcile.utils.openshift_resource import (
     OpenshiftResource,
+    base64_encode_secret_field_value,
 )
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -179,6 +180,24 @@ def secret_head(name: str) -> dict[str, Any]:
             "name": name,
         },
     }
+
+
+def generate_user_secret_spec(
+    name: str, db_connection: DatabaseConnectionParameters
+) -> OpenshiftResource:
+    secret = secret_head(name)
+    secret["data"] = {
+        "db.host": base64_encode_secret_field_value(db_connection.host),
+        "db.name": base64_encode_secret_field_value(db_connection.database),
+        "db.password": base64_encode_secret_field_value(db_connection.password),
+        "db.port": base64_encode_secret_field_value(db_connection.port),
+        "db.user": base64_encode_secret_field_value(db_connection.user),
+    }
+    return OpenshiftResource(
+        body=secret,
+        integration=QONTRACT_INTEGRATION,
+        integration_version=QONTRACT_INTEGRATION_VERSION,
+    )
 
 
 def generate_script_secret_spec(name: str, script: str) -> OpenshiftResource:
@@ -418,6 +437,12 @@ def _populate_resources(
         generator.generate_script(),
     )
 
+    # create user secret
+    user_secret_resource = generate_user_secret_spec(
+        resource_prefix,
+        user_connection,
+    )
+
     # create pull secret
     pull_secret_resource = orb.fetch_provider_vault_secret(
         path=pull_secret["path"],
@@ -446,6 +471,7 @@ def _populate_resources(
     return [
         service_account_resource,
         secret_script_resource,
+        user_secret_resource,
         pull_secret_resource,
         job_resource,
     ]
@@ -460,34 +486,70 @@ class DBConnections(TypedDict):
     admin: DatabaseConnectionParameters
 
 
+def _decode_secret_value(value: str) -> str:
+    return base64.b64decode(value).decode("utf-8")
+
+
+def _build_user_connection(
+    db_access: DatabaseAccessV1,
+    admin_secret: dict[str, Any],
+    user_secret: dict[str, Any],
+) -> DatabaseConnectionParameters:
+    """
+    Build user connection parameters.
+
+    If user secret exists, use values from it as that's the one used to provision new database user.
+    Otherwise, generate a new password, this info will be saved as cluster secret.
+    After job completes, the secret will be saved to vault then deleted from the cluster.
+
+    Args:
+        db_access (DatabaseAccessV1): Database access definition from app-interface.
+        admin_secret (dict[str, Any]): Admin secret fetched from the cluster.
+        user_secret (dict[str, Any]): User secret fetched from the cluster, may be empty if not exists.
+    Returns:
+        DatabaseConnectionParameters: Connection parameters for the database user.
+    """
+    if user_secret:
+        return DatabaseConnectionParameters(
+            host=_decode_secret_value(user_secret["data"]["db.host"]),
+            port=_decode_secret_value(user_secret["data"]["db.port"]),
+            user=_decode_secret_value(user_secret["data"]["db.user"]),
+            password=_decode_secret_value(user_secret["data"]["db.password"]),
+            database=_decode_secret_value(user_secret["data"]["db.name"]),
+        )
+    return DatabaseConnectionParameters(
+        host=_decode_secret_value(admin_secret["data"]["db.host"]),
+        port=_decode_secret_value(admin_secret["data"]["db.port"]),
+        user=db_access.username,
+        password=_generate_password(),
+        database=db_access.database,
+    )
+
+
 def _create_database_connection_parameter(
     db_access: DatabaseAccessV1,
     namespace_name: str,
     oc: OCClient,
     admin_secret_name: str,
+    user_secret_name: str,
 ) -> DBConnections:
-    def _decode_secret_value(value: str) -> str:
-        return base64.b64decode(value).decode("utf-8")
-
+    user_secret = oc.get(
+        namespace_name,
+        "Secret",
+        user_secret_name,
+        allow_not_found=True,
+    )
     admin_secret = oc.get(
         namespace_name,
         "Secret",
         admin_secret_name,
         allow_not_found=False,
     )
-
-    host = _decode_secret_value(admin_secret["data"]["db.host"])
-    port = _decode_secret_value(admin_secret["data"]["db.port"])
-    user = db_access.username
-    password = _generate_password()
-    database = db_access.database
     return DBConnections(
-        user=DatabaseConnectionParameters(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=database,
+        user=_build_user_connection(
+            db_access=db_access,
+            admin_secret=admin_secret,
+            user_secret=user_secret,
         ),
         admin=DatabaseConnectionParameters(
             host=_decode_secret_value(admin_secret["data"]["db.host"]),
@@ -556,6 +618,7 @@ def _process_db_access(
             namespace_name,
             oc,
             admin_secret_name,
+            user_secret_name=resource_prefix,
         )
 
         sql_query_settings = settings.get("sqlQuery")

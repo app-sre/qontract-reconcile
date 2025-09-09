@@ -370,7 +370,34 @@ def test_populate_resources(
     )
 
     r_kinds = [r.kind for r in reources]
-    assert sorted(r_kinds) == ["Job", "Secret", "ServiceAccount", "secret"]
+    assert sorted(r_kinds) == ["Job", "Secret", "Secret", "ServiceAccount", "secret"]
+
+
+def test__create_database_connection_parameter_user_exists(
+    db_access: DatabaseAccessV1,
+    db_secret_dict: dict[str, dict[str, str]],
+    mocker: MockerFixture,
+) -> None:
+    oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    oc.get.return_value = db_secret_dict
+    p = _create_database_connection_parameter(
+        db_access=db_access,
+        namespace_name="foo",
+        oc=oc,
+        admin_secret_name="db-secret",
+        user_secret_name="db-user-secret",
+    )
+    conn = DatabaseConnectionParameters(
+        host="localhost",
+        port="5432",
+        user="test",
+        password="hduhsdfuhsdf",
+        database="test",
+    )
+
+    assert p["user"] == conn
+    assert p["admin"] == conn
+    assert oc.get.call_count == 2
 
 
 def test__create_database_connection_parameter_user_missing(
@@ -380,7 +407,7 @@ def test__create_database_connection_parameter_user_missing(
 ) -> None:
     pw_generated = "1N5j7oksB45l8w0RJD8qR0ENJP1yOAOs"  # notsecret
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    oc.get.return_value = db_secret_dict
+    oc.get.side_effect = [None, db_secret_dict]
     mocker.patch(
         "reconcile.database_access_manager._generate_password",
         return_value=pw_generated,
@@ -390,6 +417,7 @@ def test__create_database_connection_parameter_user_missing(
         namespace_name="foo",
         oc=oc,
         admin_secret_name="db-secret",
+        user_secret_name="db-user-secret",
     )
     conn = DatabaseConnectionParameters(
         host="localhost",
@@ -404,6 +432,7 @@ def test__create_database_connection_parameter_user_missing(
 
     assert p["user"] == conn
     assert p["admin"] == admin_conn
+    assert oc.get.call_count == 2
 
 
 def test_generate_password() -> None:
