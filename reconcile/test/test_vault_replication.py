@@ -398,7 +398,7 @@ def test_copy_vault_secret_version_not_found_v2(mocker: MockerFixture) -> None:
     dry_run = True
     vault_client = mocker.patch("reconcile.utils.vault.VaultClient", autospec=True)
 
-    # Source has version 2, destination throws SecretVersionNotFoundError 
+    # Source has version 2, destination throws SecretVersionNotFoundError
     # (metadata exists but no accessible versions)
     vault_client.read_all_with_version.side_effect = [
         ["secret", 2],  # source read succeeds
@@ -411,7 +411,7 @@ def test_copy_vault_secret_version_not_found_v2(mocker: MockerFixture) -> None:
     integ.copy_vault_secret(
         dry_run=dry_run, source_vault=vault_client, dest_vault=vault_client, path="path"
     )
-    
+
     # Should call read_all_with_version twice: source and destination
     assert vault_client.read_all_with_version.call_count == 2
     # Should call deep_copy_versions to replicate all versions starting from 0
@@ -487,8 +487,8 @@ def test_copy_vault_secret_found_same_version_v2(mocker: MockerFixture) -> None:
 @pytest.mark.parametrize(
     "dry_run, path, return_values",
     [
-        [False, "path", [["secret2", None], ["secret", None], ["secret", None]]],
-        [True, "path", [["secret2", None], ["secret", None], ["secret", None]]],
+        [False, "path", [["secret2", None], ["secret", None]]],
+        [True, "path", [["secret2", None], ["secret", None]]],
     ],
 )
 def test_copy_vault_secret_found_v1(
@@ -510,7 +510,7 @@ def test_copy_vault_secret_found_v1(
     if not dry_run:
         vault_client.read_all_with_version.assert_called()
         vault_client.write.assert_called_once_with(
-            {"path": path, "data": "secret"}, False, True
+            secret={"path": path, "data": "secret2"}, decode_base64=False, force=True
         )
         deep_copy_versions.assert_not_called()
     else:

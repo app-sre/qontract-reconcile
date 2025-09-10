@@ -88,6 +88,7 @@ def _handle_missing_destination_secret(
     dry_run: bool,
     source_vault: VaultClient,
     dest_vault: VaultClient,
+    source_data: dict,
     source_version: int | None,
     path: str,
 ) -> None:
@@ -98,18 +99,24 @@ def _handle_missing_destination_secret(
     2. Secret exists but all versions are deleted in KV v2 (SecretVersionNotFoundError)
 
     For both cases, we replicate from source starting from version 0 (or copy directly for v1).
-    """
-    secret_dict = {"path": path, "version": "LATEST"}
 
+    Args:
+        dry_run: Whether this is a dry run
+        source_vault: Source vault client (needed for v2 deep copy)
+        dest_vault: Destination vault client
+        source_data: Already retrieved source secret data
+        source_version: Source secret version (None for v1 secrets)
+        path: Secret path
+    """
     if source_version is None:
-        # v1 secret - just copy it over
+        # v1 secret - just copy it over using the already-retrieved source data
         logging.info(["replicate_vault_secret", "Copying v1 secret", path])
         if not dry_run:
-            secret, _ = source_vault.read_all_with_version(secret_dict)
-            write_dict = {"path": path, "data": secret}
+            write_dict = {"path": path, "data": source_data}
             dest_vault.write(secret=write_dict, decode_base64=False, force=True)
     else:
         # v2 secret - deep copy all versions starting from 0
+        # Note: deep_copy_versions will read individual versions from source as needed
         logging.info([
             "replicate_vault_secret",
             "Deep copying v2 secret versions",
@@ -187,6 +194,7 @@ def copy_vault_secret(
             dry_run=dry_run,
             source_vault=source_vault,
             dest_vault=dest_vault,
+            source_data=source_data,
             source_version=version,
             path=path,
         )
@@ -202,6 +210,7 @@ def copy_vault_secret(
             dry_run=dry_run,
             source_vault=source_vault,
             dest_vault=dest_vault,
+            source_data=source_data,
             source_version=version,
             path=path,
         )
@@ -215,8 +224,7 @@ def copy_vault_secret(
             # to copy it again
             return
 
-        secret, _ = source_vault.read_all_with_version(secret_dict)
-        write_dict = {"path": path, "data": secret}
+        write_dict = {"path": path, "data": source_data}
         logging.info(["replicate_vault_secret", path])
         if not dry_run:
             # Using force=True to write the secret to force the vault client even
