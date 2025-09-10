@@ -11,7 +11,7 @@ from typing import (
     TypedDict,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sretoolbox.container.image import Image
 
 from reconcile import openshift_base, queries
@@ -62,11 +62,14 @@ def get_database_access_namespaces(
 
 
 class DatabaseConnectionParameters(BaseModel):
-    host: str
-    port: str
-    user: str
-    password: str
-    database: str
+    host: str = Field(..., alias="db.host")
+    port: str = Field(..., alias="db.port")
+    user: str = Field(..., alias="db.user")
+    password: str = Field(..., alias="db.password")
+    database: str = Field(..., alias="db.name")
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class PSQLScriptGenerator(BaseModel):
