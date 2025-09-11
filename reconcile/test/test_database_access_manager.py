@@ -520,11 +520,11 @@ def test__process_db_access_job_pass(
         {
             "path": "foo/database-access-manager/test-provisioner/test-db/test",
             "data": {
-                "host": "localhost",
-                "port": "5432",
-                "user": "test",
-                "password": "postgres",
-                "database": "user",
+                "db.host": "localhost",
+                "db.port": "5432",
+                "db.user": "test",
+                "db.password": "postgres",
+                "db.name": "user",
             },
         },
         decode_base64=False,
