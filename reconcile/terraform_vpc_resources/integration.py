@@ -20,6 +20,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.aws_vpc_requests import get_aws_vpc_requests
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
@@ -162,12 +163,18 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             sys.exit(ExitCodes.SUCCESS)
 
         accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
+        try:
+            default_tags = get_settings().default_tags
+        except ValueError:
+            # no external resources settings found
+            default_tags = None
         with TerrascriptClient(
             integration=QONTRACT_INTEGRATION,
             integration_prefix=QONTRACT_TF_PREFIX,
             thread_pool_size=thread_pool_size,
             accounts=accounts_untyped,
             secret_reader=secret_reader,
+            default_tags=default_tags,
         ) as ts_client:
             ts_client.populate_vpc_requests(data, AWS_PROVIDER_VERSION)
 

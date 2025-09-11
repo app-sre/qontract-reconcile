@@ -68,7 +68,7 @@ def terrascript(
         "reconcile.utils.terrascript_aws_client.SecretReader", autospec=True
     )
     mock_secret_reader.return_value.read_all.return_value = secret
-    return TerrascriptClient("", "", 1, accounts)
+    return TerrascriptClient("", "", 1, accounts, default_tags=None)
 
 
 def test_wrong_region_aws_api(

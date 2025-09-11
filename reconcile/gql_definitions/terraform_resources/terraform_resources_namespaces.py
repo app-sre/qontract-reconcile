@@ -80,6 +80,7 @@ query TerraformResourcesNamespaces {
             }
           }
           provider
+          tags
           ... on NamespaceTerraformResourceRDS_v1 {
             region
             identifier
@@ -505,9 +506,12 @@ query TerraformResourcesNamespaces {
     }
     environment {
       name
+      servicePhase
     }
     app {
       name
+      appCode
+      costCenter
     }
     cluster {
       name
@@ -561,6 +565,7 @@ class NamespaceTerraformResourceGenericSecretOutputFormatV1(NamespaceTerraformRe
 class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
     output_format: Optional[Union[NamespaceTerraformResourceGenericSecretOutputFormatV1, NamespaceTerraformResourceOutputFormatV1]] = Field(..., alias="output_format")
     provider: str = Field(..., alias="provider")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class AWSRDSEventNotificationV1(ConfiguredBaseModel):
@@ -1076,10 +1081,13 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
 
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    service_phase: str = Field(..., alias="servicePhase")
 
 
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    app_code: str = Field(..., alias="appCode")
+    cost_center: str = Field(..., alias="costCenter")
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
