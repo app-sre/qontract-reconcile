@@ -37,6 +37,7 @@ class SLO(TypedDict):
     SLOTargetUnit: str
     SLOParameters: SLOParametersDict
     SLODetails: str
+    dashboard: str
     expr: str
     SLIErrorQuery: NotRequired[str]
     SLITotalQuery: NotRequired[str]
@@ -152,6 +153,8 @@ def generate_sloth_rules(
                         SLOTarget
                         SLIErrorQuery
                         SLITotalQuery
+                        SLODetails
+                        dashboard
                     }
                 }
             }
@@ -185,6 +188,8 @@ def generate_sloth_rules(
                 "annotations": {
                     "summary": f"High error rate on {service} {slo['name']}",
                     "message": f"High error rate on {service} {slo['name']}",
+                    "runbook": slo["SLODetails"],
+                    "dashboard": slo["dashboard"],
                 },
                 "page_alert": {
                     "labels": {

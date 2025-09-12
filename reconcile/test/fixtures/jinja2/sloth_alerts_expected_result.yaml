@@ -160,7 +160,9 @@ groups:
       severity: critical
       slo: Availability
     annotations:
+      dashboard: https://grafana.com/dashboard
       message: High error rate on test-app Availability
+      runbook: https://gitlab.com/test-app/availability-runbook.md
       summary: High error rate on test-app Availability
   - alert: Test-AppAvailability
     expr: |
@@ -180,7 +182,9 @@ groups:
       severity: medium
       slo: Availability
     annotations:
+      dashboard: https://grafana.com/dashboard
       message: High error rate on test-app Availability
+      runbook: https://gitlab.com/test-app/availability-runbook.md
       summary: High error rate on test-app Availability
 - name: sloth-slo-sli-recordings-test-app-Latency
   rules:
@@ -339,7 +343,9 @@ groups:
       severity: critical
       slo: Latency
     annotations:
+      dashboard: https://grafana.com/dashboard
       message: High error rate on test-app Latency
+      runbook: https://gitlab.com/test-app/latency-runbook.md
       summary: High error rate on test-app Latency
   - alert: Test-AppLatency
     expr: |
@@ -359,5 +365,7 @@ groups:
       severity: medium
       slo: Latency
     annotations:
+      dashboard: https://grafana.com/dashboard
       message: High error rate on test-app Latency
+      runbook: https://gitlab.com/test-app/latency-runbook.md
       summary: High error rate on test-app Latency
