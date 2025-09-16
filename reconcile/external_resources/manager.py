@@ -2,6 +2,7 @@ import logging
 from collections import Counter
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from typing import cast
 
 from sretoolbox.utils import threaded
 
@@ -67,7 +68,7 @@ def setup_factories(
                 resource_factories=setup_aws_resource_factories(
                     er_inventory, secret_reader
                 ),
-                default_tags=settings.default_tags,
+                default_tags=cast("dict[str, str]", settings.default_tags),
             )
         }
     )
