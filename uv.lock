@@ -1675,7 +1675,7 @@ requires-dist = [
     { name = "sendgrid", specifier = ">=6.4.8,<6.5.0" },
     { name = "sentry-sdk", specifier = "~=2.0" },
     { name = "slack-sdk", specifier = ">=3.10,<4.0" },
-    { name = "sretoolbox", specifier = "~=2.7" },
+    { name = "sretoolbox", specifier = "==2.7" },
     { name = "sshtunnel", specifier = ">=0.4.0" },
     { name = "tabulate", specifier = ">=0.8.6,<0.9.0" },
     { name = "terrascript", specifier = "==0.9.0" },
