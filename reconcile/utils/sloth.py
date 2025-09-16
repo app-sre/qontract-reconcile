@@ -200,7 +200,7 @@ def generate_sloth_rules(
                 },
                 "ticket_alert": {
                     "labels": {
-                        "severity": "medium",
+                        "severity": "high",
                         "service": service,
                         "slo": slo["name"],
                     }
