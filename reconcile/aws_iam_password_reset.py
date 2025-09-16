@@ -90,16 +90,16 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
                 )
             )
 
-    for a in accounts_to_reset:
-        if not a.reset_passwords:
+    for account_to_reset in accounts_to_reset:
+        if not account_to_reset.reset_passwords:
             continue
 
-        with AWSApi(1, [a.account], settings=settings) as aws_api:
-            for r in a.reset_passwords:
+        with AWSApi(1, [account_to_reset.account], settings=settings) as aws_api:
+            for r in account_to_reset.reset_passwords:
                 user_name = r.user_name
                 state_key = r.state_key
 
-                account_name = a.account["name"]
+                account_name = account_to_reset.account["name"]
 
                 logging.info(["reset_password", account_name, user_name])
 

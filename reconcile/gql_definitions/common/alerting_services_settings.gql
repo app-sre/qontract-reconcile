@@ -1,7 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
- query AlertingServicesSettings {
-   settings: app_interface_settings_v1 {
-      alertingServices
-   }
- }
+query AlertingServicesSettings {
+  settings: app_interface_settings_v1 {
+    alertingServices
+  }
+}

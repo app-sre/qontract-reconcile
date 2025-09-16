@@ -8,21 +8,21 @@ query OpenshiftClusterBotsQuery($name: String) {
     ocm {
       name
       environment {
-        ... OCMEnvironment
+        ...OCMEnvironment
       }
       orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     clusterAdmin
     clusterAdminAutomationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     disable {
       integrations

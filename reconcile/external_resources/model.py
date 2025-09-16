@@ -1,5 +1,4 @@
 import hashlib
-import json
 from abc import (
     ABC,
 )
@@ -37,6 +36,7 @@ from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
+from reconcile.utils.json import json_dumps
 
 
 class ExternalResourceOrphanedResourcesError(Exception):
@@ -88,9 +88,7 @@ class ExternalResourceKey(BaseModel, frozen=True):
         )
 
     def hash(self) -> str:
-        return hashlib.md5(
-            json.dumps(self.dict(), sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        return hashlib.md5(json_dumps(self.dict()).encode("utf-8")).hexdigest()
 
     @property
     def state_path(self) -> str:
@@ -115,7 +113,9 @@ class ExternalResourcesInventory(MutableMapping):
             (rp, ns)
             for ns in namespaces
             for rp in ns.external_resources or []
-            if isinstance(rp, SUPPORTED_RESOURCE_PROVIDERS) and rp.resources
+            if isinstance(rp, SUPPORTED_RESOURCE_PROVIDERS)
+            and rp.resources
+            and ns.managed_external_resources
         ]
 
         desired_specs = [
@@ -144,9 +144,9 @@ class ExternalResourcesInventory(MutableMapping):
                     MODULE_OVERRIDES,
                 }
             ),
-            namespace=namespace.dict(),
+            namespace=namespace.dict(by_alias=True),
         )
-        spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete
+        spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete or namespace.delete
         spec.metadata[MODULE_OVERRIDES] = resource.module_overrides
         return spec
 
@@ -438,6 +438,4 @@ class ExternalResource(BaseModel):
     provision: ExternalResourceProvision
 
     def hash(self) -> str:
-        return hashlib.md5(
-            json.dumps(self.data, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        return hashlib.md5(json_dumps(self.data).encode("utf-8")).hexdigest()

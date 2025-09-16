@@ -163,6 +163,8 @@ objects:
             value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
+          - name: GOV_SLACK
+            value: "${GOV_SLACK}"
           - name: IMAGE
             value: "${IMAGE}"
           - name: IMAGE_TAG
@@ -260,13 +262,16 @@ parameters:
 - name: BUSYBOX_IMAGE_PULL_POLICY
   value: Always
 - name: FLUENTD_IMAGE
-  value: quay.io/app-sre/fluentd
+  value: quay.io/redhat-services-prod/app-sre-tenant/fluentd-master/fluentd-master
 - name: FLUENTD_IMAGE_TAG
   value: latest
 - name: FLUENTD_IMAGE_PULL_POLICY
   value: Always
 - name: ENVIRONMENT_NAME
   value: app-interface
+- name: GOV_SLACK
+  value: "false"
+  required: false
 - name: DRY_RUN
   value: --dry-run
 - name: MANAGER_DRY_RUN

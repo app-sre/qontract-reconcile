@@ -1,0 +1,12 @@
+template:
+  name: full
+
+  targetPath: /some/saas/deploy.yml
+
+  condition: |
+    {{ 1 == 2 }}
+
+  template: |
+    foo: abc
+
+  templateTest: []

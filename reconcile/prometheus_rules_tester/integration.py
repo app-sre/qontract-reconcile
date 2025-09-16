@@ -42,7 +42,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 PROVIDERS = ["prometheus-rule"]
 
 NAMESPACE_NAME = "openshift-customer-monitoring"
-DEFAULT_PROMTOOL_VERSION = "2.55.1"
+DEFAULT_PROMTOOL_VERSION = "3.2.1"
 
 
 class TestContent(BaseModel):

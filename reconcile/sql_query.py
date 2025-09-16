@@ -229,6 +229,7 @@ def collect_queries(
         accounts=[],
         prefetch_resources_by_schemas=["/aws/rds-defaults-1.yml"],
         secret_reader=secret_reader,
+        default_tags=None,
     )
 
     for sql_query in sql_queries:

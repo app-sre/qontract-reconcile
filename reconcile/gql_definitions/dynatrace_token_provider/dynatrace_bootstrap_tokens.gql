@@ -5,7 +5,7 @@ query DynatraceEnvironment {
     name
     description
     bootstrapToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     environmentID
     environmentUrl

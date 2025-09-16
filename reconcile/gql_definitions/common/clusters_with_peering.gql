@@ -1,25 +1,24 @@
 # qenerate: plugin=pydantic_v1
 
 query ClustersWithPeering {
-  clusters: clusters_v1
-  {
+  clusters: clusters_v1 {
     path
     name
     ocm {
       name
       environment {
-        ... OCMEnvironment
+        ...OCMEnvironment
       }
       orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        ... VaultSecret
+        ...VaultSecret
       }
       blockedVersions
     }
     awsInfrastructureManagementAccounts {
-      ... AWSInfrastructureManagementAccount
+      ...AWSInfrastructureManagementAccount
     }
 
     spec {
@@ -44,7 +43,7 @@ query ClustersWithPeering {
         delete
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
-            ... AWSVPC
+            ...AWSVPC
           }
           assumeRole
           manageAccountRoutes
@@ -55,7 +54,7 @@ query ClustersWithPeering {
             uid
             terraformUsername
             automationToken {
-              ... VaultSecret
+              ...VaultSecret
             }
           }
           tags
@@ -66,7 +65,7 @@ query ClustersWithPeering {
             uid
             terraformUsername
             automationToken {
-              ... VaultSecret
+              ...VaultSecret
             }
           }
           tags
@@ -87,7 +86,7 @@ query ClustersWithPeering {
               region
             }
             awsInfrastructureManagementAccounts {
-              ... AWSInfrastructureManagementAccount
+              ...AWSInfrastructureManagementAccount
             }
             peering {
               connections {
@@ -104,7 +103,7 @@ query ClustersWithPeering {
                     uid
                     terraformUsername
                     automationToken {
-                      ... VaultSecret
+                      ...VaultSecret
                     }
                   }
                 }

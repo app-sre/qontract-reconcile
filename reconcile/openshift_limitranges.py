@@ -39,7 +39,7 @@ def construct_resources(
         # Get the linked limitRanges schema settings
         limitranges = namespace.get("limitRanges", {})
 
-        body: MutableMapping[str, Any] = {
+        body: dict[str, Any] = {
             "apiVersion": "v1",
             "kind": "LimitRange",
             "metadata": {

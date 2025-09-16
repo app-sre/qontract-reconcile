@@ -1,0 +1,32 @@
+- defaults:
+    name: global
+    description: 'Global defaults for all jobs'
+
+- job-template:
+    name: '{project-name}-{job-type}'
+    description: 'Template for {project-name} {job-type} jobs'
+    project-type: freestyle
+    properties:
+      - github:
+          url: '{repo-url}'
+    scm:
+      - git:
+          url: '{repo-url}'
+          branches:
+            - '{branch}'
+    triggers:
+      - github-pull-request:
+          trigger-phrase: '.*test.*'
+          admin-list: ['admin1', 'admin2']
+
+- project:
+    name: example-project
+    app_name: sample-app
+    project-name: sample-service
+    repo-url: https://github.com/example/sample-service
+    branch: main
+    jobs:
+      - '{project-name}-{job-type}':
+          job-type: build
+      - '{project-name}-{job-type}':
+          job-type: pr-check

@@ -19,7 +19,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 
 DEFINITION = """
-query AcsRbac  {
+query AcsRbac {
   acs_rbacs: users_v1 {
     org_username
     roles {

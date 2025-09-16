@@ -58,18 +58,21 @@ fragment VPCRequest on VPCRequest_v1 {
   cidr_block {
     networkAddress
   }
+  vpc_tags
   subnets {
-    private 
+    private
     public
     availability_zones
+    private_subnet_tags
+    public_subnet_tags
   }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query VPCRequest {

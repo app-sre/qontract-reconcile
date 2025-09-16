@@ -12,7 +12,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 
 def test_single_new_config_hash(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -61,7 +61,7 @@ def test_single_new_config_hash(
 
 def test_both_new_config_hashes(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -110,7 +110,7 @@ def test_both_new_config_hashes(
 
 def test_both_new_config_hashes_one_bad_deployment(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -160,7 +160,7 @@ def test_both_new_config_hashes_one_bad_deployment(
 
 def test_both_new_config_hashes_all_bad_deployments(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [

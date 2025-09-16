@@ -4,16 +4,16 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
   name
   labels
   environment {
-    ... OCMEnvironment
+    ...OCMEnvironment
   }
   orgId
   accessTokenClientId
   accessTokenUrl
   accessTokenClientSecret {
-    ... VaultSecret
+    ...VaultSecret
   }
   disable {
-    ... DisableAutomations
+    ...DisableAutomations
   }
   blockedVersions
   addonManagedUpgrades
@@ -24,7 +24,7 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
     instance {
       name
       token {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
     name
@@ -36,11 +36,11 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       name
     }
     publishVersionData {
-      ... MinimalOCMOrganization
+      ...MinimalOCMOrganization
     }
   }
   publishVersionData {
-    ... MinimalOCMOrganization
+    ...MinimalOCMOrganization
   }
   sectors {
     name
@@ -60,7 +60,7 @@ fragment AUSOCMOrganization on OpenShiftClusterManager_v1 {
       id
     }
     upgradePolicy {
-      ... ClusterUpgradePolicyV1
+      ...ClusterUpgradePolicyV1
     }
   }
   ausClusterHealthChecks {

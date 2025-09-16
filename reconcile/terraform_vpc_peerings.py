@@ -7,6 +7,7 @@ from typing import Any, TypedDict
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
 from reconcile import queries
+from reconcile.typed_queries import external_resources
 from reconcile.utils import (
     aws_api,
     ocm,
@@ -73,6 +74,7 @@ def _build_infrastructure_assume_role(
     ocm: OCM | None,
     provided_assume_role: str | None,
 ) -> dict[str, Any] | None:
+    assume_role: str | None = None
     if provided_assume_role:
         assume_role = provided_assume_role
     elif cluster["spec"].get("account"):
@@ -565,7 +567,7 @@ def build_desired_state_vpc(
 @defer
 def run(
     dry_run: bool,
-    print_to_file: bool | None = None,
+    print_to_file: str | None = None,
     enable_deletion: bool = False,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
@@ -653,8 +655,18 @@ def run(
         ])
 
     account_by_name = {a["name"]: a for a in accounts}
+    try:
+        default_tags = external_resources.get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     with terrascript.TerrascriptClient(
-        QONTRACT_INTEGRATION, "", thread_pool_size, infra_accounts, settings=settings
+        QONTRACT_INTEGRATION,
+        "",
+        thread_pool_size,
+        infra_accounts,
+        settings=settings,
+        default_tags=default_tags,
     ) as ts:
         rosa_cluster_accounts = [
             account_by_name[c["spec"]["account"]["name"]]

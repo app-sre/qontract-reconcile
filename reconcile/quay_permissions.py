@@ -1,7 +1,8 @@
 import logging
 import sys
+from typing import Any
 
-from reconcile.quay_base import get_quay_api_store
+from reconcile.quay_base import OrgKey, get_quay_api_store
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
 
@@ -49,9 +50,13 @@ QUAY_REPOS_QUERY = """
 QONTRACT_INTEGRATION = "quay-permissions"
 
 
-def run(dry_run):
+def run(dry_run: bool) -> None:
     gqlapi = gql.get_api()
-    apps = gqlapi.query(QUAY_REPOS_QUERY)["apps"]
+    result = gqlapi.query(QUAY_REPOS_QUERY)
+    if not result:
+        return
+
+    apps: list[dict[str, Any]] = result.get("apps") or []
     quay_api_store = get_quay_api_store()
     error = False
     for app in apps:
@@ -61,7 +66,7 @@ def run(dry_run):
         for quay_repo_config in quay_repo_configs:
             instance_name = quay_repo_config["org"]["instance"]["name"]
             org_name = quay_repo_config["org"]["name"]
-            org_key = (instance_name, org_name)
+            org_key = OrgKey(instance_name, org_name)
 
             if not quay_repo_config["org"]["managedRepos"]:
                 logging.error(
@@ -95,7 +100,7 @@ def run(dry_run):
                             )
                             continue
 
-                        perm_org_key = (
+                        perm_org_key = OrgKey(
                             permission["quayOrg"]["instance"]["name"],
                             permission["quayOrg"]["name"],
                         )

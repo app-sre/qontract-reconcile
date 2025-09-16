@@ -24,7 +24,7 @@ def test_create_no_api_no_settings() -> None:
 
 def test_create_with_jira_watcher_settings(
     mocker: MockerFixture,
-):
+) -> None:
     mocked_jira = mocker.patch("reconcile.utils.jira_client.JIRA", autospec=True)
     jira_watcher_settings = JiraWatcherSettingsV1(readTimeout=42, connectTimeout=43)
 
@@ -54,7 +54,7 @@ def test_create_with_jira_watcher_settings(
 
 def test_create_with_defaults(
     mocker: MockerFixture,
-):
+) -> None:
     mocked_jira = mocker.patch("reconcile.utils.jira_client.JIRA", autospec=True)
 
     expected_server_url = "test_url"

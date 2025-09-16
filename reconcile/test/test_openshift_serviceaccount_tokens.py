@@ -19,7 +19,7 @@ from reconcile.openshift_serviceaccount_tokens import (
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.oc import OC_Map, OCCli
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.vault import _VaultClient
+from reconcile.utils.vault import VaultClient
 
 
 @pytest.fixture
@@ -115,7 +115,7 @@ def test_openshift_serviceaccount_tokens__get_tokens_for_service_account() -> No
 def test_openshift_serviceaccount_tokens__write_outputs_to_vault(
     mocker: MockerFixture, ri: ResourceInventory
 ) -> None:
-    vault_client = mocker.create_autospec(_VaultClient)
+    vault_client = mocker.create_autospec(VaultClient)
 
     ri.add_desired(
         cluster="cluster",
@@ -141,7 +141,7 @@ def test_openshift_serviceaccount_tokens__write_outputs_to_vault(
 def test_openshift_serviceaccount_tokens__write_outputs_to_vault_with_service_account_token_request(
     ri: ResourceInventory,
 ) -> None:
-    vault_client = create_autospec(_VaultClient)
+    vault_client = create_autospec(VaultClient)
     ri.add_desired_resource(
         cluster="cluster",
         namespace="namespace",

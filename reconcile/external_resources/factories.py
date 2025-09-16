@@ -32,14 +32,6 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 T = TypeVar("T")
 
-AWS_DEFAULT_TAGS = [
-    {
-        "tags": {
-            "app": "app-sre-infra",
-        }
-    }
-]
-
 
 class ObjectFactory(Generic[T]):
     def __init__(
@@ -123,12 +115,14 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
         secret_reader: SecretReaderBase,
         provision_factories: ObjectFactory[ModuleProvisionDataFactory],
         resource_factories: ObjectFactory[AWSResourceFactory],
+        default_tags: dict[str, str],
     ):
         self.provision_factories = provision_factories
         self.resource_factories = resource_factories
         self.module_inventory = module_inventory
         self.er_inventory = er_inventory
         self.secret_reader = secret_reader
+        self.default_tags = default_tags
 
     def create_external_resource(
         self,
@@ -137,8 +131,7 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
     ) -> ExternalResource:
         f = self.resource_factories.get_factory(spec.provider)
         data = f.resolve(spec, module_conf)
-        data["tags"] = spec.tags(integration=QONTRACT_INTEGRATION)
-        data["default_tags"] = AWS_DEFAULT_TAGS
+        data["tags"] = self.default_tags | spec.tags(integration=QONTRACT_INTEGRATION)
 
         region = data.get("region")
         if region:

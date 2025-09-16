@@ -10,6 +10,7 @@ import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
 from reconcile import queries
 from reconcile.terraform_vpc_peerings import BadTerraformPeeringStateError
+from reconcile.typed_queries import external_resources
 from reconcile.utils import (
     aws_api,
     ocm,
@@ -427,7 +428,9 @@ class TestRun(testslide.TestCase):
             .to_return_value({})
             .and_assert_called_once()
         )
-
+        self.mock_callable(external_resources, "get_settings").to_raise(
+            ValueError("No external resources settings found")
+        )
         self.mock_callable(self.terrascript, "populate_vpc_peerings").to_return_value(
             None
         ).and_assert_called_once()
@@ -507,7 +510,7 @@ class TestRun(testslide.TestCase):
             None
         ).and_assert_called_once()
         self.mock_callable(self.terraform, "apply").to_return_value(
-            None
+            False
         ).and_assert_called_once()
         integ.run(False, print_to_file=None, enable_deletion=False)
 

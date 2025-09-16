@@ -1,8 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
- query StateAwsAccount($name: String){
-  accounts: awsaccounts_v1 (name: $name)
-  {
+query StateAwsAccount($name: String) {
+  accounts: awsaccounts_v1(name: $name) {
     name
     resourcesDefaultRegion
     automationToken {

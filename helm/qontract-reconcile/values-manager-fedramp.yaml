@@ -1,4 +1,5 @@
 excludeService: true
+gov_slack: "true"
 integrations:
 - name: integrations-manager
   resources:
@@ -15,11 +16,11 @@ integrations:
       memory: 240Mi
   environmentAware: true
   logs:
-    slack: false
+    slack: true
     googleChat: true
   disableUnleash: true
   unleashConnectionPool: true
   shard_specs:
   - shard_id: 0
     shards: 1
-    extra_args: -i quay.io/app-sre/qontract-reconcile-fips
+    extra_args: -i quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/qontract-reconcile-fips-master

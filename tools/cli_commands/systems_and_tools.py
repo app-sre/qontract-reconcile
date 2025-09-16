@@ -132,6 +132,7 @@ from reconcile.typed_queries.vault import get_vault_instances
 from reconcile.utils import (
     gql,
 )
+from reconcile.utils.slack_api import is_gov_slack_workspace
 
 
 class SystemTool(BaseModel):
@@ -322,11 +323,14 @@ class SystemTool(BaseModel):
 
     @classmethod
     def init_from_slack_workspace(cls, s: SlackWorkspaceV1, enumeration: Any) -> Self:
+        # Automatically determine the correct Slack domain based on GOV_SLACK environment variable
+        domain = "slack-gov.com" if is_gov_slack_workspace() else "slack.com"
+
         return cls(
             system_type="slack",
             system_id=s.name,
             name=s.name,
-            url=f"https://{s.name}.slack.com",
+            url=f"https://{s.name}.{domain}",
             description=s.description,
             enumeration=enumeration,
         )

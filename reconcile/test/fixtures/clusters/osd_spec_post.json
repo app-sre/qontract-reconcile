@@ -36,5 +36,6 @@
   "version": {
     "channel_group": "candidate",
     "id": "openshift-v4.8.10"
-  }
+  },
+  "fips": false
 }

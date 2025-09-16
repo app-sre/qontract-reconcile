@@ -22,10 +22,10 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query JenkinsConfigs {
@@ -35,12 +35,12 @@ query JenkinsConfigs {
     app {
       name
     }
-    ...on JenkinsConfig_v1 {
+    ... on JenkinsConfig_v1 {
       instance {
         name
         serverUrl
         token {
-          ... VaultSecret
+          ...VaultSecret
         }
         deleteMethod
       }

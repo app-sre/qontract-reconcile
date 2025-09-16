@@ -65,6 +65,7 @@ def init_tf_working_dirs(
         thread_pool_size,
         accounts,
         settings=settings,
+        default_tags=None,
     )
     return ts.dump()
 

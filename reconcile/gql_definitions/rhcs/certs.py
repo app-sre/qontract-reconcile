@@ -29,15 +29,15 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query RhcsCerts {
@@ -61,18 +61,36 @@ query RhcsCerts {
         annotations
       }
     }
+    sharedResources {
+      openshiftResources {
+        provider
+        ... on NamespaceOpenshiftResourceRhcsCert_v1 {
+          secret_name
+          service_account_name
+          service_account_password {
+            ... on VaultSecret_v1 {
+              path
+              field
+              version
+            }
+          }
+          auto_renew_threshold_days
+          annotations
+        }
+      }
+    }
     cluster {
       name
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        ... CommonJumphostFields
+        ...CommonJumphostFields
       }
       automationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       clusterAdminAutomationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       internal
       disable {
@@ -112,6 +130,32 @@ class NamespaceOpenshiftResourceRhcsCertV1(NamespaceOpenshiftResourceV1):
     annotations: Optional[Json] = Field(..., alias="annotations")
 
 
+class SharedResourcesV1_NamespaceOpenshiftResourceV1(ConfiguredBaseModel):
+    provider: str = Field(..., alias="provider")
+
+
+class SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceRhcsCertV1_VaultSecretV1(ConfiguredBaseModel):
+    ...
+
+
+class SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceRhcsCertV1_VaultSecretV1_VaultSecretV1(SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceRhcsCertV1_VaultSecretV1):
+    path: str = Field(..., alias="path")
+    field: str = Field(..., alias="field")
+    version: Optional[int] = Field(..., alias="version")
+
+
+class SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceRhcsCertV1(SharedResourcesV1_NamespaceOpenshiftResourceV1):
+    secret_name: str = Field(..., alias="secret_name")
+    service_account_name: str = Field(..., alias="service_account_name")
+    service_account_password: Union[SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceRhcsCertV1_VaultSecretV1_VaultSecretV1, SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceRhcsCertV1_VaultSecretV1] = Field(..., alias="service_account_password")
+    auto_renew_threshold_days: Optional[int] = Field(..., alias="auto_renew_threshold_days")
+    annotations: Optional[Json] = Field(..., alias="annotations")
+
+
+class SharedResourcesV1(ConfiguredBaseModel):
+    openshift_resources: list[Union[SharedResourcesV1_NamespaceOpenshiftResourceV1_NamespaceOpenshiftResourceRhcsCertV1, SharedResourcesV1_NamespaceOpenshiftResourceV1]] = Field(..., alias="openshiftResources")
+
+
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
@@ -132,6 +176,7 @@ class NamespaceV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     openshift_resources: Optional[list[Union[NamespaceOpenshiftResourceRhcsCertV1, NamespaceOpenshiftResourceV1]]] = Field(..., alias="openshiftResources")
+    shared_resources: Optional[list[SharedResourcesV1]] = Field(..., alias="sharedResources")
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 

@@ -26,6 +26,7 @@ spec:
   load_balancers: 4
   private: false
   provision_shard_id: 'ashardid'
+  fips: false
 network:
   type: OpenShiftSDN
   vpc: 192.168.1.0/24

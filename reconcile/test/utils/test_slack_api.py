@@ -10,6 +10,7 @@ from unittest.mock import (
 import pytest
 from pytest_httpserver import HTTPServer
 from pytest_mock import MockerFixture
+from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
 
@@ -537,13 +538,28 @@ def test_get_flat_conversation_history(
 # ServerErrorRetryHandler handler.
 #
 @pytest.fixture
-def slack_client(httpserver: HTTPServer) -> SlackApi:
-    return SlackApi(
+def slack_client(httpserver: HTTPServer, monkeypatch: pytest.MonkeyPatch) -> SlackApi:
+    # Create the SlackApi instance normally
+    api = SlackApi(
         "workspace",
         "token",
         init_usergroups=False,
-        slack_url=httpserver.url_for("/api/"),
     )
+
+    # Replace the WebClient with one pointing to our test server
+    # but preserve the retry handlers that were configured
+    test_client = WebClient(
+        token="token",
+        base_url=httpserver.url_for("/api/"),
+    )
+
+    # Copy the retry handlers from the original client
+    test_client.retry_handlers = api._sc.retry_handlers.copy()
+
+    # Replace the client
+    api._sc = test_client
+
+    return api
 
 
 class JsonResponse(TypedDict):

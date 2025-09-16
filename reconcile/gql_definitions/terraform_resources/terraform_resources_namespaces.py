@@ -31,7 +31,7 @@ fragment AWSVPC on AWSVPC_v1 {
     uid
     terraformUsername
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
   region
@@ -49,15 +49,15 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query TerraformResourcesNamespaces {
@@ -73,449 +73,458 @@ query TerraformResourcesNamespaces {
       }
       ... on NamespaceTerraformProviderResourceAWS_v1 {
         resources {
-            output_format {
+          output_format {
             provider
             ... on NamespaceTerraformResourceGenericSecretOutputFormat_v1 {
-                data
+              data
             }
+          }
+          provider
+          tags
+          ... on NamespaceTerraformResourceRDS_v1 {
+            region
+            identifier
+            defaults
+            availability_zone
+            parameter_group
+            old_parameter_group
+            overrides
+            output_resource_name
+            enhanced_monitoring
+            replica_source
+            output_resource_db_name
+            reset_password
+            ca_cert {
+              ...VaultSecret
             }
-            provider
-            ... on NamespaceTerraformResourceRDS_v1 {
-                region
-                identifier
-                defaults
-                availability_zone
-                parameter_group
-                old_parameter_group
-                overrides
-                output_resource_name
-                enhanced_monitoring
-                replica_source
-                output_resource_db_name
-                reset_password
-                ca_cert {
-                    ... VaultSecret
-                }
-                annotations
-                event_notifications {
-                    destination
-                    source_type
-                    event_categories
-                }
-                data_classification {
-                    loss_impact
-                }
-                managed_by_erv2
+            annotations
+            event_notifications {
+              destination
+              source_type
+              event_categories
             }
-            ... on NamespaceTerraformResourceS3_v1 {
-                region
-                identifier
-                defaults
-                overrides
-                sqs_identifier
-                s3_events
-                event_notifications {
-                    destination_type
-                    destination
-                    event_type
-                    filter_prefix
-                    filter_suffix
-                }
-                bucket_policy
-                output_resource_name
-                storage_class
-                annotations
+            data_classification {
+              loss_impact
             }
-            ... on NamespaceTerraformResourceElastiCache_v1 {
-                identifier
-                defaults
-                parameter_group
-                region
-                overrides
-                output_resource_name
-                annotations
-                managed_by_erv2
+            managed_by_erv2
+          }
+          ... on NamespaceTerraformResourceS3_v1 {
+            region
+            identifier
+            defaults
+            overrides
+            sqs_identifier
+            s3_events
+            event_notifications {
+              destination_type
+              destination
+              event_type
+              filter_prefix
+              filter_suffix
             }
-            ... on NamespaceTerraformResourceServiceAccount_v1 {
-                identifier
-                variables
-                policies
-                user_policy
-                output_resource_name
-                annotations
-                aws_infrastructure_access {
-                    cluster {
-                        name
-                    }
-                    access_level
-                    assume_role
-                }
-            }
-            ... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
-                identifier
-                secrets_prefix
-                output_resource_name
-                annotations
-            }
-            ... on NamespaceTerraformResourceRole_v1 {
-                identifier
-                assume_role {
-                    AWS
-                    Service
-                    Federated
-                }
-                assume_condition
-                assume_action
-                inline_policy
-                role_policy
-                policies
-                output_resource_name
-                annotations
-                lifecycle {
-                  create_before_destroy
-                  prevent_destroy
-                  ignore_changes
-                }
-                managed_by_erv2
-                max_session_duration
-            }
-            ... on NamespaceTerraformResourceSQS_v1 {
-                region
-                identifier
-                output_resource_name
-                annotations
-                specs {
-                    defaults
-                    queues {
-                        key
-                        value
-                    }
-                }
-            }
-            ... on NamespaceTerraformResourceSNSTopic_v1 {
-                defaults
-                region
-                identifier
-                output_resource_name
-                fifo_topic
-                inline_policy
-                annotations
-                subscriptions
-                {
-                    protocol
-                    endpoint
-                }
-            }
-            ... on NamespaceTerraformResourceDynamoDB_v1 {
-                region
-                identifier
-                output_resource_name
-                annotations
-                specs {
-                    defaults
-                    tables {
-                        key
-                        value
-                    }
-                }
-            }
-            ... on NamespaceTerraformResourceECR_v1 {
-                identifier
-                region
-                output_resource_name
-                public
-                annotations
-            }
-            ... on NamespaceTerraformResourceS3CloudFront_v1 {
-                region
-                identifier
-                defaults
-                output_resource_name
-                storage_class
-                annotations
-            }
-            ... on NamespaceTerraformResourceS3SQS_v1 {
-                region
-                identifier
-                defaults
-                kms_encryption
-                output_resource_name
-                storage_class
-                annotations
-            }
-            ... on NamespaceTerraformResourceCloudWatch_v1 {
-                region
-                identifier
-                defaults
-                es_identifier
-                filter_pattern
-                output_resource_name
-                annotations
-                managed_by_erv2
-            }
-            ... on NamespaceTerraformResourceKMS_v1 {
-                region
-                identifier
-                defaults
-                overrides
-                output_resource_name
-                annotations
-                managed_by_erv2
-            }
-            ... on NamespaceTerraformResourceElasticSearch_v1 {
-                region
-                identifier
-                defaults
-                output_resource_name
-                annotations
-                publish_log_types
-            }
-            ... on NamespaceTerraformResourceACM_v1 {
-                region
-                identifier
-                secret {
-                    ... VaultSecret
-                }
-                domain {
-                    domain_name
-                    alternate_names
-                }
-                output_resource_name
-                annotations
-            }
-            ... on NamespaceTerraformResourceKinesis_v1 {
-                region
-                identifier
-                defaults
-                es_identifier
-                output_resource_name
-                annotations
-            }
-            ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
-                region
-                identifier
-                secret {
-                    ... VaultSecret
-                }
-                output_resource_name
-                annotations
-            }
-            ... on NamespaceTerraformResourceALB_v1 {
-                region
-                identifier
-                vpc {
-                    ... AWSVPC
-                }
-                certificate_arn
-                ingress_cidr_blocks
-                idle_timeout
-                enable_http2
-                ip_address_type
-                access_logs
-                ssl_policy
-                mutual_authentication {
-                    mode
-                    ca_cert_bundle_s3_bucket_name
-                    ca_cert_bundle_s3_bucket_key
-                }
-                targets {
-                    name
-                    default
-                    ips
-                    openshift_service
-                    protocol
-                    protocol_version
-                    health_check {
-                        unhealthy_threshold
-                        timeout
-                        interval
-                        healthy_threshold
-                        path
-                        port
-                        protocol
-                    }
-                }
-                rules {
-                    condition {
-                        type
-                        ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
-                            host_header
-                        }
-                        ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
-                            http_request_method
-                        }
-                        ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
-                            path_pattern
-                        }
-                        ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
-                            source_ip
-                        }
-                    }
-                    action {
-                        type
-                        ... on NamespaceTerraformResourceALBActionForward_v1 {
-                            forward {
-                                target_group {
-                                    target
-                                    weight
-                                }
-                            }
-                        }
-                        ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
-                            fixed_response {
-                                content_type
-                                message_body
-                                status_code
-                            }
-                        }
-                        ... on NamespaceTerraformResourceALBActionRedirect_v1 {
-                            redirect {
-                                host
-                                path
-                                port
-                                protocol
-                                query
-                                status_code
-                            }
-                        }
-                    }
-                }
-                output_resource_name
-                annotations
-            }
-            ... on NamespaceTerraformResourceSecretsManager_v1 {
-                region
-                identifier
-                secret {
-                    ... VaultSecret
-                }
-                output_resource_name
-                annotations
-            }
-            ... on NamespaceTerraformResourceASG_v1 {
-                region
-                identifier
-                defaults
-                cloudinit_configs {
-                    filename
-                    content_type
-                    content
-                }
-                variables
-                overrides
-                extra_tags
-                image {
-                    provider
-                    ... on ASGImageGit_v1 {
-                    tag_name
-                    url
-                    ref
-                    upstream {
-                        instance {
-                            name
-                            token {
-                                ... VaultSecret
-                            }
-                        }
-                        name
-                    }
-                    }
-                    ... on ASGImageStatic_v1 {
-                        tag_name
-                        value
-                    }
-                }
-                output_resource_name
-                annotations
-            }
-            ... on NamespaceTerraformResourceRoute53Zone_v1 {
-                region
-                identifier
+            bucket_policy
+            output_resource_name
+            storage_class
+            annotations
+          }
+          ... on NamespaceTerraformResourceElastiCache_v1 {
+            identifier
+            defaults
+            parameter_group
+            region
+            overrides
+            output_resource_name
+            annotations
+            managed_by_erv2
+          }
+          ... on NamespaceTerraformResourceServiceAccount_v1 {
+            identifier
+            variables
+            policies
+            user_policy
+            output_resource_name
+            annotations
+            aws_infrastructure_access {
+              cluster {
                 name
-                output_resource_name
-                annotations
-                records {
-                    name
-                    type
-                    ttl
-                    alias {
-                        name
-                        zone_id
-                        evaluate_target_health
-                    }
-                    weighted_routing_policy {
-                        weight
-                    }
-                    geolocation_routing_policy {
-                        continent
-                        country
-                        subdivision
-                    }
-                    set_identifier
-                    records
+              }
+              access_level
+              assume_role
+            }
+          }
+          ... on NamespaceTerraformResourceSecretsManagerServiceAccount_v1 {
+            identifier
+            secrets_prefix
+            output_resource_name
+            annotations
+          }
+          ... on NamespaceTerraformResourceRole_v1 {
+            identifier
+            assume_role {
+              AWS
+              Service
+              Federated
+            }
+            assume_condition
+            assume_action
+            inline_policy
+            role_policy
+            policies
+            output_resource_name
+            annotations
+            lifecycle {
+              create_before_destroy
+              prevent_destroy
+              ignore_changes
+            }
+            managed_by_erv2
+            max_session_duration
+          }
+          ... on NamespaceTerraformResourceSQS_v1 {
+            region
+            identifier
+            output_resource_name
+            annotations
+            specs {
+              defaults
+              queues {
+                key
+                value
+              }
+            }
+          }
+          ... on NamespaceTerraformResourceSNSTopic_v1 {
+            defaults
+            region
+            identifier
+            output_resource_name
+            fifo_topic
+            inline_policy
+            annotations
+            subscriptions {
+              protocol
+              endpoint
+            }
+          }
+          ... on NamespaceTerraformResourceDynamoDB_v1 {
+            region
+            identifier
+            output_resource_name
+            annotations
+            specs {
+              defaults
+              tables {
+                key
+                value
+              }
+            }
+          }
+          ... on NamespaceTerraformResourceECR_v1 {
+            identifier
+            region
+            output_resource_name
+            public
+            annotations
+          }
+          ... on NamespaceTerraformResourceS3CloudFront_v1 {
+            region
+            identifier
+            defaults
+            output_resource_name
+            storage_class
+            annotations
+          }
+          ... on NamespaceTerraformResourceS3SQS_v1 {
+            region
+            identifier
+            defaults
+            kms_encryption
+            output_resource_name
+            storage_class
+            annotations
+          }
+          ... on NamespaceTerraformResourceCloudWatch_v1 {
+            region
+            identifier
+            defaults
+            es_identifier
+            filter_pattern
+            output_resource_name
+            annotations
+            managed_by_erv2
+          }
+          ... on NamespaceTerraformResourceKMS_v1 {
+            region
+            identifier
+            defaults
+            overrides
+            output_resource_name
+            annotations
+            managed_by_erv2
+          }
+          ... on NamespaceTerraformResourceElasticSearch_v1 {
+            region
+            identifier
+            defaults
+            output_resource_name
+            annotations
+            publish_log_types
+          }
+          ... on NamespaceTerraformResourceACM_v1 {
+            region
+            identifier
+            secret {
+              ...VaultSecret
+            }
+            domain {
+              domain_name
+              alternate_names
+            }
+            output_resource_name
+            annotations
+          }
+          ... on NamespaceTerraformResourceKinesis_v1 {
+            region
+            identifier
+            defaults
+            es_identifier
+            output_resource_name
+            annotations
+          }
+          ... on NamespaceTerraformResourceS3CloudFrontPublicKey_v1 {
+            region
+            identifier
+            secret {
+              ...VaultSecret
+            }
+            output_resource_name
+            annotations
+          }
+          ... on NamespaceTerraformResourceALB_v1 {
+            region
+            identifier
+            vpc {
+              ...AWSVPC
+            }
+            certificate_arn
+            ingress_cidr_blocks
+            idle_timeout
+            enable_http2
+            ip_address_type
+            access_logs
+            ssl_policy
+            mutual_authentication {
+              mode
+              ca_cert_bundle_s3_bucket_name
+              ca_cert_bundle_s3_bucket_key
+            }
+            targets {
+              name
+              default
+              ips
+              openshift_service
+              protocol
+              protocol_version
+              health_check {
+                unhealthy_threshold
+                timeout
+                interval
+                healthy_threshold
+                path
+                port
+                protocol
+              }
+            }
+            rules {
+              condition {
+                type
+                ... on NamespaceTerraformResourceALBConditionHostHeader_v1 {
+                  host_header
                 }
-            }
-            ... on NamespaceTerraformResourceRosaAuthenticator_V1 {
-                region
-                identifier
-                api_proxy_uri
-                cognito_callback_bucket_name
-                certificate_arn
-                domain_name
-                network_interface_ids
-                openshift_ingress_load_balancer_arn
-                insights_callback_urls
-                output_resource_name
-                annotations
-                vpc_id
-                subnet_ids
-                vpce_id
-                defaults
-            }
-            ... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
-                region
-                identifier
-                subnet_ids,
-                vpc_id,
-                output_resource_name
-                annotations
-                defaults
-            }
-            ... on NamespaceTerraformResourceMsk_v1 {
-                region
-                identifier
-                output_resource_name
-                defaults
-                annotations
-                users {
-                  name
-                  secret {
-                    ...VaultSecret
+                ... on NamespaceTerraformResourceALBConditionHTTPRequestMethod_v1 {
+                  http_request_method
+                }
+                ... on NamespaceTerraformResourceALBConditionPathPattern_v1 {
+                  path_pattern
+                }
+                ... on NamespaceTerraformResourceALBConditionSourceIP_v1 {
+                  source_ip
+                }
+                ... on NamespaceTerraformResourceALBConditionQueryString_v1 {
+                  query_string {
+                    key
+                    value
                   }
                 }
-                managed_by_erv2
+              }
+              action {
+                type
+                ... on NamespaceTerraformResourceALBActionForward_v1 {
+                  forward {
+                    target_group {
+                      target
+                      weight
+                    }
+                  }
+                }
+                ... on NamespaceTerraformResourceALBActionFixedResponse_v1 {
+                  fixed_response {
+                    content_type
+                    message_body
+                    status_code
+                  }
+                }
+                ... on NamespaceTerraformResourceALBActionRedirect_v1 {
+                  redirect {
+                    host
+                    path
+                    port
+                    protocol
+                    query
+                    status_code
+                  }
+                }
+              }
             }
+            output_resource_name
+            annotations
+          }
+          ... on NamespaceTerraformResourceSecretsManager_v1 {
+            region
+            identifier
+            secret {
+              ...VaultSecret
+            }
+            output_resource_name
+            annotations
+          }
+          ... on NamespaceTerraformResourceASG_v1 {
+            region
+            identifier
+            defaults
+            cloudinit_configs {
+              filename
+              content_type
+              content
+            }
+            variables
+            overrides
+            extra_tags
+            image {
+              provider
+              ... on ASGImageGit_v1 {
+                tag_name
+                url
+                ref
+                upstream {
+                  instance {
+                    name
+                    token {
+                      ...VaultSecret
+                    }
+                  }
+                  name
+                }
+              }
+              ... on ASGImageStatic_v1 {
+                tag_name
+                value
+              }
+            }
+            output_resource_name
+            annotations
+          }
+          ... on NamespaceTerraformResourceRoute53Zone_v1 {
+            region
+            identifier
+            name
+            output_resource_name
+            annotations
+            records {
+              name
+              type
+              ttl
+              alias {
+                name
+                zone_id
+                evaluate_target_health
+              }
+              weighted_routing_policy {
+                weight
+              }
+              geolocation_routing_policy {
+                continent
+                country
+                subdivision
+              }
+              set_identifier
+              records
+            }
+          }
+          ... on NamespaceTerraformResourceRosaAuthenticator_V1 {
+            region
+            identifier
+            api_proxy_uri
+            cognito_callback_bucket_name
+            certificate_arn
+            domain_name
+            network_interface_ids
+            openshift_ingress_load_balancer_arn
+            insights_callback_urls
+            output_resource_name
+            annotations
+            vpc_id
+            subnet_ids
+            vpce_id
+            defaults
+          }
+          ... on NamespaceTerraformResourceRosaAuthenticatorVPCE_V1 {
+            region
+            identifier
+            subnet_ids
+            vpc_id
+            output_resource_name
+            annotations
+            defaults
+          }
+          ... on NamespaceTerraformResourceMsk_v1 {
+            region
+            identifier
+            output_resource_name
+            defaults
+            annotations
+            users {
+              name
+              secret {
+                ...VaultSecret
+              }
+            }
+            managed_by_erv2
+          }
         }
       }
     }
     environment {
       name
+      servicePhase
     }
     app {
       name
+      appCode
+      costCenter
     }
     cluster {
       name
       serverUrl
       insecureSkipTLSVerify
       jumpHost {
-        ... CommonJumphostFields
+        ...CommonJumphostFields
       }
       automationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       clusterAdminAutomationToken {
-        ... VaultSecret
+        ...VaultSecret
       }
       spec {
         region
@@ -556,6 +565,7 @@ class NamespaceTerraformResourceGenericSecretOutputFormatV1(NamespaceTerraformRe
 class NamespaceTerraformResourceAWSV1(ConfiguredBaseModel):
     output_format: Optional[Union[NamespaceTerraformResourceGenericSecretOutputFormatV1, NamespaceTerraformResourceOutputFormatV1]] = Field(..., alias="output_format")
     provider: str = Field(..., alias="provider")
+    tags: Optional[str] = Field(..., alias="tags")
 
 
 class AWSRDSEventNotificationV1(ConfiguredBaseModel):
@@ -817,8 +827,8 @@ class NamespaceTerraformResourceS3CloudFrontPublicKeyV1(NamespaceTerraformResour
 
 class NamespaceTerraformResourceALBMutualAuthenticationV1(ConfiguredBaseModel):
     mode: str = Field(..., alias="mode")
-    ca_cert_bundle_s3_bucket_name: str = Field(..., alias="ca_cert_bundle_s3_bucket_name")
-    ca_cert_bundle_s3_bucket_key: str = Field(..., alias="ca_cert_bundle_s3_bucket_key")
+    ca_cert_bundle_s3_bucket_name: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_name")
+    ca_cert_bundle_s3_bucket_key: Optional[str] = Field(..., alias="ca_cert_bundle_s3_bucket_key")
 
 
 class NamespaceTerraformResourceALBTargetHealthcheckV1(ConfiguredBaseModel):
@@ -859,6 +869,15 @@ class NamespaceTerraformResourceALBConditionPathPatternV1(NamespaceTerraformReso
 
 class NamespaceTerraformResourceALBConditionSourceIPV1(NamespaceTerraformResourceALBConditionV1):
     source_ip: list[str] = Field(..., alias="source_ip")
+
+
+class NamespaceTerraformResourceALBConditionQueryStringKeyValueV1(ConfiguredBaseModel):
+    key: Optional[str] = Field(..., alias="key")
+    value: str = Field(..., alias="value")
+
+
+class NamespaceTerraformResourceALBConditionQueryStringV1(NamespaceTerraformResourceALBConditionV1):
+    query_string: list[NamespaceTerraformResourceALBConditionQueryStringKeyValueV1] = Field(..., alias="query_string")
 
 
 class NamespaceTerraformResourceALBActionV1(ConfiguredBaseModel):
@@ -902,7 +921,7 @@ class NamespaceTerraformResourceALBActionRedirectV1(NamespaceTerraformResourceAL
 
 
 class NamespaceTerraformResourceALBRulesV1(ConfiguredBaseModel):
-    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
+    condition: list[Union[NamespaceTerraformResourceALBConditionHostHeaderV1, NamespaceTerraformResourceALBConditionHTTPRequestMethodV1, NamespaceTerraformResourceALBConditionPathPatternV1, NamespaceTerraformResourceALBConditionSourceIPV1, NamespaceTerraformResourceALBConditionQueryStringV1, NamespaceTerraformResourceALBConditionV1]] = Field(..., alias="condition")
     action: Union[NamespaceTerraformResourceALBActionForwardV1, NamespaceTerraformResourceALBActionFixedResponseV1, NamespaceTerraformResourceALBActionRedirectV1, NamespaceTerraformResourceALBActionV1] = Field(..., alias="action")
 
 
@@ -1062,10 +1081,13 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
 
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    service_phase: str = Field(..., alias="servicePhase")
 
 
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    app_code: str = Field(..., alias="appCode")
+    cost_center: str = Field(..., alias="costCenter")
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
