@@ -2,7 +2,7 @@ import logging
 import sys
 import time
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from typing import Any, cast
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
@@ -67,20 +67,25 @@ class OpenshiftRhcsCertExpiration(GaugeMetric):
         return "qontract_reconcile_rhcs_cert_expiration_timestamp"
 
 
+def _is_rhcs_cert(obj: Any) -> bool:
+    return getattr(obj, "provider", None) == "rhcs-cert"
+
+
 def get_namespaces_with_rhcs_certs(
-    query_func: Callable, cluster_name: Iterable[str] | None = None
+    query_func: Callable,
+    cluster_name: Iterable[str] | None = None,
 ) -> list[NamespaceV1]:
-    return [
-        ns
-        for ns in rhcs_certs_query(query_func=query_func).namespaces or []
-        if integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster)
-        and not bool(ns.delete)
-        and (not cluster_name or ns.cluster.name in cluster_name)
-        and any(
-            isinstance(r, NamespaceOpenshiftResourceRhcsCertV1)
-            for r in ns.openshift_resources or []
-        )
-    ]
+    result: list[NamespaceV1] = []
+    for ns in rhcs_certs_query(query_func=query_func).namespaces or []:
+        ob.aggregate_shared_resources_typed(cast("Any", ns))  # mypy: ignore[arg-type]
+        if (
+            integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster)
+            and not bool(ns.delete)
+            and (not cluster_name or ns.cluster.name in cluster_name)
+            and any(_is_rhcs_cert(r) for r in ns.openshift_resources or [])
+        ):
+            result.append(ns)
+    return result
 
 
 def construct_rhcs_cert_oc_secret(
@@ -122,7 +127,7 @@ def get_vault_cert_secret(
 ) -> dict | None:
     vault_cert_secret = None
     try:
-        vault_cert_secret = vault.read_all({  # type: ignore[attr-defined]
+        vault_cert_secret = vault.read_all({
             "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         })
     except SecretNotFoundError:
@@ -144,7 +149,7 @@ def generate_vault_cert_secret(
     logging.info(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
     )
-    sa_password = vault.read(cert_resource.service_account_password.dict())  # type: ignore[attr-defined]
+    sa_password = vault.read(cert_resource.service_account_password.dict())
     if dry_run:
         rhcs_cert = RhcsV2Cert(
             certificate="PLACEHOLDER_CERT",
@@ -164,7 +169,7 @@ def generate_vault_cert_secret(
         logging.info(
             f"Writing cert details to Vault at {vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}"
         )
-        vault.write(  # type: ignore[attr-defined]
+        vault.write(
             secret={
                 "data": rhcs_cert.dict(by_alias=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
@@ -222,19 +227,18 @@ def fetch_desired_state(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    vault = VaultClient()
+    vault = VaultClient.get_instance()
     cert_provider = get_rhcs_provider_settings(query_func=query_func)
-
     for ns in namespaces:
         for cert_resource in ns.openshift_resources or []:
-            if isinstance(cert_resource, NamespaceOpenshiftResourceRhcsCertV1):
+            if _is_rhcs_cert(cert_resource):
                 ri.add_desired_resource(
                     cluster=ns.cluster.name,
                     namespace=ns.name,
                     resource=fetch_openshift_resource_for_cert_resource(
                         dry_run,
                         ns,
-                        cert_resource,
+                        cast("NamespaceOpenshiftResourceRhcsCertV1", cert_resource),
                         vault,
                         cert_provider,
                     ),

@@ -22,14 +22,14 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query CloudflareAccountRole {
-  cloudflare_account_roles:	cloudflare_account_role_v1 {
+  cloudflare_account_roles: cloudflare_account_role_v1 {
     name
     roles
     access_roles {
@@ -42,12 +42,12 @@ query CloudflareAccountRole {
       name
       providerVersion
       apiCredentials {
-        ... VaultSecret
+        ...VaultSecret
       }
       terraformStateAccount {
         name
         automationToken {
-          ... VaultSecret
+          ...VaultSecret
         }
         terraformState {
           provider

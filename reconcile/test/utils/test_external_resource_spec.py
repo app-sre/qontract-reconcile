@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 import pytest
@@ -13,7 +14,7 @@ from reconcile.utils.openshift_resource import (
 )
 
 
-def test_identifier_creation_from_spec():
+def test_identifier_creation_from_spec() -> None:
     id = ExternalResourceUniqueKey.from_spec(
         ExternalResourceSpec(
             provision_provider="p",
@@ -30,7 +31,7 @@ def test_identifier_creation_from_spec():
     assert id.provisioner_name == "a"
 
 
-def test_identifier_missing():
+def test_identifier_missing() -> None:
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_spec(
             ExternalResourceSpec(
@@ -56,7 +57,7 @@ def test_identifier_missing():
         )
 
 
-def test_identifier_account_missing():
+def test_identifier_account_missing() -> None:
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_spec(
             ExternalResourceSpec(
@@ -83,7 +84,7 @@ def test_identifier_account_missing():
         )
 
 
-def test_identifier_provider_missing():
+def test_identifier_provider_missing() -> None:
     with pytest.raises(ValidationError):
         ExternalResourceUniqueKey.from_spec(
             ExternalResourceSpec(
@@ -141,11 +142,13 @@ def test_identifier_provider_missing():
         ),
     ],
 )
-def test_spec_output_prefix(external_resource, output_prefix):
+def test_spec_output_prefix(
+    external_resource: ExternalResourceSpec, output_prefix: str
+) -> None:
     assert external_resource.output_prefix == output_prefix
 
 
-def test_spec_implicit_output_resource_name():
+def test_spec_implicit_output_resource_name() -> None:
     s = ExternalResourceSpec(
         provision_provider="aws",
         provisioner={"name": "a"},
@@ -155,7 +158,7 @@ def test_spec_implicit_output_resource_name():
     assert s.output_resource_name == "i-p"
 
 
-def test_spec_explicit_output_resource_name():
+def test_spec_explicit_output_resource_name() -> None:
     s = ExternalResourceSpec(
         provision_provider="aws",
         provisioner={"name": "a"},
@@ -169,7 +172,7 @@ def test_spec_explicit_output_resource_name():
     assert s.output_resource_name == "explicit"
 
 
-def test_spec_annotation_parsing():
+def test_spec_annotation_parsing() -> None:
     s = ExternalResourceSpec(
         provision_provider="aws",
         provisioner={"name": "a"},
@@ -183,7 +186,7 @@ def test_spec_annotation_parsing():
     assert s.annotations() == {"key": "value"}
 
 
-def test_spec_annotation_parsing_none_present():
+def test_spec_annotation_parsing_none_present() -> None:
     s = ExternalResourceSpec(
         provision_provider="aws",
         provisioner={"name": "a"},
@@ -196,35 +199,139 @@ def test_spec_annotation_parsing_none_present():
     assert s.annotations() == {}
 
 
-def test_spec_tags():
-    s = ExternalResourceSpec(
-        provision_provider="aws",
-        provisioner={"name": "a"},
-        resource={
-            "identifier": "i",
-            "provider": "p",
-        },
-        namespace={
-            "name": "ns",
-            "cluster": {
-                "name": "c",
+@pytest.mark.parametrize(
+    "external_resource, expected_tags",
+    [
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={"identifier": "i", "provider": "p"},
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {"name": "env"},
+                    "app": {"name": "app"},
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
             },
-            "environment": {
-                "name": "env",
+        ),
+        # appCode, costCenter, servicePhase, and custom tags
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                    "tags": json.dumps({"resource_tag": "value"}),
+                },
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {
+                        "name": "env",
+                        "servicePhase": "sp",
+                    },
+                    "app": {
+                        "name": "app",
+                        "appCode": "a",
+                        "costCenter": "cc",
+                    },
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
+                "app-code": "a",
+                "cost-center": "cc",
+                "service-phase": "sp",
+                "resource_tag": "value",
             },
-            "app": {
-                "name": "app",
+        ),
+        # overrides
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                    "tags": json.dumps({
+                        "app-code": "resource_app_code",
+                        "cost-center": "resource_cost_center",
+                        "service-phase": "resource_service_phase",
+                        "resource_tag": "value",
+                    }),
+                },
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {"name": "env", "servicePhase": "sp"},
+                    "app": {"name": "app", "appCode": "a", "costCenter": "cc"},
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
+                "app-code": "resource_app_code",
+                "cost-center": "resource_cost_center",
+                "service-phase": "resource_service_phase",
+                "resource_tag": "value",
             },
-        },
-    )
-    expected = {
-        "managed_by_integration": "int",
-        "cluster": "c",
-        "namespace": "ns",
-        "environment": "env",
-        "app": "app",
-    }
-    assert s.tags("int") == expected
+        ),
+        # overrides and kebab-case
+        (
+            ExternalResourceSpec(
+                provision_provider="aws",
+                provisioner={"name": "a"},
+                resource={
+                    "identifier": "i",
+                    "provider": "p",
+                    "tags": json.dumps({
+                        "appCode": "resource_app_code",
+                        "costCenter": "resource_cost_center",
+                        "servicePhase": "resource_service_phase",
+                        "resource_tag": "value",
+                    }),
+                },
+                namespace={
+                    "name": "ns",
+                    "cluster": {"name": "c"},
+                    "environment": {"name": "env", "servicePhase": "sp"},
+                    "app": {"name": "app", "appCode": "a", "costCenter": "cc"},
+                },
+            ),
+            {
+                "managed_by_integration": "int",
+                "cluster": "c",
+                "namespace": "ns",
+                "environment": "env",
+                "app": "app",
+                "app-code": "resource_app_code",
+                "cost-center": "resource_cost_center",
+                "service-phase": "resource_service_phase",
+                "resource_tag": "value",
+            },
+        ),
+    ],
+)
+def test_spec_tags(
+    external_resource: ExternalResourceSpec, expected_tags: dict[str, str]
+) -> None:
+    assert external_resource.tags("int") == expected_tags
 
 
 @pytest.fixture
@@ -250,14 +357,14 @@ def spec() -> ExternalResourceSpec:
 #
 
 
-def test_terraform_output_with_when_no_secret(spec: ExternalResourceSpec):
+def test_terraform_output_with_when_no_secret(spec: ExternalResourceSpec) -> None:
     output_secret = spec.build_oc_secret("int", "1.0")
     assert output_secret.body["data"] == {}
 
 
 def test_terraform_generic_secret_output_format(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
-):
+) -> None:
     spec.resource["output_format"] = {
         "provider": "generic-secret",
         "data": """
@@ -274,7 +381,7 @@ def test_terraform_generic_secret_output_format(
 
 def test_terraform_generic_secret_output_format_no_data(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
-):
+) -> None:
     """
     this test shows backwards compatibility with the simple dict output when
     no data is given but the provider is specified
@@ -292,7 +399,7 @@ def test_terraform_generic_secret_output_format_no_data(
 
 def test_terraform_no_output_format_provider(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
-):
+) -> None:
     """
     this test shows full backwards compatibility when no provider has been specified
     """
@@ -304,7 +411,7 @@ def test_terraform_no_output_format_provider(
         assert output_secret.body["data"][k] == base64_encode_secret_field_value(v)
 
 
-def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec):
+def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec) -> None:
     """
     this test expects the secret generation to fail when an unknown provider is
     given. while the schema usually protects against such cases, additional protection
@@ -317,7 +424,7 @@ def test_terraform_unknown_output_format_provider(spec: ExternalResourceSpec):
 
 def test_terraform_generic_secret_output_format_not_a_dict(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
-):
+) -> None:
     """
     this test shows how a data template for a generic-secret provider must result
     in a valid dict and fails otherwise
@@ -334,7 +441,7 @@ def test_terraform_generic_secret_output_format_not_a_dict(
 
 def test_terraform_generic_secret_output_format_not_str_keys(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
-):
+) -> None:
     """
     this test shows how a data template for a generic-secret provider must produce
     string keys
@@ -351,7 +458,7 @@ def test_terraform_generic_secret_output_format_not_str_keys(
 
 def test_terraform_generic_secret_output_format_not_str_val(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
-):
+) -> None:
     """
     this test shows how a data template for a generic-secret provider must produce
     string values
@@ -368,7 +475,7 @@ def test_terraform_generic_secret_output_format_not_str_val(
 
 def test_terraform_generic_secret_output_key_too_long(
     spec: ExternalResourceSpec, resource_secret: dict[str, Any]
-):
+) -> None:
     """
     tests for too long secret keys (max length in kubernetes is 253 characters )
     """

@@ -2,6 +2,7 @@ import copy
 from typing import Any
 from unittest.mock import (
     ANY,
+    MagicMock,
     call,
 )
 
@@ -10,7 +11,6 @@ from pytest_mock import MockerFixture
 
 from reconcile.skupper_network import reconciler
 from reconcile.skupper_network.models import SkupperSite
-from reconcile.utils.oc import OCNative
 from reconcile.utils.oc_map import OCMap
 
 
@@ -18,7 +18,7 @@ from reconcile.utils.oc_map import OCMap
 def test_skupper_network_reconciler_delete_skupper_resources(
     dry_run: bool,
     oc_map: OCMap,
-    oc: OCNative,
+    oc: MagicMock,
     skupper_sites: list[SkupperSite],
     fake_site_configmap: dict[str, Any],
 ) -> None:
@@ -59,7 +59,7 @@ def test_skupper_network_reconciler_delete_skupper_resources(
 
 def test_skupper_network_reconciler_get_token(
     oc_map: OCMap,
-    oc: OCNative,
+    oc: MagicMock,
     skupper_sites: list[SkupperSite],
     fake_site_configmap: dict[str, Any],
 ) -> None:
@@ -76,7 +76,7 @@ def test_skupper_network_reconciler_get_token(
 def test_skupper_network_reconciler_create_token(
     dry_run: bool,
     oc_map: OCMap,
-    oc: OCNative,
+    oc: MagicMock,
     skupper_sites: list[SkupperSite],
 ) -> None:
     site = skupper_sites[0]
@@ -122,7 +122,7 @@ def test_skupper_network_reconciler_transfer_token(
     is_usable_connection_token: bool,
     mocker: MockerFixture,
     oc_map: OCMap,
-    oc: OCNative,
+    oc: MagicMock,
     skupper_sites: list[SkupperSite],
     fake_token: dict[str, Any],
 ) -> None:
@@ -180,10 +180,10 @@ def test_skupper_network_reconciler_connect_sites(
     remote_token: dict[str, Any],
     mocker: MockerFixture,
     oc_map: OCMap,
-    oc: OCNative,
+    oc: MagicMock,
     skupper_sites: list[SkupperSite],
 ) -> None:
-    oc.project_exists.side_effect = [local_site_exists, remote_site_exists]  # type: ignore
+    oc.project_exists.side_effect = [local_site_exists, remote_site_exists]
 
     transfer_token = mocker.patch(
         "reconcile.skupper_network.reconciler._transfer_token",
@@ -271,7 +271,7 @@ def test_skupper_network_reconciler_delete_unused_tokens(
     token_secrets: list[dict[str, Any]],
     expected_deletion_count: int,
     oc_map: OCMap,
-    oc: OCNative,
+    oc: MagicMock,
     skupper_sites: list[SkupperSite],
 ) -> None:
     edge_1 = skupper_sites[0]

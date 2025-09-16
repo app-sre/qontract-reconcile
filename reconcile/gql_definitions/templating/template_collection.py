@@ -40,6 +40,7 @@ query TemplateCollection_v1($name: String) {
       autoApproved
       condition
       targetPath
+      overwrite
       patch {
         path
         identifier
@@ -92,6 +93,7 @@ class TemplateV1(ConfiguredBaseModel):
     auto_approved: Optional[bool] = Field(..., alias="autoApproved")
     condition: Optional[str] = Field(..., alias="condition")
     target_path: str = Field(..., alias="targetPath")
+    overwrite: Optional[bool] = Field(..., alias="overwrite")
     patch: Optional[TemplatePatchV1] = Field(..., alias="patch")
     template: str = Field(..., alias="template")
     template_render_options: Optional[TemplateRenderOptionsV1] = Field(..., alias="templateRenderOptions")

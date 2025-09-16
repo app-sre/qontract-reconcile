@@ -10,10 +10,14 @@ from reconcile.utils.ruamel import create_ruamel_instance
 class PromoteQontractSchemas(MergeRequestBase):
     name = "promote_qontract_schemas"
 
-    def __init__(self, version: str, author_email: str | None = None):
+    def __init__(
+        self, version: str, commit_sha: str, github_user_id: str | None = None
+    ):
         self.path = ".env"
         self.version = version
-        self.author_email = author_email
+        self.github_user_id = github_user_id
+        # This is currently unused, however, we keep it to conform with general SQS message format
+        self.commit_sha = commit_sha
 
         super().__init__()
 
@@ -22,19 +26,24 @@ class PromoteQontractSchemas(MergeRequestBase):
     @property
     def title(self) -> str:
         author = self.infer_author(
-            author_email=self.author_email, all_users=get_users()
+            github_user_id=self.github_user_id, all_users=get_users()
         )
         return f"[{self.name}] promote qontract-schemas to version {self.version}" + (
             f" by @{author}"
             if author
-            else f" by {self.author_email}"
-            if self.author_email
+            else f" by {self.github_user_id}"
+            if self.github_user_id
             else ""
         )
 
     @property
     def description(self) -> str:
-        return f"promote qontract-schemas to version {self.version}"
+        return f"""
+promote qontract-schemas to version {self.version}.
+
+At the time of creating this MR, the konflux RPA most likely didn't finish yet, so this MR will likely fail first.
+Please use `/retest` once the RPA finished (that should be the case after ~5min of creating this MR).
+        """
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         raw_file = gitlab_cli.get_raw_file(
@@ -61,10 +70,12 @@ class PromoteQontractSchemas(MergeRequestBase):
 class PromoteQontractReconcileCommercial(MergeRequestBase):
     name = "promote_qontract_reconcile"
 
-    def __init__(self, version: str, commit_sha: str, author_email: str | None = None):
+    def __init__(
+        self, version: str, commit_sha: str, github_user_id: str | None = None
+    ):
         self.version = version
         self.commit_sha = commit_sha
-        self.author_email = author_email
+        self.github_user_id = github_user_id
 
         super().__init__()
 
@@ -73,19 +84,24 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
     @property
     def title(self) -> str:
         author = self.infer_author(
-            author_email=self.author_email, all_users=get_users()
+            github_user_id=self.github_user_id, all_users=get_users()
         )
         return f"[{self.name}] promote qontract-reconcile to version {self.version}" + (
             f" by @{author}"
             if author
-            else f" by {self.author_email}"
-            if self.author_email
+            else f" by {self.github_user_id}"
+            if self.github_user_id
             else ""
         )
 
     @property
     def description(self) -> str:
-        return f"promote qontract-reconcile to version {self.version}"
+        return f"""
+promote qontract-reconcile to version {self.version}.
+
+At the time of creating this MR, the konflux RPA most likely didn't finish yet, so this MR will likely fail first.
+Please use `/retest` once the RPA finished (that should be the case after ~5min of creating this MR).
+"""
 
     def _process_by_line_search(
         self, raw_file: bytes, search_text: str, replace_text: str

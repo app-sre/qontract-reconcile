@@ -456,7 +456,7 @@ def run(
 
     LOG.debug("Adding desired resources to inventory")
     for desired_resource in desired_resources:
-        ri.add_desired(**desired_resource)
+        ri.add_desired(**desired_resource)  # type: ignore
 
     LOG.debug("Publishing metrics")
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)

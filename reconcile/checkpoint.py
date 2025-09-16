@@ -61,7 +61,7 @@ def url_makes_sense(url: str) -> bool:
     return rs.status_code < HTTPStatus.NOT_FOUND
 
 
-def valid_owners(owners: Iterable[Mapping[str, str]]) -> bool:
+def valid_owners(owners: Iterable[Mapping[str, str | None]]) -> bool:
     """Confirm whether all the owners have a name and a valid email address."""
     return all(
         o["name"]

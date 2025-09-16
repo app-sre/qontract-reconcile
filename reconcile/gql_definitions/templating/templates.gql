@@ -5,6 +5,7 @@ query Templatev1 {
     name
     autoApproved
     condition
+    overwrite
     patch {
       path
       identifier

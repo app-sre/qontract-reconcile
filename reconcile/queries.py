@@ -25,7 +25,10 @@ SECRET_READER_SETTINGS = """
 def get_secret_reader_settings() -> Mapping[str, Any] | None:
     """Returns SecretReader settings"""
     gqlapi = gql.get_api()
-    settings = gqlapi.query(SECRET_READER_SETTINGS)["settings"]
+    data = gqlapi.query(SECRET_READER_SETTINGS)
+    if not data:
+        return None
+    settings = data.get("settings")
     if settings:
         # assuming a single settings file for now
         return settings[0]
@@ -114,14 +117,13 @@ APP_INTERFACE_SETTINGS_QUERY = """
 """
 
 
-def get_app_interface_settings():
+def get_app_interface_settings() -> dict[str, Any]:
     """Returns App Interface settings"""
     gqlapi = gql.get_api()
-    settings = gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)["settings"]
-    if settings:
-        # assuming a single settings file for now
-        return settings[0]
-    return None
+    data = gqlapi.query(APP_INTERFACE_SETTINGS_QUERY)
+    if not data or not (settings := data.get("settings")):
+        raise ValueError("no App Interface settings found")
+    return settings[0]
 
 
 CREDENTIALS_REQUESTS_QUERY = """
@@ -139,10 +141,13 @@ CREDENTIALS_REQUESTS_QUERY = """
 """
 
 
-def get_credentials_requests():
+def get_credentials_requests() -> list[dict[str, Any]]:
     """Returns Credentials Requests resources defined in app-interface"""
     gqlapi = gql.get_api()
-    return gqlapi.query(CREDENTIALS_REQUESTS_QUERY)["credentials_requests"]
+    data = gqlapi.query(CREDENTIALS_REQUESTS_QUERY)
+    if not data:
+        return []
+    return data.get("credentials_requests") or []
 
 
 JUMPHOST_FIELDS = """
@@ -252,11 +257,13 @@ INTEGRATIONS_QUERY = """
 """ % (indent(JUMPHOST_FIELDS, 12 * " "),)
 
 
-def get_integrations(managed=False):
+def get_integrations(managed: bool = False) -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
-    if managed:
-        return gqlapi.query(INTEGRATIONS_QUERY)["integrations"]
-    return gqlapi.query(gql.INTEGRATIONS_QUERY)["integrations"]
+    query = INTEGRATIONS_QUERY if managed else gql.INTEGRATIONS_QUERY
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("integrations") or []
 
 
 JENKINS_INSTANCES_QUERY = """
@@ -326,16 +333,19 @@ JENKINS_INSTANCES_QUERY = """
 """
 
 
-def get_jenkins_instances(worker_fleets=False):
+def get_jenkins_instances(worker_fleets: bool = False) -> list[dict[str, Any]]:
     """Returns a list of Jenkins instances"""
     gqlapi = gql.get_api()
     query = Template(JENKINS_INSTANCES_QUERY).render(worker_fleets=worker_fleets)
-    return gqlapi.query(query)["instances"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("instances") or []
 
 
-def get_jenkins_instances_previous_urls():
+def get_jenkins_instances_previous_urls() -> list[str]:
     instances = get_jenkins_instances()
-    all_previous_urls = []
+    all_previous_urls: list[str] = []
     for instance in instances:
         previous_urls = instance.get("previousUrls")
         if previous_urls:
@@ -364,11 +374,13 @@ GITLAB_INSTANCES_QUERY = """
 """
 
 
-def get_gitlab_instance():
+def get_gitlab_instance() -> dict[str, Any]:
     """Returns a single GitLab instance"""
     gqlapi = gql.get_api()
-    # assuming a single GitLab instance for now
-    return gqlapi.query(GITLAB_INSTANCES_QUERY)["instances"][0]
+    data = gqlapi.query(GITLAB_INSTANCES_QUERY)
+    if not data or not (instances := data.get("instances")):
+        raise ValueError("no GitLab instance found")
+    return instances[0]
 
 
 GITHUB_INSTANCE_QUERY = """
@@ -386,13 +398,16 @@ GITHUB_INSTANCE_QUERY = """
 """
 
 
-def get_github_instance():
+def get_github_instance() -> dict[str, Any]:
     """Returns a single Github instance"""
     gqlapi = gql.get_api()
-    instances = gqlapi.query(GITHUB_INSTANCE_QUERY)["instances"]
+    data = gqlapi.query(GITHUB_INSTANCE_QUERY)
+    if not data or not (instances := data.get("instances")):
+        raise ValueError("no Github instance found")
     for instance in instances:
         if instance["url"] == "https://github.com/app-sre":
             return instance
+    raise ValueError("no Github instance found")
 
 
 GITHUB_ORGS_QUERY = """
@@ -411,10 +426,13 @@ GITHUB_ORGS_QUERY = """
 """
 
 
-def get_github_orgs():
+def get_github_orgs() -> list[dict[str, Any]]:
     """Returns all GitHub orgs"""
     gqlapi = gql.get_api()
-    return gqlapi.query(GITHUB_ORGS_QUERY)["orgs"]
+    data = gqlapi.query(GITHUB_ORGS_QUERY)
+    if not data:
+        return []
+    return data.get("orgs") or []
 
 
 AWS_ACCOUNTS_QUERY = """
@@ -521,14 +539,14 @@ AWS_ACCOUNTS_QUERY = """
 
 
 def get_aws_accounts(
-    reset_passwords=False,
-    name=None,
-    uid=None,
-    sharing=False,
-    terraform_state=False,
-    ecrs=True,
-    cleanup=False,
-):
+    reset_passwords: bool = False,
+    name: str | None = None,
+    uid: str | None = None,
+    sharing: bool = False,
+    terraform_state: bool = False,
+    ecrs: bool = True,
+    cleanup: bool = False,
+) -> list[dict[str, Any]]:
     """Returns all AWS accounts"""
     gqlapi = gql.get_api()
     search = name or uid
@@ -542,16 +560,19 @@ def get_aws_accounts(
         ecrs=ecrs,
         cleanup=cleanup,
     )
-    return gqlapi.query(query)["accounts"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("accounts") or []
 
 
-def get_state_aws_accounts(reset_passwords=False):
+def get_state_aws_accounts(reset_passwords: bool = False) -> list[dict[str, Any]]:
     """Returns AWS accounts to use for state management"""
     name = os.environ["APP_INTERFACE_STATE_BUCKET_ACCOUNT"]
     return get_aws_accounts(reset_passwords=reset_passwords, name=name)
 
 
-def get_queue_aws_accounts():
+def get_queue_aws_accounts() -> list[dict[str, Any]]:
     """Returns AWS accounts to use for queue management"""
     uid = os.environ["gitlab_pr_submitter_queue_url"].split("/")[3]  # noqa: SIM112
     return get_aws_accounts(uid=uid)
@@ -987,7 +1008,9 @@ CLUSTERS_MINIMAL_QUERY = """
 )
 
 
-def get_clusters(minimal: bool = False, aws_infrastructure_access: bool = False):
+def get_clusters(
+    minimal: bool = False, aws_infrastructure_access: bool = False
+) -> list[dict[str, Any]]:
     """Returns all Clusters"""
     gqlapi = gql.get_api()
     tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
@@ -995,7 +1018,10 @@ def get_clusters(minimal: bool = False, aws_infrastructure_access: bool = False)
         filter=None,
         aws_infrastructure_access=aws_infrastructure_access,
     )
-    return gqlapi.query(query)["clusters"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("clusters") or []
 
 
 CLUSTER_PEERING_QUERY = """
@@ -1223,7 +1249,10 @@ CLUSTER_PEERING_QUERY = """
 
 
 def get_clusters_with_peering_settings() -> list[dict[str, Any]]:
-    clusters = gql.get_api().query(CLUSTER_PEERING_QUERY)["clusters"]
+    data = gql.get_api().query(CLUSTER_PEERING_QUERY)
+    if not data:
+        return []
+    clusters = data.get("clusters") or []
     return [c for c in clusters if c.get("peering") is not None]
 
 
@@ -1232,14 +1261,19 @@ class ClusterFilter:
     name: str = ""
 
 
-def get_clusters_by(filter: ClusterFilter, minimal: bool = False) -> list[dict]:
+def get_clusters_by(
+    filter: ClusterFilter, minimal: bool = False
+) -> list[dict[str, Any]]:
     """Returns all Clusters fitting given filter"""
     gqlapi = gql.get_api()
     tmpl = CLUSTERS_MINIMAL_QUERY if minimal else CLUSTERS_QUERY
     query = Template(tmpl).render(
         filter=filter,
     )
-    return gqlapi.query(query)["clusters"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("clusters") or []
 
 
 OCM_QUERY = """
@@ -1352,7 +1386,10 @@ OCM_QUERY = """
 
 
 def get_openshift_cluster_managers() -> list[dict[str, Any]]:
-    return gql.get_api().query(OCM_QUERY)["instances"]
+    data = gql.get_api().query(OCM_QUERY)
+    if not data:
+        return []
+    return data.get("instances") or []
 
 
 NAMESPACES_QUERY = """
@@ -1510,12 +1547,14 @@ NAMESPACES_MINIMAL_QUERY = """
 """ % (indent(JUMPHOST_FIELDS, 8 * " "),)
 
 
-def get_namespaces(minimal=False):
+def get_namespaces(minimal: bool = False) -> list[dict[str, Any]]:
     """Returns all Namespaces"""
     gqlapi = gql.get_api()
-    if minimal:
-        return gqlapi.query(NAMESPACES_MINIMAL_QUERY)["namespaces"]
-    return gqlapi.query(NAMESPACES_QUERY)["namespaces"]
+    query = NAMESPACES_MINIMAL_QUERY if minimal else NAMESPACES_QUERY
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("namespaces") or []
 
 
 PRODUCTS_QUERY = """
@@ -1533,10 +1572,13 @@ PRODUCTS_QUERY = """
 """
 
 
-def get_products():
+def get_products() -> list[dict[str, Any]]:
     """Returns all Products"""
     gqlapi = gql.get_api()
-    return gqlapi.query(PRODUCTS_QUERY)["products"]
+    data = gqlapi.query(PRODUCTS_QUERY)
+    if not data:
+        return []
+    return data.get("products") or []
 
 
 ENVIRONMENTS_QUERY = """
@@ -1562,10 +1604,13 @@ ENVIRONMENTS_QUERY = """
 """
 
 
-def get_environments():
+def get_environments() -> list[dict[str, Any]]:
     """Returns all Products"""
     gqlapi = gql.get_api()
-    return gqlapi.query(ENVIRONMENTS_QUERY)["environments"]
+    data = gqlapi.query(ENVIRONMENTS_QUERY)
+    if not data:
+        return []
+    return data.get("environments") or []
 
 
 APPS_QUERY = """
@@ -1630,13 +1675,16 @@ CODE_COMPONENT_REPO_QUERY = """
 """
 
 
-def get_apps():
+def get_apps() -> list[dict[str, Any]]:
     """Returns all Apps."""
     gqlapi = gql.get_api()
-    return gqlapi.query(APPS_QUERY)["apps"]
+    data = gqlapi.query(APPS_QUERY)
+    if not data:
+        return []
+    return data.get("apps") or []
 
 
-def get_code_components():
+def get_code_components() -> list[dict[str, Any]]:
     """Returns code components from all apps."""
     apps = get_apps()
     code_components_lists = [
@@ -1646,13 +1694,13 @@ def get_code_components():
     return code_components
 
 
-def get_review_repos():
+def get_review_repos() -> list[dict[str, str]]:
     """Returns name and url of code components marked for review"""
     code_components = get_code_components()
     return [
         {"url": c["url"], "name": c["name"]}
         for c in code_components
-        if c is not None and c["showInReviewQueue"] is not None
+        if c["showInReviewQueue"] is not None
     ]
 
 
@@ -1661,7 +1709,10 @@ def get_repos(server: str = "", exclude_manage_permissions: bool = False) -> lis
     Optional arguments:
     server: url of the server to return. for example: https://github.com
     """
-    apps = gql.get_api().query(CODE_COMPONENT_REPO_QUERY)["apps"]
+    data = gql.get_api().query(CODE_COMPONENT_REPO_QUERY)
+    if not data:
+        return []
+    apps = data.get("apps") or []
     repos: list[str] = []
     for a in apps:
         if a["codeComponents"] is not None:
@@ -1673,7 +1724,7 @@ def get_repos(server: str = "", exclude_manage_permissions: bool = False) -> lis
     return repos
 
 
-def get_repos_gitlab_owner(server=""):
+def get_repos_gitlab_owner(server: str = "") -> list[dict[str, Any]]:
     """Returns all repos defined under codeComponents that have gitlabOwner
     enabled.
     Optional arguments:
@@ -1689,7 +1740,7 @@ def get_repos_gitlab_owner(server=""):
     ]
 
 
-def get_repos_gitlab_housekeeping(server=""):
+def get_repos_gitlab_housekeeping(server: str = "") -> list[dict[str, Any]]:
     """Returns all repos defined under codeComponents that have
     gitlabHousekeeping enabled.
     Optional arguments:
@@ -1705,7 +1756,7 @@ def get_repos_gitlab_housekeeping(server=""):
     ]
 
 
-def get_repos_gitlab_jira(server=""):
+def get_repos_gitlab_jira(server: str = "") -> list[dict[str, Any]]:
     code_components = get_code_components()
     return [
         {"url": c["url"], "jira": c["jira"]}
@@ -1754,10 +1805,13 @@ QUAY_ORGS_QUERY = """
 """
 
 
-def get_quay_orgs():
+def get_quay_orgs() -> list[dict[str, Any]]:
     """Returns all Quay orgs."""
     gqlapi = gql.get_api()
-    return gqlapi.query(QUAY_ORGS_QUERY)["quay_orgs"]
+    data = gqlapi.query(QUAY_ORGS_QUERY)
+    if not data:
+        return []
+    return data.get("quay_orgs") or []
 
 
 USERS_QUERY = """
@@ -1880,22 +1934,33 @@ ROLES_QUERY = """
 """
 
 
-def get_roles(aws=True, saas_files=True, sendgrid=False, permissions=True):
+def get_roles(
+    aws: bool = True,
+    saas_files: bool = True,
+    sendgrid: bool = False,
+    permissions: bool = True,
+) -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
     query = Template(ROLES_QUERY).render(
         aws=aws, saas_files=saas_files, sendgrid=sendgrid, permissions=permissions
     )
-    return gqlapi.query(query)["users"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("users") or []
 
 
-def get_users(refs=False):
+def get_users(refs: bool = False) -> list[dict[str, Any]]:
     """Returnes all Users."""
     gqlapi = gql.get_api()
     query = Template(USERS_QUERY).render(
         filter=None,
         refs=refs,
     )
-    return gqlapi.query(query)["users"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("users") or []
 
 
 @dataclass
@@ -1910,7 +1975,10 @@ def get_users_by(filter: UserFilter, refs: bool = False) -> list[dict[str, str]]
         filter=filter,
         refs=refs,
     )
-    return gqlapi.query(query)["users"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("users") or []
 
 
 BOTS_QUERY = """
@@ -1926,10 +1994,13 @@ BOTS_QUERY = """
 """
 
 
-def get_bots():
+def get_bots() -> list[dict[str, Any]]:
     """Returnes all Bots."""
     gqlapi = gql.get_api()
-    return gqlapi.query(BOTS_QUERY)["bots"]
+    data = gqlapi.query(BOTS_QUERY)
+    if not data:
+        return []
+    return data.get("bots") or []
 
 
 EXTERNAL_USERS_QUERY = """
@@ -1943,10 +2014,13 @@ EXTERNAL_USERS_QUERY = """
 """
 
 
-def get_external_users():
+def get_external_users() -> list[dict[str, Any]]:
     """Returnes all Users."""
     gqlapi = gql.get_api()
-    return gqlapi.query(EXTERNAL_USERS_QUERY)["external_users"]
+    data = gqlapi.query(EXTERNAL_USERS_QUERY)
+    if not data:
+        return []
+    return data.get("external_users") or []
 
 
 APP_INTERFACE_SQL_QUERIES_QUERY = """
@@ -2019,10 +2093,13 @@ APP_INTERFACE_SQL_QUERIES_QUERY = """
 """
 
 
-def get_app_interface_sql_queries():
+def get_app_interface_sql_queries() -> list[dict[str, Any]]:
     """Returns SqlQuery resources defined in app-interface"""
     gqlapi = gql.get_api()
-    return gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)["sql_queries"]
+    data = gqlapi.query(APP_INTERFACE_SQL_QUERIES_QUERY)
+    if not data:
+        return []
+    return data.get("sql_queries") or []
 
 
 PIPELINES_PROVIDERS_QUERY = """
@@ -2121,10 +2198,13 @@ PIPELINES_PROVIDERS_QUERY = """
 """ % (indent(JUMPHOST_FIELDS, 12 * " "),)
 
 
-def get_pipelines_providers():
+def get_pipelines_providers() -> list[dict[str, Any]]:
     """Returns PipelinesProvider resources defined in app-interface."""
     gqlapi = gql.get_api()
-    pipelines_providers = gqlapi.query(PIPELINES_PROVIDERS_QUERY)["pipelines_providers"]
+    data = gqlapi.query(PIPELINES_PROVIDERS_QUERY)
+    if not data:
+        return []
+    pipelines_providers = data.get("pipelines_providers") or []
 
     for pp in pipelines_providers:
         defaults = pp.pop("defaults")
@@ -2156,10 +2236,13 @@ JIRA_BOARDS_QUICK_QUERY = """
 """
 
 
-def get_simple_jira_boards(app_path: str):
+def get_simple_jira_boards(app_path: str) -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
     query = JIRA_BOARDS_QUICK_QUERY.replace("APATH", shlex.quote(app_path))
-    return gqlapi.query(query)["jira_boards"]
+    data = gqlapi.query(query)
+    if not data:
+        return []
+    return data.get("jira_boards") or []
 
 
 UNLEASH_INSTANCES_QUERY = """
@@ -2207,10 +2290,13 @@ UNLEASH_INSTANCES_QUERY = """
 """
 
 
-def get_unleash_instances():
+def get_unleash_instances() -> list[dict[str, Any]]:
     """Returns Unleash instances defined in app-interface"""
     gqlapi = gql.get_api()
-    return gqlapi.query(UNLEASH_INSTANCES_QUERY)["unleash_instances"]
+    data = gqlapi.query(UNLEASH_INSTANCES_QUERY)
+    if not data:
+        return []
+    return data.get("unleash_instances") or []
 
 
 DNS_RECORD = """
@@ -2304,12 +2390,15 @@ DNS_ZONES_QUERY = """
 """ % (indent(DNS_RECORD, 6 * " "),)
 
 
-def get_dns_zones(account_name=None):
+def get_dns_zones(account_name: str | None = None) -> list[dict[str, Any]]:
     """Returnes all AWS Route53 DNS Zones."""
     gqlapi = gql.get_api()
-    zones = gqlapi.query(DNS_ZONES_QUERY)["zones"]
+    data = gqlapi.query(DNS_ZONES_QUERY)
+    if not data:
+        return []
+    zones = data.get("zones") or []
     if account_name:
-        zones = [z for z in zones if z["account"]["name"] == account_name]
+        zones = [z for z in zones if z.get("account", {}).get("name") == account_name]
 
     return zones
 
@@ -2345,13 +2434,16 @@ SLACK_WORKSPACES_QUERY = """
 """
 
 
-def get_slack_workspace():
+def get_slack_workspace() -> dict[str, Any] | None:
     """Returns a single Slack workspace"""
     gqlapi = gql.get_api()
-    slack_workspaces = gqlapi.query(SLACK_WORKSPACES_QUERY)["slack_workspaces"]
-    if len(slack_workspaces) != 1:
+    data = gqlapi.query(SLACK_WORKSPACES_QUERY)
+    if not data:
+        return None
+    slack_workspaces = data.get("slack_workspaces") or []
+    if len(slack_workspaces) > 1:
         logging.warning("multiple Slack workspaces found.")
-    return slack_workspaces[0]
+    return slack_workspaces[0] if slack_workspaces else None
 
 
 SENDGRID_ACCOUNTS_QUERY = """
@@ -2370,10 +2462,13 @@ SENDGRID_ACCOUNTS_QUERY = """
 """
 
 
-def get_sendgrid_accounts():
+def get_sendgrid_accounts() -> list[dict[str, Any]]:
     """Returns SendGrid accounts"""
     gqlapi = gql.get_api()
-    return gqlapi.query(SENDGRID_ACCOUNTS_QUERY)["sendgrid_accounts"]
+    data = gqlapi.query(SENDGRID_ACCOUNTS_QUERY)
+    if not data:
+        return []
+    return data.get("sendgrid_accounts") or []
 
 
 QUAY_REPOS_QUERY = """
@@ -2408,9 +2503,12 @@ QUAY_REPOS_QUERY = """
 """
 
 
-def get_quay_repos():
+def get_quay_repos() -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
-    return gqlapi.query(QUAY_REPOS_QUERY)["apps"]
+    data = gqlapi.query(QUAY_REPOS_QUERY)
+    if not data:
+        return []
+    return data.get("apps") or []
 
 
 SRE_CHECKPOINTS_QUERY = """
@@ -2426,9 +2524,12 @@ SRE_CHECKPOINTS_QUERY = """
 """
 
 
-def get_sre_checkpoints():
+def get_sre_checkpoints() -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
-    return gqlapi.query(SRE_CHECKPOINTS_QUERY)["sre_checkpoints"]
+    data = gqlapi.query(SRE_CHECKPOINTS_QUERY)
+    if not data:
+        return []
+    return data.get("sre_checkpoints") or []
 
 
 GABI_INSTANCES_QUERY = """
@@ -2490,9 +2591,12 @@ GABI_INSTANCES_QUERY = """
 """ % (indent(JUMPHOST_FIELDS, 12 * " "),)
 
 
-def get_gabi_instances():
+def get_gabi_instances() -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
-    return gqlapi.query(GABI_INSTANCES_QUERY)["gabi_instances"]
+    data = gqlapi.query(GABI_INSTANCES_QUERY)
+    if not data:
+        return []
+    return data.get("gabi_instances") or []
 
 
 CLOSED_BOX_MONITORING_PROBES_QUERY = """
@@ -2556,9 +2660,12 @@ CLOSED_BOX_MONITORING_PROBES_QUERY = """
 """
 
 
-def get_service_monitoring_endpoints():
+def get_service_monitoring_endpoints() -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
-    return gqlapi.query(CLOSED_BOX_MONITORING_PROBES_QUERY)["apps"]
+    data = gqlapi.query(CLOSED_BOX_MONITORING_PROBES_QUERY)
+    if not data:
+        return []
+    return data.get("apps") or []
 
 
 # Use APATH as place holder because query strings have a lot of curly
@@ -2606,7 +2713,10 @@ def get_app_metadata(app_path: str) -> dict:
     """Fetch the metadata for the path stored in app_path."""
     app_query = APP_METADATA.replace("APATH", shlex.quote(app_path))
     gqlapi = gql.get_api()
-    return gqlapi.query(app_query)["apps"]
+    data = gqlapi.query(app_query)
+    if not data:
+        return {}
+    return data.get("apps", {})
 
 
 BLACKBOX_EXPORTER_MONITORING_PROVIDER = """
@@ -2631,7 +2741,10 @@ BLACKBOX_EXPORTER_MONITORING_PROVIDER = """
 
 def get_blackbox_exporter_monitoring_provider() -> dict:
     gqlapi = gql.get_api()
-    return gqlapi.query(BLACKBOX_EXPORTER_MONITORING_PROVIDER)["providers"]
+    data = gqlapi.query(BLACKBOX_EXPORTER_MONITORING_PROVIDER)
+    if not data:
+        return {}
+    return data.get("providers", {})
 
 
 JENKINS_CONFIGS = """
@@ -2662,9 +2775,12 @@ JENKINS_CONFIGS = """
 """
 
 
-def get_jenkins_configs():
+def get_jenkins_configs() -> list[dict[str, Any]]:
     gqlapi = gql.get_api()
-    return gqlapi.query(JENKINS_CONFIGS)["jenkins_configs"]
+    data = gqlapi.query(JENKINS_CONFIGS)
+    if not data:
+        return []
+    return data.get("jenkins_configs") or []
 
 
 TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER = """
@@ -2686,10 +2802,15 @@ def get_tf_resources_provider_exclusions_by_provisioner() -> (
     list[dict[str, Any]] | None
 ):
     gqlapi = gql.get_api()
-    settings = gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)[
-        "tf_provider_exclusions"
-    ]
-    if len(settings) == 1 and "terraformResourcesProviderExclusions" in settings[0]:
+    data = gqlapi.query(TF_RESOURCES_PROVIDER_EXCLUSIONS_BY_PROVISIONER)
+    if not data:
+        return None
+    settings = data.get("tf_provider_exclusions")
+    if (
+        settings
+        and len(settings) == 1
+        and "terraformResourcesProviderExclusions" in settings[0]
+    ):
         return settings[0]["terraformResourcesProviderExclusions"]
     return None
 
@@ -2719,4 +2840,7 @@ SCHEMAS_QUERY = """
 # TODO: replace with typed query following https://issues.redhat.com/browse/APPSRE-10983
 def get_schemas() -> dict:
     gqlapi = gql.get_api()
-    return gqlapi.query(SCHEMAS_QUERY)["schemas"]
+    data = gqlapi.query(SCHEMAS_QUERY)
+    if not data:
+        return {}
+    return data.get("schemas", {})

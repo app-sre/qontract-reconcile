@@ -1,4 +1,3 @@
-# ruff: noqa: FURB118
 from typing import Any
 
 import pytest

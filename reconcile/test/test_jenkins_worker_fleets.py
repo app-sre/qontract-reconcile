@@ -15,7 +15,9 @@ from reconcile.utils.terrascript_aws_client import TerrascriptClient as Terrascr
 fixture = Fixtures("jenkins_worker_fleets")
 
 
-def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
+def test_jenkins_worker_fleets(
+    mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+) -> None:
     mock_get = mocker.patch.object(JenkinsApi, "get_jcasc_config")
     mock_get.return_value = fixture.get_anymarkup("jcasc-export.yml")
 
@@ -29,7 +31,7 @@ def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
     instance = fixture.get_anymarkup("gql-queries.yml")["gql_response"]["instances"][0]
     jenkins = JenkinsApi("url", "user", "password")
     terrascript = Terrascript(
-        "jenkins-worker-fleets", "", 1, accounts=[], settings=None
+        "jenkins-worker-fleets", "", 1, accounts=[], settings=None, default_tags=None
     )
     current_state = get_current_state(jenkins)
     worker_fleets = instance.get("workerFleets", [])
@@ -47,10 +49,10 @@ def test_jenkins_worker_fleets(mocker: MockerFixture, caplog):
     ])
 
 
-def test_jenkins_worker_fleets_error():
+def test_jenkins_worker_fleets_error() -> None:
     instance = fixture.get_anymarkup("gql-queries.yml")["gql_response"]["instances"][1]
     terrascript = Terrascript(
-        "jenkins-worker-fleets", "", 1, accounts=[], settings=None
+        "jenkins-worker-fleets", "", 1, accounts=[], settings=None, default_tags=None
     )
     worker_fleets = instance.get("workerFleets", [])
     with pytest.raises(ValueError):

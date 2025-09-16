@@ -53,12 +53,11 @@ def run(dry_run: bool, vault_output_path: str | None) -> None:
 
     if not dry_run:
         logging.info("writing ClusterDeployments to vault")
-        vault_client = VaultClient()
+        vault_client = VaultClient.get_instance()
         secret = {
             "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}",
             "data": {
                 "map": "\n".join(f"{item['id']}: {item['cluster']}" for item in results)
             },
         }
-        # mypy doesn't like our fancy way of creating a VaultClient
-        vault_client.write(secret, decode_base64=False)  # type: ignore[attr-defined]
+        vault_client.write(secret, decode_base64=False)

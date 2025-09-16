@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from pytest_mock import MockerFixture
 
@@ -33,7 +35,7 @@ def ocm(mocker: MockerFixture, ocm_url: str, cluster: str, cluster_id: str) -> O
     return ocm
 
 
-def test_get_cluster_aws_account_id_none(mocker, ocm):
+def test_get_cluster_aws_account_id_none(mocker: MockerFixture, ocm: OCM) -> None:
     role_grants_mock = mocker.patch.object(
         ocm, "get_aws_infrastructure_access_role_grants"
     )
@@ -42,7 +44,7 @@ def test_get_cluster_aws_account_id_none(mocker, ocm):
     assert result is None
 
 
-def test_get_cluster_aws_account_id_ok(mocker, ocm):
+def test_get_cluster_aws_account_id_ok(mocker: MockerFixture, ocm: OCM) -> None:
     console_url = (
         "https://signin.aws.amazon.com/switchrole?account=12345&roleName=role-1"
     )
@@ -56,7 +58,7 @@ def test_get_cluster_aws_account_id_ok(mocker, ocm):
 
 
 @pytest.fixture
-def clusters_by_readiness():
+def clusters_by_readiness() -> list[tuple[dict[str, Any], bool]]:
     return [
         (
             {
@@ -90,6 +92,8 @@ def clusters_by_readiness():
     ]
 
 
-def test__ready_for_app_interface(clusters_by_readiness, ocm):
+def test__ready_for_app_interface(
+    clusters_by_readiness: list[tuple[dict[str, Any], bool]], ocm: OCM
+) -> None:
     for cluster, readiness in clusters_by_readiness:
         assert ocm._ready_for_app_interface(cluster) == readiness

@@ -22,10 +22,10 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query JiraBoardsForPermissionValidation {
@@ -35,7 +35,7 @@ query JiraBoardsForPermissionValidation {
     server {
       serverUrl
       token {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
     issueType

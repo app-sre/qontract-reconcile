@@ -74,6 +74,23 @@ query AutomatedActionsInstances {
           identifier
         }
       }
+      ... on AutomatedActionOpenshiftWorkloadDelete_v1 {
+        openshift_workload_delete_arguments: arguments {
+          namespace {
+            name
+            delete
+            cluster {
+              name
+              disable {
+                integrations
+              }
+            }
+          }
+          api_version
+          kind
+          name
+        }
+      }
       ... on AutomatedActionOpenshiftWorkloadRestart_v1 {
         openshift_workload_restart_arguments: arguments {
           namespace {

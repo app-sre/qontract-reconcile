@@ -59,7 +59,7 @@ query Projects {
       }
     }
     app {
-    # for glitchtip access revalidation
+      # for glitchtip access revalidation
       path
       # for the qontract-cli glitchtip subcommands
       escalationPolicy {

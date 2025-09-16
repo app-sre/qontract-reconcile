@@ -1,6 +1,8 @@
 template:
   name: full
 
+  overwrite: true
+
   # test targetPath with templating, multiline and whitespaces
   targetPath: |
     {% if true %}
@@ -11,5 +13,7 @@ template:
     foo: {{ bar }}
 
   templateTest: []
+current:
+  foo: abc
 expected: |
   foo: bar

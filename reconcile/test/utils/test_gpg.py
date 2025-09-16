@@ -1,10 +1,9 @@
-import os
-import sys
+import shutil
 from unittest import (
     TestCase,
     skipIf,
 )
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from reconcile.utils import gpg
 
@@ -56,14 +55,11 @@ W1DegErhvC6nwh/J0GOLws2gRzVo+2RzB7if"""
 # subprocess.Popen(...)" we'd be patching subprocess instead.
 class TestGpgEncrypt(TestCase):
     @patch.object(gpg, "run")
-    def test_gpg_encrypt_all_ok(self, popen):
+    def test_gpg_encrypt_all_ok(self, popen: MagicMock) -> None:
         popen.return_value.stdout = b"<stdout>"
 
         self.assertEqual(gpg.gpg_encrypt("acontent", "akey"), "<stdout>")
 
-    @skipIf(
-        (sys.version_info.major, sys.version_info.minor) == (3, 6) and os.getuid() == 0,
-        "Jenkins and Python 3.6 fail this test",
-    )
-    def test_gpg_encrypt_nomocks(self):
+    @skipIf(shutil.which("gpg") is None, "gpg binary not found")
+    def test_gpg_encrypt_nomocks(self) -> None:
         self.assertTrue(gpg.gpg_encrypt("a message", VALID_KEY))

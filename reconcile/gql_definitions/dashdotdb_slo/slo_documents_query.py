@@ -22,59 +22,59 @@ from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
 
 DEFINITION = """
 fragment SLODocument on SLODocument_v1 {
-    name
-    namespaces {
-      prometheusAccess {
-         url
-         username {
-         ... VaultSecret
-         }
-         password {
-           ... VaultSecret
-         }
+  name
+  namespaces {
+    prometheusAccess {
+      url
+      username {
+        ...VaultSecret
       }
-      namespace {
-        name
-        app {
-          name
-        }
-        cluster {
-          name
-          automationToken {
-          ... VaultSecret
-          }
-          prometheusUrl
-          spec {
-            private
-          }
-        }
-      }
-      SLONamespace {
-        name
+      password {
+        ...VaultSecret
       }
     }
-    slos {
+    namespace {
       name
-      expr
-      SLIType
-      SLOParameters {
-        window
+      app {
+        name
       }
-      SLOTarget
-      SLOTargetUnit
+      cluster {
+        name
+        automationToken {
+          ...VaultSecret
+        }
+        prometheusUrl
+        spec {
+          private
+        }
+      }
     }
+    SLONamespace {
+      name
+    }
+  }
+  slos {
+    name
+    expr
+    SLIType
+    SLOParameters {
+      window
+    }
+    SLOTarget
+    SLOTargetUnit
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query SLODocuments {
   slo_documents: slo_document_v1 {
-  ... SLODocument
+    ...SLODocument
   }
 }
 """

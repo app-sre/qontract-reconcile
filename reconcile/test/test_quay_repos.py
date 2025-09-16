@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from reconcile.quay_base import OrgKey
@@ -8,10 +11,15 @@ from reconcile.quay_repos import (
 
 from .fixtures import Fixtures
 
+if TYPE_CHECKING:
+    from unittest.mock import Mock
+
+    from reconcile.quay_base import QuayApiStore
+
 fxt = Fixtures("quay_repos")
 
 
-def build_state(fixture_state):
+def build_state(fixture_state: list[tuple[str, bool, str]]) -> list[RepoInfo]:
     return [
         RepoInfo(
             org_key=OrgKey("instance", "org"),
@@ -23,7 +31,7 @@ def build_state(fixture_state):
     ]
 
 
-def get_test_repo_from_state(state, name):
+def get_test_repo_from_state(state: list[RepoInfo], name: str) -> RepoInfo | None:
     for item in state:
         if item.name == name:
             return item
@@ -36,13 +44,18 @@ class TestQuayRepos:
     @patch("reconcile.quay_repos.act_description")
     @patch("reconcile.quay_repos.act_delete")
     @patch("reconcile.quay_repos.act_create")
-    def test_act(act_create, act_delete, act_description, act_public):
+    def test_act(
+        act_create: Mock,
+        act_delete: Mock,
+        act_description: Mock,
+        act_public: Mock,
+    ) -> None:
         fixture = fxt.get_anymarkup("state.yml")
 
         current_state = build_state(fixture["current_state"])
         desired_state = build_state(fixture["desired_state"])
 
-        quay_api_store = {}
+        quay_api_store: QuayApiStore = {}
         dry_run = True
         act(dry_run, quay_api_store, current_state, desired_state)
 

@@ -33,13 +33,15 @@ class NS:
     Simple utility class holding test information on namesapces
     """
 
-    def __init__(self, cluster: str, name: str, delete: bool, exists: bool = True):
+    def __init__(
+        self, cluster: str, name: str, delete: bool, exists: bool = True
+    ) -> None:
         self.cluster = cluster
         self.name = name
         self.delete = delete
         self.exists = exists
 
-    def gql(self):
+    def gql(self) -> NamespaceV1:
         """Get this namespace as an output of GQL"""
         ns = load_namespace("namespace.yml")
         ns.name = self.name
@@ -49,17 +51,17 @@ class NS:
 
 
 class TestOpenshiftNamespaces(TestCase):
-    def _oc_map_clusters(self):
+    def _oc_map_clusters(self) -> list[str]:
         """Mock OCM_Map.clusters() by listing clusters in our test data"""
         return [ns.name for ns in self.test_ns]
 
-    def _project_exists(self, project) -> bool:
+    def _project_exists(self, project: str) -> bool:
         for ns in self.test_ns:
             if ns.name == project and ns.cluster == self.current_cluster:
                 return ns.exists
         return False
 
-    def _oc_map_get(self, cluster):
+    def _oc_map_get(self, cluster: str) -> Mock:
         """Mock OCM_Map.get() to return a Mock object"""
         self.current_cluster = cluster
         if cluster not in self.oc_clients:
@@ -70,16 +72,16 @@ class TestOpenshiftNamespaces(TestCase):
             oc = self.oc_clients[cluster]
         return oc
 
-    def _queries_get_namespaces(self):
+    def _queries_get_namespaces(self) -> list[NamespaceV1]:
         """Mock get_namespaces() by returning our test data
         gql_response is set in the test method.
         """
         return [ns.gql() for ns in self.test_ns]
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Setup GQL, State and Openshift mocks, using self.test_ns data"""
-        self.oc_clients = {}
-        self.test_ns = []
+        self.oc_clients: dict[str, Mock] = {}
+        self.test_ns: list[NS] = []
 
         module = "reconcile.openshift_namespaces"
 
@@ -107,7 +109,7 @@ class TestOpenshiftNamespaces(TestCase):
         self.oc_map_patcher.stop()
         self.queries_patcher.stop()
 
-    def test_create_namespace(self):
+    def test_create_namespace(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=False, exists=False),
             NS(c2, n2, delete=False, exists=False),
@@ -120,7 +122,7 @@ class TestOpenshiftNamespaces(TestCase):
             oc.new_project.assert_called_with(ns.name)
             oc.delete_project.assert_not_called()
 
-    def test_delete_namespace(self):
+    def test_delete_namespace(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=True, exists=True),
             NS(c2, n2, delete=True, exists=True),
@@ -133,7 +135,7 @@ class TestOpenshiftNamespaces(TestCase):
             oc.delete_project.assert_called_with(ns.name)
             oc.new_project.assert_not_called()
 
-    def test_dup_present_namespace_no_deletes_should_do_nothing(self):
+    def test_dup_present_namespace_no_deletes_should_do_nothing(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=False, exists=True),
             NS(c1, n1, delete=False, exists=True),
@@ -144,7 +146,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
 
-    def test_dup_present_namespace_some_deletes_should_error(self):
+    def test_dup_present_namespace_some_deletes_should_error(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=False, exists=True),
             NS(c1, n1, delete=True, exists=True),
@@ -160,7 +162,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
 
-    def test_dup_present_namespace_all_deletes_should_delete(self):
+    def test_dup_present_namespace_all_deletes_should_delete(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=True, exists=True),
             NS(c1, n1, delete=True, exists=True),
@@ -171,7 +173,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_called()
         oc.new_project.assert_not_called()
 
-    def test_dup_absent_namespace_no_deletes_should_create(self):
+    def test_dup_absent_namespace_no_deletes_should_create(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=False, exists=False),
             NS(c1, n1, delete=False, exists=False),
@@ -182,7 +184,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_called()
 
-    def test_dup_absent_namespace_some_deletes_should_error(self):
+    def test_dup_absent_namespace_some_deletes_should_error(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=True, exists=False),
             NS(c1, n1, delete=False, exists=False),
@@ -199,7 +201,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
 
-    def test_dup_absent_namespace_all_deletes_should_do_nothing(self):
+    def test_dup_absent_namespace_all_deletes_should_do_nothing(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=True, exists=False),
             NS(c1, n1, delete=True, exists=False),
@@ -210,7 +212,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
 
-    def test_delete_absent_namespace(self):
+    def test_delete_absent_namespace(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=True, exists=False),
         ]
@@ -220,7 +222,7 @@ class TestOpenshiftNamespaces(TestCase):
         oc.delete_project.assert_not_called()
         oc.new_project.assert_not_called()
 
-    def test_error_handling_project_exists(self):
+    def test_error_handling_project_exists(self) -> None:
         oc = self.oc_clients.setdefault(c1, Mock(name=f"oc_{c1}"))
         oc.project_exists.side_effect = StatusCodeError("SomeError")
         self.oc_map.get.return_value = oc
@@ -233,7 +235,7 @@ class TestOpenshiftNamespaces(TestCase):
             openshift_namespaces.run(False, thread_pool_size=1)
             self.assertIn("SomeError", f.getvalue())
 
-    def test_run_with_cluster_name(self):
+    def test_run_with_cluster_name(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=False, exists=False),
             NS(c2, n2, delete=False, exists=False),
@@ -244,7 +246,7 @@ class TestOpenshiftNamespaces(TestCase):
         self.oc_clients[c1].new_project.assert_called_with(n1)
         self.assertNotIn(c2, self.oc_clients)
 
-    def test_run_with_namespace_name(self):
+    def test_run_with_namespace_name(self) -> None:
         self.test_ns = [
             NS(c1, n1, delete=False, exists=False),
             NS(c2, n2, delete=False, exists=False),

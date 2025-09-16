@@ -14,7 +14,7 @@ from reconcile.dashdotdb_dora import (
 )
 
 
-def test_get_repo_ref_for_sha(mocker: MockerFixture):
+def test_get_repo_ref_for_sha(mocker: MockerFixture) -> None:
     mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
 
@@ -50,7 +50,7 @@ def test_get_repo_ref_for_sha(mocker: MockerFixture):
     assert info == ("url1", "ref1")
 
 
-def test_get_repo_ref_for_sha_none(mocker: MockerFixture):
+def test_get_repo_ref_for_sha_none(mocker: MockerFixture) -> None:
     mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
 
@@ -86,12 +86,12 @@ def test_get_repo_ref_for_sha_none(mocker: MockerFixture):
     assert info == (None, None)
 
 
-def test_compare_gh(mocker: MockerFixture):
+def test_compare_gh(mocker: MockerFixture) -> None:
     mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
     ghapi_mock = MagicMock()
 
-    def gl_commit_mock(sha, date):
+    def gl_commit_mock(sha: str, date: datetime) -> MagicMock:
         obj = MagicMock()
         obj.sha = sha
         obj.commit.committer.date = date
@@ -147,7 +147,7 @@ def test_compare_gh(mocker: MockerFixture):
     ]
 
 
-def test_compare_gl(mocker: MockerFixture):
+def test_compare_gl(mocker: MockerFixture) -> None:
     mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
     d.gl = MagicMock()
@@ -203,7 +203,7 @@ def test_compare_gl(mocker: MockerFixture):
     ]
 
 
-def test_get_latest_with_default(mocker: MockerFixture):
+def test_get_latest_with_default(mocker: MockerFixture) -> None:
     mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
     d.dashdotdb_url = "http://localhost"
@@ -224,7 +224,7 @@ def test_get_latest_with_default(mocker: MockerFixture):
     )
 
 
-def test_get_repo_changes(mocker: MockerFixture):
+def test_get_repo_changes(mocker: MockerFixture) -> None:
     mocker.patch("reconcile.dashdotdb_dora.DashdotdbDORA.__init__").return_value = None
     d = DashdotdbDORA(False, "1", 1)
 

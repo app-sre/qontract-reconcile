@@ -28,12 +28,12 @@ class CSVModel(BaseModel):
     csv: CSV
 
 
-def test_csv_type():
+def test_csv_type() -> None:
     assert CSVModel(csv="a,b,c").csv == ["a", "b", "c"]
     assert CSVModel(csv="a").csv == ["a"]
 
 
-def test_csv_type_empty():
+def test_csv_type_empty() -> None:
     assert CSVModel(csv="").csv == []
 
 
@@ -41,17 +41,17 @@ class ConstrainedCSVModel(BaseModel):
     csv: CSV = Field(csv_min_items=2, csv_max_items=3)
 
 
-def test_constrained_csv_type():
+def test_constrained_csv_type() -> None:
     ConstrainedCSVModel(csv="a,b")
     ConstrainedCSVModel(csv="a,b,c")
 
 
-def test_constrained_csv_type_min_violation():
+def test_constrained_csv_type_min_violation() -> None:
     with pytest.raises(ValidationError):
         ConstrainedCSVModel(csv="a")
 
 
-def test_constrained_csv_type_max_violation():
+def test_constrained_csv_type_max_violation() -> None:
     with pytest.raises(ValidationError):
         ConstrainedCSVModel(csv="a,b,c,d")
 
@@ -66,11 +66,11 @@ class CronModel(BaseModel):
     _cron_validator = validator("cron", allow_reuse=True)(cron_validator)
 
 
-def test_cron_validation():
+def test_cron_validation() -> None:
     CronModel(cron="0 * * * 1-5")
 
 
-def test_cron_validation_invalid():
+def test_cron_validation_invalid() -> None:
     with pytest.raises(ValidationError):
         CronModel(cron="0 48 * * 1-5")
 
@@ -137,7 +137,7 @@ def test_default_data_none_mandatory_string_with_default(
     ],
 )
 def test_default_data_none_optional_string(
-    data: dict[str, Any], expected_value: str
+    data: dict[str, Any], expected_value: str | None
 ) -> None:
     """
     Optional string fields are not overwritten by default_data_none.
@@ -189,7 +189,7 @@ def test_default_data_none_mandatory_int_without_default(
     ],
 )
 def test_default_data_none_mandatory_int_with_default(
-    data: dict[str, Any], field_default: int, expected_value: str
+    data: dict[str, Any], field_default: int, expected_value: int
 ) -> None:
     """
     Don't add fill the gap with a default value if the pydantic dataclass
@@ -212,7 +212,7 @@ def test_default_data_none_mandatory_int_with_default(
     ],
 )
 def test_default_data_none_optional_int(
-    data: dict[str, Any], expected_value: int
+    data: dict[str, Any], expected_value: int | None
 ) -> None:
     """
     Optional int fields are not overwritten by default_data_none.
@@ -286,7 +286,7 @@ def test_default_data_none_mandatory_bool_with_default(
     ],
 )
 def test_default_data_none_optional_bool(
-    data: dict[str, Any], expected_value: bool
+    data: dict[str, Any], expected_value: bool | None
 ) -> None:
     """
     Optional bool fields are not overwritten by default_data_none.

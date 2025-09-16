@@ -33,6 +33,7 @@ from reconcile.utils import gql
 from reconcile.utils.git import checkout, clone
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
+from reconcile.utils.json import json_dumps
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -95,22 +96,23 @@ class LocalFilePersistence(FilePersistence):
     This class provides a simple file persistence implementation for local files.
     """
 
-    def __init__(self, dry_run: bool, app_interface_data_path: str) -> None:
+    def __init__(self, dry_run: bool, app_interface_root_path: str) -> None:
         super().__init__(dry_run)
-        if not app_interface_data_path.endswith("/data"):
-            raise ValueError("app_interface_data_path should end with /data")
-        self.app_interface_data_path = app_interface_data_path
+        self.app_interface_root_path = app_interface_root_path
 
     def read(self, path: str) -> str | None:
-        return self._read_local_file(join_path(self.app_interface_data_path, path))
+        return self._read_local_file(join_path(self.app_interface_root_path, path))
+
+    def flush(self) -> None:
+        for output in self.outputs:
+            filepath = Path(join_path(self.app_interface_root_path, output.path))
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_text(output.content, encoding="utf-8")
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if self.dry_run:
             return
-        for output in self.outputs:
-            filepath = Path(join_path(self.app_interface_data_path, output.path))
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_text(output.content, encoding="utf-8")
+        self.flush()
 
 
 class PersistenceTransaction(FilePersistence):
@@ -156,7 +158,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
         self, dry_run: bool, local_path: str, vcs: VCS, mr_manager: MergeRequestManager
     ):
         super().__init__(dry_run)
-        self.local_path = join_path(local_path, "data")
+        self.local_path = local_path
         self.vcs = vcs
         self.mr_manager = mr_manager
 
@@ -214,7 +216,7 @@ def unpack_static_variables(
     each: dict[str, Any],
 ) -> dict:
     return {
-        k: json.loads(process_jinja2_template(body=json.dumps(v), vars={"each": each}))
+        k: json.loads(process_jinja2_template(body=json_dumps(v), vars={"each": each}))
         for k, v in (collection_variables.static or {}).items()
     }
 
@@ -237,7 +239,7 @@ def unpack_dynamic_variables(
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
     clone_repo: bool = False
-    app_interface_data_path: str | None
+    app_interface_root_path: str | None
     template_collection_name: str | None
 
 
@@ -364,10 +366,10 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
         persistence: FilePersistence
         ruaml_instance = create_ruamel_instance(explicit_start=True)
 
-        if not self.params.clone_repo and self.params.app_interface_data_path:
+        if not self.params.clone_repo and self.params.app_interface_root_path:
             persistence = LocalFilePersistence(
                 dry_run=dry_run,
-                app_interface_data_path=self.params.app_interface_data_path,
+                app_interface_root_path=self.params.app_interface_root_path,
             )
             self.reconcile(persistence, ruaml_instance)
 
@@ -408,4 +410,4 @@ class TemplateRendererIntegration(QontractReconcileIntegration):
                 self.reconcile(persistence, ruaml_instance)
 
         else:
-            raise ValueError("App-interface-data-path must be set")
+            raise ValueError("App-interface-root-path must be set")

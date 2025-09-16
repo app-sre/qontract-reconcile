@@ -818,7 +818,7 @@ class TestBuildDesiredStateVpcMeshSingleCluster(testslide.TestCase):
             "ocm.OCM", testslide.StrictMock(template=ocm.OCM)
         )  # the cast is to make mypy happy
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore
-            lambda cluster, uid, tfuser: self.peer_account["assume_role"]
+            lambda cluster, tf_account_id, tf_user: self.peer_account["assume_role"]
         )
         self.account_vpcs = [
             {
@@ -1252,7 +1252,7 @@ class TestBuildDesiredStateVpcSingleCluster(testslide.TestCase):
         )  # the cast is to make mypy happy
         self.mock_constructor(aws_api, "AWSApi").to_return_value(self.awsapi)
         self.ocm.get_aws_infrastructure_access_terraform_assume_role = (  # type: ignore
-            lambda cluster, uid, tfuser: self.aws_account["assume_role"]
+            lambda cluster, tf_account_id, tf_user: self.aws_account["assume_role"]
         )
         self.addCleanup(testslide.mock_callable.unpatch_all_callable_mocks)
         self.maxDiff = None

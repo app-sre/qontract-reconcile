@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 
@@ -14,7 +15,9 @@ from reconcile.utils.mr.labels import AUTO_MERGE
 class CreateAppInterfaceReporter(MergeRequestBase):
     name = "create_app_interface_reporter_mr"
 
-    def __init__(self, reports, email_body, reports_path):
+    def __init__(
+        self, reports: Iterable[dict[str, str]], email_body: str, reports_path: str
+    ) -> None:
         self.reports = reports
         self.email_body = email_body
         self.reports_path = reports_path

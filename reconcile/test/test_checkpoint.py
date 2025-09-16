@@ -1,13 +1,15 @@
 from http import HTTPStatus
+from typing import Any
 
 import pytest
 import requests
+from pytest_mock import MockerFixture
 
 import reconcile.checkpoint as sut
 
 
 @pytest.fixture
-def valid_app():
+def valid_app() -> dict[str, Any]:
     """How a valid application looks like."""
     return {
         "sopsUrl": "https://www.redhat.com/sops",
@@ -18,12 +20,12 @@ def valid_app():
 
 
 @pytest.fixture
-def valid_owner():
+def valid_owner() -> dict[str, str]:
     """How a valid owner looks like."""
     return {"name": "A Name", "email": "a.name@redhat.com"}
 
 
-def invalid_owners():
+def invalid_owners() -> list[dict[str, str | None]]:
     """List the ways in which an owner can be invalid."""
     return [
         {"name": "A Name", "email": None},
@@ -33,24 +35,26 @@ def invalid_owners():
     ]
 
 
-def test_valid_owner(valid_owner) -> None:
+def test_valid_owner(valid_owner: dict[str, str]) -> None:
     """Confirm that the valid owner is recognized as such."""
     assert sut.valid_owners([valid_owner])
 
 
 @pytest.mark.parametrize("invalid_owner", invalid_owners())
-def test_invalid_owners(invalid_owner):
+def test_invalid_owners(invalid_owner: dict[str, str | None]) -> None:
     """Confirm that the invalid owners are flagged."""
     assert not sut.valid_owners([invalid_owner])
 
 
 @pytest.mark.parametrize("invalid_owner", invalid_owners())
-def test_invalid_owners_remain_invalid(valid_owner, invalid_owner):
+def test_invalid_owners_remain_invalid(
+    valid_owner: dict[str, str], invalid_owner: dict[str, str | None]
+) -> None:
     """Confirm rejection of invalid owners even mixed with good ones."""
     assert not sut.valid_owners([valid_owner, invalid_owner])
 
 
-def test_url_makes_sense_ok(mocker):
+def test_url_makes_sense_ok(mocker: MockerFixture) -> None:
     """Good URLs are accepted."""
     get = mocker.patch.object(requests, "get", autospec=True)
     r = requests.Response()
@@ -60,7 +64,7 @@ def test_url_makes_sense_ok(mocker):
     assert sut.url_makes_sense("https://www.redhat.com/existing")
 
 
-def test_url_makes_sense_unknown(mocker):
+def test_url_makes_sense_unknown(mocker: MockerFixture) -> None:
     """Ensure rejection of URLs pointing to missing documents."""
     get = mocker.patch.object(requests, "get", autospec=True)
     r = requests.Response()
@@ -69,17 +73,17 @@ def test_url_makes_sense_unknown(mocker):
     assert not sut.url_makes_sense("https://www.redhat.com/nonexisting")
 
 
-def test_url_makes_sense_error():
+def test_url_makes_sense_error() -> None:
     """Ensure rejection of URLs returning ConnectionError."""
     assert not sut.url_makes_sense("https://TODO")
 
 
-def test_url_makes_sense_empty():
+def test_url_makes_sense_empty() -> None:
     """Ensure rejection of empty URLs."""
     assert not sut.url_makes_sense("")
 
 
-def test_render_template():
+def test_render_template() -> None:
     """Confirm rendering of all placeholders in the ticket template."""
     txt = sut.render_template(
         sut.MISSING_DATA_TEMPLATE, "aname", "apath", "afield", "avalue"
@@ -90,7 +94,7 @@ def test_render_template():
     assert "avalue" in txt
 
 
-def app_metadata():
+def app_metadata() -> list[tuple[dict[str, Any], bool]]:
     """List some metadata for some fake apps.
 
     Returns the app structure and whether we expect it to have a
@@ -129,7 +133,9 @@ def app_metadata():
 
 
 @pytest.mark.parametrize("app,needs_ticket", app_metadata())
-def test_report_invalid_metadata(mocker, app, needs_ticket):
+def test_report_invalid_metadata(
+    mocker: MockerFixture, app: dict[str, Any], needs_ticket: bool
+) -> None:
     """Test that valid apps don't get tickets and that invalid apps do."""
     # TODO: I'm pretty sure a fixture can help with this
     jira = mocker.patch.object(sut, "JiraClient", autospec=True)
@@ -143,7 +149,7 @@ def test_report_invalid_metadata(mocker, app, needs_ticket):
         "grafanaUrls": lambda _: True,
     }
 
-    sut.report_invalid_metadata(app, "/a/path", "jiraboard", {}, "TICKET-123")
+    sut.report_invalid_metadata(app, "/a/path", {"name": "jiraboard"}, {}, "TICKET-123")
     if needs_ticket:
         filer.assert_called_once_with(
             jira=jira.return_value,
@@ -161,7 +167,9 @@ def test_report_invalid_metadata(mocker, app, needs_ticket):
 
 
 @pytest.mark.parametrize("app,needs_ticket", app_metadata())
-def test_report_invalid_metadata_dry_run(mocker, app, needs_ticket):
+def test_report_invalid_metadata_dry_run(
+    mocker: MockerFixture, app: dict[str, Any], needs_ticket: bool
+) -> None:
     """Test the dry-run mode."""
     renderer = mocker.patch.object(sut, "render_template", autospec=True)
     valid = sut.VALIDATORS
@@ -170,7 +178,9 @@ def test_report_invalid_metadata_dry_run(mocker, app, needs_ticket):
         "architectureDocument": bool,
         "grafanaUrls": lambda _: True,
     }
-    sut.report_invalid_metadata(app, "/a/path", "jiraboard", {}, "TICKET-123", True)
+    sut.report_invalid_metadata(
+        app, "/a/path", {"name": "jiraboard"}, {}, "TICKET-123", True
+    )
     if needs_ticket:
         renderer.assert_called_once()
     else:

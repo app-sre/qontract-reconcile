@@ -26,27 +26,27 @@ from reconcile.utils.jsonpath import (
 #
 
 
-def test_jsonpath_parts():
+def test_jsonpath_parts() -> None:
     path = parse("$.a.b.c")
     assert jsonpath_parts(path) == [parse("$"), parse("a"), parse("b"), parse("c")]
 
 
-def test_jsonpath_parts_root_only():
+def test_jsonpath_parts_root_only() -> None:
     path = parse("$")
     assert jsonpath_parts(path) == [parse("$")]
 
 
-def test_jsonpath_parts_with_index():
+def test_jsonpath_parts_with_index() -> None:
     path = parse("a[0]")
     assert jsonpath_parts(path) == [parse("a"), Index(0)]
 
 
-def test_jsonpath_parts_with_slice_all():
+def test_jsonpath_parts_with_slice_all() -> None:
     path = parse("a[*]")
     assert jsonpath_parts(path) == [parse("a"), Slice(None, None, None)]
 
 
-def test_jsonpath_parts_with_filter():
+def test_jsonpath_parts_with_filter() -> None:
     path = parse("a.b[?(@.c=='c')].d")
     assert jsonpath_parts(path) == [
         parse("a"),
@@ -56,7 +56,7 @@ def test_jsonpath_parts_with_filter():
     ]
 
 
-def test_jsonpath_parts_with_filter_ignore():
+def test_jsonpath_parts_with_filter_ignore() -> None:
     path = parse("a.b[?(@.c=='c')].d")
     assert jsonpath_parts(path, ignore_filter=True) == [
         parse("a"),
@@ -65,7 +65,7 @@ def test_jsonpath_parts_with_filter_ignore():
     ]
 
 
-def test_jsonpath_parts_ignore_root():
+def test_jsonpath_parts_ignore_root() -> None:
     path = parse("$.a.b")
     assert jsonpath_parts(path, ignore_root=True) == [
         parse("a"),
@@ -73,7 +73,7 @@ def test_jsonpath_parts_ignore_root():
     ]
 
 
-def test_jsonpath_parts_without_ignore_root():
+def test_jsonpath_parts_without_ignore_root() -> None:
     path = parse("$.a.b")
     assert jsonpath_parts(path) == [
         parse("$"),
@@ -87,40 +87,40 @@ def test_jsonpath_parts_without_ignore_root():
 #
 
 
-def test_narrow_jsonpath_node_field_equal():
+def test_narrow_jsonpath_node_field_equal() -> None:
     assert narrow_jsonpath_node(parse("a"), parse("a")) == parse("a")
 
 
-def test_narrow_jsonpath_node_field_not_equal():
+def test_narrow_jsonpath_node_field_not_equal() -> None:
     assert not narrow_jsonpath_node(parse("a"), parse("b"))
 
 
-def testnarrow_jsonpath_node_index_equal():
+def testnarrow_jsonpath_node_index_equal() -> None:
     assert narrow_jsonpath_node(Index(0), Index(0)) == Index(0)
 
 
-def test_narrow_jsonpath_node_index_slice():
+def test_narrow_jsonpath_node_index_slice() -> None:
     assert narrow_jsonpath_node(Index(0), Slice(None, None, None)) == Index(0)
 
 
-def test_narrow_jsonpath_node_slice_index():
+def test_narrow_jsonpath_node_slice_index() -> None:
     assert narrow_jsonpath_node(Slice(None, None, None), Index(0)) == Index(0)
 
 
-def test_narrow_jsonpath_node_slice_slice():
+def test_narrow_jsonpath_node_slice_slice() -> None:
     assert narrow_jsonpath_node(
         Slice(None, None, None), Slice(None, None, None)
     ) == Slice(None, None, None)
 
 
-def test_narrow_jsonpath_node_filter_equal():
+def test_narrow_jsonpath_node_filter_equal() -> None:
     assert narrow_jsonpath_node(
         Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")]),
         Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")]),
     ) == Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")])
 
 
-def test_narrow_jsonpath_node_filter_not_equal():
+def test_narrow_jsonpath_node_filter_not_equal() -> None:
     assert (
         narrow_jsonpath_node(
             Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")]),
@@ -130,7 +130,7 @@ def test_narrow_jsonpath_node_filter_not_equal():
     )
 
 
-def test_narrow_jsonpath_node_filter_slice():
+def test_narrow_jsonpath_node_filter_slice() -> None:
     filter = Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")])
     assert (
         narrow_jsonpath_node(
@@ -141,7 +141,7 @@ def test_narrow_jsonpath_node_filter_slice():
     )
 
 
-def test_narrow_jsonpath_node_silce_filter():
+def test_narrow_jsonpath_node_silce_filter() -> None:
     filter = Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")])
     assert (
         narrow_jsonpath_node(
@@ -152,29 +152,29 @@ def test_narrow_jsonpath_node_silce_filter():
     )
 
 
-def test_narrow_jsonpath_node_index_filter():
+def test_narrow_jsonpath_node_index_filter() -> None:
     assert narrow_jsonpath_node(
         Index(0),
         Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")]),
     ) == Index(0)
 
 
-def test_narrow_jsonpath_node_filter_index():
+def test_narrow_jsonpath_node_filter_index() -> None:
     assert narrow_jsonpath_node(
         Filter(expressions=[Expression(Child(This(), Fields("c")), "==", "c")]),
         Index(0),
     ) == Index(0)
 
 
-def test_narrow_jsonpath_node_field_wildcard():
+def test_narrow_jsonpath_node_field_wildcard() -> None:
     assert narrow_jsonpath_node(parse("a"), parse("*")) == parse("a")
 
 
-def test_narrow_jsonpath_node_wildcard_field():
+def test_narrow_jsonpath_node_wildcard_field() -> None:
     assert narrow_jsonpath_node(parse("*"), parse("a")) == parse("a")
 
 
-def test_narrow_jsonpath_node_wildcard_wildcard():
+def test_narrow_jsonpath_node_wildcard_wildcard() -> None:
     assert narrow_jsonpath_node(parse("*"), parse("*")) == parse("*")
 
 
@@ -183,39 +183,39 @@ def test_narrow_jsonpath_node_wildcard_wildcard():
 #
 
 
-def test_apply_constraint_to_path_equal():
+def test_apply_constraint_to_path_equal() -> None:
     assert apply_constraint_to_path(parse("a.b.c"), parse("a.b.c")) == parse("a.b.c")
 
 
-def test_apply_constraint_to_longer_path():
+def test_apply_constraint_to_longer_path() -> None:
     assert apply_constraint_to_path(parse("a.b[*].c.f"), parse("a.b[0].c")) == parse(
         "a.b[0].c.f"
     )
 
 
-def test_apply_constraint_to_shorter_path():
+def test_apply_constraint_to_shorter_path() -> None:
     assert apply_constraint_to_path(parse("a.b[*]"), parse("a.b[0].c")) == parse(
         "a.b[0]"
     )
 
 
-def test_apply_constraint_to_unrelated_path():
+def test_apply_constraint_to_unrelated_path() -> None:
     assert not apply_constraint_to_path(parse("a.b[*]"), parse("d.e[0].f"))
 
 
-def test_apply_incompatible_constraint_to_path():
+def test_apply_incompatible_constraint_to_path() -> None:
     assert apply_constraint_to_path(parse("a.b[0].f"), parse("a.b[1].c")) == parse(
         "a.b[0].f"
     )
 
 
-def test_apply_partially_incompatible_constraint_to_path():
+def test_apply_partially_incompatible_constraint_to_path() -> None:
     assert apply_constraint_to_path(
         parse("a.b[*].c[0].d"), parse("a.b[1].c[1]")
     ) == parse("a.b[1].c[0].d")
 
 
-def test_apply_field_constraint_to_wildcard_path():
+def test_apply_field_constraint_to_wildcard_path() -> None:
     assert apply_constraint_to_path(parse("a.*.c"), parse("a.b.c.d")) == parse("a.b.c")
 
 
@@ -233,7 +233,7 @@ def test_apply_field_constraint_to_wildcard_path():
         ("a.[10][*]", "a.[00010].*"),
     ],
 )
-def test_sortable_jsonpath_string_repr(jsonpath: str, sortable_jsonpath: str):
+def test_sortable_jsonpath_string_repr(jsonpath: str, sortable_jsonpath: str) -> None:
     assert sortable_jsonpath_string_repr(parse(jsonpath), 5) == sortable_jsonpath
 
 
@@ -261,7 +261,7 @@ def test_sortable_jsonpath_string_repr(jsonpath: str, sortable_jsonpath: str):
         ("$", "$", None),
     ],
 )
-def test_remove_prefix_from_path(path: str, prefix: str, expected: str | None):
+def test_remove_prefix_from_path(path: str, prefix: str, expected: str | None) -> None:
     expected_path = parse(expected) if expected else None
     assert remove_prefix_from_path(parse(path), parse(prefix)) == expected_path
 
@@ -280,5 +280,5 @@ def test_remove_prefix_from_path(path: str, prefix: str, expected: str | None):
         ("a[?(@.b=='b')]", "a.[?[Expression(Child(This(), Fields('b')) == 'b')]]"),
     ],
 )
-def test_parse_jsonpath(path: str, rendered: str):
+def test_parse_jsonpath(path: str, rendered: str) -> None:
     assert str(parse_jsonpath(path)) == rendered

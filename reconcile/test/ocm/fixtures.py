@@ -21,6 +21,7 @@ from reconcile.utils.ocm.base import (
     OCMClusterFlag,
     OCMClusterState,
     OCMClusterVersion,
+    OCMExternalAuthConfig,
     OCMModelLink,
 )
 from reconcile.utils.ocm.labels import (
@@ -121,6 +122,8 @@ def build_ocm_cluster(
     available_upgrades: list[str] | None = None,
     cluster_product: str = PRODUCT_ID_ROSA,
     hypershift: bool = False,
+    console_url: str | None = "https://console.foobar.com",
+    external_auth_enabled: bool | None = None,
 ) -> OCMCluster:
     aws_config = None
     if aws_cluster:
@@ -147,7 +150,10 @@ def build_ocm_cluster(
             available_upgrades=available_upgrades or [],
         ),
         hypershift=OCMClusterFlag(enabled=hypershift),
-        console=OCMClusterConsole(url="https://console.foobar.com"),
+        console=OCMClusterConsole(url=console_url) if console_url else None,
+        external_auth_config=OCMExternalAuthConfig(enabled=external_auth_enabled)
+        if external_auth_enabled is not None
+        else None,
     )
 
 
@@ -161,6 +167,8 @@ def build_cluster_details(
     cluster_product: str = PRODUCT_ID_ROSA,
     hypershift: bool = False,
     capabilitites: dict[str, str] | None = None,
+    console_url: str | None = "https://console.foobar.com",
+    external_auth_enabled: bool | None = None,
 ) -> ClusterDetails:
     return ClusterDetails(
         ocm_cluster=build_ocm_cluster(
@@ -170,6 +178,8 @@ def build_cluster_details(
             sts_cluster=sts_cluster,
             cluster_product=cluster_product,
             hypershift=hypershift,
+            console_url=console_url,
+            external_auth_enabled=external_auth_enabled,
         ),
         organization_id=org_id,
         capabilities={

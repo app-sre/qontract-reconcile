@@ -15,7 +15,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 def test_content_single_namespace(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "NAMESPACE": {"path": "/some/namespace.yml"},
         "DESIRED_REF": "new_sha",
@@ -40,7 +40,7 @@ def test_content_single_namespace(
 def test_content_single_namespace_no_previous_hash(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "NAMESPACE": {"path": "/some/namespace.yml"},
         "DESIRED_REF": "new_sha",
@@ -65,7 +65,7 @@ def test_content_single_namespace_no_previous_hash(
 def test_content_single_namespace_no_desired_hash(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "NAMESPACE": {"path": "/some/namespace.yml"},
         "DESIRED_REF": "new_sha",

@@ -29,7 +29,9 @@ class TestQueries:
         """Cleanup patches created in self.setup_method"""
         self.gql_patcher.stop()
 
-    def mock_gql_query(self, query: str) -> dict[str, Any]:
+    def mock_gql_query(
+        self, query: str, variables: dict | None = None
+    ) -> dict[str, Any]:
         return self.fixture_data
 
     def test_get_pipelines_providers_all_defaults(self) -> None:

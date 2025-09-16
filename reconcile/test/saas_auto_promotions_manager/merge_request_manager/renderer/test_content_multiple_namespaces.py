@@ -15,7 +15,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 def test_content_multiple_namespaces(
     file_contents: Callable[[str], tuple[str, str]],
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "NAMESPACE": {"path": "/some/namespace.yml"},
         "DESIRED_REF": "new_sha",

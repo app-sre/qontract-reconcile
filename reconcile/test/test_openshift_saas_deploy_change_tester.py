@@ -286,7 +286,7 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
     assert state == [expected]
 
 
-def test_collect_compare_diffs(saas_files: list[SaasFile]):
+def test_collect_compare_diffs(saas_files: list[SaasFile]) -> None:
     state_1 = collect_state(saas_files)
     state_2 = [s.copy() for s in state_1]
     state_1[0].ref = "another-branch"
@@ -298,7 +298,7 @@ def test_collect_compare_diffs(saas_files: list[SaasFile]):
     }
 
 
-def test_collect_compare_diffs_other_paths(saas_files: list[SaasFile]):
+def test_collect_compare_diffs_other_paths(saas_files: list[SaasFile]) -> None:
     state_1 = collect_state(saas_files)
     state_2 = [s.copy() for s in state_1]
     state_1[0].ref = "another-branch"

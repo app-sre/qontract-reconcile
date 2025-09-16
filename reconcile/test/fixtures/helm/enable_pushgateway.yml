@@ -117,7 +117,7 @@ parameters:
 - name: BUSYBOX_IMAGE_PULL_POLICY
   value: Always
 - name: FLUENTD_IMAGE
-  value: quay.io/app-sre/fluentd
+  value: quay.io/redhat-services-prod/app-sre-tenant/fluentd-master/fluentd-master
 - name: FLUENTD_IMAGE_TAG
   value: latest
 - name: FLUENTD_IMAGE_PULL_POLICY

@@ -33,25 +33,25 @@ fragment DeployResourcesFields on DeployResources_v1 {
 }
 
 query ExternalResourcesModules {
-    modules: external_resources_modules_v1 {
-        provision_provider
-        provider
-        module_type
-        reconcile_drift_interval_minutes
-        reconcile_timeout_minutes
-        outputs_secret_sync
-        outputs_secret_image
-        outputs_secret_version
-        resources {
-          ... DeployResourcesFields
-        }
-        default_channel
-        channels {
-          name
-          image
-          version
-        }
+  modules: external_resources_modules_v1 {
+    provision_provider
+    provider
+    module_type
+    reconcile_drift_interval_minutes
+    reconcile_timeout_minutes
+    outputs_secret_sync
+    outputs_secret_image
+    outputs_secret_version
+    resources {
+      ...DeployResourcesFields
     }
+    default_channel
+    channels {
+      name
+      image
+      version
+    }
+  }
 }
 """
 

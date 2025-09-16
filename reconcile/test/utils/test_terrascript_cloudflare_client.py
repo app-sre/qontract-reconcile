@@ -3,12 +3,15 @@ from dataclasses import (
     asdict,
     dataclass,
 )
+from typing import Any
 from unittest.mock import (
+    Mock,
     create_autospec,
     mock_open,
 )
 
 import pytest
+from pytest_mock import MockerFixture
 from terrascript import Terrascript
 
 from reconcile.cli import TERRAFORM_VERSION
@@ -33,12 +36,12 @@ INTEGRATION = "qontract-reconcile-integration"
 
 
 @pytest.fixture
-def account_config():
+def account_config() -> CloudflareAccountConfig:
     return CloudflareAccountConfig("account-name", "api-token", "account_id")
 
 
 @pytest.fixture
-def backend_config():
+def backend_config() -> TerraformS3BackendConfig:
     return TerraformS3BackendConfig(
         "access-key",
         "secret-key",
@@ -49,7 +52,9 @@ def backend_config():
 
 
 @pytest.fixture
-def cloudflare_account_test(account_config):
+def cloudflare_account_test(
+    account_config: CloudflareAccountConfig,
+) -> cloudflare_account:
     cloudflare_account_values = {
         "name": account_config.name,
         "enforce_twofactor": account_config.enforce_twofactor,
@@ -61,7 +66,7 @@ def cloudflare_account_test(account_config):
     )
 
 
-def custom_ssl_secret_reader_side_effect(*args):
+def custom_ssl_secret_reader_side_effect(*args: Any) -> str | None:
     """For use of secret_reader inside cloudflare client"""
     if args[0] == {
         "path": "certificate/path",
@@ -78,10 +83,11 @@ def custom_ssl_secret_reader_side_effect(*args):
         "format": "plain",
     }:
         return "----- KEY -----"
+    return None
 
 
 @pytest.fixture
-def mock_create_secret_reader(mocker):
+def mock_create_secret_reader(mocker: MockerFixture) -> None:
     mocker.patch(
         "reconcile.utils.terrascript.cloudflare_resources.get_app_interface_vault_settings",
         atospec=True,
@@ -98,8 +104,10 @@ def mock_create_secret_reader(mocker):
 
 
 def test_create_cloudflare_resources_terraform_json(
-    mock_create_secret_reader, account_config, backend_config
-):
+    mock_create_secret_reader: None,
+    account_config: CloudflareAccountConfig,
+    backend_config: TerraformS3BackendConfig,
+) -> None:
     """
     This test intentionally crosses many boundaries to cover most of the functionality
     from starting with an external resource spec definition to Terraform JSON config.
@@ -428,7 +436,7 @@ def test_create_cloudflare_resources_terraform_json(
     assert json.loads(cloudflare_client.dumps()) == expected_dict
 
 
-def test_terrascript_cloudflare_client_dump(mocker):
+def test_terrascript_cloudflare_client_dump(mocker: MockerFixture) -> None:
     """
     Tests that dump() properly calls the Python filesystem implementations to write to
     disk.
@@ -452,7 +460,7 @@ def test_terrascript_cloudflare_client_dump(mocker):
     mock_builtins_open.return_value.write.assert_called_once_with("some data")
 
 
-def test_terrascript_cloudflare_client_dump_existing_dir(mocker):
+def test_terrascript_cloudflare_client_dump_existing_dir(mocker: MockerFixture) -> None:
     """
     Tests that dump() properly calls the Python filesystem implementations to write to
     disk when an existing_dir is specified.
@@ -476,7 +484,9 @@ def test_terrascript_cloudflare_client_dump_existing_dir(mocker):
     mock_builtins_open.return_value.write.assert_called_once_with("some data")
 
 
-def test_create_cloudflare_terrascript(account_config, backend_config):
+def test_create_cloudflare_terrascript(
+    account_config: CloudflareAccountConfig, backend_config: TerraformS3BackendConfig
+) -> None:
     """Simple test to ensure that the Terrascript object is initialized."""
     ts = create_cloudflare_terrascript(account_config, backend_config, "3.18")
 
@@ -484,8 +494,10 @@ def test_create_cloudflare_terrascript(account_config, backend_config):
 
 
 def test_create_cloudflare_terrascript_contain_account(
-    account_config, backend_config, cloudflare_account_test
-):
+    account_config: CloudflareAccountConfig,
+    backend_config: TerraformS3BackendConfig,
+    cloudflare_account_test: cloudflare_account,
+) -> None:
     """To ensure that a expected cloudflare account config gets added"""
     ts = create_cloudflare_terrascript(account_config, backend_config, "3.18")
 
@@ -495,8 +507,8 @@ def test_create_cloudflare_terrascript_contain_account(
 
 
 def test_create_cloudflare_terrascript_not_include_account(
-    account_config, backend_config
-):
+    account_config: CloudflareAccountConfig, backend_config: TerraformS3BackendConfig
+) -> None:
     """To ensure that cloudflare account not added to Terrascript when it is specified not managed by caller."""
     ts = create_cloudflare_terrascript(
         account_config, backend_config, "3.18", is_managed_account=False
@@ -506,7 +518,7 @@ def test_create_cloudflare_terrascript_not_include_account(
         assert not isinstance(t, cloudflare_account)
 
 
-def secret_reader_side_effect(*args):
+def secret_reader_side_effect(*args: Any) -> dict[str, str] | None:
     if asdict(args[0]) == {
         "path": "automation_token_path",
         "field": "some-field",
@@ -527,6 +539,7 @@ def secret_reader_side_effect(*args):
         cf_acct_creds["api_token"] = "api_token"
         cf_acct_creds["account_id"] = "account_id"
         return cf_acct_creds
+    return None
 
 
 @dataclass
@@ -538,7 +551,7 @@ class VaultSecret:
 
 
 @pytest.fixture
-def terraform_state_s3():
+def terraform_state_s3() -> TerraformStateS3:
     tf_state_s3 = TerraformStateS3(
         VaultSecret(
             path="automation_token_path",
@@ -554,7 +567,7 @@ def terraform_state_s3():
 
 
 @pytest.fixture
-def cloudflare_account_dataclass():
+def cloudflare_account_dataclass() -> CloudflareAccount:
     cf_account = CloudflareAccount(
         "test-account",
         VaultSecret(path="creds", field="some-field", version=None, q_format=None),
@@ -566,15 +579,17 @@ def cloudflare_account_dataclass():
 
 
 @pytest.fixture
-def secret_reader_fixture(mocker):
+def secret_reader_fixture(mocker: MockerFixture) -> Mock:
     mocked_secret_reader = mocker.Mock(spec=SecretReaderBase)
     mocked_secret_reader.read_all_secret.side_effect = secret_reader_side_effect
     return mocked_secret_reader
 
 
 def test_cloudflare_client_factory_skip_account_resource(
-    terraform_state_s3, cloudflare_account_dataclass, secret_reader_fixture
-):
+    terraform_state_s3: TerraformStateS3,
+    cloudflare_account_dataclass: CloudflareAccount,
+    secret_reader_fixture: Mock,
+) -> None:
     """
     Tests that cloudflare terrascript resource 'cloudflare_account' is skipped
     """
@@ -596,8 +611,10 @@ def test_cloudflare_client_factory_skip_account_resource(
 
 
 def test_cloudflare_client_factory_create_account_resource(
-    terraform_state_s3, cloudflare_account_dataclass, secret_reader_fixture
-):
+    terraform_state_s3: TerraformStateS3,
+    cloudflare_account_dataclass: CloudflareAccount,
+    secret_reader_fixture: Mock,
+) -> None:
     """
     Tests that cloudflare terrascript resource 'cloudflare_account' is created
     """
@@ -651,12 +668,12 @@ def test_cloudflare_client_factory_create_account_resource(
     ],
 )
 def test_cloudflare_client_factory_object_key_strategies(
-    terraform_state_s3,
-    cloudflare_account_dataclass,
-    secret_reader_fixture,
-    sharding_strategy,
-    expected_key,
-):
+    terraform_state_s3: TerraformStateS3,
+    cloudflare_account_dataclass: CloudflareAccount,
+    secret_reader_fixture: Mock,
+    sharding_strategy: AccountShardingStrategy | None,
+    expected_key: str,
+) -> None:
     """
     Tests various sharding strategies for cloudflare terrascript client
     """

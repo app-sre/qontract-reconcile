@@ -97,7 +97,7 @@ def test_compose_console_url_with_long_saas_name(
     )
 
 
-def test_slack_notify_skipped_success():
+def test_slack_notify_skipped_success() -> None:
     api = create_autospec(slack_api.SlackApi)
     slack_notify(
         saas_file_name="test-slack_notify--skipped-success.yaml",
@@ -111,7 +111,7 @@ def test_slack_notify_skipped_success():
     api.chat_post_message.assert_not_called()
 
 
-def test_slack_notify_unskipped_success():
+def test_slack_notify_unskipped_success() -> None:
     api = create_autospec(slack_api.SlackApi)
     slack_notify(
         saas_file_name="test-slack_notify--unskipped-success.yaml",
@@ -129,7 +129,7 @@ def test_slack_notify_unskipped_success():
     )
 
 
-def test_slack_notify_unskipped_failure():
+def test_slack_notify_unskipped_failure() -> None:
     api = create_autospec(slack_api.SlackApi)
     ri = openshift_resource.ResourceInventory()
     ri.register_error()
@@ -149,7 +149,7 @@ def test_slack_notify_unskipped_failure():
     )
 
 
-def test_slack_notify_skipped_failure():
+def test_slack_notify_skipped_failure() -> None:
     api = create_autospec(slack_api.SlackApi)
     ri = openshift_resource.ResourceInventory()
     ri.register_error()
@@ -169,7 +169,7 @@ def test_slack_notify_skipped_failure():
     )
 
 
-def test_slack_notify_skipped_in_progress():
+def test_slack_notify_skipped_in_progress() -> None:
     api = create_autospec(slack_api.SlackApi)
     ri = openshift_resource.ResourceInventory()
     slack_notify(

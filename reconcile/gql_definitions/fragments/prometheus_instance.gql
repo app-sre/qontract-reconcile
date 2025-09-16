@@ -9,14 +9,14 @@ fragment PrometheusInstance on PrometheusInstance_v1 {
     provider
     ... on PrometheusInstanceBearerAuth_v1 {
       token {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
     ... on PrometheusInstanceOidcAuth_v1 {
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
   }

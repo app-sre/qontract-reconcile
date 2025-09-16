@@ -23,22 +23,22 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
-    name
-    description
-    labels
-    url
-    accessTokenClientId
-    accessTokenUrl
-    accessTokenClientSecret {
-        ... VaultSecret
-    }
+  name
+  description
+  labels
+  url
+  accessTokenClientId
+  accessTokenUrl
+  accessTokenClientSecret {
+    ...VaultSecret
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query OpenshiftClusterBotsQuery($name: String) {
@@ -49,21 +49,21 @@ query OpenshiftClusterBotsQuery($name: String) {
     ocm {
       name
       environment {
-        ... OCMEnvironment
+        ...OCMEnvironment
       }
       orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        ... VaultSecret
+        ...VaultSecret
       }
     }
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     clusterAdmin
     clusterAdminAutomationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     disable {
       integrations

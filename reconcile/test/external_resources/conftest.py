@@ -52,6 +52,7 @@ def settings() -> ExternalResourcesSettingsV1:
             requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
             limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
         ),
+        default_tags='{"env": "test"}',
     )
 
 
@@ -110,9 +111,9 @@ def state(
 @fixture
 def module() -> ExternalResourcesModuleV1:
     return ExternalResourcesModuleV1(
-        module_type="cdktf",
+        module_type="terraform",
         provision_provider="aws",
-        provider="aws-iam-role",
+        provider="rds",
         reconcile_drift_interval_minutes=60,
         reconcile_timeout_minutes=60,
         outputs_secret_sync=True,

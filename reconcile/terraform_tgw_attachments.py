@@ -32,6 +32,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters_with_peering import get_clusters_with_peering
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.terraform_tgw_attachments.aws_accounts import (
     get_aws_accounts,
 )
@@ -93,7 +94,7 @@ class Accepter(BaseModel):
     region: str
     vpc_id: str | None
     route_table_ids: list[str] | None
-    subnets_id_az: list[dict] | None
+    subnets_id_az: list[dict[str, str]] | None
     account: ClusterAccountProviderInfo
     api_security_group_id: str | None
 
@@ -444,13 +445,18 @@ def setup(
         raise RuntimeError("Could not find VPC ID for cluster")
 
     _validate_tgw_connection_names(desired_state)
-
+    try:
+        default_tags = get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         "",
         thread_pool_size,
         tgw_accounts,
         settings=vault_settings.dict(by_alias=True),
+        default_tags=default_tags,
     )
     tgw_rosa_cluster_accounts = [
         account_by_name[c.spec.account.name]

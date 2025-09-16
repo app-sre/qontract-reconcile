@@ -2,8 +2,11 @@ from datetime import (
     datetime,
     timedelta,
 )
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile import openshift_upgrade_watcher as ouw
 from reconcile.gql_definitions.common.clusters import ClusterV1
@@ -19,12 +22,12 @@ def load_cluster(path: str) -> ClusterV1:
 
 
 @pytest.fixture
-def state(mocker):
+def state(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("reconcile.utils.state.State", autospec=True).return_value
 
 
 @pytest.fixture
-def slack(mocker):
+def slack(mocker: MockerFixture) -> MagicMock:
     return mocker.patch(
         "reconcile.utils.slack_api.SlackApi", autospec=True
     ).return_value
@@ -37,7 +40,7 @@ upgrade_version = "4.5.2"
 
 
 @pytest.fixture
-def ouw_oc_map(mocker):
+def ouw_oc_map(mocker: MockerFixture) -> MagicMock:
     map = mocker.patch("reconcile.utils.oc_map.OCMap", autospec=True).return_value
     map.clusters.return_value = [cluster_name]
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -47,12 +50,12 @@ def ouw_oc_map(mocker):
 
 
 @pytest.fixture
-def ouw_ocm_map(mocker):
+def ouw_ocm_map(mocker: MockerFixture) -> MagicMock:
     return mocker.patch("reconcile.utils.ocm.OCMMap", autospec=True)
 
 
 @pytest.fixture
-def upgrade_config():
+def upgrade_config() -> dict[str, Any]:
     return {
         "items": [
             {
@@ -66,7 +69,7 @@ def upgrade_config():
 
 
 @pytest.fixture
-def dt(mocker):
+def dt(mocker: MockerFixture) -> MagicMock:
     return mocker.patch(
         "reconcile.openshift_upgrade_watcher.datetime",
         mocker.Mock(datetime, wraps=datetime),
@@ -74,8 +77,14 @@ def dt(mocker):
 
 
 def test_new_upgrade_pending(
-    mocker, state, slack, ouw_oc_map, ouw_ocm_map, upgrade_config, dt
-):
+    mocker: MockerFixture,
+    state: MagicMock,
+    slack: MagicMock,
+    ouw_oc_map: MagicMock,
+    ouw_ocm_map: MagicMock,
+    upgrade_config: dict[str, Any],
+    dt: MagicMock,
+) -> None:
     """There is an UpgradeConfig on the cluster but its upgradeAt is in the future"""
     dt.utcnow.return_value = upgrade_at - timedelta(hours=1)
     gso = mocker.patch(
@@ -94,8 +103,14 @@ def test_new_upgrade_pending(
 
 
 def test_new_upgrade_notify(
-    mocker, state, slack, ouw_oc_map, ouw_ocm_map, upgrade_config, dt
-):
+    mocker: MockerFixture,
+    state: MagicMock,
+    slack: MagicMock,
+    ouw_oc_map: MagicMock,
+    ouw_ocm_map: MagicMock,
+    upgrade_config: dict[str, Any],
+    dt: MagicMock,
+) -> None:
     """There is an UpgradeConfig on the cluster, its upgradeAt is in the past,
     and we did not already notify"""
     dt.utcnow.return_value = upgrade_at + timedelta(hours=1)
@@ -116,8 +131,14 @@ def test_new_upgrade_notify(
 
 
 def test_new_upgrade_already_notified(
-    mocker, state, slack, ouw_oc_map, ouw_ocm_map, upgrade_config, dt
-):
+    mocker: MockerFixture,
+    state: MagicMock,
+    slack: MagicMock,
+    ouw_oc_map: MagicMock,
+    ouw_ocm_map: MagicMock,
+    upgrade_config: dict[str, Any],
+    dt: MagicMock,
+) -> None:
     """There is an UpgradeConfig on the cluster, its upgradeAt is in the past,
     and we already notified"""
     state.exists.return_value = True
@@ -139,7 +160,7 @@ def test_new_upgrade_already_notified(
 
 
 @pytest.fixture
-def clusters():
+def clusters() -> list[ClusterV1]:
     cluster = load_cluster("cluster1.yml")
     cluster.name = cluster_name
     if not cluster.spec:
@@ -148,7 +169,9 @@ def clusters():
     return [cluster]
 
 
-def test_new_version_no_op(mocker, state, slack, clusters):
+def test_new_version_no_op(
+    mocker: MockerFixture, state: MagicMock, slack: MagicMock, clusters: list[ClusterV1]
+) -> None:
     """We already notified for this cluster & version"""
     state.exists.return_value = True
     state.get.return_value = upgrade_version  # same version, already notified
@@ -157,7 +180,9 @@ def test_new_version_no_op(mocker, state, slack, clusters):
     assert state.add.call_count == 0
 
 
-def test_new_version_no_state(mocker, state, slack, clusters):
+def test_new_version_no_state(
+    mocker: MockerFixture, state: MagicMock, slack: MagicMock, clusters: list[ClusterV1]
+) -> None:
     """We never notified for this cluster"""
     state.exists.return_value = False  # never notified for this cluster
     state.get.return_value = None
@@ -166,7 +191,9 @@ def test_new_version_no_state(mocker, state, slack, clusters):
     assert state.add.call_count == 1
 
 
-def test_new_version_notify(mocker, state, slack, clusters):
+def test_new_version_notify(
+    mocker: MockerFixture, state: MagicMock, slack: MagicMock, clusters: list[ClusterV1]
+) -> None:
     """We already notified for this cluster, but on an old version"""
     state.exists.return_value = True
     state.get.return_value = old_version  # different version
@@ -175,7 +202,7 @@ def test_new_version_notify(mocker, state, slack, clusters):
     assert state.add.call_count == 1
 
 
-def test__get_start_hypershift_started(mocker):
+def test__get_start_hypershift_started(mocker: MockerFixture) -> None:
     get_control_plane_upgrade_policies_mock = mocker.patch.object(
         ouw, "get_control_plane_upgrade_policies", autospec=True
     )
@@ -194,7 +221,7 @@ def test__get_start_hypershift_started(mocker):
     assert version == upgrade_version
 
 
-def test__get_start_hypershift_noop(mocker):
+def test__get_start_hypershift_noop(mocker: MockerFixture) -> None:
     get_control_plane_upgrade_policies_mock = mocker.patch.object(
         ouw, "get_control_plane_upgrade_policies", autospec=True
     )
@@ -207,14 +234,16 @@ def test__get_start_hypershift_noop(mocker):
     assert not version
 
 
-def test__get_start_osd_no_op(ouw_oc_map):
+def test__get_start_osd_no_op(ouw_oc_map: MagicMock) -> None:
     """There is no UpgradeConfig on the cluster"""
     next_run, version = ouw._get_start_osd(ouw_oc_map, cluster_name)
     assert not next_run
     assert not version
 
 
-def test__get_start_osd_started(ouw_oc_map, upgrade_config):
+def test__get_start_osd_started(
+    ouw_oc_map: MagicMock, upgrade_config: dict[str, Any]
+) -> None:
     """There is no UpgradeConfig on the cluster"""
     oc = ouw_oc_map.get.return_value
     oc.get.return_value = upgrade_config

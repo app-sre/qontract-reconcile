@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import copy
+import itertools
 import json
 import logging
 import os
@@ -7,17 +10,13 @@ import re
 import subprocess
 import threading
 import time
-from collections.abc import (
-    Iterable,
-    Mapping,
-)
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cache, wraps
 from subprocess import Popen
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any, TextIO, cast
 
 import urllib3
 from kubernetes.client import (  # type: ignore[attr-defined]
@@ -48,18 +47,23 @@ from sretoolbox.utils import (
 )
 
 from reconcile.status import RunningState
+from reconcile.utils.json import json_dumps
 from reconcile.utils.jump_host import (
     JumphostParameters,
     JumpHostSSH,
 )
 from reconcile.utils.metrics import reconcile_time
-from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.secret_reader import (
     SecretNotFoundError,
     SecretReader,
 )
 from reconcile.utils.unleash import get_feature_toggle_state
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Mapping, MutableMapping
+
+    from reconcile.utils.oc_connection_parameters import OCConnectionParameters
 
 urllib3.disable_warnings()
 
@@ -143,7 +147,7 @@ class RequestEntityTooLargeError(Exception):
 
 class OCDecorators:
     @classmethod
-    def process_reconcile_time(cls, function):
+    def process_reconcile_time(cls, function: Callable) -> Callable:
         """
         Compare current time against bundle commit time and create log
         and metrics from it.
@@ -165,7 +169,7 @@ class OCDecorators:
         """
 
         @wraps(function)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> list | tuple | Any:
             result = function(*args, **kwargs)
             msg = result[:-1] if isinstance(result, list | tuple) else result
 
@@ -173,6 +177,8 @@ class OCDecorators:
                 return result
 
             running_state = RunningState()
+            if running_state.timestamp is None:
+                raise ValueError("Running state timestamp is None")
             commit_time = float(running_state.timestamp)
             time_spent = time.time() - commit_time
 
@@ -225,7 +231,9 @@ class OCProcessReconcileTimeDecoratorMsg:
     is_log_slow_oc_reconcile: bool
 
 
-def oc_process(template, parameters=None):
+def oc_process(
+    template: Mapping[str, Any], parameters: Mapping[str, Any] | None = None
+) -> Iterable[dict[str, Any]]:
     oc = OCLocal(cluster_name="cluster", server=None, token=None, local=True)
     return oc.process(template, parameters)
 
@@ -252,7 +260,7 @@ class OCCliApiResource:
     namespaced: bool
 
     @property
-    def group_version(self):
+    def group_version(self) -> str:
         if self.group:
             return f"{self.group}/{self.api_version}"
         return self.api_version
@@ -271,7 +279,7 @@ class OCCli:
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
         connection_parameters: OCConnectionParameters | None = None,
-    ):
+    ) -> None:
         """
         As of now we have to conform with 2 ways to initialize this client:
 
@@ -300,10 +308,10 @@ class OCCli:
                 insecure_skip_tls_verify=insecure_skip_tls_verify,
             )
 
-    def __enter__(self):
+    def __enter__(self) -> OCCli:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.cleanup()
 
     def _init_old_without_types(
@@ -317,7 +325,7 @@ class OCCli:
         init_api_resources: bool = False,
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
-    ):
+    ) -> None:
         """Initiates an OC client
 
         Args:
@@ -392,7 +400,7 @@ class OCCli:
         init_projects: bool = False,
         init_api_resources: bool = False,
         local: bool = False,
-    ):
+    ) -> None:
         self.cluster_name = connection_parameters.cluster_name
         self.server = connection_parameters.server_url
         oc_base_cmd = ["oc", "--kubeconfig", "/dev/null"]
@@ -459,14 +467,14 @@ class OCCli:
             "LOG_SLOW_OC_RECONCILE", ""
         ).lower() in {"true", "yes"}
 
-    def whoami(self):
+    def whoami(self) -> bytes:
         return self._run(["whoami"])
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         if hasattr(self, "jump_host") and isinstance(self.jump_host, JumpHostSSH):
             self.jump_host.cleanup()
 
-    def get_items(self, kind, **kwargs):
+    def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
         cmd = ["get", kind, "-o", "json"]
 
         if "namespace" in kwargs:
@@ -479,28 +487,33 @@ class OCCli:
                 cmd.extend(["-n", namespace])
 
         if "labels" in kwargs:
-            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels", {}).items()]
             cmd += ["-l", ",".join(labels_list)]
 
         resource_names = kwargs.get("resource_names")
         if resource_names:
-            items = []
+            resource_items = []
             for resource_name in resource_names:
                 resource_cmd = cmd + [resource_name]
                 item = self._run_json(resource_cmd, allow_not_found=True)
                 if item:
-                    items.append(item)
-            items_list = {"items": items}
+                    resource_items.append(item)
+            items_list = {"items": resource_items}
         else:
             items_list = self._run_json(cmd)
 
         items = items_list.get("items")
         if items is None:
             raise Exception("Expecting items")
-
         return items
 
-    def get(self, namespace, kind, name=None, allow_not_found=False):
+    def get(
+        self,
+        namespace: str | None,
+        kind: str,
+        name: str | None = None,
+        allow_not_found: bool = False,
+    ) -> dict[str, Any]:
         cmd = ["get", "-o", "json", kind]
         if name:
             cmd.append(name)
@@ -508,13 +521,15 @@ class OCCli:
             cmd.extend(["-n", namespace])
         return self._run_json(cmd, allow_not_found=allow_not_found)
 
-    def get_all(self, kind, all_namespaces=False):
+    def get_all(self, kind: str, all_namespaces: bool = False) -> dict[str, Any]:
         cmd = ["get", "-o", "json", kind]
         if all_namespaces:
             cmd.append("--all-namespaces")
         return self._run_json(cmd)
 
-    def remove_last_applied_configuration(self, namespace, kind, name):
+    def remove_last_applied_configuration(
+        self, namespace: str, kind: str, name: str
+    ) -> None:
         cmd = [
             "annotate",
             "-n",
@@ -525,7 +540,9 @@ class OCCli:
         ]
         self._run(cmd)
 
-    def _msg_to_process_reconcile_time(self, namespace: str, resource: OR):
+    def _msg_to_process_reconcile_time(
+        self, namespace: str, resource: OR
+    ) -> OCProcessReconcileTimeDecoratorMsg:
         return OCProcessReconcileTimeDecoratorMsg(
             namespace=namespace,
             resource=resource,
@@ -534,7 +551,9 @@ class OCCli:
             is_log_slow_oc_reconcile=self.is_log_slow_oc_reconcile,
         )
 
-    def process(self, template, parameters=None):
+    def process(
+        self, template: Mapping[str, Any], parameters: Mapping[str, Any] | None = None
+    ) -> Iterable[dict[str, Any]]:
         if parameters is None:
             parameters = {}
         parameters_to_process = [f"{k}={v}" for k, v in parameters.items()]
@@ -545,36 +564,44 @@ class OCCli:
             "-f",
             "-",
         ] + parameters_to_process
-        result = self._run(cmd, stdin=json.dumps(template, sort_keys=True))
+        result = self._run(cmd, stdin=json_dumps(template))
         return json.loads(result)["items"]
 
     @OCDecorators.process_reconcile_time
-    def apply(self, namespace, resource):
+    def apply(self, namespace: str, resource: OR) -> OCProcessReconcileTimeDecoratorMsg:
         cmd = ["apply", "-n", namespace, "-f", "-"]
         self._run(cmd, stdin=resource.to_json(), apply=True)
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
-    def create(self, namespace, resource):
+    def create(
+        self, namespace: str, resource: OR
+    ) -> OCProcessReconcileTimeDecoratorMsg:
         cmd = ["create", "-n", namespace, "-f", "-"]
         self._run(cmd, stdin=resource.to_json(), apply=True)
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
-    def replace(self, namespace, resource):
+    def replace(
+        self, namespace: str, resource: OR
+    ) -> OCProcessReconcileTimeDecoratorMsg:
         cmd = ["replace", "-n", namespace, "-f", "-"]
         self._run(cmd, stdin=resource.to_json(), apply=True)
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
-    def patch(self, namespace, kind, name, patch):
-        cmd = ["patch", "-n", namespace, kind, name, "-p", json.dumps(patch)]
+    def patch(
+        self, namespace: str, kind: str, name: str, patch: Mapping[str, Any]
+    ) -> OCProcessReconcileTimeDecoratorMsg:
+        cmd = ["patch", "-n", namespace, kind, name, "-p", json_dumps(patch)]
         self._run(cmd)
         resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
-    def delete(self, namespace, kind, name, cascade=True):
+    def delete(
+        self, namespace: str, kind: str, name: str, cascade: bool = True
+    ) -> OCProcessReconcileTimeDecoratorMsg:
         cmd = [
             "delete",
             "-n",
@@ -589,7 +616,14 @@ class OCCli:
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
-    def label(self, namespace, kind, name, labels, overwrite=False):
+    def label(
+        self,
+        namespace: str | None,
+        kind: str,
+        name: str,
+        labels: Mapping[str, str | None],
+        overwrite: bool = False,
+    ) -> OCProcessReconcileTimeDecoratorMsg:
         ns = ["-n", namespace] if namespace else []
         added = [f"{k}={v}" for k, v in labels.items() if v is not None]
         removed = [f"{k}-" for k, v in labels.items() if v is None]
@@ -598,9 +632,9 @@ class OCCli:
         cmd.extend(added + removed)
         self._run(cmd)
         resource = OR({"kind": kind, "metadata": {"name": name}}, "", "")
-        return self._msg_to_process_reconcile_time(namespace, resource)
+        return self._msg_to_process_reconcile_time(namespace or "", resource)
 
-    def project_exists(self, name):
+    def project_exists(self, name: str) -> bool:
         if name in self.projects:
             return True
         try:
@@ -615,7 +649,7 @@ class OCCli:
         return True
 
     @OCDecorators.process_reconcile_time
-    def new_project(self, namespace):
+    def new_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
         if self.is_kind_supported("Project"):
             cmd = ["new-project", namespace]
         else:
@@ -631,7 +665,7 @@ class OCCli:
         return self._msg_to_process_reconcile_time(namespace, resource)
 
     @OCDecorators.process_reconcile_time
-    def delete_project(self, namespace):
+    def delete_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
         if self.is_kind_supported("Project"):
             cmd = ["delete", "project", namespace]
         else:
@@ -642,7 +676,7 @@ class OCCli:
         resource = OR({"kind": "Namespace", "metadata": {"name": namespace}}, "", "")
         return self._msg_to_process_reconcile_time(namespace, resource)
 
-    def get_group_if_exists(self, name):
+    def get_group_if_exists(self, name: str) -> dict[str, Any] | None:
         try:
             return self.get(None, "Group", name)
         except StatusCodeError as e:
@@ -650,20 +684,20 @@ class OCCli:
                 return None
             raise e
 
-    def create_group(self, group):
+    def create_group(self, group: str) -> None:
         if self.get_group_if_exists(group) is not None:
             return
         cmd = ["adm", "groups", "new", group]
         self._run(cmd)
 
-    def delete_group(self, group):
+    def delete_group(self, group: str) -> None:
         cmd = ["delete", "group", group]
         self._run(cmd)
 
-    def get_users(self):
+    def get_users(self) -> Iterable[dict[str, Any]]:
         return self.get_all("User")["items"]
 
-    def delete_user(self, user_name):
+    def delete_user(self, user_name: str) -> None:
         user = self.get(None, "User", user_name)
         cmd = ["delete", "user", user_name]
         self._run(cmd)
@@ -671,19 +705,19 @@ class OCCli:
             cmd = ["delete", "identity", identity]
             self._run(cmd)
 
-    def add_user_to_group(self, group, user):
+    def add_user_to_group(self, group: str, user: str) -> None:
         cmd = ["adm", "groups", "add-users", group, user]
         self._run(cmd)
 
-    def del_user_from_group(self, group, user):
+    def del_user_from_group(self, group: str, user: str) -> None:
         cmd = ["adm", "groups", "remove-users", group, user]
         self._run(cmd)
 
-    def sa_get_token(self, namespace, name):
+    def sa_get_token(self, namespace: str, name: str) -> str:
         cmd = ["sa", "-n", namespace, "get-token", name]
         return self._run(cmd)
 
-    def get_api_resources(self):
+    def get_api_resources(self) -> dict[str, Any]:
         with self.api_resources_lock:
             if not self.api_resources:
                 cmd = ["api-resources", "--no-headers"]
@@ -704,13 +738,13 @@ class OCCli:
 
         return self.api_resources
 
-    def get_version(self):
+    def get_version(self) -> bytes:
         # this is actually a 10 second timeout, because: oc reasons
         cmd = ["version", "--request-timeout=5"]
         return self._run(cmd)
 
     @retry(exceptions=(JobNotRunningError), max_attempts=20)
-    def wait_for_job_running(self, namespace, name):
+    def wait_for_job_running(self, namespace: str, name: str) -> None:
         logging.info("waiting for job to run: " + name)
         pods = self.get_items("Pod", namespace=namespace, labels={"job-name": name})
 
@@ -725,13 +759,13 @@ class OCCli:
 
     def job_logs(
         self,
-        namespace,
-        name,
-        follow,
-        output,
-        wait_for_job_running=True,
-        wait_for_logs_process=False,
-    ):
+        namespace: str,
+        name: str,
+        follow: bool,
+        output: str | pathlib.Path | TextIO,
+        wait_for_job_running: bool = True,
+        wait_for_logs_process: bool = False,
+    ) -> None:
         if wait_for_job_running:
             self.wait_for_job_running(namespace, name)
 
@@ -739,6 +773,7 @@ class OCCli:
         if follow:
             cmd.append("-f")
 
+        output_file: TextIO
         if isinstance(output, str | pathlib.Path):
             output_file = open(os.path.join(output, name), "w", encoding="locale")  # noqa: SIM115
         else:
@@ -779,12 +814,11 @@ class OCCli:
         return output_file_name
 
     @staticmethod
-    def get_service_account_username(user):
-        namespace = user.split("/")[0]
-        name = user.split("/")[1]
+    def get_service_account_username(user: str) -> str:
+        namespace, name, _ = user.split("/", maxsplit=2)
         return f"system:serviceaccount:{namespace}:{name}"
 
-    def get_owned_pods(self, namespace, resource):
+    def get_owned_pods(self, namespace: str, resource: OR) -> list[dict[str, Any]]:
         pods = self.get(namespace, "Pod")["items"]
         owned_pods = []
         for p in pods:
@@ -797,7 +831,9 @@ class OCCli:
 
         return owned_pods
 
-    def get_owned_replicasets(self, namespace, resource: dict) -> list[dict]:
+    def get_owned_replicasets(
+        self, namespace: str, resource: Mapping[str, Any]
+    ) -> list[dict[str, Any]]:
         owned_replicasets = []
         for rs in self.get(namespace, "ReplicaSet")["items"]:
             owner = self.get_obj_root_owner(namespace, rs, allow_not_found=True)
@@ -814,8 +850,11 @@ class OCCli:
         max_attempts=GET_REPLICASET_MAX_ATTEMPTS,
     )
     def get_replicaset(
-        self, namespace: str, deployment_resource: dict, allow_empty=False
-    ) -> dict:
+        self,
+        namespace: str,
+        deployment_resource: Mapping[str, Any],
+        allow_empty: bool = False,
+    ) -> dict[str, Any]:
         """Get last active ReplicaSet for given Deployment.
 
         Implements similar logic like in kubectl describe deployment.
@@ -835,7 +874,7 @@ class OCCli:
         raise ResourceNotFoundError("No ReplicaSet found")
 
     @staticmethod
-    def get_pod_owned_pvc_names(pods: Iterable[dict[str, dict]]) -> set[str]:
+    def get_pod_owned_pvc_names(pods: Iterable[Mapping[str, Any]]) -> set[str]:
         owned_pvc_names = set()
         for p in pods:
             vols = p["spec"].get("volumes")
@@ -849,25 +888,28 @@ class OCCli:
         return owned_pvc_names
 
     @staticmethod
-    def get_storage(resource):
+    def get_storage(resource: Mapping[str, Any]) -> str | None:
         # resources with volumeClaimTemplates
         with suppress(KeyError, IndexError):
             vct = resource["spec"]["volumeClaimTemplates"][0]
             return vct["spec"]["resources"]["requests"]["storage"]
+        return None
 
-    def resize_pvcs(self, namespace, pvc_names, size):
+    def resize_pvcs(self, namespace: str, pvc_names: Iterable[str], size: str) -> None:
         patch = {"spec": {"resources": {"requests": {"storage": size}}}}
         for p in pvc_names:
             self.patch(namespace, "PersistentVolumeClaim", p, patch)
 
-    def recycle_orphan_pods(self, namespace, pods):
+    def recycle_orphan_pods(
+        self, namespace: str, pods: Iterable[Mapping[str, Any]]
+    ) -> None:
         for p in pods:
             name = p["metadata"]["name"]
             self.delete(namespace, "Pod", name)
             self.validate_pod_ready(namespace, name)
 
     @retry(max_attempts=20)
-    def validate_pod_ready(self, namespace, name):
+    def validate_pod_ready(self, namespace: str, name: str) -> None:
         logging.info([
             self.validate_pod_ready.__name__,
             self.cluster_name,
@@ -879,7 +921,9 @@ class OCCli:
             if not status["ready"]:
                 raise PodNotReadyError(name)
 
-    def recycle_pods(self, dry_run, namespace, dep_kind, dep_resource):
+    def recycle_pods(
+        self, dry_run: bool, namespace: str, dep_kind: str, dep_resource: OR
+    ) -> None:
         """recycles pods which are using the specified resources.
         will only act on Secrets containing the 'qontract.recycle' annotation.
         dry_run: simulate pods recycle.
@@ -926,7 +970,7 @@ class OCCli:
         else:
             raise RecyclePodsUnsupportedKindError(dep_kind)
 
-        recyclables = {}
+        recyclables: dict[str, list[dict[str, Any]]] = {}
         supported_recyclables = [
             "Deployment",
             "DeploymentConfig",
@@ -953,7 +997,9 @@ class OCCli:
                 self.recycle(dry_run, namespace, kind, obj)
 
     @retry(exceptions=ObjectHasBeenModifiedError)
-    def recycle(self, dry_run, namespace, kind, obj):
+    def recycle(
+        self, dry_run: bool, namespace: str, kind: str, obj: MutableMapping[str, Any]
+    ) -> None:
         """Recycles an object by adding a recycle.time annotation
 
         :param dry_run: Is this a dry run
@@ -975,12 +1021,16 @@ class OCCli:
             a["recycle.time"] = recycle_time
             obj["spec"]["template"]["metadata"]["annotations"] = a
             cmd = ["apply", "-n", namespace, "-f", "-"]
-            stdin = json.dumps(obj, sort_keys=True)
+            stdin = json_dumps(obj)
             self._run(cmd, stdin=stdin, apply=True)
 
     def get_obj_root_owner(
-        self, ns, obj, allow_not_found=False, allow_not_controller=False
-    ):
+        self,
+        ns: str,
+        obj: dict[str, Any],
+        allow_not_found: bool = False,
+        allow_not_controller: bool = False,
+    ) -> dict[str, Any]:
         """Get object root owner (recursively find the top level owner).
         - Returns obj if it has no ownerReferences
         - Returns obj if all ownerReferences have controller set to false
@@ -1014,17 +1064,17 @@ class OCCli:
                     )
         return obj
 
-    def secret_used_in_pod(self, name, pod):
+    def secret_used_in_pod(self, name: str, pod: Mapping[str, Any]) -> bool:
         used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "Secret")
         return name in used_resources
 
-    def configmap_used_in_pod(self, name, pod):
+    def configmap_used_in_pod(self, name: str, pod: Mapping[str, Any]) -> bool:
         used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
         return name in used_resources
 
     @staticmethod
     def get_resources_used_in_pod_spec(
-        spec: dict[str, Any],
+        spec: Mapping[str, Any],
         kind: str,
         include_optional: bool = True,
     ) -> dict[str, set[str]]:
@@ -1083,7 +1133,7 @@ class OCCli:
         return resources
 
     @retry(exceptions=(StatusCodeError, NoOutputError), max_attempts=10)
-    def _run(self, cmd, **kwargs) -> bytes:
+    def _run(self, cmd: list[str], **kwargs: Any) -> bytes:
         oc_run_execution_counter.labels(integration=RunningState().integration).inc()
         stdin = kwargs.get("stdin")
         stdin_text = stdin.encode() if stdin else None
@@ -1134,7 +1184,9 @@ class OCCli:
 
         return result.stdout.strip()
 
-    def _run_json(self, cmd, allow_not_found=False):
+    def _run_json(
+        self, cmd: list[str], allow_not_found: bool = False
+    ) -> dict[str, Any]:
         out = self._run(cmd, allow_not_found=allow_not_found)
 
         try:
@@ -1144,7 +1196,7 @@ class OCCli:
 
         return out_json
 
-    def _parse_kind(self, kind_name):
+    def _parse_kind(self, kind_name: str) -> tuple[str, str]:
         # This is a provisional solution while we work in redefining
         # the api resources initialization.
         if not self.api_resources:
@@ -1231,7 +1283,7 @@ class OCNative(OCCli):
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
         connection_parameters: OCConnectionParameters | None = None,
-    ):
+    ) -> None:
         super().__init__(
             cluster_name,
             server,
@@ -1269,19 +1321,19 @@ class OCNative(OCCli):
                 kind = "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
-    def __enter__(self):
+    def __enter__(self) -> OCNative:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.cleanup()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         super().cleanup()
         if hasattr(self, "client") and self.client is not None:
             self.client.client.close()
 
     @retry(exceptions=(ServerTimeoutError, InternalServerError, ForbiddenError))
-    def _get_client(self, server, token):
+    def _get_client(self, server: str, token: str) -> DynamicClient:
         opts = {
             "api_key": {"authorization": f"Bearer {token}"},
             "host": server,
@@ -1315,7 +1367,7 @@ class OCNative(OCCli):
         return self.client.resources.get(api_version=group_version, kind=kind)
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
-    def get_items(self, kind, **kwargs):
+    def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
 
@@ -1330,13 +1382,12 @@ class OCNative(OCCli):
 
         labels = ""
         if "labels" in kwargs:
-            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels").items()]
-
+            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels", {}).items()]
             labels = ",".join(labels_list)
 
         resource_names = kwargs.get("resource_names")
         if resource_names:
-            items = []
+            resource_items = []
             for resource_name in resource_names:
                 try:
                     item = obj_client.get(
@@ -1346,10 +1397,10 @@ class OCNative(OCCli):
                         _request_timeout=REQUEST_TIMEOUT,
                     )
                     if item:
-                        items.append(item.to_dict())
+                        resource_items.append(item.to_dict())
                 except NotFoundError:
                     pass
-            items_list = {"items": items}
+            items_list = {"items": resource_items}
         else:
             items_list = obj_client.get(
                 namespace=namespace,
@@ -1363,7 +1414,13 @@ class OCNative(OCCli):
         return items
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError, ForbiddenError))
-    def get(self, namespace, kind, name=None, allow_not_found=False):
+    def get(
+        self,
+        namespace: str | None,
+        kind: str,
+        name: str | None = None,
+        allow_not_found: bool = False,
+    ) -> dict[str, Any]:
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
         try:
@@ -1378,7 +1435,7 @@ class OCNative(OCCli):
                 return {}
             raise StatusCodeError(f"[{self.server}]: {e}") from None
 
-    def get_all(self, kind, all_namespaces=False):
+    def get_all(self, kind: str, all_namespaces: bool = False) -> dict[str, Any]:
         k, group_version = self._parse_kind(kind)
         obj_client = self._get_obj_client(group_version=group_version, kind=k)
         try:
@@ -1393,11 +1450,11 @@ OCClient = OCNative | OCCli
 class OCLocal(OCCli):
     def __init__(
         self,
-        cluster_name,
-        server,
-        token,
-        local=False,
-    ):
+        cluster_name: str,
+        server: str | None,
+        token: str | None,
+        local: bool = False,
+    ) -> None:
         super().__init__(
             cluster_name=cluster_name,
             server=server,
@@ -1406,6 +1463,8 @@ class OCLocal(OCCli):
         )
 
 
+# we should replace this class with a proper get_oc_client wrapper!
+# Or getting rid of one or the other OC implementations
 class OC:
     client_status = Counter(
         name="qontract_reconcile_native_client",
@@ -1413,7 +1472,7 @@ class OC:
         labelnames=["cluster_name", "native_client"],
     )
 
-    def __new__(
+    def __new__(  # type: ignore
         cls,
         cluster_name: str | None = None,
         server: str | None = None,
@@ -1425,7 +1484,7 @@ class OC:
         local: bool = False,
         insecure_skip_tls_verify: bool = False,
         connection_parameters: OCConnectionParameters | None = None,
-    ):
+    ) -> OCClient:
         use_native_env = os.environ.get("USE_NATIVE_CLIENT", "")
         use_native = True
         if len(use_native_env) > 0:
@@ -1483,19 +1542,19 @@ class OC_Map:  # noqa: N801
 
     def __init__(
         self,
-        clusters=None,
-        namespaces=None,
-        integration="",
-        settings=None,
-        internal=None,
-        use_jump_host=True,
-        thread_pool_size=1,
-        init_projects=False,
-        init_api_resources=False,
-        cluster_admin=False,
-    ):
-        self.oc_map = {}
-        self.privileged_oc_map = {}
+        clusters: Iterable[Mapping[str, Any]] | None = None,
+        namespaces: Iterable[Mapping[str, Any]] | None = None,
+        integration: str = "",
+        settings: Mapping[str, Any] | None = None,
+        internal: bool | None = None,
+        use_jump_host: bool = True,
+        thread_pool_size: int = 1,
+        init_projects: bool = False,
+        init_api_resources: bool = False,
+        cluster_admin: bool = False,
+    ) -> None:
+        self.oc_map: dict[str, OCClient | OCLogMsg] = {}
+        self.privileged_oc_map: dict[str, OCClient | OCLogMsg] = {}
         self.calling_integration = integration
         self.settings = settings
         self.internal = internal
@@ -1504,7 +1563,7 @@ class OC_Map:  # noqa: N801
         self.init_projects = init_projects
         self.init_api_resources = init_api_resources
         self._lock = Lock()
-        self.jh_ports = {}
+        self.jh_ports: dict[str, str | int] = {}
 
         if clusters and namespaces:
             raise KeyError("expected only one of clusters or namespaces.")
@@ -1548,13 +1607,13 @@ class OC_Map:  # noqa: N801
         else:
             raise KeyError("expected one of clusters or namespaces.")
 
-    def __enter__(self):
+    def __enter__(self) -> OC_Map:
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: Any) -> None:
         self.cleanup()
 
-    def set_jh_ports(self, jh):
+    def set_jh_ports(self, jh: MutableMapping[str, str | int]) -> None:
         # This will be replaced with getting the data from app-interface in
         # a future PR.
         jh["remotePort"] = 8888
@@ -1565,7 +1624,7 @@ class OC_Map:  # noqa: N801
                 self.jh_ports[key] = port
             jh["localPort"] = self.jh_ports[key]
 
-    def init_oc_client(self, cluster_info, privileged: bool):
+    def init_oc_client(self, cluster_info: Mapping[str, Any], privileged: bool) -> None:
         cluster = cluster_info["name"]
         if not privileged and self.oc_map.get(cluster):
             return None
@@ -1640,15 +1699,18 @@ class OC_Map:  # noqa: N801
             if jump_host:
                 self.set_jh_ports(jump_host)
             try:
-                oc_client = OC(
-                    cluster,
-                    server_url,
-                    token,
-                    jump_host,
-                    settings=self.settings,
-                    init_projects=self.init_projects,
-                    init_api_resources=self.init_api_resources,
-                    insecure_skip_tls_verify=insecure_skip_tls_verify,
+                oc_client = cast(
+                    "OCClient",
+                    OC(
+                        cluster,
+                        server_url,
+                        token,
+                        jump_host,
+                        settings=self.settings,
+                        init_projects=self.init_projects,
+                        init_api_resources=self.init_api_resources,
+                        insecure_skip_tls_verify=bool(insecure_skip_tls_verify),
+                    ),
                 )
                 self.set_oc(cluster, oc_client, privileged)
             except StatusCodeError as e:
@@ -1661,14 +1723,16 @@ class OC_Map:  # noqa: N801
                     privileged,
                 )
 
-    def set_oc(self, cluster: str, value, privileged: bool):
+    def set_oc(
+        self, cluster: str, value: OCClient | OCLogMsg, privileged: bool
+    ) -> None:
         with self._lock:
             if privileged:
                 self.privileged_oc_map[cluster] = value
             else:
                 self.oc_map[cluster] = value
 
-    def cluster_disabled(self, cluster_info):
+    def cluster_disabled(self, cluster_info: Mapping[str, Any]) -> bool:
         try:
             integrations = cluster_info["disable"]["integrations"]
             if self.calling_integration.replace("_", "-") in integrations:
@@ -1678,12 +1742,13 @@ class OC_Map:  # noqa: N801
 
         return False
 
-    def get(self, cluster: str, privileged: bool = False):
+    def get(self, cluster: str, privileged: bool = False) -> OCClient | OCLogMsg:
         cluster_map = self.privileged_oc_map if privileged else self.oc_map
-        return cluster_map.get(
+        c = cluster_map.get(
             cluster,
             OCLogMsg(log_level=logging.DEBUG, message=f"[{cluster}] cluster skipped"),
         )
+        return c
 
     def get_cluster(self, cluster: str, privileged: bool = False) -> OCClient:
         result = self.get(cluster, privileged)
@@ -1705,12 +1770,11 @@ class OC_Map:  # noqa: N801
             return list(cluster_map.keys())
         return [k for k, v in cluster_map.items() if v]
 
-    def cleanup(self):
-        for oc in self.oc_map.values():
-            if oc:
-                oc.cleanup()
-        for oc in self.privileged_oc_map.values():
-            if oc:
+    def cleanup(self) -> None:
+        for oc in itertools.chain(
+            self.oc_map.values(), self.privileged_oc_map.values()
+        ):
+            if oc and isinstance(oc, OCClient):
                 oc.cleanup()
 
 
@@ -1719,12 +1783,12 @@ class OCLogMsg(Exception):  # noqa: N818
     Track log messages associated with initializing OC clients in OC_Map.
     """
 
-    def __init__(self, log_level, message):
+    def __init__(self, log_level: int, message: str) -> None:
         super().__init__()
         self.log_level = log_level
         self.message = message
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         Returning False here makes this object falsy, which is used
         elsewhere when differentiating between an OC client or a log
@@ -1741,7 +1805,7 @@ LABEL_MAX_KEY_NAME_LENGTH = 63
 LABEL_MAX_KEY_PREFIX_LENGTH = 253
 
 
-def validate_labels(labels: dict[str, str]) -> Iterable[str]:
+def validate_labels(labels: Mapping[str, str]) -> list[str]:
     """
     Validate a label key/value against some rules from
     https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
@@ -1803,7 +1867,7 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
     https://github.com/openshift/openshift-restclient-python/blob/master/openshift/dynamic/discovery.py
     """
 
-    def default_groups(self, request_resources=False):
+    def default_groups(self, request_resources: bool = False) -> dict[str, Any]:
         groups = super().default_groups(request_resources)
         if self.version.get("openshift"):
             groups["oapi"] = {
@@ -1822,7 +1886,7 @@ class OpenshiftLazyDiscoverer(LazyDiscoverer):
             }
         return groups
 
-    def get(self, **kwargs):
+    def get(self, **kwargs: Any) -> Any:
         """Same as search, but will throw an error if there are multiple or no
         results. If there are multiple results and only one is an exact match
         on api_version, that resource will be returned.

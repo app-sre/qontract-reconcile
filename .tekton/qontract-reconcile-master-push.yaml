@@ -24,7 +24,7 @@ spec:
   - name: output-image
     value: quay.io/redhat-user-workloads/app-sre-tenant/qontract-reconcile-master/qontract-reconcile-master:{{revision}}
   - name: dockerfile
-    value: dockerfiles/Dockerfile.konflux
+    value: dockerfiles/Dockerfile
   - name: path-context
     value: .
   - name: target-stage
@@ -37,6 +37,14 @@ spec:
   # We need the depth to properly have uv infer version
   - name: cloneDepth
     value: '100000'
+  - name: goss-container-structure-test-file
+    value: dockerfiles/goss.yaml
+  - name: github-user-id
+    # https://pipelinesascode.com/docs/guide/authoringprs/
+    value: |-
+      {{sender}}
+  - name: sqs-pr-type
+    value: promote_qontract_reconcile
   pipelineRef:
     params:
     - name: url

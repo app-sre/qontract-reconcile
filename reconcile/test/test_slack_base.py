@@ -1,8 +1,12 @@
+from typing import Any
+from unittest.mock import MagicMock
+
 import pytest
 from pydantic import (
     BaseModel,
     Json,
 )
+from pytest_mock import MockerFixture
 
 from reconcile.slack_base import (
     get_slackapi,
@@ -12,7 +16,7 @@ from reconcile.slack_base import (
 from reconcile.utils.secret_reader import SecretReader
 
 
-def create_api_config():
+def create_api_config() -> dict[str, Any]:
     return {
         "global": {"max_retries": 5, "timeout": 30},
         "methods": [
@@ -22,7 +26,7 @@ def create_api_config():
 
 
 @pytest.fixture
-def slack_workspace():
+def slack_workspace() -> dict[str, Any]:
     return {
         "workspace": {
             "name": "coreos",
@@ -44,7 +48,7 @@ def slack_workspace():
 
 
 @pytest.fixture
-def unleash_slack_workspace():
+def unleash_slack_workspace() -> dict[str, Any]:
     return {
         "workspace": {
             "name": "coreos",
@@ -66,7 +70,7 @@ def unleash_slack_workspace():
 
 
 @pytest.fixture
-def permissions_workspace():
+def permissions_workspace() -> dict[str, Any]:
     return {
         "workspace": {
             "name": "coreos",
@@ -81,7 +85,7 @@ def permissions_workspace():
 
 
 @pytest.fixture
-def patch_secret_reader(mocker):
+def patch_secret_reader(mocker: MockerFixture) -> MagicMock:
     return mocker.patch(
         "reconcile.utils.secret_reader.SecretReader.read",
         return_value="secret",
@@ -90,20 +94,22 @@ def patch_secret_reader(mocker):
 
 
 @pytest.fixture
-def patch__initiate_usergroups(mocker):
+def patch__initiate_usergroups(mocker: MockerFixture) -> MagicMock:
     return mocker.patch(
         "reconcile.utils.slack_api.SlackApi._initiate_usergroups", autospec=True
     )
 
 
-def test_slack_workspace_raises():
+def test_slack_workspace_raises() -> None:
     with pytest.raises(ValueError):
         slackapi_from_slack_workspace({}, SecretReader(), "foo")
 
 
 def test_slack_workspace_ok(
-    patch_secret_reader, patch__initiate_usergroups, slack_workspace
-):
+    patch_secret_reader: MagicMock,
+    patch__initiate_usergroups: MagicMock,
+    slack_workspace: dict[str, Any],
+) -> None:
     slack_api = slackapi_from_slack_workspace(slack_workspace, SecretReader(), "dummy")
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
@@ -113,8 +119,10 @@ def test_slack_workspace_ok(
 
 
 def test_slack_workspace_channel_overwrite(
-    patch_secret_reader, patch__initiate_usergroups, slack_workspace
-):
+    patch_secret_reader: MagicMock,
+    patch__initiate_usergroups: MagicMock,
+    slack_workspace: dict[str, Any],
+) -> None:
     slack_api = slackapi_from_slack_workspace(
         slack_workspace, SecretReader(), "dummy", channel="foo"
     )
@@ -122,8 +130,10 @@ def test_slack_workspace_channel_overwrite(
 
 
 def test_unleash_workspace_ok(
-    patch_secret_reader, patch__initiate_usergroups, unleash_slack_workspace
-):
+    patch_secret_reader: MagicMock,
+    patch__initiate_usergroups: MagicMock,
+    unleash_slack_workspace: dict[str, Any],
+) -> None:
     slack_api = slackapi_from_slack_workspace(
         unleash_slack_workspace, SecretReader(), "slack-usergroups"
     )
@@ -135,8 +145,10 @@ def test_unleash_workspace_ok(
 
 
 def test_slack_workspace_no_init(
-    patch_secret_reader, patch__initiate_usergroups, slack_workspace
-):
+    patch_secret_reader: MagicMock,
+    patch__initiate_usergroups: MagicMock,
+    slack_workspace: dict[str, Any],
+) -> None:
     slackapi_from_slack_workspace(
         slack_workspace, SecretReader(), "dummy", init_usergroups=False
     )
@@ -144,8 +156,10 @@ def test_slack_workspace_no_init(
 
 
 def test_permissions_workspace(
-    patch_secret_reader, patch__initiate_usergroups, permissions_workspace
-):
+    patch_secret_reader: MagicMock,
+    patch__initiate_usergroups: MagicMock,
+    permissions_workspace: dict[str, Any],
+) -> None:
     slack_api = slackapi_from_permissions(permissions_workspace, SecretReader())
     patch_secret_reader.assert_called_once()
     patch__initiate_usergroups.assert_called_once()
@@ -169,7 +183,7 @@ class ClientConfig(BaseModel):
     methods: list[ClientMethodConfig] | None
 
 
-def test_get_slackapi():
+def test_get_slackapi() -> None:
     slack_api = get_slackapi(
         "workspace",
         "token",

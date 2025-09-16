@@ -53,7 +53,7 @@ from .fixtures import Fixtures
 
 
 @pytest.fixture
-def base_state():
+def base_state() -> SlackState:
     state = SlackState({
         "slack-workspace": {
             "usergroup-1": State(

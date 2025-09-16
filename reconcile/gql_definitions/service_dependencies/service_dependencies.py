@@ -22,7 +22,7 @@ from reconcile.gql_definitions.service_dependencies.jenkins_instance_fragment im
 
 DEFINITION = """
 fragment ServiceDependenciesJenkinsInstance on JenkinsInstance_v1 {
-    name
+  name
 }
 
 query ServiceDependencies {
@@ -36,7 +36,7 @@ query ServiceDependencies {
     }
     jenkinsConfigs {
       instance {
-        ... ServiceDependenciesJenkinsInstance
+        ...ServiceDependenciesJenkinsInstance
       }
     }
     saasFiles {
@@ -47,7 +47,7 @@ query ServiceDependencies {
         targets {
           upstream {
             instance {
-              ... ServiceDependenciesJenkinsInstance
+              ...ServiceDependenciesJenkinsInstance
             }
           }
         }

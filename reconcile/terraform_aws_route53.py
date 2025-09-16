@@ -1,6 +1,7 @@
 import logging
 import sys
 from collections.abc import (
+    Callable,
     Iterable,
     Mapping,
 )
@@ -8,6 +9,7 @@ from typing import Any
 
 from reconcile import queries
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import dnsutils
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
@@ -25,8 +27,10 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 def build_desired_state(
-    zones: Iterable[Mapping], all_accounts: Iterable[Mapping], settings: Mapping
-) -> list[dict]:
+    zones: Iterable[Mapping[str, Any]],
+    all_accounts: Iterable[Mapping[str, Any]],
+    settings: Mapping[str, Any],
+) -> list[dict[str, Any]]:
     """
     Build the desired state from the app-interface resources
 
@@ -36,7 +40,7 @@ def build_desired_state(
     :rtype: list of dict
     """
 
-    desired_state = []
+    desired_state: list[dict[str, Any]] = []
     for zone in zones:
         account = zone["account"]
         account_name = account["name"]
@@ -208,8 +212,8 @@ def run(
     enable_deletion: bool = True,
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE,
     account_name: str | None = None,
-    defer=None,
-):
+    defer: Callable | None = None,
+) -> None:
     settings = queries.get_app_interface_settings()
     zones = queries.get_dns_zones(account_name=account_name)
 
@@ -224,13 +228,18 @@ def run(
             f"No participating AWS accounts found, consider disabling this integration, account name: {account_name}"
         )
         return
-
+    try:
+        default_tags = get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         "",
         thread_pool_size,
         participating_accounts,
         settings=settings,
+        default_tags=default_tags,
     )
 
     desired_state = build_desired_state(zones, all_accounts, settings)
@@ -255,7 +264,8 @@ def run(
     if tf is None:
         sys.exit(ExitCodes.ERROR)
 
-    defer(tf.cleanup)
+    if defer:
+        defer(tf.cleanup)
 
     _, err = tf.plan(enable_deletion)
     if err:
@@ -269,7 +279,7 @@ def run(
         sys.exit(ExitCodes.ERROR)
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "zones": queries.get_dns_zones(),
     }

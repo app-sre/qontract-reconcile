@@ -79,7 +79,7 @@ def validate_no_cidr_overlap(
     return True
 
 
-def find_cidr_overlap(cluster_name: str, input_list: list):
+def find_cidr_overlap(cluster_name: str, input_list: list) -> bool:
     for i in range(len(input_list)):
         compared_vpc = input_list[i]
         for j in range(i + 1, len(input_list)):
@@ -171,7 +171,7 @@ def validate_no_public_to_public_peerings(
     return valid
 
 
-def run(dry_run: bool):
+def run(dry_run: bool) -> None:
     query_data = vpc_peerings_validator.query(query_func=gql.get_api().query)
 
     valid = True

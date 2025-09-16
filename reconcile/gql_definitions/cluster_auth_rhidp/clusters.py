@@ -22,22 +22,22 @@ from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
 
 DEFINITION = """
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
-    name
-    description
-    labels
-    url
-    accessTokenClientId
-    accessTokenUrl
-    accessTokenClientSecret {
-        ... VaultSecret
-    }
+  name
+  description
+  labels
+  url
+  accessTokenClientId
+  accessTokenUrl
+  accessTokenClientSecret {
+    ...VaultSecret
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query ClusterAuthRhidp {

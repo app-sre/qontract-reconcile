@@ -1,4 +1,3 @@
-import json
 import logging
 import sys
 from collections.abc import (
@@ -22,6 +21,7 @@ from reconcile.gql_definitions.aws_saml_roles.roles import (
     query as roles_query,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import unique_sso_aws_accounts
@@ -32,6 +32,7 @@ from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,
     extended_early_exit_run,
 )
+from reconcile.utils.json import json_dumps
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
@@ -87,7 +88,7 @@ class CustomPolicy(BaseModel):
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
         """
-        if len(json.dumps(v, separators=(",", ":"))) > 6144:
+        if len(json_dumps(v, compact=True)) > 6144:
             raise ValueError(
                 f"The policy document '{v}' is too large. AWS policy documents must be 6144 characters or less (w/o white spaces)."
             )
@@ -253,13 +254,18 @@ class AwsSamlRolesIntegration(
         )
         aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
         aws_roles = self.get_roles(gql_api.query, account_name=self.params.account_name)
-
+        try:
+            default_tags = get_settings().default_tags
+        except ValueError:
+            # no external resources settings found
+            default_tags = None
         ts = TerrascriptClient(
             self.name.replace("-", "_"),
             "",
             self.params.thread_pool_size,
             aws_accounts_dict,
             secret_reader=self.secret_reader,
+            default_tags=default_tags,
         )
         self.populate_saml_iam_roles(ts, aws_roles)
         working_dirs = ts.dump(print_to_file=self.params.print_to_file)

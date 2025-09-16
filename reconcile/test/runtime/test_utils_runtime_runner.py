@@ -77,9 +77,9 @@ def wet_run_test_integration_cfg(
 
 
 def test_run_configuration_switch_to_main_bundle(
-    mocker,
+    mocker: MockerFixture,
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     gql_init_from_config = mocker.patch.object(gql, "init_from_config")
     cfg = IntegrationRunConfiguration(
         integration=simple_test_integration,
@@ -100,9 +100,9 @@ def test_run_configuration_switch_to_main_bundle(
 
 
 def test_run_configuration_switch_to_comparison_bundle(
-    mocker,
+    mocker: MockerFixture,
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     gql_init_from_config = mocker.patch.object(gql, "init_from_config")
     gql_init_from_config.return_value = "a"
     cfg = IntegrationRunConfiguration(
@@ -166,7 +166,7 @@ def test_get_desired_state_diff(
     early_exitable: bool,
     affected_shards: set[str],
     shardable_test_integration: ShardableTestIntegration,
-):
+) -> None:
     cfg = MockIntegrationRunConfiguration(
         integration=shardable_test_integration,
         valdiate_schemas=False,
@@ -188,7 +188,7 @@ def test_get_desired_state_diff(
 def test_run_configuration_dispatch_dry_run(
     mocker: MockerFixture,
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     """
     making sure, the dry run mode is called
     """
@@ -215,7 +215,7 @@ def test_run_configuration_dispatch_dry_run(
 def test_run_configuration_dispatch_wet_run(
     mocker: MockerFixture,
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     """
     making sure, the wet run mode is called
     """
@@ -241,7 +241,7 @@ def test_run_configuration_dispatch_wet_run(
 
 def test_run_configuration_dry_run(
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     """
     if there is no desired state diff object, we can't say anything about
     early exit or sharding, so the run function of the integration is called
@@ -258,7 +258,7 @@ def test_run_configuration_dry_run(
 
 def test_run_configuration_dry_run_diff_no_early_exit(
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     """
     when there is not diff, we don't do early exit but run the integration
     """
@@ -278,7 +278,7 @@ def test_run_configuration_dry_run_diff_no_early_exit(
 
 def test_run_configuration_dry_run_no_diff_early_exit(
     simple_test_integration: SimpleTestIntegration,
-):
+) -> None:
     """
     when there is no difference in the desired state, exit early.
     """
@@ -298,7 +298,7 @@ def test_run_configuration_dry_run_no_diff_early_exit(
 
 def test_run_configuration_dry_run_diff_no_early_exit_sharding(
     mocker: MockerFixture,
-):
+) -> None:
     """
     when there is not diff, we don't do early exit. since the integration supports
     sharding, and affected shards have been detected, we run the integration once
@@ -333,7 +333,9 @@ def test_run_configuration_dry_run_diff_no_early_exit_sharding(
         assert sharded_params in called_sharded_params
 
 
-def test_run_configuration_dry_run_diff_no_early_exit_shard_err(mocker: MockerFixture):
+def test_run_configuration_dry_run_diff_no_early_exit_shard_err(
+    mocker: MockerFixture,
+) -> None:
     """
     if a shard fails during dry-run, we expect exit with an error
     """
@@ -401,7 +403,9 @@ def test_run_configuration_dry_run_diff_no_early_exit_shard_err(mocker: MockerFi
         assert sharded_params in called_sharded_params
 
 
-def test_run_configuration_wet_run(simple_test_integration: SimpleTestIntegration):
+def test_run_configuration_wet_run(
+    simple_test_integration: SimpleTestIntegration,
+) -> None:
     simple_test_integration.run = MagicMock()  # type: ignore
     _integration_wet_run(
         simple_test_integration,
@@ -436,5 +440,5 @@ def test_run_configuration_wet_run(simple_test_integration: SimpleTestIntegratio
         ("some string", False),
     ],
 )
-def test_is_task_result_an_error(result: Any, expected_is_error: bool):
+def test_is_task_result_an_error(result: Any, expected_is_error: bool) -> None:
     assert _is_task_result_an_error(result) == expected_is_error

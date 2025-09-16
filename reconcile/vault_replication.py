@@ -1,9 +1,6 @@
 import logging
 import re
 from collections.abc import Iterable
-from typing import (
-    cast,
-)
 
 from reconcile.gql_definitions.jenkins_configs import jenkins_configs
 from reconcile.gql_definitions.jenkins_configs.jenkins_configs import (
@@ -30,7 +27,6 @@ from reconcile.utils.vault import (
     SecretNotFoundError,
     SecretVersionNotFoundError,
     VaultClient,
-    _VaultClient,
 )
 
 QONTRACT_INTEGRATION = "vault-replication"
@@ -51,8 +47,8 @@ class VaultInvalidPolicyError(Exception):
 
 def deep_copy_versions(
     dry_run: bool,
-    source_vault: _VaultClient,
-    dest_vault: _VaultClient,
+    source_vault: VaultClient,
+    dest_vault: VaultClient,
     current_dest_version: int,
     current_source_version: int,
     path: str,
@@ -88,9 +84,57 @@ def deep_copy_versions(
             dest_vault.write(secret=write_dict, decode_base64=False, force=True)
 
 
+def _handle_missing_destination_secret(
+    dry_run: bool,
+    source_vault: VaultClient,
+    dest_vault: VaultClient,
+    source_data: dict,
+    source_version: int | None,
+    path: str,
+) -> None:
+    """Handles replication when destination secret is missing or has no accessible versions.
+
+    This covers two scenarios:
+    1. Secret doesn't exist at all in destination vault (SecretNotFoundError)
+    2. Secret exists but all versions are deleted in KV v2 (SecretVersionNotFoundError)
+
+    For both cases, we replicate from source starting from version 0 (or copy directly for v1).
+
+    Args:
+        dry_run: Whether this is a dry run
+        source_vault: Source vault client (needed for v2 deep copy)
+        dest_vault: Destination vault client
+        source_data: Already retrieved source secret data
+        source_version: Source secret version (None for v1 secrets)
+        path: Secret path
+    """
+    if source_version is None:
+        # v1 secret - just copy it over using the already-retrieved source data
+        logging.info(["replicate_vault_secret", "Copying v1 secret", path])
+        if not dry_run:
+            write_dict = {"path": path, "data": source_data}
+            dest_vault.write(secret=write_dict, decode_base64=False, force=True)
+    else:
+        # v2 secret - deep copy all versions starting from 0
+        # Note: deep_copy_versions will read individual versions from source as needed
+        logging.info([
+            "replicate_vault_secret",
+            "Deep copying v2 secret versions",
+            path,
+        ])
+        deep_copy_versions(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            current_dest_version=0,
+            current_source_version=source_version,
+            path=path,
+        )
+
+
 def write_dummy_versions(
     dry_run: bool,
-    dest_vault: _VaultClient,
+    dest_vault: VaultClient,
     secret_version: int,
     path: str,
 ) -> None:
@@ -112,7 +156,7 @@ def write_dummy_versions(
 
 
 def copy_vault_secret(
-    dry_run: bool, source_vault: _VaultClient, dest_vault: _VaultClient, path: str
+    dry_run: bool, source_vault: VaultClient, dest_vault: VaultClient, path: str
 ) -> None:
     """Copies a secret from the source vault to the destination vault"""
     secret_dict = {"path": path, "version": "LATEST"}
@@ -137,48 +181,65 @@ def copy_vault_secret(
 
     try:
         dest_data, dest_version = dest_vault.read_all_with_version(secret_dict)
-        if dest_version is None and version is None:
-            # v1 secrets don't have version
-            if source_data == dest_data:
-                # If the secret is the same in both vaults, we don't need
-                # to copy it again
-                return
+    except SecretVersionNotFoundError:
+        # Handle KV v2 case where secret metadata exists but latest version is deleted
+        # This occurs when someone manually deletes the latest version but the secret
+        # metadata still exists in Vault. This should only happen for v2 secrets.
+        logging.info([
+            "replicate_vault_secret",
+            "KV v2 latest version deleted, replicating all versions",
+            path,
+        ])
+        _handle_missing_destination_secret(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            source_data=source_data,
+            source_version=version,
+            path=path,
+        )
+        return
+    except SecretNotFoundError:
+        # Handle case where secret doesn't exist at all in destination vault
+        logging.info([
+            "replicate_vault_secret",
+            "Secret not found in destination",
+            path,
+        ])
+        _handle_missing_destination_secret(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            source_data=source_data,
+            source_version=version,
+            path=path,
+        )
+        return
 
-            secret, _ = source_vault.read_all_with_version(secret_dict)
-            write_dict = {"path": path, "data": secret}
-            logging.info(["replicate_vault_secret", path])
-            if not dry_run:
-                # Using force=True to write the secret to force the vault client even
-                # if the data is the same as the previous version. This happens in
-                # some secrets even tho the library does not create it
-                dest_vault.write(secret=write_dict, decode_base64=False, force=True)
-        elif dest_version < version:
-            deep_copy_versions(
-                dry_run=dry_run,
-                source_vault=source_vault,
-                dest_vault=dest_vault,
-                current_dest_version=dest_version,
-                current_source_version=version,
-                path=path,
-            )
-    except (SecretVersionNotFoundError, SecretNotFoundError):
-        logging.info(["replicate_vault_secret", "Secret not found", path])
-        # Handle v1 secrets where version is None and we don't need to deep sync.
-        if version is None:
-            logging.info(["replicate_vault_secret", path])
-            if not dry_run:
-                secret, _ = source_vault.read_all_with_version(secret_dict)
-                write_dict = {"path": path, "data": secret}
-                dest_vault.write(secret=write_dict, decode_base64=False, force=True)
-        else:
-            deep_copy_versions(
-                dry_run=dry_run,
-                source_vault=source_vault,
-                dest_vault=dest_vault,
-                current_dest_version=0,
-                current_source_version=version,
-                path=path,
-            )
+    # If we reach here, we successfully read the destination secret
+    if dest_version is None and version is None:
+        # v1 secrets don't have version
+        if source_data == dest_data:
+            # If the secret is the same in both vaults, we don't need
+            # to copy it again
+            return
+
+        write_dict = {"path": path, "data": source_data}
+        logging.info(["replicate_vault_secret", path])
+        if not dry_run:
+            # Using force=True to write the secret to force the vault client even
+            # if the data is the same as the previous version. This happens in
+            # some secrets even tho the library does not create it
+            dest_vault.write(secret=write_dict, decode_base64=False, force=True)
+    elif dest_version < version:
+        deep_copy_versions(
+            dry_run=dry_run,
+            source_vault=source_vault,
+            dest_vault=dest_vault,
+            current_dest_version=dest_version,
+            current_source_version=version,
+            path=path,
+        )
 
 
 def check_invalid_paths(
@@ -228,7 +289,7 @@ def get_policy_paths(
 
 
 def get_policy_secret_list(
-    vault_instance: _VaultClient, policy_paths: Iterable[str]
+    vault_instance: VaultClient, policy_paths: Iterable[str]
 ) -> list[str]:
     """Returns a list of secrets to be copied from the given policy"""
     secrets = set()
@@ -249,7 +310,7 @@ def get_policy_secret_list(
 
 
 def get_jenkins_secret_list(
-    vault_instance: _VaultClient,
+    vault_instance: VaultClient,
     jenkins_instance: str,
     query_data: JenkinsConfigsQueryData,
 ) -> list[str]:
@@ -294,7 +355,7 @@ def get_vault_credentials(
     """Returns a dictionary with the credentials used to authenticate with Vault,
     retrieved from the values present on AppInterface and comming from Vault itself."""
     vault_creds = {}
-    vault = cast("_VaultClient", VaultClient())
+    vault = VaultClient.get_instance()
 
     if not isinstance(
         vault_auth,
@@ -324,8 +385,8 @@ def get_vault_credentials(
 
 def replicate_paths(
     dry_run: bool,
-    source_vault: _VaultClient,
-    dest_vault: _VaultClient,
+    source_vault: VaultClient,
+    dest_vault: VaultClient,
     replications: VaultReplicationConfigV1,
 ) -> None:
     """For each path present in the definition of the vault instance, replicate
@@ -435,16 +496,16 @@ def run(dry_run: bool) -> None:
                         replication.dest_auth, replication.vault_instance.address
                     )
 
-                    # Private class _VaultClient is used because the public class is
+                    # Private class VaultClient is used because the public class is
                     # defined as a singleton, and we need to create multiple instances
                     # as the source vault is different than the replication.
                     with (
-                        _VaultClient(
+                        VaultClient(
                             server=source_creds["server"],
                             role_id=source_creds["role_id"],
                             secret_id=source_creds["secret_id"],
                         ) as source_vault,
-                        _VaultClient(
+                        VaultClient(
                             server=dest_creds["server"],
                             role_id=dest_creds["role_id"],
                             secret_id=dest_creds["secret_id"],

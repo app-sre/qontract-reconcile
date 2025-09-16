@@ -15,7 +15,7 @@ fragment AWSAccountCommon on AWSAccount_v1 {
     email
   }
   automationToken {
-    ... VaultSecret
+    ...VaultSecret
   }
   enableDeletion
   deletionApprovals {

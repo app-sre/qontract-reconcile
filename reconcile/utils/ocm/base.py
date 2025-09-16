@@ -215,6 +215,10 @@ class OCMExternalConfiguration(BaseModel):
     syncsets: dict
 
 
+class OCMExternalAuthConfig(BaseModel):
+    enabled: bool
+
+
 PRODUCT_ID_OSD = "osd"
 PRODUCT_ID_ROSA = "rosa"
 
@@ -274,6 +278,8 @@ class OCMCluster(BaseModel):
 
     external_configuration: OCMExternalConfiguration | None
 
+    external_auth_config: OCMExternalAuthConfig | None
+
     def minor_version(self) -> str:
         version_info = parse_semver(self.version.raw_id)
         return f"{version_info.major}.{version_info.minor}"
@@ -314,6 +320,10 @@ class OCMCluster(BaseModel):
     @property
     def base_domain(self) -> str | None:
         return self.dns.base_domain if self.dns else None
+
+    @property
+    def external_auth_enabled(self) -> bool:
+        return self.external_auth_config.enabled if self.external_auth_config else False
 
 
 class OCMLabel(BaseModel):
@@ -562,7 +572,7 @@ class OCMOIdentityProviderGithub(OCMOIdentityProvider):
 
 class OCMOIdentityProviderOidcOpenIdClaims(BaseModel):
     email: list[str]
-    name: list[str]
+    name: list[str] = []
     preferred_username: list[str]
     groups: list[str] = []
 

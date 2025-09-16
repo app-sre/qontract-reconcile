@@ -22,23 +22,23 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query AppInterfaceSmtpSettings {
-   settings: app_interface_settings_v1 {
-     smtp {
-       mailAddress
-       timeout
-       credentials {
-         ... VaultSecret
-       }
-     }
-   }
- }
+  settings: app_interface_settings_v1 {
+    smtp {
+      mailAddress
+      timeout
+      credentials {
+        ...VaultSecret
+      }
+    }
+  }
+}
 """
 
 

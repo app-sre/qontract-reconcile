@@ -41,10 +41,10 @@ fragment RoleMembershipSource on RoleMembershipSource_V1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query SelfServiceRolesQuery($name: String) {

@@ -528,6 +528,11 @@ def _setup_mocks(
     )
     mocked_get_aws_accounts.return_value = accounts or []
 
+    mocked_get_settings = mocker.patch(
+        "reconcile.terraform_tgw_attachments.get_settings"
+    )
+    mocked_get_settings.return_value.default_tags = None
+
     mocked_secret_reader = create_autospec(SecretReaderBase)
     mocker.patch(
         "reconcile.terraform_tgw_attachments.create_secret_reader"

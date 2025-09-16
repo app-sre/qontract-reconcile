@@ -5,8 +5,8 @@ import shutil
 import tempfile
 from collections import defaultdict
 from collections.abc import (
-    Generator,
     Iterable,
+    Iterator,
     Mapping,
 )
 from contextlib import contextmanager
@@ -86,8 +86,8 @@ class TerraformClient:
         working_dirs: Mapping[str, str],
         thread_pool_size: int,
         aws_api: AWSApi | None = None,
-        init_users=False,
-    ):
+        init_users: bool = False,
+    ) -> None:
         self.integration = integration
         self.integration_version = integration_version
         self.integration_prefix = integration_prefix
@@ -101,7 +101,7 @@ class TerraformClient:
 
         self.specs: list[TerraformSpec] = []
         self.init_specs()
-        self.outputs: dict = {}
+        self.outputs: dict[str, Any] = {}
         self.init_outputs()
 
         self.OUTPUT_TYPE_SECRETS = "Secrets"
@@ -112,19 +112,19 @@ class TerraformClient:
         if init_users:
             self.init_existing_users()
 
-    def init_existing_users(self):
+    def init_existing_users(self) -> None:
         self.users = {
             account: list(self.format_output(output, self.OUTPUT_TYPE_PASSWORDS).keys())
             for account, output in self.outputs.items()
         }
 
-    def increment_apply_count(self):
+    def increment_apply_count(self) -> None:
         self.apply_count += 1
 
     def should_apply(self) -> bool:
         return self.apply_count > 0
 
-    def get_new_users(self):
+    def get_new_users(self) -> list[tuple[str, Any, str, Any]]:
         new_users = []
         self.init_outputs()  # get updated output
         for account, output in self.outputs.items():
@@ -141,7 +141,7 @@ class TerraformClient:
                 ))
         return new_users
 
-    def init_specs(self):
+    def init_specs(self) -> None:
         self.specs = [
             TerraformSpec(name=name, working_dir=wd)
             for name, wd in self.working_dirs.items()
@@ -152,7 +152,7 @@ class TerraformClient:
     @contextmanager
     def _terraform_log_file(
         self, working_dir: str
-    ) -> Generator[tuple[IO, dict[str, str]], None, None]:
+    ) -> Iterator[tuple[IO[bytes], dict[str, str]]]:
         with tempfile.NamedTemporaryFile(dir=working_dir) as f:
             env = {
                 "TF_LOG": TERRAFORM_LOG_LEVEL,
@@ -161,7 +161,7 @@ class TerraformClient:
             yield f, env
 
     @retry(exceptions=TerraformCommandError)
-    def terraform_init(self, spec: TerraformSpec):
+    def terraform_init(self, spec: TerraformSpec) -> None:
         with self._terraform_log_file(spec.working_dir) as (f, env):
             return_code, stdout, stderr = lean_tf.init(spec.working_dir, env=env)
             log = f.read().decode("utf-8")
@@ -171,12 +171,12 @@ class TerraformClient:
                 return_code, "init", output=stdout, stderr=stderr
             )
 
-    def init_outputs(self):
+    def init_outputs(self) -> None:
         results = threaded.run(self.terraform_output, self.specs, self.thread_pool_size)
         self.outputs = dict(results)
 
     @retry(exceptions=TerraformCommandError)
-    def terraform_output(self, spec: TerraformSpec):
+    def terraform_output(self, spec: TerraformSpec) -> tuple[str, Any]:
         with self._terraform_log_file(spec.working_dir) as (f, env):
             return_code, stdout, stderr = lean_tf.output(spec.working_dir, env=env)
             log = f.read().decode("utf-8")
@@ -194,17 +194,17 @@ class TerraformClient:
         return spec.name, json.loads(stdout)
 
     # terraform plan
-    def plan(self, enable_deletion):
+    def plan(self, enable_deletion: bool) -> tuple[bool, bool]:
         errors = False
         disabled_deletions_detected = False
-        results = threaded.run(
+        results: list[tuple[bool, list[AccountUser], bool]] = threaded.run(
             self.terraform_plan,
             self.specs,
             self.thread_pool_size,
             enable_deletion=enable_deletion,
         )
 
-        self.created_users = []
+        self.created_users: list[AccountUser] = []
         for disabled_deletion_detected, created_users, error in results:
             if error:
                 errors = True
@@ -278,7 +278,7 @@ class TerraformClient:
         self,
         spec: TerraformSpec,
         enable_deletion: bool,
-    ) -> tuple[bool, list]:
+    ) -> tuple[bool, list[AccountUser]]:
         disabled_deletion_detected = False
         name = spec.name
         account_enable_deletion = self.accounts[name].get("enableDeletion") or False
@@ -412,7 +412,9 @@ class TerraformClient:
                             )
         return disabled_deletion_detected, created_users
 
-    def deletion_approved(self, account_name, resource_type, resource_name):
+    def deletion_approved(
+        self, account_name: str, resource_type: str, resource_name: str
+    ) -> bool:
         account = self.accounts[account_name]
         deletion_approvals = account.get("deletionApprovals")
         if not deletion_approvals:
@@ -439,11 +441,11 @@ class TerraformClient:
         return False
 
     # terraform apply
-    def apply(self):
+    def apply(self) -> bool:
         errors = threaded.run(self.terraform_apply, self.specs, self.thread_pool_size)
         return any(errors)
 
-    def terraform_apply(self, spec: TerraformSpec):
+    def terraform_apply(self, spec: TerraformSpec) -> bool:
         with self._terraform_log_file(spec.working_dir) as (f, env):
             return_code, stdout, stderr = lean_tf.apply(
                 spec.working_dir,
@@ -486,9 +488,9 @@ class TerraformClient:
 
         return replicas_info
 
-    def format_output(self, output, type):
+    def format_output(self, output: Any, type: str) -> dict[str, dict[str, Any]]:
         # data is a dictionary of dictionaries
-        data = {}
+        data: dict[str, dict[str, Any]] = {}
         if output is None:
             return data
 
@@ -643,7 +645,7 @@ class TerraformClient:
         return error_occured
 
     @staticmethod
-    def split_to_lines(*outputs):
+    def split_to_lines(*outputs: str) -> Any:
         split_outputs = []
         try:
             for output in outputs:
@@ -656,7 +658,7 @@ class TerraformClient:
             return split_outputs[0]
         return split_outputs
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         if self._aws_api is not None:
             self._aws_api.cleanup()
         for wd in self.working_dirs.values():
@@ -757,7 +759,7 @@ class TerraformClient:
 
     def validate_db_upgrade(
         self, account_name: str, resource_name: str, resource_change: Mapping[str, Any]
-    ):
+    ) -> None:
         """
         Determine whether the RDS engine version upgrade is valid.
 
@@ -862,7 +864,7 @@ class TerraformClient:
             ],
         }
 
-        def is_supported(engine, version):
+        def is_supported(engine: str, version: str) -> bool:
             parsed_version = pkg_version.parse(version)
             if engine == "mysql":
                 return any(

@@ -28,20 +28,20 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   port
   remotePort
   identity {
-    ... VaultSecret
+    ...VaultSecret
   }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
-query Jumphosts ($hostname: String) {
-  jumphosts: jumphosts_v1 (hostname: $hostname) {
-    ... CommonJumphostFields
+query Jumphosts($hostname: String) {
+  jumphosts: jumphosts_v1(hostname: $hostname) {
+    ...CommonJumphostFields
     clusters {
       name
       network {

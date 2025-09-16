@@ -1,4 +1,3 @@
-# ruff: noqa: FURB118
 from collections.abc import Callable, Mapping
 from typing import Any
 from unittest.mock import MagicMock

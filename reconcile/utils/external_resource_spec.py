@@ -144,13 +144,36 @@ class ExternalResourceSpec:
         return {}
 
     def tags(self, integration: str) -> dict[str, str]:
-        return {
+        tags = {
             "managed_by_integration": integration,
             "cluster": self.cluster_name,
             "namespace": self.namespace_name,
             "environment": self.namespace["environment"]["name"],
             "app": self.namespace["app"]["name"],
         }
+        if app_code := self.namespace["app"].get("appCode"):
+            tags["app-code"] = app_code
+        if cost_center := self.namespace["app"].get("costCenter"):
+            tags["cost-center"] = cost_center
+        if service_phase := self.namespace["environment"].get("servicePhase"):
+            tags["service-phase"] = service_phase
+
+        resource_tags_str = self.resource.get("tags")
+        if resource_tags_str:
+            resource_tags = json.loads(resource_tags_str)
+            # normalize camelCase keys to kebab-case
+            key_mapping = {
+                "appCode": "app-code",
+                "costCenter": "cost-center",
+                "servicePhase": "service-phase",
+            }
+            normalized_tags = {}
+            for key, value in resource_tags.items():
+                normalized_key = key_mapping.get(key, key)
+                normalized_tags[normalized_key] = value
+            tags.update(normalized_tags)
+
+        return tags
 
     def get_secret_field(self, field: str) -> str | None:
         return self.secret.get(field)

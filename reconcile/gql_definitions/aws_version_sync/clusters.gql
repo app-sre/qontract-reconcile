@@ -5,7 +5,7 @@ query AwsExporterCluster {
     name
     prometheusUrl
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
     disable {
       integrations

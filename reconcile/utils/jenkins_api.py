@@ -231,10 +231,33 @@ class JenkinsApi:
 
         return kwargs
 
+    def _is_parameterized_job(self, job_name: str) -> bool:
+        api_query = "tree=property[parameterDefinitions[*]]"
+        url = f"{self.url}/job/{job_name}/api/json?{api_query}"
+
+        res = requests.get(
+            url,
+            verify=self.ssl_verify,
+            auth=(self.user, self.password),
+            timeout=60,
+        )
+
+        res.raise_for_status()
+
+        job_info = res.json()
+
+        return any(
+            prop.get("parameterDefinitions") for prop in job_info.get("property", [])
+        )
+
     def trigger_job(self, job_name: str) -> None:
         kwargs = self.get_crumb_kwargs()
 
-        url = f"{self.url}/job/{job_name}/build"
+        if self._is_parameterized_job(job_name):
+            url = f"{self.url}/job/{job_name}/buildWithParameters"
+        else:
+            url = f"{self.url}/job/{job_name}/build"
+
         res = requests.post(
             url,
             verify=self.ssl_verify,

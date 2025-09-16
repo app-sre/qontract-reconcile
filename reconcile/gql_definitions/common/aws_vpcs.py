@@ -29,7 +29,7 @@ fragment AWSVPC on AWSVPC_v1 {
     uid
     terraformUsername
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
   region
@@ -41,15 +41,15 @@ fragment AWSVPC on AWSVPC_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query AWSVPCs {
   vpcs: awsvpcs_v1 {
-    ... AWSVPC
+    ...AWSVPC
   }
 }
 """

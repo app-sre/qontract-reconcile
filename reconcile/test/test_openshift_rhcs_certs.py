@@ -1,17 +1,21 @@
 import base64
 import time
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
 import reconcile.openshift_rhcs_certs as rhcs_certs
-from reconcile.gql_definitions.rhcs.certs import NamespaceV1
+from reconcile.gql_definitions.rhcs.certs import (
+    NamespaceOpenshiftResourceRhcsCertV1,
+    NamespaceV1,
+)
 from reconcile.openshift_rhcs_certs import (
     QONTRACT_INTEGRATION,
     QONTRACT_INTEGRATION_VERSION,
+    _is_rhcs_cert,
     construct_rhcs_cert_oc_secret,
     fetch_desired_state,
     get_namespaces_with_rhcs_certs,
@@ -123,41 +127,42 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient.get_instance")
     vault_instance = mock_vault.return_value
     vault_instance.read_all.side_effect = SecretNotFoundError("not found")
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
-
     mocker.patch("reconcile.openshift_rhcs_certs.metrics.set_gauge")
 
     fetch_desired_state(False, namespaces, ri, query_func)
 
-    expected_vault_write_paths = {
-        "test-cert-1": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-1",
-        "test-cert-2": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-2",
+    expected_cert_count = sum(
+        1 for ns in namespaces for r in ns.openshift_resources or [] if _is_rhcs_cert(r)
+    )
+    expected_vault_paths: set[str] = {
+        f"app-interface/integrations-output/{QONTRACT_INTEGRATION}"
+        f"/{ns.cluster.name}/{ns.name}/"
+        f"{cast('NamespaceOpenshiftResourceRhcsCertV1', r).secret_name}"
+        for ns in namespaces
+        for r in ns.openshift_resources or []
+        if _is_rhcs_cert(r)
     }
-    assert mock_cert_generator.call_count == 2
-    assert vault_instance.write.call_count == 2
-    calls = vault_instance.write.call_args_list
-    for call_ in calls:
-        _args, kwargs = call_
-        secret = kwargs["secret"]
+
+    assert mock_cert_generator.call_count == expected_cert_count
+    assert vault_instance.write.call_count == expected_cert_count
+
+    for call_ in vault_instance.write.call_args_list:
+        secret = call_.kwargs["secret"]
+        assert secret["path"] in expected_vault_paths, (
+            f"unexpected path {secret['path']}"
+        )
         assert "tls.crt" in secret["data"]
         assert "expiration_timestamp" in secret["data"]
-        assert "path" in secret
 
-        secret_name = secret["path"].split("/")[-1]
-        assert secret["path"] == expected_vault_write_paths[secret_name], (
-            f"Unexpected path for {secret_name}: {secret['path']}"
-        )
+    # only the two *inline* certs belong to this namespace
     assert (
-        len(
-            ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"][
-                "desired"
-            ].keys()
-        )
-        == 2
+        len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
+        == 3
     )
     assert "with-different-openshift-resource-providers" not in ri._clusters["cluster"]
 
@@ -175,20 +180,17 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs_dry_run(
     vault_instance.read_all.side_effect = SecretNotFoundError("not found")
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
-
     mocker.patch("reconcile.openshift_rhcs_certs.metrics.set_gauge")
 
-    fetch_desired_state(False, namespaces, ri, query_func)
-    assert vault_instance.write.not_called()
-    assert mock_cert_generator.not_called()
+    # dry-run → no Vault writes and no real cert generation
+    fetch_desired_state(True, namespaces, ri, query_func)
+
+    vault_instance.write.assert_not_called()
+    mock_cert_generator.assert_not_called()
 
     assert (
-        len(
-            ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"][
-                "desired"
-            ].keys()
-        )
-        == 2
+        len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
+        == 3
     )
     assert "with-different-openshift-resource-providers" not in ri._clusters["cluster"]
 
@@ -201,11 +203,10 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient.get_instance")
     vault_instance = mock_vault.return_value
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
-
     mocker.patch("reconcile.openshift_rhcs_certs.metrics.set_gauge")
 
     ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["current"][
@@ -228,15 +229,17 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
     )
 
     fetch_desired_state(False, namespaces, ri, query_func)
-    assert vault_instance.write.called_once()
-    assert mock_cert_generator.called_once()
+
+    total_cert_objects = sum(
+        1 for ns in namespaces for r in ns.openshift_resources or [] if _is_rhcs_cert(r)
+    )
+    assert mock_cert_generator.call_count == total_cert_objects
+    assert vault_instance.write.call_count == total_cert_objects
+
+    # desired now contains three secrets for the inline namespace
     assert (
-        len(
-            ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"][
-                "desired"
-            ].keys()
-        )
-        == 2
+        len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
+        == 3
     )
     assert "with-different-openshift-resource-providers" not in ri._clusters["cluster"]
 
@@ -261,7 +264,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
         "expiration_timestamp": str(int(time.time()) + 86400 * 120),  # 120 days
     }
 
-    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient")
+    mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient.get_instance")
     vault_instance = mock_vault.return_value
 
     # Simulate returning [expiring_cert, valid_cert] for cert-1 and cert-2 respectively
@@ -269,7 +272,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
         path = secret["path"]
         if path.endswith("test-cert-1"):
             return expiring_cert
-        elif path.endswith("test-cert-2"):
+        elif path.endswith("test-cert-2") or path.endswith("test-cert-shared"):
             return valid_cert
         raise ValueError(f"Unexpected path: {path}")
 
@@ -320,3 +323,23 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
     secret_data = vault_instance.write.call_args[1]["secret"]["data"]
     assert secret_data["tls.crt"] == "NEW_CERT"
     assert secret_data["tls.key"] == "NEW_KEY"
+
+
+def test_openshift_rhcs_certs__get_namespaces_with_shared_resources(
+    query_func: Callable[[Any], Mapping[str, Any]],
+) -> None:
+    """
+    Ensure that an RHCS-cert object defined only in a sharedResources file
+    is copied into `namespace.openshift_resources` and that the namespace
+    is therefore selected by `get_namespaces_with_rhcs_certs`.
+    """
+    namespaces = get_namespaces_with_rhcs_certs(query_func)
+    ns_by_name = {ns.name: ns for ns in namespaces}
+    assert "with-openshift-rhcs-certs" in ns_by_name
+
+    shared_ns = ns_by_name["cert-from-shared-resources"]
+    assert shared_ns.openshift_resources, "shared resources not aggregated"
+
+    assert any(_is_rhcs_cert(r) for r in cast("list", shared_ns.openshift_resources)), (
+        "RHCS-cert not propagated from sharedResources"
+    )

@@ -8,7 +8,7 @@ from subprocess import (
 )
 
 
-def gpg_encrypt(content, public_gpg_key):
+def gpg_encrypt(content: str, public_gpg_key: str) -> str:
     public_gpg_key_dec = base64.b64decode(public_gpg_key)
 
     with tempfile.TemporaryDirectory() as gnupg_home_dir:
@@ -22,6 +22,8 @@ def gpg_encrypt(content, public_gpg_key):
         )
         out = proc.stdout.decode("utf-8")
         match = re.search(r"<\S+>", out)
+        if not match:
+            raise ValueError("No recipient found in GPG import output")
         recipient = match.group(0)[1:-1]
         # encrypt content
         proc = run(
@@ -41,5 +43,5 @@ def gpg_encrypt(content, public_gpg_key):
             stderr=STDOUT,
             check=True,
         )
-        out = proc.stdout
-    return out.decode("utf-8")
+        encrypted_out = proc.stdout
+    return encrypted_out.decode("utf-8")

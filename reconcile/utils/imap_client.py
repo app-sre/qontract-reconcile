@@ -21,7 +21,7 @@ class ImapClient:
         self._server.login(self.user, self.password)
         return self
 
-    def __exit__(self, *args, **kwargs) -> None:
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if self._server:
             self._server.logout()
 

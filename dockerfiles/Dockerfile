@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.0.0-1@sha256:bbfe9e1f33dda05c13960181be29484cc2db4c6e8aeeb731a50a1ac7ff11792f AS build-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.1.0-1@sha256:d557553fd542eefc2dbb1e524da0f068bf03d3fda885884587aa50a4006b9dee AS build-image
 COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
 
 WORKDIR /work
@@ -24,7 +24,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --pytho
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1@sha256:6344b1751aec6cab930d1b60553930a3e139f2121620ab1a46673abec2b8ffbf AS dev-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.1.0-1@sha256:095e6d5b029b561dd6f3d4394c691852bb96cc8587ebbc5092463b8d101893b8 AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
 
 ARG CONTAINER_UID=1000
@@ -46,12 +46,9 @@ ENTRYPOINT ["/work/dev/run.sh"]
 
 
 ###############################################################################
-# STAGE 3 - prod-image
+# STAGE 3 - prod-image-pre-test
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.0.0-1@sha256:6344b1751aec6cab930d1b60553930a3e139f2121620ab1a46673abec2b8ffbf AS prod-image
-
-ARG quay_expiration=never
-LABEL quay.expires-after=${quay_expiration}
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.1.0-1@sha256:095e6d5b029b561dd6f3d4394c691852bb96cc8587ebbc5092463b8d101893b8 AS prod-image-pre-test
 
 # Tini
 ENV TINI_VERSION=v0.19.0
@@ -73,30 +70,15 @@ ENV PATH="/work/.venv/bin:${PATH}"
 ENTRYPOINT ["/tini", "--"]
 CMD ["run-integration"]
 
-
 ###############################################################################
-# STAGE 4 - fips-prod-image
+# STAGE 4 - unittest image
 ###############################################################################
-FROM prod-image AS fips-prod-image
-ENV OC_VERSION=4.16.2
-
-# oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
-# versions in these environments so in this case we extract an older version of oc and kubectl
-COPY --chown=0:0 --from=quay.io/app-sre/qontract-reconcile-oc:0.3.1@sha256:b7d06973a9e058a5dd6068566d6b1358fdc1a1c9b4653e39dbac018f74f2c8d1 \
-    /work/${OC_VERSION}/ /usr/local/bin/
-
-
-###############################################################################
-# STAGE 5 - unittest image
-###############################################################################
-FROM prod-image AS test-image
+FROM prod-image-pre-test AS test-image
 COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
 
 RUN microdnf install -y make
 
-# Tests need the .git directory to run
-# podman does not support --mount=type=bind
-# TODO: use --mount=source=.git,target=.git,type=bind in both RUN commands below
+# Tests need the .git directory to run and infer version
 COPY .git .git
 
 # Install test dependencies
@@ -105,15 +87,49 @@ RUN uv sync --frozen --no-cache --group dev
 # Run tests
 COPY Makefile .
 RUN make all-tests
+RUN echo "true" > /is_tested
 
 ###############################################################################
-# STAGE 6 - PyPI publish package
+# STAGE 5 - tested prod image
+###############################################################################
+FROM prod-image-pre-test AS prod-image
+
+# Lets make sure we run tests when targeting prod-image
+# However, we dont want any installed deps from test image
+COPY --from=test-image /is_tested /is_tested
+
+###############################################################################
+# STAGE 6 - tested fips-prod-image
+###############################################################################
+FROM prod-image-pre-test AS fips-prod-image
+ENV OC_VERSION=4.16.2
+
+# oc versions sometimes have issues with FIPS enabled systems requiring us to use specific
+# versions in these environments so in this case we extract an older version of oc and kubectl
+COPY --chown=0:0 --from=quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-oc-master:1.0.1-1@sha256:41643b95b5fd875a096ed7123f68e9f82d10d7ad4a6728ef79e21abcadec199b \
+    /work/${OC_VERSION}/ /usr/local/bin/
+
+# Lets make sure we run tests when targeting fips-prod-image
+# However, we dont want any installed deps from test image
+COPY --from=test-image /is_tested /is_tested
+
+###############################################################################
+# STAGE 7 - PyPI publish package
 ###############################################################################
 FROM test-image AS pypi
-ARG TWINE_USERNAME
-ARG TWINE_PASSWORD
 
-# TODO: use --mount=source=.git,target=.git,type=bind
-# podman does not support --mount=type=bind
+# Lets make sure we ran previous prod stage before uploading to pypi
+COPY --from=prod-image /is_tested /is_tested
+RUN echo "true" > /is_pypi_pushed
+
 # qontract-reconcile version depends on git tags!
-RUN make pypi
+# The .git dir should already be part of the test image
+RUN --mount=type=secret,id=app-sre-pypi-credentials/token export UV_PUBLISH_TOKEN=$(cat /run/secrets/app-sre-pypi-credentials/token); make pypi-konflux
+
+###############################################################################
+# STAGE 8 - tested and pypi pushed prod image
+###############################################################################
+FROM prod-image AS prod-image-post-pypi-push
+
+# Lets make sure we pypi push
+COPY --from=pypi /is_pypi_pushed /is_pypi_pushed

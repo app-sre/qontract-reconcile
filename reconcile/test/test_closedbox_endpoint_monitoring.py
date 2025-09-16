@@ -1,6 +1,8 @@
+from typing import Any
 from unittest.mock import ANY
 
 import pytest
+from pytest_mock import MockerFixture
 
 from reconcile.blackbox_exporter_endpoint_monitoring import (
     PROVIDER as BLACKBOX_EXPORTER_PROVIDER,
@@ -23,11 +25,11 @@ from .fixtures import Fixtures
 fxt = Fixtures("closedbox_exporter_endpoint_monitoring")
 
 
-def get_endpoint_fixtures(path: str) -> dict:
+def get_endpoint_fixtures(path: str) -> dict[str, Any]:
     return fxt.get_anymarkup(path)["appInterface"]["apps"]
 
 
-def test_invalid_endpoints(mocker):
+def test_invalid_endpoints(mocker: MockerFixture) -> None:
     query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     query.return_value = get_endpoint_fixtures("test_invalid_endpoints.yaml")
 
@@ -35,7 +37,7 @@ def test_invalid_endpoints(mocker):
     assert len(endpoints) == 0
 
 
-def test_blackbox_exporter_endpoint_loading(mocker):
+def test_blackbox_exporter_endpoint_loading(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
 
@@ -51,7 +53,7 @@ def test_blackbox_exporter_endpoint_loading(mocker):
     assert len(provider_endpoints[0].monitoring) == 1
 
 
-def test_parse_prober_url():
+def test_parse_prober_url() -> None:
     assert parse_prober_url("http://host:1234/path") == {
         "url": "host:1234",
         "scheme": "http",
@@ -61,13 +63,13 @@ def test_parse_prober_url():
     assert parse_prober_url("http://host") == {"url": "host", "scheme": "http"}
 
 
-def test_invalid_prober_url():
+def test_invalid_prober_url() -> None:
     # scheme missing
     with pytest.raises(ValueError):
         parse_prober_url("host:1234/path")
 
 
-def test_blackbox_exporter_probe_building(mocker):
+def test_blackbox_exporter_probe_building(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_blackbox_probe_building.yaml")
 
@@ -81,7 +83,7 @@ def test_blackbox_exporter_probe_building(mocker):
     assert probe_resource is not None
 
     # verify prober url decomposition
-    spec = probe_resource.body.get("spec")
+    spec = probe_resource.body.get("spec", {})
     assert spec.get("prober") == {
         "url": "exporterhost:9115",
         "scheme": "http",
@@ -101,7 +103,7 @@ def test_blackbox_exporter_probe_building(mocker):
     assert "https://test2.url" in spec["targets"]["staticConfig"]["static"]
 
 
-def test_signalfx_probe_building(mocker):
+def test_signalfx_probe_building(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_signalfx_probe_building.yaml")
 
@@ -115,7 +117,7 @@ def test_signalfx_probe_building(mocker):
     assert probe_resource is not None
 
     # verify prober url decomposition
-    spec = probe_resource.body.get("spec")
+    spec = probe_resource.body.get("spec", {})
     assert spec.get("prober") == {
         "url": "signalfxexporter:9091",
         "scheme": "http",
@@ -151,7 +153,7 @@ def test_signalfx_probe_building(mocker):
     } in spec["targets"]["staticConfig"]["relabelingConfigs"]
 
 
-def test_blackbox_exporter_filling_desired_state(mocker):
+def test_blackbox_exporter_filling_desired_state(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
     add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
@@ -172,7 +174,7 @@ def test_blackbox_exporter_filling_desired_state(mocker):
     )
 
 
-def test_signalfx_filling_desired_state(mocker):
+def test_signalfx_filling_desired_state(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures("test_endpoint.yaml")
     add_desired_mock = mocker.patch.object(ResourceInventory, "add_desired")
@@ -193,7 +195,7 @@ def test_signalfx_filling_desired_state(mocker):
     )
 
 
-def test_loading_multiple_providers_per_endpoint(mocker):
+def test_loading_multiple_providers_per_endpoint(mocker: MockerFixture) -> None:
     ep_query = mocker.patch.object(queries, "get_service_monitoring_endpoints")
     ep_query.return_value = get_endpoint_fixtures(
         "test_multiple_providers_per_endpoint.yaml"

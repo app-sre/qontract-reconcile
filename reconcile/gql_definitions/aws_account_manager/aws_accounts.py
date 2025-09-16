@@ -49,15 +49,15 @@ fragment AWSAccountManaged on AWSAccount_v1 {
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query AWSAccountManagerAccounts {
   accounts: awsaccounts_v1 {
-    ... AWSAccountManaged
+    ...AWSAccountManaged
     resourcesDefaultRegion
     automationToken {
       ...VaultSecret
@@ -94,7 +94,7 @@ query AWSAccountManagerAccounts {
       accountFileTargetPath
     }
     organization_accounts {
-      ... AWSAccountManaged
+      ...AWSAccountManaged
     }
     organizationAccountTags
   }

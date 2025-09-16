@@ -31,7 +31,7 @@ fragment AWSInfrastructureManagementAccount on AWSInfrastructureManagementAccoun
     terraformUsername
     resourcesDefaultRegion
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
   accessLevel
@@ -46,7 +46,7 @@ fragment AWSVPC on AWSVPC_v1 {
     uid
     terraformUsername
     automationToken {
-      ... VaultSecret
+      ...VaultSecret
     }
   }
   region
@@ -58,44 +58,43 @@ fragment AWSVPC on AWSVPC_v1 {
 }
 
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
-    name
-    description
-    labels
-    url
-    accessTokenClientId
-    accessTokenUrl
-    accessTokenClientSecret {
-        ... VaultSecret
-    }
+  name
+  description
+  labels
+  url
+  accessTokenClientId
+  accessTokenUrl
+  accessTokenClientSecret {
+    ...VaultSecret
+  }
 }
 
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query ClustersWithPeering {
-  clusters: clusters_v1
-  {
+  clusters: clusters_v1 {
     path
     name
     ocm {
       name
       environment {
-        ... OCMEnvironment
+        ...OCMEnvironment
       }
       orgId
       accessTokenClientId
       accessTokenUrl
       accessTokenClientSecret {
-        ... VaultSecret
+        ...VaultSecret
       }
       blockedVersions
     }
     awsInfrastructureManagementAccounts {
-      ... AWSInfrastructureManagementAccount
+      ...AWSInfrastructureManagementAccount
     }
 
     spec {
@@ -120,7 +119,7 @@ query ClustersWithPeering {
         delete
         ... on ClusterPeeringConnectionAccount_v1 {
           vpc {
-            ... AWSVPC
+            ...AWSVPC
           }
           assumeRole
           manageAccountRoutes
@@ -131,7 +130,7 @@ query ClustersWithPeering {
             uid
             terraformUsername
             automationToken {
-              ... VaultSecret
+              ...VaultSecret
             }
           }
           tags
@@ -142,7 +141,7 @@ query ClustersWithPeering {
             uid
             terraformUsername
             automationToken {
-              ... VaultSecret
+              ...VaultSecret
             }
           }
           tags
@@ -163,7 +162,7 @@ query ClustersWithPeering {
               region
             }
             awsInfrastructureManagementAccounts {
-              ... AWSInfrastructureManagementAccount
+              ...AWSInfrastructureManagementAccount
             }
             peering {
               connections {
@@ -180,7 +179,7 @@ query ClustersWithPeering {
                     uid
                     terraformUsername
                     automationToken {
-                      ... VaultSecret
+                      ...VaultSecret
                     }
                   }
                 }

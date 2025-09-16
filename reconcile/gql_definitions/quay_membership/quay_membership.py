@@ -22,7 +22,7 @@ DEFINITION = """
 query QuayMembership {
   permissions: permissions_v1 {
     service
-    ...on PermissionQuayOrgTeam_v1 {
+    ... on PermissionQuayOrgTeam_v1 {
       quayOrg {
         name
         instance {

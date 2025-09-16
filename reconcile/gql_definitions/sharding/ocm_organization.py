@@ -27,9 +27,9 @@ fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
 }
 
 query OCMOrganizationSharding {
-    ocm_organizations: ocm_instances_v1 {
-       ... MinimalOCMOrganization
-    }
+  ocm_organizations: ocm_instances_v1 {
+    ...MinimalOCMOrganization
+  }
 }
 """
 

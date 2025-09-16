@@ -7,7 +7,7 @@ def run(dry_run: bool, some_arg: int) -> None:
     pass
 
 
-def early_exit_desired_state(*args, **kwargs) -> dict[str, Any]:
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     return {
         "args": args,
         "kwargs": kwargs,

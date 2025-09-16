@@ -26,18 +26,18 @@ help: ## Prints help for targets with comments
 	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 build:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile --target $(BUILD_TARGET) . --progress=plain
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile.deprecated --target $(BUILD_TARGET) . --progress=plain
 	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
 
 build-dev:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --progress=plain --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile --target dev-image .
+	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --progress=plain --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile.deprecated --target dev-image .
 
 push:
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
 
 rc:
-	@$(CONTAINER_ENGINE) build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc --build-arg quay_expiration=3d -f dockerfiles/Dockerfile --target prod-image .
+	@$(CONTAINER_ENGINE) build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc --build-arg quay_expiration=3d -f dockerfiles/Dockerfile.deprecated --target prod-image .
 	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
 generate:
@@ -47,7 +47,7 @@ generate:
 	@helm template helm/qontract-reconcile -n qontract-reconcile -f helm/qontract-reconcile/values-manager-fedramp.yaml > openshift/qontract-manager-fedramp.yaml
 
 test-app: ## Target to test app in a container
-	@$(CONTAINER_ENGINE) build --progress=plain -t $(IMAGE_TEST) -f dockerfiles/Dockerfile --target test-image .
+	@$(CONTAINER_ENGINE) build --progress=plain -t $(IMAGE_TEST) -f dockerfiles/Dockerfile.deprecated --target test-image .
 
 print-host-versions:
 	@$(CONTAINER_ENGINE) --version
@@ -85,13 +85,6 @@ clean: ## Clean up the local development environment
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
 
-pypi-release:
-	@$(CONTAINER_ENGINE) build --progress=plain --build-arg TWINE_USERNAME --build-arg TWINE_PASSWORD --target pypi -f dockerfiles/Dockerfile .
-
-pypi:
-	uv build --sdist --wheel
-	UV_PUBLISH_TOKEN=$(TWINE_PASSWORD) uv publish
-
 pypi-konflux:
 	uv build --sdist --wheel
 	uv publish
@@ -118,12 +111,6 @@ qenerate: gql-introspection gql-query-classes
 
 localstack:
 	@$(CONTAINER_ENGINE) compose -f dev/localstack/docker-compose.yml up
-
-sqs:
-	@AWS_ACCESS_KEY_ID=$(APP_INTERFACE_SQS_AWS_ACCESS_KEY_ID) \
-	AWS_SECRET_ACCESS_KEY=$(APP_INTERFACE_SQS_AWS_SECRET_ACCESS_KEY) \
-	AWS_REGION=$(APP_INTERFACE_SQS_AWS_REGION) \
-	aws sqs send-message --queue-url $(APP_INTERFACE_SQS_QUEUE_URL) --message-body "{\"pr_type\": \"promote_qontract_reconcile\", \"version\": \"$(IMAGE_TAG)\", \"commit_sha\": \"$(COMMIT_SHA)\", \"author_email\": \"$(COMMIT_AUTHOR_EMAIL)\"}"
 
 all-tests: linter-test types-test qenerate-test helm-test unittest
 

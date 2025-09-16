@@ -35,6 +35,7 @@ from reconcile.utils.secret_reader import (
     SecretReader,
     SecretReaderBase,
 )
+from reconcile.utils.sloth import generate_sloth_rules
 from reconcile.utils.vault import SecretFieldNotFoundError
 
 
@@ -261,6 +262,7 @@ def process_jinja2_template(
         "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
             "%Y-%m-%d"
         ),
+        "sloth_alerts": generate_sloth_rules,
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():

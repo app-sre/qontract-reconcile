@@ -12,7 +12,7 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 
 def test_no_change(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -45,7 +45,7 @@ def test_no_change(
 
 def test_moving_ref(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -78,7 +78,7 @@ def test_moving_ref(
 
 def test_moving_ref_bad_deployment(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -112,7 +112,7 @@ def test_moving_ref_bad_deployment(
 
 def test_new_config_hash(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -145,7 +145,7 @@ def test_new_config_hash(
 
 def test_new_config_hash_bad_deployment(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -179,7 +179,7 @@ def test_new_config_hash_bad_deployment(
 
 def test_new_config_hash_and_moving_ref(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -212,7 +212,7 @@ def test_new_config_hash_and_moving_ref(
 
 def test_new_config_hash_and_moving_ref_and_bad_deployment(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [
@@ -246,7 +246,7 @@ def test_new_config_hash_and_moving_ref_and_bad_deployment(
 
 def test_cur_config_hash_did_not_exist(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "CUR_SUBSCRIBER_REF": "current_sha",
         "CUR_CONFIG_HASHES": [],
@@ -273,7 +273,7 @@ def test_cur_config_hash_did_not_exist(
 
 def test_cur_config_hash_did_not_exist_and_neglect(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "USE_TARGET_CONFIG_HASH": False,
         "CUR_SUBSCRIBER_REF": "current_sha",
@@ -294,7 +294,7 @@ def test_cur_config_hash_did_not_exist_and_neglect(
 
 def test_neglect_config_hashes(
     subscriber_builder: Callable[[Mapping[str, Any]], Subscriber],
-):
+) -> None:
     subscriber = subscriber_builder({
         "USE_TARGET_CONFIG_HASH": False,
         "CUR_SUBSCRIBER_REF": "current_sha",

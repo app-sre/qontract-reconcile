@@ -1,11 +1,11 @@
 import base64
-import json
 import logging
 from collections.abc import Mapping
 from typing import Any
 
 from reconcile import queries
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.vault import VaultClient
 
 QONTRACT_INTEGRATION = "aws-ecr-image-pull-secrets"
@@ -35,7 +35,7 @@ def construct_dockercfg_secret_data(data: Mapping[str, Any]) -> dict[str, str]:
         }
     }
 
-    return {".dockerconfigjson": enc_dec(json.dumps(data))}
+    return {".dockerconfigjson": enc_dec(json_dumps(data))}
 
 
 def construct_basic_auth_secret_data(data: Mapping[str, Any]) -> dict[str, str]:
@@ -57,9 +57,9 @@ def write_output_to_vault(
     secret_path = f"{vault_path}/{integration_name}/{account}/{name}"
     secret = {"path": secret_path, "data": secret_data}
     logging.info(["write_secret", secret_path])
-    vault_client = VaultClient()
+    vault_client = VaultClient.get_instance()
     if not dry_run:
-        vault_client.write(secret)  # type: ignore
+        vault_client.write(secret)
 
 
 def run(dry_run: bool, vault_output_path: str = "") -> None:

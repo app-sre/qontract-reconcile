@@ -29,6 +29,7 @@ from reconcile.utils.differ import diff_mappings
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
+from reconcile.utils.json import json_dumps
 from reconcile.utils.oc import (
     OCCli,
 )
@@ -38,7 +39,6 @@ from reconcile.utils.secret_reader import SecretNotFoundError, SecretReaderBase
 from reconcile.utils.three_way_diff_strategy import three_way_diff_using_hash
 from reconcile.utils.vault import (
     VaultClient,
-    _VaultClient,  # noqa
 )
 
 
@@ -155,7 +155,7 @@ class SecretsReconciler:
         annotations[SECRET_ANN_PROVIDER] = spec.provider
         annotations[SECRET_ANN_IDENTIFIER] = spec.identifier
         annotations[SECRET_UPDATED_AT] = spec.metadata[SECRET_UPDATED_AT]
-        spec.resource["annotations"] = json.dumps(annotations)
+        spec.resource["annotations"] = json_dumps(annotations)
 
     def _specs_with_secret(
         self,
@@ -368,7 +368,7 @@ class InClusterSecretsReconciler(SecretsReconciler):
             "path": self.secret_path(self.vault_path, spec),
             "data": secret,
         }
-        self.vault_client.write(desired_secret, decode_base64=False)  # type: ignore[attr-defined]
+        self.vault_client.write(desired_secret, decode_base64=False)
 
     def sync_secrets(
         self, specs: Iterable[ExternalResourceSpec]
@@ -423,7 +423,7 @@ def build_incluster_secrets_reconciler(
         ri=ri,
         oc=oc,
         vault_path=vault_path,
-        vault_client=VaultClient(),
+        vault_client=VaultClient.get_instance(),
         secrets_reader=secrets_reader,
         output_secrets_formatter=OutputSecretsFormatter(secrets_reader),
         thread_pool_size=thread_pool_size,

@@ -53,20 +53,20 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
 
 def test_validate_no_internal_to_public_peerings_invalid(
     query_data_i2p: VpcPeeringsValidatorQueryData,
-):
+) -> None:
     assert validate_no_internal_to_public_peerings(query_data_i2p) is False
 
 
 def test_validate_no_internal_to_public_peerings_valid_private(
     query_data_i2p: VpcPeeringsValidatorQueryData,
-):
+) -> None:
     query_data_i2p.clusters[0].peering.connections[0].cluster.spec.private = True  # type: ignore[index,union-attr]
     assert validate_no_internal_to_public_peerings(query_data_i2p) is True
 
 
 def test_validate_no_internal_to_public_peerings_valid_internal(
     query_data_i2p: VpcPeeringsValidatorQueryData,
-):
+) -> None:
     assert query_data_i2p.clusters is not None
     query_data_i2p.clusters[0].peering.connections[0].cluster.internal = True  # type: ignore[union-attr]
     assert validate_no_internal_to_public_peerings(query_data_i2p) is True
@@ -101,18 +101,18 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
 
 def test_validate_no_public_to_public_peerings_invalid(
     query_data_p2p: VpcPeeringsValidatorQueryData,
-):
+) -> None:
     assert validate_no_public_to_public_peerings(query_data_p2p) is False
 
 
 def test_validate_no_public_to_public_peerings_valid(
     query_data_p2p: VpcPeeringsValidatorQueryData,
-):
+) -> None:
     query_data_p2p.clusters[0].peering.connections[0].cluster.spec.private = True  # type: ignore[index,union-attr]
     assert validate_no_public_to_public_peerings(query_data_p2p) is True
 
 
-def test_validate_validate_cidr_overlap():
+def test_validate_validate_cidr_overlap() -> None:
     test_list = [
         {
             "provider": "cluster-self-vpc",
@@ -134,7 +134,7 @@ def test_validate_validate_cidr_overlap():
     assert find_cidr_overlap(cluster_name, test_list) is True
 
 
-def test_validate_validate_no_cidr_overlap():
+def test_validate_validate_no_cidr_overlap() -> None:
     test_list = [
         {
             "provider": "cluster-self-vpc",
@@ -190,5 +190,5 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
 
 def test_create_dict_for_validate_no_cidr_overlap(
     query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData,
-):
+) -> None:
     assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False

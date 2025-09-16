@@ -48,7 +48,9 @@ EXPECTED_KNOWN_HOSTS_CONTENT = "known-hosts-file-content"
         ),
     ],
 )
-def test_base_jumphost(fs: Any, parameters: JumphostParameters, expected_port: int):
+def test_base_jumphost(
+    fs: Any, parameters: JumphostParameters, expected_port: int
+) -> None:
     jumphost = JumpHostBase(parameters=parameters)
     assert os.path.exists(jumphost._identity_file)
 
@@ -98,7 +100,7 @@ def test_ssh_jumphost(
     parameters: JumphostParameters,
     local_port: int | None,
     remote_port: int | None,
-):
+) -> None:
     gql_mock = create_autospec(spec=gql.GqlApi)
     gql_mock.get_resource.side_effect = [{"content": EXPECTED_KNOWN_HOSTS_CONTENT}]
     jumphost = JumpHostSSH(parameters=parameters, gql_api=gql_mock)

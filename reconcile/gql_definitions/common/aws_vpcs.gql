@@ -2,6 +2,6 @@
 
 query AWSVPCs {
   vpcs: awsvpcs_v1 {
-    ... AWSVPC
+    ...AWSVPC
   }
 }

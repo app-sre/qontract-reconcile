@@ -10,7 +10,9 @@ from reconcile.saas_auto_promotions_manager.subscriber import (
 )
 
 
-def test_can_compute_content_hash(subscriber_builder: Callable[[Mapping], Subscriber]):
+def test_can_compute_content_hash(
+    subscriber_builder: Callable[[Mapping], Subscriber],
+) -> None:
     subscribers = [
         subscriber_builder({
             "NAMESPACE": {"path": "some_namespace"},
@@ -39,7 +41,7 @@ def test_can_compute_content_hash(subscriber_builder: Callable[[Mapping], Subscr
 
 def test_content_hash_is_deterministic(
     subscriber_builder: Callable[[Mapping], Subscriber],
-):
+) -> None:
     subscribers = [
         subscriber_builder({
             "NAMESPACE": {"path": "some_namespace"},
@@ -66,7 +68,9 @@ def test_content_hash_is_deterministic(
     assert len(hashes) == 1
 
 
-def test_content_hash_differs(subscriber_builder: Callable[[Mapping], Subscriber]):
+def test_content_hash_differs(
+    subscriber_builder: Callable[[Mapping], Subscriber],
+) -> None:
     subscriber_a = subscriber_builder({
         "NAMESPACE": {"path": "some_namespace"},
         "TARGET_FILE_PATH": "some_saas",
@@ -91,7 +95,9 @@ def test_content_hash_differs(subscriber_builder: Callable[[Mapping], Subscriber
     ]) != Subscriber.combined_content_hash([subscriber_b])
 
 
-def test_content_hash_equals(subscriber_builder: Callable[[Mapping], Subscriber]):
+def test_content_hash_equals(
+    subscriber_builder: Callable[[Mapping], Subscriber],
+) -> None:
     subscriber_a = subscriber_builder({
         "NAMESPACE": {"path": "some_namespace"},
         "TARGET_FILE_PATH": "some_saas",

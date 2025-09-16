@@ -55,6 +55,7 @@ spec:
   provision_shard_id: provision_shard_id
   disable_user_workload_monitoring: false
   oidc_endpoint_url: "https://rh-oidc.s3.us-east-1.amazonaws.com/rosa-cluster-id"
+  fips: false
 machinePools:
 - id: worker
   instance_type: m5.xlarge

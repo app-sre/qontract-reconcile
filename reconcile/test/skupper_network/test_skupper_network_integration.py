@@ -124,10 +124,9 @@ def test_skupper_network_intg_fetch_current_state(
         ri=ri,
         integration_managed_kinds=["ConfigMap"],
     )
-    assert (
-        ri.get_current("internal-1", "edge-1", "ConfigMap", CONFIG_NAME).body
-        == fake_site_configmap
-    )
+    configmap = ri.get_current("internal-1", "edge-1", "ConfigMap", CONFIG_NAME)
+    assert configmap
+    assert configmap.body == fake_site_configmap
 
 
 def test_skupper_network_intg_skupper_site_config_changes_no_changes(

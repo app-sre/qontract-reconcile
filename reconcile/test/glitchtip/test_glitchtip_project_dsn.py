@@ -72,6 +72,7 @@ def test_desire_state(
     secret = ri.get_desired(
         "cluster-1", "namespace-1", "Secret", "apollo-11-flight-control-dsn"
     )
+    assert secret
     assert secret.body == {
         "apiVersion": "v1",
         "kind": "Secret",

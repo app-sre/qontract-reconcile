@@ -129,7 +129,7 @@ query SaasFiles {
           ...SaasTargetNamespace
         }
         slos {
-         ...SLODocument 
+          ...SLODocument
         }
         namespaceSelector {
           jsonPathSelectors {

@@ -1,7 +1,7 @@
 # qenerate: plugin=pydantic_v1
 
 query StatusBoard {
-  status_board_v1{
+  status_board_v1 {
     name
     ocm {
       url
@@ -13,7 +13,6 @@ query StatusBoard {
         version
         format
       }
-
     }
     globalAppSelectors {
       exclude

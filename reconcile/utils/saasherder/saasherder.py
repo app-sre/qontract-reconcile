@@ -41,6 +41,7 @@ from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi, JobBuildState
 from reconcile.utils.jjb_client import JJB
+from reconcile.utils.json import json_dumps
 from reconcile.utils.oc import (
     OCLocal,
     StatusCodeError,
@@ -874,7 +875,9 @@ class SaasHerder:
                 return True
         return False
 
-    def _process_template(self, spec: TargetSpec) -> tuple[list[Any], Promotion | None]:
+    def _process_template(
+        self, spec: TargetSpec
+    ) -> tuple[Iterable[Any], Promotion | None]:
         saas_file_name = spec.saas_file_name
         resource_template_name = spec.resource_template_name
         url = spec.url
@@ -959,7 +962,9 @@ class SaasHerder:
 
             oc = OCLocal("cluster", None, None, local=True)
             try:
-                resources = oc.process(template, consolidated_parameters)
+                resources: Iterable[Mapping[str, Any]] = oc.process(
+                    template, consolidated_parameters
+                )
             except StatusCodeError as e:
                 logging.error(f"{error_prefix} error processing template: {e!s}")
 
@@ -1861,7 +1866,7 @@ class SaasHerder:
     @staticmethod
     def get_target_config_hash(target_config: Any) -> str:
         m = hashlib.sha256()
-        m.update(json.dumps(target_config, sort_keys=True).encode("utf-8"))
+        m.update(json_dumps(target_config).encode("utf-8"))
         digest = m.hexdigest()[:16]
         return digest
 
@@ -1917,14 +1922,14 @@ class SaasHerder:
             # before the GQL classes are introduced, the parameters attribute
             # was a json string. Keep it that way to be backwards compatible.
             saas_file_parameters=(
-                json.dumps(saas_file.parameters, separators=(",", ":"))
+                json_dumps(saas_file.parameters, compact=True)
                 if saas_file.parameters is not None
                 else None
             ),
             # before the GQL classes are introduced, the parameters attribute
             # was a json string. Keep it that way to be backwards compatible.
             parameters=(
-                json.dumps(target.parameters, separators=(",", ":"))
+                json_dumps(target.parameters, compact=True)
                 if target.parameters is not None
                 else None
             ),
@@ -1935,7 +1940,7 @@ class SaasHerder:
             # before the GQL classes are introduced, the parameters attribute
             # was a json string. Keep it that way to be backwards compatible.
             rt_parameters=(
-                json.dumps(resource_template.parameters, separators=(",", ":"))
+                json_dumps(resource_template.parameters, compact=True)
                 if resource_template.parameters is not None
                 else None
             ),

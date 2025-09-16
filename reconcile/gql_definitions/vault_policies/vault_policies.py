@@ -20,13 +20,13 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 
 DEFINITION = """
 query VaultPolicies {
-    policy: vault_policies_v1 {
-        name
-        instance {
-            name
-        }
-        rules
+  policy: vault_policies_v1 {
+    name
+    instance {
+      name
     }
+    rules
+  }
 }
 """
 

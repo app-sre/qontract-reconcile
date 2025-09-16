@@ -887,7 +887,9 @@ def alert_report(
             "Triggered": str(data.triggered_alerts),
             "Resolved": str(data.resolved_alerts),
             "Median time to resolve (h:mm:ss)": median_elapsed,
-            "Response Rate": f"{data.responsed_alerts / data.triggered_alerts * 100:.2f}%",
+            "Response Rate": f"{data.responsed_alerts / data.triggered_alerts * 100:.2f}%"
+            if data.triggered_alerts != 0
+            else "0.00%",
         })
 
     # TODO(mafriedm, rporres): Fix this
@@ -1299,7 +1301,7 @@ def user_credentials_migrate_output(ctx: click.Context, account_name: str) -> No
     skip_accounts, appsre_pgp_key, _ = tfu.get_reencrypt_settings()
 
     accounts, working_dirs, _, aws_api = tfu.setup(
-        False,
+        None,
         1,
         skip_accounts,
         account_name=account_name,
@@ -1587,11 +1589,16 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
             f"--billing-account {billing_account}",
             f"--cluster-name {cluster.name}",
             "--sts",
-            ("--private" if cluster.spec.private else ""),
             ("--hosted-cp" if cluster.spec.hypershift else ""),
+            ("--private" if cluster.spec.private else ""),
             (
                 "--private-link"
                 if cluster.spec.private and not cluster.spec.hypershift
+                else ""
+            ),
+            (
+                "--default-ingress-private"
+                if cluster.spec.private and cluster.spec.hypershift
                 else ""
             ),
             (
@@ -1710,7 +1717,10 @@ def add_resource(item: dict, resource: Mapping, columns: list[str]) -> None:
 @click.pass_context
 def cluster_openshift_resources(ctx: click.Context) -> None:
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     columns = ["name", "total"]
     results: dict = {}
     for ns_info in namespaces:
@@ -1907,6 +1917,7 @@ def rds_recommendations(ctx: click.Context) -> None:
     print("[TOC]")
     for account in accounts:
         account_name = account.get("name")
+        assert account_name is not None  # make mypy happy
         account_deployment_regions = account.get("supportedDeploymentRegions")
         for region in account_deployment_regions or []:
             with AWSApi(1, [account], settings=settings, init_users=False) as aws:
@@ -1921,9 +1932,9 @@ def rds_recommendations(ctx: click.Context) -> None:
                 recommendations = [
                     {
                         **rec,
-                        "ResourceName": rec["ResourceArn"].split(":")[-1],
+                        "ResourceName": rec.get("ResourceArn", "").split(":")[-1],
                         # The Description field has \n that are causing issues with the markdown table
-                        "Description": rec["Description"].replace("\n", " "),
+                        "Description": rec.get("Description", "").replace("\n", " "),
                     }
                     for rec in db_recommendations
                     if rec.get("Status") not in ignored_statuses
@@ -2175,6 +2186,8 @@ def root_owner(
         init_api_resources=True,
     )
     oc = oc_map.get(cluster)
+    if isinstance(oc, OCLogMsg):
+        raise oc
     obj = oc.get(namespace, kind, name)
     root_owner = oc.get_obj_root_owner(
         namespace, obj, allow_not_found=True, allow_not_controller=True
@@ -2187,7 +2200,7 @@ def root_owner(
     if ctx.obj["options"]["output"] != "json":
         ctx.obj["options"]["output"] = "yaml"
 
-    print_output(ctx.obj["options"], root_owner)
+    print_output(ctx.obj["options"], root_owner)  # type: ignore
 
 
 @get.command()
@@ -2705,16 +2718,16 @@ def ec2_jenkins_workers(
                 )
                 continue
             instance = ec2.Instance(i["InstanceId"])
-            state = instance.state["Name"]
+            state = instance.state.get("Name")
             if state != "running":
                 continue
             os = ""
             url = ""
             for t in instance.tags:
                 if t.get("Key") == "os":
-                    os = t["Value"]
+                    os = t.get("Value", "")
                 if t.get("Key") == "jenkins_controller":
-                    url = f"https://{t['Value'].replace('-', '.')}.devshift.net/computer/{instance.id}"
+                    url = f"https://{t.get('Value', '').replace('-', '.')}.devshift.net/computer/{instance.id}"
             image = ec2.Image(instance.image_id)
             commit_url = ""
             for t in image.tags:
@@ -3628,7 +3641,10 @@ def template(
     secret_reader: str,
 ) -> None:
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     namespaces_info = [
         n
         for n in namespaces
@@ -3656,7 +3672,7 @@ def template(
             continue
         if openshift_resource.name != name:
             continue
-        print_output({"output": "yaml", "sort": False}, openshift_resource.body)
+        print_output({"output": "yaml", "sort": False}, openshift_resource.body)  # type: ignore
         break
 
 
@@ -3720,7 +3736,7 @@ def run_prometheus_test(
     ptr.run_test(test=test, alerting_services=get_alerting_services())
 
     print(test.result)
-    if not test.result:
+    if test.result is None:
         sys.exit(1)
 
 
@@ -3799,7 +3815,10 @@ def alert_to_receiver(
         additional_labels[key] = value
 
     gqlapi = gql.get_api()
-    namespaces = gqlapi.query(orb.NAMESPACES_QUERY)["namespaces"]
+    data = gqlapi.query(orb.NAMESPACES_QUERY)
+    if not data:
+        raise ValueError("no namespaces found")
+    namespaces = data.get("namespaces", [])
     cluster_namespaces = [n for n in namespaces if n["cluster"]["name"] == cluster]
 
     if len(cluster_namespaces) == 0:
@@ -4022,15 +4041,16 @@ def query(output: str, query: str) -> None:
 def promquery(cluster: str, query: str) -> None:
     """Run a PromQL query"""
     config_data = config.get_config()
-    auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
+    prom_auth = {"path": config_data["promql-auth"]["secret_path"], "field": "token"}
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-    prom_auth_creds = secret_reader.read(auth)
-    prom_auth = requests.auth.HTTPBasicAuth(*prom_auth_creds.split(":"))
+    prom_user, prom_pass = secret_reader.read(prom_auth).split(":")
 
     url = f"https://prometheus.{cluster}.devshift.net/api/v1/query"
 
-    response = requests.get(url, params={"query": query}, auth=prom_auth, timeout=60)
+    response = requests.get(
+        url, params={"query": query}, auth=(prom_user, prom_pass), timeout=60
+    )
     response.raise_for_status()
 
     print(json.dumps(response.json(), indent=4))
@@ -4087,11 +4107,12 @@ def sre_checkpoint_metadata(
         board_info = queries.get_simple_jira_boards(jiradef)
     else:
         board_info = app["escalationPolicy"]["channels"]["jiraBoard"]
-    board_info = board_info[0]
+    assert board_info  # make mypy happy
+    board = board_info[0]
     # Overrides for easier testing
     if jiraboard:
-        board_info["name"] = jiraboard
-    report_invalid_metadata(app, app_path, board_info, settings, parent_ticket, dry_run)
+        board["name"] = jiraboard
+    report_invalid_metadata(app, app_path, board, settings, parent_ticket, dry_run)
 
 
 @root.command()

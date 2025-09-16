@@ -114,7 +114,7 @@ from reconcile.utils.secret_reader import (
 )
 def test_from_cluster(
     cluster: str, expected_parameters: OCConnectionParameters, use_jump_host: bool
-):
+) -> None:
     test_cluster = load_cluster_for_connection_parameters(f"{cluster}.yml")
     secret_reader = create_autospec(SecretReaderBase)
     secret_reader.read_secret.side_effect = ["secret2"]
@@ -131,7 +131,7 @@ def test_from_cluster(
     assert parameters == expected_parameters
 
 
-def test_wrong_server_url():
+def test_wrong_server_url() -> None:
     test_cluster = load_cluster_for_connection_parameters("cluster_no_jumphost.yml")
     secret_reader = create_autospec(SecretReaderBase)
     secret_reader.read_secret.side_effect = ["secret2"]
@@ -150,7 +150,7 @@ def test_wrong_server_url():
         assert parameters is None
 
 
-def test_custom_token_field():
+def test_custom_token_field() -> None:
     test_cluster = load_cluster_for_connection_parameters("cluster_custom_token.yml")
 
     secret_reader = create_autospec(SecretReaderBase)
@@ -343,7 +343,7 @@ def test_from_namespaces(
     is_cluster_admin: bool,
     mock_secrets: bool,
     expected_parameters: list[ExpectedConnection],
-):
+) -> None:
     parsed_namespaces = [
         load_namespace_for_connection_parameters(f"{ns}.yml") for ns in namespaces
     ]

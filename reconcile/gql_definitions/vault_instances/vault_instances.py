@@ -22,10 +22,10 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 DEFINITION = """
 fragment VaultSecret on VaultSecret_v1 {
-    path
-    field
-    version
-    format
+  path
+  field
+  version
+  format
 }
 
 query VaultInstances {
@@ -37,77 +37,77 @@ query VaultInstances {
       provider
       secretEngine
       ... on VaultInstanceAuthApprole_v1 {
-      roleID {
-        ... VaultSecret
+        roleID {
+          ...VaultSecret
+        }
+        secretID {
+          ...VaultSecret
+        }
       }
-      secretID {
-        ... VaultSecret
-      }
-    }
     }
     replication {
       vaultInstance {
         name
         address
         auth {
-            provider
-            secretEngine
-            ... on VaultInstanceAuthApprole_v1 {
-              roleID {
-                ... VaultSecret
-              }
-              secretID {
-                ... VaultSecret
-              }
+          provider
+          secretEngine
+          ... on VaultInstanceAuthApprole_v1 {
+            roleID {
+              ...VaultSecret
+            }
+            secretID {
+              ...VaultSecret
             }
           }
-      }
-    sourceAuth {
-      provider
-      secretEngine
-      ... on VaultInstanceAuthApprole_v1 {
-      roleID {
-        ... VaultSecret
-      }
-      secretID {
-        ... VaultSecret
-      }
-    }
-    }
-    destAuth {
-      provider
-      secretEngine
-      ... on VaultInstanceAuthApprole_v1 {
-      roleID {
-        ... VaultSecret
-      }
-      secretID {
-        ... VaultSecret
-      }
-    }
-    }
-      paths {
-        provider
-        ...on VaultReplicationJenkins_v1 {
-        jenkinsInstance {
-          name
-          serverUrl
         }
-        policy {
-          name
-          instance {
-            name
-            address
+      }
+      sourceAuth {
+        provider
+        secretEngine
+        ... on VaultInstanceAuthApprole_v1 {
+          roleID {
+            ...VaultSecret
+          }
+          secretID {
+            ...VaultSecret
           }
         }
+      }
+      destAuth {
+        provider
+        secretEngine
+        ... on VaultInstanceAuthApprole_v1 {
+          roleID {
+            ...VaultSecret
+          }
+          secretID {
+            ...VaultSecret
+          }
         }
-        ...on VaultReplicationPolicy_v1 {
+      }
+      paths {
+        provider
+        ... on VaultReplicationJenkins_v1 {
+          jenkinsInstance {
+            name
+            serverUrl
+          }
           policy {
+            name
+            instance {
               name
-              instance {
-                name
-                address
-              }
+              address
+            }
+          }
+        }
+        ... on VaultReplicationPolicy_v1 {
+          policy {
+            name
+            instance {
+              name
+              address
+            }
           }
         }
       }

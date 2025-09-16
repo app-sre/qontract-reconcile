@@ -39,7 +39,7 @@ def make_connection_parameter(data: Mapping[str, Any]) -> OCConnectionParameters
 
 
 class OCTest(OC):
-    def __new__(cls, **kwargs: Any):
+    def __new__(cls, **kwargs: Any) -> MagicMock:
         return create_autospec(spec=OCCli)
 
 
@@ -48,7 +48,7 @@ def oc_cls() -> type[OC]:
     return MagicMock(return_value=create_autospec(spec=OCCli))
 
 
-def test_oc_map_with_errors(oc_cls: type[OC]):
+def test_oc_map_with_errors(oc_cls: type[OC]) -> None:
     params_1 = make_connection_parameter({
         "cluster_name": "test-1",
         "server_url": "http://localhost",
@@ -68,7 +68,7 @@ def test_oc_map_with_errors(oc_cls: type[OC]):
     assert isinstance(oc_map._oc_map.get(params_2.cluster_name), OCCli)
 
 
-def test_privileged_clusters(oc_cls: type[OC]):
+def test_privileged_clusters(oc_cls: type[OC]) -> None:
     param_1 = make_connection_parameter({
         "cluster_name": "cluster-1",
         "is_cluster_admin": True,
@@ -117,7 +117,7 @@ def test_privileged_clusters(oc_cls: type[OC]):
         ),
     ],
 )
-def test_errors(parameters: OCConnectionParameters, error_message: str):
+def test_errors(parameters: OCConnectionParameters, error_message: str) -> None:
     oc_map = OCMap(connection_parameters=[parameters])
     sut = oc_map.get(parameters.cluster_name, privileged=parameters.is_cluster_admin)
     assert isinstance(sut, OCLogMsg)

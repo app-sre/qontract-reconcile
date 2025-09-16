@@ -2,7 +2,6 @@
 SQS Consumer to create Gitlab merge requests.
 """
 
-import json
 import logging
 import sys
 from collections.abc import Callable
@@ -11,6 +10,7 @@ from reconcile import queries
 from reconcile.utils import mr
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.json import json_dumps
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.sqs_gateway import SQSGateway
 
@@ -51,7 +51,7 @@ def run(dry_run: str, gitlab_project_id: str, defer: Callable | None = None) -> 
         for m in messages:
             receipt_handle, body = m[0], m[1]
             logging.info(
-                "received message %s with body %s", receipt_handle[:6], json.dumps(body)
+                "received message %s with body %s", receipt_handle[:6], json_dumps(body)
             )
 
             if not dry_run:

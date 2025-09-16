@@ -4,7 +4,7 @@ query GithubOrgs {
   orgs: githuborg_v1 {
     name
     token {
-      ... VaultSecret
+      ...VaultSecret
     }
     default
     managedTeams
