@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import functools
 from abc import ABC
 
@@ -19,6 +20,12 @@ QONTRACT_INTEGRATION = "ocm-upgrade-scheduler"
 SUPPORTED_OCM_PRODUCTS = [OCM_PRODUCT_OSD, OCM_PRODUCT_ROSA]
 
 
+
+@dataclass
+class VersionGateParams:
+    integration_name: str
+    integration_version: str
+    verstion_gate_params: ver
 class OCMClusterUpgradeSchedulerIntegration(
     aus.AdvancedUpgradeSchedulerBaseIntegration, ABC
 ):
@@ -82,7 +89,8 @@ class OCMClusterUpgradeSchedulerIntegration(
                 version_data,
                 integration=self.name,
             )
-            aus.act(dry_run, diffs, ocm_api)
+            
+            aus.act(dry_run, diffs, ocm_api, self.params.version_gate_approver_params,self.secret_reader)
 
     def expose_version_data_metrics(
         self,

@@ -2830,6 +2830,37 @@ def ocm_addons_upgrade_scheduler_org(
     default=bool(os.environ.get("IGNORE_STS_CLUSTERS")),
     help="Ignore STS clusters",
 )
+@integration.command(short_help="Approves OCM cluster upgrade version gates.")
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namepsace",
+    required=False,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used for ROSA jobs",
+    required=False,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.option(
+    "--rosa-job-service-account",
+    help="The service-account used for ROSA jobs",
+    required=False,
+    envvar="ROSA_JOB_SERVICE_ACCOUNT",
+)
+@click.option(
+    "--rosa-job-image",
+    help="The container image to use to run ROSA cli command jobs",
+    required=False,
+    envvar="ROSA_JOB_IMAGE",
+)
+@click.option(
+    "--rosa-role",
+    help="The role to assume in the ROSA cluster account",
+    required=False,
+    envvar="ROSA_ROLE",
+)
 @click.pass_context
 def advanced_upgrade_scheduler(
     ctx: click.Context,
@@ -2837,9 +2868,15 @@ def advanced_upgrade_scheduler(
     org_id: Iterable[str],
     exclude_org_id: Iterable[str],
     ignore_sts_clusters: bool,
+    job_controller_cluster: str | None,
+    job_controller_namespace: str | None,
+    rosa_job_service_account: str | None,
+    rosa_role: str | None,
+    rosa_job_image: str | None,
 ) -> None:
     from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
     from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
+    from reconcile.aus.version_gate_approver import VersionGateApproverParams
 
     run_class_integration(
         integration=AdvancedUpgradeServiceIntegration(
@@ -2848,6 +2885,20 @@ def advanced_upgrade_scheduler(
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
                 ignore_sts_clusters=ignore_sts_clusters,
+                version_gate_approver_params=VersionGateApproverParams(
+                    job_controller_cluster=job_controller_cluster,
+                    job_controller_namespace=job_controller_namespace,
+                    rosa_job_service_account=rosa_job_service_account,
+                    rosa_role=rosa_role,
+                    rosa_job_image=rosa_job_image,
+                )
+                if all([
+                    job_controller_cluster,
+                    job_controller_namespace,
+                    rosa_job_service_account,
+                    rosa_role,
+                ])
+                else None,
             )
         ),
         ctx=ctx,
