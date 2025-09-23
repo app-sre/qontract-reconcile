@@ -94,6 +94,10 @@ objects:
           {{- end }}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          {{- if $logs.govslack_error_filter }}
+          - name: SLACK_CHANNEL_ERRORS_ONLY
+            value: ${SLACK_CHANNEL_ERRORS_ONLY}
+          {{- end }}
           {{- end }}
           {{- if $logs.googleChat }}
 
@@ -201,14 +205,14 @@ objects:
                 </rule>
               </store>
               {{- end}}
-              {{- if $logs.filter_govslack }}
-              # only ship errors to GovSlack channel
+              {{- if $logs.govslack_error_filter }}
+              # ship errors to separate slack channel
               <store>
                 @type rewrite_tag_filter
                 <rule>
                   key message
                   pattern /^\[ERROR\]/
-                  tag govslack
+                  tag slack_errors
                 </rule>
               </store>
               {{- end}}
@@ -236,25 +240,15 @@ objects:
             </match>
             {{- end }}
 
-            {{- if $logs.filter_govslack }}
-            <match govslack>
-              @type teams
-              webhook_url "${SLACK_WEBHOOK_URL}&threadKey=${POD_NAME}"
-              text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
-              buffered true
-              <buffer>
-                @type file
-                path /fluentd/buffer
-
-                flush_mode interval
-                flush_interval 15s
-                flush_at_shutdown true
-
-                retry_max_times 0
-                retry_wait 30
-
-                disable_chunk_backup true
-              </buffer>
+            {{- if $logs.govslack_error_filter }}
+            <match slack_errors>
+              @type slack
+              webhook_url ${SLACK_WEBHOOK_URL}
+              channel ${SLACK_CHANNEL_ERRORS_ONLY}
+              icon_emoji ${SLACK_ICON_EMOJI}
+              username sd-app-sre-bot
+              flush_interval 10s
+              message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
             </match>
             {{- end }}
             EOF
@@ -815,6 +809,9 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+- name: SLACK_CHANNEL_ERRORS_ONLY
+  value: "sd-app-sre-reconcile-errors-stage"
+  required: false
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS

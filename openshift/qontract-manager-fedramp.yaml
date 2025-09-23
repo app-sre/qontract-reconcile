@@ -49,6 +49,8 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: SLACK_CHANNEL_ERRORS_ONLY
+            value: ${SLACK_CHANNEL_ERRORS_ONLY}
           - name: GOOGLE_CHAT_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -128,13 +130,13 @@ objects:
                   tag gchat
                 </rule>
               </store>
-              # only ship errors to GovSlack channel
+              # ship errors to separate slack channel
               <store>
                 @type rewrite_tag_filter
                 <rule>
                   key message
                   pattern /^\[ERROR\]/
-                  tag govslack
+                  tag slack_errors
                 </rule>
               </store>
             </match>
@@ -157,24 +159,14 @@ objects:
                 disable_chunk_backup true
               </buffer>
             </match>
-            <match govslack>
-              @type teams
-              webhook_url "${SLACK_WEBHOOK_URL}&threadKey=${POD_NAME}"
-              text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
-              buffered true
-              <buffer>
-                @type file
-                path /fluentd/buffer
-
-                flush_mode interval
-                flush_interval 15s
-                flush_at_shutdown true
-
-                retry_max_times 0
-                retry_wait 30
-
-                disable_chunk_backup true
-              </buffer>
+            <match slack_errors>
+              @type slack
+              webhook_url ${SLACK_WEBHOOK_URL}
+              channel ${SLACK_CHANNEL_ERRORS_ONLY}
+              icon_emoji ${SLACK_ICON_EMOJI}
+              username sd-app-sre-bot
+              flush_interval 10s
+              message "\`\`\`[integrations-manager] %s\`\`\`"
             </match>
             EOF
           volumeMounts:
@@ -396,6 +388,9 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+- name: SLACK_CHANNEL_ERRORS_ONLY
+  value: "sd-app-sre-reconcile-errors-stage"
+  required: false
 - name: INTEGRATIONS_MANAGER_MEMORY_LIMIT
   value: 600Mi
 - name: INTEGRATIONS_MANAGER_CPU_REQUEST
