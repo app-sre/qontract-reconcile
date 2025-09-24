@@ -809,9 +809,15 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+{{- range $i, $integration := .Values.integrations }}
+{{- $logs := $integration.logs | default dict -}}
+{{- if $logs.govslack_error_filter }}
 - name: GOVSLACK_CHANNEL_ERRORS_ONLY
   value: "sd-app-sre-govslack-errors-stage"
   required: false
+{{- break }}
+{{- end }}
+{{- end }}
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS

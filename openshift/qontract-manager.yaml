@@ -328,9 +328,6 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
-- name: GOVSLACK_CHANNEL_ERRORS_ONLY
-  value: "sd-app-sre-govslack-errors-stage"
-  required: false
 - name: INTEGRATIONS_MANAGER_MEMORY_LIMIT
   value: 600Mi
 - name: INTEGRATIONS_MANAGER_CPU_REQUEST
