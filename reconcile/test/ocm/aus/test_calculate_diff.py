@@ -153,7 +153,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
-                organization_id="1",
+                organization_id="org-1-id",
                 cluster=cluster,
                 version="4.12.19",
                 schedule_type="manual",
@@ -211,7 +211,7 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
-                organization_id="1",
+                organization_id="org-1-id",
                 cluster=cluster,
                 version="4.12.19",
                 schedule_type="manual",

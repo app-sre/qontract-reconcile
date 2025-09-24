@@ -16,6 +16,7 @@ from reconcile.aus.base import (
     AddonUpgradePolicy,
     ClusterUpgradePolicy,
     ControlPlaneUpgradePolicy,
+    STSGateApproverParams,
     UpgradePolicyHandler,
     get_orgs_for_environment,
 )
@@ -41,6 +42,7 @@ from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.utils.ocm.addons import AddonService
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture
@@ -119,7 +121,7 @@ def test_calculate_diff_no_lock(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
-                organization_id="1",
+                organization_id="org-1-id",
                 cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
@@ -193,7 +195,7 @@ def test_calculate_diff_inter_lock(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
-                organization_id="1",
+                organization_id="org-1-id",
                 cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
@@ -582,7 +584,12 @@ class StubPolicy(base.AbstractUpgradePolicy):
     created = False
     deleted = False
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        sts_gate_approver_params: STSGateApproverParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         self.created = True
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
