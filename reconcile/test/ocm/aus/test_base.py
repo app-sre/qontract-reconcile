@@ -119,6 +119,7 @@ def test_calculate_diff_no_lock(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
+                organization_id="1",
                 cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
@@ -140,6 +141,7 @@ def test_calculate_diff_locked_out(
     """
     current_state: list[AbstractUpgradePolicy] = [
         ClusterUpgradePolicy(
+            organization_id="1",
             cluster=cluster_2,
             version="4.12.19",
             schedule_type="manual",
@@ -191,6 +193,7 @@ def test_calculate_diff_inter_lock(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
+                organization_id="1",
                 cluster=cluster_1,
                 version="4.12.19",
                 schedule_type="manual",
@@ -601,6 +604,7 @@ def stub_policy(cluster_1: OCMCluster) -> StubPolicy:
 @pytest.fixture
 def cluster_upgrade_policy(cluster_1: OCMCluster) -> ClusterUpgradePolicy:
     return ClusterUpgradePolicy(
+        organization_id="1",
         id="test-policy-id",
         cluster=cluster_1,
         schedule_type="manual",

@@ -153,6 +153,7 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
+                organization_id="1",
                 cluster=cluster,
                 version="4.12.19",
                 schedule_type="manual",
@@ -210,6 +211,7 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
         UpgradePolicyHandler(
             action="create",
             policy=ClusterUpgradePolicy(
+                organization_id="1",
                 cluster=cluster,
                 version="4.12.19",
                 schedule_type="manual",
@@ -432,6 +434,7 @@ def test_calculate_diff_mutex_set(
     diffs = base.calculate_diff(
         [
             ClusterUpgradePolicy(
+                organization_id="1",
                 cluster=cluster,
                 schedule_type="manual",
                 next_run="2021-08-30T18:06:00Z",

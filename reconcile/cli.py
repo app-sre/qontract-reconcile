@@ -2830,7 +2830,6 @@ def ocm_addons_upgrade_scheduler_org(
     default=bool(os.environ.get("IGNORE_STS_CLUSTERS")),
     help="Ignore STS clusters",
 )
-@integration.command(short_help="Approves OCM cluster upgrade version gates.")
 @click.option(
     "--job-controller-cluster",
     help="The cluster holding the job-controller namepsace",
@@ -2874,9 +2873,15 @@ def advanced_upgrade_scheduler(
     rosa_role: str | None,
     rosa_job_image: str | None,
 ) -> None:
-    from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
-    from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
-    from reconcile.aus.version_gate_approver import VersionGateApproverParams
+    from reconcile.aus.advanced_upgrade_service import (
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        AdvancedUpgradeServiceIntegration,
+    )
+    from reconcile.aus.base import (
+        AdvancedUpgradeSchedulerBaseIntegrationParams,
+        STSGateApproverParams,
+    )
 
     run_class_integration(
         integration=AdvancedUpgradeServiceIntegration(
@@ -2885,12 +2890,14 @@ def advanced_upgrade_scheduler(
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
                 ignore_sts_clusters=ignore_sts_clusters,
-                version_gate_approver_params=VersionGateApproverParams(
+                sts_gate_approver_params=STSGateApproverParams(
                     job_controller_cluster=job_controller_cluster,
                     job_controller_namespace=job_controller_namespace,
                     rosa_job_service_account=rosa_job_service_account,
                     rosa_role=rosa_role,
                     rosa_job_image=rosa_job_image,
+                    integration_name=QONTRACT_INTEGRATION,
+                    integration_version=QONTRACT_INTEGRATION_VERSION,
                 )
                 if all([
                     job_controller_cluster,

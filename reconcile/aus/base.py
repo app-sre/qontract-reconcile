@@ -47,7 +47,6 @@ from reconcile.aus.models import (
     OrganizationUpgradeSpec,
     Sector,
 )
-from reconcile.aus.version_gate_approver import VersionGateApproverParams
 from reconcile.aus.version_gates import HANDLERS, sts_version_gate_handler
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
@@ -99,7 +98,7 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
-from reconcile.utils.secret_reader import SecretReader
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.semver_helper import (
     get_version_prefix,
     parse_semver,
@@ -110,12 +109,22 @@ from reconcile.utils.state import init_state
 MIN_DELTA_MINUTES = 6
 
 
+class STSGateApproverParams(PydanticRunParams):
+    job_controller_cluster: str
+    job_controller_namespace: str
+    rosa_job_service_account: str
+    rosa_role: str
+    rosa_job_image: str | None = None
+    integration_name: str = ""
+    integration_version: str = ""
+
+
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ocm_environment: str | None = None
     ocm_organization_ids: set[str] | None = None
     excluded_ocm_organization_ids: set[str] | None = None
     ignore_sts_clusters: bool = False
-    version_gate_approver_params: VersionGateApproverParams | None = None
+    sts_gate_approver_params: STSGateApproverParams | None = None
 
 
 class ReconcileError(Exception):
@@ -404,7 +413,6 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     cluster: OCMCluster
 
     id: str | None
-    organization_id: str
     next_run: str | None
     schedule: str | None
     schedule_type: str
@@ -415,8 +423,8 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        version_gate_approver_params: VersionGateApproverParams | None = None,
-        secret_reader: SecretReader|None = None,
+        sts_gate_approver_params: STSGateApproverParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> None:
         pass
 
@@ -447,8 +455,8 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        version_gate_approver_params: VersionGateApproverParams | None = None,
-        secret_reader: SecretReader|None = None,
+        sts_gate_approver_params: STSGateApproverParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> None:
         self.addon_service.create_addon_upgrade_policy(
             ocm_api=ocm_api,
@@ -482,11 +490,13 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
     """Class to create ClusterUpgradePolicies in OCM"""
 
+    organization_id: str
+
     def create(
         self,
         ocm_api: OCMBaseClient,
-        version_gate_approver_params: VersionGateApproverParams | None = None,
-        secret_reader: SecretReader|None = None,
+        sts_gate_approver_params: STSGateApproverParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> None:
         policy = {
             "version": self.version,
@@ -494,19 +504,22 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             "next_run": self.next_run,
         }
         # gate.handle()
-        if version_gate_approver_params and secret_reader:
+        if sts_gate_approver_params and secret_reader:
+            logging.info(
+                f"Updating account and operatior roles for {self.cluster.name}"
+            )
             sts_gate_handler = sts_version_gate_handler.STSGateHandler(
                 job_controller=build_job_controller(
-                    integration="",
-                    integration_version="",
-                    cluster=version_gate_approver_params.job_controller_cluster,
-                    namespace=version_gate_approver_params.job_controller_namespace,
+                    integration=sts_gate_approver_params.integration_name,
+                    integration_version=sts_gate_approver_params.integration_version,
+                    cluster=sts_gate_approver_params.job_controller_cluster,
+                    namespace=sts_gate_approver_params.job_controller_namespace,
                     secret_reader=secret_reader,
                     dry_run=False,
                 ),
-                aws_iam_role=version_gate_approver_params.rosa_role,
-                rosa_job_service_account=version_gate_approver_params.rosa_job_service_account,
-                rosa_job_image=version_gate_approver_params.rosa_job_image,
+                aws_iam_role=sts_gate_approver_params.rosa_role,
+                rosa_job_service_account=sts_gate_approver_params.rosa_job_service_account,
+                rosa_job_image=sts_gate_approver_params.rosa_job_image,
             )
             sts_gate_handler.sts_handler(
                 ocm_api=ocm_api,
@@ -537,8 +550,8 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        version_gate_approver_params: VersionGateApproverParams | None = None,
-        secret_reader: SecretReader|None = None,
+        sts_gate_approver_params: STSGateApproverParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> None:
         policy = {
             "version": self.version,
@@ -569,8 +582,8 @@ class NodePoolUpgradePolicy(AbstractUpgradePolicy):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        version_gate_approver_params: VersionGateApproverParams | None = None,
-        secret_reader: SecretReader|None = None,
+        sts_gate_approver_params: STSGateApproverParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> None:
         policy = {
             "version": self.version,
@@ -607,8 +620,8 @@ class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
         self,
         dry_run: bool,
         ocm_api: OCMBaseClient,
-        version_gate_approver_params: VersionGateApproverParams | None = None,
-        secret_reader: SecretReader|None = None,
+        sts_gate_approver_params: STSGateApproverParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
     ) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
         if dry_run:
@@ -619,7 +632,7 @@ class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
         elif self.action == "delete":
             self.policy.delete(ocm_api)
         elif self.action == "create":
-            self.policy.create(ocm_api, version_gate_approver_params, secret_reader)
+            self.policy.create(ocm_api, sts_gate_approver_params, secret_reader)
 
 
 def fetch_current_state(
@@ -1230,7 +1243,6 @@ def calculate_diff(
                     UpgradePolicyHandler(
                         action="create",
                         policy=_create_upgrade_policy(next_schedule, spec, version),
-                        secret_reader=
                     )
                 )
             set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
@@ -1248,8 +1260,8 @@ def act(
     dry_run: bool,
     diffs: list[UpgradePolicyHandler],
     ocm_api: OCMBaseClient,
-    version_gate_approver_params: VersionGateApproverParams | None = None,
-    secret_reader: SecretReader | None = None,
+    sts_gate_approver_params: STSGateApproverParams | None = None,
+    secret_reader: SecretReaderBase | None = None,
     addon_id: str | None = None,
 ) -> None:
     diffs.sort(key=sort_diffs)
@@ -1262,7 +1274,7 @@ def act(
         ):
             continue
         try:
-            diff.act(dry_run, ocm_api, version_gate_approver_params, secret_reader)
+            diff.act(dry_run, ocm_api, sts_gate_approver_params, secret_reader)
         except HTTPError as e:
             logging.error(f"{policy.cluster.name}: {e}: {e.response.text}")
 

@@ -79,6 +79,8 @@ class STSGateHandler(GateHandler):
         ocm_api: OCMBaseClient,
         ocm_org_id: str,
     ) -> bool:
+        if not cluster.aws:
+            return False
         rosa = RosaSession(
             aws_account_id=cluster.aws.aws_account_id,
             aws_region=cluster.region.id,
