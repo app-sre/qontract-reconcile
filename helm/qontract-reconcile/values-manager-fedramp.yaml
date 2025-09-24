@@ -18,7 +18,6 @@ integrations:
   logs:
     slack: true
     googleChat: true
-    filter_govslack: true
     govslack_error_filter: true
   disableUnleash: true
   unleashConnectionPool: true
