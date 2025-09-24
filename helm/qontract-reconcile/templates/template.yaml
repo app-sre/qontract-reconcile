@@ -95,8 +95,8 @@ objects:
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
           {{- if $logs.govslack_error_filter }}
-          - name: SLACK_CHANNEL_ERRORS_ONLY
-            value: ${SLACK_CHANNEL_ERRORS_ONLY}
+          - name: GOVSLACK_CHANNEL_ERRORS_ONLY
+            value: ${GOVSLACK_CHANNEL_ERRORS_ONLY}
           {{- end }}
           {{- end }}
           {{- if $logs.googleChat }}
@@ -244,7 +244,7 @@ objects:
             <match slack_errors>
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${SLACK_CHANNEL_ERRORS_ONLY}
+              channel ${GOVSLACK_CHANNEL_ERRORS_ONLY}
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
@@ -809,8 +809,8 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
-- name: SLACK_CHANNEL_ERRORS_ONLY
-  value: "sd-app-sre-reconcile-errors-stage"
+- name: GOVSLACK_CHANNEL_ERRORS_ONLY
+  value: "sd-app-sre-govslack-errors-stage"
   required: false
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
