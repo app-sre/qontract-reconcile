@@ -503,7 +503,6 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             "schedule_type": "manual",
             "next_run": self.next_run,
         }
-        # gate.handle()
         if sts_gate_approver_params and secret_reader:
             logging.info(
                 f"Updating account and operatior roles for {self.cluster.name}"
@@ -521,13 +520,16 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                 rosa_job_service_account=sts_gate_approver_params.rosa_job_service_account,
                 rosa_job_image=sts_gate_approver_params.rosa_job_image,
             )
-            sts_gate_handler.sts_handler(
+            if not sts_gate_handler.sts_handler(
                 ocm_api=ocm_api,
                 cluster=self.cluster,
                 dry_run=False,
                 version_raw_id_prefix=get_version_prefix(self.version),
                 ocm_org_id=self.organization_id,
-            )
+            ):
+                logging.debug(
+                    f"Failed to update account and operatior roles for {self.cluster.name}"
+                )
         create_upgrade_policy(ocm_api, self.cluster.id, policy)
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
