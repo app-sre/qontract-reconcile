@@ -1036,12 +1036,26 @@ def aws_account_manager(
     required=True,
     default="data/templating/collections/terraform-init",
 )
+@click.option(
+    "--cloudformation-template-resource",
+    help="Resource name of the CloudFormation template to create the S3 bucket",
+    required=True,
+    default="/terraform-init/terraform-state-s3-bucket.yaml",
+)
+@click.option(
+    "--cloudformation-import-template-resource",
+    help="Resource name of the CloudFormation template to import existing S3 bucket",
+    required=True,
+    default="/terraform-init/terraform-state-s3-bucket-import.yaml",
+)
 @click.pass_context
 def terraform_init(
     ctx: click.Context,
     account_name: str | None,
     state_tmpl_resource: str,
     template_collection_root_path: str,
+    cloudformation_template_resource: str,
+    cloudformation_import_template_resource: str,
 ) -> None:
     from reconcile.terraform_init.integration import (
         TerraformInitIntegration,
@@ -1054,6 +1068,8 @@ def terraform_init(
                 account_name=account_name,
                 state_tmpl_resource=state_tmpl_resource,
                 template_collection_root_path=template_collection_root_path,
+                cloudformation_template_resource=cloudformation_template_resource,
+                cloudformation_import_template_resource=cloudformation_import_template_resource,
             )
         ),
         ctx=ctx,

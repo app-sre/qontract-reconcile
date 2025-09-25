@@ -4,6 +4,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.account import AWSApiAccount
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials, SubApi
+from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
@@ -52,6 +53,7 @@ def test_aws_api_typed_api_close(aws_api: AWSApi, mocker: MockerFixture) -> None
     "api_cls, client_name",
     [
         (AWSApiAccount, "account"),
+        (AWSApiCloudFormation, "cloudformation"),
         (AWSApiDynamoDB, "dynamodb"),
         (AWSApiIam, "iam"),
         (AWSApiOrganizations, "organizations"),
@@ -82,6 +84,11 @@ def test_aws_api_typed_api_init_sub_api(
 def test_aws_api_typed_api_account(aws_api: AWSApi) -> None:
     sub_api = aws_api.account
     assert isinstance(sub_api, AWSApiAccount)
+
+
+def test_aws_api_typed_api_cloudformation(aws_api: AWSApi) -> None:
+    sub_api = aws_api.cloudformation
+    assert isinstance(sub_api, AWSApiCloudFormation)
 
 
 def test_aws_api_typed_api_dynamodb(aws_api: AWSApi) -> None:

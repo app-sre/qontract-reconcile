@@ -1,0 +1,20 @@
+state_dynamodb_account:
+  name: account-1
+state_dynamodb_table: external-resources-state
+state_dynamodb_region: us-east-1
+workers_cluster:
+  name: test-cluster
+workers_namespace:
+  name: test-namespace
+vault_secrets_path: test-external-resources
+outputs_secret_image: some-image
+outputs_secret_version: some-version
+module_default_resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+      cpu: 200m
+      memory: 256Mi
+default_tags: |
+  {"env": "test"}
