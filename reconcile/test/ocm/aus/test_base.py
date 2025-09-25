@@ -611,7 +611,7 @@ def stub_policy(cluster_1: OCMCluster) -> StubPolicy:
 @pytest.fixture
 def cluster_upgrade_policy(cluster_1: OCMCluster) -> ClusterUpgradePolicy:
     return ClusterUpgradePolicy(
-        organization_id="1",
+        organization_id="org-1-id",
         id="test-policy-id",
         cluster=cluster_1,
         schedule_type="manual",
@@ -696,6 +696,74 @@ def test_policy_handler_create_cluster_upgrade(
             "schedule_type": cluster_upgrade_policy.schedule_type,
             "next_run": cluster_upgrade_policy.next_run,
         },
+    )
+
+
+def test_policy_handler_create_cluster_upgrade_with_sts_gate(
+    cluster_upgrade_policy: ClusterUpgradePolicy,
+    ocm_api: OCMBaseClient,
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+) -> None:
+    create_upgrade_policy_mock = mocker.patch.object(
+        base, "create_upgrade_policy", autospec=True
+    )
+
+    # Mock the job controller creation to avoid GQL initialization
+    mock_job_controller = mocker.MagicMock()
+    mocker.patch(
+        "reconcile.aus.base.build_job_controller", return_value=mock_job_controller
+    )
+
+    # Mock the STSGateHandler class
+    sts_gate_handler_mock = mocker.patch(
+        "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
+        autospec=True,
+    )
+
+    # Create a mock instance that will be returned by the constructor
+    sts_handler_instance = mocker.MagicMock()
+    sts_handler_instance.sts_handler.return_value = True
+    sts_handler_instance.handle.return_value = True
+    sts_handler_instance.gate_applicable_to_cluster.return_value = True
+
+    # Configure the mock class to return our mock instance
+    sts_gate_handler_mock.return_value = sts_handler_instance
+
+    handler = base.UpgradePolicyHandler(
+        policy=cluster_upgrade_policy,
+        action="create",
+    )
+    sts_gate_approver_params = STSGateApproverParams(
+        integration_name="integration-name",
+        integration_version="integration-version",
+        job_controller_cluster="job-controller-cluster",
+        job_controller_namespace="job-controller-namespace",
+        rosa_role="rosa-role",
+        rosa_job_service_account="rosa-job-service-account",
+    )
+    base.act(
+        dry_run=False,
+        diffs=[handler],
+        ocm_api=ocm_api,
+        sts_gate_approver_params=sts_gate_approver_params,
+        secret_reader=secret_reader,
+    )
+    create_upgrade_policy_mock.assert_called_once_with(
+        ocm_api,
+        cluster_upgrade_policy.cluster.id,
+        {
+            "version": cluster_upgrade_policy.version,
+            "schedule_type": cluster_upgrade_policy.schedule_type,
+            "next_run": cluster_upgrade_policy.next_run,
+        },
+    )
+
+    sts_gate_handler_mock.assert_called_once_with(
+        job_controller=mock_job_controller,
+        aws_iam_role=sts_gate_approver_params.rosa_role,
+        rosa_job_service_account=sts_gate_approver_params.rosa_job_service_account,
+        rosa_job_image=mocker.ANY,
     )
 
 

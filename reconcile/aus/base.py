@@ -115,8 +115,8 @@ class STSGateApproverParams(PydanticRunParams):
     rosa_job_service_account: str
     rosa_role: str
     rosa_job_image: str | None = None
-    integration_name: str = ""
-    integration_version: str = ""
+    integration_name: str
+    integration_version: str
 
 
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
