@@ -773,6 +773,7 @@ CLUSTERS_QUERY = """
       private
       provision_shard_id
       disable_user_workload_monitoring
+      fips
     }
     externalConfiguration {
       labels
