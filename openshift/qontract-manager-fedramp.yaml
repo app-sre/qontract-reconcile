@@ -49,8 +49,8 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          - name: GOVSLACK_CHANNEL_ERRORS_ONLY
-            value: ${GOVSLACK_CHANNEL_ERRORS_ONLY}
+          - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+            value: ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
           - name: GOOGLE_CHAT_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -162,7 +162,7 @@ objects:
             <match slack_errors>
               @type slack
               webhook_url ${SLACK_WEBHOOK_URL}
-              channel ${GOVSLACK_CHANNEL_ERRORS_ONLY}
+              channel ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
               flush_interval 10s
@@ -388,7 +388,7 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
-- name: GOVSLACK_CHANNEL_ERRORS_ONLY
+- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
   value: "sd-app-sre-govslack-errors-stage"
   required: false
 - name: INTEGRATIONS_MANAGER_MEMORY_LIMIT
