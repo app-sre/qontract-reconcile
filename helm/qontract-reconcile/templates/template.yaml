@@ -811,7 +811,7 @@ parameters:
   value: push-gateway-auth-url
 {{- if .Values.enable_slack_error_filter }}
 - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
-  value: "sd-app-sre-govslack-errors-stage"
+  value: "sd-app-sre-reconcile-errors-stage"
   required: false
 {{- end }}
 {{- range $i, $integration := .Values.integrations }}
