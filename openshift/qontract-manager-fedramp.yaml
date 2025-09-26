@@ -49,6 +49,8 @@ objects:
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+            value: ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
           - name: GOOGLE_CHAT_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -128,6 +130,15 @@ objects:
                   tag gchat
                 </rule>
               </store>
+              # ship errors to separate slack channel
+              <store>
+                @type rewrite_tag_filter
+                <rule>
+                  key message
+                  pattern /^\[ERROR\]/
+                  tag slack_errors
+                </rule>
+              </store>
             </match>
             <match gchat>
               @type teams
@@ -147,6 +158,15 @@ objects:
 
                 disable_chunk_backup true
               </buffer>
+            </match>
+            <match slack_errors>
+              @type slack
+              webhook_url ${SLACK_WEBHOOK_URL}
+              channel ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
+              icon_emoji ${SLACK_ICON_EMOJI}
+              username sd-app-sre-bot
+              flush_interval 10s
+              message "\`\`\`[integrations-manager] %s\`\`\`"
             </match>
             EOF
           volumeMounts:
@@ -368,6 +388,9 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+  value: "sd-app-sre-reconcile-errors-stage"
+  required: false
 - name: INTEGRATIONS_MANAGER_MEMORY_LIMIT
   value: 600Mi
 - name: INTEGRATIONS_MANAGER_CPU_REQUEST

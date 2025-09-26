@@ -1,5 +1,6 @@
 excludeService: true
 gov_slack: "true"
+enable_slack_error_filter: true
 integrations:
 - name: integrations-manager
   resources:
