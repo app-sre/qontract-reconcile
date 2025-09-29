@@ -82,7 +82,10 @@ class OCMClusterUpgradeSchedulerIntegration(
                 version_data,
                 integration=self.name,
             )
-
+            print("--------------------------------")
+            print("Differences:",len(diffs))
+            print([diff.__dict__ for diff in diffs])
+            print("--------------------------------")
             aus.act(
                 dry_run,
                 diffs,

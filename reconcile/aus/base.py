@@ -498,11 +498,15 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         sts_gate_approver_params: STSGateApproverParams | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
-        policy = {
-            "version": self.version,
-            "schedule_type": "manual",
-            "next_run": self.next_run,
-        }
+        # policy = {
+        #     "version": self.version,
+        #     "schedule_type": "manual",
+        #     "next_run": self.next_run,
+        # }
+        print("----------- params  ---------------------")
+        print(sts_gate_approver_params)
+        print(secret_reader)
+        print("----------- params  ---------------------")
         if sts_gate_approver_params and secret_reader:
             logging.info(
                 f"Updating account and operatior roles for {self.cluster.name}"
@@ -530,7 +534,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                 logging.debug(
                     f"Failed to update account and operatior roles for {self.cluster.name}"
                 )
-        create_upgrade_policy(ocm_api, self.cluster.id, policy)
+        #create_upgrade_policy(ocm_api, self.cluster.id, policy)
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         raise NotImplementedError("ClusterUpgradePolicy.delete() not implemented")
@@ -626,7 +630,9 @@ class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
-        if dry_run:
+        if self.policy.cluster.name == "appsres12ue1":
+            print("acting on appsres12ue1...")
+        if dry_run and self.policy.cluster.name != "appsres12ue1":
             return
 
         if not self.action:
@@ -959,15 +965,22 @@ def upgradeable_version(
     sector: Sector | None,
 ) -> str | None:
     """Get the highest next version we can upgrade to, fulfilling all conditions"""
+    if spec.cluster.name == "appsres12ue1":
+        print("available upgrades: ", spec.get_available_upgrades())
     for version in reversed(sort_versions(spec.get_available_upgrades())):
         if spec.version_blocked(version):
-            continue
+            if spec.cluster.name != "appsres12ue1":
+                print("blocked: ", version)
+                continue
+            #continue
         if version_conditions_met(
             version,
             version_data,
             spec.upgrade_policy,
             sector,
         ):
+            if spec.cluster.name == "appsres12ue1":
+                print("version found ofr appsres12")
             return version
     return None
 
@@ -1009,7 +1022,8 @@ def verify_schedule_should_skip(
     )
     next_schedule_in_seconds = (next_schedule - now).total_seconds()
     next_schedule_in_hours = next_schedule_in_seconds / 3600  # seconds in hour
-
+    if desired.cluster.name == "appsres12ue1":
+        print("next schedule in hours: ", next_schedule_in_hours)
     # ignore clusters with an upgrade schedule not within the next 2 hours
     within_upgrade_timeframe = next_schedule_in_hours <= 2
     if addon_id:
@@ -1161,6 +1175,10 @@ def calculate_diff(
     now = datetime.utcnow()
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
+        if spec.cluster.name == "appsres12ue1":
+            print("-------------found appsres12ue1-------------------")
+            print("Spec:", spec.__dict__)
+            print("-------------found appsres12ue1-------------------")
         sector_name = spec.upgrade_policy.conditions.sector
         sector = desired_state.sectors[sector_name] if sector_name else None
 
@@ -1179,18 +1197,26 @@ def calculate_diff(
                 continue
 
         if verify_current_should_skip(current_state, spec):
+            if spec.cluster.name == "appsres12ue1":
+                print("current should skip found ofr appsres12")
             continue
 
         next_schedule = verify_schedule_should_skip(spec, now, addon_id)
-        if not next_schedule:
+        if not next_schedule and spec.cluster.name != "appsres12ue1":
             continue
 
-        if verify_max_upgrades_should_skip(spec, locked, sector_mutex_upgrades, sector):
+        if verify_max_upgrades_should_skip(spec, locked, sector_mutex_upgrades, sector) and spec.cluster.name != "appsres12ue1":
+            if spec.cluster.name == "appsres12ue1":
+                print("max upgrades should skip found ofr appsres12")
             continue
 
         version = upgradeable_version(spec, version_data, sector)
         if version:
+            if spec.cluster.name == "appsres12ue1":
+                print("version found ofr appsres12")
             if addon_id:
+                if spec.cluster.name == "appsres12ue1":
+                    print("addon id found ofr appsres12 addon")
                 diffs.append(
                     UpgradePolicyHandler(
                         action="create",
@@ -1248,7 +1274,8 @@ def calculate_diff(
                     )
                 )
             set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
-
+        if spec.cluster.name == "appsres12ue1":
+            print("diffs found no appsres12")
     return diffs
 
 
@@ -1276,6 +1303,8 @@ def act(
         ):
             continue
         try:
+            if diff.policy.cluster.name == "appsres12ue1":
+                print("acting on appsres12ue1")
             diff.act(dry_run, ocm_api, sts_gate_approver_params, secret_reader)
         except HTTPError as e:
             logging.error(f"{policy.cluster.name}: {e}: {e.response.text}")
