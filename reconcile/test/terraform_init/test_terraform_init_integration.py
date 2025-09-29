@@ -150,19 +150,19 @@ def test_terraform_init_integration_reconcile_account_when_import_stack(
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.create_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set",
-        change_set_name="import-terraform-terraform-state-already-set",
+        stack_name="existing-bucket",
+        change_set_name="import-existing-bucket",
         template_body="cloudformation_import_template",
-        parameters={"BucketName": "terraform-terraform-state-already-set"},
+        parameters={"BucketName": "existing-bucket"},
         tags={"env": "test"},
     )
     aws_api.cloudformation.update_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set",
+        stack_name="existing-bucket",
         template_body="cloudformation_template",
-        parameters={"BucketName": "terraform-terraform-state-already-set"},
+        parameters={"BucketName": "existing-bucket"},
         tags={"env": "test"},
     )
     merge_request_manager.create_merge_request.assert_not_called()
@@ -189,7 +189,7 @@ def test_terraform_init_integration_reconcile_account_when_import_stack_dry_run(
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.create_stack.assert_not_called()
     aws_api.cloudformation.update_stack.assert_not_called()
@@ -220,12 +220,12 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch(
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.update_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set",
+        stack_name="existing-bucket",
         template_body="cloudformation_template",
-        parameters={"BucketName": "terraform-terraform-state-already-set"},
+        parameters={"BucketName": "existing-bucket"},
         tags={"env": "test"},
     )
     aws_api.cloudformation.create_stack.assert_not_called()
@@ -257,7 +257,7 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch_dry_run
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.update_stack.assert_not_called()
     aws_api.cloudformation.create_stack.assert_not_called()
@@ -290,15 +290,15 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.get_template_body.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.update_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set",
+        stack_name="existing-bucket",
         template_body="cloudformation_template",
-        parameters={"BucketName": "terraform-terraform-state-already-set"},
+        parameters={"BucketName": "existing-bucket"},
         tags={"env": "test"},
     )
     aws_api.cloudformation.create_stack.assert_not_called()
@@ -330,10 +330,10 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.get_template_body.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.update_stack.assert_not_called()
     aws_api.cloudformation.create_stack.assert_not_called()
@@ -365,10 +365,10 @@ def test_terraform_init_integration_reconcile_account_when_no_changes(
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.get_template_body.assert_called_once_with(
-        stack_name="terraform-terraform-state-already-set"
+        stack_name="existing-bucket"
     )
     aws_api.cloudformation.create_stack.assert_not_called()
     aws_api.cloudformation.update_stack.assert_not_called()

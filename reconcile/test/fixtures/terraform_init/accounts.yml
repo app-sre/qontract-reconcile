@@ -16,6 +16,7 @@ accounts:
 - name: terraform-state-already-set
   terraformUsername: terraform
   terraformState:
+    bucket: existing-bucket
     region: us-east-1
   resourcesDefaultRegion: us-east-1
   automationToken:

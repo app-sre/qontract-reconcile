@@ -145,7 +145,11 @@ class TerraformInitIntegration(
         Returns:
             None
         """
-        bucket_name = f"terraform-{account.name}"
+        bucket_name = (
+            account.terraform_state.bucket
+            if account.terraform_state
+            else f"terraform-{account.name}"
+        )
 
         if account.terraform_state is None:
             return self._provision_terraform_state(

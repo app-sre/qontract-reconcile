@@ -1028,7 +1028,7 @@ def aws_account_manager(
     "--state-tmpl-resource",
     help="Resource name of the state template-collection template in the app-interface.",
     required=True,
-    default="/terraform-init/terraform-state.yml",
+    default="/terraform-init/terraform-state.yml.j2",
 )
 @click.option(
     "--template-collection-root-path",

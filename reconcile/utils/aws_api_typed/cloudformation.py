@@ -107,8 +107,10 @@ class AWSApiCloudFormation:
         try:
             response = self.client.describe_stacks(StackName=stack_name)
             return response["Stacks"][0]
-        except self.client.exceptions.StackNotFoundException:
-            return None
+        except self.client.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "ValidationError":
+                return None
+            raise
 
     def get_template_body(self, stack_name: str) -> str:
         """

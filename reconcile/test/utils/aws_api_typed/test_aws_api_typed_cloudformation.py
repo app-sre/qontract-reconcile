@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, call, create_autospec
 
 import pytest
+from botocore.exceptions import ClientError
 from mypy_boto3_cloudformation import (
     CloudFormationClient,
     StackCreateCompleteWaiter,
@@ -13,7 +14,9 @@ from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 
 @pytest.fixture
 def mock_cloudformation_client() -> MagicMock:
-    return create_autospec(CloudFormationClient)
+    mock_client = create_autospec(CloudFormationClient)
+    mock_client.exceptions.ClientError = ClientError
+    return mock_client
 
 
 def test_init(mock_cloudformation_client: MagicMock) -> None:
@@ -147,9 +150,14 @@ def test_get_stack_not_found(
     mock_cloudformation_client: MagicMock,
     aws_api_cloudformation: AWSApiCloudFormation,
 ) -> None:
-    mock_cloudformation_client.exceptions.StackNotFoundException = Exception
-    mock_cloudformation_client.describe_stacks.side_effect = (
-        mock_cloudformation_client.exceptions.StackNotFoundException
+    mock_cloudformation_client.describe_stacks.side_effect = ClientError(
+        error_response={
+            "Error": {
+                "Code": "ValidationError",
+                "Message": "Stack with id non-existent-stack does not exist",
+            }
+        },
+        operation_name="DescribeStacks",
     )
 
     result = aws_api_cloudformation.get_stack("non-existent-stack")
