@@ -2880,7 +2880,7 @@ def advanced_upgrade_scheduler(
     )
     from reconcile.aus.base import (
         AdvancedUpgradeSchedulerBaseIntegrationParams,
-        STSGateApproverParams,
+        RosaRoleUpgradeHandlerParams,
     )
 
     run_class_integration(
@@ -2890,7 +2890,7 @@ def advanced_upgrade_scheduler(
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
                 ignore_sts_clusters=ignore_sts_clusters,
-                sts_gate_approver_params=STSGateApproverParams(
+                rosa_role_upgrade_handller_params=RosaRoleUpgradeHandlerParams(
                     job_controller_cluster=job_controller_cluster,
                     job_controller_namespace=job_controller_namespace,
                     rosa_job_service_account=rosa_job_service_account,

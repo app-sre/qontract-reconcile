@@ -109,7 +109,7 @@ from reconcile.utils.state import init_state
 MIN_DELTA_MINUTES = 6
 
 
-class STSGateApproverParams(PydanticRunParams):
+class RosaRoleUpgradeHandlerParams(PydanticRunParams):
     job_controller_cluster: str
     job_controller_namespace: str
     rosa_job_service_account: str
@@ -124,7 +124,7 @@ class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ocm_organization_ids: set[str] | None = None
     excluded_ocm_organization_ids: set[str] | None = None
     ignore_sts_clusters: bool = False
-    sts_gate_approver_params: STSGateApproverParams | None = None
+    rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None
 
 
 class ReconcileError(Exception):
@@ -423,7 +423,7 @@ class AbstractUpgradePolicy(ABC, BaseModel):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        sts_gate_approver_params: STSGateApproverParams | None = None,
+        rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         pass
@@ -455,7 +455,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        sts_gate_approver_params: STSGateApproverParams | None = None,
+        rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         self.addon_service.create_addon_upgrade_policy(
@@ -495,7 +495,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        sts_gate_approver_params: STSGateApproverParams | None = None,
+        rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         policy = {
@@ -503,24 +503,24 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             "schedule_type": "manual",
             "next_run": self.next_run,
         }
-        if sts_gate_approver_params and secret_reader:
+        if rosa_role_upgrade_handller_params and secret_reader:
             logging.info(
                 f"Updating account and operatior roles for {self.cluster.name}"
             )
             sts_gate_handler = sts_version_gate_handler.STSGateHandler(
                 job_controller=build_job_controller(
-                    integration=sts_gate_approver_params.integration_name,
-                    integration_version=sts_gate_approver_params.integration_version,
-                    cluster=sts_gate_approver_params.job_controller_cluster,
-                    namespace=sts_gate_approver_params.job_controller_namespace,
+                    integration=rosa_role_upgrade_handller_params.integration_name,
+                    integration_version=rosa_role_upgrade_handller_params.integration_version,
+                    cluster=rosa_role_upgrade_handller_params.job_controller_cluster,
+                    namespace=rosa_role_upgrade_handller_params.job_controller_namespace,
                     secret_reader=secret_reader,
                     dry_run=False,
                 ),
-                aws_iam_role=sts_gate_approver_params.rosa_role,
-                rosa_job_service_account=sts_gate_approver_params.rosa_job_service_account,
-                rosa_job_image=sts_gate_approver_params.rosa_job_image,
+                aws_iam_role=rosa_role_upgrade_handller_params.rosa_role,
+                rosa_job_service_account=rosa_role_upgrade_handller_params.rosa_job_service_account,
+                rosa_job_image=rosa_role_upgrade_handller_params.rosa_job_image,
             )
-            if not sts_gate_handler.sts_handler(
+            if not sts_gate_handler.upgrade_rosa_roles(
                 ocm_api=ocm_api,
                 cluster=self.cluster,
                 dry_run=False,
@@ -552,7 +552,7 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        sts_gate_approver_params: STSGateApproverParams | None = None,
+        rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         policy = {
@@ -584,7 +584,7 @@ class NodePoolUpgradePolicy(AbstractUpgradePolicy):
     def create(
         self,
         ocm_api: OCMBaseClient,
-        sts_gate_approver_params: STSGateApproverParams | None = None,
+        rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         policy = {
@@ -622,7 +622,7 @@ class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
         self,
         dry_run: bool,
         ocm_api: OCMBaseClient,
-        sts_gate_approver_params: STSGateApproverParams | None = None,
+        rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None,
         secret_reader: SecretReaderBase | None = None,
     ) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
@@ -634,7 +634,9 @@ class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
         elif self.action == "delete":
             self.policy.delete(ocm_api)
         elif self.action == "create":
-            self.policy.create(ocm_api, sts_gate_approver_params, secret_reader)
+            self.policy.create(
+                ocm_api, rosa_role_upgrade_handller_params, secret_reader
+            )
 
 
 def fetch_current_state(
@@ -1262,7 +1264,7 @@ def act(
     dry_run: bool,
     diffs: list[UpgradePolicyHandler],
     ocm_api: OCMBaseClient,
-    sts_gate_approver_params: STSGateApproverParams | None = None,
+    rosa_role_upgrade_handller_params: RosaRoleUpgradeHandlerParams | None = None,
     secret_reader: SecretReaderBase | None = None,
     addon_id: str | None = None,
 ) -> None:
@@ -1276,7 +1278,7 @@ def act(
         ):
             continue
         try:
-            diff.act(dry_run, ocm_api, sts_gate_approver_params, secret_reader)
+            diff.act(dry_run, ocm_api, rosa_role_upgrade_handller_params, secret_reader)
         except HTTPError as e:
             logging.error(f"{policy.cluster.name}: {e}: {e.response.text}")
 

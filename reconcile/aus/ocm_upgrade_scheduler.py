@@ -87,7 +87,7 @@ class OCMClusterUpgradeSchedulerIntegration(
                 dry_run,
                 diffs,
                 ocm_api,
-                self.params.sts_gate_approver_params,
+                self.params.rosa_role_upgrade_handller_params,
                 self.secret_reader,
             )
 

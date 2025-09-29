@@ -63,7 +63,7 @@ class STSGateHandler(GateHandler):
             )
             return False
 
-        return self.sts_handler(
+        return self.upgrade_rosa_roles(
             cluster=cluster,
             version_raw_id_prefix=gate.version_raw_id_prefix,
             dry_run=dry_run,
@@ -71,7 +71,7 @@ class STSGateHandler(GateHandler):
             ocm_org_id=ocm_org_id,
         )
 
-    def sts_handler(
+    def upgrade_rosa_roles(
         self,
         cluster: OCMCluster,
         version_raw_id_prefix: str,
