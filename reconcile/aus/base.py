@@ -503,7 +503,11 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             "schedule_type": "manual",
             "next_run": self.next_run,
         }
-        if rosa_role_upgrade_handller_params and secret_reader:
+        if (
+            rosa_role_upgrade_handller_params
+            and secret_reader
+            and self.cluster.is_sts()
+        ):
             logging.info(
                 f"Updating account and operatior roles for {self.cluster.name}"
             )
