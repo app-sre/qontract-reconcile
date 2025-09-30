@@ -5,6 +5,9 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
+from reconcile.gql_definitions.external_resources.external_resources_settings import (
+    ExternalResourcesSettingsV1,
+)
 from reconcile.gql_definitions.terraform_init.aws_accounts import AWSAccountV1
 from reconcile.terraform_init.integration import (
     TerraformInitIntegration,
@@ -50,6 +53,23 @@ def query_func(
         }
 
     return q
+
+
+@pytest.fixture
+def external_resource_settings(
+    fx: Fixtures,
+    data_factory: Callable[
+        [type[ExternalResourcesSettingsV1], Mapping[str, Any]], Mapping[str, Any]
+    ],
+) -> dict[str, Any]:
+    return {
+        "settings": [
+            data_factory(
+                ExternalResourcesSettingsV1,
+                fx.get_anymarkup("settings.yml"),
+            )
+        ]
+    }
 
 
 @pytest.fixture

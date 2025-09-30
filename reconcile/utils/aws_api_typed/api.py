@@ -9,6 +9,7 @@ from boto3 import Session
 from pydantic import BaseModel
 
 import reconcile.utils.aws_api_typed.account
+import reconcile.utils.aws_api_typed.cloudformation
 import reconcile.utils.aws_api_typed.dynamodb
 import reconcile.utils.aws_api_typed.iam
 import reconcile.utils.aws_api_typed.organization
@@ -17,6 +18,7 @@ import reconcile.utils.aws_api_typed.service_quotas
 import reconcile.utils.aws_api_typed.sts
 import reconcile.utils.aws_api_typed.support
 from reconcile.utils.aws_api_typed.account import AWSApiAccount
+from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
 SubApi = TypeVar(
     "SubApi",
     AWSApiAccount,
+    AWSApiCloudFormation,
     AWSApiDynamoDB,
     AWSApiIam,
     AWSApiOrganizations,
@@ -176,6 +179,9 @@ class AWSApi:
             case reconcile.utils.aws_api_typed.account.AWSApiAccount:
                 client = self.session.client("account")
                 api = api_cls(client)
+            case reconcile.utils.aws_api_typed.cloudformation.AWSApiCloudFormation:
+                client = self.session.client("cloudformation")
+                api = api_cls(client)
             case reconcile.utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
                 client = self.session.client("dynamodb")
                 api = api_cls(client)
@@ -205,8 +211,13 @@ class AWSApi:
 
     @cached_property
     def account(self) -> AWSApiAccount:
-        """Return an AWS Acount Api client"""
+        """Return an AWS Account Api client"""
         return self._init_sub_api(AWSApiAccount)
+
+    @cached_property
+    def cloudformation(self) -> AWSApiCloudFormation:
+        """Return an AWS CloudFormation Api client"""
+        return self._init_sub_api(AWSApiCloudFormation)
 
     @cached_property
     def dynamodb(self) -> AWSApiDynamoDB:

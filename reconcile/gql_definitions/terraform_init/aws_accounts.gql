@@ -5,6 +5,7 @@ query TerraformInitAWSAccounts {
     name
     terraformUsername
     terraformState {
+      bucket
       region
     }
     resourcesDefaultRegion

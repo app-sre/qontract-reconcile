@@ -33,6 +33,7 @@ query TerraformInitAWSAccounts {
     name
     terraformUsername
     terraformState {
+      bucket
       region
     }
     resourcesDefaultRegion
@@ -54,6 +55,7 @@ class ConfiguredBaseModel(BaseModel):
 
 
 class TerraformStateAWSV1(ConfiguredBaseModel):
+    bucket: str = Field(..., alias="bucket")
     region: str = Field(..., alias="region")
 
 
