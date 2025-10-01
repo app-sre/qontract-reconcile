@@ -41,7 +41,7 @@ class ExternalResourceState(BaseModel):
         self, reconciliation_status: ReconciliationStatus
     ) -> None:
         if self.reconciliation_needs_state_update(reconciliation_status):
-            self.ts = datetime.now()
+            self.ts = datetime.now(tz=UTC)
             self.resource_status = reconciliation_status.resource_status
 
     def reconciliation_needs_state_update(

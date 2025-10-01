@@ -182,7 +182,7 @@ def test_create_service_log_dedup_timedelta_filter(
     assert daterange_condition.end is None
     resolved_start = daterange_condition.resolve_start()
     assert resolved_start
-    assert datetime.timestamp(datetime.utcnow() - dedup_interval) == pytest.approx(
+    assert datetime.timestamp(datetime.now(tz=UTC) - dedup_interval) == pytest.approx(
         datetime.timestamp(resolved_start),
         abs=5,  # allow 5 seconds of difference when comparing
     )

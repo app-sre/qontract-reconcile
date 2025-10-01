@@ -4,6 +4,7 @@ from collections.abc import (
     Sequence,
 )
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -156,7 +157,7 @@ def test_get_slack_usernames_from_schedule_none() -> None:
 
 
 def test_get_slack_usernames_from_schedule(user: UserV1) -> None:
-    now = datetime.utcnow()
+    now = datetime.now(tz=UTC)
     schedule = ScheduleEntryV1(
         start=(now - timedelta(hours=1)).strftime(integ.DATE_FORMAT),
         end=(now + timedelta(hours=1)).strftime(integ.DATE_FORMAT),

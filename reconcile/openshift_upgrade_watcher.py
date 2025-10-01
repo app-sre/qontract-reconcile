@@ -3,7 +3,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from datetime import datetime
+from datetime import UTC, datetime
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import ClusterV1
@@ -101,7 +101,7 @@ def notify_upgrades_start(
     state: State,
     slack: SlackApi | None,
 ) -> None:
-    now = datetime.utcnow()
+    now = datetime.now(tz=UTC)
     for cluster in clusters:
         if cluster.spec and not cluster.spec.hypershift:
             upgrade_at, version = _get_start_osd(oc_map, cluster.name)
@@ -113,7 +113,9 @@ def notify_upgrades_start(
             continue
 
         if upgrade_at and version:
-            upgrade_at_obj = datetime.strptime(upgrade_at, "%Y-%m-%dT%H:%M:%SZ")
+            upgrade_at_obj = datetime.strptime(
+                upgrade_at, "%Y-%m-%dT%H:%M:%SZ"
+            ).astimezone(UTC)
             state_key = f"{cluster.name}-{upgrade_at}1"
             # if this is the first iteration in which 'now' had passed
             # the upgrade at date time, we send a notification

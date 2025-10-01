@@ -193,6 +193,8 @@ extend-select = [
     "FURB",
     # PEP8
     "N",
+    # datetime
+    "DTZ",
 ]
 ignore = [
     "N811",    # Constant `xxx` imported as non-constant `xxx`

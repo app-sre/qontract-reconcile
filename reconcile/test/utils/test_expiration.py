@@ -1,4 +1,5 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 
 from reconcile.utils import expiration
 
-TODAY = datetime.utcnow().date()
+TODAY = datetime.now(tz=UTC).date()
 YESTERDAY = TODAY - timedelta(days=1)
 TOMORROW = TODAY + timedelta(days=1)
 NEXT_WEEK = TODAY + timedelta(days=7)

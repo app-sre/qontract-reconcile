@@ -1,5 +1,6 @@
 from datetime import (
-    date,
+    UTC,
+    datetime,
     timedelta,
 )
 
@@ -57,7 +58,9 @@ def test_gabi_authorized_users_exist(mocker: MockerFixture) -> None:
 
 
 def test_gabi_authorized_users_exceed() -> None:
-    expiration_date = date.today() + timedelta(days=(gabi_u.EXPIRATION_DAYS_MAX + 1))
+    expiration_date = datetime.now(tz=UTC).date() + timedelta(
+        days=(gabi_u.EXPIRATION_DAYS_MAX + 1)
+    )
     gabi_instance = fixture["gql_response"][0]
     gabi_instance["expirationDate"] = str(expiration_date)
     ri = ResourceInventory()

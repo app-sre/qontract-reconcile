@@ -12,7 +12,7 @@ import threading
 import time
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import cache, wraps
 from subprocess import Popen
 from threading import Lock
@@ -1010,7 +1010,7 @@ class OCCli:
         name = obj["metadata"]["name"]
         logging.info([f"recycle_{kind.lower()}", self.cluster_name, namespace, name])
         if not dry_run:
-            now = datetime.now()
+            now = datetime.now(tz=UTC)
             recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
 
             # get the object in case it was modified

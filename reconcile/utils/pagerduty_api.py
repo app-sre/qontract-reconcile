@@ -3,8 +3,8 @@ from collections.abc import (
     Callable,
     Iterable,
 )
+from datetime import UTC, timedelta
 from datetime import datetime as dt
-from datetime import timedelta
 from typing import (
     Protocol,
 )
@@ -80,7 +80,7 @@ class PagerDutyApi:
     def get_pagerduty_users(
         self, resource_type: str, resource_id: str
     ) -> list[pypd.User]:
-        now = dt.utcnow()
+        now = dt.now(tz=UTC)
 
         try:
             if resource_type == "schedule":

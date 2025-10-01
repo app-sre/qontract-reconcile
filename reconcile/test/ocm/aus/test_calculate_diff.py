@@ -82,7 +82,7 @@ def cluster_hypershift(
 def now(mocker: MockerFixture) -> datetime:
     d = parser.parse("2021-08-30T18:00:00.00000")
     datetime_mock = mocker.patch.object(base, "datetime", autospec=True)
-    datetime_mock.utcnow.return_value = d
+    datetime_mock.now.return_value = d
     return d
 
 
