@@ -22,7 +22,9 @@ def date_expired(date: str) -> bool:
     return current_date >= exp_date
 
 
-def filter(roles: DictsOrRoles | None) -> DictsOrRoles:
+def filter[DictsOrRoles: Iterable[FilterableRole] | Iterable[dict]](
+    roles: DictsOrRoles | None,
+) -> DictsOrRoles:
     """Filters roles and returns the ones which are not yet expired."""
     filtered = []
     for r in roles or []:
