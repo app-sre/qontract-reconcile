@@ -7,7 +7,6 @@ from collections.abc import (
 from dataclasses import dataclass
 from typing import (
     Any,
-    Generic,
     TypeVar,
 )
 
@@ -18,13 +17,13 @@ Key = TypeVar("Key")
 
 
 @dataclass(frozen=True, eq=True)
-class DiffPair(Generic[Current, Desired]):
+class DiffPair[Current, Desired]:
     current: Current
     desired: Desired
 
 
 @dataclass(frozen=True, eq=True)
-class DiffResult(Generic[Current, Desired, Key]):
+class DiffResult[Current, Desired, Key]:
     add: dict[Key, Desired]
     delete: dict[Key, Current]
     change: dict[Key, DiffPair[Current, Desired]]

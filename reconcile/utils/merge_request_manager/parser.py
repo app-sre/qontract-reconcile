@@ -1,5 +1,5 @@
 import re
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel
 
@@ -17,7 +17,7 @@ class ParserVersionError(Exception):
 T = TypeVar("T", bound=BaseModel)
 
 
-class Parser(Generic[T]):
+class Parser[T: BaseModel]:
     """This class is only concerned with parsing an MR description rendered by the Renderer."""
 
     def __init__(
