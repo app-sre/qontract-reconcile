@@ -1,3 +1,4 @@
+from datetime import UTC
 from datetime import datetime as dt
 from unittest.mock import (
     Mock,
@@ -239,7 +240,7 @@ def test_get_schedule_users(mocker: Mock, pypd_schedule: Mock) -> None:
     )
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=False)
     # 2 user in pypd_schedule
-    assert pd_api.get_schedule_users(schedule_id="foo", now=dt.now()) == [
+    assert pd_api.get_schedule_users(schedule_id="foo", now=dt.now(tz=UTC)) == [
         "username",
         "username",
     ]
@@ -258,7 +259,9 @@ def test_get_escalation_policy_users(
     )
     pd_api = pagerduty_api.PagerDutyApi(token="secret", init_users=False)
     assert sorted(
-        pd_api.get_escalation_policy_users(escalation_policy_id="foo", now=dt.now())
+        pd_api.get_escalation_policy_users(
+            escalation_policy_id="foo", now=dt.now(tz=UTC)
+        )
     ) == sorted([
         "username_get_user",
         "username_get_schedule_users",

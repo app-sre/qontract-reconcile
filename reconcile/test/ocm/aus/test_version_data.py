@@ -200,7 +200,7 @@ def test_update_history(
     and that the cluster with workload 2 increases the soakdays after one day by 1
     """
     datetime_mock = mocker.patch.object(base, "datetime", autospec=True)
-    datetime_mock.utcnow.return_value = parser.parse("2021-08-30T18:00:00.00000")
+    datetime_mock.now.return_value = parser.parse("2021-08-30T18:00:00.00000")
     ocm_env = "prod"
     org_id = "org-id"
     org_upgrade_spec = build_organization_upgrade_spec(

@@ -1,7 +1,7 @@
 import logging
 from abc import abstractmethod
 from collections.abc import Sequence
-from datetime import UTC, date
+from datetime import UTC, datetime
 from datetime import datetime as dt
 from pathlib import Path
 from typing import TypeVar
@@ -65,7 +65,7 @@ class UpdateAccessReportBase(MergeRequestBase):
 
     def _render_tracking_table_row(self, old_number_of_users: int) -> str:
         # | Date Reviewed | Number of Current Users | +/- Red Hat Users |
-        return f"| {date.today()} | {len(self._users)} | {len(self._users) - old_number_of_users} |\n"
+        return f"| {datetime.now(tz=UTC).date()} | {len(self._users)} | {len(self._users) - old_number_of_users} |\n"
 
     def _update_workbook(self, workbook_md: str) -> str:
         new_workbook_md = ""

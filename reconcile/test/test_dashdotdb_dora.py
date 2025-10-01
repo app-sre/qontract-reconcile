@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import yaml
@@ -99,16 +99,20 @@ def test_compare_gh(mocker: MockerFixture) -> None:
 
     ghapi_mock.compare.return_value = [
         gl_commit_mock(
-            "8cfb8408f614e1d0179d75af793f3fddf42d054a", datetime(2023, 9, 1, 0, 0, 0)
+            "8cfb8408f614e1d0179d75af793f3fddf42d054a",
+            datetime(2023, 9, 1, 0, 0, 0, tzinfo=UTC),
         ),
         gl_commit_mock(
-            "81677e1bc71324c9fa5c747b494add5a5af5e653", datetime(2023, 9, 2, 0, 0, 0)
+            "81677e1bc71324c9fa5c747b494add5a5af5e653",
+            datetime(2023, 9, 2, 0, 0, 0, tzinfo=UTC),
         ),
         gl_commit_mock(
-            "566f37f8e9985d775e619cc959b806f5a254a380", datetime(2023, 9, 3, 0, 0, 0)
+            "566f37f8e9985d775e619cc959b806f5a254a380",
+            datetime(2023, 9, 3, 0, 0, 0, tzinfo=UTC),
         ),
         gl_commit_mock(
-            "adab91701311fec1b0f5405adddaf68f886bba2c", datetime(2023, 9, 4, 0, 0, 0)
+            "adab91701311fec1b0f5405adddaf68f886bba2c",
+            datetime(2023, 9, 4, 0, 0, 0, tzinfo=UTC),
         ),
     ]
 
@@ -127,22 +131,22 @@ def test_compare_gh(mocker: MockerFixture) -> None:
         Commit(
             repo,
             "8cfb8408f614e1d0179d75af793f3fddf42d054a",
-            datetime(2023, 9, 1, 0, 0, 0),
+            datetime(2023, 9, 1, 0, 0, 0, tzinfo=UTC),
         ),
         Commit(
             repo,
             "81677e1bc71324c9fa5c747b494add5a5af5e653",
-            datetime(2023, 9, 2, 0, 0, 0),
+            datetime(2023, 9, 2, 0, 0, 0, tzinfo=UTC),
         ),
         Commit(
             repo,
             "566f37f8e9985d775e619cc959b806f5a254a380",
-            datetime(2023, 9, 3, 0, 0, 0),
+            datetime(2023, 9, 3, 0, 0, 0, tzinfo=UTC),
         ),
         Commit(
             repo,
             "adab91701311fec1b0f5405adddaf68f886bba2c",
-            datetime(2023, 9, 4, 0, 0, 0),
+            datetime(2023, 9, 4, 0, 0, 0, tzinfo=UTC),
         ),
     ]
 
@@ -155,19 +159,19 @@ def test_compare_gl(mocker: MockerFixture) -> None:
     d.gl.repository_compare.return_value = [
         {
             "id": "8cfb8408f614e1d0179d75af793f3fddf42d054a",
-            "committed_date": "2023-09-01T00:00:00",
+            "committed_date": "2023-09-01T00:00:00+00:00",
         },
         {
             "id": "81677e1bc71324c9fa5c747b494add5a5af5e653",
-            "committed_date": "2023-09-02T00:00:00",
+            "committed_date": "2023-09-02T00:00:00+00:00",
         },
         {
             "id": "566f37f8e9985d775e619cc959b806f5a254a380",
-            "committed_date": "2023-09-03T00:00:00",
+            "committed_date": "2023-09-03T00:00:00+00:00",
         },
         {
             "id": "adab91701311fec1b0f5405adddaf68f886bba2c",
-            "committed_date": "2023-09-04T00:00:00",
+            "committed_date": "2023-09-04T00:00:00+00:00",
         },
     ]
     repo = "https://gitlab.com/my/repo"
@@ -183,22 +187,22 @@ def test_compare_gl(mocker: MockerFixture) -> None:
         Commit(
             repo,
             "8cfb8408f614e1d0179d75af793f3fddf42d054a",
-            datetime(2023, 9, 1, 0, 0, 0),
+            datetime(2023, 9, 1, 0, 0, 0, tzinfo=UTC),
         ),
         Commit(
             repo,
             "81677e1bc71324c9fa5c747b494add5a5af5e653",
-            datetime(2023, 9, 2, 0, 0, 0),
+            datetime(2023, 9, 2, 0, 0, 0, tzinfo=UTC),
         ),
         Commit(
             repo,
             "566f37f8e9985d775e619cc959b806f5a254a380",
-            datetime(2023, 9, 3, 0, 0, 0),
+            datetime(2023, 9, 3, 0, 0, 0, tzinfo=UTC),
         ),
         Commit(
             repo,
             "adab91701311fec1b0f5405adddaf68f886bba2c",
-            datetime(2023, 9, 4, 0, 0, 0),
+            datetime(2023, 9, 4, 0, 0, 0, tzinfo=UTC),
         ),
     ]
 
@@ -208,7 +212,7 @@ def test_get_latest_with_default(mocker: MockerFixture) -> None:
     d = DashdotdbDORA(False, "1", 1)
     d.dashdotdb_url = "http://localhost"
 
-    date = datetime(2023, 9, 3, 0, 0, 0)
+    date = datetime(2023, 9, 3, 0, 0, 0, tzinfo=UTC)
     appenv = AppEnv("app1", "env1")
 
     response = MagicMock()
@@ -220,7 +224,7 @@ def test_get_latest_with_default(mocker: MockerFixture) -> None:
     latest = d.get_latest_with_default(date, appenv)
     assert latest == (
         AppEnv(app_name="app1", env_name="env1"),
-        datetime(2023, 9, 3, 0, 0),
+        datetime(2023, 9, 3, 0, 0, tzinfo=UTC),
     )
 
 
@@ -229,7 +233,7 @@ def test_get_repo_changes(mocker: MockerFixture) -> None:
     d = DashdotdbDORA(False, "1", 1)
 
     saastarget = SaasTarget("app1", "env1", "/path1", "rt1", "ns1", "pipeline1")
-    date = datetime(2023, 9, 3, 0, 0)
+    date = datetime(2023, 9, 3, 0, 0, tzinfo=UTC)
     deployment = Deployment("trigger1", date)
     saastarget_deployment = (saastarget, deployment)
 
