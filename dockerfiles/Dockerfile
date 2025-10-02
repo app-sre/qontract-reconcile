@@ -12,13 +12,15 @@ COPY tools tools
 COPY reconcile reconcile
 
 ENV \
+    # use venv from ubi image
+    UV_PROJECT_ENVIRONMENT=$APP_ROOT \
     # compile bytecode for faster startup
     UV_COMPILE_BYTECODE="true" \
     # disable uv cache. it doesn't make sense in a container
     UV_NO_CACHE=true
 
 # Install dependencies and qontract-reconcile
-RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --python /usr/bin/python3
+RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev
 
 
 ###############################################################################
@@ -26,6 +28,14 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev --pytho
 ###############################################################################
 FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.2.0-1@sha256:acce400b64894aa8afe7a269f6d991217edb168008f9a7b0533f71c3ba556711 AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
+
+ENV \
+    # use venv from ubi image
+    UV_PROJECT_ENVIRONMENT=$APP_ROOT \
+    # compile bytecode for faster startup
+    UV_COMPILE_BYTECODE="true" \
+    # disable uv cache. it doesn't make sense in a container
+    UV_NO_CACHE=true
 
 ARG CONTAINER_UID=1000
 RUN useradd --uid ${CONTAINER_UID} reconcile && \
@@ -40,8 +50,6 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-cache --group deb
 WORKDIR /work
 USER reconcile
 VOLUME ["/work", "/config"]
-# Set the PATH to include the virtualenv
-ENV PATH="/opt/app-root/src/.venv/bin:${PATH}"
 ENTRYPOINT ["/work/dev/run.sh"]
 
 
@@ -62,10 +70,10 @@ RUN microdnf upgrade -y && microdnf clean all
 WORKDIR /work
 # the integration-manager needs the helm charts
 RUN ln -s /work/helm /helm
+# python environment
+COPY --from=build-image $APP_ROOT $APP_ROOT
+# qontract-reconcile code
 COPY --from=build-image /work ./
-
-# Set the PATH to include the virtualenv
-ENV PATH="/work/.venv/bin:${PATH}"
 
 ENTRYPOINT ["/tini", "--"]
 CMD ["run-integration"]
@@ -75,6 +83,12 @@ CMD ["run-integration"]
 ###############################################################################
 FROM prod-image-pre-test AS test-image
 COPY --from=ghcr.io/astral-sh/uv:0.7.21@sha256:a64333b61f96312df88eafce95121b017cbff72033ab2dbc6398edb4f24a75dd /uv /bin/uv
+
+ENV \
+    # use venv from ubi image
+    UV_PROJECT_ENVIRONMENT=$APP_ROOT \
+    # disable uv cache. it doesn't make sense in a container
+    UV_NO_CACHE=true
 
 RUN microdnf install -y make
 
