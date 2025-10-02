@@ -273,7 +273,7 @@ Additionally, the following tools are available:
 Install the package from PyPI:
 
 ```sh
-uv tool install --python 3.11 qontract-reconcile
+uv tool install --python 3.12 qontract-reconcile
 ```
 
 or via `pip`:
@@ -297,12 +297,12 @@ Versions can be found in [qontract-reconcile-base Dockerfile](https://github.com
 
 ## Development
 
-This project targets Python version 3.11.x for best compatibility and leverages [uv](https://docs.astral.sh/uv/) for the dependency managment.
+This project targets Python version 3.12.x for best compatibility and leverages [uv](https://docs.astral.sh/uv/) for the dependency managment.
 
 Create a local development environment with all required dependencies:
 
 ```sh
-uv sync --python 3.11
+make dev-env
 ```
 
 ### Image build
