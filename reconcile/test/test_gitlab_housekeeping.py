@@ -1,4 +1,5 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -49,7 +50,7 @@ class TestGitLabHousekeeping:
         http_post: MagicMock, http_get: MagicMock, _: MagicMock
     ) -> None:
         http_get.side_effect = get_mock
-        now = datetime.utcnow()
+        now = datetime.now(tz=UTC)
 
         ten_minutes_ago = now - timedelta(minutes=10)
         two_hours_ago = now - timedelta(minutes=120)
@@ -109,7 +110,7 @@ class TestGitLabHousekeeping:
 
 
 def test_calculate_time_since_approval() -> None:
-    one_hour_ago = (datetime.utcnow() - timedelta(minutes=60)).strftime(DATE_FORMAT)
+    one_hour_ago = (datetime.now(tz=UTC) - timedelta(minutes=60)).strftime(DATE_FORMAT)
 
     time_since_merge = gl_h._calculate_time_since_approval(one_hour_ago)
 

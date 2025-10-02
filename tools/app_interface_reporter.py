@@ -411,7 +411,7 @@ def main(
 ) -> None:
     init_env(log_level=log_level, config_file=configfile)
 
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     apps = get_apps_data(now, thread_pool_size=thread_pool_size)
 
     reports = [Report(app, now).to_message() for app in apps]

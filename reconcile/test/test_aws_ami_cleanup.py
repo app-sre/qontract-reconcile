@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -137,7 +138,7 @@ def test_get_aws_amis_success(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
@@ -155,7 +156,7 @@ def test_get_aws_amis_unmatched_regex(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
@@ -172,7 +173,7 @@ def test_get_aws_amis_different_account(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner="789123456789",
@@ -189,7 +190,7 @@ def test_get_aws_amis_too_young(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,

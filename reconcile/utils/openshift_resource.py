@@ -368,7 +368,7 @@ class OpenshiftResource:
         annotations[QONTRACT_ANNOTATION_INTEGRATION] = self.integration
         annotations[QONTRACT_ANNOTATION_INTEGRATION_VERSION] = self.integration_version
         annotations[QONTRACT_ANNOTATION_SHA256SUM] = sha256sum
-        now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
+        now = datetime.datetime.now(tz=datetime.UTC).replace(microsecond=0).isoformat()
         annotations[QONTRACT_ANNOTATION_UPDATE] = now
         if self.caller_name:
             annotations[QONTRACT_ANNOTATION_CALLER_NAME] = self.caller_name

@@ -277,7 +277,7 @@ class DashdotdbDORA(DashdotdbBase):
         # from the DB for a unique (app_name, env_name) multiple times.
         app_envs = {s.app_env for s in saastargets}
 
-        since_default = datetime.now() - timedelta(days=90)
+        since_default = datetime.now(tz=UTC) - timedelta(days=90)
         app_env_since_list: list[tuple[AppEnv, datetime]] = threaded.run(
             func=functools.partial(self.get_latest_with_default, since_default),
             iterable=app_envs,

@@ -1,5 +1,5 @@
 from collections.abc import Callable, Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -248,7 +248,7 @@ def test_force_rerun(
 ) -> None:
     existing = [existing_repo]
     updated_repo = TerraformRepoV1.copy(existing_repo)
-    updated_repo.force_rerun_timestamp = datetime.now().isoformat()
+    updated_repo.force_rerun_timestamp = datetime.now(tz=UTC).isoformat()
 
     integration = TerraformRepoIntegration(params=int_params)
     diff = integration.calculate_diff(

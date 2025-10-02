@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -58,7 +58,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         )
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         ts = now.strftime("%Y%m%d%H%M%S")
         short_date = now.strftime("%Y-%m-%d")
 

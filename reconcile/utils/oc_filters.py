@@ -19,19 +19,19 @@ class Namespace(Protocol):
 NS = TypeVar("NS", bound=Namespace)
 
 
-def filter_namespaces_by_cluster(
+def filter_namespaces_by_cluster[NS: Namespace](
     namespaces: Iterable[NS], cluster_names: Iterable[str]
 ) -> list[NS]:
     return [n for n in namespaces if n.cluster.name in cluster_names]
 
 
-def filter_namespaces_by_name(
+def filter_namespaces_by_name[NS: Namespace](
     namespaces: Iterable[NS], namespace_names: Iterable[str]
 ) -> list[NS]:
     return [n for n in namespaces if n.name in namespace_names]
 
 
-def filter_namespaces_by_cluster_and_namespace(
+def filter_namespaces_by_cluster_and_namespace[NS: Namespace](
     namespaces: Iterable[NS],
     cluster_names: Iterable[str] | None,
     namespace_names: Iterable[str] | None,

@@ -1,4 +1,5 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -34,7 +35,7 @@ def slack(mocker: MockerFixture) -> MagicMock:
 
 
 cluster_name = "cluster1"
-upgrade_at = datetime(2020, 6, 1, 0, 0, 0)
+upgrade_at = datetime(2020, 6, 1, 0, 0, 0, tzinfo=UTC)
 old_version = "4.5.1"
 upgrade_version = "4.5.2"
 
@@ -86,7 +87,7 @@ def test_new_upgrade_pending(
     dt: MagicMock,
 ) -> None:
     """There is an UpgradeConfig on the cluster but its upgradeAt is in the future"""
-    dt.utcnow.return_value = upgrade_at - timedelta(hours=1)
+    dt.now.return_value = upgrade_at - timedelta(hours=1)
     gso = mocker.patch(
         "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
     )
@@ -113,7 +114,7 @@ def test_new_upgrade_notify(
 ) -> None:
     """There is an UpgradeConfig on the cluster, its upgradeAt is in the past,
     and we did not already notify"""
-    dt.utcnow.return_value = upgrade_at + timedelta(hours=1)
+    dt.now.return_value = upgrade_at + timedelta(hours=1)
     gso = mocker.patch(
         "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
     )
@@ -143,7 +144,7 @@ def test_new_upgrade_already_notified(
     and we already notified"""
     state.exists.return_value = True
     state.get.return_value = None
-    dt.utcnow.return_value = upgrade_at + timedelta(hours=1)
+    dt.now.return_value = upgrade_at + timedelta(hours=1)
     gso = mocker.patch(
         "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
     )

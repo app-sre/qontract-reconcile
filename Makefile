@@ -89,8 +89,8 @@ pypi-konflux:
 	uv build --sdist --wheel
 	uv publish
 
-dev-venv: clean ## Create a local venv for your IDE and remote debugging
-	uv sync --python 3.11
+dev-venv: clean # Create/Update a local venv for your IDE and remote debugging
+	uv sync -U
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'

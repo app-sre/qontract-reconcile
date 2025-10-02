@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import cast
 from unittest.mock import Mock
 
@@ -92,8 +92,8 @@ def test_resource_needs_reconciliation_basic(
 @pytest.mark.parametrize(
     "ts,expected",
     [
-        (datetime(2024, 1, 1, 12, 30, 0), True),
-        (datetime.now(), False),
+        (datetime(2024, 1, 1, 12, 30, 0, tzinfo=UTC), True),
+        (datetime.now(tz=UTC), False),
     ],
 )
 def test_resource_needs_reconciliation_drift(

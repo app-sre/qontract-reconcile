@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -65,7 +66,7 @@ def cluster_2() -> OCMCluster:
 def now(mocker: MockerFixture) -> datetime:
     d = parser.parse("2021-08-30T18:00:00.00000")
     datetime_mock = mocker.patch.object(base, "datetime", autospec=True)
-    datetime_mock.utcnow.return_value = d
+    datetime_mock.now.return_value = d
     return d
 
 
@@ -833,7 +834,7 @@ def test_verify_lock_should_skip_locked_by_another_cluster() -> None:
 
 def test_verify_schedule_should_skip_cluster_now() -> None:
     cluster_upgrade_spec = build_cluster_upgrade_spec(name="cluster")
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     expected = now + timedelta(minutes=7)
     s = base.verify_schedule_should_skip(
         cluster_upgrade_spec,
@@ -847,7 +848,7 @@ def test_verify_schedule_should_skip_addon_now() -> None:
         cluster_name="cluster",
         addon_id="addon",
     )
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     expected = now + timedelta(minutes=2)
     s = base.verify_schedule_should_skip(
         addon_upgrade_spec, now, addon_upgrade_spec.addon.id
@@ -857,7 +858,7 @@ def test_verify_schedule_should_skip_addon_now() -> None:
 
 def test_verify_schedule_should_skip_cluster_future() -> None:
     cluster_upgrade_spec = build_cluster_upgrade_spec(name="cluster")
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     next_day = now + timedelta(hours=3)
     cluster_upgrade_spec.upgrade_policy.schedule = f"* {next_day.hour} * * *"
     s = base.verify_schedule_should_skip(
