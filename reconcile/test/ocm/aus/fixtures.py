@@ -280,6 +280,7 @@ def build_cluster_upgrade_policy(
     next_run_str = (next_run or datetime.now(tz=UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
     return ClusterUpgradePolicy(
         cluster=cluster,
+        organization_id="1",
         id="1",
         version=version,
         state=state,
