@@ -179,7 +179,7 @@ groups:
       )
     labels:
       service: test-app
-      severity: medium
+      severity: high
       slo: Availability
     annotations:
       dashboard: https://example.com/dashboard
@@ -362,7 +362,7 @@ groups:
       )
     labels:
       service: test-app
-      severity: medium
+      severity: high
       slo: Latency
     annotations:
       dashboard: https://example.com/dashboard
