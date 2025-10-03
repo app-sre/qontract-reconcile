@@ -40,6 +40,7 @@ from reconcile.test.ocm.aus.fixtures import (
 )
 from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.utils.ocm.addons import AddonService
+from reconcile.utils.ocm.base import OCMAWSSTS, OCMClusterAWSSettings
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -723,7 +724,19 @@ def test_policy_handler_create_cluster_upgrade_with_sts_enabled(
     sts_handler_instance.handle.return_value = True
     sts_handler_instance.gate_applicable_to_cluster.return_value = True
 
-    cluster_upgrade_policy.cluster.aws.sts.enabled = True
+    mock_sts = OCMAWSSTS(
+        enabled=True,
+        role_arn="arn:aws:iam::123456789012:role/test-installer-role",
+        support_role_arn="arn:aws:iam::123456789012:role/test-support-role",
+        oidc_endpoint_url=None,
+        operator_iam_roles=None,
+        instance_iam_roles=None,
+        operator_role_prefix=None,
+    )
+    mock_aws = OCMClusterAWSSettings(
+        sts=mock_sts,
+    )
+    cluster_upgrade_policy.cluster.aws = mock_aws
     # Configure the mock class to return our mock instance
     sts_gate_handler_mock.return_value = sts_handler_instance
     handler = base.UpgradePolicyHandler(
@@ -792,6 +805,65 @@ def test_policy_handler_create_cluster_upgrade_without_sts_enabled(
         policy=cluster_upgrade_policy,
         action="create",
     )
+    rosa_role_upgrade_handller_params = RosaRoleUpgradeHandlerParams(
+        integration_name="integration-name",
+        integration_version="integration-version",
+        job_controller_cluster="job-controller-cluster",
+        job_controller_namespace="job-controller-namespace",
+        rosa_role="rosa-role",
+        rosa_job_service_account="rosa-job-service-account",
+    )
+    base.act(
+        dry_run=False,
+        diffs=[handler],
+        ocm_api=ocm_api,
+        rosa_role_upgrade_handller_params=rosa_role_upgrade_handller_params,
+        secret_reader=secret_reader,
+    )
+    create_upgrade_policy_mock.assert_called_once_with(
+        ocm_api,
+        cluster_upgrade_policy.cluster.id,
+        {
+            "version": cluster_upgrade_policy.version,
+            "schedule_type": cluster_upgrade_policy.schedule_type,
+            "next_run": cluster_upgrade_policy.next_run,
+        },
+    )
+
+    sts_gate_handler_mock.assert_not_called()
+
+
+def test_policy_handler_create_cluster_upgrade_without_sts_enabled_and_rosa_classic(
+    cluster_upgrade_policy: ClusterUpgradePolicy,
+    ocm_api: OCMBaseClient,
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+) -> None:
+    create_upgrade_policy_mock = mocker.patch.object(
+        base, "create_upgrade_policy", autospec=True
+    )
+
+    mock_job_controller = mocker.MagicMock()
+    mocker.patch(
+        "reconcile.aus.base.build_job_controller", return_value=mock_job_controller
+    )
+
+    sts_gate_handler_mock = mocker.patch(
+        "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
+        autospec=True,
+    )
+    sts_handler_instance = mocker.MagicMock()
+    sts_handler_instance.upgrade_rosa_roles.return_value = True
+    sts_handler_instance.handle.return_value = True
+    sts_handler_instance.gate_applicable_to_cluster.return_value = True
+    # Configure the mock class to return our mock instance
+    sts_gate_handler_mock.return_value = sts_handler_instance
+    cluster_upgrade_policy.cluster.hypershift.enabled = False
+    handler = base.UpgradePolicyHandler(
+        policy=cluster_upgrade_policy,
+        action="create",
+    )
+
     rosa_role_upgrade_handller_params = RosaRoleUpgradeHandlerParams(
         integration_name="integration-name",
         integration_version="integration-version",

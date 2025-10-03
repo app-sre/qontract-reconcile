@@ -507,6 +507,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             rosa_role_upgrade_handller_params
             and secret_reader
             and self.cluster.is_sts()
+            and self.cluster.is_rosa_classic()
         ):
             logging.info(
                 f"Updating account and operatior roles for {self.cluster.name}"
@@ -531,7 +532,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                 version_raw_id_prefix=get_version_prefix(self.version),
                 ocm_org_id=self.organization_id,
             ):
-                logging.debug(
+                logging.error(
                     f"Failed to update account and operatior roles for {self.cluster.name}"
                 )
         create_upgrade_policy(ocm_api, self.cluster.id, policy)
