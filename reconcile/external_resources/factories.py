@@ -2,7 +2,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from reconcile.external_resources.aws import (
     AWSDefaultResourceFactory,
@@ -33,7 +33,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 T = TypeVar("T")
 
 
-class ObjectFactory(Generic[T]):
+class ObjectFactory[T]:
     def __init__(
         self, factories: dict[str, T], default_factory: T | None = None
     ) -> None:

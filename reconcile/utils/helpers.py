@@ -47,7 +47,7 @@ def flatten(
 Item = TypeVar("Item")
 
 
-def find_duplicates(items: Iterable[Item]) -> list[Item]:
+def find_duplicates[Item](items: Iterable[Item]) -> list[Item]:
     return [item for item, count in Counter(items).items() if count > 1]
 
 

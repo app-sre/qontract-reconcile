@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from ruamel.yaml.scalarstring import PreservedScalarString
@@ -26,7 +26,7 @@ class CreateAppInterfaceReporter(MergeRequestBase):
 
         self.labels = [AUTO_MERGE]
 
-        now = datetime.now()
+        now = datetime.now(tz=UTC)
         self.isodate = now.isoformat()
         self.ts = now.strftime("%Y%m%d%H%M%S")
 

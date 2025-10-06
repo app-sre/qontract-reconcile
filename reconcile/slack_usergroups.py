@@ -5,7 +5,7 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import (
     Any,
     TypedDict,
@@ -357,11 +357,11 @@ def get_slack_usernames_from_owners(
 
 def get_slack_usernames_from_schedule(schedule: Iterable[ScheduleEntryV1]) -> list[str]:
     """Return list of usernames from all schedules."""
-    now = datetime.utcnow()
+    now = datetime.now(tz=UTC)
     all_slack_usernames: list[str] = []
     for entry in schedule:
-        start = datetime.strptime(entry.start, DATE_FORMAT)
-        end = datetime.strptime(entry.end, DATE_FORMAT)
+        start = datetime.strptime(entry.start, DATE_FORMAT).astimezone(UTC)
+        end = datetime.strptime(entry.end, DATE_FORMAT).astimezone(UTC)
         if start <= now <= end:
             all_slack_usernames.extend(get_slack_username(u) for u in entry.users)
     return all_slack_usernames

@@ -7,18 +7,21 @@
 ## Development Environment
 
 ### Prerequisites
-- **Python 3.11**
+
+- **Python 3.12**
 - **uv** for dependency management (modern pip/pipenv replacement)
 - **Docker** for containerized development
 
 ### Setup
+
 ```bash
-uv sync --python 3.11    # Install dependencies
+uv sync -U               # Install dependencies
 ```
 
 ## Essential Commands
 
 ### Code Quality
+
 ```bash
 make format              # Format code with ruff
 make linter-test         # Run linting checks
@@ -26,6 +29,7 @@ make types-test          # Run MyPy type checking
 ```
 
 ### Testing
+
 ```bash
 make unittest            # Run unit tests
 make all-tests           # Run full test suite (unit + integration)
@@ -34,6 +38,7 @@ pytest -k "test_name"    # Run tests matching pattern
 ```
 
 ### Development Workflows
+
 ```bash
 make gql-query-classes   # Regenerate GraphQL dataclasses (required after schema changes)
 make dev-reconcile-loop  # Start containerized development environment
@@ -42,24 +47,29 @@ make dev-reconcile-loop  # Start containerized development environment
 ## Architecture Overview
 
 ### Core Reconciliation Pattern
+
 1. **Fetch desired state** from App-Interface GraphQL API
 2. **Discover current state** from target systems (AWS, OpenShift, etc.)
 3. **Calculate diff** between desired and current state
 4. **Apply changes** to reconcile the difference
 
 ### Key Directories
+
 - `reconcile/` - 158 integration modules + core utilities
 - `reconcile/gql_definitions/` - Auto-generated GraphQL dataclasses (do not edit manually)
 - `tools/` - CLI utilities and standalone tools
 - `docs/patterns/` - Architectural documentation and best practices
 
 ### GraphQL Data Binding
+
 - Uses `qenerate` to generate type-safe Python dataclasses from GraphQL schemas
 - All data fetching uses generated Pydantic models for type safety
 - Schema changes require running `make gql-query-classes`
 
 ### Integration Structure
+
 Most integrations follow this pattern:
+
 ```python
 def run(dry_run: bool, thread_pool_size: int = 10) -> None:
     """Main entry point for integration"""
@@ -72,11 +82,13 @@ def run(dry_run: bool, thread_pool_size: int = 10) -> None:
 ## Testing Guidelines
 
 ### Test Organization
+
 - Unit tests: `tests/` directory, mirror the source structure
 - Integration tests: Use pytest fixtures for external dependencies
 - All tests must pass for CI/CD pipeline
 
 ### Test Utilities
+
 - `reconcile.test.fixtures` - Common test fixtures and utilities
 - Comprehensive mocking support for external API calls
 - Use `@pytest.fixture` for reusable test data
@@ -84,16 +96,19 @@ def run(dry_run: bool, thread_pool_size: int = 10) -> None:
 ## Common Development Patterns
 
 ### Error Handling
+
 - Use structured logging with `reconcile.utils.logger`
 - Implement proper exception handling for external API calls
 - Support for signal handling and graceful shutdowns
 
 ### Configuration
+
 - Environment-based configuration via `reconcile.utils.config`
 - Support for both file-based and environment variable configuration
 - Vault integration for sensitive data
 
 ### Sharding Support
+
 - Many integrations support horizontal scaling via sharding
 - Use `reconcile.utils.sharding` utilities
 - Test both sharded and non-sharded execution paths
@@ -101,6 +116,7 @@ def run(dry_run: bool, thread_pool_size: int = 10) -> None:
 ## Integration Development
 
 ### Creating New Integrations
+
 1. Create module in `reconcile/` directory
 2. Implement `run()` function with `dry_run` parameter
 3. Add comprehensive unit tests
@@ -108,6 +124,7 @@ def run(dry_run: bool, thread_pool_size: int = 10) -> None:
 5. Add integration to appropriate configuration
 
 ### GraphQL Queries
+
 - Define queries in integration modules
 - Use type-safe generated classes from `reconcile.gql_definitions`
 - Regenerate classes after schema changes: `make gql-query-classes`
@@ -115,11 +132,13 @@ def run(dry_run: bool, thread_pool_size: int = 10) -> None:
 ## Debugging and Development
 
 ### Local Development
+
 - Use `make dev-reconcile-loop` for containerized development
 - Environment variables in `.env` files for local configuration
 - Comprehensive dry-run support for safe testing
 
 ### Profiling and Monitoring
+
 - Built-in profiling support via `reconcile.utils.profiling`
 - Prometheus metrics integration
 - Structured logging with correlation IDs

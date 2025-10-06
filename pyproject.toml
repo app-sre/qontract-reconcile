@@ -5,12 +5,12 @@ description = "Collection of tools to reconcile services with their desired stat
 authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-requires-python = "==3.11.*"
+requires-python = "==3.12.*"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     "anymarkup>=0.7.0,<0.9.0",
@@ -66,7 +66,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-debugger = ["debugpy ~=1.6.0"]
+debugger = ["debugpy ~=1.8.17"]
 dev = [
     "anymarkup ~=0.8.1",
     # keep in sync project.dependencies.boto3
@@ -152,7 +152,7 @@ bump = true
 
 [tool.ruff]
 line-length = 88
-target-version = 'py311'
+target-version = 'py312'
 src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true
@@ -193,6 +193,8 @@ extend-select = [
     "FURB",
     # PEP8
     "N",
+    # datetime
+    "DTZ",
 ]
 ignore = [
     "N811",    # Constant `xxx` imported as non-constant `xxx`
