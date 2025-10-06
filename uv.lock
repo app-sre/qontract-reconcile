@@ -373,11 +373,15 @@ wheels = [
 
 [[package]]
 name = "debugpy"
-version = "1.6.7.post1"
+version = "1.8.17"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/c8/b6978e56c917c2fe5096cd83d81bab8ac08ceb1f9a4b9373ad5b066a3265/debugpy-1.6.7.post1.zip", hash = "sha256:fe87ec0182ef624855d05e6ed7e0b7cb1359d2ffa2a925f8ec2d22e98b75d0ca", size = 4664667, upload-time = "2023-08-08T20:04:28.974Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/15/ad/71e708ff4ca377c4230530d6a7aa7992592648c122a2cd2b321cf8b35a76/debugpy-1.8.17.tar.gz", hash = "sha256:fd723b47a8c08892b1a16b2c6239a8b96637c62a59b94bb5dab4bac592a58a8e", size = 1644129, upload-time = "2025-09-17T16:33:20.633Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/72/cb3a101717d81ab1f97ee38a409be9740e7256bc25074e48fd634055261f/debugpy-1.6.7.post1-py2.py3-none-any.whl", hash = "sha256:1093a5c541af079c13ac8c70ab8b24d1d35c8cacb676306cf11e57f699c02926", size = 4872783, upload-time = "2023-08-08T20:05:17.116Z" },
+    { url = "https://files.pythonhosted.org/packages/08/2b/9d8e65beb2751876c82e1aceb32f328c43ec872711fa80257c7674f45650/debugpy-1.8.17-cp312-cp312-macosx_15_0_universal2.whl", hash = "sha256:f14467edef672195c6f6b8e27ce5005313cb5d03c9239059bc7182b60c176e2d", size = 2549522, upload-time = "2025-09-17T16:33:38.466Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/78/eb0d77f02971c05fca0eb7465b18058ba84bd957062f5eec82f941ac792a/debugpy-1.8.17-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:24693179ef9dfa20dca8605905a42b392be56d410c333af82f1c5dff807a64cc", size = 4309417, upload-time = "2025-09-17T16:33:41.299Z" },
+    { url = "https://files.pythonhosted.org/packages/37/42/c40f1d8cc1fed1e75ea54298a382395b8b937d923fcf41ab0797a554f555/debugpy-1.8.17-cp312-cp312-win32.whl", hash = "sha256:6a4e9dacf2cbb60d2514ff7b04b4534b0139facbf2abdffe0639ddb6088e59cf", size = 5277130, upload-time = "2025-09-17T16:33:43.554Z" },
+    { url = "https://files.pythonhosted.org/packages/72/22/84263b205baad32b81b36eac076de0cdbe09fe2d0637f5b32243dc7c925b/debugpy-1.8.17-cp312-cp312-win_amd64.whl", hash = "sha256:e8f8f61c518952fb15f74a302e068b48d9c4691768ade433e4adeea961993464", size = 5319053, upload-time = "2025-09-17T16:33:53.033Z" },
+    { url = "https://files.pythonhosted.org/packages/b0/d0/89247ec250369fc76db477720a26b2fce7ba079ff1380e4ab4529d2fe233/debugpy-1.8.17-py2.py3-none-any.whl", hash = "sha256:60c7dca6571efe660ccb7a9508d73ca14b8796c4ed484c2002abba714226cfef", size = 5283210, upload-time = "2025-09-17T16:34:25.835Z" },
 ]
 
 [[package]]
@@ -391,14 +395,14 @@ wheels = [
 
 [[package]]
 name = "deepdiff"
-version = "6.7.1"
+version = "8.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ordered-set" },
+    { name = "orderly-set" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/11/d265eb046685fe97538e39f71d16d58a1197ddbd59873e06167bcfba8a89/deepdiff-6.7.1.tar.gz", hash = "sha256:b367e6fa6caac1c9f500adc79ada1b5b1242c50d5f716a1a4362030197847d30", size = 409107, upload-time = "2023-11-14T07:19:53.199Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/76/36c9aab3d5c19a94091f7c6c6e784efca50d87b124bf026c36e94719f33c/deepdiff-8.6.1.tar.gz", hash = "sha256:ec56d7a769ca80891b5200ec7bd41eec300ced91ebcc7797b41eb2b3f3ff643a", size = 634054, upload-time = "2025-09-03T19:40:41.461Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5a/8f/a9d39ec15f40e8169cb134317824ee4618b864b2e4b91a9b310d3ef94729/deepdiff-6.7.1-py3-none-any.whl", hash = "sha256:58396bb7a863cbb4ed5193f548c56f18218060362311aa1dc36397b2f25108bd", size = 76554, upload-time = "2023-11-14T07:19:45.169Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/e6/efe534ef0952b531b630780e19cabd416e2032697019d5295defc6ef9bd9/deepdiff-8.6.1-py3-none-any.whl", hash = "sha256:ee8708a7f7d37fb273a541fa24ad010ed484192cd0c4ffc0fa0ed5e2d4b9e78b", size = 91378, upload-time = "2025-09-03T19:40:39.679Z" },
 ]
 
 [[package]]
@@ -1015,12 +1019,12 @@ wheels = [
 ]
 
 [[package]]
-name = "ordered-set"
-version = "4.1.0"
+name = "orderly-set"
+version = "5.5.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4c/ca/bfac8bc689799bcca4157e0e0ced07e70ce125193fc2e166d2e685b7e2fe/ordered-set-4.1.0.tar.gz", hash = "sha256:694a8e44c87657c59292ede72891eb91d34131f6531463aab3009191c77364a8", size = 12826, upload-time = "2022-01-26T14:38:56.6Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/88/39c83c35d5e97cc203e9e77a4f93bf87ec89cf6a22ac4818fdcc65d66584/orderly_set-5.5.0.tar.gz", hash = "sha256:e87185c8e4d8afa64e7f8160ee2c542a475b738bc891dc3f58102e654125e6ce", size = 27414, upload-time = "2025-07-10T20:10:55.885Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/55/af02708f230eb77084a299d7b08175cff006dea4f2721074b92cdb0296c0/ordered_set-4.1.0-py3-none-any.whl", hash = "sha256:046e1132c71fcf3330438a539928932caf51ddbc582496833e23de611de14562", size = 7634, upload-time = "2022-01-26T14:38:48.677Z" },
+    { url = "https://files.pythonhosted.org/packages/12/27/fb8d7338b4d551900fa3e580acbe7a0cf655d940e164cb5c00ec31961094/orderly_set-5.5.0-py3-none-any.whl", hash = "sha256:46f0b801948e98f427b412fcabb831677194c05c3b699b80de260374baa0b1e7", size = 13068, upload-time = "2025-07-10T20:10:54.377Z" },
 ]
 
 [[package]]
@@ -1588,7 +1592,7 @@ requires-dist = [
     { name = "click", specifier = ">=7.0,<9.0" },
     { name = "croniter", specifier = ">=1.0.15,<1.1.0" },
     { name = "dateparser", specifier = "~=1.1.7" },
-    { name = "deepdiff", specifier = "==6.7.1" },
+    { name = "deepdiff", specifier = "==8.6.1" },
     { name = "dnspython", specifier = "~=2.1" },
     { name = "dt", specifier = "==1.1.73" },
     { name = "filetype", specifier = "~=1.2.0" },
@@ -1634,7 +1638,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-debugger = [{ name = "debugpy", specifier = "~=1.6.0" }]
+debugger = [{ name = "debugpy", specifier = "~=1.8.17" }]
 dev = [
     { name = "anymarkup", specifier = "~=0.8.1" },
     { name = "boto3-stubs", extras = ["account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.34.94" },
