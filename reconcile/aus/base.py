@@ -8,6 +8,7 @@ from abc import (
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -720,7 +721,7 @@ def update_history(
         version_data (VersionData): version data, including history of soakdays
         upgrade_policies (list): query results of clusters upgrade policies
     """
-    now = datetime.utcnow()
+    now = datetime.now(tz=UTC)
     check_in = version_data.check_in or now
 
     # we iterate over clusters upgrade policies and update the version history
@@ -1165,7 +1166,7 @@ def calculate_diff(
             set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
 
     addon_service = init_addon_service(desired_state.org.environment)
-    now = datetime.utcnow()
+    now = datetime.now(tz=UTC)
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
         sector_name = spec.upgrade_policy.conditions.sector
@@ -1385,8 +1386,8 @@ def remaining_soak_day_metric_values_for_cluster(
                     # if an upgrade runs for over 6 hours, we mark it as a long running upgrade
                     next_run = datetime.strptime(
                         current_upgrade.next_run, "%Y-%m-%dT%H:%M:%SZ"
-                    )
-                    now = datetime.utcnow()
+                    ).astimezone(UTC)
+                    now = datetime.now(tz=UTC)
                     hours_ago = (now - next_run).total_seconds() / 3600
                     if hours_ago >= 6:
                         remaining_soakdays[idx] = UPGRADE_LONG_RUNNING_METRIC_VALUE

@@ -4,6 +4,7 @@ import logging
 import re
 from collections import defaultdict
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -91,7 +92,7 @@ def get_aws_amis(
 
             creation_date = datetime.strptime(
                 image["CreationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
-            )
+            ).astimezone(UTC)
             current_delta = utc_now - creation_date
             delete_delta = timedelta(seconds=age_in_seconds)
 
@@ -135,7 +136,7 @@ def get_region(
 
 @defer
 def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> None:
-    utc_now = datetime.utcnow()
+    utc_now = datetime.now(tz=UTC)
     gqlapi = gql.get_api()
     aws_accounts = aws_accounts_query(gqlapi.query).accounts
 

@@ -12,6 +12,7 @@ from collections.abc import (
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -419,12 +420,12 @@ class TerraformClient:
         deletion_approvals = account.get("deletionApprovals")
         if not deletion_approvals:
             return False
-        now = datetime.utcnow()
+        now = datetime.now(tz=UTC)
         for da in deletion_approvals:
             try:
                 expiration = datetime.strptime(
                     da["expiration"], DATE_FORMAT
-                ) + timedelta(days=1)
+                ).astimezone(UTC) + timedelta(days=1)
             except ValueError:
                 raise DeletionApprovalExpirationValueError(
                     f"[{account_name}] expiration not does not match "

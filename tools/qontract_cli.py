@@ -417,8 +417,10 @@ def get_upgrade_policies_data(
             upgrade_next_run = None
         upgrade_emoji = "💫"
         if upgrade_next_run:
-            dt = datetime.strptime(upgrade_next_run, "%Y-%m-%dT%H:%M:%SZ")
-            now = datetime.utcnow()
+            dt = datetime.strptime(upgrade_next_run, "%Y-%m-%dT%H:%M:%SZ").astimezone(
+                UTC
+            )
+            now = datetime.now(tz=UTC)
             if dt > now:
                 upgrade_emoji = "⏰"
             hours_ago = (now - dt).total_seconds() / 3600
@@ -841,7 +843,7 @@ def alert_report(
             )
             sys.exit(1)
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=UTC)
         from_timestamp = int((now - timedelta(days=days)).timestamp())
         to_timestamp = int(now.timestamp())
 
@@ -2274,7 +2276,7 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
         "labels",
     ]
     merge_queue_data = []
-    now = datetime.utcnow()
+    now = datetime.now(tz=UTC)
     for mr in merge_requests:
         item = {
             "id": f"[{mr['mr'].iid}]({mr['mr'].web_url})",
@@ -2283,7 +2285,8 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
             + 1,  # adding 1 for human readability
             "approved_at": mr["approved_at"],
             "approved_span_minutes": (
-                now - datetime.strptime(mr["approved_at"], glhk.DATE_FORMAT)
+                now
+                - datetime.strptime(mr["approved_at"], glhk.DATE_FORMAT).astimezone(UTC)
             ).total_seconds()
             / 60,
             "approved_by": mr["approved_by"],

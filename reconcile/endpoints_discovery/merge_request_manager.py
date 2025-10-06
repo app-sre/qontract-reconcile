@@ -1,7 +1,7 @@
 import hashlib
 import logging
 from collections.abc import Sequence
-from typing import Any, TypeAlias
+from typing import Any
 
 from gitlab.exceptions import GitlabGetError
 from pydantic import BaseModel
@@ -67,17 +67,17 @@ class Endpoint(BaseModel):
         return hashlib.sha256(json_dumps(self.dict()).encode()).hexdigest()
 
 
-EndpointsToAdd: TypeAlias = list[Endpoint]
-EndpointsToChange: TypeAlias = list[Endpoint]
-EndpointsToDelete: TypeAlias = list[Endpoint]
+EndpointsToAdd = list[Endpoint]
+EndpointsToChange = list[Endpoint]
+EndpointsToDelete = list[Endpoint]
 
 
 class App(BaseModel):
     name: str
     path: str
-    endpoints_to_add: EndpointsToAdd = EndpointsToAdd()
-    endpoints_to_change: EndpointsToChange = EndpointsToChange()
-    endpoints_to_delete: EndpointsToDelete = EndpointsToDelete()
+    endpoints_to_add: EndpointsToAdd = []
+    endpoints_to_change: EndpointsToChange = []
+    endpoints_to_delete: EndpointsToDelete = []
 
     @property
     def hash(self) -> str:

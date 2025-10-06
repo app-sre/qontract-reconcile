@@ -259,9 +259,9 @@ def process_jinja2_template(
         "s3": lookup_s3_object,
         "s3_ls": list_s3_objects,
         "flatten_dict": flatten,
-        "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
-            "%Y-%m-%d"
-        ),
+        "yesterday": lambda: (
+            datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(1)
+        ).strftime("%Y-%m-%d"),
         "sloth_alerts": generate_sloth_rules,
     })
     if "_template_mocks" in vars:

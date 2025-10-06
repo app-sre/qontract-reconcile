@@ -22,7 +22,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Self,
-    TypeAlias,
     cast,
 )
 
@@ -203,7 +202,7 @@ if TYPE_CHECKING:
     from reconcile.utils.ocm import OCMMap
 
 
-TFResource: TypeAlias = type[
+type TFResource = type[
     Resource | Data | Module | Provider | Variable | Output | Locals | Terraform
 ]
 

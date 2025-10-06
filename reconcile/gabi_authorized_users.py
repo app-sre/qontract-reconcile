@@ -6,6 +6,7 @@ from collections.abc import (
     Mapping,
 )
 from datetime import (
+    UTC,
     date,
     datetime,
 )
@@ -65,8 +66,10 @@ def fetch_desired_state(
     gabi_instances: Iterable[Mapping], ri: ResourceInventory
 ) -> None:
     for g in gabi_instances:
-        expiration_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
-        if (expiration_date - date.today()).days > EXPIRATION_DAYS_MAX:
+        expiration_date = (
+            datetime.strptime(g["expirationDate"], "%Y-%m-%d").astimezone(UTC).date()
+        )
+        if (expiration_date - datetime.now(tz=UTC).date()).days > EXPIRATION_DAYS_MAX:
             raise RunnerError(
                 f"The maximum expiration date of {g['name']} shall not "
                 f"exceed {EXPIRATION_DAYS_MAX} days from today"

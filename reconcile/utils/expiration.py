@@ -17,12 +17,16 @@ DictsOrRoles = TypeVar("DictsOrRoles", bound=Iterable[FilterableRole] | Iterable
 
 
 def date_expired(date: str) -> bool:
-    exp_date = datetime.datetime.strptime(date, DATE_FORMAT).date()
-    current_date = datetime.datetime.utcnow().date()
+    exp_date = (
+        datetime.datetime.strptime(date, DATE_FORMAT).astimezone(datetime.UTC).date()
+    )
+    current_date = datetime.datetime.now(tz=datetime.UTC).date()
     return current_date >= exp_date
 
 
-def filter(roles: DictsOrRoles | None) -> DictsOrRoles:
+def filter[DictsOrRoles: Iterable[FilterableRole] | Iterable[dict]](
+    roles: DictsOrRoles | None,
+) -> DictsOrRoles:
     """Filters roles and returns the ones which are not yet expired."""
     filtered = []
     for r in roles or []:
