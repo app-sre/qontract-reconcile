@@ -1365,3 +1365,81 @@ def test_populate_tf_resource_alb_with_query_string_none_key_condition(
         {"key": "version", "value": "v2"},
     ]
     assert condition["query_string"] == expected_query_string
+
+
+@pytest.mark.parametrize(
+    "test_input,expected",
+    [
+        ({"a": 1, "b": 2}, {"a": 1, "b": 2}),
+        ({"a": 1, "b.c": 2}, {"a": 1, "b": {"c": 2}}),
+        ({"a.b": 1, "a.c": 2}, {"a": {"b": 1, "c": 2}}),
+        ({"a.b.c": 1, "a.b.d": 2}, {"a": {"b": {"c": 1, "d": 2}}}),
+    ],
+)
+def test__unflatten_dotted_keys_dict(
+    ts: TerrascriptClient, test_input: dict[str, str], expected: dict[str, Any]
+) -> None:
+    assert ts._unflatten_dotted_keys_dict(test_input) == expected
+
+
+@pytest.mark.parametrize(
+    "test_input",
+    [
+        {"a.b": 1, "a.b.c": 2},
+        {"a.b.c": 2, "a.b": 1},
+        {"x.y.z": 1, "x.y": 2, "x": 3},
+    ],
+)
+def test__unflatten_dotted_keys_dict_conflicting_keys(
+    ts: TerrascriptClient, test_input: dict[str, str]
+) -> None:
+    with pytest.raises(ValueError, match="Conflicting keys detected"):
+        ts._unflatten_dotted_keys_dict(test_input)
+
+
+# _apply_secret_format tests
+def test__apply_secret_format_dotted_ok(ts: TerrascriptClient) -> None:
+    dotted_secret = {
+        "db.host": "gabi-stage.cuwmzfmkc2w0.us-east-1.rds.amazonaws.com",
+        "db.name": "gabi",
+        "db.password": "a-nice-password",
+        "db.port": "5432",
+        "db.user": "gabi",
+        "external-resources/updated_at": "2025-10-06T07:28:39Z",
+    }
+
+    dotted_secret_format = '{"password":"{{ db.password }}","username":"{{ db.user }}"}'
+
+    formatted_secret = ts._apply_secret_format(dotted_secret_format, dotted_secret)
+    assert formatted_secret == {
+        "password": dotted_secret["db.password"],
+        "username": dotted_secret["db.user"],
+    }
+
+
+def test__apply_secret_format_non_dotted_ok(ts: TerrascriptClient) -> None:
+    non_dotted_secret = {
+        "host": "gabi-stage.cuwmzfmkc2w0.us-east-1.rds.amazonaws.com",
+        "name": "gabi",
+        "password": "a-nice-password",
+        "port": "5432",
+        "user": "gabi",
+        "external-resources/updated_at": "2025-10-06T07:28:39Z",
+    }
+
+    non_dotted_secret_format = '{"password":"{{ password }}","username":"{{ user }}"}'
+
+    formatted_secret = ts._apply_secret_format(
+        non_dotted_secret_format, non_dotted_secret
+    )
+    assert formatted_secret == {
+        "password": non_dotted_secret["password"],
+        "username": non_dotted_secret["user"],
+    }
+
+
+def test__apply_secret_format_bad_format(ts: TerrascriptClient) -> None:
+    secret = {"foo": "bar"}
+    secret_format = '{"key1": {"key2": "{{ foo }}"}}'
+    with pytest.raises(ValueError, match="dictionary value"):
+        ts._apply_secret_format(secret_format, secret)
