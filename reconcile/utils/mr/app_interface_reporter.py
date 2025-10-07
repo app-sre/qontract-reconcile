@@ -1,9 +1,9 @@
 from collections.abc import Iterable
-from datetime import UTC, datetime
 from pathlib import Path
 
 from ruamel.yaml.scalarstring import PreservedScalarString
 
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
@@ -26,7 +26,7 @@ class CreateAppInterfaceReporter(MergeRequestBase):
 
         self.labels = [AUTO_MERGE]
 
-        now = datetime.now(tz=UTC)
+        now = utc_now()
         self.isodate = now.isoformat()
         self.ts = now.strftime("%Y%m%d%H%M%S")
 

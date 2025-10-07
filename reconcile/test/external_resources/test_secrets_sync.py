@@ -9,7 +9,6 @@ from reconcile.external_resources.meta import (
 )
 from reconcile.external_resources.secrets_sync import (
     SECRET_UPDATED_AT,
-    SECRET_UPDATED_AT_TIMEFORMAT,
     SecretHelper,
 )
 from reconcile.utils.openshift_resource import OpenshiftResource
@@ -64,7 +63,7 @@ def test_update_at_doesnot_triggers_update(
     desired: OpenshiftResource,
 ) -> None:
     desired.annotations[SECRET_UPDATED_AT] = datetime.now(UTC).strftime(
-        SECRET_UPDATED_AT_TIMEFORMAT
+        "%Y-%m-%dT%H:%M:%SZ"
     )
     assert SecretHelper.compare(current, desired) is True
 
@@ -74,7 +73,7 @@ def test_new_data_triggers_update(
     desired: OpenshiftResource,
 ) -> None:
     desired.annotations[SECRET_UPDATED_AT] = datetime.now(UTC).strftime(
-        SECRET_UPDATED_AT_TIMEFORMAT
+        "%Y-%m-%dT%H:%M:%SZ"
     )
     desired.body["data"]["new_key"] = "new_value"
     assert SecretHelper.compare(current, desired) is False

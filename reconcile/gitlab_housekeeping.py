@@ -6,7 +6,6 @@ from collections.abc import (
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import (
-    UTC,
     datetime,
     timedelta,
 )
@@ -30,6 +29,7 @@ from sretoolbox.utils import retry
 
 from reconcile import queries
 from reconcile.change_owners.change_types import ChangeTypePriority
+from reconcile.utils.datetime_util import ensure_utc, from_utc_iso_format, utc_now
 from reconcile.utils.gitlab_api import (
     GitLabApi,
     MRState,
@@ -72,7 +72,6 @@ HOLD_LABELS = [
 ]
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
-DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
 SQUASH_OPTION_ALWAYS = "always"
 
@@ -128,9 +127,7 @@ def _calculate_time_since_approval(approved_at: str) -> float:
     Returns the number of minutes since a MR has been approved.
     :param approved_at: the datetime the MR was approved in format %Y-%m-%dT%H:%M:%S.%fZ
     """
-    time_since_approval = datetime.now(tz=UTC) - datetime.strptime(
-        approved_at, DATE_FORMAT
-    ).astimezone(UTC)
+    time_since_approval = utc_now() - from_utc_iso_format(approved_at)
     return time_since_approval.total_seconds() / 60
 
 
@@ -138,7 +135,7 @@ def get_timed_out_pipelines(
     pipelines: list[ProjectMergeRequestPipeline],
     pipeline_timeout: int = 60,
 ) -> list[ProjectMergeRequestPipeline]:
-    now = datetime.now(tz=UTC)
+    now = utc_now()
 
     pending_pipelines = [
         p
@@ -152,7 +149,7 @@ def get_timed_out_pipelines(
     timed_out_pipelines = []
 
     for p in pending_pipelines:
-        update_time = datetime.strptime(p.updated_at, DATE_FORMAT).astimezone(UTC)
+        update_time = from_utc_iso_format(p.updated_at)
 
         elapsed = (now - update_time).total_seconds()
 
@@ -279,7 +276,7 @@ def handle_stale_items(
 ) -> None:
     LABEL = "stale"  # noqa: N806
 
-    now = datetime.now(tz=UTC)
+    now = utc_now()
     for item in items:
         if AUTO_MERGE in item.labels:
             if item.merge_status == MRStatus.UNCHECKED:
@@ -287,7 +284,7 @@ def handle_stale_items(
                 item = gl.get_merge_request(item.iid)
             if item.merge_status == MRStatus.CANNOT_BE_MERGED:
                 close_item(dry_run, gl, enable_closing, item_type, item)
-        update_date = datetime.strptime(item.updated_at, DATE_FORMAT).astimezone(UTC)
+        update_date = from_utc_iso_format(item.updated_at)
 
         # if item is over days_interval
         current_interval = now.date() - update_date.date()
@@ -315,11 +312,9 @@ def handle_stale_items(
             if not cancel_notes:
                 continue
 
-            cancel_notes_dates = [
-                datetime.strptime(item.updated_at, DATE_FORMAT).astimezone(UTC)
-                for note in cancel_notes
-            ]
-            latest_cancel_note_date = max(d for d in cancel_notes_dates)
+            latest_cancel_note_date = max(
+                from_utc_iso_format(note.updated_at) for note in cancel_notes
+            )
             # if the latest cancel note is under
             # days_interval - remove 'stale' label
             current_interval = now.date() - latest_cancel_note_date.date()
@@ -654,10 +649,10 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
 
     for pat in pats:
         if pat.active:
-            expiration_date = datetime.strptime(
-                pat.expires_at, EXPIRATION_DATE_FORMAT
-            ).astimezone(UTC)
-            days_until_expiration = expiration_date.date() - datetime.now(UTC).date()
+            expiration_date = ensure_utc(
+                datetime.strptime(pat.expires_at, EXPIRATION_DATE_FORMAT)  # noqa: DTZ007
+            )
+            days_until_expiration = expiration_date.date() - utc_now().date()
             gitlab_token_expiration.labels(pat.name).set(days_until_expiration.days)
         else:
             with suppress(KeyError, ValueError):

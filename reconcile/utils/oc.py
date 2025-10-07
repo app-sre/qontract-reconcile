@@ -12,7 +12,6 @@ import threading
 import time
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from functools import cache, wraps
 from subprocess import Popen
 from threading import Lock
@@ -47,6 +46,7 @@ from sretoolbox.utils import (
 )
 
 from reconcile.status import RunningState
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.json import json_dumps
 from reconcile.utils.jump_host import (
     JumphostParameters,
@@ -1010,7 +1010,7 @@ class OCCli:
         name = obj["metadata"]["name"]
         logging.info([f"recycle_{kind.lower()}", self.cluster_name, namespace, name])
         if not dry_run:
-            now = datetime.now(tz=UTC)
+            now = utc_now()
             recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
 
             # get the object in case it was modified

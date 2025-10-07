@@ -21,6 +21,7 @@ from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
 )
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.datetime_util import utc_now
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -85,9 +86,11 @@ def is_longer_than_retention(
     log_group: LogGroupTypeDef,
     desired_retention_days: int,
 ) -> bool:
-    return datetime.fromtimestamp(log_group["creationTime"] / 1000, tz=UTC) + timedelta(
-        days=desired_retention_days
-    ) < datetime.now(tz=UTC)
+    return (
+        datetime.fromtimestamp(log_group["creationTime"] / 1000, tz=UTC)
+        + timedelta(days=desired_retention_days)
+        < utc_now()
+    )
 
 
 class TagStatus(Enum):

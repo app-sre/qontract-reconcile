@@ -4,7 +4,6 @@ import logging
 import re
 from collections import defaultdict
 from datetime import (
-    UTC,
     datetime,
     timedelta,
 )
@@ -27,6 +26,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.datetime_util import from_utc_iso_format, utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.parse_dhms_duration import dhms_to_seconds
 from reconcile.utils.secret_reader import create_secret_reader
@@ -78,7 +78,7 @@ def get_aws_amis(
     owner: str,
     regex: str,
     age_in_seconds: int,
-    utc_now: datetime,
+    now: datetime,
 ) -> list[AWSAmi]:
     """Get amis that match regex older than given age"""
 
@@ -90,10 +90,8 @@ def get_aws_amis(
             if not re.search(pattern, image["Name"]):
                 continue
 
-            creation_date = datetime.strptime(
-                image["CreationDate"], "%Y-%m-%dT%H:%M:%S.%fZ"
-            ).astimezone(UTC)
-            current_delta = utc_now - creation_date
+            creation_date = from_utc_iso_format(image["CreationDate"])
+            current_delta = now - creation_date
             delete_delta = timedelta(seconds=age_in_seconds)
 
             if current_delta < delete_delta:
@@ -136,7 +134,7 @@ def get_region(
 
 @defer
 def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> None:
-    utc_now = datetime.now(tz=UTC)
+    now = utc_now()
     gqlapi = gql.get_api()
     aws_accounts = aws_accounts_query(gqlapi.query).accounts
 
@@ -223,7 +221,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> 
                 owner=account.uid,
                 regex=cleanup_config.regex,
                 age_in_seconds=age_in_seconds,
-                utc_now=utc_now,
+                now=now,
             )
 
             for ami in aws_amis:

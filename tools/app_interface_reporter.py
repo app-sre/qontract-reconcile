@@ -4,7 +4,6 @@ import os
 import textwrap
 from collections.abc import Mapping, MutableMapping
 from datetime import (
-    UTC,
     datetime,
 )
 
@@ -29,6 +28,7 @@ from reconcile.cli import (
 )
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.mr import CreateAppInterfaceReporter
 from reconcile.utils.runtime.environment import init_env
 from reconcile.utils.secret_reader import SecretReader
@@ -189,8 +189,8 @@ def get_apps_data(
     apps = queries.get_apps()
     jjb = init_jjb(secret_reader)
     jenkins_map = jenkins_base.get_jenkins_map()
-    time_limit = date - relativedelta(months=month_delta)
-    timestamp_limit = int(time_limit.replace(tzinfo=UTC).timestamp())
+    time_limit = ensure_utc(date) - relativedelta(months=month_delta)
+    timestamp_limit = int(time_limit.timestamp())
 
     secret_content = secret_reader.read_all({"path": DASHDOTDB_SECRET})
     dashdotdb_url = secret_content["url"]
@@ -411,7 +411,7 @@ def main(
 ) -> None:
     init_env(log_level=log_level, config_file=configfile)
 
-    now = datetime.now(tz=UTC)
+    now = utc_now()
     apps = get_apps_data(now, thread_pool_size=thread_pool_size)
 
     reports = [Report(app, now).to_message() for app in apps]
