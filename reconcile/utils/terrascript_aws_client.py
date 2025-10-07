@@ -177,7 +177,10 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
-from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
+from reconcile.utils.jinja2.utils import (
+    process_extracurlyjinja2_template,
+    process_jinja2_template,
+)
 from reconcile.utils.json import json_dumps
 from reconcile.utils.password_validator import (
     PasswordPolicy,
@@ -267,6 +270,7 @@ VARIABLE_KEYS = [
     "extra_tags",
     "lifecycle",
     "max_session_duration",
+    "secret_format",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -5809,6 +5813,10 @@ class TerrascriptClient:
         assert secret  # make mypy happy
         secret_data = self.secret_reader.read_all(secret)
 
+        secret_format = common_values.get("secret_format")
+        if secret_format is not None:
+            secret_data = self._apply_secret_format(str(secret_format), secret_data)
+
         version_values: dict[str, Any] = {
             "secret_id": "${" + aws_secret_resource.id + "}",
             "secret_string": json_dumps(secret_data),
@@ -5831,6 +5839,66 @@ class TerrascriptClient:
         tf_resources.append(Output(output_name, value=output_value))
 
         self.add_resources(account, tf_resources)
+
+    @staticmethod
+    def _unflatten_dotted_keys_dict(flat_dict: dict[str, str]) -> dict[str, Any]:
+        """Convert a flat dictionary with dotted keys to a nested dictionary.
+
+        Example:
+            {"db.host": "localhost", "db.port": "5432"} ->
+            {"db": {"host": "localhost", "port": "5432"}}
+
+        Raises:
+            ValueError: If there are conflicting keys (e.g., "a.b" and "a.b.c")
+        """
+        result: dict[str, Any] = {}
+        for key, value in flat_dict.items():
+            parts = key.split(".")
+            current = result
+            for i, part in enumerate(parts[:-1]):
+                if part not in current:
+                    current[part] = {}
+                elif not isinstance(current[part], dict):
+                    # Conflict: trying to traverse through a non-dict value
+                    conflicting_path = ".".join(parts[: i + 1])
+                    raise ValueError(
+                        f"Conflicting keys detected: '{conflicting_path}' is both a "
+                        f"value and a nested path in key '{key}'"
+                    )
+                current = current[part]
+
+            # Check if we're trying to set a value where a dict already exists
+            if parts[-1] in current and isinstance(current[parts[-1]], dict):
+                raise ValueError(
+                    f"Conflicting keys detected: '{key}' conflicts with nested keys"
+                )
+
+            current[parts[-1]] = value
+
+        return result
+
+    @staticmethod
+    def _apply_secret_format(
+        secret_format: str, secret_data: dict[str, str]
+    ) -> dict[str, str]:
+        # Convert flat dict with dotted keys to nested dict for Jinja2
+        nested_secret_data = TerrascriptClient._unflatten_dotted_keys_dict(secret_data)
+        rendered_data = process_jinja2_template(secret_format, nested_secret_data)
+
+        parsed_data = json.loads(rendered_data)
+
+        if not isinstance(parsed_data, dict):
+            raise ValueError("secret_format must be a dictionary")
+
+        # validate secret is a dict[str, str]
+        for k, v in parsed_data.items():
+            if not isinstance(k, str):
+                raise ValueError(f"key '{k}' is not a string")
+
+            if not isinstance(v, str):
+                raise ValueError(f"dictionary value '{v}' under '{k}' is not a string")
+
+        return parsed_data
 
     def get_commit_sha(self, repo_info: Mapping) -> str:
         url = repo_info["url"]
