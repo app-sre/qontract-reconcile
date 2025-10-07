@@ -1,12 +1,13 @@
 import logging
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.integration import get_binding_state, get_status_pages
 from reconcile.statuspage.page import StatusMaintenance
 from reconcile.statuspage.state import S3ComponentBindingState
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.differ import diff_iterables
 from reconcile.utils.runtime.integration import (
     NoParams,
@@ -52,7 +53,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
         desired_state: list[StatusMaintenance],
         binding_state: S3ComponentBindingState,
     ) -> None:
-        now = datetime.now(UTC)
+        now = utc_now()
         slack = slackapi_from_queries(QONTRACT_INTEGRATION, init_usergroups=False)
         for m in desired_state:
             scheduled_start = m.schedule_start
@@ -68,7 +69,7 @@ class StatusPageMaintenancesIntegration(QontractReconcileIntegration[NoParams]):
     def run(self, dry_run: bool = False) -> None:
         binding_state = get_binding_state(self.name, self.secret_reader)
         pages = get_status_pages()
-        now = datetime.now(UTC)
+        now = utc_now()
 
         error = False
         for p in pages:

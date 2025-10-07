@@ -1,5 +1,4 @@
 from collections.abc import Callable, Iterable
-from datetime import UTC, datetime
 from typing import Any
 
 import jinja2
@@ -26,6 +25,7 @@ from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql, metrics
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.aws_api_typed.iam import AWSAccessKey
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import (
@@ -101,7 +101,7 @@ class AwsAccountMgmtIntegration(
             "accountRequest": account_request.dict(by_alias=True),
             "uid": uid,
             "settings": settings,
-            "timestamp": int(datetime.now(tz=UTC).timestamp()),
+            "timestamp": int(utc_now().timestamp()),
         })
         return tmpl
 

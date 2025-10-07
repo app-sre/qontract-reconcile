@@ -1,9 +1,9 @@
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel
 
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import (
     MergeRequestBase,
@@ -58,7 +58,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         )
 
     def process(self, gitlab_cli: GitLabApi) -> None:
-        now = datetime.now(tz=UTC)
+        now = utc_now()
         ts = now.strftime("%Y%m%d%H%M%S")
         short_date = now.strftime("%Y-%m-%d")
 

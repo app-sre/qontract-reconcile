@@ -7,6 +7,7 @@ from typing import Any, Self
 from deepdiff import DeepHash
 from pydantic import BaseModel
 
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.state import State, init_state
 
@@ -185,7 +186,7 @@ class EarlyExitCache:
         :param latest_cache_source_digest: latest cache source digest, used to check stale for dry run cache
         :return: None
         """
-        expire_at = datetime.now(tz=UTC) + timedelta(seconds=ttl_seconds)
+        expire_at = utc_now() + timedelta(seconds=ttl_seconds)
         metadata = {
             EXPIRE_AT_METADATA_KEY: str(int(expire_at.timestamp())),
             CACHE_SOURCE_DIGEST_METADATA_KEY: key.cache_source_digest,
@@ -233,7 +234,7 @@ class EarlyExitCache:
             int(metadata[EXPIRE_AT_METADATA_KEY]),
             tz=UTC,
         )
-        now = datetime.now(UTC)
+        now = utc_now()
         return now >= expire_at
 
     def _head_dry_run_status(

@@ -7,7 +7,6 @@ import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.utils.ocm.search_filters import (
-    DateRangeCondition,
     Filter,
     InvalidChunkRequestError,
     InvalidFilterError,
@@ -116,9 +115,10 @@ def test_search_filter_before() -> None:
 
 
 def test_search_filter_before_relative(mocker: MockerFixture) -> None:
-    now_mock = mocker.patch.object(DateRangeCondition, "now")
-    now_mock.return_value = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC)
-
+    mocker.patch(
+        "reconcile.utils.ocm.search_filters.utc_now",
+        return_value=datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
+    )
     assert (
         Filter().before("timestamp", "1 day ago").render()
         == "timestamp <= '2020-01-01T00:00:00'"
@@ -135,8 +135,10 @@ def test_search_filter_after() -> None:
 
 
 def test_search_filter_after_relative(mocker: MockerFixture) -> None:
-    now_mock = mocker.patch.object(DateRangeCondition, "now")
-    now_mock.return_value = datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC)
+    mocker.patch(
+        "reconcile.utils.ocm.search_filters.utc_now",
+        return_value=datetime(2020, 1, 2, 0, 0, 0, 0, tzinfo=UTC),
+    )
 
     assert (
         Filter().after("timestamp", "1 day ago").render()

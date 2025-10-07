@@ -123,7 +123,7 @@ def setup_mocks(
     aws_accounts: Iterable[AWSAccountV1],
     log_groups: list[dict],
     tags: dict[str, Any],
-    utcnow: datetime = datetime.now(UTC),  # noqa: B008
+    utcnow: datetime | None = None,
 ) -> MagicMock:
     mocked_gql_api = create_autospec(GqlApi)
     mocker.patch(
@@ -137,11 +137,10 @@ def setup_mocks(
         "reconcile.aws_cloudwatch_log_retention.integration.queries.get_secret_reader_settings",
         return_value={},
     )
-    mocked_datetime = mocker.patch(
-        "reconcile.aws_cloudwatch_log_retention.integration.datetime",
-        wraps=datetime,
+    mocker.patch(
+        "reconcile.aws_cloudwatch_log_retention.integration.utc_now",
+        return_value=utcnow or datetime.now(UTC),
     )
-    mocked_datetime.now.return_value = utcnow
     aws_api = mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.AWSApi",
         autospec=True,
