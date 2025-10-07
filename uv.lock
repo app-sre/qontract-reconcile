@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = "==3.12.*"
 
 [[package]]
@@ -642,16 +642,14 @@ wheels = [
 
 [[package]]
 name = "jsonpath-ng"
-version = "1.5.3"
+version = "1.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "decorator" },
     { name = "ply" },
-    { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cd/c2/5cd85d8a7de7818892fd8f751d30b6d050a8471c6647d2fda47cc542f9b4/jsonpath-ng-1.5.3.tar.gz", hash = "sha256:a273b182a82c1256daab86a313b937059261b5c5f8c4fa3fc38b882b344dd567", size = 32819, upload-time = "2021-07-05T18:01:18.106Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/86/08646239a313f895186ff0a4573452038eed8c86f54380b3ebac34d32fb2/jsonpath-ng-1.7.0.tar.gz", hash = "sha256:f6f5f7fd4e5ff79c785f1573b394043b39849fb2bb47bcead935d12b00beab3c", size = 37838, upload-time = "2024-10-11T15:41:42.404Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/b7/3627068d9aa6b2d49af117eb3897770a5dbc6bb3f4c09ed56a9eb749438e/jsonpath_ng-1.5.3-py3-none-any.whl", hash = "sha256:292a93569d74029ba75ac2dc3d3630fc0e17b2df26119a165fa1d498ca47bf65", size = 29004, upload-time = "2021-07-05T18:01:16.879Z" },
+    { url = "https://files.pythonhosted.org/packages/35/5a/73ecb3d82f8615f32ccdadeb9356726d6cae3a4bbc840b437ceb95708063/jsonpath_ng-1.7.0-py3-none-any.whl", hash = "sha256:f3d7f9e848cba1b6da28c55b1c26ff915dc9e0b1ba7e752a53d6da8d5cbd00b6", size = 30105, upload-time = "2024-11-20T17:58:30.418Z" },
 ]
 
 [[package]]
@@ -1602,7 +1600,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=2.10.1,<3.2.0" },
     { name = "jira", specifier = "~=3.1" },
     { name = "jsonpatch", specifier = "~=1.33" },
-    { name = "jsonpath-ng", specifier = "==1.5.3" },
+    { name = "jsonpath-ng", specifier = "==1.7.0" },
     { name = "jsonpath-rw", specifier = ">=1.4.0,<1.5.0" },
     { name = "jsonpointer", specifier = "~=2.4" },
     { name = "kubernetes", specifier = "~=24.0" },
