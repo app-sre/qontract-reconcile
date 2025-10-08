@@ -63,7 +63,7 @@ def test_change_coverage(
     for bc in bundle_changes:
         for d in bc.diff_coverage:
             expected_approver = None
-            if str(d.diff.path) == "roles.[0].$ref":
+            if str(d.diff.path) == "roles.[0].'$ref'":
                 expected_approver = role_approver_user
             elif str(d.diff.path) == "openshiftResources.[1].version":
                 expected_approver = secret_approver_user
