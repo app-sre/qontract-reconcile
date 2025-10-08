@@ -172,7 +172,7 @@ class OCMProductOsd(OCMProduct):
             channel=cluster["version"]["channel_group"],
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
-            private=cluster["api"]["listening"] == "internal",
+            private=cluster["api"].get("listening") == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
             ],
@@ -420,7 +420,7 @@ class OCMProductRosa(OCMProduct):
             channel=cluster["version"]["channel_group"],
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
-            private=cluster["api"]["listening"] == "internal",
+            private=cluster["api"].get("listening") == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
             ],
@@ -697,7 +697,7 @@ class OCMProductHypershift(OCMProduct):
             channel=cluster["version"]["channel_group"],
             version=cluster["version"]["raw_id"],
             multi_az=cluster["multi_az"],
-            private=cluster["api"]["listening"] == "internal",
+            private=cluster["api"].get("listening") == "internal",
             disable_user_workload_monitoring=cluster[
                 "disable_user_workload_monitoring"
             ],
