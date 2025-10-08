@@ -144,7 +144,7 @@ def test_get_aws_amis_success(
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-rhel7.*",
         age_in_seconds=30,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 1
@@ -162,7 +162,7 @@ def test_get_aws_amis_unmatched_regex(
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-centos7.*",
         age_in_seconds=30,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 0
@@ -179,7 +179,7 @@ def test_get_aws_amis_different_account(
         owner="789123456789",
         regex="ci-int-jenkins-worker-rhel7.*",
         age_in_seconds=30,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 0
@@ -196,7 +196,7 @@ def test_get_aws_amis_too_young(
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-rhel7.*",
         age_in_seconds=90,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 0

@@ -1,8 +1,8 @@
+import datetime
 from collections.abc import Callable
 from textwrap import dedent
 from unittest.mock import MagicMock, create_autospec
 
-from dateutil import parser
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.terraform_init.aws_accounts import AWSAccountV1
@@ -24,8 +24,11 @@ def test_terraform_init_integration_render_state_collection(
     intg: TerraformInitIntegration,
     aws_accounts: list[AWSAccountV1],
 ) -> None:
-    datetime_mock = mocker.patch.object(integration, "datetime", autospec=True)
-    datetime_mock.now.return_value = parser.parse("2024-09-30T20:15:00+00")
+    mocker.patch.object(
+        integration,
+        "utc_now",
+        return_value=datetime.datetime(2024, 9, 30, 20, 15, 0, tzinfo=datetime.UTC),
+    )
     tmpl = dedent("""
     # test access variables
     {{ account_name }}

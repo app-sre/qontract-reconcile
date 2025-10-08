@@ -1,4 +1,3 @@
-import datetime as dt
 import logging
 import sys
 from abc import (
@@ -8,7 +7,6 @@ from abc import (
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 from datetime import (
-    UTC,
     datetime,
     timedelta,
 )
@@ -71,6 +69,12 @@ from reconcile.utils.clusterhealth.providerbase import (
 from reconcile.utils.clusterhealth.telemeter import (
     TELEMETER_SOURCE,
     TelemeterClusterHealthProvider,
+)
+from reconcile.utils.datetime_util import (
+    ensure_utc,
+    from_utc_iso_format,
+    to_utc_seconds_iso_format,
+    utc_now,
 )
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -439,9 +443,9 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
 
 def addon_upgrade_policy_soonest_next_run() -> str:
-    now = datetime.now(tz=dt.UTC)
+    now = utc_now()
     next_run = now + timedelta(minutes=MIN_DELTA_MINUTES)
-    return next_run.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return to_utc_seconds_iso_format(next_run)
 
 
 class AddonUpgradePolicy(AbstractUpgradePolicy):
@@ -721,8 +725,8 @@ def update_history(
         version_data (VersionData): version data, including history of soakdays
         upgrade_policies (list): query results of clusters upgrade policies
     """
-    now = datetime.now(tz=UTC)
-    check_in = version_data.check_in or now
+    now = utc_now()
+    check_in = ensure_utc(version_data.check_in or now)
 
     # we iterate over clusters upgrade policies and update the version history
     for spec in org_upgrade_spec.specs:
@@ -1013,7 +1017,7 @@ def verify_schedule_should_skip(
     # immediately
     delay_minutes = 1 if addon_id else MIN_DELTA_MINUTES
     next_schedule = iter.get_next(
-        dt.datetime, start_time=now + timedelta(minutes=delay_minutes)
+        datetime, start_time=now + timedelta(minutes=delay_minutes)
     )
     next_schedule_in_seconds = (next_schedule - now).total_seconds()
     next_schedule_in_hours = next_schedule_in_seconds / 3600  # seconds in hour
@@ -1030,7 +1034,7 @@ def verify_schedule_should_skip(
             f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster with no upcoming upgrade"
         )
         return None
-    return next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return to_utc_seconds_iso_format(next_schedule)
 
 
 def verify_max_upgrades_should_skip(
@@ -1108,8 +1112,8 @@ def _calculate_node_pool_diffs(
 ) -> UpgradePolicyHandler | None:
     for pool in spec.node_pools:
         if parse_semver(pool.version).match(f"<{spec.current_version}"):
-            next_schedule = (now + timedelta(minutes=MIN_DELTA_MINUTES)).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
+            next_schedule = to_utc_seconds_iso_format(
+                now + timedelta(minutes=MIN_DELTA_MINUTES)
             )
             return UpgradePolicyHandler(
                 action="create",
@@ -1166,7 +1170,7 @@ def calculate_diff(
             set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
 
     addon_service = init_addon_service(desired_state.org.environment)
-    now = datetime.now(tz=UTC)
+    now = utc_now()
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
         sector_name = spec.upgrade_policy.conditions.sector
@@ -1384,10 +1388,8 @@ def remaining_soak_day_metric_values_for_cluster(
                 remaining_soakdays[idx] = UPGRADE_STARTED_METRIC_VALUE
                 if current_upgrade.next_run:
                     # if an upgrade runs for over 6 hours, we mark it as a long running upgrade
-                    next_run = datetime.strptime(
-                        current_upgrade.next_run, "%Y-%m-%dT%H:%M:%SZ"
-                    ).astimezone(UTC)
-                    now = datetime.now(tz=UTC)
+                    next_run = from_utc_iso_format(current_upgrade.next_run)
+                    now = utc_now()
                     hours_ago = (now - next_run).total_seconds() / 3600
                     if hours_ago >= 6:
                         remaining_soakdays[idx] = UPGRADE_LONG_RUNNING_METRIC_VALUE

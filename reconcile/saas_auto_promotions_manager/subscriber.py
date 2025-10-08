@@ -2,7 +2,7 @@ import hashlib
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from croniter import croniter
 
@@ -13,6 +13,7 @@ from reconcile.saas_auto_promotions_manager.publisher import (
     DeploymentInfo,
     Publisher,
 )
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.slo_document_manager import SLODocumentManager
 
 CONTENT_HASH_LENGTH = 32
@@ -113,7 +114,7 @@ class Subscriber:
         We accumulate the time a ref is running on all publishers for this subscriber.
         We compare that accumulated time with the soak_days setting of the subscriber.
         """
-        now = datetime.now(UTC)
+        now = utc_now()
         delta = timedelta(days=0)
         for channel in self.channels:
             for publisher in channel.publishers:
@@ -136,7 +137,7 @@ class Subscriber:
                 self.schedule,
             )
             return False
-        return croniter.match(self.schedule, datetime.now(UTC), day_or=False)
+        return croniter.match(self.schedule, utc_now(), day_or=False)
 
     def _compute_desired_ref(self) -> None:
         """

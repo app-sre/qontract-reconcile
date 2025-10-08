@@ -6,6 +6,8 @@ from typing import (
     cast,
 )
 
+from reconcile.utils.datetime_util import ensure_utc, utc_now
+
 DATE_FORMAT = "%Y-%m-%d"
 
 
@@ -17,10 +19,8 @@ DictsOrRoles = TypeVar("DictsOrRoles", bound=Iterable[FilterableRole] | Iterable
 
 
 def date_expired(date: str) -> bool:
-    exp_date = (
-        datetime.datetime.strptime(date, DATE_FORMAT).astimezone(datetime.UTC).date()
-    )
-    current_date = datetime.datetime.now(tz=datetime.UTC).date()
+    exp_date = ensure_utc(datetime.datetime.strptime(date, DATE_FORMAT)).date()  # noqa: DTZ007
+    current_date = utc_now().date()
     return current_date >= exp_date
 
 

@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Any
 
 import jinja2
@@ -17,6 +16,7 @@ from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.gql import GqlApi
@@ -103,7 +103,7 @@ class TerraformInitIntegration(
             "account_name": account.name,
             "bucket_name": bucket_name,
             "region": account.resources_default_region,
-            "timestamp": int(datetime.now(tz=UTC).timestamp()),
+            "timestamp": int(utc_now().timestamp()),
         })
 
     def reconcile_account(

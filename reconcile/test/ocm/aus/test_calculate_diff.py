@@ -1,10 +1,9 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from dateutil import parser
 from pytest_mock import MockerFixture
 
 from reconcile.aus import base
@@ -80,9 +79,8 @@ def cluster_hypershift(
 
 @pytest.fixture
 def now(mocker: MockerFixture) -> datetime:
-    d = parser.parse("2021-08-30T18:00:00.00000")
-    datetime_mock = mocker.patch.object(base, "datetime", autospec=True)
-    datetime_mock.now.return_value = d
+    d = datetime(2021, 8, 30, 18, 0, 0, 0, tzinfo=UTC)
+    mocker.patch.object(base, "utc_now", return_value=d)
     return d
 
 

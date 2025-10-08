@@ -1,13 +1,10 @@
 import logging
 from collections.abc import Callable
 from datetime import (
-    UTC,
     datetime,
     timedelta,
 )
 from typing import Any
-
-from dateutil import parser
 
 from reconcile.gql_definitions.fragments.pipeline_provider_retention import (
     PipelineProviderRetention,
@@ -19,6 +16,7 @@ from reconcile.typed_queries.tekton_pipeline_providers import (
     get_tekton_pipeline_providers,
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.datetime_util import from_utc_iso_format, utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
     OCLogMsg,
@@ -35,7 +33,7 @@ def within_retention_days(
     resource: dict[str, Any], days: int, now_date: datetime
 ) -> bool:
     metadata = resource["metadata"]
-    creation_date = parser.parse(metadata["creationTimestamp"])
+    creation_date = from_utc_iso_format(metadata["creationTimestamp"])
     interval = now_date.timestamp() - creation_date.timestamp()
 
     return interval < timedelta(days=days).total_seconds()
@@ -69,7 +67,7 @@ def run(
     use_jump_host: bool = True,
     defer: Callable | None = None,
 ) -> None:
-    now_date = datetime.now(UTC)
+    now_date = utc_now()
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
     pipeline_providers = get_tekton_pipeline_providers()
