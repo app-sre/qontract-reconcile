@@ -50,10 +50,18 @@ query StatusBoard {
             childrenApps {
               name
               onboardingStatus
+              saasFiles {
+                name
+                managedResourceTypes
+              }
             }
             parentApp {
               name
               onboardingStatus
+            }
+            saasFiles {
+              name
+              managedResourceTypes
             }
           }
         }
@@ -95,9 +103,15 @@ class ProductV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
 
 
+class SaasFileV2(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
+
+
 class AppV1_AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     onboarding_status: str = Field(..., alias="onboardingStatus")
+    saas_files: Optional[list[SaasFileV2]] = Field(..., alias="saasFiles")
 
 
 class NamespaceV1_AppV1_AppV1(ConfiguredBaseModel):
@@ -105,11 +119,17 @@ class NamespaceV1_AppV1_AppV1(ConfiguredBaseModel):
     onboarding_status: str = Field(..., alias="onboardingStatus")
 
 
+class AppV1_SaasFileV2(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    managed_resource_types: list[str] = Field(..., alias="managedResourceTypes")
+
+
 class AppV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     onboarding_status: str = Field(..., alias="onboardingStatus")
     children_apps: Optional[list[AppV1_AppV1]] = Field(..., alias="childrenApps")
     parent_app: Optional[NamespaceV1_AppV1_AppV1] = Field(..., alias="parentApp")
+    saas_files: Optional[list[AppV1_SaasFileV2]] = Field(..., alias="saasFiles")
 
 
 class NamespaceV1(ConfiguredBaseModel):
