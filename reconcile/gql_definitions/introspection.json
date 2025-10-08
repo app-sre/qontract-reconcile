@@ -4510,6 +4510,16 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "QuayOrg_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "QuayInstance_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "CredentialsRequest_v1",
                             "ofType": null
                         },
@@ -4580,27 +4590,7 @@
                         },
                         {
                             "kind": "OBJECT",
-                            "name": "QuayOrg_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "QuayInstance_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "PermissionQuayOrgTeam_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
                             "name": "AppEscalationPolicy_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "PermissionSlackUsergroup_v1",
                             "ofType": null
                         },
                         {
@@ -4720,11 +4710,6 @@
                         },
                         {
                             "kind": "OBJECT",
-                            "name": "PermissionAutomatedActions_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
                             "name": "AWSVPC_v1",
                             "ofType": null
                         },
@@ -4751,11 +4736,6 @@
                         {
                             "kind": "OBJECT",
                             "name": "VaultAuth_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "PermissionGithubOrgTeam_v1",
                             "ofType": null
                         },
                         {
@@ -4811,11 +4791,6 @@
                         {
                             "kind": "OBJECT",
                             "name": "UnleashProject_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "FeatureToggleUnleash_v1",
                             "ofType": null
                         },
                         {
@@ -4905,92 +4880,7 @@
                         },
                         {
                             "kind": "OBJECT",
-                            "name": "PipelinesProviderTekton_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
                             "name": "PipelinesProviderTektonProviderDefaults_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "OidcPermissionVault_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "OidcPermissionAcs_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "PermissionGithubOrg_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "PermissionJenkinsRole_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "PermissionGitlabGroupMembership_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "EndpointMonitoringProviderBlackboxExporter_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "EndpointMonitoringProviderSignalFx_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionActionList_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionCreateToken_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionExternalResourceFlushElastiCache_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionExternalResourceRdsReboot_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionExternalResourceRdsSnapshot_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionNoOp_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionOpenshiftTriggerCronjob_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionOpenshiftWorkloadDelete_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "OBJECT",
-                            "name": "AutomatedActionOpenshiftWorkloadRestart_v1",
                             "ofType": null
                         }
                     ]
@@ -14947,7 +14837,13 @@
                         }
                     ],
                     "inputFields": null,
-                    "interfaces": [],
+                    "interfaces": [
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
+                        }
+                    ],
                     "enumValues": null,
                     "possibleTypes": null
                 },
@@ -18595,399 +18491,6 @@
                 },
                 {
                     "kind": "OBJECT",
-                    "name": "QuayOrg_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "schema",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "path",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "labels",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "JSON",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "description",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "mirror",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "QuayOrg_v1",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "mirrorFilters",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "QuayOrgMirrorFilter_v1",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "managedRepos",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "Boolean",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "instance",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "OBJECT",
-                                    "name": "QuayInstance_v1",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "serverUrl",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "managedTeams",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "LIST",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "NON_NULL",
-                                        "name": null,
-                                        "ofType": {
-                                            "kind": "SCALAR",
-                                            "name": "String",
-                                            "ofType": null
-                                        }
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "automationToken",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "VaultSecret_v1",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "pushCredentials",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "OBJECT",
-                                "name": "VaultSecret_v1",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
-                        }
-                    ],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "QuayOrgMirrorFilter_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "tags",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "tagsExclude",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "SCALAR",
-                                        "name": "String",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "QuayInstance_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "schema",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "path",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "labels",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "JSON",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "description",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "url",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
-                        }
-                    ],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
                     "name": "AppQuayReposTeams_v1",
                     "description": null,
                     "fields": [
@@ -19196,11 +18699,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -19797,11 +19295,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -28548,11 +28041,6 @@
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -30113,11 +29601,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -32786,11 +32269,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "FeatureToggle_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -51568,11 +51046,6 @@
                             "kind": "INTERFACE",
                             "name": "PipelinesProvider_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -52308,11 +51781,6 @@
                             "kind": "INTERFACE",
                             "name": "OidcPermission_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -52478,11 +51946,6 @@
                             "kind": "INTERFACE",
                             "name": "OidcPermission_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -52619,11 +52082,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -52781,11 +52239,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -52967,11 +52420,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -54056,11 +53504,6 @@
                             "kind": "INTERFACE",
                             "name": "EndpointMonitoringProvider_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -54280,11 +53723,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "EndpointMonitoringProvider_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -55174,11 +54612,6 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -55351,11 +54784,6 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -55516,11 +54944,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -55726,11 +55149,6 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -55892,11 +55310,6 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
-                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -56033,11 +55446,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -56199,11 +55607,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -56408,11 +55811,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -56645,11 +56043,6 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
-                            "ofType": null
-                        },
-                        {
-                            "kind": "INTERFACE",
-                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
