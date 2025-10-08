@@ -204,7 +204,7 @@ class OCMClusterConsole(BaseModel):
 
 class OCMClusterAPI(BaseModel):
     url: str
-    listening: str
+    listening: str | None = None
 
 
 class OCMClusterDns(BaseModel):
