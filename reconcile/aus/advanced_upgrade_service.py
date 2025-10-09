@@ -377,6 +377,7 @@ def _build_org_upgrade_spec(
                     org=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                     cluster=c.ocm_cluster,
+                    cluster_labels=c.labels,
                     health=cluster_health,
                     nodePools=node_pool_specs_by_cluster_id.get(c.ocm_cluster.id) or [],
                 )

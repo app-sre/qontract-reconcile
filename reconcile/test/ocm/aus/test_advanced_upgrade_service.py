@@ -152,6 +152,7 @@ def test_advanced_upgrade_service_get_upgrade_specs(
             ),
         ),
         cluster=cluster.ocm_cluster,
+        cluster_labels=cluster.labels,
         health=AUSClusterHealth(state={}),
     )
     expected_upgrade_specs = {
@@ -216,6 +217,7 @@ def test_advanced_upgrade_service_get_upgrade_specs_for_hypershift(
             ),
         ),
         cluster=cluster.ocm_cluster,
+        cluster_labels=cluster.labels,
         health=AUSClusterHealth(state={}),
         nodePools=[node_pool],
     )
