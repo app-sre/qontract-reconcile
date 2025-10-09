@@ -162,7 +162,7 @@ def test_terraform_init_integration_reconcile_account_when_import_stack(
         parameters={"BucketName": "existing-bucket"},
         tags={
             "account_key": "account_value",
-            "common_key": "account_value",
+            "common_key": "final_common_value",
             "env": "test",
             "payer_key": "payer_value",
         },
@@ -173,7 +173,7 @@ def test_terraform_init_integration_reconcile_account_when_import_stack(
         parameters={"BucketName": "existing-bucket"},
         tags={
             "account_key": "account_value",
-            "common_key": "account_value",
+            "common_key": "final_common_value",
             "env": "test",
             "payer_key": "payer_value",
         },
@@ -219,7 +219,8 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch(
     aws_api.cloudformation.get_stack.return_value = {
         "StackName": "terraform-terraform-state-already-set",
         "Tags": [
-            {"Key": "common_key", "Value": "account_value"},
+            {"Key": "account_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
             {"Key": "env", "Value": "test-old"},
             {"Key": "payer_key", "Value": "payer_value"},
         ],
@@ -245,7 +246,7 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch(
         parameters={"BucketName": "existing-bucket"},
         tags={
             "account_key": "account_value",
-            "common_key": "account_value",
+            "common_key": "final_common_value",
             "env": "test",
             "payer_key": "payer_value",
         },
@@ -265,7 +266,8 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch_dry_run
     aws_api.cloudformation.get_stack.return_value = {
         "StackName": "terraform-terraform-state-already-set",
         "Tags": [
-            {"Key": "common_key", "Value": "account_value"},
+            {"Key": "account_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
             {"Key": "env", "Value": "test-old"},
             {"Key": "payer_key", "Value": "payer_value"},
         ],
@@ -302,7 +304,7 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
         "StackName": "terraform-terraform-state-already-set",
         "Tags": [
             {"Key": "account_key", "Value": "account_value"},
-            {"Key": "common_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
             {"Key": "env", "Value": "test"},
             {"Key": "payer_key", "Value": "payer_value"},
         ],
@@ -332,7 +334,7 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
         parameters={"BucketName": "existing-bucket"},
         tags={
             "account_key": "account_value",
-            "common_key": "account_value",
+            "common_key": "final_common_value",
             "env": "test",
             "payer_key": "payer_value",
         },
@@ -353,7 +355,7 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
         "Tags": [
             {"Key": "account_key", "Value": "account_value"},
             {"Key": "env", "Value": "test"},
-            {"Key": "common_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
             {"Key": "payer_key", "Value": "payer_value"},
         ],
     }
@@ -392,7 +394,7 @@ def test_terraform_init_integration_reconcile_account_when_no_changes(
         "StackName": "terraform-terraform-state-already-set",
         "Tags": [
             {"Key": "account_key", "Value": "account_value"},
-            {"Key": "common_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
             {"Key": "env", "Value": "test"},
             {"Key": "payer_key", "Value": "payer_value"},
         ],

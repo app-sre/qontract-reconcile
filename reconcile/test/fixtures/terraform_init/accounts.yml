@@ -23,8 +23,8 @@ accounts:
     path: path/to/creds
   organization:
     payerAccount:
-      organizationAccountTags: '{"payer_key": "payer_value", "common_key": "payer_value"}'
-    tags: '{"common_key": "account_value", "account_key": "account_value"}'
+      organizationAccountTags: '{"common_key": "not_final_common_value", "payer_key": "payer_value"}'
+    tags: '{"common_key": "final_common_value", "account_key": "account_value"}'
 
 # all accounts below must be ignored
 - name: no-terraform-username
