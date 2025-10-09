@@ -17,10 +17,18 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.aws_organization import AWSOrganization
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
 
 DEFINITION = """
+fragment AWSOrganization on AWSOrganization_v1 {
+  payerAccount {
+    organizationAccountTags
+  }
+  tags
+}
+
 fragment VaultSecret on VaultSecret_v1 {
   path
   field
@@ -42,6 +50,9 @@ query TerraformInitAWSAccounts {
     }
     disable {
       integrations
+    }
+    organization {
+      ...AWSOrganization
     }
   }
 }
@@ -70,6 +81,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     automation_token: VaultSecret = Field(..., alias="automationToken")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
+    organization: Optional[AWSOrganization] = Field(..., alias="organization")
 
 
 class TerraformInitAWSAccountsQueryData(ConfiguredBaseModel):

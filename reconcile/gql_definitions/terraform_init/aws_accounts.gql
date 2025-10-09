@@ -15,5 +15,8 @@ query TerraformInitAWSAccounts {
     disable {
       integrations
     }
+    organization {
+      ...AWSOrganization
+    }
   }
 }
