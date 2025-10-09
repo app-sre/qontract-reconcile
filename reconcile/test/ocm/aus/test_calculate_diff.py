@@ -27,8 +27,8 @@ from reconcile.test.ocm.aus.fixtures import (
     build_organization_upgrade_spec,
     build_upgrade_policy,
 )
-from reconcile.test.ocm.fixtures import build_ocm_cluster
-from reconcile.utils.ocm.base import OCMVersionGate
+from reconcile.test.ocm.fixtures import build_label, build_ocm_cluster
+from reconcile.utils.ocm.base import OCMVersionGate, build_label_container
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -154,6 +154,12 @@ def test_calculate_diff_create_cluster_upgrade_no_gates(
                 organization_id="org-1-id",
                 cluster=cluster,
                 version="4.12.19",
+                cluster_labels=build_label_container([
+                    build_label(
+                        key="sre-capabilities.aus.version-gate-approvals",
+                        value="api.openshift.com/gate-ocp,api.openshift.com/gate-sts",
+                    )
+                ]),
                 schedule_type="manual",
                 next_run="2021-08-30T18:07:00Z",
             ),
@@ -210,6 +216,12 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
             action="create",
             policy=ClusterUpgradePolicy(
                 organization_id="org-1-id",
+                cluster_labels=build_label_container([
+                    build_label(
+                        key="sre-capabilities.aus.version-gate-approvals",
+                        value="api.openshift.com/gate-ocp,api.openshift.com/gate-sts",
+                    )
+                ]),
                 cluster=cluster,
                 version="4.12.19",
                 schedule_type="manual",
@@ -433,6 +445,12 @@ def test_calculate_diff_mutex_set(
         [
             ClusterUpgradePolicy(
                 organization_id="1",
+                cluster_labels=build_label_container([
+                    build_label(
+                        key="sre-capabilities.aus.version-gate-approvals",
+                        value="api.openshift.com/gate-ocp,api.openshift.com/gate-sts",
+                    )
+                ]),
                 cluster=cluster,
                 schedule_type="manual",
                 next_run="2021-08-30T18:06:00Z",

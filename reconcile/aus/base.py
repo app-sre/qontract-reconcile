@@ -81,6 +81,7 @@ from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.filtering import remove_none_values_from_dict
 from reconcile.utils.jobcontroller.controller import build_job_controller
 from reconcile.utils.ocm.addons import AddonService, AddonServiceV1, AddonServiceV2
+from reconcile.utils.ocm.base import LabelContainer
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
 )
@@ -112,6 +113,7 @@ from reconcile.utils.semver_helper import (
 from reconcile.utils.state import init_state
 
 MIN_DELTA_MINUTES = 6
+STS_GATE_LABEL = "api.openshift.com/gate-sts"
 
 
 class RosaRoleUpgradeHandlerParams(PydanticRunParams):
@@ -496,6 +498,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
     """Class to create ClusterUpgradePolicies in OCM"""
 
     organization_id: str
+    cluster_labels: LabelContainer
 
     def create(
         self,
@@ -511,8 +514,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         if (
             rosa_role_upgrade_handller_params
             and secret_reader
-            and self.cluster.is_sts()
-            and self.cluster.is_rosa_classic()
+            and self.should_upgrade_roles()
         ):
             logging.info(
                 f"Updating account and operatior roles for {self.cluster.name}"
@@ -541,6 +543,18 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                     f"Failed to update account and operatior roles for {self.cluster.name}"
                 )
         create_upgrade_policy(ocm_api, self.cluster.id, policy)
+
+    def should_upgrade_roles(self) -> bool:
+        handler_csv = self.cluster_labels.get_label_value(
+            "sre-capabilities.aus.version-gate-approvals"
+        )
+        if not handler_csv:
+            return False
+        return (
+            self.cluster.is_sts()
+            and self.cluster.is_rosa_classic()
+            and STS_GATE_LABEL in set(handler_csv.split(","))
+        )
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         raise NotImplementedError("ClusterUpgradePolicy.delete() not implemented")
@@ -702,6 +716,7 @@ def fetch_current_state(
                 policy = upgrade_policy | {
                     "cluster": spec.cluster,
                     "organization_id": spec.org.org_id,
+                    "cluster_labels": spec.cluster_labels,
                 }
                 current_state.append(ClusterUpgradePolicy(**policy))
 
@@ -1101,6 +1116,7 @@ def _create_upgrade_policy(
     return ClusterUpgradePolicy(
         cluster=spec.cluster,
         organization_id=spec.org.org_id,
+        cluster_labels=spec.cluster_labels,
         version=version,
         schedule_type="manual",
         next_run=next_schedule,
