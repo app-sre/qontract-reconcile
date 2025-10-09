@@ -2231,6 +2231,12 @@ JIRA_BOARDS_QUICK_QUERY = """
         version
         format
       }
+      email {
+        path
+        field
+        version
+        format
+      }
     }
   }
 }
@@ -2695,6 +2701,10 @@ APP_METADATA = """
           server {
             serverUrl
             token {
+              path
+              field
+            }
+            email {
               path
               field
             }

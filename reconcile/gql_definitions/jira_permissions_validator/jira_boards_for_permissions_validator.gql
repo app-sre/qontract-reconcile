@@ -6,6 +6,9 @@ query JiraBoardsForPermissionValidation {
     name
     server {
       serverUrl
+      email {
+        ...VaultSecret
+      }
       token {
         ...VaultSecret
       }

@@ -17,10 +17,8 @@ from jira.resources import CustomFieldOption as JiraCustomFieldOption
 from jira.resources import Resource
 from pydantic import BaseModel
 
-from reconcile.utils.secret_reader import SecretReader
-
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable
 
 
 class JiraWatcherSettings(Protocol):
@@ -87,36 +85,18 @@ class IssueField(BaseModel):
     options: list[FieldOption | CustomFieldOption]
 
 
+CREATE_ISSUES = "CREATE_ISSUES"
+TRANSITION_ISSUES = "TRANSITION_ISSUES"
+PERMISSIONS = [CREATE_ISSUES, TRANSITION_ISSUES]
+
+
 class JiraClient:
     """Wrapper around Jira client."""
 
     DEFAULT_CONNECT_TIMEOUT = 60
     DEFAULT_READ_TIMEOUT = 60
 
-    def __init__(
-        self,
-        jira_board: Mapping[str, Any] | None = None,
-        settings: Mapping | None = None,
-        jira_api: JIRA | None = None,
-        project: str | None = None,
-        server: str | None = None,
-    ):
-        """
-        Note: jira_board and settings is to be deprecated. Use JiraClient.create() instead.
-        """
-        if jira_api and jira_board:
-            raise RuntimeError(
-                "jira_board parameter is deprecated. Use JiraClient.create() instead."
-            )
-        if not (jira_api and project):
-            # kept for backwards-compatibility
-            if not jira_board:
-                raise RuntimeError(
-                    "JiraClient needs jira_api and project or jira_board."
-                )
-            self._deprecated_init(jira_board=jira_board, settings=settings)
-            return
-
+    def __init__(self, jira_api: JIRA, project: str, server: str):
         self.server = server
         self.project = project
         self.jira = jira_api
@@ -128,34 +108,11 @@ class JiraClient:
         self.project_issue_types = functools.cache(self._project_issue_types)
         self.project_issue_fields = functools.cache(self._project_issue_fields)
 
-    def _deprecated_init(
-        self, jira_board: Mapping[str, Any], settings: Mapping | None
-    ) -> None:
-        secret_reader = SecretReader(settings=settings)
-        self.project = jira_board["name"]
-        jira_server = jira_board["server"]
-        self.server = jira_server["serverUrl"]
-        token = jira_server["token"]
-        token_auth = secret_reader.read(token)
-        read_timeout = 60
-        connect_timeout = 60
-        if settings and settings["jiraWatcher"]:
-            read_timeout = settings["jiraWatcher"]["readTimeout"]
-            connect_timeout = settings["jiraWatcher"]["connectTimeout"]
-        if not self.server:
-            raise RuntimeError("JiraClient.server is not set.")
-
-        self.jira = JIRA(
-            self.server,
-            token_auth=token_auth,
-            timeout=(read_timeout, connect_timeout),
-            logging=False,
-        )
-
     @staticmethod
     def create(
         project_name: str,
         token: str,
+        email: str | None,
         server_url: str,
         jira_watcher_settings: JiraWatcherSettings | None = None,
     ) -> JiraClient:
@@ -164,17 +121,28 @@ class JiraClient:
         if jira_watcher_settings:
             read_timeout = jira_watcher_settings.read_timeout
             connect_timeout = jira_watcher_settings.connect_timeout
+
+        # Jira Cloud uses email+API token for basic auth
+        # Jira Server/Data Center can use token auth (personal access token)
+        auth_params: dict[str, Any] = (
+            {"basic_auth": (email, token)} if email else {"token_auth": token}
+        )
         jira_api = JIRA(
             server=server_url,
-            token_auth=token,
             timeout=(read_timeout, connect_timeout),
             logging=False,
+            **auth_params,
         )
         return JiraClient(
             jira_api=jira_api,
             project=project_name,
             server=server_url,
         )
+
+    @property
+    def is_cloud(self) -> bool:
+        """Return whether we are on a Cloud based Jira instance."""
+        return self.jira.deploymentType == "Cloud"
 
     def get_issues(self, fields: Iterable | None = None) -> list[Issue]:
         block_size = 100
@@ -227,6 +195,10 @@ class JiraClient:
         return issue
 
     def _my_permissions(self, project: str) -> dict[str, Any]:
+        if self.is_cloud:
+            return self.jira.my_permissions(
+                projectKey=project, permissions=",".join(PERMISSIONS)
+            )["permissions"]
         return self.jira.my_permissions(projectKey=project)["permissions"]
 
     def can_i(self, permission: str) -> bool:
@@ -235,10 +207,10 @@ class JiraClient:
         )
 
     def can_create_issues(self) -> bool:
-        return self.can_i("CREATE_ISSUES")
+        return self.can_i(CREATE_ISSUES)
 
     def can_transition_issues(self) -> bool:
-        return self.can_i("TRANSITION_ISSUES")
+        return self.can_i(TRANSITION_ISSUES)
 
     def _project_issue_types(self, project: str) -> list[IssueType]:
         # Don't use self.project here, because of function.cache usage
@@ -255,15 +227,23 @@ class JiraClient:
 
     @staticmethod
     def _get_allowed_issue_field_options(
-        allowed_values: list[Resource],
+        allowed_values: list[Resource] | list[dict[str, str]],
     ) -> list[FieldOption | CustomFieldOption]:
         """Return a list of allowed values for a field."""
-        return [
-            CustomFieldOption(value=v.value)
-            if isinstance(v, JiraCustomFieldOption)
-            else FieldOption(name=v.name)
-            for v in allowed_values
-        ]
+        items: list[FieldOption | CustomFieldOption] = []
+        for v in allowed_values:
+            match v:
+                case dict() if "value" in v:
+                    items.append(CustomFieldOption(value=v["value"]))
+                case dict() if "name" in v:
+                    items.append(FieldOption(name=v["name"]))
+                case JiraCustomFieldOption():
+                    items.append(CustomFieldOption(value=v.value))
+                case Resource():
+                    items.append(FieldOption(name=v.name))
+                case _:
+                    logging.warning(f"Unknown allowed value type: {type(v)}")
+        return items
 
     def _project_issue_fields(
         self, project: str, issue_type_id: str
@@ -273,6 +253,27 @@ class JiraClient:
         This API endpoint needs createIssue project permissions.
         """
         # Don't use self.project here, because of function.cache usage
+        if self.is_cloud:
+            metadata = self.jira.createmeta(
+                projectKeys=self.project,
+                issuetypeIds=[issue_type_id],
+                expand="projects.issuetypes.fields",
+            )
+            if not metadata["projects"] or not metadata["projects"][0]["issuetypes"]:
+                return []
+            return [
+                IssueField(
+                    name=field["name"],
+                    id=field_id,
+                    options=self._get_allowed_issue_field_options(
+                        field.get("allowedValues", [])
+                    ),
+                )
+                for field_id, field in metadata["projects"][0]["issuetypes"][0][
+                    "fields"
+                ].items()
+            ]
+
         return [
             IssueField(
                 name=field.name,
@@ -304,6 +305,10 @@ class JiraClient:
 
     def project_priority_scheme(self) -> list[str]:
         """Return a list of all priority IDs for the project."""
+        if self.is_cloud:
+            # Cloud does not have a way to retrieve project specific priority schemes
+            return []
+
         scheme = self.jira.project_priority_scheme(self.project)
         return scheme.optionIds
 
@@ -329,4 +334,4 @@ class JiraClient:
 
     @property
     def is_archived(self) -> bool:
-        return self.jira.project(self.project).archived
+        return getattr(self.jira.project(self.project), "archived", False)
