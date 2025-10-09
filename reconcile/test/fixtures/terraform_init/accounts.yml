@@ -21,6 +21,10 @@ accounts:
   resourcesDefaultRegion: us-east-1
   automationToken:
     path: path/to/creds
+  organization:
+    payerAccount:
+      organizationAccountTags: '{"payer_key": "payer_value", "common_key": "payer_value"}'
+    tags: '{"common_key": "account_value", "account_key": "account_value"}'
 
 # all accounts below must be ignored
 - name: no-terraform-username
