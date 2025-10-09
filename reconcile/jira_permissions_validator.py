@@ -197,7 +197,10 @@ def board_is_valid(
                 )
                 error |= ValidationError.INVALID_PRIORITY
                 continue
-            if jira_server_priorities[priority.priority] not in project_priorities:
+            if (
+                project_priorities
+                and jira_server_priorities[priority.priority] not in project_priorities
+            ):
                 logging.error(
                     f"[{board.name}] {priority.priority} is not a valid priority in project. Valid priorities: {project_priorities_names}"
                 )
@@ -228,25 +231,30 @@ def validate_boards(
     dry_run: bool,
     state: State,
     jira_client_class: type[JiraClient] = JiraClient,
+    use_cache: bool = False,
 ) -> bool:
     error = False
     jira_clients: dict[str, JiraClient] = {}
     for board in jira_boards:
-        next_run_time = state.get(board.name, 0)
-        if time.time() <= next_run_time:
-            if not dry_run:
-                # always skip for non-dry-run mode
-                continue
-            # dry-run mode
-            elif len(jira_boards) > 1:
-                logging.info(f"[{board.name}] Use cache results. Skipping ...")
-                continue
+        if use_cache:
+            next_run_time = state.get(board.name, 0)
+            if time.time() <= next_run_time:
+                if not dry_run:
+                    # always skip for non-dry-run mode
+                    continue
+                # dry-run mode
+                elif len(jira_boards) > 1:
+                    logging.info(f"[{board.name}] Use cache results. Skipping ...")
+                    continue
 
         logging.debug(f"[{board.name}] checking ...")
         if board.server.server_url not in jira_clients:
             jira_clients[board.server.server_url] = jira_client_class.create(
                 project_name=board.name,
                 token=secret_reader.read_secret(board.server.token),
+                email=secret_reader.read_secret(board.server.email)
+                if board.server.email
+                else None,
                 server_url=board.server.server_url,
                 jira_watcher_settings=jira_client_settings,
             )
@@ -326,6 +334,7 @@ def run(
     dry_run: bool,
     jira_board_name: list[str] | None = None,
     board_check_interval_sec: int = 3600,
+    use_cache: bool = False,
     defer: Callable | None = None,
 ) -> None:
     gql_api = gql.get_api()
@@ -349,6 +358,7 @@ def run(
             board_check_interval_sec=board_check_interval_sec,
             dry_run=dry_run,
             state=state,
+            use_cache=use_cache,
         )
 
     if error:

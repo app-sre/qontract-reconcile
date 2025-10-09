@@ -4099,7 +4099,9 @@ def sre_checkpoint_metadata(
 ) -> None:
     """Check an app path for checkpoint-related metadata."""
     data = queries.get_app_metadata(app_path)
-    settings = queries.get_app_interface_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+
     app = data[0]
 
     if jiradef:
@@ -4112,7 +4114,14 @@ def sre_checkpoint_metadata(
     # Overrides for easier testing
     if jiraboard:
         board["name"] = jiraboard
-    report_invalid_metadata(app, app_path, board, settings, parent_ticket, dry_run)
+    report_invalid_metadata(
+        app=app,
+        path=app_path,
+        board=board,
+        secret_reader=secret_reader,
+        parent=parent_ticket,
+        dry_run=dry_run,
+    )
 
 
 @root.command()

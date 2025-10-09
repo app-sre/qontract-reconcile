@@ -6,6 +6,7 @@ import requests
 from pytest_mock import MockerFixture
 
 import reconcile.checkpoint as sut
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @pytest.fixture
@@ -134,13 +135,23 @@ def app_metadata() -> list[tuple[dict[str, Any], bool]]:
 
 @pytest.mark.parametrize("app,needs_ticket", app_metadata())
 def test_report_invalid_metadata(
-    mocker: MockerFixture, app: dict[str, Any], needs_ticket: bool
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+    app: dict[str, Any],
+    needs_ticket: bool,
 ) -> None:
     """Test that valid apps don't get tickets and that invalid apps do."""
     # TODO: I'm pretty sure a fixture can help with this
     jira = mocker.patch.object(sut, "JiraClient", autospec=True)
     filer = mocker.patch.object(sut, "file_ticket", autospec=True)
-
+    board = {
+        "name": "jiraboard",
+        "server": {
+            "token": "fake-token",
+            "email": None,
+            "server_url": "https://fake-url",
+        },
+    }
     valid = sut.VALIDATORS
 
     sut.VALIDATORS = {
@@ -149,10 +160,10 @@ def test_report_invalid_metadata(
         "grafanaUrls": lambda _: True,
     }
 
-    sut.report_invalid_metadata(app, "/a/path", {"name": "jiraboard"}, {}, "TICKET-123")
+    sut.report_invalid_metadata(app, "/a/path", board, secret_reader, "TICKET-123")
     if needs_ticket:
         filer.assert_called_once_with(
-            jira=jira.return_value,
+            jira=jira.create.return_value,
             app_name=app["name"],
             labels=sut.DEFAULT_CHECKPOINT_LABELS,
             parent="TICKET-123",
@@ -168,10 +179,21 @@ def test_report_invalid_metadata(
 
 @pytest.mark.parametrize("app,needs_ticket", app_metadata())
 def test_report_invalid_metadata_dry_run(
-    mocker: MockerFixture, app: dict[str, Any], needs_ticket: bool
+    mocker: MockerFixture,
+    secret_reader: SecretReaderBase,
+    app: dict[str, Any],
+    needs_ticket: bool,
 ) -> None:
     """Test the dry-run mode."""
     renderer = mocker.patch.object(sut, "render_template", autospec=True)
+    board = {
+        "name": "jiraboard",
+        "server": {
+            "token": "fake-token",
+            "email": None,
+            "server_url": "https://fake-url",
+        },
+    }
     valid = sut.VALIDATORS
     sut.VALIDATORS = {
         "sopsUrl": bool,
@@ -179,7 +201,7 @@ def test_report_invalid_metadata_dry_run(
         "grafanaUrls": lambda _: True,
     }
     sut.report_invalid_metadata(
-        app, "/a/path", {"name": "jiraboard"}, {}, "TICKET-123", True
+        app, "/a/path", board, secret_reader, "TICKET-123", True
     )
     if needs_ticket:
         renderer.assert_called_once()

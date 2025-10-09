@@ -1151,9 +1151,17 @@ def jenkins_webhooks_cleaner(ctx: click.Context) -> None:
     "--jira-board-name", help="The Jira board to act on.", default=None, multiple=True
 )
 @click.option("--board-check-interval", help="Check interval in minutes", default=120)
+@click.option(
+    "--use-cache/--no-use-cache",
+    default=True,
+    help="Use cached results for validation.",
+)
 @click.pass_context
 def jira_permissions_validator(
-    ctx: click.Context, jira_board_name: Iterable[str] | None, board_check_interval: int
+    ctx: click.Context,
+    jira_board_name: Iterable[str] | None,
+    board_check_interval: int,
+    use_cache: bool,
 ) -> None:
     import reconcile.jira_permissions_validator
 
@@ -1162,6 +1170,7 @@ def jira_permissions_validator(
         ctx,
         jira_board_name=jira_board_name,
         board_check_interval_sec=board_check_interval * 60,
+        use_cache=use_cache,
     )
 
 

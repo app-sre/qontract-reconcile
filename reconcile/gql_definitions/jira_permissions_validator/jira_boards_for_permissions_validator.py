@@ -34,6 +34,9 @@ query JiraBoardsForPermissionValidation {
     name
     server {
       serverUrl
+      email {
+        ...VaultSecret
+      }
       token {
         ...VaultSecret
       }
@@ -73,6 +76,7 @@ class ConfiguredBaseModel(BaseModel):
 
 class JiraServerV1(ConfiguredBaseModel):
     server_url: str = Field(..., alias="serverUrl")
+    email: Optional[VaultSecret] = Field(..., alias="email")
     token: VaultSecret = Field(..., alias="token")
 
 
