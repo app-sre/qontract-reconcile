@@ -197,7 +197,10 @@ def board_is_valid(
                 )
                 error |= ValidationError.INVALID_PRIORITY
                 continue
-            if jira_server_priorities[priority.priority] not in project_priorities:
+            if (
+                project_priorities
+                and jira_server_priorities[priority.priority] not in project_priorities
+            ):
                 logging.error(
                     f"[{board.name}] {priority.priority} is not a valid priority in project. Valid priorities: {project_priorities_names}"
                 )
@@ -247,6 +250,9 @@ def validate_boards(
             jira_clients[board.server.server_url] = jira_client_class.create(
                 project_name=board.name,
                 token=secret_reader.read_secret(board.server.token),
+                email=secret_reader.read_secret(board.server.email)
+                if board.server.email
+                else None,
                 server_url=board.server.server_url,
                 jira_watcher_settings=jira_client_settings,
             )
