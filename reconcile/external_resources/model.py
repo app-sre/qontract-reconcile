@@ -23,6 +23,7 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
     NamespaceTerraformResourceRDSV1,
+    NamespaceTerraformResourceSQSV1,
     NamespaceV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
@@ -102,6 +103,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceElastiCacheV1
     | NamespaceTerraformResourceKMSV1
     | NamespaceTerraformResourceCloudWatchV1
+    | NamespaceTerraformResourceSQSV1
 )
 
 

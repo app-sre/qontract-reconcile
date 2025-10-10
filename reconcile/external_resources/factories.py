@@ -10,6 +10,7 @@ from reconcile.external_resources.aws import (
     AWSMskFactory,
     AWSRdsFactory,
     AWSResourceFactory,
+    AWSSQSFactory,
 )
 from reconcile.external_resources.meta import QONTRACT_INTEGRATION
 from reconcile.external_resources.model import (
@@ -102,6 +103,7 @@ def setup_aws_resource_factories(
             "elasticache": AWSElasticacheFactory(er_inventory, secret_reader),
             "rds": AWSRdsFactory(er_inventory, secret_reader),
             "msk": AWSMskFactory(er_inventory, secret_reader),
+            "sqs": AWSSQSFactory(er_inventory, secret_reader),
         },
         default_factory=AWSDefaultResourceFactory(er_inventory, secret_reader),
     )

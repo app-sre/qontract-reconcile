@@ -319,3 +319,19 @@ class AWSMskFactory(AWSDefaultResourceFactory):
                 raise ValueError(
                     f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
                 )
+
+
+class AWSSQSFactory(AWSDefaultResourceFactory):
+    def resolve(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> dict[str, Any]:
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+        all_queues = {
+            queue.pop("key"): queue | {"defaults": spec.get("defaults")}
+            for spec in data.get("specs", [])
+            for queue in spec.pop("queues")
+        }
+        return {"identifier": data["identifier"], "queues": all_queues}
