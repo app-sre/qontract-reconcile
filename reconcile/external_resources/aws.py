@@ -319,3 +319,12 @@ class AWSMskFactory(AWSDefaultResourceFactory):
                 raise ValueError(
                     f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
                 )
+
+
+class AWSRdsProxyFactory(AWSDefaultResourceFactory):
+    def _get_source_db_spec(
+        self, provisioner: str, identifier: str
+    ) -> ExternalResourceSpec:
+        return self.er_inventory.get_inventory_spec(
+            "aws", provisioner, "rds-proxy", identifier
+        )
