@@ -114,6 +114,7 @@ from reconcile.utils.state import init_state
 
 MIN_DELTA_MINUTES = 6
 STS_GATE_LABEL = "api.openshift.com/gate-sts"
+AUS_VERSION_GATE_APPROVALS_LABEL = "sre-capabilities.aus.version-gate-approvals"
 
 
 class RosaRoleUpgradeHandlerParams(PydanticRunParams):
@@ -546,7 +547,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
 
     def should_upgrade_roles(self) -> bool:
         handler_csv = self.cluster_labels.get_label_value(
-            "sre-capabilities.aus.version-gate-approvals"
+            AUS_VERSION_GATE_APPROVALS_LABEL
         )
         if not handler_csv:
             return False
