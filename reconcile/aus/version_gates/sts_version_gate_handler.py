@@ -63,6 +63,24 @@ class STSGateHandler(GateHandler):
             )
             return False
 
+        return self.upgrade_rosa_roles(
+            cluster=cluster,
+            version_raw_id_prefix=gate.version_raw_id_prefix,
+            dry_run=dry_run,
+            ocm_api=ocm_api,
+            ocm_org_id=ocm_org_id,
+        )
+
+    def upgrade_rosa_roles(
+        self,
+        cluster: OCMCluster,
+        version_raw_id_prefix: str,
+        dry_run: bool,
+        ocm_api: OCMBaseClient,
+        ocm_org_id: str,
+    ) -> bool:
+        if not cluster.aws:
+            return False
         rosa = RosaSession(
             aws_account_id=cluster.aws.aws_account_id,
             aws_region=cluster.region.id,
@@ -83,7 +101,7 @@ class STSGateHandler(GateHandler):
                 )
             rosa.upgrade_account_roles(
                 role_prefix=account_role_prefix,
-                minor_version=gate.version_raw_id_prefix,
+                minor_version=version_raw_id_prefix,
                 channel_group=cluster.version.channel_group,
                 dry_run=dry_run,
             )
