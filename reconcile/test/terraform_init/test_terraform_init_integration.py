@@ -85,7 +85,7 @@ def test_terraform_init_integration_reconcile_account_with_new_account(
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.create_stack.assert_called_once_with(
@@ -119,7 +119,7 @@ def test_terraform_init_integration_reconcile_account_with_new_account_dry_run(
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.create_stack.assert_not_called()
@@ -149,7 +149,7 @@ def test_terraform_init_integration_reconcile_account_when_import_stack(
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
@@ -160,13 +160,23 @@ def test_terraform_init_integration_reconcile_account_when_import_stack(
         change_set_name="import-existing-bucket",
         template_body="cloudformation_import_template",
         parameters={"BucketName": "existing-bucket"},
-        tags={"env": "test"},
+        tags={
+            "account_key": "account_value",
+            "common_key": "final_common_value",
+            "env": "test",
+            "payer_key": "payer_value",
+        },
     )
     aws_api.cloudformation.update_stack.assert_called_once_with(
         stack_name="existing-bucket",
         template_body="cloudformation_template",
         parameters={"BucketName": "existing-bucket"},
-        tags={"env": "test"},
+        tags={
+            "account_key": "account_value",
+            "common_key": "final_common_value",
+            "env": "test",
+            "payer_key": "payer_value",
+        },
     )
     merge_request_manager.create_merge_request.assert_not_called()
 
@@ -188,7 +198,7 @@ def test_terraform_init_integration_reconcile_account_when_import_stack_dry_run(
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
@@ -208,7 +218,12 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch(
     account = next(a for a in aws_accounts if a.name == "terraform-state-already-set")
     aws_api.cloudformation.get_stack.return_value = {
         "StackName": "terraform-terraform-state-already-set",
-        "Tags": [{"Key": "env", "Value": "test-old"}],
+        "Tags": [
+            {"Key": "account_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
+            {"Key": "env", "Value": "test-old"},
+            {"Key": "payer_key", "Value": "payer_value"},
+        ],
     }
 
     intg.reconcile_account(
@@ -219,7 +234,7 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch(
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
@@ -229,7 +244,12 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch(
         stack_name="existing-bucket",
         template_body="cloudformation_template",
         parameters={"BucketName": "existing-bucket"},
-        tags={"env": "test"},
+        tags={
+            "account_key": "account_value",
+            "common_key": "final_common_value",
+            "env": "test",
+            "payer_key": "payer_value",
+        },
     )
     aws_api.cloudformation.create_stack.assert_not_called()
     aws_api.cloudformation.get_template.assert_not_called()
@@ -245,7 +265,12 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch_dry_run
     account = next(a for a in aws_accounts if a.name == "terraform-state-already-set")
     aws_api.cloudformation.get_stack.return_value = {
         "StackName": "terraform-terraform-state-already-set",
-        "Tags": [{"Key": "env", "Value": "test-old"}],
+        "Tags": [
+            {"Key": "account_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
+            {"Key": "env", "Value": "test-old"},
+            {"Key": "payer_key", "Value": "payer_value"},
+        ],
     }
 
     intg.reconcile_account(
@@ -256,7 +281,7 @@ def test_terraform_init_integration_reconcile_account_when_tags_mismatch_dry_run
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
@@ -277,7 +302,12 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
     account = next(a for a in aws_accounts if a.name == "terraform-state-already-set")
     aws_api.cloudformation.get_stack.return_value = {
         "StackName": "terraform-terraform-state-already-set",
-        "Tags": [{"Key": "env", "Value": "test"}],
+        "Tags": [
+            {"Key": "account_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
+            {"Key": "env", "Value": "test"},
+            {"Key": "payer_key", "Value": "payer_value"},
+        ],
     }
     aws_api.cloudformation.get_template_body.return_value = "old_template_body"
 
@@ -289,7 +319,7 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
@@ -302,7 +332,12 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
         stack_name="existing-bucket",
         template_body="cloudformation_template",
         parameters={"BucketName": "existing-bucket"},
-        tags={"env": "test"},
+        tags={
+            "account_key": "account_value",
+            "common_key": "final_common_value",
+            "env": "test",
+            "payer_key": "payer_value",
+        },
     )
     aws_api.cloudformation.create_stack.assert_not_called()
     merge_request_manager.create_merge_request.assert_not_called()
@@ -317,7 +352,12 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
     account = next(a for a in aws_accounts if a.name == "terraform-state-already-set")
     aws_api.cloudformation.get_stack.return_value = {
         "StackName": "terraform-terraform-state-already-set",
-        "Tags": [{"Key": "env", "Value": "test"}],
+        "Tags": [
+            {"Key": "account_key", "Value": "account_value"},
+            {"Key": "env", "Value": "test"},
+            {"Key": "common_key", "Value": "final_common_value"},
+            {"Key": "payer_key", "Value": "payer_value"},
+        ],
     }
     aws_api.cloudformation.get_template_body.return_value = "old_template_body"
 
@@ -329,7 +369,7 @@ def test_terraform_init_integration_reconcile_account_when_template_body_mismatc
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(
@@ -352,7 +392,12 @@ def test_terraform_init_integration_reconcile_account_when_no_changes(
     account = next(a for a in aws_accounts if a.name == "terraform-state-already-set")
     aws_api.cloudformation.get_stack.return_value = {
         "StackName": "terraform-terraform-state-already-set",
-        "Tags": [{"Key": "env", "Value": "test"}],
+        "Tags": [
+            {"Key": "account_key", "Value": "account_value"},
+            {"Key": "common_key", "Value": "final_common_value"},
+            {"Key": "env", "Value": "test"},
+            {"Key": "payer_key", "Value": "payer_value"},
+        ],
     }
     aws_api.cloudformation.get_template_body.return_value = "cloudformation_template"
 
@@ -364,7 +409,7 @@ def test_terraform_init_integration_reconcile_account_when_no_changes(
         state_template="{{bucket_name}}",
         cloudformation_template="cloudformation_template",
         cloudformation_import_template="cloudformation_import_template",
-        tags={"env": "test"},
+        default_tags={"env": "test"},
     )
 
     aws_api.cloudformation.get_stack.assert_called_once_with(

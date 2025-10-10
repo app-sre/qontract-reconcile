@@ -11,6 +11,7 @@ from reconcile.gql_definitions.terraform_init.aws_accounts import (
 from reconcile.terraform_init.merge_request import Renderer, create_parser
 from reconcile.terraform_init.merge_request_manager import MergeRequestManager, MrData
 from reconcile.typed_queries.app_interface_repo_url import get_app_interface_repo_url
+from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
@@ -115,7 +116,7 @@ class TerraformInitIntegration(
         state_template: str,
         cloudformation_template: str,
         cloudformation_import_template: str,
-        tags: dict[str, str],
+        default_tags: dict[str, str],
     ) -> None:
         """
         Reconcile the terraform state for a given account.
@@ -140,7 +141,7 @@ class TerraformInitIntegration(
             state_template: str: Jinja2 template for the Terraform state configuration.
             cloudformation_template: str: CloudFormation template to create the S3 bucket.
             cloudformation_import_template: str: CloudFormation template to import existing S3 bucket.
-            tags: dict[str, str]: Tags to apply to the CloudFormation stack.
+            default_tags: dict[str, str]: Default tags to apply to the CloudFormation stack.
 
         Returns:
             None
@@ -150,6 +151,8 @@ class TerraformInitIntegration(
             if account.terraform_state
             else f"terraform-{account.name}"
         )
+
+        tags = default_tags | get_aws_account_tags(account.organization)
 
         if account.terraform_state is None:
             return self._provision_terraform_state(
@@ -324,5 +327,5 @@ class TerraformInitIntegration(
                     state_template=state_template,
                     cloudformation_template=cloudformation_template,
                     cloudformation_import_template=cloudformation_import_template,
-                    tags=default_tags,
+                    default_tags=default_tags,
                 )
