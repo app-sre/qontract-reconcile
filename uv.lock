@@ -1597,7 +1597,7 @@ requires-dist = [
     { name = "hvac", specifier = ">=0.7.0,<0.8.0" },
     { name = "jenkins-job-builder", specifier = "==6.4.2" },
     { name = "jinja2", specifier = ">=2.10.1,<3.2.0" },
-    { name = "jira", specifier = "~=3.1" },
+    { name = "jira", specifier = "==3.10.5" },
     { name = "jsonpatch", specifier = "~=1.33" },
     { name = "jsonpath-ng", specifier = "==1.7.0" },
     { name = "jsonpath-rw", specifier = ">=1.4.0,<1.5.0" },
