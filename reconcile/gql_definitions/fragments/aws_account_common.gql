@@ -29,4 +29,7 @@ fragment AWSAccountCommon on AWSAccount_v1 {
   deleteKeys
   premiumSupport
   partition
+  organization {
+    ...AWSOrganization
+  }
 }

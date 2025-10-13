@@ -51,6 +51,16 @@ fragment AWSAccountCommon on AWSAccount_v1 {
   deleteKeys
   premiumSupport
   partition
+  organization {
+    ...AWSOrganization
+  }
+}
+
+fragment AWSOrganization on AWSOrganization_v1 {
+  payerAccount {
+    organizationAccountTags
+  }
+  tags
 }
 
 fragment TerraformState on TerraformStateAWS_v1 {
