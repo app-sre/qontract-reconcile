@@ -17,8 +17,17 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.aws_organization import AWSOrganization
+
 
 DEFINITION = """
+fragment AWSOrganization on AWSOrganization_v1 {
+  payerAccount {
+    organizationAccountTags
+  }
+  tags
+}
+
 query AWSAccountsCloudwatchLogRetentionCleanup {
   accounts: awsaccounts_v1 {
     path
@@ -54,6 +63,9 @@ query AWSAccountsCloudwatchLogRetentionCleanup {
       region
     }
     partition
+    organization {
+      ...AWSOrganization
+    }
     cleanup {
       provider
       ... on AWSAccountCleanupOptionCloudWatch_v1 {
@@ -129,6 +141,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     premium_support: bool = Field(..., alias="premiumSupport")
     ecrs: Optional[list[AWSECRV1]] = Field(..., alias="ecrs")
     partition: Optional[str] = Field(..., alias="partition")
+    organization: Optional[AWSOrganization] = Field(..., alias="organization")
     cleanup: Optional[list[Union[AWSAccountCleanupOptionCloudWatchV1, AWSAccountCleanupOptionV1]]] = Field(..., alias="cleanup")
 
 

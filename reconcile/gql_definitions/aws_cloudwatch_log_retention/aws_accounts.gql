@@ -35,6 +35,9 @@ query AWSAccountsCloudwatchLogRetentionCleanup {
       region
     }
     partition
+    organization {
+      ...AWSOrganization
+    }
     cleanup {
       provider
       ... on AWSAccountCleanupOptionCloudWatch_v1 {
