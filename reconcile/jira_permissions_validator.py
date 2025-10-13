@@ -233,6 +233,17 @@ def validate_boards(
     jira_client_class: type[JiraClient] = JiraClient,
     use_cache: bool = False,
 ) -> bool:
+    """Validate all Jira boards.
+
+    The method iterates over all Jira boards and checks if the configuration is valid. If no errors
+    are found, it will skip the next check for the board until the next run time is reached.
+    The next run time is calculated based on the board's check interval and some randomness to avoid
+    all boards checking at the same time.
+
+    Additionally, for any Jira board with a permission error, a Prometheus metric will be set to trigger an alert.
+
+    Returns True if there were any errors. See ValidationError and log messages for details.
+    """
     error = False
     jira_clients: dict[str, JiraClient] = {}
     for board in jira_boards:

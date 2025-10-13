@@ -116,6 +116,7 @@ class JiraClient:
         server_url: str,
         jira_watcher_settings: JiraWatcherSettings | None = None,
     ) -> JiraClient:
+        """Create a Jira client for the given project."""
         read_timeout = JiraClient.DEFAULT_READ_TIMEOUT
         connect_timeout = JiraClient.DEFAULT_CONNECT_TIMEOUT
         if jira_watcher_settings:
@@ -145,6 +146,7 @@ class JiraClient:
         return self.jira.deploymentType == "Cloud"
 
     def get_issues(self, fields: Iterable | None = None) -> list[Issue]:
+        """Return all issues for our project."""
         block_size = 100
         block_num = 0
 
@@ -195,6 +197,9 @@ class JiraClient:
         return issue
 
     def _my_permissions(self, project: str) -> dict[str, Any]:
+        """Return my permissions for the given project.
+
+        Don't use this function directly, use self.my_permissions which is cached."""
         if self.is_cloud:
             return self.jira.my_permissions(
                 projectKey=project, permissions=",".join(PERMISSIONS)
@@ -202,17 +207,24 @@ class JiraClient:
         return self.jira.my_permissions(projectKey=project)["permissions"]
 
     def can_i(self, permission: str) -> bool:
+        """Return whether I have the given permission in the project."""
         return bool(
             self.my_permissions(project=self.project)[permission]["havePermission"]
         )
 
     def can_create_issues(self) -> bool:
+        """Return whether I can create issues in the project."""
         return self.can_i(CREATE_ISSUES)
 
     def can_transition_issues(self) -> bool:
+        """Return whether I can transition issues in the project."""
         return self.can_i(TRANSITION_ISSUES)
 
     def _project_issue_types(self, project: str) -> list[IssueType]:
+        """Return all available issue types (e.g. Task, Bug) for the project.
+
+        Don't use this function directly, use self.project_issue_types which is cached.
+        """
         # Don't use self.project here, because of function.cache usage
         return [
             IssueType(id=t.id, name=t.name, statuses=[s.name for s in t.statuses])
@@ -220,6 +232,7 @@ class JiraClient:
         ]
 
     def get_issue_type(self, issue_type: str) -> IssueType | None:
+        """Return a issue type (e.g. Task) for the project if it exists."""
         for _issue_type in self.project_issue_types(self.project):
             if _issue_type.name == issue_type:
                 return _issue_type
@@ -229,7 +242,7 @@ class JiraClient:
     def _get_allowed_issue_field_options(
         allowed_values: list[Resource] | list[dict[str, str]],
     ) -> list[FieldOption | CustomFieldOption]:
-        """Return a list of allowed values for a field."""
+        """Return a list of allowed values for a field. E.g. Minor, Major ... for Priority in a Task."""
         items: list[FieldOption | CustomFieldOption] = []
         for v in allowed_values:
             match v:
@@ -334,4 +347,5 @@ class JiraClient:
 
     @property
     def is_archived(self) -> bool:
+        """Return whether the project is archived."""
         return getattr(self.jira.project(self.project), "archived", False)
