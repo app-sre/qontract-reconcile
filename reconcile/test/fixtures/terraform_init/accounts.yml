@@ -1,4 +1,3 @@
-
 accounts:
 - name: account-1
   terraformUsername: terraform
@@ -14,18 +13,23 @@ accounts:
   automationToken:
     path: path/to/creds
 
-# all accounts below must be irgnored
-- name: no-terraform-username
-  terraformUsername: null
-  terraformState: null
-  resourcesDefaultRegion: us-east-1
-  automationToken:
-    path: path/to/creds
-
 - name: terraform-state-already-set
   terraformUsername: terraform
   terraformState:
+    bucket: existing-bucket
     region: us-east-1
+  resourcesDefaultRegion: us-east-1
+  automationToken:
+    path: path/to/creds
+  organization:
+    payerAccount:
+      organizationAccountTags: '{"common_key": "not_final_common_value", "payer_key": "payer_value"}'
+    tags: '{"common_key": "final_common_value", "account_key": "account_value"}'
+
+# all accounts below must be ignored
+- name: no-terraform-username
+  terraformUsername: null
+  terraformState: null
   resourcesDefaultRegion: us-east-1
   automationToken:
     path: path/to/creds

@@ -1,14 +1,13 @@
 import logging
 from abc import abstractmethod
 from collections.abc import Sequence
-from datetime import UTC, date
-from datetime import datetime as dt
 from pathlib import Path
 from typing import TypeVar
 
 from jinja2 import Template
 from pydantic import BaseModel
 
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
@@ -27,7 +26,7 @@ class UpdateAccessReportBase(MergeRequestBase):
         self.labels = [AUTO_MERGE]
         self._users = users
         self._workbook_file_name = str(workbook_path)
-        self._isodate = dt.now(tz=UTC).isoformat()
+        self._isodate = utc_now().isoformat()
         self._dry_run = dry_run
 
     @property
@@ -65,7 +64,7 @@ class UpdateAccessReportBase(MergeRequestBase):
 
     def _render_tracking_table_row(self, old_number_of_users: int) -> str:
         # | Date Reviewed | Number of Current Users | +/- Red Hat Users |
-        return f"| {date.today()} | {len(self._users)} | {len(self._users) - old_number_of_users} |\n"
+        return f"| {utc_now().date()} | {len(self._users)} | {len(self._users) - old_number_of_users} |\n"
 
     def _update_workbook(self, workbook_md: str) -> str:
         new_workbook_md = ""

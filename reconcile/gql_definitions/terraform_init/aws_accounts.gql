@@ -5,6 +5,7 @@ query TerraformInitAWSAccounts {
     name
     terraformUsername
     terraformState {
+      bucket
       region
     }
     resourcesDefaultRegion
@@ -13,6 +14,9 @@ query TerraformInitAWSAccounts {
     }
     disable {
       integrations
+    }
+    organization {
+      ...AWSOrganization
     }
   }
 }

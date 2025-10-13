@@ -2,8 +2,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Mapping
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from reconcile.external_resources.aws import (
     AWSDefaultResourceFactory,
@@ -34,7 +33,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 T = TypeVar("T")
 
 
-class ObjectFactory(Generic[T]):
+class ObjectFactory[T]:
     def __init__(
         self, factories: dict[str, T], default_factory: T | None = None
     ) -> None:
@@ -116,7 +115,7 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
         secret_reader: SecretReaderBase,
         provision_factories: ObjectFactory[ModuleProvisionDataFactory],
         resource_factories: ObjectFactory[AWSResourceFactory],
-        default_tags: Mapping[str, str],
+        default_tags: dict[str, str],
     ):
         self.provision_factories = provision_factories
         self.resource_factories = resource_factories
@@ -132,8 +131,7 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
     ) -> ExternalResource:
         f = self.resource_factories.get_factory(spec.provider)
         data = f.resolve(spec, module_conf)
-        data["tags"] = spec.tags(integration=QONTRACT_INTEGRATION)
-        data["default_tags"] = [{"tags": self.default_tags}]
+        data["tags"] = self.default_tags | spec.tags(integration=QONTRACT_INTEGRATION)
 
         region = data.get("region")
         if region:

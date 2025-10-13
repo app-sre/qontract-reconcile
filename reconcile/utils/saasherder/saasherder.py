@@ -16,7 +16,7 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from types import TracebackType
 from typing import Any
 
@@ -37,6 +37,7 @@ from sretoolbox.utils import (
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
 from reconcile.utils import helm
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi, JobBuildState
@@ -2025,7 +2026,7 @@ class SaasHerder:
         if promotion.commit_sha in self.hotfix_versions.get(promotion.url, set()):
             return True
 
-        now = datetime.now(UTC)
+        now = utc_now()
         passed_soak_days = timedelta(days=0)
 
         for channel in promotion.subscribe:
@@ -2127,7 +2128,7 @@ class SaasHerder:
         if not (self.state and self._promotion_state):
             raise Exception("state is not initialized")
 
-        now = datetime.now(UTC)
+        now = utc_now()
         for promotion in self.promotions:
             if promotion is None:
                 continue

@@ -13,7 +13,6 @@ import tempfile
 import textwrap
 from collections import defaultdict
 from datetime import (
-    UTC,
     datetime,
     timedelta,
 )
@@ -122,6 +121,7 @@ from reconcile.utils.binary import (
     binary,
     binary_version,
 )
+from reconcile.utils.datetime_util import from_utc_iso_format, utc_now
 from reconcile.utils.early_exit_cache import (
     CacheKey,
     CacheKeyWithDigest,
@@ -417,8 +417,8 @@ def get_upgrade_policies_data(
             upgrade_next_run = None
         upgrade_emoji = "💫"
         if upgrade_next_run:
-            dt = datetime.strptime(upgrade_next_run, "%Y-%m-%dT%H:%M:%SZ")
-            now = datetime.utcnow()
+            dt = from_utc_iso_format(upgrade_next_run)
+            now = utc_now()
             if dt > now:
                 upgrade_emoji = "⏰"
             hours_ago = (now - dt).total_seconds() / 3600
@@ -841,7 +841,7 @@ def alert_report(
             )
             sys.exit(1)
 
-        now = datetime.utcnow()
+        now = utc_now()
         from_timestamp = int((now - timedelta(days=days)).timestamp())
         to_timestamp = int(now.timestamp())
 
@@ -2274,7 +2274,7 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
         "labels",
     ]
     merge_queue_data = []
-    now = datetime.utcnow()
+    now = utc_now()
     for mr in merge_requests:
         item = {
             "id": f"[{mr['mr'].iid}]({mr['mr'].web_url})",
@@ -2283,7 +2283,7 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
             + 1,  # adding 1 for human readability
             "approved_at": mr["approved_at"],
             "approved_span_minutes": (
-                now - datetime.strptime(mr["approved_at"], glhk.DATE_FORMAT)
+                now - from_utc_iso_format(mr["approved_at"])
             ).total_seconds()
             / 60,
             "approved_by": mr["approved_by"],
@@ -2697,7 +2697,7 @@ def ec2_jenkins_workers(
     client = boto3.client("autoscaling")
     ec2 = boto3.resource("ec2")
     results = []
-    now = datetime.now(UTC)
+    now = utc_now()
     columns = [
         "type",
         "id",
@@ -2957,7 +2957,7 @@ def osd_component_versions(ctx: click.Context) -> None:
 @get.command()
 @click.pass_context
 def maintenances(ctx: click.Context) -> None:
-    now = datetime.now(UTC)
+    now = utc_now()
     maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
     data = [
         {
@@ -4841,11 +4841,12 @@ def top_talkers(ctx: click.Context, top: int) -> None:
             assert project.organization  # make mypy happy
             assert project.pk  # make mypy happy
 
+            now = utc_now()
             stat = client.project_statistics(
                 organization_slug=project.organization.slug,
                 project_pk=project.pk,
-                start=datetime.now(tz=UTC) - timedelta(hours=24),
-                end=datetime.now(tz=UTC),
+                start=now - timedelta(hours=24),
+                end=now,
             )
             stats.append((project, stat))
 

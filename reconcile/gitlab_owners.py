@@ -2,12 +2,12 @@ import logging
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from dateutil import parser as dateparser
 from gitlab.v4.objects import ProjectMergeRequest
 from sretoolbox.utils import threaded
 
 from reconcile import queries
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.datetime_util import from_utc_iso_format
 from reconcile.utils.defer import defer
 from reconcile.utils.gitlab_api import (
     GitLabApi,
@@ -49,12 +49,14 @@ class MRApproval:
         self.dry_run = dry_run
         self.persistent_lgtm = persistent_lgtm
 
-        # Get the date of the most recent commit (top commit) in the MR, but avoid comparing against None
-        self.top_commit_created_at = dateparser.parse("2000-01-01")
-        commits = self.mr.commits()
-        if commits:
-            top_commit = next(commits)
-            self.top_commit_created_at = dateparser.parse(top_commit.created_at)
+        # Get the date of the most recent commit (top commit) in the MR
+        self.top_commit_created_at = next(
+            (
+                from_utc_iso_format(commit.created_at)
+                for commit in merge_request.commits()
+            ),
+            None,
+        )
 
     def get_change_owners_map(self) -> dict[str, dict[str, list[str]]]:
         """
@@ -95,9 +97,10 @@ class MRApproval:
 
             # Only interested in comments created after the top commit
             # creation time
-            comment_created_at = dateparser.parse(comment.created_at)
+            comment_created_at = from_utc_iso_format(comment.created_at)
             if (
-                comment_created_at < self.top_commit_created_at
+                self.top_commit_created_at is not None
+                and comment_created_at < self.top_commit_created_at
                 and not self.persistent_lgtm
             ):
                 continue
@@ -185,9 +188,10 @@ class MRApproval:
             # If the comment was created before the last commit,
             # it means we had a push after the comment. In this case,
             # we delete the comment and move on.
-            comment_created_at = dateparser.parse(comment.created_at)
+            comment_created_at = from_utc_iso_format(comment.created_at)
             if (
-                comment_created_at < self.top_commit_created_at
+                self.top_commit_created_at is not None
+                and comment_created_at < self.top_commit_created_at
                 and comment.note is not None
             ):
                 # Deleting stale comments

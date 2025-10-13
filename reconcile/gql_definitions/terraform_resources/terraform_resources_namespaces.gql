@@ -340,6 +340,7 @@ query TerraformResourcesNamespaces {
             }
             output_resource_name
             annotations
+            secret_format
           }
           ... on NamespaceTerraformResourceASG_v1 {
             region

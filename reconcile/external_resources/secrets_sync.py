@@ -3,7 +3,6 @@ import json
 import logging
 from abc import abstractmethod
 from collections.abc import Iterable, Mapping
-from datetime import UTC, datetime
 from hashlib import shake_128
 from typing import Any
 
@@ -18,13 +17,13 @@ from reconcile.external_resources.meta import (
     SECRET_ANN_PROVISION_PROVIDER,
     SECRET_ANN_PROVISIONER,
     SECRET_UPDATED_AT,
-    SECRET_UPDATED_AT_TIMEFORMAT,
 )
 from reconcile.external_resources.model import (
     ExternalResourceKey,
 )
 from reconcile.openshift_base import ApplyOptions, apply_action
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
+from reconcile.utils.datetime_util import to_utc_seconds_iso_format, utc_now
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
@@ -352,9 +351,7 @@ class InClusterSecretsReconciler(SecretsReconciler):
             secret_name = secret["metadata"]["name"]
             spec = secrets_map[secret_name]
             spec.secret = self.output_secrets_formatter.format(secret["data"])
-            spec.metadata[SECRET_UPDATED_AT] = datetime.now(UTC).strftime(
-                SECRET_UPDATED_AT_TIMEFORMAT
-            )
+            spec.metadata[SECRET_UPDATED_AT] = to_utc_seconds_iso_format(utc_now())
 
     def _delete_source_secret(self, spec: ExternalResourceSpec) -> None:
         secret_name = self._get_spec_outputs_secret_name(spec)

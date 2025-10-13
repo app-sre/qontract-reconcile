@@ -4,7 +4,6 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import (
-    UTC,
     datetime,
     timedelta,
 )
@@ -31,6 +30,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.saas_files import get_saas_files
+from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import create_secret_reader
@@ -159,15 +159,8 @@ class Commit:
     date: datetime
 
     def lttc(self, finish_timestamp: datetime) -> int:
-        commit_date_tzaware = self.date
-        finish_timestamp_tzaware = finish_timestamp
-
-        if commit_date_tzaware.tzinfo is None:
-            commit_date_tzaware = commit_date_tzaware.replace(tzinfo=UTC)
-
-        if finish_timestamp_tzaware.tzinfo is None:
-            finish_timestamp_tzaware = finish_timestamp_tzaware.replace(tzinfo=UTC)
-
+        commit_date_tzaware = ensure_utc(self.date)
+        finish_timestamp_tzaware = ensure_utc(finish_timestamp)
         return int((finish_timestamp_tzaware - commit_date_tzaware).total_seconds())
 
 
@@ -277,7 +270,7 @@ class DashdotdbDORA(DashdotdbBase):
         # from the DB for a unique (app_name, env_name) multiple times.
         app_envs = {s.app_env for s in saastargets}
 
-        since_default = datetime.now() - timedelta(days=90)
+        since_default = utc_now() - timedelta(days=90)
         app_env_since_list: list[tuple[AppEnv, datetime]] = threaded.run(
             func=functools.partial(self.get_latest_with_default, since_default),
             iterable=app_envs,

@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
@@ -16,6 +16,7 @@ from reconcile.external_resources.model import (
     ResourceStatus,
 )
 from reconcile.utils.aws_api_typed.api import AWSApi
+from reconcile.utils.datetime_util import to_utc_microseconds_iso_format, utc_now
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -41,7 +42,7 @@ class ExternalResourceState(BaseModel):
         self, reconciliation_status: ReconciliationStatus
     ) -> None:
         if self.reconciliation_needs_state_update(reconciliation_status):
-            self.ts = datetime.now()
+            self.ts = utc_now()
             self.resource_status = reconciliation_status.resource_status
 
     def reconciliation_needs_state_update(
@@ -170,7 +171,7 @@ class DynamoDBStateAdapter:
     def serialize(self, state: ExternalResourceState) -> dict[str, Any]:
         return {
             self.ER_KEY_HASH: {"S": state.key.hash()},
-            self.TIMESTAMP: {"S": state.ts.isoformat()},
+            self.TIMESTAMP: {"S": to_utc_microseconds_iso_format(state.ts)},
             self.RESOURCE_STATUS: {"S": state.resource_status.value},
             self.ER_KEY: {
                 "M": {
@@ -271,7 +272,7 @@ class ExternalResourcesStateDynamoDB:
         else:
             return ExternalResourceState(
                 key=key,
-                ts=datetime.now(UTC),
+                ts=utc_now(),
                 resource_status=ResourceStatus.NOT_EXISTS,
                 reconciliation=Reconciliation(key=key),
                 reconciliation_errors=0,

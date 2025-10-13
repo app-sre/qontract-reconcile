@@ -1,4 +1,5 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -34,7 +35,7 @@ def slack(mocker: MockerFixture) -> MagicMock:
 
 
 cluster_name = "cluster1"
-upgrade_at = datetime(2020, 6, 1, 0, 0, 0)
+upgrade_at = datetime(2020, 6, 1, 0, 0, 0, tzinfo=UTC)
 old_version = "4.5.1"
 upgrade_version = "4.5.2"
 
@@ -69,11 +70,8 @@ def upgrade_config() -> dict[str, Any]:
 
 
 @pytest.fixture
-def dt(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch(
-        "reconcile.openshift_upgrade_watcher.datetime",
-        mocker.Mock(datetime, wraps=datetime),
-    )
+def mock_utc_now(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch("reconcile.openshift_upgrade_watcher.utc_now")
 
 
 def test_new_upgrade_pending(
@@ -83,10 +81,10 @@ def test_new_upgrade_pending(
     ouw_oc_map: MagicMock,
     ouw_ocm_map: MagicMock,
     upgrade_config: dict[str, Any],
-    dt: MagicMock,
+    mock_utc_now: MagicMock,
 ) -> None:
     """There is an UpgradeConfig on the cluster but its upgradeAt is in the future"""
-    dt.utcnow.return_value = upgrade_at - timedelta(hours=1)
+    mock_utc_now.return_value = upgrade_at - timedelta(hours=1)
     gso = mocker.patch(
         "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
     )
@@ -109,11 +107,11 @@ def test_new_upgrade_notify(
     ouw_oc_map: MagicMock,
     ouw_ocm_map: MagicMock,
     upgrade_config: dict[str, Any],
-    dt: MagicMock,
+    mock_utc_now: MagicMock,
 ) -> None:
     """There is an UpgradeConfig on the cluster, its upgradeAt is in the past,
     and we did not already notify"""
-    dt.utcnow.return_value = upgrade_at + timedelta(hours=1)
+    mock_utc_now.return_value = upgrade_at + timedelta(hours=1)
     gso = mocker.patch(
         "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
     )
@@ -137,13 +135,13 @@ def test_new_upgrade_already_notified(
     ouw_oc_map: MagicMock,
     ouw_ocm_map: MagicMock,
     upgrade_config: dict[str, Any],
-    dt: MagicMock,
+    mock_utc_now: MagicMock,
 ) -> None:
     """There is an UpgradeConfig on the cluster, its upgradeAt is in the past,
     and we already notified"""
     state.exists.return_value = True
     state.get.return_value = None
-    dt.utcnow.return_value = upgrade_at + timedelta(hours=1)
+    mock_utc_now.return_value = upgrade_at + timedelta(hours=1)
     gso = mocker.patch(
         "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
     )

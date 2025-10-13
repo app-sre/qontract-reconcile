@@ -36,6 +36,7 @@ from reconcile.typed_queries.app_interface_custom_messages import (
 )
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.aws_helper import get_region_from_availability_zone
+from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
     ExternalResourceSpecInventory,
@@ -419,11 +420,11 @@ class TerraformClient:
         deletion_approvals = account.get("deletionApprovals")
         if not deletion_approvals:
             return False
-        now = datetime.utcnow()
+        now = utc_now()
         for da in deletion_approvals:
             try:
-                expiration = datetime.strptime(
-                    da["expiration"], DATE_FORMAT
+                expiration = ensure_utc(
+                    datetime.strptime(da["expiration"], DATE_FORMAT)  # noqa: DTZ007
                 ) + timedelta(days=1)
             except ValueError:
                 raise DeletionApprovalExpirationValueError(

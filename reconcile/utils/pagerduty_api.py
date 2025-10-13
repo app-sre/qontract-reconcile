@@ -3,8 +3,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
-from datetime import datetime as dt
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import (
     Protocol,
 )
@@ -14,6 +13,7 @@ import requests
 from pydantic import BaseModel
 from sretoolbox.utils import retry
 
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.secret_reader import (
     HasSecret,
     SecretReader,
@@ -80,7 +80,7 @@ class PagerDutyApi:
     def get_pagerduty_users(
         self, resource_type: str, resource_id: str
     ) -> list[pypd.User]:
-        now = dt.utcnow()
+        now = utc_now()
 
         try:
             if resource_type == "schedule":
@@ -103,7 +103,7 @@ class PagerDutyApi:
         self.users.append(user)
         return user.email.split("@")[0]
 
-    def get_schedule_users(self, schedule_id: str, now: dt) -> list[pypd.User]:
+    def get_schedule_users(self, schedule_id: str, now: datetime) -> list[pypd.User]:
         until = now + timedelta(seconds=60)
         s = pypd.Schedule.fetch(id=schedule_id, since=now, until=until, time_zone="UTC")
         entries = s["final_schedule"]["rendered_schedule_entries"]
@@ -115,7 +115,7 @@ class PagerDutyApi:
         ]
 
     def get_escalation_policy_users(
-        self, escalation_policy_id: str, now: dt
+        self, escalation_policy_id: str, now: datetime
     ) -> list[pypd.User]:
         ep = pypd.EscalationPolicy.fetch(
             id=escalation_policy_id, since=now, until=now, time_zone="UTC"

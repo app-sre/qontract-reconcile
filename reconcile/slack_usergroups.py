@@ -40,6 +40,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.pagerduty_instances import get_pagerduty_instances
 from reconcile.utils import gql
+from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
@@ -357,11 +358,11 @@ def get_slack_usernames_from_owners(
 
 def get_slack_usernames_from_schedule(schedule: Iterable[ScheduleEntryV1]) -> list[str]:
     """Return list of usernames from all schedules."""
-    now = datetime.utcnow()
+    now = utc_now()
     all_slack_usernames: list[str] = []
     for entry in schedule:
-        start = datetime.strptime(entry.start, DATE_FORMAT)
-        end = datetime.strptime(entry.end, DATE_FORMAT)
+        start = ensure_utc(datetime.strptime(entry.start, DATE_FORMAT))  # noqa: DTZ007
+        end = ensure_utc(datetime.strptime(entry.end, DATE_FORMAT))  # noqa: DTZ007
         if start <= now <= end:
             all_slack_usernames.extend(get_slack_username(u) for u in entry.users)
     return all_slack_usernames

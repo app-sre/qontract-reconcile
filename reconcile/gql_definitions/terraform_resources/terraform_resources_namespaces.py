@@ -397,6 +397,7 @@ query TerraformResourcesNamespaces {
             }
             output_resource_name
             annotations
+            secret_format
           }
           ... on NamespaceTerraformResourceASG_v1 {
             region
@@ -949,6 +950,7 @@ class NamespaceTerraformResourceSecretsManagerV1(NamespaceTerraformResourceAWSV1
     secret: Optional[VaultSecret] = Field(..., alias="secret")
     output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
     annotations: Optional[str] = Field(..., alias="annotations")
+    secret_format: Optional[str] = Field(..., alias="secret_format")
 
 
 class CloudinitConfigV1(ConfiguredBaseModel):
@@ -1076,7 +1078,7 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
 
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class EnvironmentV1(ConfiguredBaseModel):

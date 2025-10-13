@@ -1,7 +1,7 @@
+import datetime
 from unittest.mock import Mock
 
 import pytest
-from dateutil import parser
 from pytest_mock import MockerFixture
 
 from reconcile.aus import base
@@ -199,8 +199,11 @@ def test_update_history(
     Test scenario: test that the two clusters with workload 1 increase the soakdays after one day by 2
     and that the cluster with workload 2 increases the soakdays after one day by 1
     """
-    datetime_mock = mocker.patch.object(base, "datetime", autospec=True)
-    datetime_mock.utcnow.return_value = parser.parse("2021-08-30T18:00:00.00000")
+    mocker.patch.object(
+        base,
+        "utc_now",
+        return_value=datetime.datetime(2021, 8, 30, 18, 0, 0, tzinfo=datetime.UTC),
+    )
     ocm_env = "prod"
     org_id = "org-id"
     org_upgrade_spec = build_organization_upgrade_spec(
@@ -245,7 +248,7 @@ def test_update_history(
     base.update_history(ocm1_version_data, org_upgrade_spec)
 
     expected = {
-        "check_in": "2021-08-30T18:00:00",
+        "check_in": "2021-08-30T18:00:00+00:00",
         "versions": {
             "4.12.1": {
                 "workloads": {

@@ -5,12 +5,12 @@ description = "Collection of tools to reconcile services with their desired stat
 authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-requires-python = "==3.11.*"
+requires-python = "==3.12.*"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     "anymarkup>=0.7.0,<0.9.0",
@@ -30,7 +30,7 @@ dependencies = [
     "Jinja2>=2.10.1,<3.2.0",
     "jira~=3.1",
     "jsonpatch~=1.33",
-    "jsonpath-ng==1.5.3",
+    "jsonpath-ng==1.7.0",
     "jsonpath-rw>=1.4.0,<1.5.0",
     "jsonpointer~=2.4",
     "kubernetes~=24.0",
@@ -54,7 +54,7 @@ dependencies = [
     "sendgrid>=6.4.8,<6.5.0",
     "sentry-sdk~=2.0",
     "slack_sdk>=3.10,<4.0",
-    "sretoolbox~=2.6",
+    "sretoolbox==2.7.0",
     "sshtunnel>=0.4.0",
     "tabulate>=0.8.6,<0.9.0",
     "terrascript==0.9.0",
@@ -66,11 +66,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-debugger = ["debugpy ~=1.6.0"]
+debugger = ["debugpy ~=1.8.17"]
 dev = [
     "anymarkup ~=0.8.1",
     # keep in sync project.dependencies.boto3
-    "boto3-stubs[account,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.34.94",
+    "boto3-stubs[account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.34.94",
     "kubernetes-stubs==22.6.0",
     "MarkupSafe ~=2.1.1",
     "moto[ec2,iam,logs,s3,route53] ~=5.1",
@@ -152,7 +152,7 @@ bump = true
 
 [tool.ruff]
 line-length = 88
-target-version = 'py311'
+target-version = 'py312'
 src = ["reconcile", "tools"]
 extend-exclude = ["reconcile/gql_definitions"]
 fix = true
@@ -193,6 +193,8 @@ extend-select = [
     "FURB",
     # PEP8
     "N",
+    # datetime
+    "DTZ",
 ]
 ignore = [
     "N811",    # Constant `xxx` imported as non-constant `xxx`
