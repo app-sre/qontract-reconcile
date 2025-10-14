@@ -168,6 +168,16 @@ def managed_by_aws_cloudwatch_log_retention_tags() -> dict[str, str]:
 
 
 @pytest.fixture
+def additional_tags() -> dict[str, str]:
+    return {
+        "managed_by_integration": "aws_cloudwatch_log_retention",
+        "owner": "dev",
+        "env": "test",
+        "additional": "value",
+    }
+
+
+@pytest.fixture
 def managed_by_terraform_resources_tags() -> dict[str, str]:
     return {
         "managed_by_integration": "terraform_resources",
@@ -205,6 +215,7 @@ def test_run_with_unset_retention_log_group_and_default_cleanup(
         log_group_with_unset_retention["arn"],
         managed_by_aws_cloudwatch_log_retention_tags,
     )
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
     mocks["aws_api_logs"].put_retention_policy.assert_called_once_with(
         "group-without-retention",
         90,
@@ -257,7 +268,7 @@ def test_run_with_unset_retention_log_group_and_matching_cleanup(
         log_group_with_unset_retention_and_matching_name["arn"],
         managed_by_aws_cloudwatch_log_retention_tags,
     )
-
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
     mocks["aws_api_logs"].put_retention_policy.assert_called_once_with(
         "some-path-group-without-retention",
         30,
@@ -307,6 +318,7 @@ def test_run_with_matching_retention_log_group_and_last_tags(
     )
     mocks["aws_api_logs"].get_tags.assert_not_called()
     mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
     mocks["aws_api_logs"].put_retentino_policy.assert_not_called()
     mocks["state"].add.assert_not_called()
 
@@ -343,6 +355,49 @@ def test_run_with_matching_retention_log_group_and_stale_tags(
     mocks["aws_api_logs"].set_tags.assert_called_once_with(
         log_group_with_desired_retention["arn"],
         managed_by_aws_cloudwatch_log_retention_tags,
+    )
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
+    mocks["aws_api_logs"].put_retention_policy.assert_not_called()
+    mocks["state"].add.assert_called_once_with(
+        "tags.json",
+        {test_cloudwatch_account.name: managed_by_aws_cloudwatch_log_retention_tags},
+        force=True,
+    )
+
+
+def test_run_with_matching_retention_log_group_with_deleted_desired_tags(
+    mocker: MockerFixture,
+    test_cloudwatch_account: AWSAccountV1,
+    log_group_with_desired_retention: dict[str, Any],
+    managed_by_aws_cloudwatch_log_retention_tags: dict[str, str],
+    additional_tags: dict[str, str],
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        aws_accounts=[test_cloudwatch_account],
+        log_groups=[log_group_with_desired_retention],
+        tags=additional_tags,
+        last_tags={
+            test_cloudwatch_account.name: additional_tags,
+        },
+    )
+
+    run(dry_run=False)
+
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
+    )
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
+        log_group_with_desired_retention["arn"],
+    )
+    mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].delete_tags.assert_called_once_with(
+        log_group_with_desired_retention["arn"],
+        {"additional"},
     )
     mocks["aws_api_logs"].put_retention_policy.assert_not_called()
     mocks["state"].add.assert_called_once_with(
@@ -383,6 +438,7 @@ def test_run_with_log_group_managed_by_terraform_resources(
     )
     mocks["aws_api_logs"].delete_log_group.assert_not_called()
     mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
     mocks["aws_api_logs"].put_retention_policy.assert_not_called()
     mocks["state"].add.assert_not_called()
 
@@ -434,6 +490,7 @@ def test_run_with_empty_log_group_after_retention_in_days(
         log_group_with_empty_stored_bytes["logGroupName"],
     )
     mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
     mocks["aws_api_logs"].put_retention_policy.assert_not_called()
     mocks["state"].add.assert_not_called()
 
@@ -472,6 +529,7 @@ def test_run_with_empty_log_group_before_retention_in_days(
     )
     mocks["aws_api_logs"].delete_log_group.assert_not_called()
     mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
     mocks["aws_api_logs"].put_retention_policy.assert_called_once_with(
         "some-other-path-empty-group",
         60,

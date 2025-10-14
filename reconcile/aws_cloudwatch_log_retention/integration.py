@@ -22,6 +22,7 @@ from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
 from reconcile.utils import gql
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.datetime_util import utc_now
+from reconcile.utils.differ import diff_mappings
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
 
@@ -136,11 +137,26 @@ def _reconcile_log_group(
     ):
         return
 
-    tags = aws_api_logs.get_tags(log_group_arn)
-    if _is_managed_by_other_integration(tags):
+    current_tags = aws_api_logs.get_tags(log_group_arn)
+    if _is_managed_by_other_integration(current_tags):
         return
 
-    if tags != desired_tags:
+    diff_result = diff_mappings(
+        current=current_tags,
+        desired=desired_tags,
+    )
+    if diff_result.delete:
+        logging.info(
+            "Deleting tags %s for log group %s",
+            diff_result.delete.keys(),
+            log_group_arn,
+        )
+        if not dry_run:
+            aws_api_logs.delete_tags(
+                log_group_arn,
+                diff_result.delete.keys(),
+            )
+    if diff_result.add or diff_result.change:
         logging.info(
             "Setting tags %s for log group %s",
             desired_tags,
