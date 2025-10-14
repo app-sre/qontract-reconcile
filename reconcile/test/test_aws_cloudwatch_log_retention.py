@@ -38,28 +38,15 @@ def test_cloudwatch_account(
     return gql_class_factory(
         AWSAccountV1,
         {
-            "path": "/aws/some/path/account.yml",
             "name": "some-account-name",
-            "uid": "123456",
-            "terraformUsername": None,
-            "consoleUrl": "https://some-url.com/console",
             "resourcesDefaultRegion": TEST_AWS_REGION,
-            "supportedDeploymentRegions": None,
-            "providerVersion": "3.14.159",
-            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
             "automationToken": {
                 "path": "app-sre/some/path/config",
                 "field": "all",
                 "version": None,
                 "format": None,
             },
-            "enableDeletion": None,
-            "deletionApprovals": None,
             "disable": None,
-            "deleteKeys": None,
-            "premiumSupport": True,
-            "ecrs": None,
-            "partition": None,
             "organization": {
                 "tags": '{"owner": "dev"}',
                 "payerAccount": {"organizationAccountTags": '{"env": "test"}'},
@@ -499,30 +486,17 @@ def account_with_disabled_integration(
     return gql_class_factory(
         AWSAccountV1,
         {
-            "path": "/aws/some/path/account.yml",
             "name": "some-account-name",
-            "uid": "123456",
-            "terraformUsername": None,
-            "consoleUrl": "https://some-url.com/console",
             "resourcesDefaultRegion": "us-east-1",
-            "supportedDeploymentRegions": None,
-            "providerVersion": "3.14.159",
-            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
             "automationToken": {
                 "path": "app-sre/some/path/config",
                 "field": "all",
                 "version": None,
                 "format": None,
             },
-            "enableDeletion": None,
-            "deletionApprovals": None,
             "disable": {
                 "integrations": ["aws-cloudwatch-log-retention"],
             },
-            "deleteKeys": None,
-            "premiumSupport": True,
-            "ecrs": None,
-            "partition": None,
             "cleanup": [
                 {
                     "provider": "cloudwatch",
@@ -566,7 +540,6 @@ def cloudwatch_account_with_multiple_regions(
     return gql_class_factory(
         AWSAccountV1,
         {
-            "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
             "automationToken": {
                 "path": "app-sre/some/path/config",
                 "field": "all",
@@ -590,7 +563,6 @@ def cloudwatch_account_with_multiple_regions(
                 },
             ],
             "name": "account-name-with-multiple_regions",
-            "uid": "123456",
             "resourcesDefaultRegion": "us-east-1",
         },
     )
