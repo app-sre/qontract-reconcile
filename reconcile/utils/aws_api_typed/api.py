@@ -21,6 +21,7 @@ from reconcile.utils.aws_api_typed.account import AWSApiAccount
 from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
+from reconcile.utils.aws_api_typed.logs import AWSApiLogs
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
 from reconcile.utils.aws_api_typed.s3 import AWSApiS3
 from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
@@ -35,6 +36,7 @@ SubApi = TypeVar(
     AWSApiAccount,
     AWSApiCloudFormation,
     AWSApiDynamoDB,
+    AWSApiLogs,
     AWSApiIam,
     AWSApiOrganizations,
     AWSApiS3,
@@ -188,6 +190,9 @@ class AWSApi:
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
                 client = self.session.client("iam")
                 api = api_cls(client)
+            case reconcile.utils.aws_api_typed.logs.AWSApiLogs:
+                client = self.session.client("logs")
+                api = api_cls(client)
             case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
                 client = self.session.client("organizations")
                 api = api_cls(client)
@@ -228,6 +233,11 @@ class AWSApi:
     def iam(self) -> AWSApiIam:
         """Return an AWS IAM Api client."""
         return self._init_sub_api(AWSApiIam)
+
+    @cached_property
+    def logs(self) -> AWSApiLogs:
+        """Return an AWS Logs Api client."""
+        return self._init_sub_api(AWSApiLogs)
 
     @cached_property
     def organizations(self) -> AWSApiOrganizations:
