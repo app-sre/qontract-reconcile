@@ -21,6 +21,13 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import VPCRequest
 
 
 DEFINITION = """
+fragment AWSOrganization on AWSOrganization_v1 {
+  payerAccount {
+    organizationAccountTags
+  }
+  tags
+}
+
 fragment TerraformState on TerraformStateAWS_v1 {
   provider
   bucket
@@ -52,6 +59,9 @@ fragment VPCRequest on VPCRequest_v1 {
       type
       name
       expiration
+    }
+    organization {
+      ...AWSOrganization
     }
   }
   region
