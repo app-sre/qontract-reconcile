@@ -1,3 +1,4 @@
+import json
 from collections.abc import Mapping
 
 from reconcile.gql_definitions.fragments.aws_organization import (
@@ -30,6 +31,11 @@ def get_aws_account_tags(
             payer_account_tags = organization.get("payerAccount", {}).get(
                 "organizationAccountTags", {}
             )
+            if isinstance(payer_account_tags, str):
+                payer_account_tags = json.loads(payer_account_tags)
+
             account_tags = organization.get("tags", {})
+            if isinstance(account_tags, str):
+                account_tags = json.loads(account_tags)
 
     return payer_account_tags | account_tags
