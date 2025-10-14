@@ -19,6 +19,7 @@ from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
     get_aws_accounts,
 )
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import gql
 from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.datetime_util import utc_now
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from mypy_boto3_logs.type_defs import LogGroupTypeDef
 
     from reconcile.utils.aws_api_typed.logs import AWSApiLogs
+    from reconcile.utils.gql import GqlApi
 
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
@@ -202,9 +204,12 @@ def _reconcile_log_groups(
     dry_run: bool,
     aws_account: AWSAccountV1,
     last_tags: dict[str, str],
+    default_tags: dict[str, str],
     automation_token: dict[str, str],
 ) -> dict[str, str]:
-    desired_tags = get_aws_account_tags(aws_account.organization) | MANAGED_TAG
+    desired_tags = (
+        default_tags | get_aws_account_tags(aws_account.organization) | MANAGED_TAG
+    )
     desired_tags_changed = desired_tags != last_tags
     for (
         region,
@@ -237,10 +242,10 @@ def _reconcile_log_groups(
     return desired_tags
 
 
-def get_active_aws_accounts() -> list[AWSAccountV1]:
+def get_active_aws_accounts(gql_api: GqlApi) -> list[AWSAccountV1]:
     return [
         account
-        for account in get_aws_accounts(gql.get_api())
+        for account in get_aws_accounts(gql_api)
         if not (
             account.disable
             and account.disable.integrations
@@ -249,10 +254,21 @@ def get_active_aws_accounts() -> list[AWSAccountV1]:
     ]
 
 
+def get_default_tags(gql_api: GqlApi) -> dict[str, str]:
+    try:
+        return get_settings(gql_api.query).default_tags
+    except ValueError:
+        # no settings found
+        return {}
+
+
 def run(dry_run: bool) -> None:
-    aws_accounts = get_active_aws_accounts()
-    vault_settings = get_app_interface_vault_settings()
+    gql_api = gql.get_api()
+    aws_accounts = get_active_aws_accounts(gql_api)
+    vault_settings = get_app_interface_vault_settings(query_func=gql_api.query)
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    default_tags = get_default_tags(gql_api)
+
     with init_state(
         integration=QONTRACT_INTEGRATION,
         secret_reader=secret_reader,
@@ -263,6 +279,7 @@ def run(dry_run: bool) -> None:
                 dry_run=dry_run,
                 aws_account=aws_account,
                 last_tags=last_tags.get(aws_account.name, {}),
+                default_tags=default_tags,
                 automation_token=secret_reader.read_all_secret(
                     aws_account.automation_token
                 ),

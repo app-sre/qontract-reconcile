@@ -17,6 +17,9 @@ from reconcile.aws_cloudwatch_log_retention.integration import (
 from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
     AWSAccountV1,
 )
+from reconcile.gql_definitions.external_resources.external_resources_settings import (
+    ExternalResourcesSettingsV1,
+)
 from reconcile.utils.aws_api_typed.api import AWSStaticCredentials
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.secret_reader import SecretReader
@@ -97,6 +100,14 @@ def setup_mocks(
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.get_app_interface_vault_settings",
     )
+    settings = create_autospec(ExternalResourcesSettingsV1)
+    settings.default_tags = {
+        "default_key": "default_value",
+    }
+    mocker.patch(
+        "reconcile.aws_cloudwatch_log_retention.integration.get_settings",
+        return_value=settings,
+    )
     mocked_secret_reader = create_autospec(SecretReader)
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.create_secret_reader",
@@ -154,6 +165,7 @@ def empty_tags() -> dict[str, str]:
 @pytest.fixture
 def stale_tags() -> dict[str, str]:
     return {
+        "default_key": "default_value",
         "managed_by_integration": "aws_cloudwatch_log_retention",
         "owner": "dev",
         "env": "stale",
@@ -163,6 +175,7 @@ def stale_tags() -> dict[str, str]:
 @pytest.fixture
 def managed_by_aws_cloudwatch_log_retention_tags() -> dict[str, str]:
     return {
+        "default_key": "default_value",
         "managed_by_integration": "aws_cloudwatch_log_retention",
         "owner": "dev",
         "env": "test",
@@ -172,6 +185,7 @@ def managed_by_aws_cloudwatch_log_retention_tags() -> dict[str, str]:
 @pytest.fixture
 def additional_tags() -> dict[str, str]:
     return {
+        "default_key": "default_value",
         "managed_by_integration": "aws_cloudwatch_log_retention",
         "owner": "dev",
         "env": "test",
