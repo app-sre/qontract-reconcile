@@ -8,6 +8,7 @@ from typing import (
 from unittest.mock import MagicMock, call, create_autospec
 
 import pytest
+from botocore.exceptions import ClientError
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
     get_desired_cleanup_options_by_region,
@@ -127,6 +128,7 @@ def setup_mocks(
     aws_api_logs = aws_api.return_value.__enter__.return_value.logs
     aws_api_logs.get_log_groups.return_value = iter(log_groups)
     aws_api_logs.get_tags.return_value = tags
+    aws_api_logs.client.exceptions.ClientError = ClientError
     return {
         "aws_api": aws_api,
         "aws_api_logs": aws_api_logs,
@@ -363,6 +365,49 @@ def test_run_with_matching_retention_log_group_and_stale_tags(
         {test_cloudwatch_account.name: managed_by_aws_cloudwatch_log_retention_tags},
         force=True,
     )
+
+
+def test_run_with_matching_retention_log_group_and_stale_tags_on_error(
+    mocker: MockerFixture,
+    test_cloudwatch_account: AWSAccountV1,
+    log_group_with_desired_retention: dict[str, Any],
+    managed_by_aws_cloudwatch_log_retention_tags: dict[str, str],
+    stale_tags: dict[str, str],
+) -> None:
+    mocks = setup_mocks(
+        mocker,
+        aws_accounts=[test_cloudwatch_account],
+        log_groups=[log_group_with_desired_retention],
+        tags=stale_tags,
+        last_tags={
+            test_cloudwatch_account.name: stale_tags,
+        },
+    )
+    mocks["aws_api_logs"].get_tags.side_effect = ClientError(
+        error_response={
+            "Error": {
+                "Code": "ThrottlingException",
+            },
+        },
+        operation_name="ListTagsForResource",
+    )
+
+    run(dry_run=False)
+
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
+    )
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
+        log_group_with_desired_retention["arn"],
+    )
+    mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].delete_tags.assert_not_called()
+    mocks["aws_api_logs"].put_retention_policy.assert_not_called()
+    mocks["state"].add.assert_not_called()
 
 
 def test_run_with_matching_retention_log_group_with_deleted_desired_tags(

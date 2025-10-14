@@ -227,18 +227,13 @@ def _reconcile_log_groups(
                         desired_tags_changed=desired_tags_changed,
                         aws_api_logs=aws_api_logs,
                     )
-            except aws_api_logs.client.exceptions.AccessDeniedException:
-                logging.info(
-                    "Access denied for aws account %s, region %s. Skipping...",
-                    aws_account.name,
-                    region,
-                )
             except aws_api_logs.client.exceptions.ClientError as e:
                 logging.error(
                     "Error reconciling log groups for %s: %s",
                     aws_account.name,
                     e,
                 )
+                return last_tags
     return desired_tags
 
 
