@@ -1,6 +1,7 @@
 import logging
 from collections import Counter
 from collections.abc import Iterable
+from hashlib import sha256
 from typing import cast
 
 from sretoolbox.utils import threaded
@@ -135,10 +136,21 @@ class ExternalResourcesManager:
         self.thread_pool_size = thread_pool_size
         self.dry_runs_validator = dry_runs_validator
 
+    def _update_resource_hash_md5_to_sha256(self, state: ExternalResourceState) -> str:
+        new_hash = sha256(state.reconciliation.input.encode("utf-8")).hexdigest()
+        state.reconciliation.resource_hash = new_hash
+        self.state_mgr.set_external_resource_state(state)
+        return new_hash
+
     def _resource_spec_changed(
         self, reconciliation: Reconciliation, state: ExternalResourceState
     ) -> bool:
-        return reconciliation.resource_hash != state.reconciliation.resource_hash
+        stored_hash = state.reconciliation.resource_hash
+        current_hash = reconciliation.resource_hash
+        # If stored hash is MD5, migrate to SHA256
+        if len(stored_hash) == 32:
+            stored_hash = self._update_resource_hash_md5_to_sha256(state)
+        return current_hash != stored_hash
 
     def _resource_drift_detection_ttl_expired(
         self, reconciliation: Reconciliation, state: ExternalResourceState
