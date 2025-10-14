@@ -18,6 +18,9 @@ def test_get_aws_account_tags_when_org_is_none() -> None:
 @pytest.mark.parametrize(
     ("organization", "expected_tags"),
     [
+        # trivial cases
+        (None, {}),
+        ({}, {}),
         # GQL objects
         (
             AWSOrganization(
