@@ -1286,14 +1286,14 @@ def aws_ami_cleanup(ctx: click.Context, thread_pool_size: int) -> None:
     run_integration(reconcile.aws_ami_cleanup.integration, ctx, thread_pool_size)
 
 
-@integration.command(short_help="Set up retention period for Cloudwatch logs.")
-@threaded()
+@integration.command(short_help="Set up retention period and tags for Cloudwatch logs.")
 @click.pass_context
-def aws_cloudwatch_log_retention(ctx: click.Context, thread_pool_size: int) -> None:
+def aws_cloudwatch_log_retention(ctx: click.Context) -> None:
     import reconcile.aws_cloudwatch_log_retention.integration
 
     run_integration(
-        reconcile.aws_cloudwatch_log_retention.integration, ctx, thread_pool_size
+        reconcile.aws_cloudwatch_log_retention.integration,
+        ctx,
     )
 
 

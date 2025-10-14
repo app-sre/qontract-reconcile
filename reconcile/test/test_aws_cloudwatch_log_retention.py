@@ -7,9 +7,7 @@ from typing import (
 )
 from unittest.mock import MagicMock, call, create_autospec
 
-import boto3
 import pytest
-from moto import mock_aws
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
     get_desired_cleanup_options_by_region,
@@ -18,45 +16,19 @@ from reconcile.aws_cloudwatch_log_retention.integration import (
 from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
     AWSAccountV1,
 )
+from reconcile.utils.aws_api_typed.api import AWSStaticCredentials
 from reconcile.utils.gql import GqlApi
+from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State
 
+TEST_AWS_SECRET_ACCESS_KEY = "some_secret_access_key"
+TEST_AWS_ACCESS_KEY_ID = "some_access_key_id"
+TEST_AWS_REGION = "us-east-1"
+
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Iterable
+    from collections.abc import Callable, Iterable
 
-    from mypy_boto3_logs import CloudWatchLogsClient
-    from mypy_boto3_logs.type_defs import LogGroupTypeDef
     from pytest_mock import MockerFixture
-
-
-@pytest.fixture
-def cloudwatchlogs_client() -> Generator[CloudWatchLogsClient, None, None]:
-    with mock_aws():
-        yield boto3.client("logs", region_name="us-east-1")
-
-
-@pytest.fixture(autouse=True)
-def log_group_tf_tag(
-    cloudwatchlogs_client: CloudWatchLogsClient,
-) -> list[LogGroupTypeDef]:
-    log_group_name1 = "some-group"
-    tags1 = {"key": "value", "managed_by_integration": "terraform_resources"}
-
-    cloudwatchlogs_client.create_log_group(logGroupName=log_group_name1)
-    cloudwatchlogs_client.tag_log_group(logGroupName=log_group_name1, tags=tags1)
-
-    log_group_name2 = "some-group2"
-    tags2 = {"key2": "value2"}
-
-    cloudwatchlogs_client.create_log_group(logGroupName=log_group_name2)
-    cloudwatchlogs_client.tag_log_group(logGroupName=log_group_name2, tags=tags2)
-
-    describe_log_output = cloudwatchlogs_client.describe_log_groups(
-        logGroupNamePattern="some"
-    )
-    log_output_list = describe_log_output.get("logGroups")
-
-    return log_output_list or []
 
 
 @pytest.fixture
@@ -71,7 +43,7 @@ def test_cloudwatch_account(
             "uid": "123456",
             "terraformUsername": None,
             "consoleUrl": "https://some-url.com/console",
-            "resourcesDefaultRegion": "us-east-1",
+            "resourcesDefaultRegion": TEST_AWS_REGION,
             "supportedDeploymentRegions": None,
             "providerVersion": "3.14.159",
             "accountOwners": [{"email": "some-email@email.com", "name": "Some Team"}],
@@ -105,7 +77,7 @@ def test_cloudwatch_account(
                     "regex": "some-other-path*",
                     "retention_in_days": 60,
                     "delete_empty_log_group": True,
-                    "region": "us-east-1",
+                    "region": TEST_AWS_REGION,
                 },
             ],
         },
@@ -137,9 +109,15 @@ def setup_mocks(
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.get_app_interface_vault_settings",
     )
+    mocked_secret_reader = create_autospec(SecretReader)
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.create_secret_reader",
+        return_value=mocked_secret_reader,
     )
+    mocked_secret_reader.read_all_secret.return_value = {
+        "aws_access_key_id": TEST_AWS_ACCESS_KEY_ID,
+        "aws_secret_access_key": TEST_AWS_SECRET_ACCESS_KEY,
+    }
     mock_state = create_autospec(State)
     mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.init_state",
@@ -152,10 +130,6 @@ def setup_mocks(
         return_value=aws_accounts,
     )
     mocker.patch(
-        "reconcile.aws_cloudwatch_log_retention.integration.queries.get_secret_reader_settings",
-        return_value={},
-    )
-    mocker.patch(
         "reconcile.aws_cloudwatch_log_retention.integration.utc_now",
         return_value=utcnow or datetime.now(UTC),
     )
@@ -163,11 +137,12 @@ def setup_mocks(
         "reconcile.aws_cloudwatch_log_retention.integration.AWSApi",
         autospec=True,
     )
-    mocked_aws_api = aws_api.return_value.__enter__.return_value
-    mocked_aws_api.get_cloudwatch_log_groups.return_value = iter(log_groups)
-    mocked_aws_api.get_cloudwatch_log_group_tags.return_value = tags
+    aws_api_logs = aws_api.return_value.__enter__.return_value.logs
+    aws_api_logs.get_log_groups.return_value = iter(log_groups)
+    aws_api_logs.get_tags.return_value = tags
     return {
-        "aws_api": mocked_aws_api,
+        "aws_api": aws_api,
+        "aws_api_logs": aws_api_logs,
         "state": mock_state,
     }
 
@@ -226,26 +201,26 @@ def test_run_with_unset_retention_log_group_and_default_cleanup(
         tags=empty_tags,
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account.name,
-        log_group_with_unset_retention["arn"],
-        "us-east-1",
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
     )
-
-    mocks["aws_api"].create_cloudwatch_tag.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api_logs"].get_log_groups.assert_called_once_with()
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
+        log_group_with_unset_retention["arn"],
+    )
+    mocks["aws_api_logs"].set_tags.assert_called_once_with(
         log_group_with_unset_retention["arn"],
         managed_by_aws_cloudwatch_log_retention_tags,
-        "us-east-1",
     )
-
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api_logs"].put_retention_policy.assert_called_once_with(
         "group-without-retention",
         90,
-        "us-east-1",
     )
     mocks["state"].add.assert_called_once_with(
         "tags.json",
@@ -278,26 +253,27 @@ def test_run_with_unset_retention_log_group_and_matching_cleanup(
         tags=empty_tags,
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
+    )
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
         log_group_with_unset_retention_and_matching_name["arn"],
-        "us-east-1",
     )
 
-    mocks["aws_api"].create_cloudwatch_tag.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api_logs"].set_tags.assert_called_once_with(
         log_group_with_unset_retention_and_matching_name["arn"],
         managed_by_aws_cloudwatch_log_retention_tags,
-        "us-east-1",
     )
 
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api_logs"].put_retention_policy.assert_called_once_with(
         "some-path-group-without-retention",
         30,
-        "us-east-1",
     )
     mocks["state"].add.assert_called_once_with(
         "tags.json",
@@ -333,11 +309,18 @@ def test_run_with_matching_retention_log_group_and_last_tags(
         },
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_group_tags.assert_not_called()
-    mocks["aws_api"].create_cloudwatch_tag.assert_not_called()
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_not_called()
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
+    )
+    mocks["aws_api_logs"].get_tags.assert_not_called()
+    mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].put_retentino_policy.assert_not_called()
     mocks["state"].add.assert_not_called()
 
 
@@ -358,20 +341,23 @@ def test_run_with_matching_retention_log_group_and_stale_tags(
         },
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account.name,
-        log_group_with_desired_retention["arn"],
-        "us-east-1",
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
     )
-    mocks["aws_api"].create_cloudwatch_tag.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
+        log_group_with_desired_retention["arn"],
+    )
+    mocks["aws_api_logs"].set_tags.assert_called_once_with(
         log_group_with_desired_retention["arn"],
         managed_by_aws_cloudwatch_log_retention_tags,
-        "us-east-1",
     )
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_not_called()
+    mocks["aws_api_logs"].put_retention_policy.assert_not_called()
     mocks["state"].add.assert_called_once_with(
         "tags.json",
         {test_cloudwatch_account.name: managed_by_aws_cloudwatch_log_retention_tags},
@@ -396,16 +382,21 @@ def test_run_with_log_group_managed_by_terraform_resources(
         },
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account.name,
-        log_group_with_unset_retention["arn"],
-        "us-east-1",
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
     )
-    mocks["aws_api"].delete_cloudwatch_log_group.assert_not_called()
-    mocks["aws_api"].create_cloudwatch_tag.assert_not_called()
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_not_called()
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
+        log_group_with_unset_retention["arn"],
+    )
+    mocks["aws_api_logs"].delete_log_group.assert_not_called()
+    mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].put_retention_policy.assert_not_called()
     mocks["state"].add.assert_not_called()
 
 
@@ -440,20 +431,23 @@ def test_run_with_empty_log_group_after_retention_in_days(
         + timedelta(days=61),
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
+    )
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
         log_group_with_empty_stored_bytes["arn"],
-        "us-east-1",
     )
-    mocks["aws_api"].delete_cloudwatch_log_group.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api_logs"].delete_log_group.assert_called_once_with(
         log_group_with_empty_stored_bytes["logGroupName"],
-        "us-east-1",
     )
-    mocks["aws_api"].create_cloudwatch_tag.assert_not_called()
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_not_called()
+    mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].put_retention_policy.assert_not_called()
     mocks["state"].add.assert_not_called()
 
 
@@ -477,20 +471,23 @@ def test_run_with_empty_log_group_before_retention_in_days(
         + timedelta(days=59),
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_group_tags.assert_called_once_with(
-        test_cloudwatch_account.name,
-        log_group_with_empty_stored_bytes["arn"],
-        "us-east-1",
+    mocks["aws_api"].assert_called_once_with(
+        AWSStaticCredentials(
+            access_key_id=TEST_AWS_ACCESS_KEY_ID,
+            secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+            region=TEST_AWS_REGION,
+        )
     )
-    mocks["aws_api"].delete_cloudwatch_log_group.assert_not_called()
-    mocks["aws_api"].create_cloudwatch_tag.assert_not_called()
-    mocks["aws_api"].set_cloudwatch_log_retention.assert_called_once_with(
-        test_cloudwatch_account.name,
+    mocks["aws_api_logs"].get_tags.assert_called_once_with(
+        log_group_with_empty_stored_bytes["arn"],
+    )
+    mocks["aws_api_logs"].delete_log_group.assert_not_called()
+    mocks["aws_api_logs"].set_tags.assert_not_called()
+    mocks["aws_api_logs"].put_retention_policy.assert_called_once_with(
         "some-other-path-empty-group",
         60,
-        "us-east-1",
     )
     mocks["state"].add.assert_not_called()
 
@@ -557,13 +554,13 @@ def test_run_with_disabled_integration_account(
         tags={},
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    mocks["aws_api"].get_cloudwatch_log_groups.assert_not_called()
+    mocks["aws_api"].assert_not_called()
 
 
 @pytest.fixture
-def test_cloudwatch_account_with_multiple_regions(
+def cloudwatch_account_with_multiple_regions(
     gql_class_factory: Callable[..., AWSAccountV1],
 ) -> AWSAccountV1:
     return gql_class_factory(
@@ -601,19 +598,34 @@ def test_cloudwatch_account_with_multiple_regions(
 
 def test_run_with_multiple_regions_account(
     mocker: MockerFixture,
-    test_cloudwatch_account_with_multiple_regions: AWSAccountV1,
+    cloudwatch_account_with_multiple_regions: AWSAccountV1,
 ) -> None:
     mocks = setup_mocks(
         mocker,
-        aws_accounts=[test_cloudwatch_account_with_multiple_regions],
+        aws_accounts=[cloudwatch_account_with_multiple_regions],
         log_groups=[],
         tags={},
     )
 
-    run(dry_run=False, thread_pool_size=1)
+    run(dry_run=False)
 
-    assert mocks["aws_api"].get_cloudwatch_log_groups.call_count == 2
-    mocks["aws_api"].get_cloudwatch_log_groups.assert_has_calls([
-        call("account-name-with-multiple_regions", "us-east-1"),
-        call("account-name-with-multiple_regions", "us-west-2"),
-    ])
+    assert mocks["aws_api"].call_count == 2
+    mocks["aws_api"].assert_has_calls(
+        [
+            call(
+                AWSStaticCredentials(
+                    access_key_id=TEST_AWS_ACCESS_KEY_ID,
+                    secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+                    region="us-east-1",
+                )
+            ),
+            call(
+                AWSStaticCredentials(
+                    access_key_id=TEST_AWS_ACCESS_KEY_ID,
+                    secret_access_key=TEST_AWS_SECRET_ACCESS_KEY,
+                    region="us-west-2",
+                )
+            ),
+        ],
+        any_order=True,
+    )
