@@ -335,7 +335,7 @@ def test_run_with_matching_retention_log_group_and_last_tags(
     mocks["aws_api_logs"].get_tags.assert_not_called()
     mocks["aws_api_logs"].set_tags.assert_not_called()
     mocks["aws_api_logs"].delete_tags.assert_not_called()
-    mocks["aws_api_logs"].put_retentino_policy.assert_not_called()
+    mocks["aws_api_logs"].put_retention_policy.assert_not_called()
     mocks["state"].add.assert_not_called()
 
 
