@@ -2,39 +2,17 @@
 
 query AWSAccountsCloudwatchLogRetentionCleanup {
   accounts: awsaccounts_v1 {
-    path
     name
-    uid
-    terraformUsername
-    consoleUrl
     resourcesDefaultRegion
-    supportedDeploymentRegions
-    providerVersion
-    accountOwners {
-      name
-      email
-    }
     automationToken {
-      path
-      field
-      version
-      format
-    }
-    enableDeletion
-    deletionApprovals {
-      type
-      name
-      expiration
+      ...VaultSecret
     }
     disable {
       integrations
     }
-    deleteKeys
-    premiumSupport
-    ecrs {
-      region
+    organization {
+      ...AWSOrganization
     }
-    partition
     cleanup {
       provider
       ... on AWSAccountCleanupOptionCloudWatch_v1 {

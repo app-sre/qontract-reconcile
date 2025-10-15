@@ -2,31 +2,40 @@ from __future__ import annotations
 
 import logging
 import re
-import typing
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
-from enum import Enum
 from typing import TYPE_CHECKING
 
-from botocore.exceptions import ClientError
 from pydantic import BaseModel
 
-from reconcile import queries
 from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
     AWSAccountCleanupOptionCloudWatchV1,
     AWSAccountV1,
 )
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
+from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
     get_aws_accounts,
 )
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import gql
-from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.datetime_util import utc_now
+from reconcile.utils.differ import diff_mappings
+from reconcile.utils.secret_reader import create_secret_reader
+from reconcile.utils.state import init_state
+
+TAGS_KEY = "tags.json"
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from mypy_boto3_logs.type_defs import LogGroupTypeDef
+
+    from reconcile.utils.aws_api_typed.logs import AWSApiLogs
+    from reconcile.utils.gql import GqlApi
 
 
 QONTRACT_INTEGRATION = "aws_cloudwatch_log_retention"
@@ -36,7 +45,7 @@ DEFAULT_RETENTION_IN_DAYS = 90
 
 
 class AWSCloudwatchCleanupOption(BaseModel):
-    regex: typing.Pattern
+    regex: re.Pattern
     retention_in_days: int
     delete_empty_log_group: bool
 
@@ -68,16 +77,6 @@ def get_desired_cleanup_options_by_region(
     return result
 
 
-def create_awsapi_client(accounts: list[AWSAccountV1], thread_pool_size: int) -> AWSApi:
-    settings = queries.get_secret_reader_settings()
-    return AWSApi(
-        thread_pool_size,
-        [account.dict(by_alias=True) for account in accounts],
-        settings=settings,
-        init_users=False,
-    )
-
-
 def is_empty(log_group: LogGroupTypeDef) -> bool:
     return log_group["storedBytes"] == 0
 
@@ -93,42 +92,25 @@ def is_longer_than_retention(
     )
 
 
-class TagStatus(Enum):
-    NOT_SET = "NOT_SET"
-    MANAGED_BY_CURRENT_INTEGRATION = "MANAGED_BY_CURRENT_INTEGRATION"
-    MANAGED_BY_OTHER_INTEGRATION = "MANAGED_BY_OTHER_INTEGRATION"
-
-
-def get_tag_status(
-    log_group: LogGroupTypeDef,
-    account_name: str,
-    region: str,
-    aws_api: AWSApi,
-) -> TagStatus:
-    tags = aws_api.get_cloudwatch_log_group_tags(
-        account_name,
-        log_group["arn"],
-        region,
-    )
+def _is_managed_by_other_integration(tags: dict[str, str]) -> bool:
     managed_by_integration = tags.get(MANAGED_BY_INTEGRATION_KEY)
-    if managed_by_integration is None:
-        return TagStatus.NOT_SET
-    if managed_by_integration == QONTRACT_INTEGRATION:
-        return TagStatus.MANAGED_BY_CURRENT_INTEGRATION
-    return TagStatus.MANAGED_BY_OTHER_INTEGRATION
+    return (
+        managed_by_integration is not None
+        and managed_by_integration != QONTRACT_INTEGRATION
+    )
 
 
 def _reconcile_log_group(
     dry_run: bool,
-    aws_log_group: LogGroupTypeDef,
+    log_group: LogGroupTypeDef,
     desired_cleanup_options: Iterable[AWSCloudwatchCleanupOption],
-    account_name: str,
-    region: str,
-    awsapi: AWSApi,
+    desired_tags: dict[str, str],
+    desired_tags_changed: bool,
+    aws_api_logs: AWSApiLogs,
 ) -> None:
-    current_retention_in_days = aws_log_group.get("retentionInDays")
-    log_group_name = aws_log_group["logGroupName"]
-    log_group_arn = aws_log_group["arn"]
+    current_retention_in_days = log_group.get("retentionInDays")
+    log_group_name = log_group["logGroupName"]
+    log_group_arn = log_group["arn"]
 
     desired_cleanup_option = _find_desired_cleanup_option(
         log_group_name, desired_cleanup_options
@@ -136,54 +118,66 @@ def _reconcile_log_group(
 
     if (
         desired_cleanup_option.delete_empty_log_group
-        and is_empty(aws_log_group)
+        and is_empty(log_group)
         and is_longer_than_retention(
-            aws_log_group, desired_cleanup_option.retention_in_days
+            log_group, desired_cleanup_option.retention_in_days
         )
     ):
-        if (
-            get_tag_status(aws_log_group, account_name, region, awsapi)
-            != TagStatus.MANAGED_BY_OTHER_INTEGRATION
-        ):
+        tags = aws_api_logs.get_tags(log_group_arn)
+        if not _is_managed_by_other_integration(tags):
             logging.info(
                 "Deleting empty log group %s",
                 log_group_arn,
             )
             if not dry_run:
-                awsapi.delete_cloudwatch_log_group(account_name, log_group_name, region)
+                aws_api_logs.delete_log_group(log_group_name)
         return
 
-    if current_retention_in_days == desired_cleanup_option.retention_in_days:
+    if (
+        current_retention_in_days == desired_cleanup_option.retention_in_days
+        and not desired_tags_changed
+    ):
         return
 
-    match get_tag_status(aws_log_group, account_name, region, awsapi):
-        case TagStatus.MANAGED_BY_OTHER_INTEGRATION:
-            return
-        case TagStatus.MANAGED_BY_CURRENT_INTEGRATION:
-            pass
-        case TagStatus.NOT_SET:
-            logging.info(
-                "Setting tag %s for log group %s",
-                MANAGED_TAG,
-                log_group_arn,
-            )
-            if not dry_run:
-                awsapi.create_cloudwatch_tag(
-                    account_name, log_group_arn, MANAGED_TAG, region
-                )
+    current_tags = aws_api_logs.get_tags(log_group_arn)
+    if _is_managed_by_other_integration(current_tags):
+        return
 
-    logging.info(
-        "Setting %s retention days to %d",
-        log_group_arn,
-        desired_cleanup_option.retention_in_days,
+    diff_result = diff_mappings(
+        current=current_tags,
+        desired=desired_tags,
     )
-    if not dry_run:
-        awsapi.set_cloudwatch_log_retention(
-            account_name,
-            log_group_name,
-            desired_cleanup_option.retention_in_days,
-            region,
+    if diff_result.delete:
+        logging.info(
+            "Deleting tags %s for log group %s",
+            diff_result.delete.keys(),
+            log_group_arn,
         )
+        if not dry_run:
+            aws_api_logs.delete_tags(
+                log_group_arn,
+                diff_result.delete.keys(),
+            )
+    if diff_result.add or diff_result.change:
+        logging.info(
+            "Setting tags %s for log group %s",
+            desired_tags,
+            log_group_arn,
+        )
+        if not dry_run:
+            aws_api_logs.set_tags(log_group_arn, desired_tags)
+
+    if current_retention_in_days != desired_cleanup_option.retention_in_days:
+        logging.info(
+            "Setting %s retention days to %d",
+            log_group_arn,
+            desired_cleanup_option.retention_in_days,
+        )
+        if not dry_run:
+            aws_api_logs.put_retention_policy(
+                log_group_name,
+                desired_cleanup_option.retention_in_days,
+            )
 
 
 def _find_desired_cleanup_option(
@@ -194,60 +188,64 @@ def _find_desired_cleanup_option(
     Find the first cleanup option that regex matches the log group name.
     If no match is found, return the default cleanup option.
 
-    :param log_group_name: The name of the log group
-    :param desired_cleanup_options: The desired cleanup options
-    :return: The desired cleanup option
+    Args:
+        log_group_name: The name of the log group.
+        desired_cleanup_options: A list of desired cleanup options.
+    Returns:
+        The matching cleanup option or the default one.
     """
-    return next(
-        (o for o in desired_cleanup_options if o.regex.match(log_group_name)),
-        DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION,
-    )
+    for option in desired_cleanup_options:
+        if option.regex.match(log_group_name):
+            return option
+    return DEFAULT_AWS_CLOUDWATCH_CLEANUP_OPTION
 
 
 def _reconcile_log_groups(
     dry_run: bool,
     aws_account: AWSAccountV1,
-    awsapi: AWSApi,
-) -> None:
-    account_name = aws_account.name
-    desired_cleanup_options_by_region = get_desired_cleanup_options_by_region(
-        aws_account
+    last_tags: dict[str, str],
+    default_tags: dict[str, str],
+    automation_token: dict[str, str],
+) -> dict[str, str]:
+    desired_tags = (
+        default_tags | get_aws_account_tags(aws_account.organization) | MANAGED_TAG
     )
-    try:
-        for (
-            region,
-            desired_cleanup_options,
-        ) in desired_cleanup_options_by_region.items():
-            for aws_log_group in awsapi.get_cloudwatch_log_groups(
-                account_name,
-                region,
-            ):
-                _reconcile_log_group(
-                    dry_run=dry_run,
-                    aws_log_group=aws_log_group,
-                    desired_cleanup_options=desired_cleanup_options,
-                    account_name=account_name,
-                    region=region,
-                    awsapi=awsapi,
+    desired_tags_changed = desired_tags != last_tags
+    for (
+        region,
+        desired_cleanup_options,
+    ) in get_desired_cleanup_options_by_region(aws_account).items():
+        aws_credentials = AWSStaticCredentials(
+            access_key_id=automation_token["aws_access_key_id"],
+            secret_access_key=automation_token["aws_secret_access_key"],
+            region=region,
+        )
+        with AWSApi(aws_credentials) as aws_api:
+            aws_api_logs = aws_api.logs
+            try:
+                for log_group in aws_api_logs.get_log_groups():
+                    _reconcile_log_group(
+                        dry_run=dry_run,
+                        log_group=log_group,
+                        desired_cleanup_options=desired_cleanup_options,
+                        desired_tags=desired_tags,
+                        desired_tags_changed=desired_tags_changed,
+                        aws_api_logs=aws_api_logs,
+                    )
+            except aws_api_logs.client.exceptions.ClientError as e:
+                logging.error(
+                    "Error reconciling log groups for %s: %s",
+                    aws_account.name,
+                    e,
                 )
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "AccessDeniedException":
-            logging.info(
-                "Access denied for aws account %s. Skipping...",
-                account_name,
-            )
-        else:
-            logging.error(
-                "Error reconciling log groups for %s: %s",
-                account_name,
-                e,
-            )
+                return last_tags
+    return desired_tags
 
 
-def get_active_aws_accounts() -> list[AWSAccountV1]:
+def get_active_aws_accounts(gql_api: GqlApi) -> list[AWSAccountV1]:
     return [
         account
-        for account in get_aws_accounts(gql.get_api())
+        for account in get_aws_accounts(gql_api)
         if not (
             account.disable
             and account.disable.integrations
@@ -256,8 +254,37 @@ def get_active_aws_accounts() -> list[AWSAccountV1]:
     ]
 
 
-def run(dry_run: bool, thread_pool_size: int) -> None:
-    aws_accounts = get_active_aws_accounts()
-    with create_awsapi_client(aws_accounts, thread_pool_size) as awsapi:
-        for aws_account in aws_accounts:
-            _reconcile_log_groups(dry_run, aws_account, awsapi)
+def get_default_tags(gql_api: GqlApi) -> dict[str, str]:
+    try:
+        return get_settings(gql_api.query).default_tags
+    except ValueError:
+        # no settings found
+        return {}
+
+
+def run(dry_run: bool) -> None:
+    gql_api = gql.get_api()
+    aws_accounts = get_active_aws_accounts(gql_api)
+    vault_settings = get_app_interface_vault_settings(query_func=gql_api.query)
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    default_tags = get_default_tags(gql_api)
+
+    with init_state(
+        integration=QONTRACT_INTEGRATION,
+        secret_reader=secret_reader,
+    ) as state:
+        last_tags = state.get(TAGS_KEY, {})
+        desired_tags = {
+            aws_account.name: _reconcile_log_groups(
+                dry_run=dry_run,
+                aws_account=aws_account,
+                last_tags=last_tags.get(aws_account.name, {}),
+                default_tags=default_tags,
+                automation_token=secret_reader.read_all_secret(
+                    aws_account.automation_token
+                ),
+            )
+            for aws_account in aws_accounts
+        }
+        if not dry_run and desired_tags != last_tags:
+            state.add(TAGS_KEY, desired_tags, force=True)

@@ -17,43 +17,38 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.aws_organization import AWSOrganization
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment AWSOrganization on AWSOrganization_v1 {
+  payerAccount {
+    organizationAccountTags
+  }
+  tags
+}
+
+fragment VaultSecret on VaultSecret_v1 {
+  path
+  field
+  version
+  format
+}
+
 query AWSAccountsCloudwatchLogRetentionCleanup {
   accounts: awsaccounts_v1 {
-    path
     name
-    uid
-    terraformUsername
-    consoleUrl
     resourcesDefaultRegion
-    supportedDeploymentRegions
-    providerVersion
-    accountOwners {
-      name
-      email
-    }
     automationToken {
-      path
-      field
-      version
-      format
-    }
-    enableDeletion
-    deletionApprovals {
-      type
-      name
-      expiration
+      ...VaultSecret
     }
     disable {
       integrations
     }
-    deleteKeys
-    premiumSupport
-    ecrs {
-      region
+    organization {
+      ...AWSOrganization
     }
-    partition
     cleanup {
       provider
       ... on AWSAccountCleanupOptionCloudWatch_v1 {
@@ -74,30 +69,8 @@ class ConfiguredBaseModel(BaseModel):
         extra=Extra.forbid
 
 
-class OwnerV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
-    email: str = Field(..., alias="email")
-
-
-class VaultSecretV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
-    field: str = Field(..., alias="field")
-    version: Optional[int] = Field(..., alias="version")
-    q_format: Optional[str] = Field(..., alias="format")
-
-
-class DeletionApprovalV1(ConfiguredBaseModel):
-    q_type: str = Field(..., alias="type")
-    name: str = Field(..., alias="name")
-    expiration: str = Field(..., alias="expiration")
-
-
 class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
-
-
-class AWSECRV1(ConfiguredBaseModel):
-    region: str = Field(..., alias="region")
 
 
 class AWSAccountCleanupOptionV1(ConfiguredBaseModel):
@@ -112,23 +85,11 @@ class AWSAccountCleanupOptionCloudWatchV1(AWSAccountCleanupOptionV1):
 
 
 class AWSAccountV1(ConfiguredBaseModel):
-    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
-    uid: str = Field(..., alias="uid")
-    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
-    console_url: str = Field(..., alias="consoleUrl")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
-    supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
-    provider_version: str = Field(..., alias="providerVersion")
-    account_owners: list[OwnerV1] = Field(..., alias="accountOwners")
-    automation_token: VaultSecretV1 = Field(..., alias="automationToken")
-    enable_deletion: Optional[bool] = Field(..., alias="enableDeletion")
-    deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(..., alias="deletionApprovals")
+    automation_token: VaultSecret = Field(..., alias="automationToken")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
-    delete_keys: Optional[list[str]] = Field(..., alias="deleteKeys")
-    premium_support: bool = Field(..., alias="premiumSupport")
-    ecrs: Optional[list[AWSECRV1]] = Field(..., alias="ecrs")
-    partition: Optional[str] = Field(..., alias="partition")
+    organization: Optional[AWSOrganization] = Field(..., alias="organization")
     cleanup: Optional[list[Union[AWSAccountCleanupOptionCloudWatchV1, AWSAccountCleanupOptionV1]]] = Field(..., alias="cleanup")
 
 
