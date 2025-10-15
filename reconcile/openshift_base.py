@@ -128,6 +128,51 @@ class ClusterMap(Protocol):
     ) -> list[str]: ...
 
 
+def validate_managed_resource_types(
+    oc: OCCli,
+    managed_resource_types: Iterable[str],
+    managed_resource_names: Iterable[Mapping[str, Any]],
+) -> None:
+    """Validate the managed resource types."""
+    if not oc.api_resources:
+        raise RuntimeError("api_resources is not initialized in the OC client")
+
+    for managed_resource_type in managed_resource_types:
+        kind, group = (
+            managed_resource_type.split(".", maxsplit=1)
+            if "." in managed_resource_type
+            else (managed_resource_type, None)
+        )
+
+        # The k8s kind must be supported by the cluster
+        if kind not in oc.api_resources:
+            raise ValidationError(
+                f"Unsupported managed resource type: {managed_resource_type}"
+            )
+
+        # If the kind is ambiguous, the group must be specified
+        if len(oc.api_resources[kind]) >= 2 and not group:
+            raise ValidationError(
+                f"Ambiguous managed resource type: {managed_resource_type}. "
+                "Please fully qualify it with its API group. E.g., ClusterRoleBinding -> ClusterRoleBinding.rbac.authorization.k8s.io"
+            )
+
+        if group and group not in [r.group for r in oc.api_resources[kind]]:
+            raise ValidationError(
+                f"Unsupported managed resource type: {managed_resource_type}"
+            )
+
+        if not oc.api_resources[kind][0].namespaced:
+            # cluster-scoped resources must be use managedResourceNames!
+            if managed_resource_type not in [
+                managed_resource_name["resource"]
+                for managed_resource_name in managed_resource_names
+            ]:
+                raise ValidationError(
+                    f"Cluster-scoped resource {managed_resource_type} must be managed by name only. Please use 'managedResourceNames' field to specify the names of the resources to manage."
+                )
+
+
 def init_specs_to_fetch(
     ri: ResourceInventory,
     oc_map: ClusterMap,
@@ -163,9 +208,11 @@ def init_specs_to_fetch(
                 logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
+            managed_resource_names = namespace_info.get("managedResourceNames") or []
+            validate_managed_resource_types(oc, managed_types, managed_resource_names)
+
             namespace = namespace_info["name"]
             # These may exit but have a value of None
-            managed_resource_names = namespace_info.get("managedResourceNames") or []
             managed_resource_type_overrides = (
                 namespace_info.get("managedResourceTypeOverrides") or []
             )

@@ -717,7 +717,7 @@ class OCCli:
         cmd = ["sa", "-n", namespace, "get-token", name]
         return self._run(cmd)
 
-    def get_api_resources(self) -> dict[str, Any]:
+    def get_api_resources(self) -> dict[str, list[OCCliApiResource]]:
         with self.api_resources_lock:
             if not self.api_resources:
                 cmd = ["api-resources", "--no-headers"]
@@ -1305,12 +1305,11 @@ class OCNative(OCCli):
 
             server = connection_parameters.server_url
 
-        if server:
-            self.client = self._get_client(server, token)
-            self.api_resources = self.get_api_resources()
+        if not server:
+            raise Exception("Server name is required!")
 
-        else:
-            raise Exception("A method relies on client/api_kind_version to be set")
+        self.client = self._get_client(server, token)
+        self.api_resources = self.get_api_resources()
 
         self.projects = set()
         self.init_projects = init_projects
