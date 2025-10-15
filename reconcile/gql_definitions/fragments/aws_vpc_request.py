@@ -17,6 +17,7 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.aws_organization import AWSOrganization
 from reconcile.gql_definitions.fragments.terraform_state import TerraformState
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 
@@ -44,6 +45,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     terraform_state: Optional[TerraformState] = Field(..., alias="terraformState")
     enable_deletion: Optional[bool] = Field(..., alias="enableDeletion")
     deletion_approvals: Optional[list[DeletionApprovalV1]] = Field(..., alias="deletionApprovals")
+    organization: Optional[AWSOrganization] = Field(..., alias="organization")
 
 
 class NetworkV1(ConfiguredBaseModel):

@@ -151,6 +151,7 @@ from reconcile.github_org import get_default_config
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
+from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.utils import gql
 from reconcile.utils.aws_api import (
     AmiTag,
@@ -487,15 +488,10 @@ class TerrascriptClient:
         else:
             self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
+        self.default_tags = default_tags or {"app": "app-sre-infra"}
         self.populate_configs(filtered_accounts)
         self.versions: dict[str, str] = {
             a["name"]: a["providerVersion"] for a in filtered_accounts
-        }
-        self.default_tags = {
-            "tags": default_tags
-            or {
-                "app": "app-sre-infra",
-            }
         }
         tss = {}
         locks = {}
@@ -513,7 +509,7 @@ class TerrascriptClient:
                         region=region,
                         alias=region,
                         skip_region_validation=True,
-                        default_tags=self.default_tags,
+                        default_tags={"tags": config["tags"]},
                     )
 
             # Add default region, which will be in resourcesDefaultRegion
@@ -522,7 +518,7 @@ class TerrascriptClient:
                 secret_key=config["aws_secret_access_key"],
                 region=config["resourcesDefaultRegion"],
                 skip_region_validation=True,
-                default_tags=self.default_tags,
+                default_tags={"tags": config["tags"]},
             )
 
             ts += Terraform(
@@ -805,6 +801,9 @@ class TerrascriptClient:
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]
             config["resourcesDefaultRegion"] = account["resourcesDefaultRegion"]
             config["terraformState"] = account["terraformState"]
+            config["tags"] = dict(self.default_tags) | get_aws_account_tags(
+                account.get("organization", None)
+            )
             self.configs[account_name] = config
 
     def _get_partition(self, account: str) -> str:
@@ -1074,25 +1073,15 @@ class TerrascriptClient:
             config = self.configs[account_name]
             existing_provider_aliases = {p.get("alias") for p in ts["provider"]["aws"]}
             if alias not in existing_provider_aliases:
-                if assume_role:
-                    ts += provider.aws(
-                        access_key=config["aws_access_key_id"],
-                        secret_key=config["aws_secret_access_key"],
-                        region=region,
-                        alias=alias,
-                        assume_role={"role_arn": assume_role},
-                        skip_region_validation=True,
-                        default_tags=self.default_tags,
-                    )
-                else:
-                    ts += provider.aws(
-                        access_key=config["aws_access_key_id"],
-                        secret_key=config["aws_secret_access_key"],
-                        region=region,
-                        alias=alias,
-                        skip_region_validation=True,
-                        default_tags=self.default_tags,
-                    )
+                ts += provider.aws(
+                    access_key=config["aws_access_key_id"],
+                    secret_key=config["aws_secret_access_key"],
+                    region=region,
+                    alias=alias,
+                    skip_region_validation=True,
+                    default_tags={"tags": config["tags"]},
+                    **{"assume_role": {"role_arn": assume_role}} if assume_role else {},
+                )
 
     def populate_route53(
         self, desired_state: Iterable[Mapping[str, Any]], default_ttl: int = 300

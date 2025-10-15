@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 import pytest
 
 from reconcile.gql_definitions.fragments.aws_organization import (
@@ -14,47 +16,134 @@ def test_get_aws_account_tags_when_org_is_none() -> None:
 
 
 @pytest.mark.parametrize(
-    ("payer_account_tags", "account_tags", "expected_tags"),
+    ("organization", "expected_tags"),
     [
+        # trivial cases
+        (None, {}),
+        ({}, {}),
+        # GQL objects
         (
-            '{"tag1": "value1"}',
-            '{"tag2": "value2"}',
+            AWSOrganization(
+                payerAccount=AWSAccountV1(organizationAccountTags='{"tag1": "value1"}'),
+                tags='{"tag2": "value2"}',
+            ),
             {"tag1": "value1", "tag2": "value2"},
         ),
         (
-            "{}",
-            '{"tag": "value"}',
+            AWSOrganization(
+                payerAccount=AWSAccountV1(organizationAccountTags="{}"),
+                tags='{"tag": "value"}',
+            ),
             {"tag": "value"},
         ),
         (
-            '{"tag": "value"}',
-            "{}",
+            AWSOrganization(
+                payerAccount=AWSAccountV1(organizationAccountTags='{"tag": "value"}'),
+                tags="{}",
+            ),
             {"tag": "value"},
         ),
         (
-            "{}",
-            "{}",
+            AWSOrganization(
+                payerAccount=AWSAccountV1(organizationAccountTags="{}"), tags="{}"
+            ),
             {},
         ),
         (
-            '{"tag": "payer"}',
-            '{"tag": "account"}',
+            AWSOrganization(
+                payerAccount=AWSAccountV1(organizationAccountTags='{"tag": "payer"}'),
+                tags='{"tag": "account"}',
+            ),
+            {"tag": "account"},
+        ),
+        # via dict and json objects
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": {"tag1": "value1"},
+                },
+                "tags": {"tag2": "value2"},
+            },
+            {"tag1": "value1", "tag2": "value2"},
+        ),
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": {},
+                },
+                "tags": {"tag": "value"},
+            },
+            {"tag": "value"},
+        ),
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": {"tag": "value"},
+                },
+                "tags": {},
+            },
+            {"tag": "value"},
+        ),
+        (
+            {"payerAccount": {"organizationAccountTags": {}}, "tags": {}},
+            {},
+        ),
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": {"tag": "payer"},
+                },
+                "tags": {"tag": "account"},
+            },
+            {"tag": "account"},
+        ),
+        # via dict and json strings
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": '{"tag1": "value1"}',
+                },
+                "tags": '{"tag2": "value2"}',
+            },
+            {"tag1": "value1", "tag2": "value2"},
+        ),
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": "{}",
+                },
+                "tags": '{"tag": "value"}',
+            },
+            {"tag": "value"},
+        ),
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": '{"tag": "value"}',
+                },
+                "tags": "{}",
+            },
+            {"tag": "value"},
+        ),
+        (
+            {"payerAccount": {"organizationAccountTags": "{}"}, "tags": "{}"},
+            {},
+        ),
+        (
+            {
+                "payerAccount": {
+                    "organizationAccountTags": '{"tag": "payer"}',
+                },
+                "tags": '{"tag": "account"}',
+            },
             {"tag": "account"},
         ),
     ],
 )
 def test_get_aws_account_tags(
-    payer_account_tags: str,
-    account_tags: str,
+    organization: AWSOrganization | Mapping,
     expected_tags: dict[str, str],
 ) -> None:
-    organization = AWSOrganization(
-        payerAccount=AWSAccountV1(
-            organizationAccountTags=payer_account_tags,
-        ),
-        tags=account_tags,
-    )
-
     tags = get_aws_account_tags(organization)
 
     assert tags == expected_tags

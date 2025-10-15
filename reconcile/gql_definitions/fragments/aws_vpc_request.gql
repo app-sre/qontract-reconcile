@@ -22,6 +22,9 @@ fragment VPCRequest on VPCRequest_v1 {
       name
       expiration
     }
+    organization {
+      ...AWSOrganization
+    }
   }
   region
   cidr_block {
