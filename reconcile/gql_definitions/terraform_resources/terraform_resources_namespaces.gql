@@ -51,6 +51,17 @@ query TerraformResourcesNamespaces {
             }
             managed_by_erv2
           }
+          ... on NamespaceTerraformResourceRDSProxy_v1 {
+            region
+            identifier
+            defaults
+            overrides
+            output_resource_name
+            annotations
+            tags
+            managed_by_erv2
+          }
+
           ... on NamespaceTerraformResourceS3_v1 {
             region
             identifier
