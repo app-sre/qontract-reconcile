@@ -435,7 +435,7 @@ def test_run_with_matching_retention_log_group_with_deleted_desired_tags(
         mocker,
         aws_accounts=[test_cloudwatch_account],
         log_groups=[log_group_with_desired_retention],
-        tags=additional_tags,
+        tags=additional_tags | {"aws:cloudformation:stack-name": "some-stack"},
         last_tags={
             test_cloudwatch_account.name: additional_tags,
         },
