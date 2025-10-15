@@ -3,7 +3,12 @@ from boto3 import Session
 from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.account import AWSApiAccount
-from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials, SubApi
+from reconcile.utils.aws_api_typed.api import (
+    DEFAULT_CONFIG,
+    AWSApi,
+    AWSStaticCredentials,
+    SubApi,
+)
 from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
@@ -79,7 +84,7 @@ def test_aws_api_typed_api_init_sub_api(
     sub_api = aws_api._init_sub_api(api_cls)
 
     assert isinstance(sub_api, api_cls)
-    session_mock.client.assert_called_once_with(client_name)
+    session_mock.client.assert_called_once_with(client_name, config=DEFAULT_CONFIG)
     assert aws_api._session_clients == [client]
 
 
