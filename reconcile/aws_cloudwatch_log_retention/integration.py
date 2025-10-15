@@ -105,7 +105,7 @@ def _reconcile_log_group(
     log_group: LogGroupTypeDef,
     desired_cleanup_options: Iterable[AWSCloudwatchCleanupOption],
     desired_tags: dict[str, str],
-    desired_tags_changed: bool,
+    last_tags: dict[str, str],
     aws_api_logs: AWSApiLogs,
 ) -> None:
     current_retention_in_days = log_group.get("retentionInDays")
@@ -135,7 +135,7 @@ def _reconcile_log_group(
 
     if (
         current_retention_in_days == desired_cleanup_option.retention_in_days
-        and not desired_tags_changed
+        and last_tags == desired_tags
     ):
         return
 
@@ -147,16 +147,16 @@ def _reconcile_log_group(
         current=current_tags,
         desired=desired_tags,
     )
-    if diff_result.delete:
+    if to_delete := diff_result.delete.keys() & last_tags.keys():
         logging.info(
             "Deleting tags %s for log group %s",
-            diff_result.delete.keys(),
+            to_delete,
             log_group_arn,
         )
         if not dry_run:
             aws_api_logs.delete_tags(
                 log_group_arn,
-                diff_result.delete.keys(),
+                to_delete,
             )
     if diff_result.add or diff_result.change:
         logging.info(
@@ -210,7 +210,6 @@ def _reconcile_log_groups(
     desired_tags = (
         default_tags | get_aws_account_tags(aws_account.organization) | MANAGED_TAG
     )
-    desired_tags_changed = desired_tags != last_tags
     for (
         region,
         desired_cleanup_options,
@@ -229,7 +228,7 @@ def _reconcile_log_groups(
                         log_group=log_group,
                         desired_cleanup_options=desired_cleanup_options,
                         desired_tags=desired_tags,
-                        desired_tags_changed=desired_tags_changed,
+                        last_tags=last_tags,
                         aws_api_logs=aws_api_logs,
                     )
             except aws_api_logs.client.exceptions.ClientError as e:
