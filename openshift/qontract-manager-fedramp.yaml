@@ -45,6 +45,11 @@ objects:
               secretKeyRef:
                 key: slack.webhook_url
                 name: app-interface
+          - name: SLACK_ERRORS_ONLY_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.errors_only_webhook_url
+                name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
@@ -161,7 +166,7 @@ objects:
             </match>
             <match slack_errors>
               @type slack
-              webhook_url ${SLACK_WEBHOOK_URL}
+              webhook_url ${SLACK_ERRORS_ONLY_WEBHOOK_URL}
               channel ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
               icon_emoji ${SLACK_ICON_EMOJI}
               username sd-app-sre-bot
