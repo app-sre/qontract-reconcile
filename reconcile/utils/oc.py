@@ -1236,7 +1236,11 @@ class OCCli:
         """Returns True if the given kind is supported by the cluster, False otherwise.
 
         Kind can be either kind, kind.group or kind.group/version."""
-        return bool(self.get_api_resource(kind))
+        try:
+            self.get_api_resource(kind)
+            return True
+        except RuntimeError:
+            return False
 
     def is_kind_namespaced(self, kind: str) -> bool:
         """Returns True if the given kind is namespaced, False if it's cluster scoped.
