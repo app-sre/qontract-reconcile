@@ -140,7 +140,7 @@ def validate_managed_resource_types(
     ]
     for managed_resource_type in managed_resource_types:
         # The k8s kind must be supported by the cluster
-        resource = oc.find_resource(managed_resource_type)
+        resource = oc.get_api_resource(managed_resource_type)
 
         if not resource.namespaced:
             # cluster-scoped resources must be use managedResourceNames!
