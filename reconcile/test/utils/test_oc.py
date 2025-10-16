@@ -1063,6 +1063,18 @@ def oc_api_resources(
     return OC("cluster", "server", "token", local=True, init_api_resources=True)  # type: ignore[return-value]
 
 
+def test_is_kind_supported(oc_api_resources: OCCli) -> None:
+    assert oc_api_resources.is_kind_supported("kind1")
+
+
+def test_is_kind_supported_full_qualified(oc_api_resources: OCCli) -> None:
+    assert oc_api_resources.is_kind_supported("kind1.group1")
+
+
+def test_is_kind_supported_bad_kind(oc_api_resources: OCCli) -> None:
+    assert not oc_api_resources.is_kind_supported("unknown")
+
+
 def test_is_kind_namespaced(oc_api_resources: OCCli) -> None:
     assert oc_api_resources.is_kind_namespaced("kind1")
 
