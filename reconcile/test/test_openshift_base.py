@@ -623,7 +623,62 @@ def test_namespaces_managed_resources_cluster_scoped_resource_no_managed_resourc
     )
 
     with pytest.raises(sut.ValidationError):
-        sut.init_specs_to_fetch(resource_inventory, oc_map, namespaces=[namespace])
+        sut.init_specs_to_fetch(
+            resource_inventory,
+            oc_map,
+            namespaces=[namespace],
+            cluster_scope_resource_validation=True,
+        )
+
+
+def test_namespaces_managed_resources_cluster_scoped_resource_validation_disabled(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCNative,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="ClusterRoleBinding.rbac.authorization.k8s.io",
+            resource_names=None,
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+            privileged=False,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+        cluster_scope_resource_validation=False,
+    )
+
+    assert len(expected) == len(rs)
+    for e in expected:
+        assert e in rs
 
 
 #
