@@ -1236,16 +1236,16 @@ class OCCli:
         """Returns True if the given kind is supported by the cluster, False otherwise.
 
         Kind can be either kind, kind.group or kind.group/version."""
-        return bool(self.find_resource(kind))
+        return bool(self.get_api_resource(kind))
 
     def is_kind_namespaced(self, kind: str) -> bool:
         """Returns True if the given kind is namespaced, False if it's cluster scoped.
 
         Kind can be either kind, kind.group or kind.group/version."""
-        return self.find_resource(kind).namespaced
+        return self.get_api_resource(kind).namespaced
 
-    def find_resource(self, kind: str) -> OCCliApiResource:
-        """Finds the OCCliApiResource for the given resource type.
+    def get_api_resource(self, kind: str) -> OCCliApiResource:
+        """Return the OCCliApiResource for the given resource type.
 
         Resource type can be either kind, kind.group or kind.group/version.
         If kind is not unique, group must be specified."""
@@ -1376,7 +1376,7 @@ class OCNative(OCCli):
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
-        resource = self.find_resource(kind)
+        resource = self.get_api_resource(kind)
         obj_client = self._get_obj_client(
             group_version=resource.group_version, kind=resource.kind
         )
@@ -1431,7 +1431,7 @@ class OCNative(OCCli):
         name: str | None = None,
         allow_not_found: bool = False,
     ) -> dict[str, Any]:
-        resource = self.find_resource(kind)
+        resource = self.get_api_resource(kind)
         obj_client = self._get_obj_client(
             group_version=resource.group_version, kind=resource.kind
         )
@@ -1448,7 +1448,7 @@ class OCNative(OCCli):
             raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def get_all(self, kind: str, all_namespaces: bool = False) -> dict[str, Any]:
-        resource = self.find_resource(kind)
+        resource = self.get_api_resource(kind)
         obj_client = self._get_obj_client(
             group_version=resource.group_version, kind=resource.kind
         )

@@ -48,7 +48,7 @@ def namespaces() -> list[dict[str, Any]]:
 
 @pytest.fixture
 def oc_cs1(mocker: MockerFixture) -> oc.OCClient:
-    def mock_find_resource(kind: str) -> oc.OCCliApiResource:
+    def mock_get_api_resource(kind: str) -> oc.OCCliApiResource:
         if kind.startswith("ClusterRoleBinding"):
             return oc.OCCliApiResource(
                 kind="ClusterRoleBinding",
@@ -64,7 +64,7 @@ def oc_cs1(mocker: MockerFixture) -> oc.OCClient:
         )
 
     m = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
-    m.find_resource = mock_find_resource
+    m.get_api_resource = mock_get_api_resource
 
     return m
 

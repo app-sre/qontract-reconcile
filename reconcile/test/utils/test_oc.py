@@ -1095,7 +1095,7 @@ def test_is_kind_not_namespaced_full_name(oc_api_resources: OCCli) -> None:
     ],
 )
 def test_find_resource(oc_api_resources: OCCli, kind: str, expected: Resource) -> None:
-    assert oc_api_resources.find_resource(kind) == expected
+    assert oc_api_resources.get_api_resource(kind) == expected
 
 
 @pytest.mark.parametrize(
