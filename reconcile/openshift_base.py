@@ -134,40 +134,17 @@ def validate_managed_resource_types(
     managed_resource_names: Iterable[Mapping[str, Any]],
 ) -> None:
     """Validate the managed resource types."""
-    if not oc.api_resources:
-        raise RuntimeError("api_resources is not initialized in the OC client")
-
+    managed_resources = [
+        managed_resource_name["resource"]
+        for managed_resource_name in managed_resource_names
+    ]
     for managed_resource_type in managed_resource_types:
-        kind, group = (
-            managed_resource_type.split(".", maxsplit=1)
-            if "." in managed_resource_type
-            else (managed_resource_type, None)
-        )
-
         # The k8s kind must be supported by the cluster
-        if kind not in oc.api_resources:
-            raise ValidationError(
-                f"Unsupported managed resource type: {managed_resource_type}"
-            )
+        resource = oc.find_resource(managed_resource_type)
 
-        # If the kind is ambiguous, the group must be specified
-        if len(oc.api_resources[kind]) >= 2 and not group:
-            raise ValidationError(
-                f"Ambiguous managed resource type: {managed_resource_type}. "
-                "Please fully qualify it with its API group. E.g., ClusterRoleBinding -> ClusterRoleBinding.rbac.authorization.k8s.io"
-            )
-
-        if group and group not in [r.group for r in oc.api_resources[kind]]:
-            raise ValidationError(
-                f"Unsupported managed resource type: {managed_resource_type}"
-            )
-
-        if not oc.api_resources[kind][0].namespaced:
+        if not resource.namespaced:
             # cluster-scoped resources must be use managedResourceNames!
-            if managed_resource_type not in [
-                managed_resource_name["resource"]
-                for managed_resource_name in managed_resource_names
-            ]:
+            if managed_resource_type not in managed_resources:
                 raise ValidationError(
                     f"Cluster-scoped resource {managed_resource_type} must be managed by name only. Please use 'managedResourceNames' field to specify the names of the resources to manage."
                 )

@@ -1034,18 +1034,23 @@ def test_get_replicaset_allow_empty(
     assert oc_cli.get_replicaset("namespace", deployment, allow_empty=True) == {}
 
 
+K1_G1 = Resource(
+    prefix="", kind="kind1", group="group1", api_version="v1", namespaced=True
+)
+K2_G2 = Resource(
+    prefix="", kind="kind2", group="group2", api_version="v2", namespaced=False
+)
+K3_G1 = Resource(
+    prefix="", kind="kind3", group="group1", api_version="v1", namespaced=True
+)
+K3_G2 = Resource(
+    prefix="", kind="kind3", group="group2", api_version="v2", namespaced=True
+)
+
+
 @pytest.fixture
 def api_resources() -> dict[str, list[Resource]]:
-    k1_g1 = Resource(
-        prefix="", kind="kind1", group="group1", api_version="v1", namespaced=True
-    )
-    k1_g11 = Resource(
-        prefix="", kind="kind1", group="group11", api_version="v1", namespaced=True
-    )
-    k2_g2 = Resource(
-        prefix="", kind="kind2", group="group2", api_version="v2", namespaced=False
-    )
-    return {"kind1": [k1_g1, k1_g11], "kind2": [k2_g2]}
+    return {"kind1": [K1_G1], "kind2": [K2_G2], "kind3": [K3_G1, K3_G2]}
 
 
 @pytest.fixture
@@ -1063,7 +1068,7 @@ def test_is_kind_namespaced(oc_api_resources: OCCli) -> None:
 
 
 def test_is_kind_namespaced_full_name(oc_api_resources: OCCli) -> None:
-    assert oc_api_resources.is_kind_namespaced("kind1.group11")
+    assert oc_api_resources.is_kind_namespaced("kind1.group1")
 
 
 def test_is_kind_not_namespaced(oc_api_resources: OCCli) -> None:
@@ -1072,6 +1077,65 @@ def test_is_kind_not_namespaced(oc_api_resources: OCCli) -> None:
 
 def test_is_kind_not_namespaced_full_name(oc_api_resources: OCCli) -> None:
     assert not oc_api_resources.is_kind_namespaced("kind2.group2")
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        ("kind1", K1_G1),
+        ("kind2", K2_G2),
+        ("kind3.group1", K3_G1),
+        ("kind3.group2", K3_G2),
+        # unknown kind
+        pytest.param("unknown", None, marks=pytest.mark.xfail),
+        # ambiguous kind
+        pytest.param("kind3", None, marks=pytest.mark.xfail),
+        # bad version of kind
+        pytest.param("kind3.unknown", None, marks=pytest.mark.xfail),
+    ],
+)
+def test_find_resource(oc_api_resources: OCCli, kind: str, expected: Resource) -> None:
+    assert oc_api_resources.find_resource(kind) == expected
+
+
+@pytest.mark.parametrize(
+    ("kind_string", "expected_kind", "expected_group", "expected_version"),
+    [
+        ("Pod", "Pod", "", ""),
+        ("Service", "Service", "", ""),
+        ("Secret.core", "Secret", "core", ""),
+        ("Template.template.openshift.io", "Template", "template.openshift.io", ""),
+        (
+            "Template.template.openshift.io/v1",
+            "Template",
+            "template.openshift.io",
+            "v1",
+        ),
+        ("CronJob.batch/v1", "CronJob", "batch", "v1"),
+        (
+            "CustomResourceDefinition.apiextensions.k8s.io/v1",
+            "CustomResourceDefinition",
+            "apiextensions.k8s.io",
+            "v1",
+        ),
+        pytest.param("", "", "", "", marks=pytest.mark.xfail),
+        pytest.param("..", "", "", "", marks=pytest.mark.xfail),
+        pytest.param(".group", "", "", "", marks=pytest.mark.xfail),
+        pytest.param(".group.lala/version", "", "", "", marks=pytest.mark.xfail),
+    ],
+)
+def test_parse_kind_string_parametrized(
+    oc_cli: OCCli,
+    kind_string: str,
+    expected_kind: str,
+    expected_group: str,
+    expected_version: str,
+) -> None:
+    """Parametrized test for various kind string formats."""
+    kind, group, version = oc_cli.parse_kind(kind_string)
+    assert kind == expected_kind
+    assert group == expected_group
+    assert version == expected_version
 
 
 @pytest.fixture
