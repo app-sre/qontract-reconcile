@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 urllib3.disable_warnings()
 
 GET_REPLICASET_MAX_ATTEMPTS = 20
-
+DEFAULT_GROUP = ""
 
 oc_run_execution_counter = Counter(
     name="oc_run_execution_counter",
@@ -717,7 +717,7 @@ class OCCli:
         cmd = ["sa", "-n", namespace, "get-token", name]
         return self._run(cmd)
 
-    def get_api_resources(self) -> dict[str, Any]:
+    def get_api_resources(self) -> dict[str, list[OCCliApiResource]]:
         with self.api_resources_lock:
             if not self.api_resources:
                 cmd = ["api-resources", "--no-headers"]
@@ -1196,76 +1196,89 @@ class OCCli:
 
         return out_json
 
-    def _parse_kind(self, kind_name: str) -> tuple[str, str]:
-        # This is a provisional solution while we work in redefining
-        # the api resources initialization.
-        if not self.api_resources:
-            self.get_api_resources()
+    def parse_kind(self, kind: str) -> tuple[str, str, str]:
+        """Parse a Kubernetes kind string into its components.
 
-        kind_group = kind_name.split(".", 1)
-        kind = kind_group[0]
-        if kind in self.api_resources:
-            group_version = self.api_resources[kind][0].group_version
-        else:
-            raise StatusCodeError(f"{self.server}: {kind} does not exist")
+        Supports three formats:
+        - kind
+        - kind.group.whatever
+        - kind.group.whatever/version
 
-        # if a kind_group has more than 1 entry than the kind_name is in
-        # the format kind.apigroup.  Find the apigroup/version that matches
-        # the apigroup passed with the kind_name
-        if len(kind_group) > 1:
-            apigroup_override = kind_group[1]
-            find = False
-            for gv in self.api_resources[kind]:
-                if apigroup_override == gv.group:
-                    if not gv.group:
-                        group_version = gv.api_version
-                    else:
-                        group_version = f"{gv.group}/{gv.api_version}"
-                    find = True
-                    break
+        Args:
+            kind: A Kubernetes kind string in one of the supported formats
 
-            if not find:
-                raise StatusCodeError(
-                    f"{self.server}: {apigroup_override} does not have kind {kind}"
-                )
-        return (kind, group_version)
+        Returns:
+            Tuple of (kind, group, version) where missing parts are empty strings
+
+        Raises:
+            ValueError: If the kind string format is invalid
+
+        Examples:
+            >>> parse_kind_string("Deployment")
+            ('Deployment', '', '')
+            >>> parse_kind_string("ClusterRoleBinding.rbac.authorization.k8s.io")
+            ('ClusterRoleBinding', 'rbac.authorization.k8s.io', '')
+            >>> parse_kind_string("CustomResource.mygroup.example.com/v1")
+            ('CustomResource', 'mygroup.example.com', 'v1')
+        """
+        pattern = r"^(?P<kind>[^./]+)(?:\.(?P<group>[^/]+))?(?:/(?P<version>.+))?$"
+        match = re.match(pattern, kind)
+        if not match:
+            raise ValueError(f"Invalid kind string: {kind}")
+
+        kind = match.group("kind") or ""
+        group = match.group("group") or DEFAULT_GROUP
+        version = match.group("version") or ""
+
+        return kind, group, version
 
     def is_kind_supported(self, kind: str) -> bool:
-        # This is a provisional solution while we work in redefining
-        # the api resources initialization.
-        if not self.api_resources:
-            self.get_api_resources()
+        """Returns True if the given kind is supported by the cluster, False otherwise.
 
-        if "." in kind:
-            try:
-                self._parse_kind(kind)
-                return True
-            except StatusCodeError:
-                return False
-        else:
-            return kind in self.api_resources
+        Kind can be either kind, kind.group or kind.group/version."""
+        try:
+            self.get_api_resource(kind)
+            return True
+        except RuntimeError:
+            return False
 
     def is_kind_namespaced(self, kind: str) -> bool:
-        # This is a provisional solution while we work in redefining
-        # the api resources initialization.
+        """Returns True if the given kind is namespaced, False if it's cluster scoped.
+
+        Kind can be either kind, kind.group or kind.group/version."""
+        return self.get_api_resource(kind).namespaced
+
+    def get_api_resource(self, kind: str) -> OCCliApiResource:
+        """Return the OCCliApiResource for the given resource type.
+
+        Resource type can be either kind, kind.group or kind.group/version.
+        If kind is not unique, group must be specified."""
+
         if not self.api_resources:
-            self.get_api_resources()
+            raise RuntimeError("API resources not initialized")
 
-        kg = kind.split(".", 1)
-        kind = kg[0]
+        kind, group, _ = self.parse_kind(kind)
 
-        # Same Kinds might exist in different api groups
-        kind_resources = self.api_resources.get(kind)
-        if not kind_resources:
-            raise StatusCodeError(f"Kind {kind} does not exist in the ApiServer")
+        if not (resources := self.api_resources.get(kind)):
+            raise RuntimeError(f"Unsupported resource type: {kind}")
 
-        if len(kg) > 1:
-            group = kg[1]
-            for r in kind_resources:
-                if group == r.group:
-                    return r.namespaced
-            raise StatusCodeError(f"Kind: {kind} does nod exist in the ApiServer")
-        return kind_resources[0].namespaced
+        if len(resources) == 1 and group == DEFAULT_GROUP:
+            return resources[0]
+
+        resource = next(
+            (r for r in resources if r.group == group),
+            None,
+        )
+        if resource is None:
+            message = (
+                f"Ambiguous resource type: {kind}. "
+                "Please fully qualify it with its API group. E.g., ClusterRoleBinding -> ClusterRoleBinding.rbac.authorization.k8s.io"
+                if group == DEFAULT_GROUP
+                else f"Unsupported resource type: {kind}"
+            )
+            raise RuntimeError(message)
+
+        return resource
 
 
 REQUEST_TIMEOUT = 60
@@ -1305,12 +1318,11 @@ class OCNative(OCCli):
 
             server = connection_parameters.server_url
 
-        if server:
-            self.client = self._get_client(server, token)
-            self.api_resources = self.get_api_resources()
+        if not server:
+            raise Exception("Server name is required!")
 
-        else:
-            raise Exception("A method relies on client/api_kind_version to be set")
+        self.client = self._get_client(server, token)
+        self.api_resources = self.get_api_resources()
 
         self.projects = set()
         self.init_projects = init_projects
@@ -1368,8 +1380,10 @@ class OCNative(OCCli):
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
-        k, group_version = self._parse_kind(kind)
-        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+        resource = self.get_api_resource(kind)
+        obj_client = self._get_obj_client(
+            group_version=resource.group_version, kind=resource.kind
+        )
 
         namespace = ""
         if "namespace" in kwargs:
@@ -1421,8 +1435,10 @@ class OCNative(OCCli):
         name: str | None = None,
         allow_not_found: bool = False,
     ) -> dict[str, Any]:
-        k, group_version = self._parse_kind(kind)
-        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+        resource = self.get_api_resource(kind)
+        obj_client = self._get_obj_client(
+            group_version=resource.group_version, kind=resource.kind
+        )
         try:
             obj = obj_client.get(
                 name=name,
@@ -1436,8 +1452,10 @@ class OCNative(OCCli):
             raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def get_all(self, kind: str, all_namespaces: bool = False) -> dict[str, Any]:
-        k, group_version = self._parse_kind(kind)
-        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+        resource = self.get_api_resource(kind)
+        obj_client = self._get_obj_client(
+            group_version=resource.group_version, kind=resource.kind
+        )
         try:
             return obj_client.get(_request_timeout=REQUEST_TIMEOUT).to_dict()
         except NotFoundError as e:

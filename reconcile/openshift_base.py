@@ -128,6 +128,29 @@ class ClusterMap(Protocol):
     ) -> list[str]: ...
 
 
+def validate_managed_resource_types(
+    oc: OCCli,
+    managed_resource_types: Iterable[str],
+    managed_resource_names: Iterable[Mapping[str, Any]],
+    cluster_scope_resource_validation: bool,
+) -> None:
+    """Validate the managed resource types."""
+    managed_resources = [
+        managed_resource_name["resource"]
+        for managed_resource_name in managed_resource_names
+    ]
+    for managed_resource_type in managed_resource_types:
+        # The k8s kind must be supported by the cluster
+        resource = oc.get_api_resource(managed_resource_type)
+
+        if cluster_scope_resource_validation and not resource.namespaced:
+            # cluster-scoped resources must be use managedResourceNames!
+            if managed_resource_type not in managed_resources:
+                raise ValidationError(
+                    f"Cluster-scoped resource {managed_resource_type} must be managed by name only. Please use 'managedResourceNames' field to specify the names of the resources to manage."
+                )
+
+
 def init_specs_to_fetch(
     ri: ResourceInventory,
     oc_map: ClusterMap,
@@ -136,6 +159,7 @@ def init_specs_to_fetch(
     override_managed_types: Iterable[str] | None = None,
     managed_types_key: str = "managedResourceTypes",
     cluster_admin: bool = False,
+    cluster_scope_resource_validation: bool = False,
 ) -> list[StateSpec]:
     state_specs: list[StateSpec] = []
 
@@ -163,9 +187,16 @@ def init_specs_to_fetch(
                 logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
+            managed_resource_names = namespace_info.get("managedResourceNames") or []
+            validate_managed_resource_types(
+                oc,
+                managed_types,
+                managed_resource_names,
+                cluster_scope_resource_validation=cluster_scope_resource_validation,
+            )
+
             namespace = namespace_info["name"]
             # These may exit but have a value of None
-            managed_resource_names = namespace_info.get("managedResourceNames") or []
             managed_resource_type_overrides = (
                 namespace_info.get("managedResourceTypeOverrides") or []
             )
@@ -340,6 +371,7 @@ def fetch_current_state(
     cluster_admin: bool = False,
     caller: str | None = None,
     init_projects: bool = False,
+    cluster_scope_resource_validation: bool = False,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -362,6 +394,7 @@ def fetch_current_state(
         clusters=clusters,
         override_managed_types=override_managed_types,
         cluster_admin=cluster_admin,
+        cluster_scope_resource_validation=cluster_scope_resource_validation,
     )
     threaded.run(
         populate_current_state,
