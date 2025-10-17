@@ -1440,11 +1440,11 @@ wheels = [
 
 [[package]]
 name = "python-json-logger"
-version = "2.0.7"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4f/da/95963cebfc578dabd323d7263958dfb68898617912bb09327dd30e9c8d13/python-json-logger-2.0.7.tar.gz", hash = "sha256:23e7ec02d34237c5aa1e29a070193a4ea87583bb4e7f8fd06d3de8264c4b2e1c", size = 10508, upload-time = "2023-02-21T17:40:06.209Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/29/bf/eca6a3d43db1dae7070f70e160ab20b807627ba953663ba07928cdd3dc58/python_json_logger-4.0.0.tar.gz", hash = "sha256:f58e68eb46e1faed27e0f574a55a0455eecd7b8a5b88b85a784519ba3cff047f", size = 17683, upload-time = "2025-10-06T04:15:18.984Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/a6/145655273568ee78a581e734cf35beb9e33a370b29c5d3c8fee3744de29f/python_json_logger-2.0.7-py3-none-any.whl", hash = "sha256:f380b826a991ebbe3de4d897aeec42760035ac760345e57b812938dc8b35e2bd", size = 8067, upload-time = "2023-02-21T17:40:05.117Z" },
+    { url = "https://files.pythonhosted.org/packages/51/e5/fecf13f06e5e5f67e8837d777d1bc43fac0ed2b77a676804df5c34744727/python_json_logger-4.0.0-py3-none-any.whl", hash = "sha256:af09c9daf6a813aa4cc7180395f50f2a9e5fa056034c9953aec92e381c5ba1e2", size = 15548, upload-time = "2025-10-06T04:15:17.553Z" },
 ]
 
 [[package]]
@@ -1625,7 +1625,7 @@ requires-dist = [
     { name = "sentry-sdk", specifier = "~=2.0" },
     { name = "setuptools", specifier = "==80.8.0" },
     { name = "slack-sdk", specifier = ">=3.10,<4.0" },
-    { name = "sretoolbox", specifier = "==2.7.0" },
+    { name = "sretoolbox", specifier = "==3.0.0" },
     { name = "sshtunnel", specifier = ">=0.4.0" },
     { name = "tabulate", specifier = ">=0.8.6,<0.9.0" },
     { name = "terrascript", specifier = "==0.9.0" },
@@ -1933,16 +1933,16 @@ wheels = [
 
 [[package]]
 name = "sretoolbox"
-version = "2.7.0"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-json-logger" },
     { name = "requests" },
     { name = "semver" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/df/35/d2ee893956c288a780619ae5224c4b5da7e6e18371ff2233c1818653c00a/sretoolbox-2.7.0.tar.gz", hash = "sha256:54ddba0afe2ac9b2e1ffe1504e6fcfbf57a8cf8fba505e53f294ea5328aafa4e", size = 20933, upload-time = "2025-09-16T08:04:54.433Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/fe/801fbc92d526e9f2785d30cbec4f45685e160f6ecc3874162fdc0eb9a3e0/sretoolbox-3.0.0.tar.gz", hash = "sha256:ee2e529ec7cc742393883dd743f6469048a79384bd84ee0d51f19c55bac6d843", size = 20832, upload-time = "2025-10-02T08:33:59.522Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/19/e7/e18c55e79fb77d1667284a53f6784408e0369d6b3865893ecd39b12b33eb/sretoolbox-2.7.0-py3-none-any.whl", hash = "sha256:3b6f18e14f8186097f673ecfab77c211f0bb878971675d60ee80dda8cdf13837", size = 35155, upload-time = "2025-09-16T08:04:53.273Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/09/1c31d9eb73dd797a6838c66153303073f41d5dc71caa380130714e68aafe/sretoolbox-3.0.0-py3-none-any.whl", hash = "sha256:65bdef168f97b7092b2da66cd8a2c84e73eb73d6ba155dcc9e708d92b2dd4aad", size = 35064, upload-time = "2025-10-02T08:33:58.701Z" },
 ]
 
 [[package]]
