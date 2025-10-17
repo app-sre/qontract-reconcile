@@ -53,6 +53,10 @@ dependencies = [
     "semver~=3.0",
     "sendgrid>=6.4.8,<6.5.0",
     "sentry-sdk~=2.0",
+    # jenkins-job-builder uses pkg_resources from setuptools. pkg_resources is being deprecated and will be removed
+    # in setuptools 81.
+    # setuptools 80.9.0 set a deadline for the removal and started showing warnings when pkg_resources is used.
+    "setuptools==80.8.0",
     "slack_sdk>=3.10,<4.0",
     "sretoolbox==2.7.0",
     "sshtunnel>=0.4.0",
