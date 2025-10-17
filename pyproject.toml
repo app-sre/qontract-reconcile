@@ -81,7 +81,7 @@ dev = [
     "mypy ~=1.17.0",
     "pyfakefs ~=5.9",
     "pytest ~=8.4",
-    "pytest-cov ~=6.2",
+    "pytest-cov ~=7.0",
     "pytest-httpserver ~=1.1",
     "pytest-mock ~=3.6",
     "qenerate==0.8.0",
