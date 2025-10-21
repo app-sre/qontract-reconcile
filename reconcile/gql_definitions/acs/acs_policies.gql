@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query AcsPolicy {
   acs_policies: acs_policy_v1 {
