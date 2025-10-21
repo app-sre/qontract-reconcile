@@ -40,7 +40,7 @@ dependencies = [
     "parse==1.18.0",
     "prometheus-client~=0.8",
     "psycopg2-binary~=2.9",
-    "pydantic~=1.10.6",
+    "pydantic~=2.12.3",
     "PyGithub>=1.58,<1.59",
     "pyjwt~=2.7",
     "pyOpenSSL~=23.0",
@@ -235,11 +235,7 @@ runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 known-first-party = ["reconcile", "tools"]
 
 [tool.ruff.lint.pep8-naming]
-classmethod-decorators = [
-    "classmethod",
-    "pydantic.validator",
-    "pydantic.root_validator",
-]
+classmethod-decorators = ["classmethod"]
 
 [tool.coverage.run]
 branch = true
