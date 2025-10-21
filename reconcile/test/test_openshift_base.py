@@ -622,13 +622,13 @@ def test_namespaces_managed_resources_cluster_scoped_resource_no_managed_resourc
         """
     )
 
-    with pytest.raises(sut.ValidationError):
-        sut.init_specs_to_fetch(
-            resource_inventory,
-            oc_map,
-            namespaces=[namespace],
-            cluster_scope_resource_validation=True,
-        )
+    sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+        cluster_scope_resource_validation=True,
+    )
+    assert resource_inventory.has_error_registered()
 
 
 def test_namespaces_managed_resources_cluster_scoped_resource_validation_disabled(

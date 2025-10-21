@@ -188,12 +188,17 @@ def init_specs_to_fetch(
                 continue
 
             managed_resource_names = namespace_info.get("managedResourceNames") or []
-            validate_managed_resource_types(
-                oc,
-                managed_types,
-                managed_resource_names,
-                cluster_scope_resource_validation=cluster_scope_resource_validation,
-            )
+            try:
+                validate_managed_resource_types(
+                    oc,
+                    managed_types,
+                    managed_resource_names,
+                    cluster_scope_resource_validation=cluster_scope_resource_validation,
+                )
+            except (RuntimeError, ValidationError) as e:
+                ri.register_error()
+                logging.error(f"[{cluster}/{namespace_info['name']}] {e}")
+                continue
 
             namespace = namespace_info["name"]
             # These may exit but have a value of None
