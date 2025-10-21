@@ -48,7 +48,25 @@ def namespaces() -> list[dict[str, Any]]:
 
 @pytest.fixture
 def oc_cs1(mocker: MockerFixture) -> oc.OCClient:
-    return mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    def mock_get_api_resource(kind: str) -> oc.OCCliApiResource:
+        if kind.startswith("ClusterRoleBinding"):
+            return oc.OCCliApiResource(
+                kind="ClusterRoleBinding",
+                group="rbac.authorization.k8s.io",
+                api_version="v1",
+                namespaced=False,
+            )
+        return oc.OCCliApiResource(
+            kind="Template",
+            group="template.openshift.io",
+            api_version="v1",
+            namespaced=True,
+        )
+
+    m = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    m.get_api_resource = mock_get_api_resource
+
+    return m
 
 
 @pytest.fixture
@@ -390,7 +408,7 @@ def test_namespaces_managed_fully_qualified_types(
         cluster:
           name: cs1
         managedResourceTypes:
-        - Kind.fully.qualified
+        - Template.template.openshift.io
         openshiftResources:
         - provider: resource
           path: /some/path.yml
@@ -401,7 +419,7 @@ def test_namespaces_managed_fully_qualified_types(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind.fully.qualified",
+            kind="Template.template.openshift.io",
             resource_names=None,
         ),
         sut.DesiredStateSpec(
@@ -433,9 +451,9 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
         cluster:
           name: cs1
         managedResourceTypes:
-        - Kind.fully.qualified
+        - Template.template.openshift.io
         managedResourceNames:
-        - resource: Kind.fully.qualified
+        - resource: Template.template.openshift.io
           resourceNames:
           - n1
           - n2
@@ -449,7 +467,7 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind.fully.qualified",
+            kind="Template.template.openshift.io",
             resource_names=["n1", "n2"],
         ),
         sut.DesiredStateSpec(
@@ -481,13 +499,13 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
         cluster:
           name: cs1
         managedResourceTypes:
-        - Kind.fully.qualified
-        - Kind
+        - Template.template.openshift.io
+        - Deployment
         managedResourceNames:
-        - resource: Kind.fully.qualified
+        - resource: Template.template.openshift.io
           resourceNames:
           - fname
-        - resource: Kind
+        - resource: Deployment
           resourceNames:
           - name
         openshiftResources:
@@ -500,14 +518,14 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind.fully.qualified",
+            kind="Template.template.openshift.io",
             resource_names=["fname"],
         ),
         sut.CurrentStateSpec(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind",
+            kind="Deployment",
             resource_names=["name"],
         ),
         sut.DesiredStateSpec(
@@ -524,6 +542,138 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
         resource_inventory,
         oc_map,
         namespaces=[namespace],
+    )
+
+    assert len(expected) == len(rs)
+    for e in expected:
+        assert e in rs
+
+
+def test_namespaces_managed_resources_cluster_scoped_resource(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCNative,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        managedResourceNames:
+        - resource: ClusterRoleBinding.rbac.authorization.k8s.io
+          resourceNames:
+          - resource1
+          - resource2
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="ClusterRoleBinding.rbac.authorization.k8s.io",
+            resource_names=["resource1", "resource2"],
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+            privileged=False,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+    )
+
+    assert len(expected) == len(rs)
+    for e in expected:
+        assert e in rs
+
+
+def test_namespaces_managed_resources_cluster_scoped_resource_no_managed_resource_names(
+    resource_inventory: resource.ResourceInventory, oc_map: oc.OC_Map
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    with pytest.raises(sut.ValidationError):
+        sut.init_specs_to_fetch(
+            resource_inventory,
+            oc_map,
+            namespaces=[namespace],
+            cluster_scope_resource_validation=True,
+        )
+
+
+def test_namespaces_managed_resources_cluster_scoped_resource_validation_disabled(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCNative,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="ClusterRoleBinding.rbac.authorization.k8s.io",
+            resource_names=None,
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+            privileged=False,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+        cluster_scope_resource_validation=False,
     )
 
     assert len(expected) == len(rs)
