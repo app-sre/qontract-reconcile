@@ -4,6 +4,7 @@ from pydantic import (
     BaseModel,
     Extra,
     Field,
+    validator,
 )
 
 
@@ -36,7 +37,11 @@ class OCMClusterSpec(BaseModel):
     initial_version: str | None
     version: str
     hypershift: bool | None
-    fips: bool | None
+    fips: bool = False
+
+    @validator("fips", pre=True)
+    def set_fips_default(cls, v: bool | None) -> bool:
+        return v or False
 
     class Config:
         extra = Extra.forbid

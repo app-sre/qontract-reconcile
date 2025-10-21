@@ -102,7 +102,7 @@ def ocm_osd_cluster_spec() -> Generator[OCMSpec, None, None]:
         nodes=None,
         initial_version=None,
         hypershift=None,
-        fips=None,
+        fips=False,
     )
     machine_pools = [
         ClusterMachinePool(
