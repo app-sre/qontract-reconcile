@@ -75,7 +75,7 @@ def compile_jinja2_template(
 ) -> Any:
     if not template_render_options:
         template_render_options = TemplateRenderOptions.create()
-    env: dict[str, Any] = template_render_options.dict()
+    env: dict[str, Any] = template_render_options.model_dump()
     if extra_curly:
         env.update({
             "block_start_string": "{{%",

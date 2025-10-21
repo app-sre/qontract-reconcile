@@ -198,7 +198,7 @@ class MetricsContainer:
         """
         Sets the value of the given gauge metric to the given value.
         """
-        label_values = tuple(metric.dict(by_alias=True).values())
+        label_values = tuple(metric.model_dump(by_alias=True).values())
         self._gauges[metric.__class__][label_values] = value
 
     def set_info(self, metric: InfoMetric) -> None:
@@ -213,7 +213,7 @@ class MetricsContainer:
         Increases the value of the given counter by the given amount.
         """
         # all label values need to be strings, so lets convert them
-        label_values = tuple(str(v) for v in counter.dict(by_alias=True).values())
+        label_values = tuple(str(v) for v in counter.model_dump(by_alias=True).values())
         current_value = self._counters[counter.__class__].get(label_values) or 0
         self._counters[counter.__class__][label_values] = current_value + by
 

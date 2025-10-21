@@ -150,7 +150,7 @@ def run(
                     + "when using slack notifications"
                 )
             slack = slackapi_from_slack_workspace(
-                saas_file.slack.dict(by_alias=True),
+                saas_file.slack.model_dump(by_alias=True),
                 secret_reader,
                 QONTRACT_INTEGRATION,
                 init_usergroups=False,
@@ -224,7 +224,7 @@ def run(
         default=False,
     )
     ri, oc_map = ob.fetch_current_state(
-        namespaces=[ns.dict(by_alias=True) for ns in saasherder.namespaces],
+        namespaces=[ns.model_dump(by_alias=True) for ns in saasherder.namespaces],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,

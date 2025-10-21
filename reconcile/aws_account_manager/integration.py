@@ -76,9 +76,9 @@ class AwsAccountMgmtIntegration(
             query_func, account_name=self.params.account_name
         )
         return {
-            "payer_accounts": [account.dict() for account in payer_accounts],
+            "payer_accounts": [account.model_dump() for account in payer_accounts],
             "non_organization_accounts": [
-                account.dict() for account in non_organization_accounts
+                account.model_dump() for account in non_organization_accounts
             ],
         }
 
@@ -98,7 +98,7 @@ class AwsAccountMgmtIntegration(
             lstrip_blocks=True,
             keep_trailing_newline=True,
         ).render({
-            "accountRequest": account_request.dict(by_alias=True),
+            "accountRequest": account_request.model_dump(by_alias=True),
             "uid": uid,
             "settings": settings,
             "timestamp": int(utc_now().timestamp()),
@@ -187,7 +187,7 @@ class AwsAccountMgmtIntegration(
                     template=account_template,
                     account_request=account_request,
                     uid=uid,
-                    settings=self.params.dict(),
+                    settings=self.params.model_dump(),
                 ),
                 account_request_file_path=f"data/{account_request.path.strip('/')}",
             )

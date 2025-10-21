@@ -221,7 +221,7 @@ class SaasFileList:
             with self._namespaces_as_dict_lock:
                 self._namespaces_as_dict_cache = {
                     "namespace": [
-                        ns.dict(by_alias=True, exclude_none=True)
+                        ns.model_dump(by_alias=True, exclude_none=True)
                         for ns in self.namespaces
                     ]
                 }
@@ -314,7 +314,7 @@ def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
 
 
 def export_model(model: BaseModel) -> dict[str, Any]:
-    return convert_parameters_to_json_string(model.dict(by_alias=True))
+    return convert_parameters_to_json_string(model.model_dump(by_alias=True))
 
 
 def get_saas_files(

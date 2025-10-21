@@ -151,7 +151,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                 for permission in role.oidc_permissions or []:
                     if isinstance(permission, OidcPermissionAcsV1):
                         permission_usernames[
-                            Permission(**permission.dict(by_alias=True))
+                            Permission(**permission.model_dump(by_alias=True))
                         ].append(user.org_username)
         return list(starmap(AcsRole.build, permission_usernames.items()))
 

@@ -21,7 +21,7 @@ def test_no_settings(
     data = gql_class_factory(AppInterfaceVaultSettingsQueryData, {"vault_settings": []})
     with pytest.raises(AppInterfaceSettingsError):
         get_app_interface_vault_settings(
-            query_func=query_func(data.dict(by_alias=True))
+            query_func=query_func(data.model_dump(by_alias=True))
         )
 
 
@@ -35,7 +35,7 @@ def test_multiple_settings(
     )
     with pytest.raises(AppInterfaceSettingsError):
         get_app_interface_vault_settings(
-            query_func=query_func(data.dict(by_alias=True))
+            query_func=query_func(data.model_dump(by_alias=True))
         )
 
 
@@ -47,6 +47,6 @@ def test_get_vault_settings(
         AppInterfaceVaultSettingsQueryData, {"vault_settings": [{"vault": True}]}
     )
     vault_settings = get_app_interface_vault_settings(
-        query_func=query_func(data.dict(by_alias=True))
+        query_func=query_func(data.model_dump(by_alias=True))
     )
     assert vault_settings.vault

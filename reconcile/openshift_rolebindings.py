@@ -93,7 +93,9 @@ class RoleBindingSpec(BaseModel):
         if not (access.role or access.cluster_role):
             return None
         privileged = access.namespace.cluster_admin or False
-        auth_dict = [auth.dict(by_alias=True) for auth in access.namespace.cluster.auth]
+        auth_dict = [
+            auth.model_dump(by_alias=True) for auth in access.namespace.cluster.auth
+        ]
         usernames = RoleBindingSpec.get_usernames_from_users(
             users,
             ob.determine_user_keys_for_access(
@@ -290,7 +292,7 @@ def is_valid_namespace(namespace: NamespaceV1 | CommonNamespaceV1) -> bool:
     return (
         bool(namespace.managed_roles)
         and is_in_shard(f"{namespace.cluster.name}/{namespace.name}")
-        and not ob.is_namespace_deleted(namespace.dict(by_alias=True))
+        and not ob.is_namespace_deleted(namespace.model_dump(by_alias=True))
     )
 
 
@@ -304,7 +306,7 @@ def run(
     defer: Callable | None = None,
 ) -> None:
     namespaces = [
-        namespace.dict(by_alias=True, exclude={"openshift_resources"})
+        namespace.model_dump(by_alias=True, exclude={"openshift_resources"})
         for namespace in get_namespaces()
         if is_valid_namespace(namespace)
     ]

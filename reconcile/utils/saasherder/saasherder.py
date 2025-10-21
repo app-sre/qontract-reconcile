@@ -1898,21 +1898,23 @@ class SaasHerder:
             name=target.name,
             ref=target.ref,
             promotion=(
-                target.promotion.dict(by_alias=True) if target.promotion else None
+                target.promotion.model_dump(by_alias=True) if target.promotion else None
             ),
             secretParameters=(
-                [p.dict(by_alias=True) for p in target.secret_parameters]
+                [p.model_dump(by_alias=True) for p in target.secret_parameters]
                 if target.secret_parameters
                 else None
             ),
             slos=(
-                [slo.dict(by_alias=True) for slo in target.slos]
+                [slo.model_dump(by_alias=True) for slo in target.slos]
                 if target.slos
                 else None
             ),
-            upstream=(target.upstream.dict(by_alias=True) if target.upstream else None),
+            upstream=(
+                target.upstream.model_dump(by_alias=True) if target.upstream else None
+            ),
             images=(
-                [i.dict(by_alias=True) for i in target.images]
+                [i.model_dump(by_alias=True) for i in target.images]
                 if target.images
                 else None
             ),
@@ -1948,16 +1950,16 @@ class SaasHerder:
         )
         if saas_file.managed_resource_names:
             state_content["saas_file_managed_resource_names"] = [
-                m.dict() for m in saas_file.managed_resource_names
+                m.model_dump() for m in saas_file.managed_resource_names
             ]
         # include secret parameters from resource template and saas file
         if resource_template.secret_parameters:
             state_content["rt_secretparameters"] = [
-                p.dict() for p in resource_template.secret_parameters
+                p.model_dump() for p in resource_template.secret_parameters
             ]
         if saas_file.secret_parameters:
             state_content["saas_file_secretparameters"] = [
-                p.dict() for p in saas_file.secret_parameters
+                p.model_dump() for p in saas_file.secret_parameters
             ]
         return state_content
 
@@ -2240,7 +2242,9 @@ class SaasHerder:
             for rt in saas_file.resource_templates:
                 for target in rt.targets:
                     template_vars = {
-                        "resource": {"namespace": target.namespace.dict(by_alias=True)}
+                        "resource": {
+                            "namespace": target.namespace.model_dump(by_alias=True)
+                        }
                     }
                     if target.parameters:
                         for param in target.parameters:

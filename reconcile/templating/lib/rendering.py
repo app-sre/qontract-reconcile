@@ -26,7 +26,7 @@ class TemplatePatch(Protocol):
     path: str
     identifier: str | None
 
-    def dict(self) -> dict[str, str]: ...
+    def model_dump(self) -> dict[str, str]: ...
 
 
 class Template(Protocol):
@@ -36,7 +36,7 @@ class Template(Protocol):
     template: str
     overwrite: bool | None
 
-    def dict(self) -> dict[str, str]: ...
+    def model_dump(self) -> dict[str, str]: ...
 
     @property
     def patch(self) -> TemplatePatch | None:

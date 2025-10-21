@@ -426,7 +426,7 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
         Build a dictionary of all labels in this labelset.
         """
         labels = {}
-        for k, v in self.dict(by_alias=True).items():
+        for k, v in self.model_dump(by_alias=True).items():
             if v is None:
                 continue
             if isinstance(v, list):

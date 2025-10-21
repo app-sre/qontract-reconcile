@@ -301,7 +301,7 @@ def filter_clusters(clusters: list[ClusterV1]) -> list[ClusterV1]:
 
 def get_ocm_map(clusters: list[ClusterV1]) -> OCMMap:
     settings = queries.get_app_interface_settings()
-    clusters_info = [c.dict(by_alias=True) for c in clusters]
+    clusters_info = [c.model_dump(by_alias=True) for c in clusters]
     return OCMMap(
         settings=settings,
         clusters=clusters_info,

@@ -1566,7 +1566,7 @@ def rosa_create_cluster_command(ctx: click.Context, cluster_name: str) -> None:
         billing_account = account.billing_account.uid
     else:
         with AWSApi(
-            1, [account.dict(by_alias=True)], settings=settings, init_users=False
+            1, [account.model_dump(by_alias=True)], settings=settings, init_users=False
         ) as aws_api:
             billing_account = aws_api.get_organization_billing_account(account.name)
 
@@ -1750,7 +1750,7 @@ def aws_terraform_resources(ctx: click.Context) -> None:
     for ns_info in namespaces:
         specs = (
             get_external_resource_specs(
-                ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
+                ns_info.model_dump(by_alias=True), provision_provider=PROVIDER_AWS
             )
             or []
         )
@@ -1808,7 +1808,7 @@ def rds(ctx: click.Context) -> None:
         specs = [
             s
             for s in get_external_resource_specs(
-                namespace.dict(by_alias=True), provision_provider=PROVIDER_AWS
+                namespace.model_dump(by_alias=True), provision_provider=PROVIDER_AWS
             )
             if s.provider == "rds"
         ]
@@ -2961,7 +2961,7 @@ def maintenances(ctx: click.Context) -> None:
     maintenances = maintenances_gql.query(gql.get_api().query).maintenances or []
     data = [
         {
-            **m.dict(),
+            **m.model_dump(),
             "services": ", ".join(a.name for a in m.affected_services),
         }
         for m in maintenances

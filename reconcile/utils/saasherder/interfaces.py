@@ -1,7 +1,7 @@
 # ruff: noqa: N801
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence, Set
+from collections.abc import Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -12,6 +12,8 @@ from typing import (
 from reconcile.utils import oc_connection_parameters
 
 if TYPE_CHECKING:
+    from pydantic.main import IncEx
+
     from reconcile.gql_definitions.fragments.saas_slo_document import SLODocument
     from reconcile.utils.secret_reader import HasSecret
 
@@ -27,18 +29,12 @@ class SaasFileSecretParameters(Protocol):
     @property
     def secret(self) -> HasSecret: ...
 
-    def dict(
-        self,
-        *,
-        by_alias: bool = False,
-        include: AbstractSetIntStr | MappingIntStrAny | None = None,
+    def model_dump(
+        self, *, by_alias: bool = False, include: IncEx | None = None
     ) -> dict[str, Any]: ...
 
 
 SaasSecretParameters = Sequence[SaasFileSecretParameters] | None
-# Taken from pydantic.typing
-AbstractSetIntStr = Set[int | str]
-MappingIntStrAny = Mapping[int | str, Any]
 
 
 @runtime_checkable
@@ -212,11 +208,8 @@ class SaasResourceTemplateTargetNamespace(Protocol):
     @property
     def cluster(self) -> oc_connection_parameters.Cluster: ...
 
-    def dict(
-        self,
-        *,
-        by_alias: bool = False,
-        include: AbstractSetIntStr | MappingIntStrAny | None = None,
+    def model_dump(
+        self, *, by_alias: bool = False, include: IncEx | None = None
     ) -> dict[str, Any]: ...
 
 
@@ -249,7 +242,7 @@ class SaasResourceTemplateTargetPromotion(Protocol):
     @property
     def promotion_data(self) -> Sequence[SaasPromotionData] | None: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class Channel(Protocol):
@@ -274,7 +267,7 @@ class SaasPromotion(Protocol):
     @property
     def subscribe(self) -> list[Channel] | None: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasResourceTemplateTarget_SaasSecretParameters(Protocol):
@@ -295,7 +288,7 @@ class SaasResourceTemplateTargetUpstream(Protocol):
     @property
     def instance(self) -> SaasJenkinsInstance: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasQuayInstance(Protocol):
@@ -315,7 +308,7 @@ class SaasResourceTemplateTargetImage(Protocol):
     @property
     def org(self) -> SaasQuayOrg: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
@@ -344,7 +337,7 @@ class SaasResourceTemplateTarget(HasParameters, HasSecretParameters, Protocol):
         self, parent_saas_file_name: str, parent_resource_template_name: str
     ) -> str: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class SaasResourceTemplate(HasParameters, HasSecretParameters, Protocol):
@@ -381,7 +374,7 @@ class ManagedResourceName(Protocol):
     resource: str
     resource_names: list[str]
 
-    def dict(self) -> dict[str, str]: ...
+    def model_dump(self) -> dict[str, str]: ...
 
 
 class SaasFile(HasParameters, HasSecretParameters, Protocol):

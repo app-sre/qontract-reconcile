@@ -81,7 +81,7 @@ class JenkinsWorkerFleet(BaseModel):
         return hash(self.fleet + self.region)
 
     def differ(self, other: JenkinsWorkerFleet) -> bool:
-        return self.dict() != other.dict()
+        return self.model_dump() != other.model_dump()
 
 
 def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
@@ -159,8 +159,8 @@ def act(
         current_fleet = current_state[current_state.index(f)]
         desired_fleet = desired_state[desired_state.index(f)]
         if current_fleet.differ(desired_fleet):
-            logging.debug("CURRENT: " + str(current_fleet.dict(by_alias=True)))
-            logging.debug("DESIRED: " + str(desired_fleet.dict(by_alias=True)))
+            logging.debug("CURRENT: " + str(current_fleet.model_dump(by_alias=True)))
+            logging.debug("DESIRED: " + str(desired_fleet.model_dump(by_alias=True)))
             to_update.append(desired_fleet)
 
     if to_add or to_delete or to_update:
@@ -173,7 +173,7 @@ def act(
 
         if not dry_run:
             d_clouds = [
-                {"eC2Fleet": d.dict(by_alias=True, exclude_none=True)}
+                {"eC2Fleet": d.model_dump(by_alias=True, exclude_none=True)}
                 for d in desired_state
             ]
             config = {"jenkins": {"clouds": d_clouds}}

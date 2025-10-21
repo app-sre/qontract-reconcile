@@ -892,10 +892,10 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
             if role.tag_on_cluster_updates is not False
         ]
     return {
-        "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
+        "permissions": [p.model_dump() for p in get_permissions(gqlapi.query)],
         "pagerduty_instances": [
-            p.dict() for p in get_pagerduty_instances(gqlapi.query)
+            p.model_dump() for p in get_pagerduty_instances(gqlapi.query)
         ],
-        "users": [u.dict() for u in users],
-        "clusters": [c.dict() for c in get_clusters(gqlapi.query)],
+        "users": [u.model_dump() for u in users],
+        "clusters": [c.model_dump() for c in get_clusters(gqlapi.query)],
     }
