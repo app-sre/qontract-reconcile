@@ -1478,15 +1478,15 @@ wheels = [
 
 [[package]]
 name = "qenerate"
-version = "0.8.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "graphql-core" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/cc/c614c48413e175ade9e886d70b6c6851e395abb99748c5658635d1a9a25d/qenerate-0.8.0.tar.gz", hash = "sha256:22fc7b19b8597a449b41e0dd6bfa3ea75e0b46c3f6273a71e3ef7f9dcc8f4edf", size = 17392, upload-time = "2025-06-10T12:04:43.091Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/24/fb/9d170161d823e3844d5d8f5185d583feb4ee5e8c300ad661d2106470be39/qenerate-0.9.0.tar.gz", hash = "sha256:d705916aad069dd5de837e56c38fb8f16c49349c5f0cafbae1681179cc059c4c", size = 17438, upload-time = "2025-10-03T08:33:53.496Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/34/8c5574ef9a35168965eee4c19a4115d2687127d0a926a3cdf4e8a873e5eb/qenerate-0.8.0-py3-none-any.whl", hash = "sha256:074ffe9b2345779c07149d7146a894503dd97929716ece188c1bfd190058a652", size = 21486, upload-time = "2025-06-10T12:04:41.828Z" },
+    { url = "https://files.pythonhosted.org/packages/80/2d/5218f4fbe29046cc799a37f243da2e3477b2dc85ec24f33643914aa95940/qenerate-0.9.0-py3-none-any.whl", hash = "sha256:a427a99416ccfda1474b653f932eb0547052dc3b8194f2b1205042bb91d0617f", size = 21515, upload-time = "2025-10-03T08:33:52.395Z" },
 ]
 
 [[package]]
@@ -1652,7 +1652,7 @@ dev = [
     { name = "pytest-cov", specifier = "~=6.2" },
     { name = "pytest-httpserver", specifier = "~=1.1" },
     { name = "pytest-mock", specifier = "~=3.6" },
-    { name = "qenerate", specifier = "==0.8.0" },
+    { name = "qenerate", specifier = "==0.9.0" },
     { name = "responses", specifier = "~=0.25.0" },
     { name = "ruff", specifier = "==0.12.12" },
     { name = "smtpdfix", specifier = "~=0.5.2" },

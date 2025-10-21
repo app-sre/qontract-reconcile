@@ -84,7 +84,7 @@ dev = [
     "pytest-cov ~=6.2",
     "pytest-httpserver ~=1.1",
     "pytest-mock ~=3.6",
-    "qenerate==0.8.0",
+    "qenerate==0.9.0",
     "responses ~=0.25.0",
     "ruff==0.12.12",
     "smtpdfix ~=0.5.2",
