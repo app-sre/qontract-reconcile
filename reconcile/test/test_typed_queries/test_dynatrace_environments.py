@@ -16,7 +16,7 @@ def test_no_dynatrace_environments(
     gql_class_factory: Callable[..., DynatraceEnvironmentQueryData],
 ) -> None:
     data = gql_class_factory(DynatraceEnvironmentQueryData, {})
-    api = gql_api_builder(data.dict(by_alias=True))
+    api = gql_api_builder(data.model_dump(by_alias=True))
     envs = get_dynatrace_environments(api=api)
     assert envs == []
     api.query.assert_called_once_with(DEFINITION)
@@ -30,7 +30,7 @@ def test_multiple_dynatrace_environments(
         DynatraceEnvironmentQueryData,
         {"environments": [{"bootstrapToken": {}}, {"bootstrapToken": {}}]},
     )
-    api = gql_api_builder(data.dict(by_alias=True))
+    api = gql_api_builder(data.model_dump(by_alias=True))
     envs = get_dynatrace_environments(api=api)
     assert envs == data.environments
     api.query.assert_called_once_with(DEFINITION)

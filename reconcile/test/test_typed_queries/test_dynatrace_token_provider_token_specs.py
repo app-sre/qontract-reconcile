@@ -18,7 +18,7 @@ def test_no_dynatrace_token_provider_token_specs(
     gql_class_factory: Callable[..., DynatraceTokenProviderTokenSpecsQueryData],
 ) -> None:
     data = gql_class_factory(DynatraceTokenProviderTokenSpecsQueryData, {})
-    api = gql_api_builder(data.dict(by_alias=True))
+    api = gql_api_builder(data.model_dump(by_alias=True))
     envs = get_dynatrace_token_provider_token_specs(api=api)
     assert envs == []
     api.query.assert_called_once_with(DEFINITION)
@@ -37,7 +37,7 @@ def test_multiple_dynatrace_token_provider_token_specs(
             ]
         },
     )
-    api = gql_api_builder(data.dict(by_alias=True))
+    api = gql_api_builder(data.model_dump(by_alias=True))
     envs = get_dynatrace_token_provider_token_specs(api=api)
     assert envs == data.token_specs
     api.query.assert_called_once_with(DEFINITION)

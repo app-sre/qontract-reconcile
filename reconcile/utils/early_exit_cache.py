@@ -194,7 +194,7 @@ class EarlyExitCache:
         }
         self.state.add(
             str(key),
-            value.dict(),
+            value.model_dump(),
             metadata=metadata,
             force=True,
         )

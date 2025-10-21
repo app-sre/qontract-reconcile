@@ -16,7 +16,7 @@ def test_no_clusters(
     gql_class_factory: Callable[..., ClustersQueryData],
 ) -> None:
     data = gql_class_factory(ClustersQueryData, {})
-    api = gql_api_builder(data.dict(by_alias=True))
+    api = gql_api_builder(data.model_dump(by_alias=True))
     clusters = get_clusters(gql_api=api)
     assert len(clusters) == 0
     api.query.assert_called_once_with(DEFINITION, {})
@@ -30,7 +30,7 @@ def test_get_clusters(
         ClustersQueryData,
         {"clusters": [{"name": "a", "auth": []}, {"name": "b", "auth": []}]},
     )
-    api = gql_api_builder(data.dict(by_alias=True))
+    api = gql_api_builder(data.model_dump(by_alias=True))
     clusters = get_clusters(gql_api=api)
     assert len(clusters) == 2
     api.query.assert_called_once_with(DEFINITION, {})
@@ -44,6 +44,6 @@ def test_get_clusters_with_name(
         ClustersQueryData,
         {},
     )
-    api = gql_api_builder(data.dict(by_alias=True))
+    api = gql_api_builder(data.model_dump(by_alias=True))
     get_clusters(gql_api=api, name="test")
     api.query.assert_called_once_with(DEFINITION, {"name": "test"})

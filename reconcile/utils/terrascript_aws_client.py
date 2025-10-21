@@ -1058,7 +1058,9 @@ class TerrascriptClient:
             ignore_changes = (
                 "all" if "all" in lifecycle.ignore_changes else lifecycle.ignore_changes
             )
-            return lifecycle.dict(by_alias=True) | {"ignore_changes": ignore_changes}
+            return lifecycle.model_dump(by_alias=True) | {
+                "ignore_changes": ignore_changes
+            }
         return None
 
     def populate_additional_providers(
@@ -1424,7 +1426,7 @@ class TerrascriptClient:
             req_account_name = req_account.name
             # Accepter's side of the connection - the cluster's account
             acc_account = accepter.account
-            acc_alias = self.get_provider_alias(acc_account.dict(by_alias=True))
+            acc_alias = self.get_provider_alias(acc_account.model_dump(by_alias=True))
             acc_uid = acc_account.uid
             if acc_account.assume_role:
                 acc_uid = awsh.get_account_uid_from_arn(acc_account.assume_role)

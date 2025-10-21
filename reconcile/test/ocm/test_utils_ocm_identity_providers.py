@@ -44,9 +44,9 @@ def test_utils_get_subscription_labels(
         OcmUrl(
             method="GET", uri=ocm_cluster.identity_providers.href
         ).add_list_response([
-            IDP_OIDC.dict(by_alias=True),
-            IDP_GH.dict(by_alias=True),
-            IDP_OTHER.dict(by_alias=True),
+            IDP_OIDC.model_dump(by_alias=True),
+            IDP_GH.model_dump(by_alias=True),
+            IDP_OTHER.model_dump(by_alias=True),
         ])
     ])
 

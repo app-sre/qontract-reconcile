@@ -64,7 +64,7 @@ class TerraformInitIntegration(
             query_func = gql.get_api().query
         return {
             "accounts": [
-                account.dict() for account in self.get_aws_accounts(query_func)
+                account.model_dump() for account in self.get_aws_accounts(query_func)
             ],
         }
 

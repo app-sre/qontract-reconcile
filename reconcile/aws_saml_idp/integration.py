@@ -82,7 +82,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         if not query_func:
             query_func = gql.get_api().query
         return {
-            "accounts": [c.dict() for c in self.get_aws_accounts(query_func)],
+            "accounts": [c.model_dump() for c in self.get_aws_accounts(query_func)],
         }
 
     def get_aws_accounts(
@@ -125,7 +125,9 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         aws_accounts = self.get_aws_accounts(
             gql_api.query, account_name=self.params.account_name
         )
-        aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
+        aws_accounts_dict = [
+            account.model_dump(by_alias=True) for account in aws_accounts
+        ]
         try:
             default_tags = get_settings().default_tags
         except ValueError:

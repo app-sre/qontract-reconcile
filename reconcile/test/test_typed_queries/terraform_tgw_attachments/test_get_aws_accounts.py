@@ -38,7 +38,7 @@ def aws_accounts(
         AWSAccountsQueryData,
         {
             "accounts": [
-                aws_account.dict(by_alias=True),
+                aws_account.model_dump(by_alias=True),
             ]
         },
     )
@@ -60,7 +60,7 @@ def test_get_aws_accounts_with_default_variables(
     gql_api_builder: Callable[..., GqlApi],
     aws_accounts: AWSAccountsQueryData,
 ) -> None:
-    gql_api = gql_api_builder(aws_accounts.dict(by_alias=True))
+    gql_api = gql_api_builder(aws_accounts.model_dump(by_alias=True))
 
     result = get_aws_accounts(gql_api)
 
@@ -75,7 +75,7 @@ def test_get_aws_accounts_when_no_data(
     gql_api_builder: Callable[..., GqlApi],
     aws_accounts_with_no_data: AWSAccountsQueryData,
 ) -> None:
-    gql_api = gql_api_builder(aws_accounts_with_no_data.dict(by_alias=True))
+    gql_api = gql_api_builder(aws_accounts_with_no_data.model_dump(by_alias=True))
 
     result = get_aws_accounts(gql_api)
 
@@ -86,7 +86,7 @@ def test_get_aws_accounts_with_name(
     gql_api_builder: Callable[..., GqlApi],
     aws_accounts: AWSAccountsQueryData,
 ) -> None:
-    gql_api = gql_api_builder(aws_accounts.dict(by_alias=True))
+    gql_api = gql_api_builder(aws_accounts.model_dump(by_alias=True))
     name = "some-name"
 
     result = get_aws_accounts(

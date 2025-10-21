@@ -107,5 +107,5 @@ class PromotionState:
         self, sha: str, channel: str, target_uid: str, data: PromotionData
     ) -> None:
         state_key_v2 = f"promotions_v2/{channel}/{target_uid}/{sha}"
-        self._state.add(state_key_v2, data.dict(), force=True)
+        self._state.add(state_key_v2, data.model_dump(), force=True)
         logging.info("Uploaded %s to %s", data, state_key_v2)

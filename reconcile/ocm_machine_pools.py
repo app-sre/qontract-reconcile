@@ -154,13 +154,13 @@ class MachinePool(AbstractPool):
     instance_type: str
 
     def delete(self, ocm: OCM) -> None:
-        ocm.delete_machine_pool(self.cluster, self.dict(by_alias=True))
+        ocm.delete_machine_pool(self.cluster, self.model_dump(by_alias=True))
 
     def create(self, ocm: OCM) -> None:
-        ocm.create_machine_pool(self.cluster, self.dict(by_alias=True))
+        ocm.create_machine_pool(self.cluster, self.model_dump(by_alias=True))
 
     def update(self, ocm: OCM) -> None:
-        update_dict = self.dict(by_alias=True)
+        update_dict = self.model_dump(by_alias=True)
         # can not update instance_type
         del update_dict["instance_type"]
         if not update_dict["labels"]:
@@ -214,7 +214,7 @@ class MachinePool(AbstractPool):
             replicas=pool.replicas,
             autoscaling=autoscaling,
             instance_type=pool.instance_type,
-            taints=[p.dict(by_alias=True) for p in pool.taints or []],
+            taints=[p.model_dump(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             cluster=cluster,
             cluster_type=cluster_type,
@@ -232,14 +232,14 @@ class NodePool(AbstractPool):
     subnet: str | None
 
     def delete(self, ocm: OCM) -> None:
-        ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
+        ocm.delete_node_pool(self.cluster, self.model_dump(by_alias=True))
 
     def create(self, ocm: OCM) -> None:
-        spec = self.dict(by_alias=True)
+        spec = self.model_dump(by_alias=True)
         ocm.create_node_pool(self.cluster, spec)
 
     def update(self, ocm: OCM) -> None:
-        update_dict = self.dict(by_alias=True)
+        update_dict = self.model_dump(by_alias=True)
         # can not update instance_type
         del update_dict["aws_node_pool"]
         # can not update subnet
@@ -297,7 +297,7 @@ class NodePool(AbstractPool):
             aws_node_pool=AWSNodePool(
                 instance_type=pool.instance_type,
             ),
-            taints=[p.dict(by_alias=True) for p in pool.taints or []],
+            taints=[p.model_dump(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             subnet=pool.subnet,
             cluster=cluster,
@@ -312,7 +312,7 @@ class PoolHandler(BaseModel):
     pool: AbstractPool
 
     def act(self, dry_run: bool, ocm: OCM) -> None:
-        logging.info(f"{self.action} {self.pool.dict(by_alias=True)}")
+        logging.info(f"{self.action} {self.pool.model_dump(by_alias=True)}")
         if dry_run:
             return
 
@@ -531,7 +531,7 @@ def run(dry_run: bool) -> None:
 
     settings = queries.get_app_interface_settings()
     cluster_like_objects = [
-        cluster.dict(by_alias=True) for cluster in filtered_clusters
+        cluster.model_dump(by_alias=True) for cluster in filtered_clusters
     ]
     ocm_map = OCMMap(
         clusters=cluster_like_objects,

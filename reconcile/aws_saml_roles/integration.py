@@ -164,7 +164,7 @@ class AwsSamlRolesIntegration(
         if not query_func:
             query_func = gql.get_api().query
         return {
-            "roles": [c.dict() for c in self.get_roles(query_func)],
+            "roles": [c.model_dump() for c in self.get_roles(query_func)],
         }
 
     def get_aws_accounts(
@@ -252,7 +252,9 @@ class AwsSamlRolesIntegration(
         aws_accounts = self.get_aws_accounts(
             gql_api.query, account_name=self.params.account_name
         )
-        aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
+        aws_accounts_dict = [
+            account.model_dump(by_alias=True) for account in aws_accounts
+        ]
         aws_roles = self.get_roles(gql_api.query, account_name=self.params.account_name)
         try:
             default_tags = get_settings().default_tags

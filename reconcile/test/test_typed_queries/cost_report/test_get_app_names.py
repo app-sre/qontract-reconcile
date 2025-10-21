@@ -54,8 +54,8 @@ def apps_response(
         AppNamesQueryData,
         {
             "apps": [
-                parent_app.dict(by_alias=True),
-                child_app.dict(by_alias=True),
+                parent_app.model_dump(by_alias=True),
+                child_app.model_dump(by_alias=True),
             ],
         },
     )
@@ -77,7 +77,7 @@ def test_get_app_names(
     apps_response: AppNamesQueryData,
     expected_apps: list[App],
 ) -> None:
-    gql_api = gql_api_builder(apps_response.dict(by_alias=True))
+    gql_api = gql_api_builder(apps_response.model_dump(by_alias=True))
 
     apps = get_app_names(gql_api)
 

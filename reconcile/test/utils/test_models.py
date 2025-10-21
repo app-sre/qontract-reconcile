@@ -407,7 +407,7 @@ def test_default_data_none_mandatory_union_basemodel(
 
     d = DemoModel(**data_default_none(DemoModel, data))
     assert isinstance(d.model_field, expected_model_class)
-    assert d.model_field.dict() == extected_field_data
+    assert d.model_field.model_dump() == extected_field_data
 
 
 @pytest.mark.parametrize(

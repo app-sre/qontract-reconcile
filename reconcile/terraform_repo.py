@@ -168,7 +168,7 @@ class TerraformRepoIntegration(
                     self.params.output_file, "w", encoding="locale"
                 ) as output_file:
                     yaml.safe_dump(
-                        data=output.dict(),
+                        data=output.model_dump(),
                         stream=output_file,
                         explicit_start=True,
                     )
@@ -177,7 +177,7 @@ class TerraformRepoIntegration(
                     f"Unable to write to '{self.params.output_file}'"
                 ) from None
         else:
-            print(yaml.safe_dump(data=output.dict(), explicit_start=True))
+            print(yaml.safe_dump(data=output.model_dump(), explicit_start=True))
 
         return output
 
@@ -283,7 +283,7 @@ class TerraformRepoIntegration(
             for add_key, add_val in diff_result.add.items():
                 # state.add already performs a json.dumps(key) so we export the
                 # pydantic model as a dict to avoid a double json dump with extra quotes
-                state.add(add_key, add_val.dict(by_alias=True), force=True)
+                state.add(add_key, add_val.model_dump(by_alias=True), force=True)
             for delete_key in diff_result.delete:
                 state.rm(delete_key)
             for change_key, change_val in diff_result.change.items():
@@ -291,7 +291,9 @@ class TerraformRepoIntegration(
                     state.rm(change_key)
                 else:
                     state.add(
-                        change_key, change_val.desired.dict(by_alias=True), force=True
+                        change_key,
+                        change_val.desired.model_dump(by_alias=True),
+                        force=True,
                     )
         except KeyError:
             pass
@@ -394,5 +396,7 @@ class TerraformRepoIntegration(
     def early_exit_desired_state(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         gqlapi = gql.get_api()
         return {
-            "repos": [repo.dict() for repo in self.get_repos(query_func=gqlapi.query)]
+            "repos": [
+                repo.model_dump() for repo in self.get_repos(query_func=gqlapi.query)
+            ]
         }

@@ -168,7 +168,7 @@ def _build_oc_resources(
         internal=internal,
     )
 
-    namespace_mapping = [ns.dict() for ns in cloudflare_namespaces]
+    namespace_mapping = [ns.model_dump() for ns in cloudflare_namespaces]
 
     state_specs = init_specs_to_fetch(
         ri, oc_map, namespaces=namespace_mapping, override_managed_types=["Secret"]
@@ -351,7 +351,7 @@ def run(
         spec
         for namespace in query_resources.namespaces
         for spec in get_external_resource_specs(
-            namespace.dict(by_alias=True), PROVIDER_CLOUDFLARE
+            namespace.model_dump(by_alias=True), PROVIDER_CLOUDFLARE
         )
         if not selected_account or spec.provisioner_name == selected_account
     ]
@@ -383,7 +383,7 @@ def run(
         QONTRACT_INTEGRATION_VERSION,
         QONTRACT_TF_PREFIX,
         [
-            acct.dict(by_alias=True)  # convert CloudflareAccountV1 to dict
+            acct.model_dump(by_alias=True)  # convert CloudflareAccountV1 to dict
             for acct in query_accounts.accounts or []
             if acct.name in cf_clients.dump()  # use only if it is a registered client
         ],
@@ -442,4 +442,4 @@ def _get_cloudflare_desired_state() -> tuple[
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     desired_state = _get_cloudflare_desired_state()
 
-    return {state.__repr_name__(): state.dict() for state in desired_state}
+    return {state.__repr_name__(): state.model_dump() for state in desired_state}

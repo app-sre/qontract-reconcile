@@ -213,11 +213,13 @@ def run(
     saas_file_list = SaasFileList()
     desired_saas_file_state = collect_state(saas_file_list.saas_files)
     # compare dicts against dicts which is much faster than comparing BaseModel objects
-    comparison_saas_file_state_dicts = [s.dict() for s in comparison_saas_file_state]
+    comparison_saas_file_state_dicts = [
+        s.model_dump() for s in comparison_saas_file_state
+    ]
     saas_file_state_diffs = [
         s
         for s in desired_saas_file_state
-        if s.dict() not in comparison_saas_file_state_dicts
+        if s.model_dump() not in comparison_saas_file_state_dicts
     ]
     if not saas_file_state_diffs:
         return

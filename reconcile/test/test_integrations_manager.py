@@ -233,7 +233,7 @@ def basic_integration(
                         "cluster": {"name": "cluster"},
                         "environment": {"name": "test"},
                     },
-                    "spec": basic_integration_spec.dict(
+                    "spec": basic_integration_spec.model_dump(
                         exclude_none=True, by_alias=True
                     ),
                     "sharding": None,
@@ -248,7 +248,7 @@ def helm_integration_spec(
     basic_integration_spec: IntegrationSpecV1,
 ) -> HelmIntegrationSpec:
     return HelmIntegrationSpec(
-        **basic_integration_spec.dict(by_alias=True), name="basic-integration"
+        **basic_integration_spec.model_dump(by_alias=True), name="basic-integration"
     )
 
 
