@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query GlitchtipProjectsWithAlerts {
   glitchtip_projects: glitchtip_projects_v1 {
