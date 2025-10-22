@@ -45,7 +45,7 @@ from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 def fetch_current_state(
     ri: ResourceInventory, oc: OCCli, cluster: str, namespace: str
 ) -> None:
-    for item in oc.get_items("Job", namespace=namespace):
+    for item in oc.get_items("Job.batch", namespace=namespace):
         r = OpenshiftResource(item, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
         ri.add_current(cluster, namespace, "Job", r.name, r)
 
