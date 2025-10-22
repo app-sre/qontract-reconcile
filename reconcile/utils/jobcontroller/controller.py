@@ -100,7 +100,7 @@ class K8sJobController:
         """
         new_cache = {}
         for item in self.oc.get_items(
-            kind="Job",
+            kind="Job.batch",
             namespace=self.namespace,
         ):
             openshift_resource = OpenshiftResource(
