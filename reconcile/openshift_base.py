@@ -30,9 +30,11 @@ from reconcile.utils import (
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc import (
+    AmbiguousResourceTypeError,
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
     InvalidValueApplyError,
+    KindNotFoundError,
     MayNotChangeOnceSetError,
     MetaDataAnnotationsTooLongApplyError,
     OC_Map,
@@ -188,6 +190,24 @@ def init_specs_to_fetch(
                 continue
 
             managed_resource_names = namespace_info.get("managedResourceNames") or []
+            try:
+                validate_managed_resource_types(
+                    oc,
+                    managed_types,
+                    managed_resource_names,
+                    cluster_scope_resource_validation=cluster_scope_resource_validation,
+                )
+            except KindNotFoundError:
+                # We must allow kinds that are not supported by the cluster because:
+                # 1. We install CRD with an operator in the same MR
+                # 2. SAAS files initialize the namespace objects with managedResourceTypes from the SAAS file
+                #    and we can't expect that all of those are valid for all clusters
+                pass
+            except (AmbiguousResourceTypeError, ValidationError) as e:
+                ri.register_error()
+                logging.error(f"[{cluster}/{namespace_info['name']}] {e}")
+                continue
+
             namespace = namespace_info["name"]
             # These may exit but have a value of None
             managed_resource_type_overrides = (
