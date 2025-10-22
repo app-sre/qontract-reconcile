@@ -29,12 +29,14 @@ from reconcile.gql_definitions.fragments.upgrade_policy import (
     ClusterUpgradePolicyV1,
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.test.ocm.fixtures import build_ocm_cluster
+from reconcile.test.ocm.fixtures import build_label, build_ocm_cluster
 from reconcile.utils.ocm.base import (
+    LabelContainer,
     OCMAddonInstallation,
     OCMAddonVersion,
     OCMModelLink,
     OCMVersionGate,
+    build_label_container,
 )
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.ocm_base_client import OCMBaseClient
@@ -73,6 +75,17 @@ def build_upgrade_policy_cluster(
         spec=OpenShiftClusterManagerUpgradePolicyClusterSpecV1(id=spec_id),
         upgradePolicy=upgrade_policy or build_upgrade_policy(),
     )
+
+
+def build_cluster_labels(
+    version_gate_approvals: list[str] | None = None,
+) -> LabelContainer:
+    return build_label_container([
+        build_label(
+            key="sre-capabilities.aus.version-gate-approvals",
+            value="api.openshift.com/gate-ocp,api.openshift.com/gate-sts",
+        )
+    ])
 
 
 def build_ocm_environment(env_name: str | None = None) -> OCMEnvironment:
@@ -186,6 +199,7 @@ def build_organization_upgrade_spec(
             ClusterUpgradeSpec(
                 org=org,
                 cluster=cluster,
+                cluster_labels=build_cluster_labels(),
                 upgradePolicy=upgrade_policy,
                 health=cluster_health,
                 nodePools=node_pools,
@@ -278,8 +292,15 @@ def build_cluster_upgrade_policy(
     cluster: OCMCluster, version: str, state: str, next_run: datetime | None = None
 ) -> ClusterUpgradePolicy:
     next_run_str = (next_run or datetime.now(tz=UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    label = build_label(
+        key="sre-capabilities.aus.version-gate-approvals",
+        value="api.openshift.com/gate-ocp,api.openshift.com/gate-sts",
+    )
+    cluster_labels = build_label_container([label])
     return ClusterUpgradePolicy(
         cluster=cluster,
+        organization_id="1",
+        cluster_labels=cluster_labels,
         id="1",
         version=version,
         state=state,
