@@ -69,6 +69,7 @@ urllib3.disable_warnings()
 
 GET_REPLICASET_MAX_ATTEMPTS = 20
 DEFAULT_GROUP = ""
+PROJECT_KIND = "Project.project.openshift.io"
 
 oc_run_execution_counter = Counter(
     name="oc_run_execution_counter",
@@ -380,10 +381,7 @@ class OCCli:
 
         self.init_projects = init_projects
         if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
+            kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
@@ -453,10 +451,7 @@ class OCCli:
 
         self.init_projects = init_projects
         if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
+            kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
@@ -637,11 +632,9 @@ class OCCli:
     def project_exists(self, name: str) -> bool:
         if name in self.projects:
             return True
+        kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
         try:
-            if self.is_kind_supported("Project"):
-                self.get(None, "Project.project.openshift.io", name)
-            else:
-                self.get(None, "Namespace", name)
+            self.get(None, kind, name)
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return False
@@ -650,7 +643,7 @@ class OCCli:
 
     @OCDecorators.process_reconcile_time
     def new_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
-        if self.is_kind_supported("Project"):
+        if self.is_kind_supported(PROJECT_KIND):
             cmd = ["new-project", namespace]
         else:
             cmd = ["create", "namespace", namespace]
@@ -666,7 +659,7 @@ class OCCli:
 
     @OCDecorators.process_reconcile_time
     def delete_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
-        if self.is_kind_supported("Project"):
+        if self.is_kind_supported(PROJECT_KIND):
             cmd = ["delete", "project", namespace]
         else:
             cmd = ["delete", "namespace", namespace]
@@ -1327,10 +1320,7 @@ class OCNative(OCCli):
         self.projects = set()
         self.init_projects = init_projects
         if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
+            kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
     def __enter__(self) -> OCNative:
