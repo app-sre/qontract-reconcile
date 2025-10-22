@@ -58,7 +58,7 @@ dependencies = [
     # setuptools 80.9.0 set a deadline for the removal and started showing warnings when pkg_resources is used.
     "setuptools==80.8.0",
     "slack_sdk>=3.10,<4.0",
-    "sretoolbox==2.7.0",
+    "sretoolbox==3.0.0",
     "sshtunnel>=0.4.0",
     "tabulate>=0.8.6,<0.9.0",
     "terrascript==0.9.0",
@@ -84,7 +84,7 @@ dev = [
     "pytest-cov ~=6.2",
     "pytest-httpserver ~=1.1",
     "pytest-mock ~=3.6",
-    "qenerate==0.8.0",
+    "qenerate==0.9.0",
     "responses ~=0.25.0",
     "ruff==0.12.12",
     "smtpdfix ~=0.5.2",
