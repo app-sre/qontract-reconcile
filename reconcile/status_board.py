@@ -214,9 +214,9 @@ class Service(AbstractStatusBoard):
 
 
 # Resolve forward references after class definitions
-Product.update_forward_refs()
-Application.update_forward_refs()
-Service.update_forward_refs()
+Product.model_rebuild()
+Application.model_rebuild()
+Service.model_rebuild()
 
 
 class UpdateNotSupportedError(Exception):
