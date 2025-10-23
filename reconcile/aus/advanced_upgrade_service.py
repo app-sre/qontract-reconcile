@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Optional
+from typing import Annotated, Optional
 
 from pydantic import (
     BaseModel,
@@ -289,13 +289,16 @@ class OrganizationLabelSet(BaseModel):
 
     blocked_versions: CSV | None = Field(alias=aus_label_key("blocked-versions"))
 
-    sector_max_parallel_upgrades: dict[str, str] = labelset_groupfield(
-        group_prefix=aus_label_key("sector-max-parallel-upgrades.")
-    )
+    sector_max_parallel_upgrades: Annotated[
+        dict[str, str],
+        labelset_groupfield(
+            group_prefix=aus_label_key("sector-max-parallel-upgrades.")
+        ),
+    ]
 
-    sector_deps: dict[str, CSV] = labelset_groupfield(
-        group_prefix=aus_label_key("sector-deps.")
-    )
+    sector_deps: Annotated[
+        dict[str, CSV], labelset_groupfield(group_prefix=aus_label_key("sector-deps."))
+    ]
     """
     Each sector with dependencies is represented as a `sector-deps.<sector-name>` label
     with a CSV formatted list of dependant sectors. The custom `labelset_groupfield``
