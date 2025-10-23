@@ -7,7 +7,7 @@ from pydantic import (
     BaseModel,
     Field,
     ValidationError,
-    validator,
+    field_validator,
 )
 from pydantic.dataclasses import dataclass
 
@@ -411,7 +411,7 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     """
 
     soak_days: int = Field(alias=aus_label_key("soak-days"), ge=0)
-    workloads: CSV = Field(alias=aus_label_key("workloads"), csv_min_items=1)
+    workloads: CSV = Field(alias=aus_label_key("workloads"), min_length=1)
     schedule: str = Field(alias=aus_label_key("schedule"))
     mutexes: CSV | None = Field(alias=aus_label_key("mutexes"))
     sector: str | None = Field(alias=aus_label_key("sector"))
@@ -419,7 +419,7 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     version_gate_approvals: CSV | None = Field(
         alias=aus_label_key("version-gate-approvals")
     )
-    _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
+    _schedule_validator = field_validator("schedule")(cron_validator)
 
     def build_labels_dict(self) -> dict[str, str]:
         """
