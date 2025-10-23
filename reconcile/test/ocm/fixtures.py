@@ -44,7 +44,7 @@ class OcmRawResponse(OcmResponse):
 
 
 class OcmUrl(BaseModel):
-    name: str | None
+    name: str | None = None
     uri: str
     method: str = "POST"
     responses: list[Any] = Field(default_factory=list)

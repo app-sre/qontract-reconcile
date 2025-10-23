@@ -213,7 +213,7 @@ def test_addition_to_existing_repo(
 
     # ensure that the state is saved for the new repo
     state_mock.add.assert_called_once_with(
-        new_repo.name, new_repo.dict(by_alias=True), force=True
+        new_repo.name, new_repo.model_dump(by_alias=True), force=True
     )
 
 
@@ -237,7 +237,7 @@ def test_updating_repo_ref(
     assert diff == [updated_repo]
 
     state_mock.add.assert_called_once_with(
-        updated_repo.name, updated_repo.dict(by_alias=True), force=True
+        updated_repo.name, updated_repo.model_dump(by_alias=True), force=True
     )
 
 
@@ -261,7 +261,7 @@ def test_force_rerun(
     assert diff == [updated_repo]
 
     state_mock.add.assert_called_once_with(
-        updated_repo.name, updated_repo.dict(by_alias=True), force=True
+        updated_repo.name, updated_repo.model_dump(by_alias=True), force=True
     )
 
 
@@ -397,7 +397,7 @@ def test_update_repo_state(
     )
 
     state_mock.add.assert_called_once_with(
-        existing_repo.name, existing_repo.dict(by_alias=True), force=True
+        existing_repo.name, existing_repo.model_dump(by_alias=True), force=True
     )
 
 

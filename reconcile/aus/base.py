@@ -16,7 +16,7 @@ from typing import (
 )
 
 from croniter import croniter
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel, ConfigDict, Extra
 from requests.exceptions import HTTPError
 from semver import VersionInfo
 
@@ -404,12 +404,12 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
     cluster: OCMCluster
 
-    id: str | None
-    next_run: str | None
-    schedule: str | None
+    id: str | None = None
+    next_run: str | None = None
+    schedule: str | None = None
     schedule_type: str
     version: str
-    state: str | None
+    state: str | None = None
 
     @abstractmethod
     def create(self, ocm_api: OCMBaseClient) -> None:
@@ -436,8 +436,10 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
     addon_id: str
     addon_service: AddonService
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(
+        validate_by_name=True,
+        validate_by_alias=True,
+    )
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         self.addon_service.create_addon_upgrade_policy(
@@ -521,8 +523,9 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 
 
 class NodePoolUpgradePolicy(AbstractUpgradePolicy):
-    node_pool: str
     """Class to create NodePoolUpgradePolicies in OCM"""
+
+    node_pool: str
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         policy = {
@@ -1124,12 +1127,10 @@ def calculate_diff(
                     UpgradePolicyHandler(
                         action="create",
                         policy=AddonUpgradePolicy(
-                            action="create",
                             cluster=spec.cluster,
                             version=version,
                             schedule_type="manual",
                             addon_id=addon_id,
-                            upgrade_type="ADDON",
                             addon_service=addon_service,
                         ),
                     )

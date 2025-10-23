@@ -20,7 +20,7 @@ def vault_secret(path: str, field: str) -> VaultSecret:
 
 
 def vault_secret_dict(path: str, field: str) -> dict[str, str | None]:
-    return vault_secret(path=path, field=field).dict(by_alias=True)
+    return vault_secret(path=path, field=field).model_dump(by_alias=True)
 
 
 @pytest.fixture

@@ -11,8 +11,7 @@ from typing import Any
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from pydantic import BaseModel
-from pydantic.error_wrappers import ValidationError
+from pydantic import BaseModel, ValidationError
 from pytest_httpserver import HTTPServer
 from pytest_mock import MockerFixture
 
@@ -125,7 +124,7 @@ def gql_class_factory() -> Callable[
             return klass(**data_default_none(klass, data or {}))
         except ValidationError as e:
             msg = "[gql_class_factory] Your given data does not match the class ...\n"
-            msg += "\n".join([str(m) for m in list(e.raw_errors)])
+            msg += "\n".join([str(m) for m in e.errors()])
             raise GQLClassFactoryError(msg) from e
 
     return _gql_class_factory

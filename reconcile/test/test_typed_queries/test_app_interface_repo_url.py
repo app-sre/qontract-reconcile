@@ -18,7 +18,9 @@ def test_no_settings(
 ) -> None:
     data = gql_class_factory(AppInterfaceRepoSettingsQueryData, {"settings": []})
     with pytest.raises(AppInterfaceSettingsError):
-        get_app_interface_repo_url(query_func=query_func(data.dict(by_alias=True)))
+        get_app_interface_repo_url(
+            query_func=query_func(data.model_dump(by_alias=True))
+        )
 
 
 def test_multiple_settings(
@@ -30,7 +32,9 @@ def test_multiple_settings(
         {"settings": [{"repoUrl": "1"}, {"repoUrl": "2"}]},
     )
     with pytest.raises(AppInterfaceSettingsError):
-        get_app_interface_repo_url(query_func=query_func(data.dict(by_alias=True)))
+        get_app_interface_repo_url(
+            query_func=query_func(data.model_dump(by_alias=True))
+        )
 
 
 def test_get_repo_url(
@@ -40,5 +44,7 @@ def test_get_repo_url(
     data = gql_class_factory(
         AppInterfaceRepoSettingsQueryData, {"settings": [{"repoUrl": "url"}]}
     )
-    url = get_app_interface_repo_url(query_func=query_func(data.dict(by_alias=True)))
+    url = get_app_interface_repo_url(
+        query_func=query_func(data.model_dump(by_alias=True))
+    )
     assert url == "url"

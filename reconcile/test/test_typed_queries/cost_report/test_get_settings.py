@@ -37,7 +37,7 @@ def test_get_cost_report_settings(
     gql_api_builder: Callable[..., GqlApi],
     cost_report_settings_data: CostReportAppInterfaceSettingsQueryData,
 ) -> None:
-    gql_api = gql_api_builder(cost_report_settings_data.dict(by_alias=True))
+    gql_api = gql_api_builder(cost_report_settings_data.model_dump(by_alias=True))
     expected_settings = CostReportSettingsV1(
         credentials=VaultSecret(
             path="some-path",

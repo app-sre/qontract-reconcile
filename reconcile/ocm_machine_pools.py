@@ -7,11 +7,7 @@ from collections.abc import Iterable, Mapping
 from enum import Enum
 from typing import Any, Self
 
-from pydantic import (
-    BaseModel,
-    Field,
-    root_validator,
-)
+from pydantic import BaseModel, Field, model_validator
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
@@ -61,7 +57,8 @@ class MachinePoolAutoscaling(AbstractAutoscaling):
     min_replicas: int
     max_replicas: int
 
-    @root_validator()
+    @model_validator(mode="before")
+    @classmethod
     def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         min_replicas = field_values.get("min_replicas")
         max_replicas = field_values.get("max_replicas")
@@ -82,7 +79,8 @@ class NodePoolAutoscaling(AbstractAutoscaling):
     min_replica: int
     max_replica: int
 
-    @root_validator()
+    @model_validator(mode="before")
+    @classmethod
     def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         min_replica = field_values.get("min_replica")
         max_replica = field_values.get("max_replica")
@@ -103,14 +101,15 @@ class AbstractPool(ABC, BaseModel):
     # Abstract class for machine pools, to be implemented by OSD/HyperShift classes
 
     id: str
-    replicas: int | None
-    taints: list[Mapping[str, str]] | None
-    labels: Mapping[str, str] | None
+    replicas: int | None = None
+    taints: list[Mapping[str, str]] | None = None
+    labels: Mapping[str, str] | None = None
     cluster: str
     cluster_type: ClusterType = Field(..., exclude=True)
-    autoscaling: AbstractAutoscaling | None
+    autoscaling: AbstractAutoscaling | None = None
 
-    @root_validator()
+    @model_validator(mode="before")
+    @classmethod
     def validate_scaling(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         if field_values.get("autoscaling") and field_values.get("replicas"):
             raise ValueError("autoscaling and replicas are mutually exclusive")
@@ -154,13 +153,13 @@ class MachinePool(AbstractPool):
     instance_type: str
 
     def delete(self, ocm: OCM) -> None:
-        ocm.delete_machine_pool(self.cluster, self.dict(by_alias=True))
+        ocm.delete_machine_pool(self.cluster, self.model_dump(by_alias=True))
 
     def create(self, ocm: OCM) -> None:
-        ocm.create_machine_pool(self.cluster, self.dict(by_alias=True))
+        ocm.create_machine_pool(self.cluster, self.model_dump(by_alias=True))
 
     def update(self, ocm: OCM) -> None:
-        update_dict = self.dict(by_alias=True)
+        update_dict = self.model_dump(by_alias=True)
         # can not update instance_type
         del update_dict["instance_type"]
         if not update_dict["labels"]:
@@ -214,7 +213,7 @@ class MachinePool(AbstractPool):
             replicas=pool.replicas,
             autoscaling=autoscaling,
             instance_type=pool.instance_type,
-            taints=[p.dict(by_alias=True) for p in pool.taints or []],
+            taints=[p.model_dump(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             cluster=cluster,
             cluster_type=cluster_type,
@@ -232,14 +231,14 @@ class NodePool(AbstractPool):
     subnet: str | None
 
     def delete(self, ocm: OCM) -> None:
-        ocm.delete_node_pool(self.cluster, self.dict(by_alias=True))
+        ocm.delete_node_pool(self.cluster, self.model_dump(by_alias=True))
 
     def create(self, ocm: OCM) -> None:
-        spec = self.dict(by_alias=True)
+        spec = self.model_dump(by_alias=True)
         ocm.create_node_pool(self.cluster, spec)
 
     def update(self, ocm: OCM) -> None:
-        update_dict = self.dict(by_alias=True)
+        update_dict = self.model_dump(by_alias=True)
         # can not update instance_type
         del update_dict["aws_node_pool"]
         # can not update subnet
@@ -297,7 +296,7 @@ class NodePool(AbstractPool):
             aws_node_pool=AWSNodePool(
                 instance_type=pool.instance_type,
             ),
-            taints=[p.dict(by_alias=True) for p in pool.taints or []],
+            taints=[p.model_dump(by_alias=True) for p in pool.taints or []],
             labels=pool.labels,
             subnet=pool.subnet,
             cluster=cluster,
@@ -312,7 +311,7 @@ class PoolHandler(BaseModel):
     pool: AbstractPool
 
     def act(self, dry_run: bool, ocm: OCM) -> None:
-        logging.info(f"{self.action} {self.pool.dict(by_alias=True)}")
+        logging.info(f"{self.action} {self.pool.model_dump(by_alias=True)}")
         if dry_run:
             return
 
@@ -531,7 +530,7 @@ def run(dry_run: bool) -> None:
 
     settings = queries.get_app_interface_settings()
     cluster_like_objects = [
-        cluster.dict(by_alias=True) for cluster in filtered_clusters
+        cluster.model_dump(by_alias=True) for cluster in filtered_clusters
     ]
     ocm_map = OCMMap(
         clusters=cluster_like_objects,

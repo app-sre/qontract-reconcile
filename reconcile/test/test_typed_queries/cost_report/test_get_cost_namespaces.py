@@ -63,7 +63,7 @@ def test_get_cost_namespaces(
     namespace_response: CostNamespacesQueryData,
     expected_cost_namespace: CostNamespace,
 ) -> None:
-    response = namespace_response.dict(by_alias=True)
+    response = namespace_response.model_dump(by_alias=True)
     # .dict will convert all nested fields to dicts, including labels
     # the mocked response need to be json string to match data type
     for n in response["namespaces"]:

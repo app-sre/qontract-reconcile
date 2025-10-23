@@ -141,16 +141,16 @@ class OCMClusterAWSOperatorRole(BaseModel):
 
 
 class OCMAWSSTS(OCMClusterFlag):
-    role_arn: str | None
-    support_role_arn: str | None
-    oidc_endpoint_url: str | None
-    operator_iam_roles: list[OCMClusterAWSOperatorRole] | None
-    instance_iam_roles: dict[str, str] | None
-    operator_role_prefix: str | None
+    role_arn: str | None = None
+    support_role_arn: str | None = None
+    oidc_endpoint_url: str | None = None
+    operator_iam_roles: list[OCMClusterAWSOperatorRole] | None = None
+    instance_iam_roles: dict[str, str] | None = None
+    operator_role_prefix: str | None = None
 
 
 class OCMClusterAWSSettings(BaseModel):
-    sts: OCMAWSSTS | None
+    sts: OCMAWSSTS | None = None
 
     @property
     def sts_enabled(self) -> bool:
@@ -264,21 +264,21 @@ class OCMCluster(BaseModel):
     product: OCMModelLink
     identity_providers: OCMCollectionLink
 
-    aws: OCMClusterAWSSettings | None
+    aws: OCMClusterAWSSettings | None = None
 
     version: OCMClusterVersion
 
     hypershift: OCMClusterFlag
 
-    console: OCMClusterConsole | None
+    console: OCMClusterConsole | None = None
 
-    api: OCMClusterAPI | None
+    api: OCMClusterAPI | None = None
 
-    dns: OCMClusterDns | None
+    dns: OCMClusterDns | None = None
 
-    external_configuration: OCMExternalConfiguration | None
+    external_configuration: OCMExternalConfiguration | None = None
 
-    external_auth_config: OCMExternalAuthConfig | None
+    external_auth_config: OCMExternalAuthConfig | None = None
 
     def minor_version(self) -> str:
         version_info = parse_semver(self.version.raw_id)
@@ -570,14 +570,11 @@ class OCMOIdentityProviderGithub(OCMOIdentityProvider):
     )
 
 
-class OCMOIdentityProviderOidcOpenIdClaims(BaseModel):
+class OCMOIdentityProviderOidcOpenIdClaims(BaseModel, frozen=True):
     email: list[str]
     name: list[str] = []
     preferred_username: list[str]
     groups: list[str] = []
-
-    class Config:
-        frozen = True
 
 
 class OCMOIdentityProviderOidcOpenId(BaseModel):
@@ -618,11 +615,11 @@ class OCMAddonUpgradePolicy(BaseModel):
     id: str
     addon_id: str
     cluster_id: str
-    next_run: str | None
-    schedule: str | None
+    next_run: str | None = None
+    schedule: str | None = None
     schedule_type: str
     version: str
-    state: str | None
+    state: str | None = None
 
 
 def build_label_container(

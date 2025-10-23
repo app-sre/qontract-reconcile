@@ -13,14 +13,11 @@ from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_q
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
-class AcsBaseApi(BaseModel):
+class AcsBaseApi(BaseModel, validate_by_name=True, validate_by_alias=True):
     url: str
     token: str
     timeout: int = 30
     session: requests.Session = requests.Session()
-
-    class Config:
-        arbitrary_types_allowed = True
 
     def __enter__(self) -> Self:
         return self

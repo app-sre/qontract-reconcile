@@ -1,3 +1,5 @@
+from typing import Annotated
+
 import pytest
 from pydantic import (
     BaseModel,
@@ -60,9 +62,10 @@ def test_build_csv_labelset(label_container: LabelContainer) -> None:
 
 
 class GroupingLabelSet(BaseModel):
-    group: dict[str, str] = labelset_groupfield(
-        group_prefix=sre_capability_label_key("c", "group.")
-    )
+    group: Annotated[
+        dict[str, str],
+        labelset_groupfield(group_prefix=sre_capability_label_key("c", "group.")),
+    ]
 
 
 def test_build_grouping_labelset(label_container: LabelContainer) -> None:

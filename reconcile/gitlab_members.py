@@ -44,18 +44,12 @@ class GitlabUser(BaseModel):
     access_level: int
 
 
-class CurrentStateSpec(BaseModel):
+class CurrentStateSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
     members: dict[str, GroupMember]
 
-    class Config:
-        arbitrary_types_allowed = True
 
-
-class DesiredStateSpec(BaseModel):
+class DesiredStateSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
     members: dict[str, GitlabUser]
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 CurrentState = dict[str, CurrentStateSpec]
@@ -239,6 +233,6 @@ def reconcile_gitlab_members(
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
     return {
-        "instance": get_gitlab_instance(gqlapi.query).dict(),
-        "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
+        "instance": get_gitlab_instance(gqlapi.query).model_dump(),
+        "permissions": [p.model_dump() for p in get_permissions(gqlapi.query)],
     }

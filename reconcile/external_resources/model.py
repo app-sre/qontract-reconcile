@@ -89,7 +89,7 @@ class ExternalResourceKey(BaseModel, frozen=True):
         )
 
     def hash(self) -> str:
-        return hashlib.md5(json_dumps(self.dict()).encode("utf-8")).hexdigest()
+        return hashlib.md5(json_dumps(self.model_dump()).encode("utf-8")).hexdigest()
 
     @property
     def state_path(self) -> str:
@@ -138,15 +138,15 @@ class ExternalResourcesInventory(MutableMapping):
     ) -> ExternalResourceSpec:
         spec = ExternalResourceSpec(
             provision_provider=provider.provider,
-            provisioner=provider.provisioner.dict(),
-            resource=resource.dict(
+            provisioner=provider.provisioner.model_dump(),
+            resource=resource.model_dump(
                 exclude={
                     FLAG_RESOURCE_MANAGED_BY_ERV2,
                     FLAG_DELETE_RESOURCE,
                     MODULE_OVERRIDES,
                 }
             ),
-            namespace=namespace.dict(by_alias=True),
+            namespace=namespace.model_dump(by_alias=True),
         )
         spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete or namespace.delete
         spec.metadata[MODULE_OVERRIDES] = resource.module_overrides
@@ -387,7 +387,7 @@ class Reconciliation(BaseModel, frozen=True):
     )
     # linked_resources store dependants resources. They will get reconciled
     # every time the parent resource reconciliation finishes.
-    linked_resources: frozenset[ExternalResourceKey] | None
+    linked_resources: frozenset[ExternalResourceKey] | None = None
 
 
 class ReconcileAction(StrEnum):

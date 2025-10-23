@@ -1,7 +1,5 @@
 from collections import UserList
 from collections.abc import (
-    Callable,
-    Generator,
     MutableMapping,
 )
 from typing import Any
@@ -9,75 +7,135 @@ from typing import Any
 from croniter import croniter
 from pydantic import (
     BaseModel,
+    GetCoreSchemaHandler,
     ValidationError,
 )
-from pydantic import errors as pydantic_errors
-from pydantic.fields import ModelField
+from pydantic_core import core_schema
 
 DEFAULT_STRING = "I was too lazy to define a string here"
 DEFAULT_INT = 42
+DEFAULT_BOOL = False
 
 
 def data_default_none(
-    klass: type[BaseModel], data: MutableMapping[str, Any], use_defaults: bool = True
+    klass: type[BaseModel] | dict,
+    data: MutableMapping[str, Any],
+    use_defaults: bool = True,
+    definitions: list[dict[str, Any]] | None = None,
 ) -> MutableMapping[str, Any]:
-    """Set default values to None for required but optional fields."""
-    for field in klass.__fields__.values():
-        if not field.required:
-            continue
+    """Set default values for required fields.
 
-        if field.alias not in data:
-            # Settings defaults
-            if field.allow_none:
-                data[field.alias] = None
-            elif not use_defaults:
-                raise ValueError(f"Field {field.alias} is required but not set.")
-            elif isinstance(field.type_, type) and issubclass(field.type_, str):
-                data[field.alias] = DEFAULT_STRING
-            elif isinstance(field.type_, type) and issubclass(field.type_, bool):
-                data[field.alias] = False
-            elif isinstance(field.type_, type) and issubclass(field.type_, int):
-                data[field.alias] = DEFAULT_INT
-        elif isinstance(field.type_, type) and issubclass(field.type_, BaseModel):
-            if isinstance(data[field.alias], dict):
-                data[field.alias] = data_default_none(field.type_, data[field.alias])
-            if isinstance(data[field.alias], list):
-                data[field.alias] = [
-                    data_default_none(field.type_, item)
-                    for item in data[field.alias]
-                    if isinstance(item, dict)
-                ]
-        elif field.sub_fields:
-            if all(
-                isinstance(sub_field.type_, type)
-                and issubclass(sub_field.type_, BaseModel)
-                for sub_field in field.sub_fields
-            ):
-                # Union[ClassA, ClassB] field
-                for sub_field in field.sub_fields:
-                    if isinstance(data[field.alias], dict):
-                        try:
-                            d = dict(data[field.alias])
-                            d.update(data_default_none(sub_field.type_, d))
-                            # Lets confirm we found a matching union class
-                            sub_field.type_(**d)
-                            data[field.alias] = d
-                            break
-                        except ValidationError:
-                            continue
-            elif isinstance(data[field.alias], list) and len(field.sub_fields) == 1:
-                # list[Union[ClassA, ClassB]] field
-                for sub_data in data[field.alias]:
-                    for sub_field in field.sub_fields[0].sub_fields or []:
-                        try:
-                            d = dict(sub_data)
-                            d.update(data_default_none(sub_field.type_, d))
-                            # Lets confirm we found a matching union class
-                            sub_field.type_(**d)
-                            sub_data.update(d)
-                            break
-                        except ValidationError:
-                            continue
+    If the field is:
+    * optional - set to None
+    * required and use_defaults is True - set to a default value depending on the type
+    """
+    if isinstance(klass, dict):
+        # Handle the case where klass is already a schema dict
+        schema = klass
+    else:
+        match klass.__pydantic_core_schema__["type"]:
+            case "definitions":
+                schema = klass.__pydantic_core_schema__["schema"]["schema"]
+                definitions = klass.__pydantic_core_schema__["definitions"]
+            case _:
+                schema = klass.__pydantic_core_schema__["schema"]
+
+    for name, field_info in schema["fields"].items():
+        alias = field_info.get("validation_alias", name)
+        if alias not in data:
+            # Set defaults
+            match field_info["schema"]["type"]:
+                case "nullable":
+                    data[alias] = None
+                case "str":
+                    if not use_defaults:
+                        raise ValueError(f"Field {alias} is required but not set.")
+                    data[alias] = DEFAULT_STRING
+                case "int":
+                    if not use_defaults:
+                        raise ValueError(f"Field {alias} is required but not set.")
+                    data[alias] = DEFAULT_INT
+                case "bool":
+                    if not use_defaults:
+                        raise ValueError(f"Field {alias} is required but not set.")
+                    data[alias] = DEFAULT_BOOL
+        else:
+            # Recursively set defaults for nested models
+            match field_info["schema"]["type"]:
+                case "model":
+                    # Nested BaseModel
+                    data[alias] = data_default_none(
+                        field_info["schema"]["schema"],
+                        data[alias],
+                        definitions=definitions,
+                    )
+                case "definition-ref":
+                    # Nested BaseModel via definition-ref. E.g. our VaultSecret fragment
+                    if not definitions:
+                        raise RuntimeError(
+                            "definitions parameter is required for definition-ref fields"
+                        )
+                    ref_schema = next(
+                        definition
+                        for definition in definitions
+                        if definition["ref"] == field_info["schema"]["schema_ref"]
+                    )
+                    data[alias] = data_default_none(
+                        ref_schema["schema"],
+                        data[alias],
+                        definitions=definitions,
+                    )
+                case "union":
+                    # Union field - only handle BaseModel members
+                    for sub_field in field_info["schema"]["choices"]:
+                        if isinstance(data[alias], dict):
+                            try:
+                                d = dict(data[alias])
+                                d.update(
+                                    data_default_none(
+                                        sub_field["schema"], d, definitions=definitions
+                                    )
+                                )
+                                # Lets confirm we found a matching union class
+                                sub_field["cls"](**d)
+                                data[alias] = d
+                                break
+                            except ValidationError:
+                                continue
+                case "list":
+                    match field_info["schema"]["items_schema"]["type"]:
+                        case "model":
+                            # list[BaseModel]
+                            data[alias] = [
+                                data_default_none(
+                                    field_info["schema"]["items_schema"]["schema"],
+                                    item,
+                                    definitions=definitions,
+                                )
+                                for item in data[alias]
+                            ]
+                        case "union":
+                            # list[Union[...]]
+                            for sub_data in data[alias]:
+                                for sub_field in field_info["schema"]["items_schema"][
+                                    "choices"
+                                ]:
+                                    if isinstance(sub_data, dict):
+                                        try:
+                                            d = dict(sub_data)
+                                            d.update(
+                                                data_default_none(
+                                                    sub_field["schema"],
+                                                    d,
+                                                    definitions=definitions,
+                                                )
+                                            )
+                                            # Lets confirm we found a matching union class
+                                            sub_field["cls"](**d)
+                                            sub_data.update(d)
+                                            break
+                                        except ValidationError:
+                                            continue
 
     return data
 
@@ -89,28 +147,16 @@ class CSV(UserList[str]):
     """
 
     @classmethod
-    def __get_validators__(cls) -> Generator[Callable, None, None]:  # noqa: PLW3201
-        yield cls.validate
-        yield cls.length_validator
+    def __get_pydantic_core_schema__(  # noqa: PLW3201
+        cls, source: type[Any], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        return core_schema.with_info_before_validator_function(
+            cls._validate, core_schema.list_schema()
+        )
 
     @classmethod
-    def validate(cls, value: str) -> list[str]:
-        items = [] if not value else value.split(",")
-        return items
-
-    @classmethod
-    def length_validator(
-        cls, v: "list[str]", values: dict, field: ModelField
-    ) -> "list[str]":
-        min_items = field.field_info.extra.get("csv_min_items")
-        max_items = field.field_info.extra.get("csv_max_items")
-
-        v_len = len(v)
-        if min_items is not None and v_len < min_items:
-            raise pydantic_errors.ListMinLengthError(limit_value=min_items)
-        if max_items is not None and v_len > max_items:
-            raise pydantic_errors.ListMaxLengthError(limit_value=max_items)
-        return v
+    def _validate(cls, __input_value: str, _: Any) -> list[str]:
+        return [] if not __input_value else __input_value.split(",")
 
 
 def cron_validator(value: str) -> str:
