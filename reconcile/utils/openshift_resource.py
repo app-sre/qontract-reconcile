@@ -5,6 +5,7 @@ import base64
 import contextlib
 import copy
 import hashlib
+import logging
 import re
 from threading import Lock
 from typing import TYPE_CHECKING, Any
@@ -601,6 +602,10 @@ class ResourceInventory:
         resource: OpenshiftResource,
         privileged: bool = False,
     ) -> None:
+        if cluster not in self._clusters:
+            logging.error(f"Cluster {cluster} not initialized in ResourceInventory")
+            return
+
         if resource.kind_and_group in self._clusters[cluster][namespace]:
             kind = resource.kind_and_group
         else:
