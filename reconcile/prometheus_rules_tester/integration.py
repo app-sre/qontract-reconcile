@@ -56,7 +56,7 @@ class Test(BaseModel):
     rule_path: str
     rule: dict
     rule_length: int
-    tests: list[TestContent] | None
+    tests: list[TestContent] | None = None
     result: CommandExecutionResult | None = None
     promtool_version: str
 

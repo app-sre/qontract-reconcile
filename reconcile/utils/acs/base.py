@@ -6,18 +6,24 @@ from typing import (
 )
 
 import requests
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 
 
-class AcsBaseApi(BaseModel, validate_by_name=True, validate_by_alias=True):
+class AcsBaseApi(BaseModel):
     url: str
     token: str
     timeout: int = 30
     session: requests.Session = requests.Session()
+
+    model_config = ConfigDict(
+        validate_by_name=True,
+        validate_by_alias=True,
+        arbitrary_types_allowed=True,
+    )
 
     def __enter__(self) -> Self:
         return self

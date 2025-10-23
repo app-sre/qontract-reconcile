@@ -6,12 +6,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from reconcile.gql_definitions.fragments.terraform_state import (
-    AWSTerraformStateIntegrationsV1,
-)
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
+    AWSTerraformStateIntegrationsV1,
     TerraformRepoV1,
     TerraformRepoVariablesV1,
     TerraformStateAWSV1,

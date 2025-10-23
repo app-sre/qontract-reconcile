@@ -575,8 +575,8 @@ def test_conditions_met_deep_deps_mix_versions(
 
 
 class StubPolicy(base.AbstractUpgradePolicy):
-    created = False
-    deleted = False
+    created: bool = False
+    deleted: bool = False
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         self.created = True

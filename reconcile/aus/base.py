@@ -16,7 +16,7 @@ from typing import (
 )
 
 from croniter import croniter
-from pydantic import BaseModel, ConfigDict, Extra
+from pydantic import BaseModel, ConfigDict
 from requests.exceptions import HTTPError
 from semver import VersionInfo
 
@@ -439,6 +439,7 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
     model_config = ConfigDict(
         validate_by_name=True,
         validate_by_alias=True,
+        arbitrary_types_allowed=True,
     )
 
     def create(self, ocm_api: OCMBaseClient) -> None:
@@ -553,7 +554,7 @@ class NodePoolUpgradePolicy(AbstractUpgradePolicy):
         return f"node pool upgrade policy - {remove_none_values_from_dict(details)}"
 
 
-class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
+class UpgradePolicyHandler(BaseModel, extra="forbid"):
     """Class to handle upgrade policy actions"""
 
     action: str

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Self, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from reconcile.gql_definitions.maintenance.maintenances import (
     MaintenanceStatuspageAnnouncementV1,
@@ -19,19 +19,23 @@ from reconcile.statuspage.status import (
 PROVIDER_NAME = "statuspage"
 
 
-class StatusComponent(BaseModel, validate_by_name=True, validate_by_alias=True):
+class StatusComponent(BaseModel):
     """
     Represents a status page component from the desired state.
     """
 
     name: str
     display_name: str
-    description: str | None
-    group_name: str | None
+    description: str | None = None
+    group_name: str | None = None
+    # Status provider configs hold different ways for a component to determine its status
     status_provider_configs: list[StatusProvider]
-    """
-    Status provider configs hold different ways for a component to determine its status
-    """
+
+    model_config = ConfigDict(
+        validate_by_name=True,
+        validate_by_alias=True,
+        arbitrary_types_allowed=True,
+    )
 
     def status_management_enabled(self) -> bool:
         """

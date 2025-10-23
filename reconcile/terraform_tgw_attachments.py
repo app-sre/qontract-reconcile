@@ -69,7 +69,7 @@ class ValidationError(Exception):
 class TGWAccountProviderInfo(BaseModel):
     name: str
     uid: str
-    assume_role: str | None
+    assume_role: str | None = None
     assume_region: str
 
 
@@ -81,10 +81,10 @@ class Requester(BaseModel):
     tgw_id: str
     tgw_arn: str
     region: str
-    routes: list[dict] | None
-    rules: list[dict] | None
-    hostedzones: list[str] | None
-    cidr_block: str | None
+    routes: list[dict] | None = None
+    rules: list[dict] | None = None
+    hostedzones: list[str] | None = None
+    cidr_block: str | None = None
     cidr_blocks: list[str]
     account: TGWAccountProviderInfo
 
@@ -92,11 +92,11 @@ class Requester(BaseModel):
 class Accepter(BaseModel):
     cidr_block: str
     region: str
-    vpc_id: str | None
-    route_table_ids: list[str] | None
-    subnets_id_az: list[dict[str, str]] | None
+    vpc_id: str | None = None
+    route_table_ids: list[str] | None = None
+    subnets_id_az: list[dict[str, str]] | None = None
     account: ClusterAccountProviderInfo
-    api_security_group_id: str | None
+    api_security_group_id: str | None = None
 
 
 class DesiredStateItem(BaseModel):

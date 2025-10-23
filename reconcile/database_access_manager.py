@@ -73,7 +73,7 @@ class DatabaseConnectionParameters(
 
 class PSQLScriptGenerator(BaseModel):
     db_access: DatabaseAccessV1
-    current_db_access: DatabaseAccessV1 | None
+    current_db_access: DatabaseAccessV1 | None = None
     connection_parameter: DatabaseConnectionParameters
     admin_connection_parameter: DatabaseConnectionParameters
     engine: str

@@ -6,7 +6,7 @@ from gitlab.v4.objects import (
     Group,
     GroupMember,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from reconcile import queries
 from reconcile.gql_definitions.common.pagerduty_instances import (
@@ -44,8 +44,13 @@ class GitlabUser(BaseModel):
     access_level: int
 
 
-class CurrentStateSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
+class CurrentStateSpec(BaseModel):
     members: dict[str, GroupMember]
+    model_config = ConfigDict(
+        validate_by_name=True,
+        validate_by_alias=True,
+        arbitrary_types_allowed=True,
+    )
 
 
 class DesiredStateSpec(BaseModel, validate_by_name=True, validate_by_alias=True):

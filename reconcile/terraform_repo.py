@@ -41,10 +41,10 @@ class RepoOutput(BaseModel):
     project_path: str
     delete: bool
     aws_creds: VaultSecret
-    variables: TerraformRepoVariablesV1 | None
-    bucket: str | None
-    region: str | None
-    bucket_path: str | None
+    variables: TerraformRepoVariablesV1 | None = None
+    bucket: str | None = None
+    region: str | None = None
+    bucket_path: str | None = None
     require_fips: bool
     tf_version: str
 
@@ -62,8 +62,8 @@ class OutputFile(BaseModel):
 class TerraformRepoIntegrationParams(PydanticRunParams):
     output_file: str | None
     validate_git: bool
-    gitlab_project_id: str | None
-    gitlab_merge_request_id: int | None
+    gitlab_project_id: str | None = None
+    gitlab_merge_request_id: int | None = None
 
 
 class TerraformRepoIntegration(

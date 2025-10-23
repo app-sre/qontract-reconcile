@@ -38,7 +38,7 @@ class Stats(BaseModel):
 
     min_version: str
     min_version_per_workload: dict[str, str] = Field(default_factory=dict)
-    inherited: Optional["Stats"]
+    inherited: Optional["Stats"] = None
 
     def inherit(self, added: "Stats") -> None:
         """adds the provided stats to our inherited data
@@ -93,9 +93,9 @@ class VersionData(BaseModel):
     upgrade policies.
     """
 
-    check_in: datetime | None
+    check_in: datetime | None = None
     versions: dict[str, VersionHistory] = Field(default_factory=dict)
-    stats: Stats | None
+    stats: Stats | None = None
 
     def jsondict(self) -> dict[str, Any]:
         return json.loads(self.json(exclude_none=True))

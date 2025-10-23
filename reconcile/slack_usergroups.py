@@ -12,7 +12,7 @@ from typing import (
 )
 
 from github.GithubException import UnknownObjectException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic.utils import deep_update
 from sretoolbox.utils import retry
 
@@ -123,11 +123,16 @@ class State(BaseModel):
 SlackState = dict[str, dict[str, State]]
 
 
-class WorkspaceSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
+class WorkspaceSpec(BaseModel):
     """Slack workspace spec."""
 
     slack: SlackApi
     managed_usergroups: list[str] = []
+    model_config = ConfigDict(
+        validate_by_name=True,
+        validate_by_alias=True,
+        arbitrary_types_allowed=True,
+    )
 
 
 SlackMap = dict[str, WorkspaceSpec]

@@ -15,22 +15,20 @@ from reconcile.gql_definitions.openshift_cluster_bots.clusters import (
 )
 
 
-def vault_secret(path: str, field: str) -> VaultSecret:
-    return VaultSecret(path=path, field=field, version=None, format=None)
-
-
 def vault_secret_dict(path: str, field: str) -> dict[str, str | None]:
-    return vault_secret(path=path, field=field).model_dump(by_alias=True)
+    return VaultSecret(path=path, field=field, version=None, format=None).model_dump(
+        by_alias=True
+    )
 
 
 @pytest.fixture
-def secret() -> VaultSecret:
-    return vault_secret(path="app-sre/bot", field="token")
+def secret() -> dict[str, str | None]:
+    return vault_secret_dict(path="app-sre/bot", field="token")
 
 
 @pytest.fixture
-def admin_secret() -> VaultSecret:
-    return vault_secret(path="app-sre/admin-bot", field="token")
+def admin_secret() -> dict[str, str | None]:
+    return vault_secret_dict(path="app-sre/admin-bot", field="token")
 
 
 @pytest.fixture

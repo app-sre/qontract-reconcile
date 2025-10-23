@@ -258,7 +258,7 @@ def cluster_builder(
 @pytest.fixture
 def peering_builder(
     gql_class_factory: Callable[..., ClusterPeeringV1],
-) -> Callable[..., ClusterPeeringV1]:
+) -> Callable[..., dict]:
     def builder(
         connections: list[
             ClusterPeeringConnectionAccountTGWV1
@@ -267,13 +267,13 @@ def peering_builder(
             | ClusterPeeringConnectionClusterRequesterV1
             | ClusterPeeringConnectionV1
         ],
-    ) -> ClusterPeeringV1:
+    ) -> dict:
         return gql_class_factory(
             ClusterPeeringV1,
             {
                 "connections": connections,
             },
-        )
+        ).model_dump(by_alias=True)
 
     return builder
 
@@ -281,7 +281,7 @@ def peering_builder(
 @pytest.fixture
 def cluster_with_tgw_connection(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
+    peering_builder: Callable[..., dict],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -301,7 +301,7 @@ def cluster_with_tgw_connection(
 @pytest.fixture
 def cluster_with_2_tgw_connections(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
+    peering_builder: Callable[..., dict],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
@@ -323,7 +323,7 @@ def cluster_with_2_tgw_connections(
 @pytest.fixture
 def additional_cluster_with_tgw_connection(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
+    peering_builder: Callable[..., dict],
     additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -343,7 +343,7 @@ def additional_cluster_with_tgw_connection(
 @pytest.fixture
 def cluster_with_duplicate_tgw_connections(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
+    peering_builder: Callable[..., dict],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -364,7 +364,7 @@ def cluster_with_duplicate_tgw_connections(
 @pytest.fixture
 def cluster_with_vpc_connection(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
+    peering_builder: Callable[..., dict],
     account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -384,7 +384,7 @@ def cluster_with_vpc_connection(
 @pytest.fixture
 def cluster_with_mixed_connections(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., ClusterPeeringV1],
+    peering_builder: Callable[..., dict],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:

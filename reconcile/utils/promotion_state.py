@@ -19,13 +19,13 @@ class PromotionData(BaseModel, extra="forbid"):
 
     # The success is primarily used for SAPM auto-promotions
     success: bool
-    target_config_hash: str | None
-    saas_file: str | None
-    check_in: str | None
+    target_config_hash: str | None = None
+    saas_file: str | None = None
+    check_in: str | None = None
     # Whether this promotion has ever succeeded
     # Note, this shouldnt be overridden on subsequent promotions of same ref
     # This attribute is primarily used by saasherder validations
-    has_succeeded_once: bool | None
+    has_succeeded_once: bool | None = None
 
 
 class PromotionState:

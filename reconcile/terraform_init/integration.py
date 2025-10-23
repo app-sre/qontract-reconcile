@@ -34,7 +34,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
 
 
 class TerraformInitIntegrationParams(PydanticRunParams):
-    account_name: str | None
+    account_name: str | None = None
     # To avoid the accidental deletion of the resource file, explicitly set the
     # qontract.cli option in the integration extraArgs!
     state_tmpl_resource: str = "/terraform-init/terraform-state.yml"

@@ -624,7 +624,12 @@ def aws_shard_overrides(
     aws_accounts: list[sharding_aws_accounts.AWSAccountV1],
 ) -> list[AWSAccountShardSpecOverrideV1]:
     o1 = AWSAccountShardSpecOverrideV1(
-        shard=aws_accounts[0], imageRef="acc1-image", disabled=False, resources=None
+        # aws_accounts is sharding.AWSAccountV1 but must be integrations.AWSAccountV1
+        # use model_dump to convert between the two
+        shard=aws_accounts[0].model_dump(by_alias=True),
+        imageRef="acc1-image",
+        disabled=False,
+        resources=None,
     )
     resources["requests"]["cpu"] = "200m"
     resources["requests"]["memory"] = "2Mi"
@@ -633,13 +638,18 @@ def aws_shard_overrides(
 
     deploy_resources = gql_class_factory(DeployResourcesFields, resources)
     o2 = AWSAccountShardSpecOverrideV1(
-        shard=aws_accounts[1],
+        # see above comment
+        shard=aws_accounts[1].model_dump(by_alias=True),
         imageRef=None,
         resources=deploy_resources,
         disabled=False,
     )
     o3 = AWSAccountShardSpecOverrideV1(
-        shard=aws_accounts[2], resources=None, imageRef=None, disabled=True
+        # see above comment
+        shard=aws_accounts[2].model_dump(by_alias=True),
+        resources=None,
+        imageRef=None,
+        disabled=True,
     )
 
     return [o1, o2, o3]

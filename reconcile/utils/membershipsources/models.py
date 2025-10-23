@@ -52,24 +52,24 @@ class RoleWithMemberships(Protocol):
 class RoleUser(BaseModel, extra="ignore"):
     name: str
     org_username: str
-    github_username: str | None
-    quay_username: str | None
-    pagerduty_username: str | None
-    aws_username: str | None
-    cloudflare_user: str | None
-    public_gpg_key: str | None
+    github_username: str | None = None
+    quay_username: str | None = None
+    pagerduty_username: str | None = None
+    aws_username: str | None = None
+    cloudflare_user: str | None = None
+    public_gpg_key: str | None = None
     tag_on_cluster_updates: bool | None = False
     tag_on_merge_requests: bool | None = False
 
 
 class RoleBot(BaseModel, extra="ignore"):
     name: str
-    description: str | None
-    org_username: str | None
-    github_username: str | None
-    gitlab_username: str | None
-    openshift_serviceaccount: str | None
-    quay_username: str | None
+    description: str | None = None
+    org_username: str | None = None
+    github_username: str | None = None
+    gitlab_username: str | None = None
+    openshift_serviceaccount: str | None = None
+    quay_username: str | None = None
 
 
 RoleMember = RoleUser | RoleBot

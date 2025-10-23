@@ -1370,10 +1370,10 @@ def test_get_state_count_combinations() -> None:
 
 def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
     class OpenShiftResourcesStub(BaseModel):
-        openshift_resources: list | None
+        openshift_resources: list | None = None
 
     class OpenShiftResourcesAndSharedResourcesStub(OpenShiftResourcesStub, BaseModel):
-        shared_resources: list[OpenShiftResourcesStub] | None
+        shared_resources: list[OpenShiftResourcesStub] | None = None
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=[1], shared_resources=None
@@ -1398,12 +1398,12 @@ def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
 
 def test_aggregate_shared_resources_typed_openshift_service_account_token() -> None:
     class OpenshiftServiceAccountTokensStub(BaseModel):
-        openshift_service_account_tokens: list | None
+        openshift_service_account_tokens: list | None = None
 
     class OpenshiftServiceAccountTokensAndSharedResourcesStub(
         OpenshiftServiceAccountTokensStub, BaseModel
     ):
-        shared_resources: list[OpenshiftServiceAccountTokensStub] | None
+        shared_resources: list[OpenshiftServiceAccountTokensStub] | None = None
 
     namespace = OpenshiftServiceAccountTokensAndSharedResourcesStub(
         openshift_service_account_tokens=[1], shared_resources=None

@@ -145,7 +145,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         for saml_idp_config in self.build_saml_idp_config(
             aws_accounts,
             saml_idp_name=self.params.saml_idp_name,
-            saml_metadata=self.get_saml_metadata(self.params.saml_metadata_url),
+            saml_metadata=self.get_saml_metadata(str(self.params.saml_metadata_url)),
         ):
             ts.populate_saml_idp(
                 account_name=saml_idp_config.account_name,

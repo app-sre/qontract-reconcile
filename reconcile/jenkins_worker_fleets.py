@@ -78,7 +78,7 @@ class JenkinsWorkerFleet(BaseModel):
         return hash(self.fleet + self.region)
 
     def differ(self, other: JenkinsWorkerFleet) -> bool:
-        return self.model_dump() != other.model_dump()
+        return self.model_dump(mode="json") != other.model_dump(mode="json")
 
 
 def get_current_state(jenkins: JenkinsApi) -> list[JenkinsWorkerFleet]:
@@ -170,7 +170,11 @@ def act(
 
         if not dry_run:
             d_clouds = [
-                {"eC2Fleet": d.model_dump(by_alias=True, exclude_none=True)}
+                {
+                    "eC2Fleet": d.model_dump(
+                        mode="json", by_alias=True, exclude_none=True
+                    )
+                }
                 for d in desired_state
             ]
             config = {"jenkins": {"clouds": d_clouds}}

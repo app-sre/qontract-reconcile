@@ -321,7 +321,7 @@ def build_cluster_details(
                 for k, v in subs_labels or []
             ],
         ),
-        capabilities=[],
+        capabilities={},
     )
 
 

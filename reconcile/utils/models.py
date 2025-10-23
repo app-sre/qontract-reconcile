@@ -16,7 +16,7 @@ DEFAULT_STRING = "I was too lazy to define a string here"
 DEFAULT_INT = 42
 DEFAULT_BOOL = False
 DEFAULT_JSON_STR = "{}"
-DEFAULT_JSON = {}
+DEFAULT_JSON: dict = {}
 
 DataType = MutableMapping[str, Any] | str | int | bool | list | None
 

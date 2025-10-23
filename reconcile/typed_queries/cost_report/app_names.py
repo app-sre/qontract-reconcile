@@ -6,7 +6,7 @@ from reconcile.utils.gql import GqlApi
 
 class App(BaseModel):
     name: str
-    parent_app_name: str | None
+    parent_app_name: str | None = None
 
 
 def get_app_names(

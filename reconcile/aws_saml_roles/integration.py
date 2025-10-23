@@ -6,6 +6,7 @@ from collections.abc import (
 )
 from typing import (
     Any,
+    Self,
     TypedDict,
 )
 
@@ -121,30 +122,23 @@ class AwsRole(BaseModel):
             )
         return v
 
-    @model_validator(mode="before")
-    @classmethod
-    def validate_policies(cls, values: dict[str, Any]) -> dict[str, Any]:
+    @model_validator(mode="after")
+    def validate_policies(self) -> Self:
         """Check the policies.
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
         """
-        custom_policies = values.get("custom_policies", [])
-        managed_policies = values.get("managed_policies", [])
-        if len(custom_policies) + len(managed_policies) > 20:
+        if len(self.custom_policies) + len(self.managed_policies) > 20:
             raise ValueError(
-                f"The role '{values['name']}' has too many policies. AWS roles can have at most 20 policies (via quota increase). Please consider consolidating the policies."
+                f"The role '{self.name}' has too many policies. AWS roles can have at most 20 policies (via quota increase). Please consider consolidating the policies."
             )
-        cp_names = [cp.name for cp in custom_policies]
+        cp_names = [cp.name for cp in self.custom_policies]
         if len(set(cp_names)) != len(cp_names):
-            raise ValueError(
-                f"The role '{values['name']}' has duplicate custom policies."
-            )
-        mp_names = [mp.name for mp in managed_policies]
+            raise ValueError(f"The role '{self.name}' has duplicate custom policies.")
+        mp_names = [mp.name for mp in self.managed_policies]
         if len(set(mp_names)) != len(mp_names):
-            raise ValueError(
-                f"The role '{values['name']}' has duplicate managed policies."
-            )
-        return values
+            raise ValueError(f"The role '{self.name}' has duplicate managed policies.")
+        return self
 
 
 class RunnerParams(TypedDict):
