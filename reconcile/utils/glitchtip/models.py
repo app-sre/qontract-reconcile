@@ -3,13 +3,13 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 from pydantic import (
     BaseModel,
     Field,
-    root_validator,
-    validator,
+    field_validator,
+    model_validator,
 )
 
 if TYPE_CHECKING:
@@ -49,7 +49,8 @@ class Team(BaseModel):
     slug: str = ""
     users: list[User] = []
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def name_xor_slug_must_be_set(
         cls, values: MutableMapping[str, Any]
     ) -> MutableMapping[str, Any]:
@@ -58,11 +59,11 @@ class Team(BaseModel):
         ), "name xor slug must be set!"
         return values
 
-    @root_validator
-    def slugify(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
-        values["slug"] = values.get("slug") or slugify(values.get("name", ""))
-        values["name"] = slugify(values.get("name", "")) or values.get("slug")
-        return values
+    @model_validator(mode="after")
+    def slugify(self) -> Self:
+        self.slug = self.slug or slugify(self.name)
+        self.name = slugify(self.name) or self.slug
+        return self
 
     def __lt__(self, other: Team) -> bool:
         return self.slug < other.slug
@@ -86,16 +87,15 @@ class RecipientType(Enum):
     WEBHOOK = "webhook"
 
 
-class ProjectAlertRecipient(BaseModel):
+class ProjectAlertRecipient(
+    BaseModel, validate_by_name=True, validate_by_alias=True, use_enum_values=True
+):
     pk: int | None = Field(None, alias="id")
     recipient_type: RecipientType = Field(..., alias="recipientType")
     url: str = ""
 
-    class Config:
-        allow_population_by_field_name = True
-        use_enum_values = True
-
-    @validator("recipient_type")
+    @field_validator("recipient_type")
+    @classmethod
     def recipient_type_enforce_enum_type(cls, v: str | RecipientType) -> RecipientType:
         if isinstance(v, RecipientType):
             return v
@@ -113,17 +113,15 @@ class ProjectAlertRecipient(BaseModel):
         return hash((self.recipient_type, self.url))
 
 
-class ProjectAlert(BaseModel):
+class ProjectAlert(BaseModel, validate_by_name=True, validate_by_alias=True):
     pk: int | None = Field(None, alias="id")
     name: str
     timespan_minutes: int = Field(..., alias="timespanMinutes")
     quantity: int
     recipients: list[ProjectAlertRecipient] = Field([], alias="alertRecipients")
 
-    class Config:
-        allow_population_by_field_name = True
-
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def empty_name(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         # name is an empty string if the alert was created manually because it can't be set via UI
         # use the pk instead.
@@ -141,7 +139,7 @@ class ProjectAlert(BaseModel):
         )
 
 
-class Project(BaseModel):
+class Project(BaseModel, validate_by_name=True, validate_by_alias=True):
     pk: int | None = Field(None, alias="id")
     name: str
     slug: str = ""
@@ -151,10 +149,8 @@ class Project(BaseModel):
     event_throttle_rate: int = Field(0, alias="eventThrottleRate")
     organization: Organization | None = None
 
-    class Config:
-        allow_population_by_field_name = True
-
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def slugify(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values["name"])
         return values
@@ -195,7 +191,8 @@ class Organization(BaseModel):
     teams: list[Team] = []
     users: list[User] = []
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def slugify(cls, values: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         values["slug"] = values.get("slug") or slugify(values["name"])
         return values
@@ -212,4 +209,4 @@ class Organization(BaseModel):
         return hash(self.name)
 
 
-Project.update_forward_refs()
+Project.model_rebuild()

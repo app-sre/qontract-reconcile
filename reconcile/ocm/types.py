@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-from pydantic import (
-    BaseModel,
-    Extra,
-    Field,
-    validator,
-)
+from pydantic import BaseModel, Field, field_validator
 
 
 class OCMClusterAutoscale(BaseModel):
@@ -20,7 +15,7 @@ class OCMClusterNetwork(BaseModel):
     pod: str
 
 
-class OCMClusterSpec(BaseModel):
+class OCMClusterSpec(BaseModel, extra="forbid"):
     autoscale: OCMClusterAutoscale | None
     channel: str
     disable_user_workload_monitoring: bool | None
@@ -39,57 +34,40 @@ class OCMClusterSpec(BaseModel):
     hypershift: bool | None
     fips: bool = False
 
-    @validator("fips", pre=True)
+    @field_validator("fips", mode="before")
+    @classmethod
     def set_fips_default(cls, v: bool | None) -> bool:
         return v or False
 
-    class Config:
-        extra = Extra.forbid
 
-
-class OSDClusterSpec(OCMClusterSpec):
+class OSDClusterSpec(OCMClusterSpec, extra="forbid"):
     load_balancers: int
     storage: int
 
-    class Config:
-        extra = Extra.forbid
 
-
-class ROSAOcmAwsStsAttrs(BaseModel):
+class ROSAOcmAwsStsAttrs(BaseModel, extra="forbid"):
     installer_role_arn: str
     support_role_arn: str
     controlplane_role_arn: str | None
     worker_role_arn: str
 
-    class Config:
-        extra = Extra.forbid
 
-
-class ROSAOcmAwsAttrs(BaseModel):
+class ROSAOcmAwsAttrs(BaseModel, extra="forbid"):
     creator_role_arn: str
     sts: ROSAOcmAwsStsAttrs | None
 
-    class Config:
-        extra = Extra.forbid
 
-
-class ROSAClusterAWSAccount(BaseModel):
+class ROSAClusterAWSAccount(BaseModel, extra="forbid"):
     uid: str
     rosa: ROSAOcmAwsAttrs | None
     billing_account_id: str | None
 
-    class Config:
-        extra = Extra.forbid
 
-
-class ROSAClusterSpec(OCMClusterSpec):
+class ROSAClusterSpec(OCMClusterSpec, extra="forbid"):
     account: ROSAClusterAWSAccount
     subnet_ids: list[str] | None
     availability_zones: list[str] | None
     oidc_endpoint_url: str | None
-
-    class Config:
-        extra = Extra.forbid
 
 
 class ClusterMachinePool(BaseModel):
@@ -99,7 +77,7 @@ class ClusterMachinePool(BaseModel):
     autoscale: OCMClusterAutoscale | None
 
 
-class OCMSpec(BaseModel):
+class OCMSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
     path: str | None
     spec: OSDClusterSpec | ROSAClusterSpec | OCMClusterSpec
     machine_pools: list[ClusterMachinePool] = Field(
@@ -110,8 +88,3 @@ class OCMSpec(BaseModel):
     server_url: str = Field("", alias="serverUrl")
     console_url: str = Field("", alias="consoleUrl")
     elb_fqdn: str = Field("", alias="elbFQDN")
-
-    class Config:
-        smart_union = True
-        # This is need to populate by either console_url or consoleUrl, for instance
-        allow_population_by_field_name = True

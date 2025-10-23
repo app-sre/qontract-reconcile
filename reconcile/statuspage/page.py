@@ -19,7 +19,7 @@ from reconcile.statuspage.status import (
 PROVIDER_NAME = "statuspage"
 
 
-class StatusComponent(BaseModel):
+class StatusComponent(BaseModel, validate_by_name=True, validate_by_alias=True):
     """
     Represents a status page component from the desired state.
     """
@@ -48,9 +48,6 @@ class StatusComponent(BaseModel):
                     return status
             return "operational"
         return None
-
-    class Config:
-        arbitrary_types_allowed = True
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, StatusComponent):

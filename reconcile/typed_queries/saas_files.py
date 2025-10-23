@@ -6,7 +6,6 @@ from typing import Any
 from jsonpath_ng.exceptions import JsonPathParserError
 from pydantic import (
     BaseModel,
-    Extra,
     Field,
     Json,
 )
@@ -51,7 +50,7 @@ from reconcile.utils.json import json_dumps
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
-class SaasResourceTemplateTarget(ConfiguredBaseModel):
+class SaasResourceTemplateTarget(ConfiguredBaseModel, extra="ignore"):
     path: str | None = Field(..., alias="path")
     name: str | None = Field(..., alias="name")
     # the namespace must be required to fulfill the saas file schema (utils.saasherder.interface.SaasFile)
@@ -78,10 +77,6 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
             f"{parent_saas_file_name}:{parent_resource_template_name}:{self.name or 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode(),
             digest_size=20,
         ).hexdigest()
-
-    class Config:
-        # ignore `namespaceSelector` and 'provider' fields from the GQL schema
-        extra = Extra.ignore
 
 
 class SaasResourceTemplate(ConfiguredBaseModel):

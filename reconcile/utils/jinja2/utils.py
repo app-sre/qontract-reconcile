@@ -45,13 +45,10 @@ class Jinja2TemplateError(Exception):
         super().__init__("error processing jinja2 template: " + str(msg))
 
 
-class TemplateRenderOptions(BaseModel):
+class TemplateRenderOptions(BaseModel, frozen=True):
     trim_blocks: bool
     lstrip_blocks: bool
     keep_trailing_newline: bool
-
-    class Config:
-        frozen = True
 
     @classmethod
     def create(

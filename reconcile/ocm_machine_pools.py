@@ -7,11 +7,7 @@ from collections.abc import Iterable, Mapping
 from enum import Enum
 from typing import Any, Self
 
-from pydantic import (
-    BaseModel,
-    Field,
-    root_validator,
-)
+from pydantic import BaseModel, Field, model_validator
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
@@ -61,7 +57,8 @@ class MachinePoolAutoscaling(AbstractAutoscaling):
     min_replicas: int
     max_replicas: int
 
-    @root_validator()
+    @model_validator(mode="before")
+    @classmethod
     def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         min_replicas = field_values.get("min_replicas")
         max_replicas = field_values.get("max_replicas")
@@ -82,7 +79,8 @@ class NodePoolAutoscaling(AbstractAutoscaling):
     min_replica: int
     max_replica: int
 
-    @root_validator()
+    @model_validator(mode="before")
+    @classmethod
     def max_greater_min(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         min_replica = field_values.get("min_replica")
         max_replica = field_values.get("max_replica")
@@ -110,7 +108,8 @@ class AbstractPool(ABC, BaseModel):
     cluster_type: ClusterType = Field(..., exclude=True)
     autoscaling: AbstractAutoscaling | None
 
-    @root_validator()
+    @model_validator(mode="before")
+    @classmethod
     def validate_scaling(cls, field_values: Mapping[str, Any]) -> Mapping[str, Any]:
         if field_values.get("autoscaling") and field_values.get("replicas"):
             raise ValueError("autoscaling and replicas are mutually exclusive")
