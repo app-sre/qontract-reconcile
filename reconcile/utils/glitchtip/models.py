@@ -143,7 +143,7 @@ class Project(BaseModel, validate_by_name=True, validate_by_alias=True):
     pk: int | None = Field(None, alias="id")
     name: str
     slug: str = ""
-    platform: str | None
+    platform: str | None = None
     teams: list[Team] = []
     alerts: list[ProjectAlert] = []
     event_throttle_rate: int = Field(0, alias="eventThrottleRate")
