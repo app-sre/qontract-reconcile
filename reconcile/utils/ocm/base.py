@@ -570,14 +570,11 @@ class OCMOIdentityProviderGithub(OCMOIdentityProvider):
     )
 
 
-class OCMOIdentityProviderOidcOpenIdClaims(BaseModel):
+class OCMOIdentityProviderOidcOpenIdClaims(BaseModel, frozen=True):
     email: list[str]
     name: list[str] = []
     preferred_username: list[str]
     groups: list[str] = []
-
-    class Config:
-        frozen = True
 
 
 class OCMOIdentityProviderOidcOpenId(BaseModel):

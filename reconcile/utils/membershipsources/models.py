@@ -7,7 +7,6 @@ from typing import (
 
 from pydantic import (
     BaseModel,
-    Extra,
 )
 
 from reconcile.gql_definitions.fragments.membership_source import (
@@ -50,7 +49,7 @@ class RoleWithMemberships(Protocol):
     def member_sources(self) -> Sequence[RoleMembershipSource] | None: ...
 
 
-class RoleUser(BaseModel):
+class RoleUser(BaseModel, extra="ignore"):
     name: str
     org_username: str
     github_username: str | None
@@ -62,11 +61,8 @@ class RoleUser(BaseModel):
     tag_on_cluster_updates: bool | None = False
     tag_on_merge_requests: bool | None = False
 
-    class Config:
-        extra = Extra.ignore
 
-
-class RoleBot(BaseModel):
+class RoleBot(BaseModel, extra="ignore"):
     name: str
     description: str | None
     org_username: str | None
@@ -74,9 +70,6 @@ class RoleBot(BaseModel):
     gitlab_username: str | None
     openshift_serviceaccount: str | None
     quay_username: str | None
-
-    class Config:
-        extra = Extra.ignore
 
 
 RoleMember = RoleUser | RoleBot

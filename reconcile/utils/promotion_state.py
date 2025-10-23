@@ -3,13 +3,12 @@ from collections import defaultdict
 
 from pydantic import (
     BaseModel,
-    Extra,
 )
 
 from reconcile.utils.state import State
 
 
-class PromotionData(BaseModel):
+class PromotionData(BaseModel, extra="forbid"):
     """
     A class that strictly corresponds to the json stored in S3.
 
@@ -27,10 +26,6 @@ class PromotionData(BaseModel):
     # Note, this shouldnt be overridden on subsequent promotions of same ref
     # This attribute is primarily used by saasherder validations
     has_succeeded_once: bool | None
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
 
 
 class PromotionState:

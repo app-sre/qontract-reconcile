@@ -26,7 +26,7 @@ class SSHHostKeyVerificationStrategy(Enum):
     KNOWN_HOSTS_FILE_KEY_VERIFICATION_STRATEGY = "knownHostsFileKeyVerificationStrategy"
 
 
-class SSHConnector(BaseModel):
+class SSHConnector(BaseModel, use_enum_values=True):
     credentials_id: str = Field(..., alias="credentialsId")
     launch_timeout_seconds: int | None = Field(None, alias="launchTimeoutSeconds")
     max_num_retries: int | None = Field(None, alias="maxNumRetries")
@@ -37,9 +37,6 @@ class SSHConnector(BaseModel):
         SSHHostKeyVerificationStrategy.NON_VERIFYING_KEY_VERIFICATION_STRATEGY,
         alias="sshHostKeyVerificationStrategy",
     )
-
-    class Config:
-        use_enum_values = True
 
 
 class ComputerConnector(BaseModel):

@@ -9,7 +9,7 @@ from typing import (
     TypedDict,
 )
 
-from pydantic import BaseModel, root_validator, validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
     AWSAccountV1,
@@ -59,7 +59,8 @@ class AwsSamlRolesIntegrationParams(PydanticRunParams):
     extended_early_exit_cache_ttl_seconds: int = 3600
     log_cached_log_output: bool = False
 
-    @validator("max_session_duration_hours")
+    @field_validator("max_session_duration_hours")
+    @classmethod
     def max_session_duration_range(cls, v: str | int) -> int:
         if 1 <= int(v) <= 12:
             return int(v)
@@ -70,7 +71,8 @@ class CustomPolicy(BaseModel):
     name: str
     policy: dict[str, Any]
 
-    @validator("name")
+    @field_validator("name")
+    @classmethod
     def name_size(cls, v: str) -> str:
         """Check the policy name size.
 
@@ -82,7 +84,8 @@ class CustomPolicy(BaseModel):
             )
         return v
 
-    @validator("policy")
+    @field_validator("policy")
+    @classmethod
     def policy_size(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Check the policy size.
 
@@ -105,7 +108,8 @@ class AwsRole(BaseModel):
     custom_policies: list[CustomPolicy]
     managed_policies: list[ManagedPolicy]
 
-    @validator("name")
+    @field_validator("name")
+    @classmethod
     def name_size(cls, v: str) -> str:
         """Check the role name size.
 
@@ -117,7 +121,8 @@ class AwsRole(BaseModel):
             )
         return v
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def validate_policies(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Check the policies.
 

@@ -123,14 +123,11 @@ class State(BaseModel):
 SlackState = dict[str, dict[str, State]]
 
 
-class WorkspaceSpec(BaseModel):
+class WorkspaceSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
     """Slack workspace spec."""
 
     slack: SlackApi
     managed_usergroups: list[str] = []
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 SlackMap = dict[str, WorkspaceSpec]

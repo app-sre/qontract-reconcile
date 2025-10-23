@@ -207,7 +207,12 @@ TriggerSpecUnion = (
 )
 
 
-class Namespace(BaseModel):
+class Namespace(
+    BaseModel,
+    validate_by_name=True,
+    validate_by_alias=True,
+    arbitrary_types_allowed=True,
+):
     name: str
     environment: SaasEnvironment
     app: SaasApp
@@ -217,25 +222,15 @@ class Namespace(BaseModel):
         ..., alias="managedResourceNames"
     )
 
-    class Config:
-        arbitrary_types_allowed = True
-        allow_population_by_field_name = True
 
-
-class PromotionChannelData(BaseModel):
+class PromotionChannelData(BaseModel, validate_by_name=True, validate_by_alias=True):
     q_type: str = Field(..., alias="type")
 
-    class Config:
-        allow_population_by_field_name = True
 
-
-class ParentSaasPromotion(BaseModel):
+class ParentSaasPromotion(BaseModel, validate_by_name=True, validate_by_alias=True):
     q_type: str = Field(..., alias="type")
     parent_saas: str | None
     target_config_hash: str | None
-
-    class Config:
-        allow_population_by_field_name = True
 
 
 class PromotionData(BaseModel):

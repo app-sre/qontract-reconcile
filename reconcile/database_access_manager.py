@@ -61,15 +61,14 @@ def get_database_access_namespaces(
     return query(query_func).namespaces_v1 or []
 
 
-class DatabaseConnectionParameters(BaseModel):
+class DatabaseConnectionParameters(
+    BaseModel, validate_by_name=True, validate_by_alias=True
+):
     host: str = Field(..., alias="db.host")
     port: str = Field(..., alias="db.port")
     user: str = Field(..., alias="db.user")
     password: str = Field(..., alias="db.password")
     database: str = Field(..., alias="db.name")
-
-    class Config:
-        allow_population_by_field_name = True
 
 
 class PSQLScriptGenerator(BaseModel):

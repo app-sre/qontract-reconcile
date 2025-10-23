@@ -44,18 +44,12 @@ class GitlabUser(BaseModel):
     access_level: int
 
 
-class CurrentStateSpec(BaseModel):
+class CurrentStateSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
     members: dict[str, GroupMember]
 
-    class Config:
-        arbitrary_types_allowed = True
 
-
-class DesiredStateSpec(BaseModel):
+class DesiredStateSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
     members: dict[str, GitlabUser]
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 CurrentState = dict[str, CurrentStateSpec]

@@ -40,14 +40,11 @@ QONTRACT_INTEGRATION = "aws_ami_cleanup"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
 
 
-class AWSAmi(BaseModel):
+class AWSAmi(BaseModel, frozen=True):
     name: str
     image_id: str
     creation_date: datetime
     snapshot_ids: list[str]
-
-    class Config:
-        frozen = True
 
 
 def get_aws_amis_from_launch_templates(ec2_client: EC2Client) -> set[str]:
