@@ -1271,7 +1271,7 @@ class OCCli:
         if resource := next((r for r in resources if r.group == group), None):
             return resource
 
-        # no resource with the specified group not found
+        # no resource with the specified group found
         if group == DEFAULT_GROUP:
             message = (
                 f"Ambiguous resource type: {kind}. "
