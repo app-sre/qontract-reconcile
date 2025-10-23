@@ -144,7 +144,7 @@ class GaugeMetric(BaseMetric):
 
     @classmethod
     def metric_family(cls) -> GaugeMetricFamily:
-        labels = [f.alias for f in cls.__fields__.values()]
+        labels = [f.alias or name for name, f in cls.model_fields.items()]
         return GaugeMetricFamily(cls.name(), cls.__doc__ or "", labels=labels)
 
     @classmethod
@@ -167,7 +167,7 @@ class CounterMetric(BaseMetric):
 
     @classmethod
     def metric_family(cls) -> CounterMetricFamily:
-        labels = [f.alias for f in cls.__fields__.values()]
+        labels = [f.alias or name for name, f in cls.model_fields.items()]
         return CounterMetricFamily(cls.name(), cls.__doc__ or "", labels=labels)
 
     @classmethod
@@ -270,7 +270,7 @@ class MetricsContainer:
             (
                 metric_class(**{
                     key: labels[i]
-                    for i, key in enumerate(metric_class.__fields__.keys())
+                    for i, key in enumerate(metric_class.model_fields.keys())
                 }),
                 value,
             )
