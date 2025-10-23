@@ -18,7 +18,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 class TemplateData(BaseModel):
     variables: dict[str, Any]
-    current: dict[str, Any] | None
+    current: dict[str, Any] | None = None
     current_with_explicit_start: bool | None = False
 
 

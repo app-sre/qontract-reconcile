@@ -340,7 +340,7 @@ def test_default_data_none_optional_json(
     """
 
     class DemoModel(BaseModel):
-        optional_json: Json | None
+        optional_json: Json | None = None
 
     assert (
         DemoModel(**data_default_none(DemoModel, data)).optional_json == expected_value

@@ -31,7 +31,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
 
 
 class UnleashTogglesIntegrationParams(PydanticRunParams):
-    instance: str | None
+    instance: str | None = None
 
 
 def feature_toggle_equal(c: FeatureToggle, d: FeatureToggleUnleashV1) -> bool:

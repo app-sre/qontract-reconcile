@@ -229,12 +229,12 @@ class PromotionChannelData(BaseModel, validate_by_name=True, validate_by_alias=T
 
 class ParentSaasPromotion(BaseModel, validate_by_name=True, validate_by_alias=True):
     q_type: str = Field(..., alias="type")
-    parent_saas: str | None
-    target_config_hash: str | None
+    parent_saas: str | None = None
+    target_config_hash: str | None = None
 
 
 class PromotionData(BaseModel):
-    channel: str | None
+    channel: str | None = None
     data: list[ParentSaasPromotion | PromotionChannelData] | None = None
 
 

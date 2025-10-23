@@ -13,7 +13,7 @@ class CostNamespace(BaseModel, frozen=True):
     labels: CostNamespaceLabels
     app_name: str
     cluster_name: str
-    cluster_external_id: str | None
+    cluster_external_id: str | None = None
 
 
 def get_cost_namespaces(

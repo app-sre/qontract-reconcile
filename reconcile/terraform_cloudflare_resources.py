@@ -442,4 +442,4 @@ def _get_cloudflare_desired_state() -> tuple[
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     desired_state = _get_cloudflare_desired_state()
 
-    return {state.__repr_name__(): state.model_dump() for state in desired_state}
+    return {str(state): state.model_dump() for state in desired_state}

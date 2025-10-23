@@ -26,8 +26,8 @@ class StatusComponent(BaseModel, validate_by_name=True, validate_by_alias=True):
 
     name: str
     display_name: str
-    description: str | None
-    group_name: str | None
+    description: str | None = None
+    group_name: str | None = None
     status_provider_configs: list[StatusProvider]
     """
     Status provider configs hold different ways for a component to determine its status

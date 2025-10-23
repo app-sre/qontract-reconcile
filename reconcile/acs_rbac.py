@@ -65,7 +65,7 @@ class AcsRole(BaseModel):
     assignments: list[AssignmentPair]
     permission_set_name: str
     access_scope: AcsAccessScope
-    system_default: bool | None
+    system_default: bool | None = None
 
     @classmethod
     def build(cls, permission: Permission, usernames: list[str]) -> Self:

@@ -387,7 +387,7 @@ class Reconciliation(BaseModel, frozen=True):
     )
     # linked_resources store dependants resources. They will get reconciled
     # every time the parent resource reconciliation finishes.
-    linked_resources: frozenset[ExternalResourceKey] | None
+    linked_resources: frozenset[ExternalResourceKey] | None = None
 
 
 class ReconcileAction(StrEnum):

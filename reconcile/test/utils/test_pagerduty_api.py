@@ -18,14 +18,14 @@ class PagerDutyInstance(BaseModel):
 
 class User(BaseModel):
     org_username: str
-    pagerduty_username: str | None
+    pagerduty_username: str | None = None
 
 
 class PagerDutyTarget(BaseModel):
     name: str
     instance: PagerDutyInstance
-    schedule_id: str | None
-    escalation_policy_id: str | None
+    schedule_id: str | None = None
+    escalation_policy_id: str | None = None
 
 
 @pytest.fixture

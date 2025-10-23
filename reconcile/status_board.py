@@ -52,7 +52,7 @@ class AbstractStatusBoard(ABC, BaseModel):
     """Abstract class for upgrade policies
     Used to create and delete upgrade policies in OCM."""
 
-    id: str | None
+    id: str | None = None
     name: str
     fullname: str
 

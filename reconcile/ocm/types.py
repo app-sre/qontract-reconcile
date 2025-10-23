@@ -9,29 +9,29 @@ class OCMClusterAutoscale(BaseModel):
 
 
 class OCMClusterNetwork(BaseModel):
-    type: str | None
+    type: str | None = None
     vpc: str
     service: str
     pod: str
 
 
 class OCMClusterSpec(BaseModel, extra="forbid"):
-    autoscale: OCMClusterAutoscale | None
+    autoscale: OCMClusterAutoscale | None = None
     channel: str
-    disable_user_workload_monitoring: bool | None
-    external_id: str | None
-    id: str | None
-    instance_type: str | None
-    multi_az: bool | None
-    nodes: int | None
+    disable_user_workload_monitoring: bool | None = None
+    external_id: str | None = None
+    id: str | None = None
+    instance_type: str | None = None
+    multi_az: bool | None = None
+    nodes: int | None = None
     private: bool
     product: str
     provider: str
-    provision_shard_id: str | None
+    provision_shard_id: str | None = None
     region: str
-    initial_version: str | None
+    initial_version: str | None = None
     version: str
-    hypershift: bool | None
+    hypershift: bool | None = None
     fips: bool = False
 
     @field_validator("fips", mode="before")
@@ -48,43 +48,43 @@ class OSDClusterSpec(OCMClusterSpec, extra="forbid"):
 class ROSAOcmAwsStsAttrs(BaseModel, extra="forbid"):
     installer_role_arn: str
     support_role_arn: str
-    controlplane_role_arn: str | None
+    controlplane_role_arn: str | None = None
     worker_role_arn: str
 
 
 class ROSAOcmAwsAttrs(BaseModel, extra="forbid"):
     creator_role_arn: str
-    sts: ROSAOcmAwsStsAttrs | None
+    sts: ROSAOcmAwsStsAttrs | None = None
 
 
 class ROSAClusterAWSAccount(BaseModel, extra="forbid"):
     uid: str
-    rosa: ROSAOcmAwsAttrs | None
-    billing_account_id: str | None
+    rosa: ROSAOcmAwsAttrs | None = None
+    billing_account_id: str | None = None
 
 
 class ROSAClusterSpec(OCMClusterSpec, extra="forbid"):
     account: ROSAClusterAWSAccount
-    subnet_ids: list[str] | None
-    availability_zones: list[str] | None
-    oidc_endpoint_url: str | None
+    subnet_ids: list[str] | None = None
+    availability_zones: list[str] | None = None
+    oidc_endpoint_url: str | None = None
 
 
 class ClusterMachinePool(BaseModel):
     id: str
     instance_type: str
-    replicas: int | None
-    autoscale: OCMClusterAutoscale | None
+    replicas: int | None = None
+    autoscale: OCMClusterAutoscale | None = None
 
 
 class OCMSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
-    path: str | None
+    path: str | None = None
     spec: OSDClusterSpec | ROSAClusterSpec | OCMClusterSpec
     machine_pools: list[ClusterMachinePool] = Field(
         default_factory=list, alias="machinePools"
     )
     network: OCMClusterNetwork
-    domain: str | None
+    domain: str | None = None
     server_url: str = Field("", alias="serverUrl")
     console_url: str = Field("", alias="consoleUrl")
     elb_fqdn: str = Field("", alias="elbFQDN")

@@ -101,12 +101,12 @@ class AbstractPool(ABC, BaseModel):
     # Abstract class for machine pools, to be implemented by OSD/HyperShift classes
 
     id: str
-    replicas: int | None
-    taints: list[Mapping[str, str]] | None
-    labels: Mapping[str, str] | None
+    replicas: int | None = None
+    taints: list[Mapping[str, str]] | None = None
+    labels: Mapping[str, str] | None = None
     cluster: str
     cluster_type: ClusterType = Field(..., exclude=True)
-    autoscaling: AbstractAutoscaling | None
+    autoscaling: AbstractAutoscaling | None = None
 
     @model_validator(mode="before")
     @classmethod
