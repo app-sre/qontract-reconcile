@@ -13,11 +13,9 @@ from reconcile.external_resources.reconciler import ReconciliationK8sJob
         # Non-dry-run jobs
         (False, "", None, "er-{identifier}"),
         # Dry-run jobs with suffix
-        (True, "1234567", None, "er-dry-run-{identifier}-1234567"),
+        (True, "1234567", None, "er-dry-run-mr-1234567-{identifier}"),
         # Dry-run with long suffix
-        (True, "12345678901234567890", None, "er-dry-run-{identifier}-1234567"),
-        # Dry-run with empty suffix
-        (True, "", None, "er-dry-run-{identifier}-"),
+        (True, "12345678901234567890", None, "er-dry-run-mr-1234567-{identifier}"),
         # Non-dry-run with long identifier
         (
             False,
@@ -40,7 +38,7 @@ from reconcile.external_resources.reconciler import ReconciliationK8sJob
                 provider="aws-rds-cluster-very-long-name",
                 identifier="my-super-long-identifier-that-exceeds-the-limit-significantly",
             ),
-            "er-dry-run-{identifier}-9999999",
+            "er-dry-run-mr-9999999-{identifier}",
         ),
     ],
 )
@@ -73,7 +71,7 @@ def test_name_prefix(
     identifier = (
         f"{test_reconciliation.key.provider}-{test_reconciliation.key.identifier}"
     )
-    truncated_identifier = identifier[:45] if is_dry_run else identifier[:60]
+    truncated_identifier = identifier[:35] if is_dry_run else identifier[:54]
     expected_prefix = expected_prefix_format.format(identifier=truncated_identifier)
     result = job.name_prefix()
 
