@@ -70,10 +70,14 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
     dry_run_suffix: str = ""
 
     def name_prefix(self) -> str:
+        identifier = (
+            f"{self.reconciliation.key.provider}-{self.reconciliation.key.identifier}"
+        )
         if self.is_dry_run:
-            return f"er-dry-run-mr-{self.dry_run_suffix}"
+            # dry-run-suffix: gitlabmergeid, <7 chars in the foreseeable future
+            return f"er-dry-run-{identifier[:45]}-{self.dry_run_suffix[:7]}"
         else:
-            return "er"
+            return f"er-{identifier[:53]}"
 
     def unit_of_work_identity(self) -> Any:
         return self.reconciliation.key
