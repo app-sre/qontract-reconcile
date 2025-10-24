@@ -73,11 +73,14 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
         identifier = (
             f"{self.reconciliation.key.provider}-{self.reconciliation.key.identifier}"
         )
+        # Note: k8s pod has a limit of 63 chars
         if self.is_dry_run:
             # dry-run-suffix: gitlabmergeid, <7 chars in the foreseeable future
+            # 63 = 11 + 45 + 7
             return f"er-dry-run-{identifier[:45]}-{self.dry_run_suffix[:7]}"
         else:
-            return f"er-{identifier[:53]}"
+            # 63 = 3 + 60
+            return f"er-{identifier[:60]}"
 
     def unit_of_work_identity(self) -> Any:
         return self.reconciliation.key
