@@ -73,7 +73,7 @@ def test_name_prefix(
     identifier = (
         f"{test_reconciliation.key.provider}-{test_reconciliation.key.identifier}"
     )
-    truncated_identifier = identifier[:45] if is_dry_run else identifier[:53]
+    truncated_identifier = identifier[:45] if is_dry_run else identifier[:60]
     expected_prefix = expected_prefix_format.format(identifier=truncated_identifier)
     result = job.name_prefix()
 
