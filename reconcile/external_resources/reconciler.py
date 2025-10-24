@@ -116,6 +116,22 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                     name="ACTION",
                     value=self.reconciliation.action.value,
                 ),
+                V1EnvVar(
+                    name="RESOURCE_PROVIDER",
+                    value=self.reconciliation.key.provider,
+                ),
+                V1EnvVar(
+                    name="RESOURCE_IDENTIFIER",
+                    value=self.reconciliation.key.identifier,
+                ),
+                V1EnvVar(
+                    name="RESOURCE_PROVISIONER",
+                    value=self.reconciliation.key.provision_provider,
+                ),
+                V1EnvVar(
+                    name="RESOURCE_PROVISIONER_NAME",
+                    value=self.reconciliation.key.provisioner_name,
+                ),
             ],
             volume_mounts=[
                 V1VolumeMount(
