@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from reconcile.utils.json import json_dumps
 from tools.cli_commands.cost_report.model import OptimizationReport, Report
 
 LAYOUT = """\
@@ -244,7 +245,7 @@ def render_summary(
     return template.format(
         date=get_date(reports),
         total_cost=format_cost_value(total_cost),
-        json_table=json_table.json(indent=2),
+        json_table=json_dumps(json_table, indent=2),
     )
 
 
@@ -274,7 +275,7 @@ def render_month_over_month_change(reports: Mapping[str, Report]) -> str:
     )
     return MONTH_OVER_MONTH_CHANGE.format(
         date=get_date(reports),
-        json_table=json_table.json(indent=2),
+        json_table=json_dumps(json_table, indent=2),
     )
 
 
@@ -304,7 +305,7 @@ def render_aws_services_cost(
         items_total=format_cost_value(report.items_total),
         items_delta_value=format_delta_value(report.items_delta_value),
         items_delta_percent=format_delta_percent(report.items_delta_percent),
-        json_table=json_table.json(indent=2),
+        json_table=json_dumps(json_table, indent=2),
     )
 
 
@@ -316,7 +317,7 @@ def render_openshift_workloads_cost(
         items_total=format_cost_value(report.items_total),
         items_delta_value=format_delta_value(report.items_delta_value),
         items_delta_percent=format_delta_percent(report.items_delta_percent),
-        json_table=json_table.json(indent=2),
+        json_table=json_dumps(json_table, indent=2),
     )
 
 
@@ -362,7 +363,7 @@ def render_child_apps_cost(report: Report) -> str:
     )
     return CHILD_APPS_COST.format(
         child_apps_total=format_cost_value(report.child_apps_total),
-        json_table=json_table.json(indent=2),
+        json_table=json_dumps(json_table, indent=2),
     )
 
 
@@ -509,7 +510,7 @@ def render_optimization(
     )
     return OPTIMIZATION.format(
         app_name=report.app_name,
-        json_table=json_table.json(indent=2),
+        json_table=json_dumps(json_table, indent=2),
     )
 
 

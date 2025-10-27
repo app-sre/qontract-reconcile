@@ -1,4 +1,3 @@
-import json
 from collections.abc import Iterable
 from datetime import datetime
 from typing import (
@@ -19,6 +18,17 @@ from reconcile.utils.state import State
 class WorkloadHistory(BaseModel):
     soak_days: float = 0.0
     reporting: list[str] = Field(default_factory=list)
+
+    def __eq__(self, value: Any) -> bool:
+        if isinstance(value, WorkloadHistory):
+            return super().__eq__(value)
+
+        if isinstance(value, dict):
+            return self.soak_days == value.get("soak_days", 0.0) and sorted(
+                self.reporting
+            ) == sorted(value.get("reporting", []))
+
+        return False
 
 
 class VersionHistory(BaseModel):
@@ -98,7 +108,7 @@ class VersionData(BaseModel):
     stats: Stats | None = None
 
     def jsondict(self) -> dict[str, Any]:
-        return json.loads(self.json(exclude_none=True))
+        return self.model_dump(mode="json", exclude_none=True)
 
     def save(self, state: State, ocm_name: str) -> None:
         state.add(ocm_name, self.jsondict(), force=True)

@@ -1,5 +1,10 @@
 import json
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
+
+import pytest
+from pydantic import BaseModel, Field
 
 from reconcile.utils.json import json_dumps
 
@@ -44,3 +49,36 @@ def test_cls() -> None:
     data = {"numbers": {1, 2, 3}}
     result = json_dumps(data, cls=CustomEncoder)
     assert json.loads(result) == {"numbers": [1, 2, 3]}
+
+
+class SampleModel(BaseModel):
+    a: int = Field(..., alias="alias")
+    b: str
+    c: datetime
+    d: str | None = None
+
+
+@pytest.mark.parametrize(
+    ("by_alias", "exclude_none", "expected"),
+    [
+        (False, False, '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null}'),
+        (False, True, '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00"}'),
+        (
+            True,
+            False,
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null}',
+        ),
+        (True, True, '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00"}'),
+    ],
+)
+def test_pydantic_model(by_alias: bool, exclude_none: bool, expected: str) -> None:
+    data = SampleModel(
+        alias=42,
+        b="value",
+        c=datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        d=None,
+    )
+    result = json_dumps(
+        data, compact=True, by_alias=by_alias, exclude_none=exclude_none
+    )
+    assert result == expected

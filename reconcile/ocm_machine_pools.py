@@ -18,6 +18,7 @@ from reconcile.gql_definitions.common.clusters import (
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
+from reconcile.utils.json import json_dumps
 from reconcile.utils.ocm import (
     DEFAULT_OCM_MACHINE_POOL_ID,
     OCM,
@@ -468,7 +469,7 @@ def calculate_diff(
         if invalid_diff:
             errors.append(
                 InvalidUpdateError(
-                    f"can not update {invalid_diff} for existing machine pool on cluster {cluster_name}, CURRENT: {diff_pair.current.json()}, DESIRED: {diff_pair.desired.json()}"
+                    f"can not update {invalid_diff} for existing machine pool on cluster {cluster_name}, CURRENT: {json_dumps(diff_pair.current)}, DESIRED: {json_dumps(diff_pair.desired)}"
                 )
             )
         else:
