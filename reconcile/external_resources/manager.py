@@ -256,7 +256,9 @@ class ExternalResourcesManager:
         to_reconcile: set[Reconciliation] = set()
         deleted_keys = (k for k, v in self.er_inventory.items() if v.marked_to_delete)
         for key in deleted_keys:
-            state = self.state_mgr.get_external_resource_state(key)
+            state = self.state_mgr.get_external_resource_state(
+                key, enable_migration=True
+            )
             if state.resource_status == ResourceStatus.NOT_EXISTS:
                 logging.debug("Resource has already been removed. key: %s", key)
                 continue
@@ -349,7 +351,9 @@ class ExternalResourcesManager:
 
             if r.linked_resources:
                 for lr in r.linked_resources:
-                    lrs = self.state_mgr.get_external_resource_state(lr)
+                    lrs = self.state_mgr.get_external_resource_state(
+                        lr, enable_migration=True
+                    )
                     if not lrs.resource_status.is_in_progress:
                         lrs.resource_status = ResourceStatus.RECONCILIATION_REQUESTED
                         self.state_mgr.set_external_resource_state(lrs)
@@ -419,7 +423,9 @@ class ExternalResourcesManager:
         deleted_r = self._get_deleted_objects_reconciliations()
         to_sync_keys: set[ExternalResourceKey] = set()
         for r in desired_r.union(deleted_r):
-            state = self.state_mgr.get_external_resource_state(r.key)
+            state = self.state_mgr.get_external_resource_state(
+                r.key, enable_migration=True
+            )
             reconciliation_status = self._get_reconciliation_status(r, state)
             self._update_resource_state(r, state, reconciliation_status)
 
@@ -450,7 +456,10 @@ class ExternalResourcesManager:
             r
             for r in desired_r.union(deleted_r)
             if self._reconciliation_needs_dry_run_run(
-                r, self.state_mgr.get_external_resource_state(key=r.key)
+                r,
+                self.state_mgr.get_external_resource_state(
+                    key=r.key, enable_migration=True
+                ),
             )
         }
 

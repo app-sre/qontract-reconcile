@@ -440,4 +440,4 @@ class ExternalResource(BaseModel):
     provision: ExternalResourceProvision
 
     def hash(self) -> str:
-        return hashlib.md5(json_dumps(self.data).encode("utf-8")).hexdigest()
+        return hashlib.sha256(json_dumps(self.data).encode("utf-8")).hexdigest()
