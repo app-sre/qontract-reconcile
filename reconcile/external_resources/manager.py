@@ -252,12 +252,12 @@ class ExternalResourcesManager:
             r.add(reconciliation)
         return r
 
-    def _get_deleted_objects_reconciliations(self) -> set[Reconciliation]:
+    def _get_deleted_objects_reconciliations(self, enable_migration: bool = False) -> set[Reconciliation]:
         to_reconcile: set[Reconciliation] = set()
         deleted_keys = (k for k, v in self.er_inventory.items() if v.marked_to_delete)
         for key in deleted_keys:
             state = self.state_mgr.get_external_resource_state(
-                key, enable_migration=True
+                key, enable_migration=enable_migration
             )
             if state.resource_status == ResourceStatus.NOT_EXISTS:
                 logging.debug("Resource has already been removed. key: %s", key)
@@ -420,7 +420,7 @@ class ExternalResourcesManager:
 
     def handle_resources(self) -> None:
         desired_r = self._get_desired_objects_reconciliations()
-        deleted_r = self._get_deleted_objects_reconciliations()
+        deleted_r = self._get_deleted_objects_reconciliations(enable_migration=True)
         to_sync_keys: set[ExternalResourceKey] = set()
         for r in desired_r.union(deleted_r):
             state = self.state_mgr.get_external_resource_state(
@@ -458,7 +458,7 @@ class ExternalResourcesManager:
             if self._reconciliation_needs_dry_run_run(
                 r,
                 self.state_mgr.get_external_resource_state(
-                    key=r.key, enable_migration=True
+                    key=r.key, enable_migration=False
                 ),
             )
         }
