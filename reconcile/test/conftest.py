@@ -101,7 +101,9 @@ def data_factory() -> Callable[
     def _data_factory(
         klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> MutableMapping[str, Any]:
-        return data_default_none(klass, data or {})
+        data_ = data_default_none(klass, data or {})
+        assert isinstance(data_, MutableMapping)
+        return data_
 
     return _data_factory
 
@@ -121,7 +123,9 @@ def gql_class_factory() -> Callable[
         klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> BaseModel:
         try:
-            return klass(**data_default_none(klass, data or {}))
+            data_ = data_default_none(klass, data or {})
+            assert isinstance(data_, MutableMapping)
+            return klass(**data_)
         except ValidationError as e:
             msg = "[gql_class_factory] Your given data does not match the class ...\n"
             msg += "\n".join([str(m) for m in e.errors()])
