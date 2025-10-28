@@ -83,7 +83,7 @@ def test_resource_needs_reconciliation_basic(
 ) -> None:
     reconciliation_ = reconciliation.model_dump()
     reconciliation_["action"] = action
-    new_reconciliation = Reconciliation.parse_obj(reconciliation_)
+    new_reconciliation = Reconciliation.model_validate(reconciliation_)
     state.resource_status = status
     result = manager._resource_needs_reconciliation(new_reconciliation, state)
     assert result is expected
@@ -162,7 +162,7 @@ def test_get_reconciliation_status(
     state.resource_status = resource_status
     r_dict = reconciliation.model_dump()
     r_dict["action"] = action
-    r = Reconciliation.parse_obj(r_dict)
+    r = Reconciliation.model_validate(r_dict)
     manager.reconciler.get_resource_reconcile_status.return_value = reconcile_status  # type:ignore
     status = manager._get_reconciliation_status(r, state)
     assert status.resource_status == expected_status

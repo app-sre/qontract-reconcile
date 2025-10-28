@@ -32,7 +32,7 @@ def get_cost_namespaces(
     return [
         CostNamespace(
             name=namespace.name,
-            labels=CostNamespaceLabels.parse_obj(namespace.labels or {}),
+            labels=CostNamespaceLabels.model_validate(namespace.labels or {}),
             app_name=namespace.app.name,
             cluster_name=namespace.cluster.name,
             cluster_external_id=namespace.cluster.spec.external_id

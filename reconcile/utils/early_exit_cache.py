@@ -166,7 +166,7 @@ class EarlyExitCache:
 
     def get(self, key: CacheKey) -> CacheValue:
         value = self.state.get(str(key))
-        return CacheValue.parse_obj(value)
+        return CacheValue.model_validate(value)
 
     def set(
         self,

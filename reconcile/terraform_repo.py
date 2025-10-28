@@ -206,7 +206,7 @@ class TerraformRepoIntegration(
         keys = state.ls()
         for key in keys:
             if value := state.get(key.lstrip("/"), None):
-                repo = TerraformRepoV1.parse_obj(value)
+                repo = TerraformRepoV1.model_validate(value)
                 repo_list.append(repo)
 
         return repo_list
