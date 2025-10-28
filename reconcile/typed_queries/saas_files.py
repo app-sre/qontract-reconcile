@@ -74,10 +74,15 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
         self, parent_saas_file_name: str, parent_resource_template_name: str
     ) -> str:
         """Returns a unique identifier for a target."""
-        return hashlib.blake2s(
-            f"{parent_saas_file_name}:{parent_resource_template_name}:{self.name or 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode(),
-            digest_size=20,
-        ).hexdigest()
+        # Use SHA256 instead of blake2s for FIPS compliance
+        # Truncate to 20 bytes to maintain compatibility with existing UIDs
+        return (
+            hashlib.sha256(
+                f"{parent_saas_file_name}:{parent_resource_template_name}:{self.name or 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode()
+            )
+            .digest()[:20]
+            .hex()
+        )
 
     class Config:
         # ignore `namespaceSelector` and 'provider' fields from the GQL schema
