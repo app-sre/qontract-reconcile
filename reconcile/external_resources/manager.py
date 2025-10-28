@@ -252,7 +252,9 @@ class ExternalResourcesManager:
             r.add(reconciliation)
         return r
 
-    def _get_deleted_objects_reconciliations(self, enable_migration: bool = False) -> set[Reconciliation]:
+    def _get_deleted_objects_reconciliations(
+        self, enable_migration: bool = False
+    ) -> set[Reconciliation]:
         to_reconcile: set[Reconciliation] = set()
         deleted_keys = (k for k, v in self.er_inventory.items() if v.marked_to_delete)
         for key in deleted_keys:
