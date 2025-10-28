@@ -72,6 +72,7 @@ def slack_notify(
     trigger_integration: str | None = None,
     trigger_reason: str | None = None,
     skip_successful_notifications: bool | None = False,
+    send_logs:  bool | None = False,
 ) -> None:
     success = not ri.has_error_registered()
     # if the deployment doesn't want any notifications for successful
@@ -140,6 +141,9 @@ def run(
     skip_successful_deploy_notifications = (
         saas_files[0].skip_successful_deploy_notifications if saas_files else False
     )
+    send_logs = (
+        saas_files[0].slack.send_logs if saas_files else False
+    )
     slack = None
     if notify:
         saas_file = saas_files[0]
@@ -172,6 +176,7 @@ def run(
                         trigger_integration=trigger_integration,
                         trigger_reason=trigger_reason,
                         skip_successful_notifications=skip_successful_deploy_notifications,
+                        send_logs=send_logs,
                     )
                 )
             # deployment start notification
@@ -306,6 +311,14 @@ def run(
             message = (
                 f"[{action['cluster']}] "
                 + f"{action['kind']} {action['name']} {action['action']}"
+            )
+            if send_logs:
+                with open(os.path.join(io_dir, action['name']), 'r') as file:
+                    log_content = file.read()
+                message = (
+                    f"[{action['cluster']}] "
+                    + f"{action['kind']} {action['name']} {action['action']}\n"
+                    +  f" Logs: {log_content}"
             )
             slack.chat_post_message(message)
 
