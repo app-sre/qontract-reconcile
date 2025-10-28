@@ -73,16 +73,10 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
         identifier = (
             f"{self.reconciliation.key.provider}-{self.reconciliation.key.identifier}"
         )
-        # Note: k8s pod has a limit of 63 chars
-        # However, we need to reserve 6 chars for the unit_of_work_identity hash
-        # Thus we have 57 chars available for the name prefix
         if self.is_dry_run:
-            # dry-run-suffix: gitlabmergeid, <7 chars in the foreseeable future
-            # 57 = 14 + 7 + 1 + 35
-            return f"er-dry-run-mr-{self.dry_run_suffix[:7]}-{identifier[:35]}"
+            return f"er-dry-run-mr-{self.dry_run_suffix}-{identifier}"
         else:
-            # 57 = 3 + 54
-            return f"er-{identifier[:54]}"
+            return f"er-{identifier}"
 
     def unit_of_work_identity(self) -> Any:
         return self.reconciliation.key
@@ -120,22 +114,6 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                 V1EnvVar(
                     name="ACTION",
                     value=self.reconciliation.action.value,
-                ),
-                V1EnvVar(
-                    name="RESOURCE_PROVIDER",
-                    value=self.reconciliation.key.provider,
-                ),
-                V1EnvVar(
-                    name="RESOURCE_IDENTIFIER",
-                    value=self.reconciliation.key.identifier,
-                ),
-                V1EnvVar(
-                    name="RESOURCE_PROVISIONER",
-                    value=self.reconciliation.key.provision_provider,
-                ),
-                V1EnvVar(
-                    name="RESOURCE_PROVISIONER_NAME",
-                    value=self.reconciliation.key.provisioner_name,
                 ),
             ],
             volume_mounts=[
