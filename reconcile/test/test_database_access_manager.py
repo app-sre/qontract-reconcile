@@ -427,7 +427,7 @@ def test__create_database_connection_parameter_user_missing(
         database="test",
     )
 
-    admin_conn = conn.copy()
+    admin_conn = conn.model_copy()
     admin_conn.password = "hduhsdfuhsdf"
 
     assert p["user"] == conn

@@ -221,7 +221,7 @@ def test_updating_repo_ref(
     state_mock: MagicMock,
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo = TerraformRepoV1.model_copy(existing_repo)
     updated_repo.ref = B_REPO_SHA
 
     integration = TerraformRepoIntegration(params=int_params)
@@ -245,7 +245,7 @@ def test_force_rerun(
     state_mock: MagicMock,
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo = TerraformRepoV1.model_copy(existing_repo)
     updated_repo.force_rerun_timestamp = datetime.now(tz=UTC).isoformat()
 
     integration = TerraformRepoIntegration(params=int_params)
@@ -267,7 +267,7 @@ def test_fail_on_update_invalid_repo_params(
     existing_repo: TerraformRepoV1, int_params: TerraformRepoIntegrationParams
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo = TerraformRepoV1.model_copy(existing_repo)
     updated_repo.name = "c_repo"
     updated_repo.project_path = "c_repo"
     updated_repo.repository = B_REPO
@@ -291,7 +291,7 @@ def test_delete_repo(
     state_mock: MagicMock,
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.copy(existing_repo)
+    updated_repo = TerraformRepoV1.model_copy(existing_repo)
     updated_repo.delete = True
 
     integration = TerraformRepoIntegration(params=int_params)

@@ -278,7 +278,7 @@ class SaasFileList:
             if app_name and saas_file.app.name != app_name:
                 continue
 
-            sf = saas_file.copy(deep=True)
+            sf = saas_file.model_copy(deep=True)
             if env_name:
                 for rt in sf.resource_templates[:]:
                     for target in rt.targets[:]:
