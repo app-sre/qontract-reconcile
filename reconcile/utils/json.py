@@ -1,9 +1,31 @@
 import json
+from collections.abc import Callable
+from dataclasses import asdict, is_dataclass
+from datetime import date, datetime
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel
 
 JSON_COMPACT_SEPARATORS = (",", ":")
+
+
+def pydantic_encoder(obj: Any) -> Any:
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+
+    if is_dataclass(obj):
+        return asdict(obj)  # type: ignore
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+
+    if isinstance(obj, Enum):
+        return obj.value
+
+    raise TypeError(
+        f"Object of type '{obj.__class__.__name__}' is not JSON serializable"
+    )
 
 
 def json_dumps(
@@ -12,6 +34,7 @@ def json_dumps(
     compact: bool = False,
     indent: int | None = None,
     cls: type[json.JSONEncoder] | None = None,
+    defaults: Callable | None = None,
     # BaseModel dump parameters
     by_alias: bool = True,
     exclude_none: bool = False,
@@ -38,4 +61,5 @@ def json_dumps(
         separators=separators,
         sort_keys=True,
         cls=cls,
+        default=defaults,
     )

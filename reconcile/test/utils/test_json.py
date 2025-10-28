@@ -1,12 +1,14 @@
 import json
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import date, datetime
+from enum import Enum
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import BaseModel, Field
 
-from reconcile.utils.json import json_dumps
+from reconcile.utils.json import json_dumps, pydantic_encoder
 
 
 def test_basic_serialization() -> None:
@@ -81,4 +83,30 @@ def test_pydantic_model(by_alias: bool, exclude_none: bool, expected: str) -> No
     result = json_dumps(
         data, compact=True, by_alias=by_alias, exclude_none=exclude_none
     )
+    assert result == expected
+
+
+def test_mixed_objects_with_pydantic_encoder() -> None:
+    class NestedModel(BaseModel):
+        x: int
+        y: str
+
+    class TestEnum(Enum):
+        FOO = "bar"
+
+    @dataclass
+    class DataclassModel:
+        path: str
+
+    data = {
+        "a": 42,
+        "b": "value",
+        "c": NestedModel(x=1, y="nested"),
+        "d": datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        "e": TestEnum.FOO,
+        "f": DataclassModel(path="/some/path"),
+        "g": date(1989, 11, 9),
+    }
+    result = json_dumps(data, compact=True, defaults=pydantic_encoder)
+    expected = '{"a":42,"b":"value","c":{"x":1,"y":"nested"},"d":"1989-11-09T23:30:00+01:00","e":"bar","f":{"path":"/some/path"},"g":"1989-11-09"}'
     assert result == expected
