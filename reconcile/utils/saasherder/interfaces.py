@@ -172,6 +172,7 @@ class SaasSlackOutputNotifications(Protocol):
 class SaasSlackOutput(Protocol):
     output: str | None
     channel: str | None
+    send_logs: bool | False
 
     @property
     def workspace(self) -> SaasSlackWorkspace: ...
