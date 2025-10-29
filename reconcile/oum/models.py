@@ -2,7 +2,6 @@ from collections import defaultdict
 
 from pydantic import (
     BaseModel,
-    ConfigDict,
     Field,
 )
 
@@ -57,7 +56,7 @@ class ClusterUserManagementSpec(BaseModel):
     errors: list[ClusterError] = Field(default_factory=list)
 
 
-class ClusterRoleReconcileResult(BaseModel):
+class ClusterRoleReconcileResult(BaseModel, arbitrary_types_allowed=True):
     """
     Holds the result of a cluster role reconciliation.
     """
@@ -65,9 +64,3 @@ class ClusterRoleReconcileResult(BaseModel):
     users_added: int = 0
     users_removed: int = 0
     error: Exception | None = None
-
-    model_config = ConfigDict(
-        validate_by_name=True,
-        validate_by_alias=True,
-        arbitrary_types_allowed=True,
-    )

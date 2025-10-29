@@ -50,7 +50,12 @@ from reconcile.utils.json import json_dumps
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
-class SaasResourceTemplateTarget(ConfiguredBaseModel, extra="ignore"):
+class SaasResourceTemplateTarget(
+    ConfiguredBaseModel,
+    validate_by_alias=True,
+    # ignore `namespaceSelector` and 'provider' fields from the GQL schema
+    extra="ignore",
+):
     path: str | None = Field(..., alias="path")
     name: str | None = Field(..., alias="name")
     # the namespace must be required to fulfill the saas file schema (utils.saasherder.interface.SaasFile)
@@ -79,7 +84,7 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel, extra="ignore"):
         ).hexdigest()
 
 
-class SaasResourceTemplate(ConfiguredBaseModel):
+class SaasResourceTemplate(ConfiguredBaseModel, validate_by_alias=True):
     name: str = Field(..., alias="name")
     url: str = Field(..., alias="url")
     path: str = Field(..., alias="path")
@@ -92,7 +97,7 @@ class SaasResourceTemplate(ConfiguredBaseModel):
     targets: list[SaasResourceTemplateTarget] = Field(..., alias="targets")
 
 
-class SaasFile(ConfiguredBaseModel):
+class SaasFile(ConfiguredBaseModel, validate_by_alias=True):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     labels: Json | None = Field(..., alias="labels")

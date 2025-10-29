@@ -33,12 +33,7 @@ QONTRACT_INTEGRATION = "openshift-rolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 
 
-class OCResource(
-    BaseModel,
-    validate_by_name=True,
-    validate_by_alias=True,
-    arbitrary_types_allowed=True,
-):
+class OCResource(BaseModel, arbitrary_types_allowed=True):
     resource: OR
     resource_name: str
     privileged: bool
@@ -63,7 +58,7 @@ class ServiceAccountSpec:
         ]
 
 
-class RoleBindingSpec(BaseModel, validate_by_name=True, validate_by_alias=True):
+class RoleBindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=True):
     role_name: str
     role_kind: str
     namespace: NamespaceV1

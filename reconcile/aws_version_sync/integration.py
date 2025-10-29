@@ -76,12 +76,7 @@ class SupportedResourceProvider(StrEnum):
     ELASTICACHE = "elasticache"
 
 
-class ExternalResource(
-    BaseModel,
-    validate_by_name=True,
-    validate_by_alias=True,
-    arbitrary_types_allowed=True,
-):
+class ExternalResource(BaseModel, arbitrary_types_allowed=True):
     namespace_file: str | None = None
     provider: str = "aws"
     provisioner: ExternalResourceProvisioner

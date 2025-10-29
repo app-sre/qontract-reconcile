@@ -14,7 +14,7 @@ from typing import (
 )
 
 from github.GithubException import UnknownObjectException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from sretoolbox.utils import retry
 
 from reconcile import (
@@ -144,16 +144,11 @@ class State(BaseModel):
 SlackState = dict[str, dict[str, State]]
 
 
-class WorkspaceSpec(BaseModel):
+class WorkspaceSpec(BaseModel, arbitrary_types_allowed=True):
     """Slack workspace spec."""
 
     slack: SlackApi
     managed_usergroups: list[str] = []
-    model_config = ConfigDict(
-        validate_by_name=True,
-        validate_by_alias=True,
-        arbitrary_types_allowed=True,
-    )
 
 
 SlackMap = dict[str, WorkspaceSpec]

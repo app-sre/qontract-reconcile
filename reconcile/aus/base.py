@@ -16,7 +16,7 @@ from typing import (
 )
 
 from croniter import croniter
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from requests.exceptions import HTTPError
 from semver import VersionInfo
 
@@ -430,17 +430,11 @@ def addon_upgrade_policy_soonest_next_run() -> str:
     return to_utc_seconds_iso_format(next_run)
 
 
-class AddonUpgradePolicy(AbstractUpgradePolicy):
+class AddonUpgradePolicy(AbstractUpgradePolicy, arbitrary_types_allowed=True):
     """Class to create and delete Addon upgrade policies in OCM"""
 
     addon_id: str
     addon_service: AddonService
-
-    model_config = ConfigDict(
-        validate_by_name=True,
-        validate_by_alias=True,
-        arbitrary_types_allowed=True,
-    )
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         self.addon_service.create_addon_upgrade_policy(
