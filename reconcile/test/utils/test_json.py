@@ -1,8 +1,9 @@
 import json
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -58,19 +59,32 @@ class SampleModel(BaseModel):
     b: str
     c: datetime
     d: str | None = None
+    e: Decimal
 
 
 @pytest.mark.parametrize(
     ("by_alias", "exclude_none", "expected"),
     [
-        (False, False, '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null}'),
-        (False, True, '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00"}'),
+        (
+            False,
+            False,
+            '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            False,
+            True,
+            '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00","e":"10.5"}',
+        ),
         (
             True,
             False,
-            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null}',
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
         ),
-        (True, True, '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00"}'),
+        (
+            True,
+            True,
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","e":"10.5"}',
+        ),
     ],
 )
 def test_pydantic_model(by_alias: bool, exclude_none: bool, expected: str) -> None:
@@ -79,6 +93,7 @@ def test_pydantic_model(by_alias: bool, exclude_none: bool, expected: str) -> No
         b="value",
         c=datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
         d=None,
+        e=Decimal("10.5"),
     )
     result = json_dumps(
         data, compact=True, by_alias=by_alias, exclude_none=exclude_none
@@ -109,4 +124,29 @@ def test_mixed_objects_with_pydantic_encoder() -> None:
     }
     result = json_dumps(data, compact=True, defaults=pydantic_encoder)
     expected = '{"a":42,"b":"value","c":{"x":1,"y":"nested"},"d":"1989-11-09T23:30:00+01:00","e":"bar","f":{"path":"/some/path"},"g":"1989-11-09"}'
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        (
+            "json",
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            "python",
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":10.5}',
+        ),
+    ],
+)
+def test_pydantic_mode(mode: Literal["json", "python"], expected: str) -> None:
+    data = SampleModel(
+        alias=42,
+        b="value",
+        c=datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        d=None,
+        e=Decimal("10.5"),
+    )
+    result = json_dumps(data, compact=True, mode=mode)
     assert result == expected
