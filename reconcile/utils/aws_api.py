@@ -1205,12 +1205,12 @@ class AWSApi:
             None
         """
         ec2 = self._account_ec2_client(account["name"])
-        formated_tags: list[TagTypeDef] = [
+        formatted_tags: list[TagTypeDef] = [
             {"Key": k, "Value": v} for k, v in tags.items()
         ]
         ec2.create_tags(
             Resources=[resource_id],
-            Tags=formated_tags,
+            Tags=formatted_tags,
         )
 
     def get_alb_network_interface_ips(
