@@ -7,10 +7,7 @@ from enum import Enum
 from typing import Any, NotRequired, TypedDict
 
 from github import Github
-from pydantic import (
-    BaseModel,
-    Field,
-)
+from pydantic import BaseModel, Field, model_validator
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLODocument,
@@ -258,6 +255,17 @@ class Promotion(BaseModel):
     promotion_data: list[PromotionData] | None = None
     saas_file_paths: list[str] | None = None
     target_paths: list[str] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_gql_classes(cls, data: Any) -> Any:
+        if data.get("promotion_data"):
+            data["promotion_data"] = [
+                # convert a GQL class to a dict
+                item.model_dump() if hasattr(item, "model_dump") else item
+                for item in data["promotion_data"]
+            ]
+        return data
 
 
 @dataclass

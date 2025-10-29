@@ -1250,7 +1250,9 @@ class SaasHerder:
             self.saas_files,
             self.thread_pool_size,
         )
-        desired_state_specs = list(itertools.chain.from_iterable(results))
+        desired_state_specs: list[TargetSpec] = list(
+            itertools.chain.from_iterable(results)
+        )
         promotions = threaded.run(
             self.populate_desired_state_saas_file,
             desired_state_specs,
