@@ -3,9 +3,6 @@ import os
 import sys
 from collections.abc import Callable
 
-from networkx.lazy_imports import \
-    attach
-
 import reconcile.openshift_base as ob
 from reconcile import (
     jenkins_base,
