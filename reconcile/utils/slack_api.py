@@ -183,6 +183,7 @@ class SlackApi:
         api_config: SlackApiConfig | None = None,
         init_usergroups: bool = True,
         channel: str | None = None,
+        attach_filepath: str | None = None,
         **chat_kwargs: Any,
     ) -> None:
         """
@@ -194,6 +195,7 @@ class SlackApi:
         usergroups when instantiated
         :param channel: the Slack channel to post messages to, only used
         when posting messages to a channel or getting conversation history
+        :param attach_filepath: file path to post as attachment with message
         :param chat_kwargs: any other kwargs that can be used to post Slack
         channel messages
         """
@@ -220,6 +222,7 @@ class SlackApi:
         self._enterprise_user_id_to_user_ids: dict[str, str] = {}
 
         self.channel = channel
+        self.attach_filepath = attach_filepath
         self.chat_kwargs = chat_kwargs
 
         self._user_groups_initialized = False
@@ -260,7 +263,14 @@ class SlackApi:
 
         def do_send(c: str, t: str) -> None:
             slack_request.labels("chat.postMessage", "POST").inc()
-            self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
+            if self.attach_filepath is not None:
+                try:
+                    self._sc.files_upload_v2(channel=c, title="SAAS Job Log", file=self.attach_filepath,
+                    initial_comment=t)
+                except SlackApiError:
+                    self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
+            else:
+                self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
 
         try:
             do_send(self.channel, text)

@@ -3,6 +3,9 @@ import os
 import sys
 from collections.abc import Callable
 
+from networkx.lazy_imports import \
+    attach
+
 import reconcile.openshift_base as ob
 from reconcile import (
     jenkins_base,
@@ -313,11 +316,8 @@ def run(
                 + f"{action['kind']} {action['name']} {action['action']}"
             )
             if send_logs:
-                with open(os.path.join(io_dir, action['name']), 'r') as file:
-                    log_content = file.read()
-                message += (
-                      f" Logs: {log_content}"
-                )
+                slack.attach_filepath = os.path.join(io_dir, action['name']) 
+            
             slack.chat_post_message(message)
 
     # get upstream repo info for sast scan
