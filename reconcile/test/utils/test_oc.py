@@ -16,6 +16,8 @@ from reconcile.utils.oc import (
     LABEL_MAX_KEY_PREFIX_LENGTH,
     LABEL_MAX_VALUE_LENGTH,
     OC,
+    AmbiguousResourceTypeError,
+    KindNotFoundError,
     OC_Map,
     OCCli,
     OCLogMsg,
@@ -1098,12 +1100,22 @@ def test_is_kind_not_namespaced_full_name(oc_api_resources: OCCli) -> None:
         ("kind2", K2_G2),
         ("kind3.group1", K3_G1),
         ("kind3.group2", K3_G2),
+        # bad group of single kind
+        pytest.param(
+            "kind2.unknown", None, marks=pytest.mark.xfail(raises=KindNotFoundError)
+        ),
         # unknown kind
-        pytest.param("unknown", None, marks=pytest.mark.xfail),
+        pytest.param(
+            "unknown", None, marks=pytest.mark.xfail(raises=KindNotFoundError)
+        ),
         # ambiguous kind
-        pytest.param("kind3", None, marks=pytest.mark.xfail),
-        # bad version of kind
-        pytest.param("kind3.unknown", None, marks=pytest.mark.xfail),
+        pytest.param(
+            "kind3", None, marks=pytest.mark.xfail(raises=AmbiguousResourceTypeError)
+        ),
+        # bad group of multiple kind
+        pytest.param(
+            "kind3.unknown", None, marks=pytest.mark.xfail(raises=KindNotFoundError)
+        ),
     ],
 )
 def test_find_resource(oc_api_resources: OCCli, kind: str, expected: Resource) -> None:
