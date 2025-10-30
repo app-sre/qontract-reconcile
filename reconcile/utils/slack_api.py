@@ -268,7 +268,7 @@ class SlackApi:
                     self._sc.files_upload_v2(channel=c, title="SAAS Job Log", file=self.attach_filepath,
                     initial_comment=t)
                 except SlackApiError:
-                    self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
+                    logging.error(f"Slack API says could not upload file {self.attach_filepath} to channel {self.channel}")
             else:
                 self._sc.chat_postMessage(channel=c, text=t, **self.chat_kwargs)
 

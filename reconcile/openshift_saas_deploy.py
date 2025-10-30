@@ -72,7 +72,6 @@ def slack_notify(
     trigger_integration: str | None = None,
     trigger_reason: str | None = None,
     skip_successful_notifications: bool | None = False,
-    send_logs:  bool | None = False,
 ) -> None:
     success = not ri.has_error_registered()
     # if the deployment doesn't want any notifications for successful
@@ -312,7 +311,7 @@ def run(
                 f"[{action['cluster']}] "
                 + f"{action['kind']} {action['name']} {action['action']}"
             )
-            if send_logs:
+            if send_logs and not success and os.path.isfile(os.path.join(io_dir, action['name'])):
                 slack.attach_filepath = os.path.join(io_dir, action['name']) 
             
             slack.chat_post_message(message)
