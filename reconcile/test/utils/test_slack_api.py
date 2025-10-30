@@ -662,3 +662,84 @@ def test_slack_api__client_dont_retry(
         slack_client._sc.api_call("users.list")
 
     assert len(httpserver.log) == 1
+
+
+def test_chat_post_message_without_attach_filepath(slack_api: SlackApiMock) -> None:
+    """Test that chat_postMessage is called when attach_filepath is None"""
+    slack_api.client.channel = "test-channel"
+    slack_api.client.attach_filepath = None
+    ok_resp = new_slack_response({"ok": True})
+    slack_api.mock_slack_client.return_value.chat_postMessage.return_value = ok_resp
+
+    slack_api.client.chat_post_message("test message")
+
+    slack_api.mock_slack_client.return_value.chat_postMessage.assert_called_once_with(
+        channel="test-channel", text="test message"
+    )
+    slack_api.mock_slack_client.return_value.files_upload_v2.assert_not_called()
+
+
+def test_chat_post_message_with_attach_filepath(
+    slack_api: SlackApiMock, tmp_path: pytest.TempPathFactory
+) -> None:
+    """Test that files_upload_v2 is called when attach_filepath is set"""
+    test_file = tmp_path / "test_log.txt"
+    test_file.write_text("test log content")
+
+    slack_api.client.channel = "test-channel"
+    slack_api.client.attach_filepath = str(test_file)
+    ok_resp = new_slack_response({"ok": True})
+    slack_api.mock_slack_client.return_value.files_upload_v2.return_value = ok_resp
+
+    slack_api.client.chat_post_message("test message")
+
+    slack_api.mock_slack_client.return_value.files_upload_v2.assert_called_once_with(
+        channel="test-channel",
+        title="SAAS Job Log",
+        file=str(test_file),
+        initial_comment="test message"
+    )
+    slack_api.mock_slack_client.return_value.chat_postMessage.assert_not_called()
+
+
+def test_chat_post_message_attach_filepath_upload_fails(
+    slack_api: SlackApiMock, tmp_path: pytest.TempPathFactory, mocker: MockerFixture
+) -> None:
+    """Test that file upload errors are logged but don't raise exceptions"""
+    test_file = tmp_path / "test_log.txt"
+    test_file.write_text("test log content")
+
+    slack_api.client.channel = "test-channel"
+    slack_api.client.attach_filepath = str(test_file)
+
+    # Mock logging to verify error is logged
+    mock_logging = mocker.patch("reconcile.utils.slack_api.logging")
+
+    err_resp = new_slack_response({"ok": False, "error": "upload_failed"})
+    slack_api.mock_slack_client.return_value.files_upload_v2.side_effect = (
+        SlackApiError("error", err_resp)
+    )
+
+    # Should not raise an exception
+    slack_api.client.chat_post_message("test message")
+
+    slack_api.mock_slack_client.return_value.files_upload_v2.assert_called_once()
+    mock_logging.error.assert_called_once()
+    assert str(test_file) in str(mock_logging.error.call_args)
+
+
+def test_slack_api_init_with_attach_filepath(mocker: MockerFixture) -> None:
+    """Test that SlackApi can be initialized with attach_filepath parameter"""
+    mock_slack_client = mocker.patch.object(
+        reconcile.utils.slack_api, "WebClient", autospec=True
+    )
+    mock_slack_client.return_value.retry_handlers = []
+
+    api = SlackApi(
+        "workspace",
+        "token",
+        attach_filepath="/path/to/logfile.txt",
+        init_usergroups=False,
+    )
+
+    assert api.attach_filepath == "/path/to/logfile.txt"

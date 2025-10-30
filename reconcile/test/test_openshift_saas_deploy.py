@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from pathlib import Path
 from unittest.mock import create_autospec
 
 import pytest
@@ -186,3 +187,160 @@ def test_slack_notify_skipped_in_progress() -> None:
         "deployment to environment *test*: In Progress "
         "(<https://test.local/console|Open>). There will not be a notice for success."
     )
+
+
+def test_slack_notify_failure_with_send_logs_attaches_log_file(tmp_path: Path) -> None:
+    """Test that log file is attached when deployment fails with send_logs=True"""
+    api = create_autospec(slack_api.SlackApi)
+    ri = openshift_resource.ResourceInventory()
+    ri.register_error()
+
+    # Create a fake log file
+    io_dir = tmp_path / "logs"
+    io_dir.mkdir()
+    log_file = io_dir / "test-action"
+    log_file.write_text("Test log content")
+
+    actions = [{"name": "test-action", "cluster": "test-cluster", "kind": "Deployment", "action": "create"}]
+
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=False,
+        send_logs=True,
+        io_dir=str(io_dir),
+        actions=actions,
+    )
+
+    # Verify attach_filepath was set before calling chat_post_message
+    assert api.attach_filepath == str(log_file)
+    api.chat_post_message.assert_called_once()
+
+
+def test_slack_notify_failure_without_send_logs_no_attachment(tmp_path: Path) -> None:
+    """Test that log file is NOT attached when send_logs=False"""
+    api = create_autospec(slack_api.SlackApi)
+    ri = openshift_resource.ResourceInventory()
+    ri.register_error()
+
+    # Create a fake log file
+    io_dir = tmp_path / "logs"
+    io_dir.mkdir()
+    log_file = io_dir / "test-action"
+    log_file.write_text("Test log content")
+
+    actions = [{"name": "test-action", "cluster": "test-cluster", "kind": "Deployment", "action": "create"}]
+
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=False,
+        send_logs=False,
+        io_dir=str(io_dir),
+        actions=actions,
+    )
+
+    # Verify attach_filepath was NOT set
+    assert not hasattr(api, "attach_filepath") or api.attach_filepath is None
+    api.chat_post_message.assert_called_once()
+
+
+def test_slack_notify_success_with_send_logs_no_attachment() -> None:
+    """Test that log file is NOT attached on success even with send_logs=True"""
+    api = create_autospec(slack_api.SlackApi)
+    ri = openshift_resource.ResourceInventory()  # No error = success
+
+    actions = [{"name": "test-action", "cluster": "test-cluster", "kind": "Deployment", "action": "create"}]
+
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=False,
+        send_logs=True,
+        io_dir="/some/dir",
+        actions=actions,
+    )
+
+    # Verify attach_filepath was NOT set on success
+    assert not hasattr(api, "attach_filepath") or api.attach_filepath is None
+    api.chat_post_message.assert_called_once()
+
+
+def test_slack_notify_failure_send_logs_no_log_file_exists(tmp_path: Path) -> None:
+    """Test that notification still works if log file doesn't exist"""
+    api = create_autospec(slack_api.SlackApi)
+    ri = openshift_resource.ResourceInventory()
+    ri.register_error()
+
+    io_dir = tmp_path / "logs"
+    io_dir.mkdir()
+    # Don't create the log file
+
+    actions = [{"name": "test-action", "cluster": "test-cluster", "kind": "Deployment", "action": "create"}]
+
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=False,
+        send_logs=True,
+        io_dir=str(io_dir),
+        actions=actions,
+    )
+
+    # Verify attach_filepath was NOT set since file doesn't exist
+    assert not hasattr(api, "attach_filepath") or api.attach_filepath is None
+    api.chat_post_message.assert_called_once()
+
+
+def test_slack_notify_failure_send_logs_multiple_actions_attaches_first(tmp_path: Path) -> None:
+    """Test that only the first log file is attached when multiple actions exist"""
+    api = create_autospec(slack_api.SlackApi)
+    ri = openshift_resource.ResourceInventory()
+    ri.register_error()
+
+    io_dir = tmp_path / "logs"
+    io_dir.mkdir()
+
+    # Create multiple log files
+    log_file1 = io_dir / "action-1"
+    log_file1.write_text("Log 1")
+    log_file2 = io_dir / "action-2"
+    log_file2.write_text("Log 2")
+
+    actions = [
+        {"name": "action-1", "cluster": "test-cluster", "kind": "Deployment", "action": "create"},
+        {"name": "action-2", "cluster": "test-cluster", "kind": "Service", "action": "create"},
+    ]
+
+    slack_notify(
+        saas_file_name="test-saas-file-name.yaml",
+        env_name="test",
+        slack=api,
+        ri=ri,
+        console_url="https://test.local/console",
+        in_progress=False,
+        skip_successful_notifications=False,
+        send_logs=True,
+        io_dir=str(io_dir),
+        actions=actions,
+    )
+
+    # Verify only the first log file was attached
+    assert api.attach_filepath == str(log_file1)
+    api.chat_post_message.assert_called_once()
