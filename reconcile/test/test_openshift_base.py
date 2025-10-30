@@ -604,6 +604,33 @@ def test_namespaces_managed_resources_cluster_scoped_resource(
         assert e in rs
 
 
+def test_namespaces_managed_resources_cluster_scoped_resource_no_managed_resource_names(
+    resource_inventory: resource.ResourceInventory, oc_map: oc.OC_Map
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+        cluster_scope_resource_validation=True,
+    )
+    assert resource_inventory.has_error_registered()
+
+
 def test_namespaces_managed_resources_cluster_scoped_resource_validation_disabled(
     resource_inventory: resource.ResourceInventory,
     oc_map: oc.OC_Map,

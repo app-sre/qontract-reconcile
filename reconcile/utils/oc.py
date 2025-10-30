@@ -146,6 +146,14 @@ class RequestEntityTooLargeError(Exception):
     pass
 
 
+class KindNotFoundError(Exception):
+    pass
+
+
+class AmbiguousResourceTypeError(Exception):
+    pass
+
+
 class OCDecorators:
     @classmethod
     def process_reconcile_time(cls, function: Callable) -> Callable:
@@ -1232,7 +1240,7 @@ class OCCli:
         try:
             self.get_api_resource(kind)
             return True
-        except RuntimeError:
+        except KindNotFoundError:
             return False
 
     def is_kind_namespaced(self, kind: str) -> bool:
@@ -1253,25 +1261,26 @@ class OCCli:
         kind, group, _ = self.parse_kind(kind)
 
         if not (resources := self.api_resources.get(kind)):
-            raise RuntimeError(f"Unsupported resource type: {kind}")
+            # the kind not found at all
+            raise KindNotFoundError(f"Unsupported resource type: {kind}")
 
         if len(resources) == 1 and group == DEFAULT_GROUP:
             return resources[0]
 
-        resource = next(
-            (r for r in resources if r.group == group),
-            None,
-        )
-        if resource is None:
+        # get the resource with the specified group
+        if resource := next((r for r in resources if r.group == group), None):
+            return resource
+
+        # no resource with the specified group found
+        if group == DEFAULT_GROUP:
             message = (
                 f"Ambiguous resource type: {kind}. "
                 "Please fully qualify it with its API group. E.g., ClusterRoleBinding -> ClusterRoleBinding.rbac.authorization.k8s.io"
-                if group == DEFAULT_GROUP
-                else f"Unsupported resource type: {kind}"
             )
-            raise RuntimeError(message)
+            raise AmbiguousResourceTypeError(message)
 
-        return resource
+        # group was specified but no matching resource found
+        raise KindNotFoundError(f"Unsupported resource type: {kind}")
 
 
 REQUEST_TIMEOUT = 60
