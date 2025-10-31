@@ -20,6 +20,7 @@ from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionExternalResourceFlushElastiCacheV1,
     AutomatedActionExternalResourceRdsRebootV1,
     AutomatedActionExternalResourceRdsSnapshotV1,
+    AutomatedActionOpenshiftTriggerCronjobV1,
     AutomatedActionOpenshiftWorkloadDeleteV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     AutomatedActionOpenshiftWorkloadRestartV1,
@@ -205,6 +206,17 @@ class AutomatedActionsConfigIntegration(
                                 "account": f"^{rds_snapshot_er.provisioner.name}$",
                                 "identifier": rds_snapshot_arg.identifier,
                             })
+                case AutomatedActionOpenshiftTriggerCronjobV1():
+                    parameters.extend(
+                        {
+                            # all parameter values are regexes in the OPA policy
+                            # therefore, cluster and namespace must be fixed to the current strings
+                            "cluster": f"^{arg.namespace.cluster.name}$",
+                            "namespace": f"^{arg.namespace.name}$",
+                            "cronjob": arg.cronjob,
+                        }
+                        for arg in action.openshift_trigger_cronjob_arguments
+                    )
                 case AutomatedActionOpenshiftWorkloadDeleteV1():
                     parameters.extend(
                         {
