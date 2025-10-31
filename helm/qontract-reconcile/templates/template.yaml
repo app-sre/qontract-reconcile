@@ -126,6 +126,25 @@ objects:
                 key: google_chat.webhook_url
                 name: app-interface
           {{- end }}
+          {{- if eq $.Values.gov_slack "true" }}
+          {{- /*
+          "*-triggers" integrations will be sent to a separate gov_slack channel as
+          they are much noisier than other integrations
+          */}}
+          {{- if $integration.trigger }}
+          - name: GOV_SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: gov_slack.triggers_url
+                name: app-interface
+          {{- else }}
+          - name: GOV_SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: gov_slack.webhook_url
+                name: app-interface
+          {{- end }}
+          {{- end }}
           - name: POD_NAME
             valueFrom:
               fieldRef:
@@ -247,6 +266,28 @@ objects:
             </match>
             {{- end }}
 
+            {{- if eq $.Values.gov_slack "true" }}
+            <match gov_slack>
+              @type teams
+              webhook_url "${GOV_SLACK_WEBHOOK_URL}&threadKey=${POD_NAME}"
+              text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
+              buffered true
+              <buffer>
+                @type file
+                path /fluentd/buffer
+
+                flush_mode interval
+                flush_interval 15s
+                flush_at_shutdown true
+
+                retry_max_times 0
+                retry_wait 30
+
+                disable_chunk_backup true
+              </buffer>
+            </match>
+            {{- end }}
+
             {{- if $.Values.enable_slack_error_filter }}
             <match slack_errors>
               @type slack
@@ -276,6 +317,10 @@ objects:
               containerPort: 9090
           env:
           {{- if $logs.googleChat }}
+          - name: PREFIX_LOG_LEVEL
+            value: "true"
+          {{- end }}
+          {{- if eq $.Values.gov_slack "true" }}
           - name: PREFIX_LOG_LEVEL
             value: "true"
           {{- end }}
@@ -377,7 +422,7 @@ objects:
           {{- if $integration.environmentAware }}
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
-          {{- if $.Values.gov_slack }}
+          {{- if eq $.Values.gov_slack "true" }}
           - name: GOV_SLACK
             value: "${GOV_SLACK}"
           {{- end }}
@@ -543,6 +588,10 @@ objects:
           - name: buffer
             mountPath: /fluentd/buffer
           {{- end }}
+          {{- if eq $.Values.gov_slack "true" }}
+          - name: buffer
+            mountPath: /fluentd/buffer
+          {{- end }}
         volumes:
         - name: qontract-reconcile-sa-token
           projected:
@@ -574,6 +623,10 @@ objects:
         - name: tmp-dir
           emptyDir: { }
         {{- if $logs.googleChat }}
+        - name: buffer
+          emptyDir: {}
+        {{- end }}
+        {{- if eq $.Values.gov_slack "true" }}
         - name: buffer
           emptyDir: {}
         {{- end }}
@@ -755,9 +808,9 @@ parameters:
   value: Always
 - name: ENVIRONMENT_NAME
   value: app-interface
-{{- if .Values.gov_slack }}
+{{- if eq $.Values.gov_slack "true" }}
 - name: GOV_SLACK
-  value: "{{ .Values.gov_slack }}"
+  value: "{{ $.Values.gov_slack }}"
   required: false
 {{- end }}
 - name: DRY_RUN
