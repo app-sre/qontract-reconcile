@@ -560,6 +560,15 @@ def expected_s3_default_bucket() -> aws_s3_bucket:
                 "app": "app",
             },
             "lifecycle": {"ignore_changes": ["grant"]},
+            "lifecycle_rule": [
+                {
+                    "id": "expire_noncurrent_versions",
+                    "enabled": True,
+                    "noncurrent_version_expiration": {"days": 30},
+                    "expiration": {"expired_object_delete_marker": True},
+                    "abort_incomplete_multipart_upload_days": 3,
+                }
+            ],
             "server_side_encryption_configuration": {
                 "rule": {
                     "apply_server_side_encryption_by_default": {
@@ -579,6 +588,62 @@ def test_populate_tf_resource_s3(
     bucket_tf_resource = ts.populate_tf_resource_s3(s3_default_spec)
 
     assert bucket_tf_resource == expected_s3_default_bucket
+
+
+@pytest.fixture
+def s3_spec_with_noncurrent_version_expiration() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-bucket",
+        "provider": "s3",
+        "region": "us-east-1",
+        "overrides": '{"lifecycle_rules": [{"id": "some-rule", "noncurrent_version_expiration": {"days": 1}, "enabled": true}]}',
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture
+def expected_with_noncurrent_version_expiration() -> aws_s3_bucket:
+    return aws_s3_bucket(
+        "s3-bucket",
+        **{
+            "bucket": "s3-bucket",
+            "versioning": {"enabled": True},
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+            "lifecycle": {"ignore_changes": ["grant"]},
+            "lifecycle_rule": [
+                {
+                    "id": "some-rule",
+                    "enabled": True,
+                    "noncurrent_version_expiration": {"days": 1},
+                }
+            ],
+            "server_side_encryption_configuration": {
+                "rule": {
+                    "apply_server_side_encryption_by_default": {
+                        "sse_algorithm": "AES256"
+                    }
+                }
+            },
+        },
+    )
+
+
+def test_populate_tf_resource_s3_with_noncurrent_version_expiration(
+    ts: TerrascriptClient,
+    s3_spec_with_noncurrent_version_expiration: ExternalResourceSpec,
+    expected_with_noncurrent_version_expiration: aws_s3_bucket,
+) -> None:
+    bucket_tf_resource = ts.populate_tf_resource_s3(
+        s3_spec_with_noncurrent_version_expiration
+    )
+
+    assert bucket_tf_resource == expected_with_noncurrent_version_expiration
 
 
 @pytest.fixture
@@ -649,6 +714,15 @@ def expected_s3_bucket_with_region() -> aws_s3_bucket:
                 "app": "app",
             },
             "lifecycle": {"ignore_changes": ["grant"]},
+            "lifecycle_rule": [
+                {
+                    "id": "expire_noncurrent_versions",
+                    "enabled": True,
+                    "noncurrent_version_expiration": {"days": 30},
+                    "expiration": {"expired_object_delete_marker": True},
+                    "abort_incomplete_multipart_upload_days": 3,
+                }
+            ],
             "server_side_encryption_configuration": {
                 "rule": {
                     "apply_server_side_encryption_by_default": {
