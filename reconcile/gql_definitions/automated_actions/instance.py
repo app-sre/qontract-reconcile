@@ -132,6 +132,21 @@ query AutomatedActionsInstances {
           identifier
         }
       }
+      ... on AutomatedActionOpenshiftTriggerCronjob_v1 {
+        openshift_trigger_cronjob_arguments: arguments {
+          namespace {
+            name
+            delete
+            cluster {
+              name
+              disable {
+                integrations
+              }
+            }
+          }
+          cronjob
+        }
+      }
       ... on AutomatedActionOpenshiftWorkloadDelete_v1 {
         openshift_workload_delete_arguments: arguments {
           namespace {
@@ -297,9 +312,33 @@ class DisableClusterAutomationsV1(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
 
 
-class AutomatedActionOpenshiftWorkloadDeleteArgumentV1_NamespaceV1_ClusterV1(ConfiguredBaseModel):
+class AutomatedActionOpenshiftTriggerCronjobArgumentV1_NamespaceV1_ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
+
+
+class AutomatedActionOpenshiftTriggerCronjobArgumentV1_NamespaceV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    delete: Optional[bool] = Field(..., alias="delete")
+    cluster: AutomatedActionOpenshiftTriggerCronjobArgumentV1_NamespaceV1_ClusterV1 = Field(..., alias="cluster")
+
+
+class AutomatedActionOpenshiftTriggerCronjobArgumentV1(ConfiguredBaseModel):
+    namespace: AutomatedActionOpenshiftTriggerCronjobArgumentV1_NamespaceV1 = Field(..., alias="namespace")
+    cronjob: str = Field(..., alias="cronjob")
+
+
+class AutomatedActionOpenshiftTriggerCronjobV1(AutomatedActionV1):
+    openshift_trigger_cronjob_arguments: list[AutomatedActionOpenshiftTriggerCronjobArgumentV1] = Field(..., alias="openshift_trigger_cronjob_arguments")
+
+
+class AutomatedActionOpenshiftWorkloadDeleteArgumentV1_NamespaceV1_ClusterV1_DisableClusterAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
+class AutomatedActionOpenshiftWorkloadDeleteArgumentV1_NamespaceV1_ClusterV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    disable: Optional[AutomatedActionOpenshiftWorkloadDeleteArgumentV1_NamespaceV1_ClusterV1_DisableClusterAutomationsV1] = Field(..., alias="disable")
 
 
 class AutomatedActionOpenshiftWorkloadDeleteArgumentV1_NamespaceV1(ConfiguredBaseModel):
@@ -347,7 +386,7 @@ class AutomatedActionOpenshiftWorkloadRestartV1(AutomatedActionV1):
 class AutomatedActionsInstanceV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     deployment: NamespaceV1 = Field(..., alias="deployment")
-    actions: Optional[list[Union[AutomatedActionActionListV1, AutomatedActionExternalResourceFlushElastiCacheV1, AutomatedActionExternalResourceRdsRebootV1, AutomatedActionExternalResourceRdsSnapshotV1, AutomatedActionOpenshiftWorkloadDeleteV1, AutomatedActionOpenshiftWorkloadRestartV1, AutomatedActionV1]]] = Field(..., alias="actions")
+    actions: Optional[list[Union[AutomatedActionActionListV1, AutomatedActionExternalResourceFlushElastiCacheV1, AutomatedActionExternalResourceRdsRebootV1, AutomatedActionExternalResourceRdsSnapshotV1, AutomatedActionOpenshiftTriggerCronjobV1, AutomatedActionOpenshiftWorkloadDeleteV1, AutomatedActionOpenshiftWorkloadRestartV1, AutomatedActionV1]]] = Field(..., alias="actions")
 
 
 class AutomatedActionsInstancesQueryData(ConfiguredBaseModel):
