@@ -66,7 +66,7 @@ def setup_mocks(
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_run(mocker: MockerFixture, dry_run) -> None:
+def test_run(mocker: MockerFixture, dry_run: bool) -> None:
     mocks = setup_mocks(mocker, [])
 
     openshift_namespaces.run(dry_run, thread_pool_size=1)
@@ -254,10 +254,14 @@ def test_duplicate_namespaces(
     )
     setup_mocks(mocker, [namespace1, namespace2])
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(ExceptionGroup) as e:
         openshift_namespaces.run(False, thread_pool_size=1)
 
-    assert "Found multiple definitions" in str(e.value)
+    assert len(e.value.exceptions) == 1
+    assert isinstance(
+        e.value.exceptions[0], openshift_namespaces.NamespaceDuplicateError
+    )
+    assert "Found multiple definitions" in str(e.value.exceptions[0])
 
 
 def test_error_handling(
@@ -272,7 +276,9 @@ def test_error_handling(
     exception = Exception("Some error")
     mocks["oc"].project_exists.side_effect = exception
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(ExceptionGroup) as e:
         openshift_namespaces.run(False, thread_pool_size=1)
 
-    assert e == exception
+    assert len(e.value.exceptions) == 1
+    assert isinstance(e.value.exceptions[0], openshift_namespaces.NamespaceRuntimeError)
+    assert "Some error" in str(e.value.exceptions[0])
