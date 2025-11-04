@@ -2210,6 +2210,43 @@ class TerrascriptClient:
         letters_and_digits = string.ascii_letters + string.digits
         return "".join(random.choice(letters_and_digits) for i in range(string_length))
 
+    @staticmethod
+    def _build_tf_resource_s3_lifecycle_rules(
+        versioning: bool,
+        common_values: Mapping[str, Any],
+    ) -> list[dict]:
+        lifecycle_rules = common_values.get("lifecycle_rules") or []
+        if versioning and not any(
+            "noncurrent_version_expiration" in lr for lr in lifecycle_rules
+        ):
+            # Add a default noncurrent object expiration rule
+            # if one isn't already set
+            rule = {
+                "id": "expire_noncurrent_versions",
+                "enabled": True,
+                "noncurrent_version_expiration": {"days": 30},
+                "expiration": {"expired_object_delete_marker": True},
+                "abort_incomplete_multipart_upload_days": 3,
+            }
+            lifecycle_rules.append(rule)
+
+        if storage_class := common_values.get("storage_class"):
+            sc = storage_class.upper()
+            days = "1"
+            if sc.endswith("_IA"):
+                # Infrequent Access storage class has minimum 30 days
+                # before transition
+                days = "30"
+            rule = {
+                "id": sc + "_storage_class",
+                "enabled": True,
+                "transition": {"days": days, "storage_class": sc},
+                "noncurrent_version_transition": {"days": days, "storage_class": sc},
+            }
+            lifecycle_rules.append(rule)
+
+        return lifecycle_rules
+
     def populate_tf_resource_s3(self, spec: ExternalResourceSpec) -> aws_s3_bucket:
         account = spec.provisioner_name
         identifier = spec.identifier
@@ -2249,47 +2286,11 @@ class TerrascriptClient:
         request_payer = common_values.get("request_payer")
         if request_payer:
             values["request_payer"] = request_payer
-        lifecycle_rules = common_values.get("lifecycle_rules")
-        if lifecycle_rules:
-            # common_values['lifecycle_rules'] is a list of lifecycle_rules
+        if lifecycle_rules := self._build_tf_resource_s3_lifecycle_rules(
+            versioning=versioning,
+            common_values=common_values,
+        ):
             values["lifecycle_rule"] = lifecycle_rules
-        if versioning:
-            lrs = values.get("lifecycle_rule", [])
-            expiration_rule = False
-            for lr in lrs:
-                if "noncurrent_version_expiration" in lr:
-                    expiration_rule = True
-                    break
-            if not expiration_rule:
-                # Add a default noncurrent object expiration rule if
-                # if one isn't already set
-                rule = {
-                    "id": "expire_noncurrent_versions",
-                    "enabled": "true",
-                    "noncurrent_version_expiration": {"days": 30},
-                }
-                if len(lrs) > 0:
-                    lrs.append(rule)
-                else:
-                    lrs = rule
-        sc = common_values.get("storage_class")
-        if sc:
-            sc = sc.upper()
-            days = "1"
-            if sc.endswith("_IA"):
-                # Infrequent Access storage class has minimum 30 days
-                # before transition
-                days = "30"
-            rule = {
-                "id": sc + "_storage_class",
-                "enabled": "true",
-                "transition": {"days": days, "storage_class": sc},
-                "noncurrent_version_transition": {"days": days, "storage_class": sc},
-            }
-            if values.get("lifecycle_rule"):
-                values["lifecycle_rule"].append(rule)
-            else:
-                values["lifecycle_rule"] = rule
         cors_rules = common_values.get("cors_rules")
         if cors_rules:
             # common_values['cors_rules'] is a list of cors_rules
