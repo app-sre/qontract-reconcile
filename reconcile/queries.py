@@ -505,6 +505,12 @@ AWS_ACCOUNTS_QUERY = """
         name
         uid
         supportedDeploymentRegions
+        organization {
+          payerAccount {
+            organizationAccountTags
+          }
+          tags
+        }
       }
       ... on AWSAccountSharingOptionAMI_v1 {
         regex

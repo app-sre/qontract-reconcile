@@ -70,10 +70,13 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
     dry_run_suffix: str = ""
 
     def name_prefix(self) -> str:
+        identifier = (
+            f"{self.reconciliation.key.provider}-{self.reconciliation.key.identifier}"
+        )
         if self.is_dry_run:
-            return f"er-dry-run-mr-{self.dry_run_suffix}"
+            return f"er-dry-run-mr-{self.dry_run_suffix}-{identifier}"
         else:
-            return "er"
+            return f"er-{identifier}"
 
     def unit_of_work_identity(self) -> Any:
         return self.reconciliation.key
