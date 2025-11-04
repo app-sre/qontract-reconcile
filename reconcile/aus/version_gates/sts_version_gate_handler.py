@@ -6,6 +6,7 @@ from reconcile.utils.ocm.base import OCMCluster, OCMVersionGate
 from reconcile.utils.ocm_base_client import OCMBaseClient
 from reconcile.utils.rosa.rosa_cli import RosaCliError
 from reconcile.utils.rosa.session import RosaSession
+from reconcile.utils.semver_helper import get_version_prefix
 
 GATE_LABEL = "api.openshift.com/gate-sts"
 
@@ -109,6 +110,40 @@ class STSGateHandler(GateHandler):
             # operator role handling
             rosa.upgrade_operator_roles(
                 cluster_id=cluster.id,
+                dry_run=dry_run,
+            )
+        except RosaCliError as e:
+            logging.error(f"Failed to upgrade roles for cluster {cluster.name}: {e}")
+            e.write_logs_to_logger(logging.error)
+            return False
+        return True
+
+    def upgrade_rosa_roles_v2(
+        self,
+        cluster: OCMCluster,
+        upgrade_version: str,
+        dry_run: bool,
+        ocm_api: OCMBaseClient,
+        ocm_org_id: str,
+    ) -> bool:
+        if not cluster.aws:
+            return False
+        rosa = RosaSession(
+            aws_account_id=cluster.aws.aws_account_id,
+            aws_region=cluster.region.id,
+            aws_iam_role=self.aws_iam_role,
+            ocm_org_id=ocm_org_id,
+            ocm_api=ocm_api,
+            job_controller=self.job_controller,
+            image=self.rosa_job_image,
+            service_account=self.rosa_job_service_account,
+        )
+        policy_version = get_version_prefix(upgrade_version)
+        try:
+            rosa.upgrade_rosa_roles(
+                cluster_name=cluster.name,
+                upgrade_version=upgrade_version,
+                policy_version=policy_version,
                 dry_run=dry_run,
             )
         except RosaCliError as e:

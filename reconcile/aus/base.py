@@ -533,11 +533,11 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                 rosa_job_service_account=rosa_role_upgrade_handller_params.rosa_job_service_account,
                 rosa_job_image=rosa_role_upgrade_handller_params.rosa_job_image,
             )
-            if not sts_gate_handler.upgrade_rosa_roles(
+            if not sts_gate_handler.upgrade_rosa_roles_v2(
                 ocm_api=ocm_api,
                 cluster=self.cluster,
                 dry_run=False,
-                version_raw_id_prefix=get_version_prefix(self.version),
+                upgrade_version=self.version,
                 ocm_org_id=self.organization_id,
             ):
                 logging.error(
