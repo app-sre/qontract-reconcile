@@ -3,6 +3,7 @@ name: "test-namespace"
 delete: null
 labels: "{\"some\":\"label\"}"
 clusterAdmin: null
+managedByExternal: false
 cluster:
   name: "test-cluster"
   serverUrl: "https://test"

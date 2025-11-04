@@ -34,12 +34,18 @@ class NS:
     """
 
     def __init__(
-        self, cluster: str, name: str, delete: bool, exists: bool = True
+        self,
+        cluster: str,
+        name: str,
+        delete: bool,
+        exists: bool = True,
+        managed_by_external: bool = False,
     ) -> None:
         self.cluster = cluster
         self.name = name
         self.delete = delete
         self.exists = exists
+        self.managed_by_external = managed_by_external
 
     def gql(self) -> NamespaceV1:
         """Get this namespace as an output of GQL"""
@@ -47,6 +53,7 @@ class NS:
         ns.name = self.name
         ns.cluster.name = self.cluster
         ns.delete = self.delete
+        ns.managed_by_external = self.managed_by_external
         return ns
 
 
@@ -134,6 +141,22 @@ class TestOpenshiftNamespaces(TestCase):
             oc = self.oc_clients[ns.cluster]
             oc.delete_project.assert_called_with(ns.name)
             oc.new_project.assert_not_called()
+
+    def test_skip_create_managed_by_external_namespace(self) -> None:
+        ns = NS(c1, n1, delete=False, exists=False, managed_by_external=True)
+        self.test_ns = [ns]
+
+        openshift_namespaces.run(False, thread_pool_size=1)
+
+        assert self.oc_clients == {}
+
+    def test_skip_delete_managed_by_external_namespace(self) -> None:
+        ns = NS(c1, n1, delete=True, exists=True, managed_by_external=True)
+        self.test_ns = [ns]
+
+        openshift_namespaces.run(False, thread_pool_size=1)
+
+        assert self.oc_clients == {}
 
     def test_dup_present_namespace_no_deletes_should_do_nothing(self) -> None:
         self.test_ns = [

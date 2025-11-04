@@ -151,8 +151,9 @@ def run(
 ) -> None:
     all_namespaces = get_namespaces_minimal()
     shard_namespaces, duplicates = get_shard_namespaces(all_namespaces)
+    managed_namespaces = (ns for ns in shard_namespaces if not ns.managed_by_external)
     namespaces = filter_namespaces_by_cluster_and_namespace(
-        namespaces=shard_namespaces,
+        namespaces=managed_namespaces,
         cluster_names=cluster_name,
         namespace_names=namespace_name,
     )
