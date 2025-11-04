@@ -46,6 +46,7 @@ query NamespacesMinimal {
     delete
     labels
     clusterAdmin
+    managedByExternal
     cluster {
       name
       serverUrl
@@ -95,6 +96,7 @@ class NamespaceV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
     labels: Optional[Json] = Field(..., alias="labels")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
+    managed_by_external: Optional[bool] = Field(..., alias="managedByExternal")
     cluster: ClusterV1 = Field(..., alias="cluster")
 
 
