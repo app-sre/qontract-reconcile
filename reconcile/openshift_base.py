@@ -1594,7 +1594,7 @@ def get_state_count_combinations(state: Iterable[Mapping[str, str]]) -> Counter[
 
 
 def publish_cluster_desired_metrics_from_state(
-    state: Iterable[Mapping[str, Any]], integration: str, kind: str
+    state: Iterable[Mapping[str, str]], integration: str, kind: str
 ) -> None:
     for cluster, count in get_state_count_combinations(state).items():
         metrics.set_gauge(

@@ -273,12 +273,13 @@ def test_error_handling(
         cluster_name="test-cluster",
     )
     mocks = setup_mocks(mocker, [namespace])
-    exception = Exception("Some error")
-    mocks["oc"].project_exists.side_effect = exception
+    mocks["oc"].project_exists.side_effect = Exception("Some error")
 
     with pytest.raises(ExceptionGroup) as e:
         openshift_namespaces.run(False, thread_pool_size=1)
 
     assert len(e.value.exceptions) == 1
-    assert isinstance(e.value.exceptions[0], openshift_namespaces.NamespaceRuntimeError)
-    assert "Some error" in str(e.value.exceptions[0])
+    exception = e.value.exceptions[0]
+    assert isinstance(exception, Exception)
+    assert "Some error" in str(exception)
+    assert exception.__notes__ == ["cluster: test-cluster, namespace: test-namespace"]

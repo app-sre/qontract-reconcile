@@ -5,8 +5,9 @@ from collections.abc import (
     Iterable,
     Sequence,
 )
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, TypedDict
+from typing import Any
 
 from sretoolbox.utils import threaded
 
@@ -37,14 +38,11 @@ class Action(StrEnum):
     DELETE = "delete"
 
 
-class DesiredState(TypedDict):
+@dataclass(frozen=True)
+class DesiredState:
     cluster: str
     namespace: str
     delete: bool
-
-
-class NamespaceRuntimeError(Exception):
-    pass
 
 
 class NamespaceDuplicateError(Exception):
@@ -104,46 +102,42 @@ def manage_namespace(
     oc_map: OCMap,
     dry_run: bool,
 ) -> None:
-    cluster = desired_state["cluster"]
-    namespace = desired_state["namespace"]
+    namespace = desired_state.namespace
 
-    oc = oc_map.get(cluster)
+    oc = oc_map.get(desired_state.cluster)
     if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
         return
 
-    act = {
-        Action.CREATE: oc.new_project,
-        Action.DELETE: oc.delete_project,
-    }
-
-    desired_delete = desired_state["delete"]
     current_delete = not oc.project_exists(namespace)
 
-    if desired_delete == current_delete:
+    if desired_state.delete == current_delete:
         return
 
-    action = Action.DELETE if desired_delete else Action.CREATE
+    action = Action.DELETE if desired_state.delete else Action.CREATE
 
-    if action == Action.CREATE and namespace.startswith("openshift-"):
-        raise ValueError('cannot request a project starting with "openshift-"')
+    if namespace.startswith("openshift-"):
+        raise ValueError(f'cannot {action} a project starting with "openshift-"')
 
-    logging.info([str(action), cluster, namespace])
+    logging.info([str(action), desired_state.cluster, namespace])
     if not dry_run:
-        act[action](namespace)
+        match action:
+            case Action.CREATE:
+                oc.new_project(namespace)
+            case Action.DELETE:
+                oc.delete_project(namespace)
 
 
 def build_runtime_errors(
     desired_state: Iterable[DesiredState],
     results: Iterable[Any],
-) -> list[NamespaceRuntimeError]:
-    return [
-        NamespaceRuntimeError(
-            f"cluster: {s['cluster']}, namespace: {s['namespace']}, exception: {e!s}"
-        )
-        for s, e in zip(desired_state, results, strict=False)
-        if isinstance(e, Exception)
-    ]
+) -> list[Exception]:
+    exceptions = []
+    for s, e in zip(desired_state, results, strict=False):
+        if isinstance(e, Exception):
+            e.add_note(f"cluster: {s.cluster}, namespace: {s.namespace}")
+            exceptions.append(e)
+    return exceptions
 
 
 @defer
@@ -175,7 +169,9 @@ def run(
         defer(oc_map.cleanup)
 
     ob.publish_cluster_desired_metrics_from_state(
-        desired_state, QONTRACT_INTEGRATION, "Namespace"
+        state=({"cluster": s.cluster} for s in desired_state),
+        integration=QONTRACT_INTEGRATION,
+        kind="Namespace",
     )
 
     results = threaded.run(
