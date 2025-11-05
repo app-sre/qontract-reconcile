@@ -80,12 +80,12 @@ def test_get_saas_promotion_state(
     )
     result = saas_promotion_state.get(channel="channel-a", sha="main")
 
-    assert result == {"6d630671498d4de312a7b945bbb1a83ed621472c": expected}
+    assert result == {"616af45d7fad7f4eea8d52b8b5e8a058cef82ab0": expected}
     promotion_state.get_promotion_data.assert_called_once_with(
         sha="main",
         channel="channel-a",
         use_cache=False,
-        target_uid="6d630671498d4de312a7b945bbb1a83ed621472c",
+        target_uid="616af45d7fad7f4eea8d52b8b5e8a058cef82ab0",
         pre_check_sha_exists=False,
     )
 
