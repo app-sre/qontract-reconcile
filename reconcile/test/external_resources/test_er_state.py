@@ -12,7 +12,9 @@ from reconcile.external_resources.state import (
 @fixture
 def dynamodb_serialized_values() -> dict[str, Any]:
     return {
-        DynamoDBStateAdapter.ER_KEY_HASH: {"S": "c9795cf754e47cc31400c7e4bd56486f"},
+        DynamoDBStateAdapter.ER_KEY_HASH: {
+            "S": "aws/app-sre/aws-iam-role/test-iam-role"
+        },  # state_path
         DynamoDBStateAdapter.TIMESTAMP: {"S": "2024-01-01T17:14:00.000000Z"},
         DynamoDBStateAdapter.RESOURCE_STATUS: {"S": "NOT_EXISTS"},
         DynamoDBStateAdapter.ER_KEY: {
