@@ -319,14 +319,13 @@ def run(
         openshift_saas_deploy_trigger_upstream_jobs.QONTRACT_INTEGRATION,
         openshift_saas_deploy_trigger_images.QONTRACT_INTEGRATION,
     ]
-    scan = (
+    if (
         not dry_run
         and len(saas_files) == 1
         and trigger_integration
         and trigger_integration in allowed_integration
         and trigger_reason
-    )
-    if scan:
+    ):
         saas_file = saas_files[0]
         owners = saas_file.app.service_owners or []
         emails = " ".join([o.email for o in owners])

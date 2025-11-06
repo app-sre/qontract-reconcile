@@ -5910,7 +5910,8 @@ class TerrascriptClient:
                 return commit.sha
             case "gitlab":
                 gitlab = self.init_gitlab()
-                project = gitlab.get_project(url)
+                if not (project := gitlab.get_project(url)):
+                    raise ValueError(f"could not find gitlab project for url {url}")
                 commits = project.commits.list(ref_name=ref, per_page=1, page=1)
                 return commits[0].id
             case _:

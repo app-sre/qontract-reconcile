@@ -19,7 +19,7 @@ def test_no_dynatrace_environments(
     api = gql_api_builder(data.model_dump(by_alias=True))
     envs = get_dynatrace_environments(api=api)
     assert envs == []
-    api.query.assert_called_once_with(DEFINITION)
+    api.query.assert_called_once_with(DEFINITION)  # type: ignore[attr-defined]
 
 
 def test_multiple_dynatrace_environments(
@@ -33,4 +33,4 @@ def test_multiple_dynatrace_environments(
     api = gql_api_builder(data.model_dump(by_alias=True))
     envs = get_dynatrace_environments(api=api)
     assert envs == data.environments
-    api.query.assert_called_once_with(DEFINITION)
+    api.query.assert_called_once_with(DEFINITION)  # type: ignore[attr-defined]

@@ -716,7 +716,7 @@ def test_populate_current_state(
     # prepare client and resource inventory
     oc_cs1.init_api_resources = True
     oc_cs1.api_resources = api_resources
-    oc_cs1.get_items = lambda kind, **kwargs: [
+    oc_cs1.get_items = lambda kind, **kwargs: [  # type: ignore[method-assign]
         build_resource("Kind", "fully.qualified/v1", "name")
     ]
     resource_inventory.initialize_resource_type("cs1", "ns1", "Kind.fully.qualified")

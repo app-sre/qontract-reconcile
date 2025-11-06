@@ -765,7 +765,8 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                project = self.gitlab.get_project(url)
+                if not (project := self.gitlab.get_project(url)):
+                    raise Exception(f"Could not find gitlab project for {url}")
                 content = self.gitlab.get_raw_file(
                     project=project,
                     path=path,
@@ -801,7 +802,8 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                project = self.gitlab.get_project(url)
+                if not (project := self.gitlab.get_project(url)):
+                    raise Exception(f"Could not find gitlab project for {url}")
                 dir_contents = self.gitlab.get_directory_contents(
                     project,
                     ref=commit_sha,
@@ -826,7 +828,8 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                project = self.gitlab.get_project(url)
+                if not (project := self.gitlab.get_project(url)):
+                    raise Exception(f"Could not find gitlab project for {url}")
                 commits = project.commits.list(ref_name=ref, per_page=1, page=1)
                 return commits[0].id
             case _:
@@ -1179,13 +1182,13 @@ class SaasHerder:
         images_list = threaded.run(
             self._collect_images, resources, self.available_thread_pool_size
         )
-        images = set(itertools.chain.from_iterable(images_list))
-        self.images.update(images)
-        if not images:
+        images_set = set(itertools.chain.from_iterable(images_list))
+        self.images.update(images_set)
+        if not images_set:
             return False  # no errors
         images = threaded.run(
             self._get_image,
-            images,
+            images_set,
             self.available_thread_pool_size,
             image_patterns=spec.image_patterns,
             image_auth=spec.image_auth,

@@ -139,7 +139,7 @@ class TestGithubOrg:
                 return [SimpleMemberMock("a"), SimpleMemberMock("b")]
 
         org = SimpleOrgMock()
-        assert github_org.get_members(org) == ["a", "b"]
+        assert github_org.get_members(org) == ["a", "b"]  # type: ignore[arg-type]
 
     def test_get_org_teams(self) -> None:
         class SimpleOrgMock:
@@ -153,5 +153,5 @@ class TestGithubOrg:
                 return SimpleOrgMock()
 
         g = SimpleGithubMock()
-        _, teams = github_org.get_org_and_teams(g, "org")
+        _, teams = github_org.get_org_and_teams(g, "org")  # type: ignore[arg-type]
         assert teams == ["teams"]

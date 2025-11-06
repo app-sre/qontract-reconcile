@@ -19,7 +19,7 @@ def test_no_clusters(
     api = gql_api_builder(data.model_dump(by_alias=True))
     clusters = get_clusters(gql_api=api)
     assert len(clusters) == 0
-    api.query.assert_called_once_with(DEFINITION, {})
+    api.query.assert_called_once_with(DEFINITION, {})  # type: ignore[attr-defined]
 
 
 def test_get_clusters(
@@ -33,7 +33,7 @@ def test_get_clusters(
     api = gql_api_builder(data.model_dump(by_alias=True))
     clusters = get_clusters(gql_api=api)
     assert len(clusters) == 2
-    api.query.assert_called_once_with(DEFINITION, {})
+    api.query.assert_called_once_with(DEFINITION, {})  # type: ignore[attr-defined]
 
 
 def test_get_clusters_with_name(
@@ -46,4 +46,4 @@ def test_get_clusters_with_name(
     )
     api = gql_api_builder(data.model_dump(by_alias=True))
     get_clusters(gql_api=api, name="test")
-    api.query.assert_called_once_with(DEFINITION, {"name": "test"})
+    api.query.assert_called_once_with(DEFINITION, {"name": "test"})  # type: ignore[attr-defined]

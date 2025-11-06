@@ -68,7 +68,7 @@ def test_get_aws_accounts_with_default_variables(
     expected_variables = {
         "name": None,
     }
-    gql_api.query.assert_called_once_with(ANY, variables=expected_variables)
+    gql_api.query.assert_called_once_with(ANY, variables=expected_variables)  # type: ignore[attr-defined]
 
 
 def test_get_aws_accounts_when_no_data(
@@ -98,4 +98,4 @@ def test_get_aws_accounts_with_name(
     expected_variables = {
         "name": name,
     }
-    gql_api.query.assert_called_once_with(ANY, variables=expected_variables)
+    gql_api.query.assert_called_once_with(ANY, variables=expected_variables)  # type: ignore[attr-defined]

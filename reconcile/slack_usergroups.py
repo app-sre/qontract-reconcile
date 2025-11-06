@@ -15,7 +15,7 @@ from typing import (
 
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
-from sretoolbox.utils import retry
+from sretoolbox.utils import datatransformation, retry
 
 from reconcile import (
     openshift_users,
@@ -838,7 +838,9 @@ def run(
         desired_usergroup_name=usergroup_name,
     )
     # merge the two desired states recursively
-    desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
+    desired_state = datatransformation.deep_merge(
+        desired_state, desired_state_cluster_usergroups
+    )
 
     runner_params: RunnerParams = {
         "dry_run": dry_run,

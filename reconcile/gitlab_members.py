@@ -116,8 +116,8 @@ def build_desired_state_spec(
                     pagerduty_map,
                     get_username_method=lambda u: u.org_username,
                 )
-                for u in usernames_from_pagerduty:
-                    gu = GitlabUser(user=u, access_level=p_access_level)
+                for pu in usernames_from_pagerduty:
+                    gu = GitlabUser(user=pu, access_level=p_access_level)
                     add_or_update_user(desired_state_spec, gu)
     return desired_state_spec
 
