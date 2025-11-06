@@ -367,9 +367,7 @@ def test_cloudflare_namespace_validation(
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == 0
-    assert [rec.message for rec in caplog.records] == [
-        "No cloudflare namespaces were detected, nothing to do."
-    ]
+    assert [rec.message for rec in caplog.records] == []
 
 
 def custom_ssl_secret_reader_side_effect(*args: Any) -> str:
