@@ -338,7 +338,7 @@ def run(
     )
 
     if not cloudflare_namespaces:
-        logging.info("No cloudflare namespaces were detected, nothing to do.")
+        logging.debug("No cloudflare namespaces were detected, nothing to do.")
         sys.exit(ExitCodes.SUCCESS)
 
     # Build Cloudflare clients
