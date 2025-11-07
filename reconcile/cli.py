@@ -2906,7 +2906,7 @@ def advanced_upgrade_scheduler(
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
                 ignore_sts_clusters=ignore_sts_clusters,
-                rosa_role_upgrade_handller_params=RosaRoleUpgradeHandlerParams(
+                rosa_role_upgrade_handler_params=RosaRoleUpgradeHandlerParams(
                     job_controller_cluster=job_controller_cluster,
                     job_controller_namespace=job_controller_namespace,
                     rosa_job_service_account=rosa_job_service_account,
