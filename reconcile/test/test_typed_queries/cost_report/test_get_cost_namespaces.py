@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from json import dumps
-from unittest.mock import ANY
+from typing import cast
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -82,7 +83,4 @@ def test_get_cost_namespaces(
     namespaces = get_cost_namespaces(gql_api)
 
     assert namespaces == [expected_cost_namespace]
-    gql_api.query.assert_called_once_with(  # type: ignore[attr-defined]
-        ANY,
-        expected_vars,
-    )
+    cast("MagicMock", gql_api).query.assert_called_once_with(ANY, expected_vars)

@@ -1,5 +1,6 @@
 from collections.abc import Callable
-from unittest.mock import ANY
+from typing import cast
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -68,7 +69,9 @@ def test_get_aws_accounts_with_default_variables(
     expected_variables = {
         "name": None,
     }
-    gql_api.query.assert_called_once_with(ANY, variables=expected_variables)  # type: ignore[attr-defined]
+    cast("MagicMock", gql_api).query.assert_called_once_with(
+        ANY, variables=expected_variables
+    )
 
 
 def test_get_aws_accounts_when_no_data(
@@ -98,4 +101,6 @@ def test_get_aws_accounts_with_name(
     expected_variables = {
         "name": name,
     }
-    gql_api.query.assert_called_once_with(ANY, variables=expected_variables)  # type: ignore[attr-defined]
+    cast("MagicMock", gql_api).query.assert_called_once_with(
+        ANY, variables=expected_variables
+    )

@@ -2,6 +2,7 @@ from collections.abc import (
     Callable,
     Mapping,
 )
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -14,6 +15,9 @@ from reconcile.typed_queries.app_interface_deadmanssnitch_settings import (
 )
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.gql import GqlApi
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 
 def test_no_settings(
@@ -51,4 +55,4 @@ def test_get_clusters(
     api = gql_api_builder(data.model_dump(by_alias=True))
     settings = get_deadmanssnitch_settings(gql_api=api)
     assert settings.alert_mail_addresses == ["test_mail"]
-    api.query.assert_called_once_with(DEFINITION)  # type: ignore[attr-defined]
+    cast("MagicMock", api).query.assert_called_once_with(DEFINITION)
