@@ -738,7 +738,7 @@ def test_policy_handler_create_cluster_upgrade_with_sts_enabled(
         "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = mocker.MagicMock()
+    sts_handler_instance = sts_gate_handler_mock.return_value
     sts_handler_instance.upgrade_rosa_roles.return_value = True
     sts_handler_instance.handle.return_value = True
     sts_handler_instance.gate_applicable_to_cluster.return_value = True
@@ -756,8 +756,6 @@ def test_policy_handler_create_cluster_upgrade_with_sts_enabled(
         sts=mock_sts,
     )
     cluster_upgrade_policy.cluster.aws = mock_aws
-    # Configure the mock class to return our mock instance
-    sts_gate_handler_mock.return_value = sts_handler_instance
     handler = base.UpgradePolicyHandler(
         policy=cluster_upgrade_policy,
         action="create",
@@ -814,12 +812,10 @@ def test_policy_handler_create_cluster_upgrade_without_sts_enabled(
         "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = mocker.MagicMock()
+    sts_handler_instance = sts_gate_handler_mock.return_value
     sts_handler_instance.upgrade_rosa_roles.return_value = True
     sts_handler_instance.handle.return_value = True
     sts_handler_instance.gate_applicable_to_cluster.return_value = True
-    # Configure the mock class to return our mock instance
-    sts_gate_handler_mock.return_value = sts_handler_instance
     handler = base.UpgradePolicyHandler(
         policy=cluster_upgrade_policy,
         action="create",
@@ -871,12 +867,10 @@ def test_policy_handler_create_cluster_upgrade_without_sts_enabled_and_rosa_clas
         "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = mocker.MagicMock()
+    sts_handler_instance = sts_gate_handler_mock.return_value
     sts_handler_instance.upgrade_rosa_roles.return_value = True
     sts_handler_instance.handle.return_value = True
     sts_handler_instance.gate_applicable_to_cluster.return_value = True
-    # Configure the mock class to return our mock instance
-    sts_gate_handler_mock.return_value = sts_handler_instance
     cluster_upgrade_policy.cluster.hypershift.enabled = False
     handler = base.UpgradePolicyHandler(
         policy=cluster_upgrade_policy,
@@ -930,7 +924,7 @@ def test_policy_handler_create_cluster_upgrade_without_gate_labels(
         "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = mocker.MagicMock()
+    sts_handler_instance = sts_gate_handler_mock.return_value
     sts_handler_instance.upgrade_rosa_roles.return_value = True
     sts_handler_instance.handle.return_value = True
     sts_handler_instance.gate_applicable_to_cluster.return_value = True
@@ -948,8 +942,6 @@ def test_policy_handler_create_cluster_upgrade_without_gate_labels(
         sts=mock_sts,
     )
     cluster_upgrade_policy.cluster.aws = mock_aws
-    # Configure the mock class to return our mock instance
-    sts_gate_handler_mock.return_value = sts_handler_instance
     handler = base.UpgradePolicyHandler(
         policy=cluster_upgrade_policy,
         action="create",
