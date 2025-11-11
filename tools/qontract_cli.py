@@ -141,6 +141,7 @@ from reconcile.utils.gitlab_api import (
 )
 from reconcile.utils.glitchtip.client import GlitchtipClient
 from reconcile.utils.gql import GqlApiSingleton
+from reconcile.utils.json import json_dumps
 from reconcile.utils.keycloak import (
     KeycloakAPI,
     SSOClient,
@@ -4298,7 +4299,7 @@ def create(
         bg="red",
         fg="white",
     )
-    print(sso_client.json(by_alias=True, indent=2))
+    print(json_dumps(sso_client, indent=2))
 
 
 @sso_client.command()
