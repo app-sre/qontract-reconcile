@@ -1372,8 +1372,11 @@ def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
     class OpenShiftResourcesStub(BaseModel):
         openshift_resources: list | None = None
 
+    class OpenShiftResourcesStubRequired(BaseModel):
+        openshift_resources: list
+
     class OpenShiftResourcesAndSharedResourcesStub(OpenShiftResourcesStub, BaseModel):
-        shared_resources: list[OpenShiftResourcesStub] | None = None
+        shared_resources: list[OpenShiftResourcesStubRequired] | None = None
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=[1], shared_resources=None
@@ -1383,14 +1386,14 @@ def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=None,
-        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+        shared_resources=[OpenShiftResourcesStubRequired(openshift_resources=[2])],
     )
     sut.aggregate_shared_resources_typed(namespace=namespace)
     assert namespace.openshift_resources == [2]
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=[1],
-        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+        shared_resources=[OpenShiftResourcesStubRequired(openshift_resources=[2])],
     )
     sut.aggregate_shared_resources_typed(namespace=namespace)
     assert namespace.openshift_resources == [1, 2]

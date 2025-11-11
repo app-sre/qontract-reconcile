@@ -77,7 +77,7 @@ def get_namespaces_with_rhcs_certs(
 ) -> list[NamespaceV1]:
     result: list[NamespaceV1] = []
     for ns in rhcs_certs_query(query_func=query_func).namespaces or []:
-        ob.aggregate_shared_resources_typed(cast("Any", ns))  # mypy: ignore[arg-type]
+        ob.aggregate_shared_resources_typed(ns)
         if (
             integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster)
             and not bool(ns.delete)
