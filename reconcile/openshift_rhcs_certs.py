@@ -89,17 +89,37 @@ def get_namespaces_with_rhcs_certs(
 
 
 def construct_rhcs_cert_oc_secret(
-    secret_name: str, cert: Mapping[str, Any], annotations: Mapping[str, str]
+    secret_name: str,
+    cert: Mapping[str, Any],
+    annotations: Mapping[str, str],
+    certificate_format: str,
 ) -> OR:
-    body: dict[str, Any] = {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "type": "kubernetes.io/tls",
-        "metadata": {"name": secret_name, "annotations": annotations},
-    }
-    for k, v in cert.items():
-        v = base64_encode_secret_field_value(v)
-        body.setdefault("data", {})[k] = v
+    body: dict[str, Any] = {}
+    if certificate_format == "PKCS12":
+        # Create Opaque secret for PKCS#12 format
+        body = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "type": "Opaque",
+            "metadata": {"name": secret_name, "annotations": annotations},
+        }
+        for k, v in cert.items():
+            if k != "expiration_timestamp" and v is not None:
+                v = base64_encode_secret_field_value(v)
+                body.setdefault("data", {})[k] = v
+    else:
+        # Create kubernetes.io/tls secret for PEM format
+        body = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "type": "kubernetes.io/tls",
+            "metadata": {"name": secret_name, "annotations": annotations},
+        }
+        for k, v in cert.items():
+            if k in {"tls.crt", "tls.key", "ca.crt"} and v is not None:
+                v = base64_encode_secret_field_value(v)
+                body.setdefault("data", {})[k] = v
+
     return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
 
 
@@ -150,17 +170,35 @@ def generate_vault_cert_secret(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
     )
     sa_password = vault.read(cert_resource.service_account_password.dict())
+    cert_format = cert_resource.certificate_format or "PEM"
+
     if dry_run:
-        rhcs_cert = RhcsV2Cert(
-            certificate="PLACEHOLDER_CERT",
-            private_key="PLACEHOLDER_PRIVATE_KEY",
-            ca_cert="PLACEHOLDER_CA_CERT",
-            expiration_timestamp=int(time.time()),
-        )
+        if cert_format == "PKCS12":
+            rhcs_cert = RhcsV2Cert(
+                certificate=None,
+                private_key=None,
+                ca_cert=None,
+                pkcs12_keystore="PLACEHOLDER_KEYSTORE",
+                pkcs12_truststore="PLACEHOLDER_TRUSTSTORE",
+                expiration_timestamp=int(time.time()),
+            )
+        else:
+            rhcs_cert = RhcsV2Cert(
+                certificate="PLACEHOLDER_CERT",
+                private_key="PLACEHOLDER_PRIVATE_KEY",
+                ca_cert="PLACEHOLDER_CA_CERT",
+                pkcs12_keystore=None,
+                pkcs12_truststore=None,
+                expiration_timestamp=int(time.time()),
+            )
     else:
         try:
             rhcs_cert = generate_cert(
-                issuer_url, cert_resource.service_account_name, sa_password, ca_cert_url
+                issuer_url,
+                cert_resource.service_account_name,
+                sa_password,
+                ca_cert_url,
+                cert_format,
             )
         except ValueError as e:
             raise Exception(
@@ -171,12 +209,12 @@ def generate_vault_cert_secret(
         )
         vault.write(
             secret={
-                "data": rhcs_cert.dict(by_alias=True),
+                "data": rhcs_cert.dict(by_alias=True, exclude_none=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
             },
             decode_base64=False,
         )
-    return rhcs_cert.dict(by_alias=True)
+    return rhcs_cert.dict(by_alias=True, exclude_none=True)
 
 
 def fetch_openshift_resource_for_cert_resource(
@@ -218,6 +256,7 @@ def fetch_openshift_resource_for_cert_resource(
         secret_name=cert_resource.secret_name,
         cert=vault_cert_secret,
         annotations=cert_resource.annotations or {},
+        certificate_format=cert_resource.certificate_format or "PEM",
     )
 
 

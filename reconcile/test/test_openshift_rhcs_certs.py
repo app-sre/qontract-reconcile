@@ -104,6 +104,7 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource() -> None:
             "expiration_timestamp": 123456789,
         },
         {"foo": "bar"},
+        "PEM",
     )
     assert qr.body == {
         "apiVersion": "v1",
@@ -111,7 +112,6 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource() -> None:
             "tls.crt": base64.b64encode(b"PEM_ENCODED_CERTIFICATE").decode(),
             "tls.key": base64.b64encode(b"PEM_ENCODED_PRIVATE_KEY").decode(),
             "ca.crt": base64.b64encode(b"PEM_ENCODED_CA_CERTIFICATE").decode(),
-            "expiration_timestamp": base64.b64encode(b"123456789").decode(),
         },
         "kind": "Secret",
         "metadata": {"name": "foobar", "annotations": {"foo": "bar"}},
