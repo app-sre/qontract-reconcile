@@ -53,7 +53,7 @@ def cluster_ocm_spec() -> Iterator[OCMSpec]:
 
 def test_all_attributes_missing(cluster_ocm_spec: OCMSpec) -> None:
     current_spec = cluster_ocm_spec
-    desired_spec = cluster_ocm_spec.copy(deep=True)
+    desired_spec = cluster_ocm_spec.model_copy(deep=True)
     desired_spec.spec.id = None
     desired_spec.spec.external_id = None
     desired_spec.server_url = ""
@@ -69,7 +69,7 @@ def test_all_attributes_missing(cluster_ocm_spec: OCMSpec) -> None:
 
 def test_all_attributes_changed(cluster_ocm_spec: OCMSpec) -> None:
     current_spec = cluster_ocm_spec
-    desired_spec = cluster_ocm_spec.copy(deep=True)
+    desired_spec = cluster_ocm_spec.model_copy(deep=True)
     desired_spec.spec.id = "previous-id"
     desired_spec.spec.external_id = "previous-external-id"
     desired_spec.server_url = "previous_server_url"
@@ -85,7 +85,7 @@ def test_all_attributes_changed(cluster_ocm_spec: OCMSpec) -> None:
 
 def test_elb_fqdn(cluster_ocm_spec: OCMSpec) -> None:
     current_spec = cluster_ocm_spec
-    desired_spec = cluster_ocm_spec.copy(deep=True)
+    desired_spec = cluster_ocm_spec.model_copy(deep=True)
     desired_spec.elb_fqdn = "non-valid"
     updates, _ = get_app_interface_spec_updates("cluster", current_spec, desired_spec)
     assert updates["root"]["elbFQDN"] == current_spec.console_url.replace(
