@@ -16,7 +16,7 @@ from typing import (
 )
 
 from croniter import croniter
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel
 from requests.exceptions import HTTPError
 from semver import VersionInfo
 
@@ -404,12 +404,12 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
     cluster: OCMCluster
 
-    id: str | None
-    next_run: str | None
-    schedule: str | None
+    id: str | None = None
+    next_run: str | None = None
+    schedule: str | None = None
     schedule_type: str
     version: str
-    state: str | None
+    state: str | None = None
 
     @abstractmethod
     def create(self, ocm_api: OCMBaseClient) -> None:
@@ -430,14 +430,11 @@ def addon_upgrade_policy_soonest_next_run() -> str:
     return to_utc_seconds_iso_format(next_run)
 
 
-class AddonUpgradePolicy(AbstractUpgradePolicy):
+class AddonUpgradePolicy(AbstractUpgradePolicy, arbitrary_types_allowed=True):
     """Class to create and delete Addon upgrade policies in OCM"""
 
     addon_id: str
     addon_service: AddonService
-
-    class Config:
-        arbitrary_types_allowed = True
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         self.addon_service.create_addon_upgrade_policy(
@@ -521,8 +518,9 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 
 
 class NodePoolUpgradePolicy(AbstractUpgradePolicy):
-    node_pool: str
     """Class to create NodePoolUpgradePolicies in OCM"""
+
+    node_pool: str
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         policy = {
@@ -550,7 +548,7 @@ class NodePoolUpgradePolicy(AbstractUpgradePolicy):
         return f"node pool upgrade policy - {remove_none_values_from_dict(details)}"
 
 
-class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
+class UpgradePolicyHandler(BaseModel, extra="forbid"):
     """Class to handle upgrade policy actions"""
 
     action: str
@@ -1124,12 +1122,10 @@ def calculate_diff(
                     UpgradePolicyHandler(
                         action="create",
                         policy=AddonUpgradePolicy(
-                            action="create",
                             cluster=spec.cluster,
                             version=version,
                             schedule_type="manual",
                             addon_id=addon_id,
-                            upgrade_type="ADDON",
                             addon_service=addon_service,
                         ),
                     )

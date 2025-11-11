@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query JenkinsConfigs {
   jenkins_configs: jenkins_configs_v1 {

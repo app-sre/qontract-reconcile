@@ -1,10 +1,13 @@
 from unittest.mock import create_autospec
 
+import pytest
+
 from reconcile.aus.models import NodePoolSpec
 from reconcile.aus.node_pool_spec import (
     get_node_pool_specs,
     get_node_pool_specs_by_org_cluster,
 )
+from reconcile.test.ocm.aus.fixtures import build_cluster_upgrade_spec
 from reconcile.test.ocm.fixtures import build_cluster_details
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -80,3 +83,45 @@ def test_get_node_pool_specs_by_org_cluster_for_non_hypershift_cluster() -> None
     assert specs == {"org1": {}}
     ocm_api.get_paginated.assert_not_called()
     ocm_api.get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "current_version, node_pools, expected_version",
+    [
+        (
+            "4.13.0",
+            [],
+            "4.13.0",
+        ),
+        (
+            "4.13.0",
+            [NodePoolSpec(id="np1", version="4.12.0")],
+            "4.12.0",
+        ),
+        (
+            "4.13.0",
+            [NodePoolSpec(id="np1", version="4.13.0")],
+            "4.13.0",
+        ),
+        (
+            "4.13.0",
+            [
+                NodePoolSpec(id="np1", version="4.12.0"),
+                NodePoolSpec(id="np2", version="4.13.0"),
+            ],
+            "4.12.0",
+        ),
+    ],
+)
+def test_cluster_upgrade_spec_oldest_current_version(
+    current_version: str,
+    node_pools: list[NodePoolSpec],
+    expected_version: str,
+) -> None:
+    spec = build_cluster_upgrade_spec(
+        name="cluster-1",
+        current_version=current_version,
+        node_pools=node_pools,
+    )
+
+    assert spec.oldest_current_version == expected_version

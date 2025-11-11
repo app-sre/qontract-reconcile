@@ -134,7 +134,7 @@ class TestValidatePodReady(TestCase):
         oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         with self.assertRaises(PodNotReadyError):
             # Bypass the retry stuff
-            oc.validate_pod_ready.__wrapped__(oc, "namespace", "podname")
+            oc.validate_pod_ready.__wrapped__(oc, "namespace", "podname")  # type: ignore[attr-defined]
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)

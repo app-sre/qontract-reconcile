@@ -62,8 +62,8 @@ class QontractServerDatafileDiff(BaseModel):
 
     datafilepath: str
     datafileschema: str
-    old: dict[str, Any] | None
-    new: dict[str, Any] | None
+    old: dict[str, Any] | None = None
+    new: dict[str, Any] | None = None
 
     @property
     def old_datafilepath(self) -> str | None:
@@ -119,7 +119,7 @@ class QontractServerResourcefileDiffState(BaseModel):
     content: str
     resourcefileschema: str | None = Field(..., alias="$schema")
     sha256sum: str
-    backrefs: list[QontractServerResourcefileBackref] | None
+    backrefs: list[QontractServerResourcefileBackref] | None = None
 
 
 class QontractServerResourcefileDiff(BaseModel):
