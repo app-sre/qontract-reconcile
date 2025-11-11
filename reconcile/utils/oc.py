@@ -716,7 +716,7 @@ class OCCli:
 
     def sa_get_token(self, namespace: str, name: str) -> str:
         cmd = ["sa", "-n", namespace, "get-token", name]
-        return self._run(cmd)
+        return self._run(cmd).decode("utf-8")
 
     def get_api_resources(self) -> dict[str, list[OCCliApiResource]]:
         with self.api_resources_lock:
@@ -1188,7 +1188,7 @@ class OCCli:
     def _run_json(
         self, cmd: list[str], allow_not_found: bool = False
     ) -> dict[str, Any]:
-        out = self._run(cmd, allow_not_found=allow_not_found)
+        out = self._run(cmd, allow_not_found=allow_not_found).decode("utf-8")
 
         try:
             out_json = json.loads(out)
@@ -1322,6 +1322,9 @@ class OCNative(OCCli):
 
         if not server:
             raise Exception("Server name is required!")
+
+        if not token:
+            raise Exception("Token is required!")
 
         self.client = self._get_client(server, token)
         self.api_resources = self.get_api_resources()

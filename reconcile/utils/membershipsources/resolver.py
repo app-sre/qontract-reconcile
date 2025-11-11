@@ -98,8 +98,10 @@ def resolve_role_members(
         members: list[RoleMember] = []
 
         # bring in the local users and bots ...
-        members.extend(RoleUser(**u.dict()) for u in r.users or [])
-        members.extend(RoleBot(**b.dict()) for b in r.bots or [] if b.org_username)
+        members.extend(RoleUser(**u.model_dump()) for u in r.users or [])
+        members.extend(
+            RoleBot(**b.model_dump()) for b in r.bots or [] if b.org_username
+        )
 
         # ... and enhance with the ones from member sources
         for ms in r.member_sources or []:

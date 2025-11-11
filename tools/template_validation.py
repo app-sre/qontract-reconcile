@@ -67,7 +67,9 @@ def main(templates: tuple[str]) -> None:
             tests.append(test_yaml)
 
         template_raw["templateTest"] = tests
-        template: TemplateV1 = TemplateV1(**data_default_none(TemplateV1, template_raw))
+        data = data_default_none(TemplateV1, template_raw)
+        assert isinstance(data, dict)
+        template: TemplateV1 = TemplateV1(**data)
 
         # templates_to_validate = {}
         for test in template.template_test:

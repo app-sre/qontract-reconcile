@@ -27,7 +27,7 @@ class Entity(BaseModel):
         return hash(self.id)
 
 
-class Group(BaseModel):
+class Group(BaseModel, validate_by_name=True, validate_by_alias=True):
     name: str
     description: str
     member_approval_type: str = Field("self-service", alias="memberApprovalType")
@@ -35,16 +35,18 @@ class Group(BaseModel):
     owners: list[Entity]
     display_name: str = Field(..., alias="displayName")
     notes: str | None = None
-    rover_group_member_query: str | None = Field(None, alias="roverGroupMemberQuery")
+    rover_group_member_query: str | None = Field(
+        None, alias="roverGroupMemberQuery", exclude=True
+    )
     rover_group_inclusions: list[Entity] | None = Field(
-        None, alias="roverGroupInclusions"
+        None, alias="roverGroupInclusions", exclude=True
     )
     rover_group_exclusions: list[Entity] | None = Field(
-        None, alias="roverGroupExclusions"
+        None, alias="roverGroupExclusions", exclude=True
     )
     members: list[Entity] = []
-    member_of: list[str] | None = Field(None, alias="memberOf")
-    namespace: str | None = None
+    member_of: list[str] | None = Field(None, alias="memberOf", exclude=True)
+    namespace: str | None = Field(None, exclude=True)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Group):
@@ -58,14 +60,3 @@ class Group(BaseModel):
             and self.notes == other.notes
             and set(self.members) == set(other.members)
         )
-
-    class Config:
-        allow_population_by_field_name = True
-        # exclude read-only fields in the json/dict dumps
-        fields = {
-            "rover_group_member_query": {"exclude": True},
-            "rover_group_inclusions": {"exclude": True},
-            "rover_group_exclusions": {"exclude": True},
-            "member_of": {"exclude": True},
-            "namespace": {"exclude": True},
-        }

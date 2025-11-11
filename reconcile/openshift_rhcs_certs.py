@@ -149,7 +149,7 @@ def generate_vault_cert_secret(
     logging.info(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
     )
-    sa_password = vault.read(cert_resource.service_account_password.dict())
+    sa_password = vault.read(cert_resource.service_account_password.model_dump())
     if dry_run:
         rhcs_cert = RhcsV2Cert(
             certificate="PLACEHOLDER_CERT",
@@ -171,12 +171,12 @@ def generate_vault_cert_secret(
         )
         vault.write(
             secret={
-                "data": rhcs_cert.dict(by_alias=True),
+                "data": rhcs_cert.model_dump(by_alias=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
             },
             decode_base64=False,
         )
-    return rhcs_cert.dict(by_alias=True)
+    return rhcs_cert.model_dump(by_alias=True)
 
 
 def fetch_openshift_resource_for_cert_resource(
@@ -277,7 +277,7 @@ def run(
     state_specs = ob.init_specs_to_fetch(
         ri,
         oc_map,
-        namespaces=[ns.dict(by_alias=True) for ns in namespaces],
+        namespaces=[ns.model_dump(by_alias=True) for ns in namespaces],
         override_managed_types=["Secret"],
     )
     for spec in state_specs:

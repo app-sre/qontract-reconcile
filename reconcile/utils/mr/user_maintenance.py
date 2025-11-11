@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
@@ -23,7 +23,8 @@ class PathSpec(BaseModel):
     type: PathTypes
     path: str
 
-    @validator("path")
+    @field_validator("path")
+    @classmethod
     def prepend_data_to_path(cls, v: str) -> str:
         return "data" + v
 
