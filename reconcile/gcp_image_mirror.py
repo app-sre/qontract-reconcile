@@ -132,7 +132,7 @@ class QuayMirror:
             mirror_creds = None
             pull_credentials = item.mirror.pull_credentials
             if pull_credentials:
-                raw_data = self.secret_reader.read_all(pull_credentials.model_dump())
+                raw_data = self.secret_reader.read_all(pull_credentials.dict())
                 username = raw_data["user"]
                 password = raw_data["token"]
                 mirror_creds = f"{username}:{password}"
@@ -226,7 +226,7 @@ class QuayMirror:
         return False
 
     def _decode_push_secret(self, secret: VaultSecret) -> str:
-        raw_data = self.secret_reader.read_all(secret.model_dump())
+        raw_data = self.secret_reader.read_all(secret.dict())
         token = base64.b64decode(raw_data["token"]).decode()
         return f"{raw_data['user']}:{token}"
 

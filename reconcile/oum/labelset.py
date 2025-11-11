@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Annotated
 
 from pydantic import BaseModel
 
@@ -23,10 +22,9 @@ class _GroupMappingLabelset(BaseModel):
     the sre-capabilities.user-mgmt.$provider prefix.
     """
 
-    authz_roles: Annotated[
-        dict[str, CSV] | None,
-        sre_capability_labels.labelset_groupfield(group_prefix="authz."),
-    ]
+    authz_roles: dict[str, CSV] | None = sre_capability_labels.labelset_groupfield(
+        group_prefix="authz."
+    )
 
 
 def build_cluster_config_from_labels(

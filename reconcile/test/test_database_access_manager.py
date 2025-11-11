@@ -427,7 +427,7 @@ def test__create_database_connection_parameter_user_missing(
         database="test",
     )
 
-    admin_conn = conn.model_copy()
+    admin_conn = conn.copy()
     admin_conn.password = "hduhsdfuhsdf"
 
     assert p["user"] == conn
@@ -582,7 +582,7 @@ def test__process_db_access_state_diff(
     ai_settings: dict[str, Any],
     vault_mock: MagicMock,
 ) -> None:
-    dba_current = db_access.model_dump(by_alias=True)
+    dba_current = db_access.dict(by_alias=True)
     dba_current["access"] = [{"grants": ["SELECT"], "target": {"dbschema": "test"}}]
     dbam_state.get.return_value = dba_current
     oc = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
@@ -629,7 +629,7 @@ def test__process_db_access_value_error_database(
     field: str,
     vault_mock: MagicMock,
 ) -> None:
-    dba_current = db_access.model_dump(by_alias=True)
+    dba_current = db_access.dict(by_alias=True)
     dba_current[field] = "foo"
     dbam_state.get.return_value = dba_current
 
@@ -655,7 +655,7 @@ def test__process_db_access_state_exists_matched(
     vault_mock: MagicMock,
 ) -> None:
     dbam_state.exists.return_value = True
-    dbam_state.get.return_value = db_access.model_dump(by_alias=True)
+    dbam_state.get.return_value = db_access.dict(by_alias=True)
     # missing mocks would cause this to fail if not exit early
     _process_db_access(
         False,

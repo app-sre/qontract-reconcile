@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v2
+# qenerate: plugin=pydantic_v1
 
 fragment MinimalOCMOrganization on OpenShiftClusterManager_v1 {
   name

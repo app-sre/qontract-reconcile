@@ -62,7 +62,7 @@ def test_commits_between_gitlab(vcs_builder: Callable[[Mapping], VCS]) -> None:
     vcs._gitlab_instance.repository_compare.assert_called_once_with(  # type: ignore[attr-defined]
         ref_from="from", ref_to="to", repo_url="https://gitlab.com/some/repo"
     )
-    vcs._gh_per_repo_url["https://gitlab.com/some/repo"].compare.assert_not_called()  # type: ignore[attr-defined]
+    vcs._gh_per_repo_url["https://gitlab.com/some/repo"].compare.assert_not_called()
 
 
 def test_commits_between_github(vcs_builder: Callable[[Mapping], VCS]) -> None:
@@ -78,7 +78,7 @@ def test_commits_between_github(vcs_builder: Callable[[Mapping], VCS]) -> None:
     )
     vcs._gh_per_repo_url[
         "https://github.com/some/repo"
-    ].compare.assert_called_once_with(commit_from="from", commit_to="to")  # type: ignore[attr-defined]
+    ].compare.assert_called_once_with(commit_from="from", commit_to="to")
     assert sorted(commits) == sorted([
         Commit(
             repo="https://github.com/some/repo",

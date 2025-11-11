@@ -103,7 +103,7 @@ def fetch_desired_state(clusters: Iterable[Mapping[str, Any]]) -> list[dict[str,
     namespaces = get_namespaces()
     for namespace_info in namespaces:
         specs = get_external_resource_specs(
-            namespace_info.model_dump(by_alias=True), provision_provider=PROVIDER_AWS
+            namespace_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
         )
         for spec in specs:
             if spec.provider != "aws-iam-service-account":

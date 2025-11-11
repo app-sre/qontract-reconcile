@@ -188,7 +188,7 @@ def _validate_issue_fields(
 
         for option in project_issue_field.options:
             if option == field.value:
-                custom_fields[project_issue_field.id] = option.model_dump()
+                custom_fields[project_issue_field.id] = option.dict()
                 break
         else:
             logging.error(
@@ -431,7 +431,7 @@ def get_jira_boards(
 
 
 def export_boards(boards: list[JiraBoardV1]) -> list[dict]:
-    return [board.model_dump() for board in boards]
+    return [board.dict() for board in boards]
 
 
 @defer

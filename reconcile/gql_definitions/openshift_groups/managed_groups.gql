@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v2
+# qenerate: plugin=pydantic_v1
 
 query OpenshiftGroupsManagedGroups {
   clusters: clusters_v1 {

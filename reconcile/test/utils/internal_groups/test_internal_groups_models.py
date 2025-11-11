@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from reconcile.utils.internal_groups.models import (
@@ -5,7 +7,6 @@ from reconcile.utils.internal_groups.models import (
     EntityType,
     Group,
 )
-from reconcile.utils.json import json_dumps
 
 USER_1 = Entity(id="user-1", type=EntityType.USER)
 USER_1_DELETED = Entity(id="user-1", type=EntityType.DELETED_USER)
@@ -125,7 +126,7 @@ def test_internal_groups_models_group_eq(a: Group, b: Group, expected: bool) -> 
 
 
 def test_internal_groups_models_group_json() -> None:
-    assert json_dumps(GROUP) == json_dumps(
+    assert GROUP.json(by_alias=True, sort_keys=True) == json.dumps(
         {
             "name": "group",
             "description": "group description",
@@ -136,4 +137,5 @@ def test_internal_groups_models_group_json() -> None:
             "notes": "group notes",
             "members": [{"id": "user-1", "type": "user"}],
         },
+        sort_keys=True,
     )

@@ -141,7 +141,7 @@ def test_publish_info(s3_state_builder: Callable[[Mapping[str, Any]], State]) ->
         data=promotion_info,
     )
     deployment_state._state.add.assert_called_once_with(  # type: ignore[attr-defined]
-        "promotions_v2/channel/uid/sha", promotion_info.model_dump(), force=True
+        "promotions_v2/channel/uid/sha", promotion_info.dict(), force=True
     )
 
 
@@ -155,7 +155,7 @@ def test_promotion_data_json_serializable() -> None:
         saas_file="some_saas",
         check_in="2024-04-30 13:47:31.722437+00:00",
     )
-    json.dumps(promotion_data.model_dump())
+    json.dumps(promotion_data.dict())
 
 
 def test_promotion_data_cache(

@@ -44,12 +44,18 @@ class GitlabUser(BaseModel):
     access_level: int
 
 
-class CurrentStateSpec(BaseModel, arbitrary_types_allowed=True):
+class CurrentStateSpec(BaseModel):
     members: dict[str, GroupMember]
 
+    class Config:
+        arbitrary_types_allowed = True
 
-class DesiredStateSpec(BaseModel, arbitrary_types_allowed=True):
+
+class DesiredStateSpec(BaseModel):
     members: dict[str, GitlabUser]
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 CurrentState = dict[str, CurrentStateSpec]
@@ -116,8 +122,8 @@ def build_desired_state_spec(
                     pagerduty_map,
                     get_username_method=lambda u: u.org_username,
                 )
-                for pu in usernames_from_pagerduty:
-                    gu = GitlabUser(user=pu, access_level=p_access_level)
+                for u in usernames_from_pagerduty:
+                    gu = GitlabUser(user=u, access_level=p_access_level)
                     add_or_update_user(desired_state_spec, gu)
     return desired_state_spec
 
@@ -233,6 +239,6 @@ def reconcile_gitlab_members(
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     gqlapi = gql.get_api()
     return {
-        "instance": get_gitlab_instance(gqlapi.query).model_dump(),
-        "permissions": [p.model_dump() for p in get_permissions(gqlapi.query)],
+        "instance": get_gitlab_instance(gqlapi.query).dict(),
+        "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
     }

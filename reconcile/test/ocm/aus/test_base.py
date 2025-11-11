@@ -575,8 +575,8 @@ def test_conditions_met_deep_deps_mix_versions(
 
 
 class StubPolicy(base.AbstractUpgradePolicy):
-    created: bool = False
-    deleted: bool = False
+    created = False
+    deleted = False
 
     def create(self, ocm_api: OCMBaseClient) -> None:
         self.created = True
@@ -878,19 +878,19 @@ def orgs_query_func() -> Callable:
             "organizations": [
                 build_organization(
                     org_id="org1", env_name="env1", addon_managed_upgrades=False
-                ).model_dump(by_alias=True),
+                ).dict(by_alias=True),
                 build_organization(
                     org_id="org2", env_name="env1", addon_managed_upgrades=True
-                ).model_dump(by_alias=True),
+                ).dict(by_alias=True),
                 build_organization(
                     org_id="org3", env_name="env2", addon_managed_upgrades=False
-                ).model_dump(by_alias=True),
+                ).dict(by_alias=True),
                 build_organization(
                     org_id="org4",
                     env_name="env2",
                     addon_managed_upgrades=False,
                     disabled_integrations=["integration"],
-                ).model_dump(by_alias=True),
+                ).dict(by_alias=True),
             ]
         }
 

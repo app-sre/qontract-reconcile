@@ -169,8 +169,8 @@ def test_permissions_workspace(
 
 
 class ClientGlobalConfig(BaseModel):
-    max_retries: int | None = None
-    timeout: int | None = None
+    max_retries: int | None
+    timeout: int | None
 
 
 class ClientMethodConfig(BaseModel):
@@ -179,8 +179,8 @@ class ClientMethodConfig(BaseModel):
 
 
 class ClientConfig(BaseModel):
-    q_global: ClientGlobalConfig | None = None
-    methods: list[ClientMethodConfig] | None = None
+    q_global: ClientGlobalConfig | None
+    methods: list[ClientMethodConfig] | None
 
 
 def test_get_slackapi() -> None:

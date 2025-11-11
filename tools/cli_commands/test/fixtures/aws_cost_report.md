@@ -8,6 +8,15 @@ Total AWS Cost for 2024-02: $3,000.00
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "parent",
+      "child_apps_total": 2000.0,
+      "items_total": 1000.0,
+      "total": 3000.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -29,15 +38,6 @@ Total AWS Cost for 2024-02: $3,000.00
       "label": "Total ($)",
       "sortable": true
     }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "child_apps_total": 2000.0,
-      "items_total": 1000.0,
-      "name": "parent",
-      "total": 3000.0
-    }
   ]
 }
 ```
@@ -48,6 +48,21 @@ Month over month change for 2024-02:
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "child",
+      "delta_value": 200.0,
+      "delta_percent": 20.0,
+      "total": 2000.0
+    },
+    {
+      "name": "parent",
+      "delta_value": 100.0,
+      "delta_percent": 10.0,
+      "total": 1000.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -68,21 +83,6 @@ Month over month change for 2024-02:
       "key": "total",
       "label": "Total ($)",
       "sortable": true
-    }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "delta_percent": 20.0,
-      "delta_value": 200.0,
-      "name": "child",
-      "total": 2000.0
-    },
-    {
-      "delta_percent": 10.0,
-      "delta_value": 100.0,
-      "name": "parent",
-      "total": 1000.0
     }
   ]
 }
@@ -97,6 +97,15 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "service2",
+      "delta_value": 200.0,
+      "delta_percent": 20.0,
+      "total": 2000.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -117,15 +126,6 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
       "key": "total",
       "label": "Total ($)",
       "sortable": true
-    }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "delta_percent": 20.0,
-      "delta_value": 200.0,
-      "name": "service2",
-      "total": 2000.0
     }
   ]
 }
@@ -138,6 +138,15 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "service1",
+      "delta_value": 100.0,
+      "delta_percent": 10.0,
+      "total": 1000.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -159,15 +168,6 @@ View in [Cost Management Console](https://console.redhat.com/openshift/cost-mana
       "label": "Total ($)",
       "sortable": true
     }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "delta_percent": 10.0,
-      "delta_value": 100.0,
-      "name": "service1",
-      "total": 1000.0
-    }
   ]
 }
 ```
@@ -176,6 +176,13 @@ Child Apps Cost: $2,000.00
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "child",
+      "total": 2000.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -186,13 +193,6 @@ Child Apps Cost: $2,000.00
       "key": "total",
       "label": "Total ($)",
       "sortable": true
-    }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "name": "child",
-      "total": 2000.0
     }
   ]
 }

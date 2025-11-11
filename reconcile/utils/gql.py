@@ -109,7 +109,7 @@ class GqlApi:
         if int_name:
             integrations = self.query(INTEGRATIONS_QUERY, skip_validation=True)
 
-            for integration in integrations["integrations"] if integrations else []:
+            for integration in integrations["integrations"]:
                 if integration["name"] == int_name:
                     self._valid_schemas = integration["schemas"]
                     break
@@ -142,7 +142,7 @@ class GqlApi:
         query: str,
         variables: dict[str, Any] | None = None,
         skip_validation: bool = False,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | None:
         try:
             result = self.client.execute(
                 gql(query), variables, get_execution_result=True
@@ -172,8 +172,11 @@ class GqlApi:
             if forbidden_schemas:
                 raise GqlApiErrorForbiddenSchemaError(forbidden_schemas)
 
-        # make mypy happy
-        assert "data" in result and result["data"] is not None
+        # This is to appease mypy. This exception won't be thrown as this condition
+        # is already handled above with AssertionError
+        if result["data"] is None:
+            raise GqlApiError("`data` not received in GraphQL payload")
+
         return result["data"]
 
     def get_template(self, path: str) -> dict[str, str]:

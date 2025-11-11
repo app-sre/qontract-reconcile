@@ -162,7 +162,7 @@ def test_atlassian_page_should_apply_on_status_update(
 ) -> None:
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
-    desired = atlassian_page.get_component_by_id("id-1").model_copy(deep=True)  # type: ignore
+    desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     desired.status_provider_configs = [
         ManualStatusProvider(component_status="another-state")
     ]
@@ -182,7 +182,7 @@ def test_atlassian_page_should_apply_on_missing_group(
     """
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
-    desired = atlassian_page.get_component_by_id("id-1").model_copy(deep=True)  # type: ignore
+    desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     desired.group_name = "some-non-existing-group"
 
     with pytest.raises(ValueError):
@@ -197,7 +197,7 @@ def test_atlassian_page_should_apply_on_moving_outside_group(
     """
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
-    desired = atlassian_page.get_component_by_id("id-1").model_copy(deep=True)  # type: ignore
+    desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     desired.group_name = None
 
     with pytest.raises(ValueError):
@@ -210,7 +210,7 @@ def test_atlassian_page_should_apply_on_display_name_update(
 ) -> None:
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
-    desired = atlassian_page.get_component_by_id("id-1").model_copy(deep=True)  # type: ignore
+    desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     desired.display_name = "some other display name"
     mocker.patch.object(
         atlassian_page._api, "list_active_maintenances"
@@ -225,7 +225,7 @@ def test_atlassian_page_should_apply_on_no_update(
 ) -> None:
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
-    desired = atlassian_page.get_component_by_id("id-1").model_copy(deep=True)  # type: ignore
+    desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     mocker.patch.object(
         atlassian_page._api, "list_active_maintenances"
     ).return_value = []
@@ -240,7 +240,7 @@ def test_atlassian_page_apply_component_update(
     component_id = "id-1"
     current = atlassian_page.get_raw_component_by_id(component_id)
     assert current
-    desired = atlassian_page.get_component_by_id(component_id).model_copy(deep=True)  # type: ignore
+    desired = atlassian_page.get_component_by_id(component_id).copy(deep=True)  # type: ignore
     desired.description = "some other description"
 
     update_component_mock = mocker.patch.object(atlassian_page._api, "update_component")
@@ -295,7 +295,7 @@ def test_atlassian_page_dont_update_status_when_no_status_provider(
     current = atlassian_page.get_raw_component_by_id("id-1")
     assert current
     current.status = "some-status"
-    desired = atlassian_page.get_component_by_id("id-1").model_copy(deep=True)  # type: ignore
+    desired = atlassian_page.get_component_by_id("id-1").copy(deep=True)  # type: ignore
     desired.status_provider_configs = []
     mocker.patch.object(
         atlassian_page._api, "list_active_maintenances"

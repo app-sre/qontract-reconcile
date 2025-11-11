@@ -71,14 +71,14 @@ class HasClientGlobalConfig(Protocol):
     max_retries: int | None
     timeout: int | None
 
-    def model_dump(self) -> dict[str, int | None]: ...
+    def dict(self) -> dict[str, int | None]: ...
 
 
 class HasClientMethodConfig(Protocol):
     name: str
     args: Any
 
-    def model_dump(self) -> dict[str, str]: ...
+    def dict(self) -> dict[str, str]: ...
 
 
 class HasClientConfig(Protocol):

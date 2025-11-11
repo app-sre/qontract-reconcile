@@ -122,7 +122,7 @@ def _build_helm_integration_spec(
     managed: IntegrationManagedV1,
     shard_manager: IntegrationShardManager,
 ) -> HelmIntegrationSpec:
-    integration_spec = managed.spec.model_dump(by_alias=True)
+    integration_spec = managed.spec.dict(by_alias=True)
     shard_specs = shard_manager.build_integration_shards(integration_name, managed)
     his = HelmIntegrationSpec(
         **integration_spec, name=integration_name, shard_specs=shard_specs
@@ -143,7 +143,7 @@ def build_helm_values(specs: Iterable[HelmIntegrationSpec]) -> dict:
         else:
             values.integrations.append(s)
 
-    return values.model_dump(exclude_none=True, by_alias=True)
+    return values.dict(exclude_none=True, by_alias=True)
 
 
 class IntegrationsEnvironment(BaseModel):
@@ -273,7 +273,7 @@ def run(
 
     ri, oc_map = ob.fetch_current_state(
         namespaces=[
-            ie.namespace.model_dump(by_alias=True) for ie in integration_environments
+            ie.namespace.dict(by_alias=True) for ie in integration_environments
         ],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,

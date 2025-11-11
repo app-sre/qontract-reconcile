@@ -466,7 +466,7 @@ class DashdotdbDORA(DashdotdbBase):
         ]
 
     def _github_compare_commits(self, rc: RepoChanges, repo: str) -> list[Commit]:
-        if not rc.repo_url or not rc.ref_from or not rc.ref_to:
+        if not rc.repo_url:
             return []
 
         return [

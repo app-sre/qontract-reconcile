@@ -17,7 +17,7 @@ def add_user_to_cluster_group(
     """
     ocm_api.post(
         build_cluster_group_users_url(cluster_id, group),
-        OCMClusterUser(id=user_name).model_dump(by_alias=True),
+        OCMClusterUser(id=user_name).dict(by_alias=True),
     )
 
 

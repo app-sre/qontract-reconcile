@@ -137,7 +137,7 @@ def fetch_current_state(
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
-    namespaces_dicts = [ns.model_dump(by_alias=True) for ns in namespaces]
+    namespaces_dicts = [ns.dict(by_alias=True) for ns in namespaces]
     state_specs = ob.init_specs_to_fetch(
         ri, oc_map, namespaces=namespaces_dicts, override_managed_types=["Secret"]
     )
@@ -273,7 +273,7 @@ def setup(
         )
     else:
         ocm_map = None
-    tf_namespaces_dicts = [ns.model_dump(by_alias=True) for ns in tf_namespaces]
+    tf_namespaces_dicts = [ns.dict(by_alias=True) for ns in tf_namespaces]
 
     provider_exclusions = settings.get("terraformResourcesProviderExclusions") or []
     ts.init_populate_specs(
@@ -295,16 +295,16 @@ def filter_tf_namespaces(
 ) -> list[NamespaceV1]:
     tf_namespaces = []
     for namespace_info in namespaces:
-        if ob.is_namespace_deleted(namespace_info.model_dump(by_alias=True)):
+        if ob.is_namespace_deleted(namespace_info.dict(by_alias=True)):
             continue
-        if not managed_external_resources(namespace_info.model_dump(by_alias=True)):
+        if not managed_external_resources(namespace_info.dict(by_alias=True)):
             continue
 
         if not account_names:
             tf_namespaces.append(namespace_info)
             continue
 
-        specs = get_external_resource_specs(namespace_info.model_dump(by_alias=True))
+        specs = get_external_resource_specs(namespace_info.dict(by_alias=True))
         if not specs:
             tf_namespaces.append(namespace_info)
             continue
@@ -567,7 +567,7 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     }
     for ns_info in get_tf_namespaces():
         for spec in get_external_resource_specs(
-            ns_info.model_dump(by_alias=True), provision_provider=PROVIDER_AWS
+            ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
         ):
             resource_paths = [
                 spec.resource.get("defaults"),

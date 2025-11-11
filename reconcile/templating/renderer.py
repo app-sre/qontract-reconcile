@@ -239,8 +239,8 @@ def unpack_dynamic_variables(
 
 class TemplateRendererIntegrationParams(PydanticRunParams):
     clone_repo: bool = False
-    app_interface_root_path: str | None = None
-    template_collection_name: str | None = None
+    app_interface_root_path: str | None
+    template_collection_name: str | None
 
 
 def join_path(base: str, sub: str) -> str:
