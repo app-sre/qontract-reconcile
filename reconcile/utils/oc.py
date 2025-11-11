@@ -18,7 +18,7 @@ from threading import Lock
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
 import urllib3
-from kubernetes.client import (  # type: ignore[attr-defined]
+from kubernetes.client import (
     ApiClient,
     Configuration,
 )

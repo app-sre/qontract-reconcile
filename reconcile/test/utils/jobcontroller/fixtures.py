@@ -1,6 +1,6 @@
 from typing import Any
 
-from kubernetes.client import (  # type: ignore[attr-defined]
+from kubernetes.client import (
     ApiClient,
     V1JobSpec,
     V1PodTemplateSpec,

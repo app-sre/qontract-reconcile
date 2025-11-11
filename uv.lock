@@ -453,6 +453,15 @@ wheels = [
 ]
 
 [[package]]
+name = "durationpy"
+version = "0.10"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/a4/e44218c2b394e31a6dd0d6b095c4e1f32d0be54c2a4b250032d717647bab/durationpy-0.10.tar.gz", hash = "sha256:1fa6893409a6e739c9c72334fc65cca1f355dbdd93405d30f726deb5bde42fba", size = 3335, upload-time = "2025-05-17T13:52:37.26Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/0d/9feae160378a3553fa9a339b0e9c1a048e147a4127210e286ef18b730f03/durationpy-0.10-py3-none-any.whl", hash = "sha256:3b41e1b601234296b4fb368338fdcd3e13e0b4fb5b67345948f4f2bf9868b286", size = 3922, upload-time = "2025-05-17T13:52:36.463Z" },
+]
+
+[[package]]
 name = "fasteners"
 version = "0.20"
 source = { registry = "https://pypi.org/simple" }
@@ -679,33 +688,24 @@ wheels = [
 
 [[package]]
 name = "kubernetes"
-version = "24.2.0"
+version = "32.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
+    { name = "durationpy" },
     { name = "google-auth" },
+    { name = "oauthlib" },
     { name = "python-dateutil" },
     { name = "pyyaml" },
     { name = "requests" },
     { name = "requests-oauthlib" },
-    { name = "setuptools" },
     { name = "six" },
     { name = "urllib3" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/eb/6b2385fb2e2b8da2f329a2832cd29b3ca39e462f9719d550c7d55e502a73/kubernetes-24.2.0.tar.gz", hash = "sha256:9900f12ae92007533247167d14cdee949cd8c7721f88b4a7da5f5351da3834cd", size = 760029, upload-time = "2022-06-22T18:33:33.437Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/e8/0598f0e8b4af37cd9b10d8b87386cf3173cb8045d834ab5f6ec347a758b3/kubernetes-32.0.1.tar.gz", hash = "sha256:42f43d49abd437ada79a79a16bd48a604d3471a117a8347e87db693f2ba0ba28", size = 946691, upload-time = "2025-02-18T21:06:34.148Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/55/edb4a69d03af4bc59fc6696946907aff516fe8e36aa9659b536a9506a558/kubernetes-24.2.0-py2.py3-none-any.whl", hash = "sha256:da19d58865cf903a8c7b9c3691a2e6315d583a98f0659964656dfdf645bf7e49", size = 1522592, upload-time = "2022-06-22T18:33:29.507Z" },
-]
-
-[[package]]
-name = "kubernetes-stubs"
-version = "22.6.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e4/ee/0cdf77a8775787629489479700c8e6a080f4a14bcf371a522603a402d9d2/kubernetes-stubs-22.6.0.tar.gz", hash = "sha256:27383243e291058fb665bf45402e20a721a209b2946174c20aa33c81cc4dfafc", size = 109300, upload-time = "2022-04-13T22:09:41.398Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/85/da9747240b3e5e66ae52fac64399a8b492ba8313ebd3f4c8a0c2fe86775d/kubernetes_stubs-22.6.0-py2.py3-none-any.whl", hash = "sha256:a5b192f655df30880599d5848bff831a4a5508d54441caec57f494f31d69a4b3", size = 345836, upload-time = "2022-04-20T04:21:09.984Z" },
-    { url = "https://files.pythonhosted.org/packages/82/89/bc98dcb7086eae53991e24238abb6963436300d1b03c40d30c9fa1f1af4a/kubernetes_stubs-22.6.0-py3-none-any.whl", hash = "sha256:eff844bc549d39d142f9696a8a0f6397d51ec7b97a5f9f86271a90289d020a79", size = 345825, upload-time = "2022-04-13T22:09:39.956Z" },
+    { url = "https://files.pythonhosted.org/packages/08/10/9f8af3e6f569685ce3af7faab51c8dd9d93b9c38eba339ca31c746119447/kubernetes-32.0.1-py2.py3-none-any.whl", hash = "sha256:35282ab8493b938b08ab5526c7ce66588232df00ef5e1dbe88a419107dc10998", size = 1988070, upload-time = "2025-02-18T21:06:31.391Z" },
 ]
 
 [[package]]
@@ -1552,7 +1552,6 @@ debugger = [
 dev = [
     { name = "anymarkup" },
     { name = "boto3-stubs", extra = ["account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"] },
-    { name = "kubernetes-stubs" },
     { name = "markupsafe" },
     { name = "moto", extra = ["s3"] },
     { name = "mypy" },
@@ -1605,7 +1604,7 @@ requires-dist = [
     { name = "jsonpath-ng", specifier = "==1.7.0" },
     { name = "jsonpath-rw", specifier = ">=1.4.0,<1.5.0" },
     { name = "jsonpointer", specifier = "~=2.4" },
-    { name = "kubernetes", specifier = "~=24.0" },
+    { name = "kubernetes", specifier = "==32.0.1" },
     { name = "ldap3", specifier = ">=2.9.1,<2.10.0" },
     { name = "markupsafe", specifier = "==2.1.1" },
     { name = "networkx", specifier = "~=2.8" },
@@ -1643,7 +1642,6 @@ debugger = [{ name = "debugpy", specifier = "~=1.8.17" }]
 dev = [
     { name = "anymarkup", specifier = "~=0.8.1" },
     { name = "boto3-stubs", extras = ["account", "cloudformation", "dynamodb", "ec2", "ecr", "elb", "iam", "logs", "organizations", "rds", "route53", "s3", "service-quotas", "sqs", "sts", "support"], specifier = "==1.34.94" },
-    { name = "kubernetes-stubs", specifier = "==22.6.0" },
     { name = "markupsafe", specifier = "~=2.1.1" },
     { name = "moto", extras = ["ec2", "iam", "logs", "s3", "route53"], specifier = "~=5.1" },
     { name = "mypy", specifier = "~=1.17.0" },

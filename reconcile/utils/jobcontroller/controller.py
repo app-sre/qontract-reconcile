@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from typing import Protocol, TextIO
 
-from kubernetes.client import (  # type: ignore[attr-defined]
+from kubernetes.client import (
     ApiClient,
     V1Job,
     V1ObjectMeta,

@@ -33,7 +33,7 @@ dependencies = [
     "jsonpath-ng==1.7.0",
     "jsonpath-rw>=1.4.0,<1.5.0",
     "jsonpointer~=2.4",
-    "kubernetes~=24.0",
+    "kubernetes==32.0.1",
     "ldap3>=2.9.1,<2.10.0",
     "MarkupSafe==2.1.1",
     "networkx~=2.8",
@@ -75,7 +75,6 @@ dev = [
     "anymarkup ~=0.8.1",
     # keep in sync project.dependencies.boto3
     "boto3-stubs[account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.34.94",
-    "kubernetes-stubs==22.6.0",
     "MarkupSafe ~=2.1.1",
     "moto[ec2,iam,logs,s3,route53] ~=5.1",
     "mypy ~=1.17.0",
