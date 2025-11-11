@@ -1,3 +1,4 @@
+import http
 import logging
 from collections.abc import (
     Iterable,
@@ -10,6 +11,7 @@ from urllib.parse import (
 )
 
 import jwt
+from requests import HTTPError
 
 from reconcile.rhidp.common import (
     Cluster,
@@ -256,9 +258,18 @@ def delete_sso_client(
     )
     sso_client = SSOClient(**secret_reader.read_all_secret(secret=secret))
     keycloak_api = keycloak_map.get(sso_client.issuer)
-    keycloak_api.delete_client(
-        registration_client_uri=sso_client.registration_client_uri,
-        registration_access_token=sso_client.registration_access_token,
-    )
+    try:
+        keycloak_api.delete_client(
+            registration_client_uri=sso_client.registration_client_uri,
+            registration_access_token=sso_client.registration_access_token,
+        )
+    except HTTPError as e:
+        if e.response.status_code != http.HTTPStatus.UNAUTHORIZED:
+            logging.error(f"Failed to delete SSO client {sso_client_id}: {e}")
+            raise
+        # something went wrong with the registration token, maybe it expired
+        logging.error(
+            f"Failed to delete SSO client {sso_client_id} due to unauthorized error: {e}. Continuing to delete the vault secret."
+        )
 
     secret_reader.vault_client.delete(path=secret.path)
