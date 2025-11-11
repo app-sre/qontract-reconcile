@@ -8,6 +8,15 @@ Total OpenShift Cost for 2024-02: $3,300.00
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "parent",
+      "child_apps_total": 2200.0,
+      "items_total": 1100.0,
+      "total": 3300.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -29,15 +38,6 @@ Total OpenShift Cost for 2024-02: $3,300.00
       "label": "Total ($)",
       "sortable": true
     }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "child_apps_total": 2200.0,
-      "items_total": 1100.0,
-      "name": "parent",
-      "total": 3300.0
-    }
   ]
 }
 ```
@@ -48,6 +48,21 @@ Month over month change for 2024-02:
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "child",
+      "delta_value": 200.0,
+      "delta_percent": 10.0,
+      "total": 2200.0
+    },
+    {
+      "name": "parent",
+      "delta_value": 100.0,
+      "delta_percent": 10.0,
+      "total": 1100.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -68,21 +83,6 @@ Month over month change for 2024-02:
       "key": "total",
       "label": "Total ($)",
       "sortable": true
-    }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "delta_percent": 10.0,
-      "delta_value": 200.0,
-      "name": "child",
-      "total": 2200.0
-    },
-    {
-      "delta_percent": 10.0,
-      "delta_value": 100.0,
-      "name": "parent",
-      "total": 1100.0
     }
   ]
 }
@@ -96,6 +96,15 @@ OpenShift Workloads Cost: $2,200.00, +$200.00 (+10.00%) compared to previous mon
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "child_cluster/child_namespace",
+      "delta_value": 200.0,
+      "delta_percent": 10.0,
+      "total": 2200.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -116,15 +125,6 @@ OpenShift Workloads Cost: $2,200.00, +$200.00 (+10.00%) compared to previous mon
       "key": "total",
       "label": "Total ($)",
       "sortable": true
-    }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "delta_percent": 10.0,
-      "delta_value": 200.0,
-      "name": "child_cluster/child_namespace",
-      "total": 2200.0
     }
   ]
 }
@@ -136,6 +136,15 @@ OpenShift Workloads Cost: $1,100.00, +$100.00 (+10.00%) compared to previous mon
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "parent_cluster/parent_namespace",
+      "delta_value": 100.0,
+      "delta_percent": 10.0,
+      "total": 1100.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -157,15 +166,6 @@ OpenShift Workloads Cost: $1,100.00, +$100.00 (+10.00%) compared to previous mon
       "label": "Total ($)",
       "sortable": true
     }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "delta_percent": 10.0,
-      "delta_value": 100.0,
-      "name": "parent_cluster/parent_namespace",
-      "total": 1100.0
-    }
   ]
 }
 ```
@@ -174,6 +174,13 @@ Child Apps Cost: $2,200.00
 
 ```json:table
 {
+  "filter": true,
+  "items": [
+    {
+      "name": "child",
+      "total": 2200.0
+    }
+  ],
   "fields": [
     {
       "key": "name",
@@ -184,13 +191,6 @@ Child Apps Cost: $2,200.00
       "key": "total",
       "label": "Total ($)",
       "sortable": true
-    }
-  ],
-  "filter": true,
-  "items": [
-    {
-      "name": "child",
-      "total": 2200.0
     }
   ]
 }

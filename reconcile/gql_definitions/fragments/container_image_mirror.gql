@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v2
+# qenerate: plugin=pydantic_v1
 fragment ContainerImageMirror on ContainerImageMirror_v1 {
   url
   pullCredentials {

@@ -1,14 +1,15 @@
+import json
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlparse
 
 import pytest
+from pydantic.json import pydantic_encoder
 from pytest_httpserver import HTTPServer
 from werkzeug import Request, Response
 
 from reconcile.test.fixtures import Fixtures
 from reconcile.test.ocm.fixtures import OcmUrl
-from reconcile.utils.json import json_dumps, pydantic_encoder
 from reconcile.utils.ocm import OCM
 from reconcile.utils.ocm_base_client import OCMBaseClient
 
@@ -83,7 +84,7 @@ def register_ocm_url_responses(httpserver: HTTPServer) -> Callable[[list[OcmUrl]
                     httpserver.expect_request(
                         url.uri, method=url.method, query_string=query
                     ).respond_with_data(
-                        json_dumps(r, compact=True, defaults=pydantic_encoder),
+                        json.dumps(r, default=pydantic_encoder),
                         content_type="text/json",
                     )
         return i

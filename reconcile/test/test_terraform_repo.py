@@ -6,10 +6,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from reconcile.gql_definitions.fragments.terraform_state import (
+    AWSTerraformStateIntegrationsV1,
+)
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.terraform_repo.terraform_repo import (
     AWSAccountV1,
-    AWSTerraformStateIntegrationsV1,
     TerraformRepoV1,
     TerraformRepoVariablesV1,
     TerraformStateAWSV1,
@@ -211,7 +213,7 @@ def test_addition_to_existing_repo(
 
     # ensure that the state is saved for the new repo
     state_mock.add.assert_called_once_with(
-        new_repo.name, new_repo.model_dump(by_alias=True), force=True
+        new_repo.name, new_repo.dict(by_alias=True), force=True
     )
 
 
@@ -221,7 +223,7 @@ def test_updating_repo_ref(
     state_mock: MagicMock,
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.model_copy(existing_repo)
+    updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.ref = B_REPO_SHA
 
     integration = TerraformRepoIntegration(params=int_params)
@@ -235,7 +237,7 @@ def test_updating_repo_ref(
     assert diff == [updated_repo]
 
     state_mock.add.assert_called_once_with(
-        updated_repo.name, updated_repo.model_dump(by_alias=True), force=True
+        updated_repo.name, updated_repo.dict(by_alias=True), force=True
     )
 
 
@@ -245,7 +247,7 @@ def test_force_rerun(
     state_mock: MagicMock,
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.model_copy(existing_repo)
+    updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.force_rerun_timestamp = datetime.now(tz=UTC).isoformat()
 
     integration = TerraformRepoIntegration(params=int_params)
@@ -259,7 +261,7 @@ def test_force_rerun(
     assert diff == [updated_repo]
 
     state_mock.add.assert_called_once_with(
-        updated_repo.name, updated_repo.model_dump(by_alias=True), force=True
+        updated_repo.name, updated_repo.dict(by_alias=True), force=True
     )
 
 
@@ -267,7 +269,7 @@ def test_fail_on_update_invalid_repo_params(
     existing_repo: TerraformRepoV1, int_params: TerraformRepoIntegrationParams
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.model_copy(existing_repo)
+    updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.name = "c_repo"
     updated_repo.project_path = "c_repo"
     updated_repo.repository = B_REPO
@@ -291,7 +293,7 @@ def test_delete_repo(
     state_mock: MagicMock,
 ) -> None:
     existing = [existing_repo]
-    updated_repo = TerraformRepoV1.model_copy(existing_repo)
+    updated_repo = TerraformRepoV1.copy(existing_repo)
     updated_repo.delete = True
 
     integration = TerraformRepoIntegration(params=int_params)
@@ -395,7 +397,7 @@ def test_update_repo_state(
     )
 
     state_mock.add.assert_called_once_with(
-        existing_repo.name, existing_repo.model_dump(by_alias=True), force=True
+        existing_repo.name, existing_repo.dict(by_alias=True), force=True
     )
 
 

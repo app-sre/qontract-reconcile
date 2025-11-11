@@ -15,14 +15,14 @@ class MockUser(BaseModel):
 
 class MockBot(BaseModel):
     name: str
-    org_username: str | None = None
+    org_username: str | None
 
 
 class MockRole(BaseModel):
     name: str
     users: list[MockUser]
     bots: list[MockBot]
-    member_sources: list[RoleMembershipSource] | None = None
+    member_sources: list[RoleMembershipSource] | None
 
 
 def build_role(

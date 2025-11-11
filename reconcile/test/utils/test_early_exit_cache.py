@@ -241,7 +241,7 @@ def test_early_exit_cache_get(
     cache_key: CacheKey,
     cache_value: CacheValue,
 ) -> None:
-    state.get.return_value = cache_value.model_dump()
+    state.get.return_value = cache_value.dict()
 
     value = early_exit_cache.get(cache_key)
 
@@ -280,7 +280,7 @@ def test_early_exit_cache_set(
     expected_expire_at = str(int((now + datetime.timedelta(seconds=100)).timestamp()))
     state.add.assert_called_once_with(
         str(cache_key),
-        cache_value.model_dump(),
+        cache_value.dict(),
         metadata={
             "expire-at": expected_expire_at,
             "cache-source-digest": CACHE_SOURCE_DIGEST,

@@ -140,7 +140,7 @@ class InternalGroupsClient:
         with self._api as api:
             return Group(
                 **api.create_group(
-                    data=group.model_dump(by_alias=True),
+                    data=group.dict(by_alias=True),
                 )
             )
 
@@ -155,6 +155,6 @@ class InternalGroupsClient:
             return Group(
                 **api.update_group(
                     name=group.name,
-                    data=group.model_dump(by_alias=True),
+                    data=group.dict(by_alias=True),
                 )
             )

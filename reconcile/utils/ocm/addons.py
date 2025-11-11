@@ -188,6 +188,7 @@ class AddonServiceV2(AddonService):
                     next_run=policy.get("next_run"),
                     version=policy["version"],
                     state=policy.get("state"),
+                    addon_service=self,
                 )
             )
 

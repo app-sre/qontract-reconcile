@@ -12,7 +12,6 @@ from pydantic import (
 )
 
 from reconcile.utils.ocm.base import (
-    OCMAWSSTS,
     PRODUCT_ID_ROSA,
     ClusterDetails,
     OCMCapability,
@@ -45,7 +44,7 @@ class OcmRawResponse(OcmResponse):
 
 
 class OcmUrl(BaseModel):
-    name: str | None = None
+    name: str | None
     uri: str
     method: str = "POST"
     responses: list[Any] = Field(default_factory=list)
@@ -128,7 +127,7 @@ def build_ocm_cluster(
 ) -> OCMCluster:
     aws_config = None
     if aws_cluster:
-        aws_config = OCMClusterAWSSettings(sts=OCMAWSSTS(enabled=sts_cluster))
+        aws_config = OCMClusterAWSSettings(sts=OCMClusterFlag(enabled=sts_cluster))
     return OCMCluster(
         id=f"{name}_id",
         external_id=f"{name}_external_id",

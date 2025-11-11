@@ -88,7 +88,7 @@ class TerraformCloudflareUsers(
         if not settings.settings:
             raise RuntimeError("App interface setting not defined")
 
-        early_exit_desired_state = cloudflare_roles.model_dump()
+        early_exit_desired_state = cloudflare_roles.dict()
         early_exit_desired_state.update({
             CLOUDFLARE_EMAIL_DOMAIN_ALLOW_LIST_KEY: settings.settings
         })
@@ -149,8 +149,7 @@ class TerraformCloudflareUsers(
         }
 
         accounts = [
-            acct.model_dump(by_alias=True)
-            for _, acct in account_names_to_account.items()
+            acct.dict(by_alias=True) for _, acct in account_names_to_account.items()
         ]
 
         self._run_terraform(

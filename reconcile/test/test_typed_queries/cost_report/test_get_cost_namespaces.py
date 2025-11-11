@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from json import dumps
-from typing import cast
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY
 
 import pytest
 
@@ -64,7 +63,7 @@ def test_get_cost_namespaces(
     namespace_response: CostNamespacesQueryData,
     expected_cost_namespace: CostNamespace,
 ) -> None:
-    response = namespace_response.model_dump(by_alias=True)
+    response = namespace_response.dict(by_alias=True)
     # .dict will convert all nested fields to dicts, including labels
     # the mocked response need to be json string to match data type
     for n in response["namespaces"]:
@@ -83,4 +82,7 @@ def test_get_cost_namespaces(
     namespaces = get_cost_namespaces(gql_api)
 
     assert namespaces == [expected_cost_namespace]
-    cast("MagicMock", gql_api).query.assert_called_once_with(ANY, expected_vars)
+    gql_api.query.assert_called_once_with(
+        ANY,
+        expected_vars,
+    )

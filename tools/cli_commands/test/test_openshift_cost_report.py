@@ -144,7 +144,7 @@ def openshift_report_cost_response_builder(
     project: str,
     cluster: str,
 ) -> OpenShiftReportCostResponse:
-    return OpenShiftReportCostResponse.model_validate({
+    return OpenShiftReportCostResponse.parse_obj({
         "meta": {
             "delta": {
                 "value": delta_value,

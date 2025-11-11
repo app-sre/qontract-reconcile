@@ -52,11 +52,9 @@ class AwsOrganizationOU(BaseModel):
 class AWSAccountStatus(BaseModel):
     id: str = Field(..., alias="Id")
     name: str = Field(..., alias="AccountName")
-    uid: str | None = Field(None, alias="AccountId")
+    uid: str | None = Field(alias="AccountId")
     state: str = Field(..., alias="State")
-    failure_reason: CreateAccountFailureReasonType | None = Field(
-        None, alias="FailureReason"
-    )
+    failure_reason: CreateAccountFailureReasonType | None = Field(alias="FailureReason")
 
 
 class AWSAccount(BaseModel):

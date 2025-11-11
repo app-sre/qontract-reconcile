@@ -155,8 +155,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             changes = aggregate_resource_changes(
                 bundle_changes=aggregate_file_moves(parse_bundle_changes(diff)),
                 content_store={
-                    c.path: c.model_dump(by_alias=True)
-                    for c in namespaces + jenkins_configs
+                    c.path: c.dict(by_alias=True) for c in namespaces + jenkins_configs
                 },
                 supported_schemas={
                     "/openshift/namespace-1.yml",
@@ -240,4 +239,4 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             change_log.items, key=lambda i: i.merged_at, reverse=True
         )
         if not dry_run:
-            integration_state.add(BUNDLE_DIFFS_OBJ, change_log.model_dump(), force=True)
+            integration_state.add(BUNDLE_DIFFS_OBJ, change_log.dict(), force=True)

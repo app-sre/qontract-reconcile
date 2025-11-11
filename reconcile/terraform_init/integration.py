@@ -34,7 +34,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
 
 
 class TerraformInitIntegrationParams(PydanticRunParams):
-    account_name: str | None = None
+    account_name: str | None
     # To avoid the accidental deletion of the resource file, explicitly set the
     # qontract.cli option in the integration extraArgs!
     state_tmpl_resource: str = "/terraform-init/terraform-state.yml"
@@ -64,7 +64,7 @@ class TerraformInitIntegration(
             query_func = gql.get_api().query
         return {
             "accounts": [
-                account.model_dump() for account in self.get_aws_accounts(query_func)
+                account.dict() for account in self.get_aws_accounts(query_func)
             ],
         }
 

@@ -1410,11 +1410,6 @@ class HasOpenShiftResources(Protocol):
 
 
 @runtime_checkable
-class HasOpenShiftResourcesRequired(Protocol):
-    openshift_resources: list
-
-
-@runtime_checkable
 class HasOpenshiftServiceAccountTokens(Protocol):
     openshift_service_account_tokens: list | None
 
@@ -1422,7 +1417,7 @@ class HasOpenshiftServiceAccountTokens(Protocol):
 @runtime_checkable
 class HasSharedResourcesOpenShiftResources(Protocol):
     @property
-    def shared_resources(self) -> Sequence[HasOpenShiftResourcesRequired] | None: ...
+    def shared_resources(self) -> Sequence[HasOpenShiftResources] | None: ...
 
 
 @runtime_checkable

@@ -47,9 +47,9 @@ def apps(
         OnboardingStatusQueryData,
         {
             "apps": [
-                onboarded_app.model_dump(by_alias=True),
-                onboarded_app.model_dump(by_alias=True),
-                inprogress_app.model_dump(by_alias=True),
+                onboarded_app.dict(by_alias=True),
+                onboarded_app.dict(by_alias=True),
+                inprogress_app.dict(by_alias=True),
             ],
         },
     )
@@ -59,7 +59,7 @@ def test_get_onboarding_status(
     gql_api_builder: Callable[..., GqlApi],
     apps: OnboardingStatusQueryData,
 ) -> None:
-    gql_api = gql_api_builder(apps.model_dump(by_alias=True))
+    gql_api = gql_api_builder(apps.dict(by_alias=True))
 
     result = get_onboarding_status(gql_api)
 
