@@ -28,7 +28,7 @@ def test_gqlapi_throws_gqlapierror_when_generic_exception_thrown(
     patched_client.side_effect = Exception("Something went wrong!")
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)  # type: ignore[attr-defined]
 
 
 def test_gqlapi_throws_gqlapierror_when_connectionerror_exception_thrown(
@@ -40,7 +40,7 @@ def test_gqlapi_throws_gqlapierror_when_connectionerror_exception_thrown(
     )
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)  # type: ignore[attr-defined]
 
 
 def test_gqlapi_throws_gqlapierror_when_transportqueryerror_exception_thrown(
@@ -50,7 +50,7 @@ def test_gqlapi_throws_gqlapierror_when_transportqueryerror_exception_thrown(
     patched_client.side_effect = TransportQueryError("Error in GraphQL payload")
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)  # type: ignore[attr-defined]
 
 
 def test_gqlapi_throws_gqlapierror_when_assertionerror_exception_thrown(
@@ -62,7 +62,7 @@ def test_gqlapi_throws_gqlapierror_when_assertionerror_exception_thrown(
     )
     with pytest.raises(GqlApiError):
         gql_api = GqlApi("test_url", "test_token", validate_schemas=False)
-        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)  # type: ignore[attr-defined]
 
 
 def test_gqlapi_throws_gqlapiintegrationnotfound_exception(
@@ -77,7 +77,7 @@ def test_gqlapi_throws_gqlapiintegrationnotfound_exception(
         gql_api = GqlApi(
             "test_url", "test_token", "INTEGRATION_NOT_FOUND", validate_schemas=True
         )
-        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)  # type: ignore[attr-defined]
 
 
 def test_gqlapi_throws_gqlapierrorforbiddenschema_exception(
@@ -91,4 +91,4 @@ def test_gqlapi_throws_gqlapierrorforbiddenschema_exception(
 
     with pytest.raises(GqlApiErrorForbiddenSchemaError):
         gql_api = GqlApi("test_url", "test_token", "INTEGRATION", validate_schemas=True)
-        gql_api.query.__wrapped__(gql_api, TEST_QUERY)
+        gql_api.query.__wrapped__(gql_api, TEST_QUERY)  # type: ignore[attr-defined]

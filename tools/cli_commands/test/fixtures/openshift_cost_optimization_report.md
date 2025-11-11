@@ -15,21 +15,6 @@ View details in [Cost Management Optimizations](https://console.redhat.com/opens
 
 ```json:table
 {
-  "filter": true,
-  "items": [
-    {
-      "namespace": "some-cluster/some-project",
-      "workload": "deployment/test-deployment/test",
-      "current_cpu_limit": "4",
-      "current_cpu_request": "1",
-      "current_memory_limit": "5Gi",
-      "current_memory_request": "400Mi",
-      "recommend_cpu_limit": "5",
-      "recommend_cpu_request": "3",
-      "recommend_memory_limit": "6Gi",
-      "recommend_memory_request": "700Mi"
-    }
-  ],
   "fields": [
     {
       "key": "namespace",
@@ -80,6 +65,21 @@ View details in [Cost Management Optimizations](https://console.redhat.com/opens
       "key": "recommend_memory_limit",
       "label": "Recommend Memory Limit",
       "sortable": true
+    }
+  ],
+  "filter": true,
+  "items": [
+    {
+      "current_cpu_limit": "4",
+      "current_cpu_request": "1",
+      "current_memory_limit": "5Gi",
+      "current_memory_request": "400Mi",
+      "namespace": "some-cluster/some-project",
+      "recommend_cpu_limit": "5",
+      "recommend_cpu_request": "3",
+      "recommend_memory_limit": "6Gi",
+      "recommend_memory_request": "700Mi",
+      "workload": "deployment/test-deployment/test"
     }
   ]
 }

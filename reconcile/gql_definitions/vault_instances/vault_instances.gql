@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query VaultInstances {
   vault_instances: vault_instances_v1 {

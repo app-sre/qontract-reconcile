@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query ExternalResourcesModules {
   modules: external_resources_modules_v1 {

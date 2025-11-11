@@ -162,7 +162,9 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             logging.debug("No VPC requests found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
 
-        accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
+        accounts_untyped: list[dict] = [
+            acc.model_dump(by_alias=True) for acc in accounts
+        ]
         try:
             default_tags = get_settings().default_tags
         except ValueError:

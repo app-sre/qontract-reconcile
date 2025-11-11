@@ -35,7 +35,7 @@ class Quota(Protocol):
     quota_code: str
     value: float
 
-    def dict(self) -> dict[str, Any]: ...
+    def model_dump(self) -> dict[str, Any]: ...
 
 
 class Contact(Protocol):
@@ -44,7 +44,7 @@ class Contact(Protocol):
     email: str
     phone_number: str
 
-    def dict(self) -> dict[str, Any]: ...
+    def model_dump(self) -> dict[str, Any]: ...
 
 
 class AWSReconciler:
@@ -167,7 +167,7 @@ class AWSReconciler:
         self, aws_api: AWSApi, name: str, quotas: Iterable[Quota]
     ) -> list[str] | None:
         """Request service quota changes."""
-        quotas_dict = [q.dict() for q in quotas]
+        quotas_dict = [q.model_dump() for q in quotas]
         with self.state.transaction(
             state_key(name, TASK_REQUEST_SERVICE_QUOTA)
         ) as _state:

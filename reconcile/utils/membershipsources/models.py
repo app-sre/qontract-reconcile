@@ -7,7 +7,6 @@ from typing import (
 
 from pydantic import (
     BaseModel,
-    Extra,
 )
 
 from reconcile.gql_definitions.fragments.membership_source import (
@@ -23,7 +22,7 @@ class User(Protocol):
     @property
     def org_username(self) -> str: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class Bot(Protocol):
@@ -33,7 +32,7 @@ class Bot(Protocol):
     @property
     def org_username(self) -> str | None: ...
 
-    def dict(self, *, by_alias: bool = False) -> dict[str, Any]: ...
+    def model_dump(self, *, by_alias: bool = False) -> dict[str, Any]: ...
 
 
 class RoleWithMemberships(Protocol):
@@ -50,33 +49,27 @@ class RoleWithMemberships(Protocol):
     def member_sources(self) -> Sequence[RoleMembershipSource] | None: ...
 
 
-class RoleUser(BaseModel):
+class RoleUser(BaseModel, extra="ignore"):
     name: str
     org_username: str
-    github_username: str | None
-    quay_username: str | None
-    pagerduty_username: str | None
-    aws_username: str | None
-    cloudflare_user: str | None
-    public_gpg_key: str | None
+    github_username: str | None = None
+    quay_username: str | None = None
+    pagerduty_username: str | None = None
+    aws_username: str | None = None
+    cloudflare_user: str | None = None
+    public_gpg_key: str | None = None
     tag_on_cluster_updates: bool | None = False
     tag_on_merge_requests: bool | None = False
 
-    class Config:
-        extra = Extra.ignore
 
-
-class RoleBot(BaseModel):
+class RoleBot(BaseModel, extra="ignore"):
     name: str
-    description: str | None
-    org_username: str | None
-    github_username: str | None
-    gitlab_username: str | None
-    openshift_serviceaccount: str | None
-    quay_username: str | None
-
-    class Config:
-        extra = Extra.ignore
+    description: str | None = None
+    org_username: str | None = None
+    github_username: str | None = None
+    gitlab_username: str | None = None
+    openshift_serviceaccount: str | None = None
+    quay_username: str | None = None
 
 
 RoleMember = RoleUser | RoleBot
