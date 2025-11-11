@@ -19,9 +19,7 @@ fxt = Fixtures("openshift_upgrade_watcher")
 
 def load_cluster(path: str) -> ClusterV1:
     content = fxt.get_anymarkup(path)
-    data = data_default_none(ClusterV1, content)
-    assert isinstance(data, dict)
-    return ClusterV1(**data)
+    return ClusterV1(**data_default_none(ClusterV1, content))
 
 
 @pytest.fixture

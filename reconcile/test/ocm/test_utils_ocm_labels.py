@@ -141,9 +141,7 @@ def test_utils_get_organization_labels(
     )
     register_ocm_url_responses([
         OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response([
-            build_organization_label("label", "value", "org_id").model_dump(
-                by_alias=True
-            )
+            build_organization_label("label", "value", "org_id").dict(by_alias=True)
         ])
     ])
 
@@ -176,9 +174,7 @@ def test_utils_get_subscription_labels(
     )
     register_ocm_url_responses([
         OcmUrl(method="GET", uri="/api/accounts_mgmt/v1/labels").add_list_response([
-            build_subscription_label("label", "value", "sub_id").model_dump(
-                by_alias=True
-            )
+            build_subscription_label("label", "value", "sub_id").dict(by_alias=True)
         ])
     ])
 
@@ -321,7 +317,7 @@ def build_cluster_details(
                 for k, v in subs_labels or []
             ],
         ),
-        capabilities={},
+        capabilities=[],
     )
 
 

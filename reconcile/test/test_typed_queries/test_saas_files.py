@@ -703,7 +703,7 @@ def test_export_model(
                                 "path": "some-path",
                                 "environment": {
                                     "name": "test",
-                                    "labels": "{}",
+                                    "labels": None,
                                     "parameters": '{"ENV_PARAM": "foobar"}',
                                     "secretParameters": None,
                                 },
@@ -755,7 +755,7 @@ def test_export_model(
                                 "path": "some-path",
                                 "environment": {
                                     "name": "prod",
-                                    "labels": "{}",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
@@ -881,7 +881,7 @@ def test_export_model(
                                 "path": "some-path",
                                 "environment": {
                                     "name": "test",
-                                    "labels": "{}",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
@@ -933,7 +933,7 @@ def test_export_model(
                                 "path": "some-path",
                                 "environment": {
                                     "name": "prod",
-                                    "labels": "{}",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
@@ -1059,7 +1059,7 @@ def test_export_model(
                                 "path": "some-path",
                                 "environment": {
                                     "name": "production",
-                                    "labels": "{}",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },
@@ -1111,7 +1111,7 @@ def test_export_model(
                                 "path": "some-path",
                                 "environment": {
                                     "name": "stage",
-                                    "labels": "{}",
+                                    "labels": None,
                                     "parameters": None,
                                     "secretParameters": None,
                                 },

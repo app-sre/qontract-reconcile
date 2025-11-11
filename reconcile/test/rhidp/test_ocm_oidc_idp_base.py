@@ -125,7 +125,7 @@ def test_ocm_oidc_idp_act(
             issuer="https://issuer.com",
         ),
     )
-    idp_update = idp.model_copy(deep=True)
+    idp_update = idp.copy(deep=True)
     idp_update.open_id.client_id = "other-client-id"
     gh_idp = OCMOIdentityProviderGithub(id="idp-2", name="gh-auth")
 

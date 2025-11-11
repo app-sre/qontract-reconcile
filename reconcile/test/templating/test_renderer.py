@@ -109,7 +109,7 @@ def template_collection(
         {
             "name": "test",
             "variables": None,
-            "templates": [template_simple.model_dump(by_alias=True)],
+            "templates": [template_simple.dict(by_alias=True)],
         },
     )
 

@@ -1,11 +1,8 @@
 import pytest
 
 from reconcile.email_sender import collect_to
-from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailV1
-from reconcile.gql_definitions.fragments.email_service import (
-    EmailServiceOwners,
-    OwnerV1,
-)
+from reconcile.gql_definitions.email_sender.emails import AppInterfaceEmailV1, OwnerV1
+from reconcile.gql_definitions.fragments.email_service import EmailServiceOwners
 from reconcile.gql_definitions.fragments.email_user import EmailUser
 
 ALL_APPS = [

@@ -20,7 +20,8 @@ def onboarding_status() -> Counter:
 @pytest.fixture
 def repo_inventory() -> Counter:
     return Counter({
-        "app-sre": 5,
+        "app-sre",
+        5,
     })
 
 

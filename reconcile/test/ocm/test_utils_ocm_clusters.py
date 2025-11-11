@@ -61,7 +61,7 @@ def build_cluster_details(
                 for k, v in subs_labels or []
             ],
         ),
-        capabilities={},
+        capabilities=[],
     )
 
 
@@ -157,15 +157,11 @@ def test_discover_clusters_by_labels(
             method="GET",
             uri="/api/accounts_mgmt/v1/labels",
         ).add_list_response([
-            build_subscription_label("label", "subs_value", sub_id).model_dump(
+            build_subscription_label("label", "subs_value", sub_id).dict(by_alias=True),
+            build_subscription_label("label", "subs_value", "sub_id_2").dict(
                 by_alias=True
             ),
-            build_subscription_label("label", "subs_value", "sub_id_2").model_dump(
-                by_alias=True
-            ),
-            build_organization_label("label", "org_value", org_id).model_dump(
-                by_alias=True
-            ),
+            build_organization_label("label", "org_value", org_id).dict(by_alias=True),
         ])
     ])
 
@@ -343,7 +339,7 @@ def test_get_service_clusters_no_provision_shard(mocker: MockFixture) -> None:
             id="shard1",
         ),
     )
-    data_a = cluster_a.model_dump(by_alias=True)
+    data_a = cluster_a.dict(by_alias=True)
     cluster_b = FleetManagerServiceCluster(
         cluster_management_reference=ClusterManagementReference(
             cluster_id="test2",
@@ -353,7 +349,7 @@ def test_get_service_clusters_no_provision_shard(mocker: MockFixture) -> None:
             id="shard2",
         ),
     )
-    data_b = cluster_b.model_dump(by_alias=True)
+    data_b = cluster_b.dict(by_alias=True)
     data_b["provision_shard_reference"] = {}
 
     ocm.get_paginated.return_value = [data_a, data_b]

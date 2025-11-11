@@ -55,8 +55,6 @@ def resolve_app_interface_membership_source(
 
 def build_member_list(role: RoleV1) -> list[RoleMember]:
     members: list[RoleMember] = []
-    members.extend([RoleUser(**u.model_dump()) for u in role.users or []])
-    members.extend([
-        RoleBot(**b.model_dump()) for b in role.bots or [] if b.org_username
-    ])
+    members.extend([RoleUser(**u.dict()) for u in role.users or []])
+    members.extend([RoleBot(**b.dict()) for b in role.bots or [] if b.org_username])
     return members

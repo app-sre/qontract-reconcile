@@ -99,10 +99,10 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
             image=self.reconciliation.module_configuration.image_version,
             image_pull_policy="Always",
             resources=V1ResourceRequirements(
-                requests=self.reconciliation.module_configuration.resources.requests.model_dump(
+                requests=self.reconciliation.module_configuration.resources.requests.dict(
                     exclude_none=True
                 ),
-                limits=self.reconciliation.module_configuration.resources.limits.model_dump(
+                limits=self.reconciliation.module_configuration.resources.limits.dict(
                     exclude_none=True
                 ),
             ),

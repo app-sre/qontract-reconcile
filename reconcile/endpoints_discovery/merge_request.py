@@ -89,7 +89,7 @@ class Renderer:
 
     def render_description(self, hash: str) -> str:
         """Render the description for a merge request."""
-        return DESC.safe_substitute(EPDInfo(hash=hash).model_dump())
+        return DESC.safe_substitute(EPDInfo(hash=hash).dict())
 
     def render_title(self) -> str:
         """Render the title for a merge request."""

@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v2
+# qenerate: plugin=pydantic_v1
 
 query AutomatedActionsInstances {
   automated_actions_instances_v1 {

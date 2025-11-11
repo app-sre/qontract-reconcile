@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from deepdiff import DeepHash
-from pydantic import field_validator
+from pydantic import validator
 
 from reconcile.aus.aus_label_source import (
     init_aus_cluster_label_source,
@@ -62,8 +62,7 @@ class OcmLabelsIntegrationParams(PydanticRunParams):
     managed_label_prefixes: list[str] = []
     ignored_label_prefixes: list[str] = []
 
-    @field_validator("managed_label_prefixes", "ignored_label_prefixes")
-    @classmethod
+    @validator("managed_label_prefixes", "ignored_label_prefixes")
     def must_end_with_dot(cls, v: list[str]) -> list[str]:
         return [prefix + "." if not prefix.endswith(".") else prefix for prefix in v]
 

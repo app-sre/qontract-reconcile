@@ -53,8 +53,8 @@ def test_resolve_app_interface_membership_source(
                 "name": "role1",
                 "labels": None,
                 "path": "some/path.yml",
-                "users": [user.model_dump(by_alias=True)],
-                "bots": [bot.model_dump(by_alias=True)],
+                "users": [user.dict(by_alias=True)],
+                "bots": [bot.dict(by_alias=True)],
             }
         ],
     }

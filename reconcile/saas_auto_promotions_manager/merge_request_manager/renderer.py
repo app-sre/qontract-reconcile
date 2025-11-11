@@ -177,7 +177,7 @@ def is_namespace_addressed_by_selector(
     # json representation of namespace to filter on
     # remove all the None values to simplify the jsonpath expressions
     namespace_as_dict = {
-        "namespace": [namespace.model_dump(by_alias=True, exclude_none=True)]
+        "namespace": [namespace.dict(by_alias=True, exclude_none=True)]
     }
 
     do_include = any(

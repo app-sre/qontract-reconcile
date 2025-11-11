@@ -17,7 +17,7 @@ class IntMandatory(BaseModel):
 
 
 class IntOptional(BaseModel):
-    integrations: list[str] | None = None
+    integrations: list[str] | None
 
 
 class MandatoryIntMandatory(BaseModel):
@@ -25,7 +25,7 @@ class MandatoryIntMandatory(BaseModel):
 
 
 class OptionalIntOptional(BaseModel):
-    disable: IntOptional | None = None
+    disable: IntOptional | None
 
 
 class MandatoryIntOptional(BaseModel):
@@ -33,7 +33,7 @@ class MandatoryIntOptional(BaseModel):
 
 
 class OptionalIntMandatory(BaseModel):
-    disable: IntMandatory | None = None
+    disable: IntMandatory | None
 
 
 INT_LIST = ["int1", "int2"]

@@ -6,7 +6,7 @@ import threading
 import time
 from collections.abc import Mapping
 from functools import lru_cache
-from typing import Any, Self
+from typing import Any, Self, TypedDict
 
 import hvac
 import requests
@@ -46,6 +46,13 @@ class SecretFieldNotFoundError(Exception):
 
 class VaultConnectionError(Exception):
     pass
+
+
+class Secret(TypedDict):
+    path: str
+    field: str
+    format: str | None
+    version: str | None
 
 
 SECRET_VERSION_LATEST = "LATEST"
@@ -190,7 +197,7 @@ class VaultClient:
             self._client.auth_approle(self.role_id, self.secret_id)
 
     @retry()
-    def read_all_with_version(self, secret: Mapping) -> tuple[dict, int | None]:
+    def read_all_with_version(self, secret: Mapping) -> tuple[Mapping, str | None]:
         """Returns a dictionary of keys and values in a Vault secret and the
         version of the secret, for V1 secrets, version will be None.
 
@@ -243,7 +250,7 @@ class VaultClient:
 
     def __read_all_v2(
         self, path: str, version: str | None
-    ) -> tuple[dict[str, Any], int]:
+    ) -> tuple[dict[str, Any], str | None]:
         path_split = path.split("/")
         mount_point = path_split[0]
         read_path = "/".join(path_split[1:])
@@ -287,7 +294,7 @@ class VaultClient:
         return secret["data"]
 
     @retry()
-    def read(self, secret: Mapping[str, Any]) -> Any:
+    def read(self, secret: Secret) -> Any:
         """Returns a value of a key in a Vault secret.
 
         The input secret is a dictionary which contains the following fields:

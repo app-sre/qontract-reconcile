@@ -7,7 +7,10 @@ from enum import StrEnum
 from typing import Any
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, model_validator
+from pydantic import (
+    BaseModel,
+    root_validator,
+)
 
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
@@ -60,8 +63,7 @@ class ClusterAuth(BaseModel):
     issuer: str
     status: str
 
-    @model_validator(mode="before")
-    @classmethod
+    @root_validator
     def name_no_spaces(
         cls, values: MutableMapping[str, Any]
     ) -> MutableMapping[str, Any]:

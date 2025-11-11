@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v2
+# qenerate: plugin=pydantic_v1
 fragment OCMEnvironment on OpenShiftClusterManagerEnvironment_v1 {
   name
   description

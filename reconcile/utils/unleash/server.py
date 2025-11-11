@@ -24,12 +24,15 @@ class Environment(BaseModel):
         return self.name == other
 
 
-class FeatureToggle(BaseModel, validate_by_name=True, validate_by_alias=True):
+class FeatureToggle(BaseModel):
     name: str
     type: FeatureToggleType = FeatureToggleType.release
     description: str | None = None
     impression_data: bool = Field(False, alias="impressionData")
     environments: list[Environment]
+
+    class Config:
+        allow_population_by_field_name = True
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, FeatureToggle):
@@ -37,10 +40,13 @@ class FeatureToggle(BaseModel, validate_by_name=True, validate_by_alias=True):
         return self.name == other
 
 
-class Project(BaseModel, validate_by_name=True, validate_by_alias=True):
+class Project(BaseModel):
     pk: str = Field(alias="id")
     name: str
     feature_toggles: list[FeatureToggle] = []
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class TokenAuth(BearerTokenAuth):

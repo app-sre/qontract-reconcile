@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v2
+# qenerate: plugin=pydantic_v1
 
 fragment PipelineProviderRetention on PipelinesProviderRetention_v1 {
   days

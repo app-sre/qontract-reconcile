@@ -74,7 +74,7 @@ class CostManagementApi(ApiBase):
             timeout=self.read_timeout,
         )
         response.raise_for_status()
-        return AwsReportCostResponse.model_validate(response.json())
+        return AwsReportCostResponse.parse_obj(response.json())
 
     def get_openshift_costs_report(
         self,
@@ -97,7 +97,7 @@ class CostManagementApi(ApiBase):
             timeout=self.read_timeout,
         )
         response.raise_for_status()
-        return OpenShiftReportCostResponse.model_validate(response.json())
+        return OpenShiftReportCostResponse.parse_obj(response.json())
 
     def get_openshift_cost_optimization_report(
         self,
@@ -120,7 +120,7 @@ class CostManagementApi(ApiBase):
         response.raise_for_status()
 
         data = self._get_paginated(response)
-        return OpenShiftCostOptimizationReportResponse.model_validate(data)
+        return OpenShiftCostOptimizationReportResponse.parse_obj(data)
 
     def _get_paginated(
         self,
