@@ -2,7 +2,6 @@ import logging
 import os
 
 import github
-import github.NamedUser
 from github import Github
 from sretoolbox.utils import retry
 
@@ -101,7 +100,4 @@ def run(dry_run: bool) -> None:
 
                 if not dry_run:
                     gh_user = gh.get_user(github_username)
-                    assert isinstance(
-                        gh_user, github.NamedUser.NamedUser
-                    )  # make mypy happy
                     gh_org.add_to_members(gh_user, "admin")

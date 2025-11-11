@@ -9,11 +9,14 @@ from cryptography.x509.oid import NameOID
 from pydantic import BaseModel, Field
 
 
-class RhcsV2Cert(BaseModel, validate_by_name=True, validate_by_alias=True):
+class RhcsV2Cert(BaseModel):
     certificate: str = Field(alias="tls.crt")
     private_key: str = Field(alias="tls.key")
     ca_cert: str = Field(alias="ca.crt")
     expiration_timestamp: int
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 def extract_cert(text: str) -> re.Match:

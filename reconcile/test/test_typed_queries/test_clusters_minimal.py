@@ -2,7 +2,6 @@ from collections.abc import (
     Callable,
     Mapping,
 )
-from typing import TYPE_CHECKING, cast
 
 from reconcile.gql_definitions.common.clusters_minimal import (
     DEFINITION,
@@ -11,19 +10,16 @@ from reconcile.gql_definitions.common.clusters_minimal import (
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.gql import GqlApi
 
-if TYPE_CHECKING:
-    from unittest.mock import MagicMock
-
 
 def test_no_clusters(
     gql_api_builder: Callable[[Mapping | None], GqlApi],
     gql_class_factory: Callable[..., ClustersMinimalQueryData],
 ) -> None:
     data = gql_class_factory(ClustersMinimalQueryData, {})
-    api = gql_api_builder(data.model_dump(by_alias=True))
+    api = gql_api_builder(data.dict(by_alias=True))
     clusters = get_clusters_minimal(gql_api=api)
     assert len(clusters) == 0
-    cast("MagicMock", api).query.assert_called_once_with(DEFINITION, {})
+    api.query.assert_called_once_with(DEFINITION, {})
 
 
 def test_get_clusters(
@@ -34,10 +30,10 @@ def test_get_clusters(
         ClustersMinimalQueryData,
         {"clusters": [{"name": "a", "auth": []}, {"name": "b", "auth": []}]},
     )
-    api = gql_api_builder(data.model_dump(by_alias=True))
+    api = gql_api_builder(data.dict(by_alias=True))
     clusters = get_clusters_minimal(gql_api=api)
     assert len(clusters) == 2
-    cast("MagicMock", api).query.assert_called_once_with(DEFINITION, {})
+    api.query.assert_called_once_with(DEFINITION, {})
 
 
 def test_get_clusters_with_name(
@@ -48,6 +44,6 @@ def test_get_clusters_with_name(
         ClustersMinimalQueryData,
         {},
     )
-    api = gql_api_builder(data.model_dump(by_alias=True))
+    api = gql_api_builder(data.dict(by_alias=True))
     get_clusters_minimal(gql_api=api, name="test")
-    cast("MagicMock", api).query.assert_called_once_with(DEFINITION, {"name": "test"})
+    api.query.assert_called_once_with(DEFINITION, {"name": "test"})

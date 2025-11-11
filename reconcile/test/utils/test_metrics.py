@@ -170,7 +170,7 @@ def test_metrics_container_inc_counter(demo_counter: DemoCounter) -> None:
     assert metrics[0].type == "counter"
     assert len(metrics[0].samples) == 1
     sample = metrics[0].samples[0]
-    assert sample.labels == demo_counter.model_dump(by_alias=True)
+    assert sample.labels == demo_counter.dict(by_alias=True)
     assert sample.value == 3
 
 
@@ -329,7 +329,7 @@ def test_transactional_metrics_gauge_same_scope() -> None:
     metrics = list(root.collect())
     samples = metrics[0].samples
     assert len(samples) == 1
-    assert samples[0].labels == g_1.model_dump(by_alias=True)
+    assert samples[0].labels == g_1.dict(by_alias=True)
     assert samples[0].value == 42
 
     with transactional_metrics(scope, root) as c:
@@ -340,14 +340,14 @@ def test_transactional_metrics_gauge_same_scope() -> None:
         assert len(metrics) == 1
         samples = metrics[0].samples
         assert len(samples) == 1
-        assert samples[0].labels == g_1.model_dump(by_alias=True)
+        assert samples[0].labels == g_1.dict(by_alias=True)
         assert samples[0].value == 42
 
     # now that the transaction is committed we should see the new gauge value in root
     metrics = list(root.collect())
     samples = metrics[0].samples
     assert len(samples) == 1
-    assert samples[0].labels == g_2.model_dump(by_alias=True)
+    assert samples[0].labels == g_2.dict(by_alias=True)
     assert samples[0].value == 84
 
 
@@ -393,7 +393,7 @@ def test_transactional_metrics_counter_same_scope() -> None:
     metrics = list(root.collect())
     samples = metrics[0].samples
     assert len(samples) == 1
-    assert samples[0].labels == cnt.model_dump(by_alias=True)
+    assert samples[0].labels == cnt.dict(by_alias=True)
     assert samples[0].value == 1
 
     with transactional_metrics(scope, root) as c:
@@ -425,7 +425,7 @@ def test_transactional_metrics_counter_different_scope() -> None:
     metrics = list(root.collect())
     samples = metrics[0].samples
     assert len(samples) == 1
-    assert samples[0].labels == cnt.model_dump(by_alias=True)
+    assert samples[0].labels == cnt.dict(by_alias=True)
     assert samples[0].value == 1
 
     with transactional_metrics("scope-2", root) as c:

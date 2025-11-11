@@ -36,7 +36,7 @@ def setup_mocks(
     commit_message: str,
 ) -> dict[str, Any]:
     data = gql_class_factory(ChangeTypesQueryData, {})
-    mocked_gql_api = gql_api_builder(data.model_dump(by_alias=True))
+    mocked_gql_api = gql_api_builder(data.dict(by_alias=True))
     mocker.patch(
         "reconcile.change_owners.change_log_tracking.gql"
     ).get_api.return_value = mocked_gql_api
@@ -141,6 +141,6 @@ def test_change_log_tracking_with_deleted_app(
 
     mocks["state"].add.assert_called_once_with(
         "bundle-diffs.json",
-        expected_change_log.model_dump(),
+        expected_change_log.dict(),
         force=True,
     )

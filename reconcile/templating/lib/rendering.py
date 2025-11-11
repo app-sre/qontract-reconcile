@@ -18,7 +18,7 @@ from reconcile.utils.secret_reader import SecretReaderBase
 
 class TemplateData(BaseModel):
     variables: dict[str, Any]
-    current: dict[str, Any] | None = None
+    current: dict[str, Any] | None
     current_with_explicit_start: bool | None = False
 
 
@@ -26,7 +26,7 @@ class TemplatePatch(Protocol):
     path: str
     identifier: str | None
 
-    def model_dump(self) -> dict[str, str]: ...
+    def dict(self) -> dict[str, str]: ...
 
 
 class Template(Protocol):
@@ -36,7 +36,7 @@ class Template(Protocol):
     template: str
     overwrite: bool | None
 
-    def model_dump(self) -> dict[str, str]: ...
+    def dict(self) -> dict[str, str]: ...
 
     @property
     def patch(self) -> TemplatePatch | None:

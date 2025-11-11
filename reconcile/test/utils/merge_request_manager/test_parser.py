@@ -2,16 +2,15 @@ import re
 
 import pytest
 
+from reconcile.test.utils.merge_request_manager.conftest import ModelStub
 from reconcile.utils.merge_request_manager.parser import (
     Parser,
     ParserError,
     ParserVersionError,
 )
 
-from .conftest import ModelStub
 
-
-def test_paser_pass(parser: Parser[ModelStub], description: str) -> None:
+def test_paser_pass(parser: Parser, description: str) -> None:
     result = parser.parse(description)
 
     assert result == ModelStub(data_ref1="data1")

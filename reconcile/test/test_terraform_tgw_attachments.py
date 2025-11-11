@@ -170,9 +170,7 @@ def peering_connection_builder(
                 "name": name,
                 "provider": provider,
                 "manageRoutes": manage_routes,
-                "account": account.model_dump(by_alias=True)
-                if account is not None
-                else None,
+                "account": account.dict(by_alias=True) if account is not None else None,
                 "assumeRole": assume_role,
                 "cidrBlock": cidr_block,
                 "cidrBlocks": cidr_blocks,
@@ -258,7 +256,7 @@ def cluster_builder(
 @pytest.fixture
 def peering_builder(
     gql_class_factory: Callable[..., ClusterPeeringV1],
-) -> Callable[..., dict]:
+) -> Callable[..., ClusterPeeringV1]:
     def builder(
         connections: list[
             ClusterPeeringConnectionAccountTGWV1
@@ -267,13 +265,13 @@ def peering_builder(
             | ClusterPeeringConnectionClusterRequesterV1
             | ClusterPeeringConnectionV1
         ],
-    ) -> dict:
+    ) -> ClusterPeeringV1:
         return gql_class_factory(
             ClusterPeeringV1,
             {
                 "connections": connections,
             },
-        ).model_dump(by_alias=True)
+        )
 
     return builder
 
@@ -281,7 +279,7 @@ def peering_builder(
 @pytest.fixture
 def cluster_with_tgw_connection(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., dict],
+    peering_builder: Callable[..., ClusterPeeringV1],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -301,7 +299,7 @@ def cluster_with_tgw_connection(
 @pytest.fixture
 def cluster_with_2_tgw_connections(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., dict],
+    peering_builder: Callable[..., ClusterPeeringV1],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
@@ -323,7 +321,7 @@ def cluster_with_2_tgw_connections(
 @pytest.fixture
 def additional_cluster_with_tgw_connection(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., dict],
+    peering_builder: Callable[..., ClusterPeeringV1],
     additional_account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -343,7 +341,7 @@ def additional_cluster_with_tgw_connection(
 @pytest.fixture
 def cluster_with_duplicate_tgw_connections(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., dict],
+    peering_builder: Callable[..., ClusterPeeringV1],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -364,7 +362,7 @@ def cluster_with_duplicate_tgw_connections(
 @pytest.fixture
 def cluster_with_vpc_connection(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., dict],
+    peering_builder: Callable[..., ClusterPeeringV1],
     account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
     return cluster_builder(
@@ -384,7 +382,7 @@ def cluster_with_vpc_connection(
 @pytest.fixture
 def cluster_with_mixed_connections(
     cluster_builder: Callable[..., ClusterV1],
-    peering_builder: Callable[..., dict],
+    peering_builder: Callable[..., ClusterPeeringV1],
     account_tgw_connection: ClusterPeeringConnectionAccountTGWV1,
     account_vpc_connection: ClusterPeeringConnectionAccountTGWV1,
 ) -> ClusterV1:
@@ -830,14 +828,14 @@ def test_run_when_cluster_with_tgw_connection(
 
     mocks["aws_api"].assert_called_once_with(
         1,
-        [tgw_account.model_dump(by_alias=True)],
+        [tgw_account.dict(by_alias=True)],
         secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection.model_dump(by_alias=True)],
+        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.model_dump(by_alias=True),
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         tgw_account.name, [expected_cluster_account]
@@ -890,14 +888,14 @@ def test_run_when_cluster_with_mixed_connections(
 
     mocks["aws_api"].assert_called_once_with(
         1,
-        [tgw_account.model_dump(by_alias=True), vpc_account.model_dump(by_alias=True)],
+        [tgw_account.dict(by_alias=True), vpc_account.dict(by_alias=True)],
         secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_mixed_connections.model_dump(by_alias=True)],
+        clusters=[cluster_with_mixed_connections.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.model_dump(by_alias=True),
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         tgw_account.name, [expected_cluster_account]
@@ -975,14 +973,14 @@ def test_run_with_multiple_clusters(
 
     mocks["aws_api"].assert_called_once_with(
         1,
-        [tgw_account.model_dump(by_alias=True), vpc_account.model_dump(by_alias=True)],
+        [tgw_account.dict(by_alias=True), vpc_account.dict(by_alias=True)],
         secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection.model_dump(by_alias=True)],
+        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.model_dump(by_alias=True),
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         tgw_account.name, [expected_cluster_account]
@@ -1036,14 +1034,14 @@ def test_run_with_account_name_for_multiple_clusters(
     mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["aws_api"].assert_called_once_with(
         1,
-        [tgw_account.model_dump(by_alias=True)],
+        [tgw_account.dict(by_alias=True)],
         secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_tgw_connection.model_dump(by_alias=True)],
+        clusters=[cluster_with_tgw_connection.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.model_dump(by_alias=True),
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         tgw_account.name, [expected_cluster_account]
@@ -1096,14 +1094,14 @@ def test_run_with_account_name_for_multiple_connections(
     mocks["get_aws_accounts"].assert_called_once_with(mocks["gql_api"])
     mocks["aws_api"].assert_called_once_with(
         1,
-        [tgw_account.model_dump(by_alias=True)],
+        [tgw_account.dict(by_alias=True)],
         secret_reader=mocks["secret_reader"],
         init_users=False,
     )
     mocks["ocm"].assert_called_once_with(
-        clusters=[cluster_with_2_tgw_connections.model_dump(by_alias=True)],
+        clusters=[cluster_with_2_tgw_connections.dict(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
-        settings=app_interface_vault_settings.model_dump(by_alias=True),
+        settings=app_interface_vault_settings.dict(by_alias=True),
     )
     mocks["ts"].populate_additional_providers.assert_called_once_with(
         tgw_account.name, [expected_cluster_account]
@@ -1262,11 +1260,8 @@ def test_early_exit_desired_state(
     desired_state = integ.early_exit_desired_state()
 
     expected_early_exit_desired_state = {
-        "clusters": [cluster_with_tgw_connection.model_dump(by_alias=True)],
-        "accounts": [
-            tgw_account.model_dump(by_alias=True),
-            vpc_account.model_dump(by_alias=True),
-        ],
+        "clusters": [cluster_with_tgw_connection.dict(by_alias=True)],
+        "accounts": [tgw_account.dict(by_alias=True), vpc_account.dict(by_alias=True)],
     }
 
     assert desired_state == expected_early_exit_desired_state

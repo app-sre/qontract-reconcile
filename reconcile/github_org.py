@@ -144,7 +144,7 @@ def get_org_and_teams(
 
 
 @retry()
-def get_members(unit: Organization | Team) -> list[str]:
+def get_members(unit: Organization) -> list[str]:
     return [member.login for member in unit.get_members()]
 
 

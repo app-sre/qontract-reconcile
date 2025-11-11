@@ -119,7 +119,7 @@ class PydanticRunParams(RunParams, BaseModel):
     def copy_and_update(
         self: PydanticRunParamsSelfTypeVar, update: dict[str, Any]
     ) -> PydanticRunParamsSelfTypeVar:
-        return self.model_copy(update=update)
+        return self.copy(update=update)
 
     def get(self, field: str) -> Any:
         return getattr(self, field)

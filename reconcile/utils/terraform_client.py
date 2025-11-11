@@ -223,7 +223,7 @@ class TerraformClient:
         if disable_deletions_detected:
             raise RuntimeError("Terraform plan has disabled deletions detected")
 
-    @retry(no_retry_exceptions=(RdsUpgradeValidationError,))
+    @retry(no_retry_exceptions=RdsUpgradeValidationError)
     def terraform_plan(
         self, spec: TerraformSpec, enable_deletion: bool
     ) -> tuple[bool, list[AccountUser], bool]:

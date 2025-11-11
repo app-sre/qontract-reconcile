@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
+from pydantic.error_wrappers import ValidationError
 
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.models import data_default_none
@@ -67,12 +68,10 @@ def gql_class_factory() -> Callable[
         klass: type[BaseModel], data: MutableMapping[str, Any] | None = None
     ) -> BaseModel:
         try:
-            data_ = data_default_none(klass, data or {})
-            assert isinstance(data_, dict)
-            return klass(**data_)
+            return klass(**data_default_none(klass, data or {}))
         except ValidationError as e:
             msg = "[gql_class_factory] Your given data does not match the class ...\n"
-            msg += "\n".join([str(m) for m in e.errors()])
+            msg += "\n".join([str(m) for m in list(e.raw_errors)])
             raise GQLClassFactoryError(msg) from e
 
     return _gql_class_factory

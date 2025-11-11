@@ -58,7 +58,7 @@ class FleetLabelerIntegration(QontractReconcileIntegration[NoParams]):
         """Return the desired state for early exit."""
         return {
             "version": QONTRACT_INTEGRATION_VERSION,
-            "specs": {spec.name: spec.model_dump() for spec in get_fleet_label_specs()},
+            "specs": {spec.name: spec.dict() for spec in get_fleet_label_specs()},
         }
 
     def run(self, dry_run: bool) -> None:

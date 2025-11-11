@@ -8,13 +8,9 @@ fxt = Fixtures("oc_connection_parameters")
 
 def load_cluster_for_connection_parameters(path: str) -> ClusterV1:
     content = fxt.get_anymarkup(path)
-    data = data_default_none(ClusterV1, content)
-    assert isinstance(data, dict)
-    return ClusterV1(**data)
+    return ClusterV1(**data_default_none(ClusterV1, content))
 
 
 def load_namespace_for_connection_parameters(path: str) -> NamespaceV1:
     content = fxt.get_anymarkup(path)
-    data = data_default_none(NamespaceV1, content)
-    assert isinstance(data, dict)
-    return NamespaceV1(**data)
+    return NamespaceV1(**data_default_none(NamespaceV1, content))

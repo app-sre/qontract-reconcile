@@ -248,13 +248,13 @@ def get_cluster_ocm_update_spec(
     if not desired_spec.network.type:
         desired_spec.network.type = "OVNKubernetes"
 
-    cspec = current_spec.spec.model_dump()
-    cspec[ocmmod.SPEC_ATTR_NETWORK] = current_spec.network.model_dump(
+    cspec = current_spec.spec.dict()
+    cspec[ocmmod.SPEC_ATTR_NETWORK] = current_spec.network.dict(
         exclude={IGNORE_NETWORK_TYPE_ATTR}
     )
 
-    dspec = desired_spec.spec.model_dump()
-    dspec[ocmmod.SPEC_ATTR_NETWORK] = desired_spec.network.model_dump(
+    dspec = desired_spec.spec.dict()
+    dspec[ocmmod.SPEC_ATTR_NETWORK] = desired_spec.network.dict(
         exclude={IGNORE_NETWORK_TYPE_ATTR}
     )
 
