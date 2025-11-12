@@ -69,6 +69,37 @@ def ri(namespaces: list[NamespaceV1]) -> ResourceInventory:
     return ri_
 
 
+def assert_vault_writes_contain_cert_data(
+    vault_writes: list[Any], expected_paths: dict[str, str]
+) -> None:
+    """Validate vault writes contain correct certificate data for each format."""
+    for call_ in vault_writes:
+        secret = call_.kwargs["secret"]
+        path = secret["path"]
+        assert path in expected_paths, f"unexpected path {path}"
+
+        expected_format = expected_paths[path]
+        if expected_format == "PKCS12":
+            assert "keystore.p12" in secret["data"], (
+                f"PKCS12 cert {path} missing keystore.p12"
+            )
+            assert "truststore.p12" in secret["data"], (
+                f"PKCS12 cert {path} missing truststore.p12"
+            )
+            assert "tls.crt" not in secret["data"], (
+                f"PKCS12 cert {path} should not have PEM fields"
+            )
+        else:
+            assert "tls.crt" in secret["data"], f"PEM cert {path} missing tls.crt"
+            assert "tls.key" in secret["data"], f"PEM cert {path} missing tls.key"
+            assert "ca.crt" in secret["data"], f"PEM cert {path} missing ca.crt"
+            assert "keystore.p12" not in secret["data"], (
+                f"PEM cert {path} should not have PKCS12 fields"
+            )
+
+        assert "expiration_timestamp" in secret["data"]
+
+
 @pytest.fixture
 def mock_rhcs_cert_provider(mocker: MockerFixture) -> MagicMock:
     mock_provider = RhcsProviderSettingsV1(
@@ -179,10 +210,12 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     expected_cert_count = sum(
         1 for ns in namespaces for r in ns.openshift_resources or [] if _is_rhcs_cert(r)
     )
-    expected_vault_paths: set[str] = {
+    expected_vault_path_and_format: dict[str, str] = {
         f"app-interface/integrations-output/{QONTRACT_INTEGRATION}"
         f"/{ns.cluster.name}/{ns.name}/"
-        f"{cast('NamespaceOpenshiftResourceRhcsCertV1', r).secret_name}"
+        f"{cast('NamespaceOpenshiftResourceRhcsCertV1', r).secret_name}": (
+            cast("NamespaceOpenshiftResourceRhcsCertV1", r).certificate_format or "PEM"
+        )
         for ns in namespaces
         for r in ns.openshift_resources or []
         if _is_rhcs_cert(r)
@@ -190,20 +223,9 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
 
     assert mock_cert_generator.call_count == expected_cert_count
     assert vault_instance.write.call_count == expected_cert_count
-
-    for call_ in vault_instance.write.call_args_list:
-        secret = call_.kwargs["secret"]
-        assert secret["path"] in expected_vault_paths, (
-            f"unexpected path {secret['path']}"
-        )
-        # Check that either PEM or PKCS12 fields are present
-        has_pem_fields = "tls.crt" in secret["data"]
-        has_pkcs12_fields = "keystore.p12" in secret["data"]
-        assert has_pem_fields or has_pkcs12_fields, (
-            "Certificate data missing expected fields"
-        )
-        assert "expiration_timestamp" in secret["data"]
-
+    assert_vault_writes_contain_cert_data(
+        vault_instance.write.call_args_list, expected_vault_path_and_format
+    )
     # inline certs + shared certs belong to this namespace
     assert (
         len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
@@ -232,7 +254,6 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs_dry_run(
 
     vault_instance.write.assert_not_called()
     mock_cert_generator.assert_not_called()
-
     assert (
         len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
         == 5
@@ -387,11 +408,10 @@ def test_openshift_rhcs_certs__get_namespaces_with_shared_resources(
     """
     namespaces = get_namespaces_with_rhcs_certs(query_func)
     ns_by_name = {ns.name: ns for ns in namespaces}
-    assert "with-openshift-rhcs-certs" in ns_by_name
-
     shared_ns = ns_by_name["cert-from-shared-resources"]
-    assert shared_ns.openshift_resources, "shared resources not aggregated"
 
+    assert "with-openshift-rhcs-certs" in ns_by_name
+    assert shared_ns.openshift_resources, "shared resources not aggregated"
     assert any(_is_rhcs_cert(r) for r in cast("list", shared_ns.openshift_resources)), (
         "RHCS-cert not propagated from sharedResources"
     )

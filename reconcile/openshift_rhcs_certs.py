@@ -175,11 +175,11 @@ def generate_vault_cert_secret(
     else:
         try:
             rhcs_cert = generate_cert(
-                issuer_url,
-                cert_resource.service_account_name,
-                sa_password,
-                ca_cert_url,
-                cert_format,
+                issuer_url=issuer_url,
+                uid=cert_resource.service_account_name,
+                pwd=sa_password,
+                ca_url=ca_cert_url,
+                cert_format=cert_format,
             )
         except ValueError as e:
             raise Exception(
