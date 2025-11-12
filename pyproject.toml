@@ -20,7 +20,7 @@ dependencies = [
     "Click>=7.0,<9.0",
     "croniter>=1.0.15,<1.1.0",
     "dateparser~=1.1.7",
-    "deepdiff==6.7.1",
+    "deepdiff==8.6.1",
     "dnspython~=2.1",
     "dt==1.1.73",
     "filetype~=1.2.0",
