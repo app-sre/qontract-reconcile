@@ -33,7 +33,7 @@ dependencies = [
     "jsonpath-ng==1.7.0",
     "jsonpath-rw>=1.4.0,<1.5.0",
     "jsonpointer~=2.4",
-    "kubernetes==32.0.1",
+    "kubernetes==34.1.0",
     "ldap3>=2.9.1,<2.10.0",
     "MarkupSafe==2.1.1",
     "networkx~=2.8",
