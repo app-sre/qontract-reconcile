@@ -92,8 +92,7 @@ from reconcile.utils.state import State
 from reconcile.utils.vcs import VCS
 
 TARGET_CONFIG_HASH = "target_config_hash"
-
-
+TEMPLATE_API_VERSION = "template.openshift.io/v1"
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 56
 REQUEST_TIMEOUT = 60
 
@@ -871,10 +870,23 @@ class SaasHerder:
         """
         if parameter_name in consolidated_parameters:
             return False
-        for template_parameter in template.get("parameters", {}):
-            if template_parameter["name"] == parameter_name:
-                return True
-        return False
+        return any(
+            template_parameter["name"] == parameter_name
+            for template_parameter in template.get("parameters") or []
+        )
+
+    @staticmethod
+    def _pre_process_template(template: dict[str, Any]) -> dict[str, Any]:
+        """
+        The only supported apiVersion for OpenShift Template is "template.openshift.io/v1".
+        There are examples of templates using "v1", it can't pass validation on 4.19+ oc versions.
+
+        Args:
+            template (dict): The OpenShift template dictionary.
+        Returns:
+            dict: The OpenShift template dictionary with the correct apiVersion.
+        """
+        return template | {"apiVersion": TEMPLATE_API_VERSION}
 
     def _process_template(
         self, spec: TargetSpec
@@ -964,7 +976,8 @@ class SaasHerder:
             oc = OCLocal("cluster", None, None, local=True)
             try:
                 resources: Iterable[Mapping[str, Any]] = oc.process(
-                    template, consolidated_parameters
+                    template=self._pre_process_template(template),
+                    parameters=consolidated_parameters,
                 )
             except StatusCodeError as e:
                 logging.error(f"{error_prefix} error processing template: {e!s}")
