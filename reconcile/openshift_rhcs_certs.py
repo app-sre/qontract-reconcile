@@ -32,7 +32,7 @@ from reconcile.utils.openshift_resource import (
     ResourceInventory,
     base64_encode_secret_field_value,
 )
-from reconcile.utils.rhcsv2_certs import RhcsV2Cert, generate_cert
+from reconcile.utils.rhcsv2_certs import RhcsV2CertPem, RhcsV2CertPkcs12, generate_cert
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
@@ -94,32 +94,18 @@ def construct_rhcs_cert_oc_secret(
     annotations: Mapping[str, str],
     certificate_format: str,
 ) -> OR:
-    body: dict[str, Any] = {}
+    body: dict[str, Any] = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": secret_name, "annotations": annotations},
+    }
     if certificate_format == "PKCS12":
-        # Create Opaque secret for PKCS#12 format
-        body = {
-            "apiVersion": "v1",
-            "kind": "Secret",
-            "type": "Opaque",
-            "metadata": {"name": secret_name, "annotations": annotations},
-        }
-        for k, v in cert.items():
-            if k != "expiration_timestamp" and v is not None:
-                v = base64_encode_secret_field_value(v)
-                body.setdefault("data", {})[k] = v
+        body["type"] = "Opaque"
     else:
-        # Create kubernetes.io/tls secret for PEM format
-        body = {
-            "apiVersion": "v1",
-            "kind": "Secret",
-            "type": "kubernetes.io/tls",
-            "metadata": {"name": secret_name, "annotations": annotations},
-        }
-        for k, v in cert.items():
-            if k in {"tls.crt", "tls.key", "ca.crt"} and v is not None:
-                v = base64_encode_secret_field_value(v)
-                body.setdefault("data", {})[k] = v
-
+        body["type"] = "kubernetes.io/tls"
+    for k, v in cert.items():
+        v = base64_encode_secret_field_value(v)
+        body.setdefault("data", {})[k] = v
     return OR(body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION)
 
 
@@ -174,21 +160,16 @@ def generate_vault_cert_secret(
 
     if dry_run:
         if cert_format == "PKCS12":
-            rhcs_cert = RhcsV2Cert(
-                certificate=None,
-                private_key=None,
-                ca_cert=None,
+            rhcs_cert: RhcsV2CertPem | RhcsV2CertPkcs12 = RhcsV2CertPkcs12(
                 pkcs12_keystore="PLACEHOLDER_KEYSTORE",
                 pkcs12_truststore="PLACEHOLDER_TRUSTSTORE",
                 expiration_timestamp=int(time.time()),
             )
         else:
-            rhcs_cert = RhcsV2Cert(
+            rhcs_cert = RhcsV2CertPem(
                 certificate="PLACEHOLDER_CERT",
                 private_key="PLACEHOLDER_PRIVATE_KEY",
                 ca_cert="PLACEHOLDER_CA_CERT",
-                pkcs12_keystore=None,
-                pkcs12_truststore=None,
                 expiration_timestamp=int(time.time()),
             )
     else:
