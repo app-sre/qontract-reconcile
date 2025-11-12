@@ -40,7 +40,7 @@ dependencies = [
     "parse==1.18.0",
     "prometheus-client~=0.8",
     "psycopg2-binary~=2.9",
-    "pydantic~=1.10.6",
+    "pydantic~=2.12.4",
     "PyGithub>=1.58,<1.59",
     "pyjwt~=2.7",
     "pyOpenSSL~=23.0",
