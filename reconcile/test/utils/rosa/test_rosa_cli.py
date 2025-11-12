@@ -43,7 +43,7 @@ def test_rosa_job_scripts(rosa_job: RosaJob) -> None:
 
 def test_rosa_job_spec(rosa_job: RosaJob) -> None:
     job_spec = rosa_job.job_spec()
-    container = job_spec.template.spec.containers[0]  # type: ignore
+    container = job_spec.template.spec.containers[0]
     assert container.image == rosa_job.image
     assert {e.name for e in container.env or []} == {
         "AWS_SHARED_CREDENTIALS_FILE",

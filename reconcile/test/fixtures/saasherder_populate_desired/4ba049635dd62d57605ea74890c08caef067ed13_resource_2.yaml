@@ -1,3 +1,4 @@
+# test wrong apiVersion handling, auto patch to template.openshift.io/v1
 apiVersion: v1
 kind: Template
 metadata:

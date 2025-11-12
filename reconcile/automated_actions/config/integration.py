@@ -7,7 +7,7 @@ from collections.abc import (
 from typing import Any
 
 import yaml
-from kubernetes.client import (  # type: ignore[attr-defined]
+from kubernetes.client import (
     ApiClient,
     V1ConfigMap,
     V1ObjectMeta,
