@@ -1,21 +1,17 @@
 import base64
 import time
 from collections.abc import Callable, Mapping
-from typing import Any, cast
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
 import reconcile.openshift_rhcs_certs as rhcs_certs
-from reconcile.gql_definitions.rhcs.certs import (
-    NamespaceOpenshiftResourceRhcsCertV1,
-    NamespaceV1,
-)
+from reconcile.gql_definitions.rhcs.certs import NamespaceV1
 from reconcile.openshift_rhcs_certs import (
     QONTRACT_INTEGRATION,
     QONTRACT_INTEGRATION_VERSION,
-    _is_rhcs_cert,
     construct_rhcs_cert_oc_secret,
     fetch_desired_state,
     get_namespaces_with_rhcs_certs,
@@ -137,15 +133,13 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     fetch_desired_state(False, namespaces, ri, query_func)
 
     expected_cert_count = sum(
-        1 for ns in namespaces for r in ns.openshift_resources or [] if _is_rhcs_cert(r)
+        1 for ns in namespaces for r in ns.openshift_resources or []
     )
     expected_vault_paths: set[str] = {
         f"app-interface/integrations-output/{QONTRACT_INTEGRATION}"
-        f"/{ns.cluster.name}/{ns.name}/"
-        f"{cast('NamespaceOpenshiftResourceRhcsCertV1', r).secret_name}"
+        f"/{ns.cluster.name}/{ns.name}/{r.secret_name}"
         for ns in namespaces
         for r in ns.openshift_resources or []
-        if _is_rhcs_cert(r)
     }
 
     assert mock_cert_generator.call_count == expected_cert_count
@@ -231,7 +225,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
     fetch_desired_state(False, namespaces, ri, query_func)
 
     total_cert_objects = sum(
-        1 for ns in namespaces for r in ns.openshift_resources or [] if _is_rhcs_cert(r)
+        1 for ns in namespaces for r in ns.openshift_resources or []
     )
     assert mock_cert_generator.call_count == total_cert_objects
     assert vault_instance.write.call_count == total_cert_objects
@@ -340,6 +334,6 @@ def test_openshift_rhcs_certs__get_namespaces_with_shared_resources(
     shared_ns = ns_by_name["cert-from-shared-resources"]
     assert shared_ns.openshift_resources, "shared resources not aggregated"
 
-    assert any(_is_rhcs_cert(r) for r in cast("list", shared_ns.openshift_resources)), (
+    assert any(r for r in shared_ns.openshift_resources), (
         "RHCS-cert not propagated from sharedResources"
     )
