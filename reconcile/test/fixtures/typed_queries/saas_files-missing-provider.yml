@@ -32,4 +32,4 @@ saas_files:
         jsonPathSelectors:
           include:
           - 'namespace[?@.app.name="example"]'
-      ref: 1234567890123456789012345678901234567890
+      ref: "1234567890123456789012345678901234567890"

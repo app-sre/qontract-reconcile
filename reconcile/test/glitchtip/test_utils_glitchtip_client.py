@@ -141,7 +141,18 @@ def test_glitchtip_create_project_alert(glitchtip_client: GlitchtipClient) -> No
     alert = glitchtip_client.create_project_alert(
         organization_slug="nasa",
         project_slug="science-tools",
-        alert=ProjectAlert(name="test", timespan_minutes=1, quantity=1),
+        alert=ProjectAlert(
+            name="test",
+            timespan_minutes=1,
+            quantity=1,
+            recipients=[
+                ProjectAlertRecipient(
+                    pk=20,
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="https://example.com",
+                )
+            ],
+        ),
     )
     assert alert.pk == 1
 
@@ -150,7 +161,19 @@ def test_glitchtip_update_project_alert(glitchtip_client: GlitchtipClient) -> No
     alert = glitchtip_client.update_project_alert(
         organization_slug="nasa",
         project_slug="science-tools",
-        alert=ProjectAlert(pk=1, name="foobar", timespan_minutes=1, quantity=1),
+        alert=ProjectAlert(
+            pk=1,
+            name="foobar",
+            timespan_minutes=1,
+            quantity=1,
+            recipients=[
+                ProjectAlertRecipient(
+                    pk=20,
+                    recipient_type=RecipientType.WEBHOOK,
+                    url="https://example.com",
+                )
+            ],
+        ),
     )
     assert alert.pk == 1
     assert alert.name == "foobar"

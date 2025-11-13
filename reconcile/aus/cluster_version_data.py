@@ -1,4 +1,3 @@
-import json
 from collections.abc import Iterable
 from datetime import datetime
 from typing import (
@@ -20,6 +19,17 @@ class WorkloadHistory(BaseModel):
     soak_days: float = 0.0
     reporting: list[str] = Field(default_factory=list)
 
+    def __eq__(self, value: Any) -> bool:
+        if isinstance(value, WorkloadHistory):
+            return super().__eq__(value)
+
+        if isinstance(value, dict):
+            return self.soak_days == value.get("soak_days", 0.0) and sorted(
+                self.reporting
+            ) == sorted(value.get("reporting", []))
+
+        return False
+
 
 class VersionHistory(BaseModel):
     workloads: dict[str, WorkloadHistory] = Field(default_factory=dict)
@@ -38,7 +48,7 @@ class Stats(BaseModel):
 
     min_version: str
     min_version_per_workload: dict[str, str] = Field(default_factory=dict)
-    inherited: Optional["Stats"]
+    inherited: Optional["Stats"] = None
 
     def inherit(self, added: "Stats") -> None:
         """adds the provided stats to our inherited data
@@ -93,12 +103,12 @@ class VersionData(BaseModel):
     upgrade policies.
     """
 
-    check_in: datetime | None
+    check_in: datetime | None = None
     versions: dict[str, VersionHistory] = Field(default_factory=dict)
-    stats: Stats | None
+    stats: Stats | None = None
 
     def jsondict(self) -> dict[str, Any]:
-        return json.loads(self.json(exclude_none=True))
+        return self.model_dump(mode="json", exclude_none=True)
 
     def save(self, state: State, ocm_name: str) -> None:
         state.add(ocm_name, self.jsondict(), force=True)

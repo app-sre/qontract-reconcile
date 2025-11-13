@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query ChangeTypes($name: String) {
   change_types: change_types_v1(name: $name) {

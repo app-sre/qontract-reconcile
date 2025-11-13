@@ -83,7 +83,7 @@ def test_assert_restrictive_all_need_approval(
     restrictive_type: ChangeTypeV1, mocker: MockerFixture
 ) -> None:
     b = mocker.patch("reconcile.change_owners.changes.BundleFileChange")
-    restrictive_type_two = restrictive_type.copy()
+    restrictive_type_two = restrictive_type.model_copy()
     restrictive_type_two.name = "restrictive_type_two"
     b.diff_coverage = [
         DiffCoverage(

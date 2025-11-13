@@ -716,7 +716,7 @@ def test_populate_current_state(
     # prepare client and resource inventory
     oc_cs1.init_api_resources = True
     oc_cs1.api_resources = api_resources
-    oc_cs1.get_items = lambda kind, **kwargs: [
+    oc_cs1.get_items = lambda kind, **kwargs: [  # type: ignore[method-assign]
         build_resource("Kind", "fully.qualified/v1", "name")
     ]
     resource_inventory.initialize_resource_type("cs1", "ns1", "Kind.fully.qualified")
@@ -1370,10 +1370,13 @@ def test_get_state_count_combinations() -> None:
 
 def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
     class OpenShiftResourcesStub(BaseModel):
-        openshift_resources: list | None
+        openshift_resources: list | None = None
+
+    class OpenShiftResourcesStubRequired(BaseModel):
+        openshift_resources: list
 
     class OpenShiftResourcesAndSharedResourcesStub(OpenShiftResourcesStub, BaseModel):
-        shared_resources: list[OpenShiftResourcesStub] | None
+        shared_resources: list[OpenShiftResourcesStubRequired] | None = None
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=[1], shared_resources=None
@@ -1383,14 +1386,14 @@ def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=None,
-        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+        shared_resources=[OpenShiftResourcesStubRequired(openshift_resources=[2])],
     )
     sut.aggregate_shared_resources_typed(namespace=namespace)
     assert namespace.openshift_resources == [2]
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=[1],
-        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+        shared_resources=[OpenShiftResourcesStubRequired(openshift_resources=[2])],
     )
     sut.aggregate_shared_resources_typed(namespace=namespace)
     assert namespace.openshift_resources == [1, 2]
@@ -1398,12 +1401,12 @@ def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
 
 def test_aggregate_shared_resources_typed_openshift_service_account_token() -> None:
     class OpenshiftServiceAccountTokensStub(BaseModel):
-        openshift_service_account_tokens: list | None
+        openshift_service_account_tokens: list | None = None
 
     class OpenshiftServiceAccountTokensAndSharedResourcesStub(
         OpenshiftServiceAccountTokensStub, BaseModel
     ):
-        shared_resources: list[OpenshiftServiceAccountTokensStub] | None
+        shared_resources: list[OpenshiftServiceAccountTokensStub] | None = None
 
     namespace = OpenshiftServiceAccountTokensAndSharedResourcesStub(
         openshift_service_account_tokens=[1], shared_resources=None

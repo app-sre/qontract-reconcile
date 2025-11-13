@@ -248,7 +248,7 @@ def test_update_history(
     base.update_history(ocm1_version_data, org_upgrade_spec)
 
     expected = {
-        "check_in": "2021-08-30T18:00:00+00:00",
+        "check_in": "2021-08-30T18:00:00Z",
         "versions": {
             "4.12.1": {
                 "workloads": {

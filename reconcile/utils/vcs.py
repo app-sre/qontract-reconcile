@@ -140,7 +140,7 @@ class VCS:
         gitlab_instances: Iterable[GitlabInstanceV1],
     ) -> GitLabApi:
         return GitLabApi(
-            next(iter(gitlab_instances)).dict(by_alias=True),
+            next(iter(gitlab_instances)).model_dump(by_alias=True),
             secret_reader=self._secret_reader,
         )
 
@@ -150,7 +150,7 @@ class VCS:
         app_interface_repo_url: str,
     ) -> GitLabApi:
         return GitLabApi(
-            next(iter(gitlab_instances)).dict(by_alias=True),
+            next(iter(gitlab_instances)).model_dump(by_alias=True),
             secret_reader=self._secret_reader,
             project_url=app_interface_repo_url,
         )
@@ -221,26 +221,26 @@ class VCS:
         match repo_info.platform:
             case "github":
                 github = self._init_github(repo_url=repo_url, auth_code=auth_code)
-                data = github.compare(commit_from=commit_from, commit_to=commit_to)
                 return [
                     Commit(
                         repo=repo_url,
                         sha=gh_commit.sha,
                         date=gh_commit.commit.committer.date,
                     )
-                    for gh_commit in data
+                    for gh_commit in github.compare(
+                        commit_from=commit_from, commit_to=commit_to
+                    )
                 ]
             case "gitlab":
-                data = self._gitlab_instance.repository_compare(
-                    repo_url=repo_url, ref_from=commit_from, ref_to=commit_to
-                )
                 return [
                     Commit(
                         repo=repo_url,
                         sha=gl_commit["id"],
                         date=datetime.fromisoformat(gl_commit["committed_date"]),
                     )
-                    for gl_commit in data
+                    for gl_commit in self._gitlab_instance.repository_compare(
+                        repo_url=repo_url, ref_from=commit_from, ref_to=commit_to
+                    )
                 ]
             case _:
                 raise ValueError(f"Unsupported repository URL: {repo_url}")

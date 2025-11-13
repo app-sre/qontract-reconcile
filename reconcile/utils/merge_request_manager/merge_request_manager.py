@@ -42,7 +42,7 @@ class MergeRequestManagerBase[T: BaseModel]:
         expected_data: dict[str, Any],
     ) -> OpenMergeRequest | None:
         for mr in self._open_mrs:
-            mr_info_dict = mr.mr_info.dict()
+            mr_info_dict = mr.mr_info.model_dump()
             if all(mr_info_dict.get(k) == expected_data.get(k) for k in expected_data):
                 return mr
 

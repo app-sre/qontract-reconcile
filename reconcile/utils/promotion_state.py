@@ -3,13 +3,12 @@ from collections import defaultdict
 
 from pydantic import (
     BaseModel,
-    Extra,
 )
 
 from reconcile.utils.state import State
 
 
-class PromotionData(BaseModel):
+class PromotionData(BaseModel, extra="forbid"):
     """
     A class that strictly corresponds to the json stored in S3.
 
@@ -20,17 +19,13 @@ class PromotionData(BaseModel):
 
     # The success is primarily used for SAPM auto-promotions
     success: bool
-    target_config_hash: str | None
-    saas_file: str | None
-    check_in: str | None
+    target_config_hash: str | None = None
+    saas_file: str | None = None
+    check_in: str | None = None
     # Whether this promotion has ever succeeded
     # Note, this shouldnt be overridden on subsequent promotions of same ref
     # This attribute is primarily used by saasherder validations
-    has_succeeded_once: bool | None
-
-    class Config:
-        smart_union = True
-        extra = Extra.forbid
+    has_succeeded_once: bool | None = None
 
 
 class PromotionState:
@@ -107,5 +102,5 @@ class PromotionState:
         self, sha: str, channel: str, target_uid: str, data: PromotionData
     ) -> None:
         state_key_v2 = f"promotions_v2/{channel}/{target_uid}/{sha}"
-        self._state.add(state_key_v2, data.dict(), force=True)
+        self._state.add(state_key_v2, data.model_dump(), force=True)
         logging.info("Uploaded %s to %s", data, state_key_v2)

@@ -13,7 +13,7 @@ from reconcile.utils.metrics import (
 
 
 class ExternalResourcesBaseMetric(BaseModel):
-    integration = normalize_integration_name(QONTRACT_INTEGRATION)
+    integration: str = normalize_integration_name(QONTRACT_INTEGRATION)
     app: str
     environment: str
     provision_provider: str

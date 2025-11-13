@@ -182,7 +182,7 @@ class OCMProductOsd(OCMProduct):
         )
 
         if not cluster["ccs"]["enabled"]:
-            cluster_spec_data = spec.dict()
+            cluster_spec_data = spec.model_dump()
             cluster_spec_data["storage"] = (
                 cluster["storage_quota"]["value"] // BYTES_IN_GIGABYTE
             )
@@ -229,7 +229,7 @@ class OCMProductOsd(OCMProduct):
             "compute_machine_type": {"id": default_machine_pool.instance_type},
         }
         if default_machine_pool.autoscale is not None:
-            spec["autoscale_compute"] = default_machine_pool.autoscale.dict()
+            spec["autoscale_compute"] = default_machine_pool.autoscale.model_dump()
         else:
             spec["compute"] = default_machine_pool.replicas
         return spec
@@ -474,7 +474,7 @@ class OCMProductRosa(OCMProduct):
             "compute_machine_type": {"id": default_machine_pool.instance_type},
         }
         if default_machine_pool.autoscale is not None:
-            spec["autoscale_compute"] = default_machine_pool.autoscale.dict()
+            spec["autoscale_compute"] = default_machine_pool.autoscale.model_dump()
         else:
             spec["compute"] = default_machine_pool.replicas
         return spec

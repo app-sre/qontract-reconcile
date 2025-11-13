@@ -19,19 +19,17 @@ from reconcile.statuspage.status import (
 PROVIDER_NAME = "statuspage"
 
 
-class StatusComponent(BaseModel):
+class StatusComponent(BaseModel, arbitrary_types_allowed=True):
     """
     Represents a status page component from the desired state.
     """
 
     name: str
     display_name: str
-    description: str | None
-    group_name: str | None
+    description: str | None = None
+    group_name: str | None = None
+    # Status provider configs hold different ways for a component to determine its status
     status_provider_configs: list[StatusProvider]
-    """
-    Status provider configs hold different ways for a component to determine its status
-    """
 
     def status_management_enabled(self) -> bool:
         """
@@ -48,9 +46,6 @@ class StatusComponent(BaseModel):
                     return status
             return "operational"
         return None
-
-    class Config:
-        arbitrary_types_allowed = True
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, StatusComponent):

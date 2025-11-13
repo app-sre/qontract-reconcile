@@ -41,6 +41,7 @@ from reconcile.slack_usergroups import (
     State,
     WorkspaceSpec,
     act,
+    deep_update,
     get_clusters,
     get_permissions,
     get_users,
@@ -51,6 +52,111 @@ from reconcile.utils.pagerduty_api import PagerDutyMap
 from reconcile.utils.slack_api import SlackApi
 
 from .fixtures import Fixtures
+
+
+@pytest.mark.parametrize(
+    ("base_dict", "update_dicts", "expected"),
+    [
+        # Simple merge
+        (
+            {"a": 1, "b": 2},
+            ({"c": 3},),
+            {"a": 1, "b": 2, "c": 3},
+        ),
+        # Override values
+        (
+            {"a": 1, "b": 2},
+            ({"b": 3},),
+            {"a": 1, "b": 3},
+        ),
+        # Nested dict merge
+        (
+            {"a": {"x": 1, "y": 2}, "b": 3},
+            ({"a": {"y": 3, "z": 4}},),
+            {"a": {"x": 1, "y": 3, "z": 4}, "b": 3},
+        ),
+        # Multiple updates
+        (
+            {"a": 1},
+            ({"b": 2}, {"c": 3}),
+            {"a": 1, "b": 2, "c": 3},
+        ),
+        # Multiple updates with overrides
+        (
+            {"a": 1, "b": 2},
+            ({"b": 3, "c": 4}, {"c": 5, "d": 6}),
+            {"a": 1, "b": 3, "c": 5, "d": 6},
+        ),
+        # Deep nesting
+        (
+            {"a": {"b": {"c": 1}}},
+            ({"a": {"b": {"d": 2}}},),
+            {"a": {"b": {"c": 1, "d": 2}}},
+        ),
+        # Mixed types - list override
+        (
+            {"a": [1, 2], "b": 3},
+            ({"a": [3, 4]},),
+            {"a": [3, 4], "b": 3},
+        ),
+        # Mixed types - dict replaces non-dict
+        (
+            {"a": "string"},
+            ({"a": {"x": 1}},),
+            {"a": {"x": 1}},
+        ),
+        # Mixed types - non-dict replaces dict
+        (
+            {"a": {"x": 1}},
+            ({"a": "string"},),
+            {"a": "string"},
+        ),
+        # Empty update dict
+        (
+            {"a": 1, "b": 2},
+            ({},),
+            {"a": 1, "b": 2},
+        ),
+        # Empty base dict
+        (
+            {},
+            ({"a": 1},),
+            {"a": 1},
+        ),
+        # Complex nested merge
+        (
+            {"workspace1": {"ug1": {"users": {"u1"}, "channels": {"c1"}}}},
+            ({"workspace1": {"ug2": {"users": {"u2"}}}},),
+            {
+                "workspace1": {
+                    "ug1": {"users": {"u1"}, "channels": {"c1"}},
+                    "ug2": {"users": {"u2"}},
+                }
+            },
+        ),
+    ],
+)
+def test_deep_update(
+    base_dict: dict[Any, Any],
+    update_dicts: tuple[dict[Any, Any], ...],
+    expected: dict[Any, Any],
+) -> None:
+    result = deep_update(base_dict, *update_dicts)
+    assert result == expected
+
+
+def test_deep_update_preserves_original() -> None:
+    """Test that deep_update does not mutate the original dict."""
+    original = {"a": {"x": 1}, "b": 2}
+    original_copy = copy.deepcopy(original)
+    update = {"a": {"y": 2}, "c": 3}
+
+    result = deep_update(original, update)
+
+    # Original should be unchanged
+    assert original == original_copy
+    # Result should contain merged data
+    assert result == {"a": {"x": 1, "y": 2}, "b": 2, "c": 3}
 
 
 @pytest.fixture

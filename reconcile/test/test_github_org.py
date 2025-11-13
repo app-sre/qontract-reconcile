@@ -2,6 +2,10 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 from unittest.mock import patch
 
+from github import NamedUser
+from github.Organization import Organization
+from pytest_mock import MockerFixture
+
 from reconcile import github_org
 from reconcile.utils import (
     config,
@@ -128,30 +132,19 @@ class TestGithubOrg:
     def test_desired_state_simple(self) -> None:
         self.do_desired_state_test("desired_state_simple.yml")
 
-    def test_get_members(self) -> None:
-        class SimpleMemberMock:  # noqa: B903
-            def __init__(self, login: str) -> None:
-                self.login = login
+    def test_get_members(self, mocker: MockerFixture) -> None:
+        member_a = mocker.create_autospec(NamedUser, login="a")
+        member_b = mocker.create_autospec(NamedUser, login="b")
+        org = mocker.create_autospec(Organization)
+        org.get_members.return_value = [member_a, member_b]
 
-        class SimpleOrgMock:
-            @staticmethod
-            def get_members() -> list[SimpleMemberMock]:
-                return [SimpleMemberMock("a"), SimpleMemberMock("b")]
-
-        org = SimpleOrgMock()
         assert github_org.get_members(org) == ["a", "b"]
 
-    def test_get_org_teams(self) -> None:
-        class SimpleOrgMock:
-            @staticmethod
-            def get_teams() -> list[str]:
-                return ["teams"]
+    def test_get_org_teams(self, mocker: MockerFixture) -> None:
+        org = mocker.create_autospec(Organization)
+        org.get_teams.return_value = ["teams"]
+        gh = mocker.create_autospec(github_org.Github)
+        gh.get_organization.return_value = org
 
-        class SimpleGithubMock:
-            @staticmethod
-            def get_organization(org_name: str) -> SimpleOrgMock:
-                return SimpleOrgMock()
-
-        g = SimpleGithubMock()
-        _, teams = github_org.get_org_and_teams(g, "org")
+        _, teams = github_org.get_org_and_teams(gh, "org")
         assert teams == ["teams"]
