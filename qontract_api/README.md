@@ -105,6 +105,24 @@ Key variables:
 - `CACHE_BROKER_URL` - Redis/Valkey connection URL
 - `LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR)
 
+**IMPORTANT - JWT Security:**
+
+- `JWT_SECRET_KEY` - Secret key for JWT token signing (MUST be changed for production!)
+- `JWT_ALGORITHM` - JWT algorithm (default: HS256)
+- `JWT_EXPIRE_MINUTES` - Default token expiration (default: 30 minutes)
+
+**For production:**
+
+```bash
+# Generate a secure random secret key
+export JWT_SECRET_KEY=$(openssl rand -hex 32)
+
+# Or set in .env file
+echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env
+```
+
+⚠️ **Never use the default development secret in production!** The token generation script and API use the same `JWT_SECRET_KEY` from environment variables.
+
 ## Testing
 
 ```bash
@@ -121,12 +139,55 @@ make types
 make check
 ```
 
+## Authentication
+
+The API uses JWT tokens for authentication.
+
+**Important:** The token generation script uses the same `JWT_SECRET_KEY` environment variable as the API server. Make sure both use the same secret key!
+
+Generate tokens using the CLI:
+
+```bash
+# Ensure JWT_SECRET_KEY is set (same as API server!)
+export JWT_SECRET_KEY="your-secret-key"
+
+# Generate token with default expiry (30 days)
+make generate-token SUBJECT=admin
+
+# Generate token with custom expiry
+make generate-token SUBJECT=service-account DAYS=90
+
+# Or use the script directly
+uv run python -m qontract_api.scripts.generate_token --subject admin --expires-days 30
+```
+
+Use the token in requests:
+
+```bash
+# Export token
+export TOKEN="eyJhbGc..."
+
+# Call protected endpoint
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/protected
+```
+
 ## API Endpoints
 
-- `GET /` - Root endpoint
-- `GET /health` - Health check
+### Public Endpoints
+
+- `GET /` - Root endpoint with basic info
 - `GET /docs` - Interactive API documentation (Swagger UI)
 - `GET /redoc` - Alternative API documentation (ReDoc)
+
+### Health Checks
+
+- `GET /health` - Detailed health check with all components
+- `GET /health/live` - Liveness probe (for Kubernetes)
+- `GET /health/ready` - Readiness probe with dependency checks (for Kubernetes)
+
+### Protected Endpoints (require JWT token)
+
+- `GET /api/protected` - Example protected endpoint
 
 ## Celery Tasks
 

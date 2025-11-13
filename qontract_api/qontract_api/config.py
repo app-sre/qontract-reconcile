@@ -21,7 +21,11 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
 
-    # Cache & Broker (Redis/Valkey compatible)
+    # Cache Backend
+    CACHE_BACKEND: str = Field(
+        default="redis",
+        description="Cache backend type: redis (more backends: dynamodb, firestore coming later)",
+    )
     CACHE_BROKER_URL: str = Field(
         default="redis://localhost:6379/0",
         description="Cache and message broker URL (Redis or Valkey)",
@@ -37,7 +41,7 @@ class Settings(BaseSettings):
         description="Celery result backend URL (defaults to CACHE_BROKER_URL if empty)",
     )
 
-    # JWT Authentication (Phase 2)
+    # JWT Authentication
     JWT_SECRET_KEY: str = Field(
         default="dev-secret-key-change-in-production",
         description="Secret key for JWT token signing",

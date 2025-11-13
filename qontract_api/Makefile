@@ -5,6 +5,8 @@ help:
 	@echo "Development:"
 	@echo "  make run-api       Run FastAPI server locally"
 	@echo "  make run-worker    Run Celery worker locally"
+	@echo "  make generate-token SUBJECT=<subject> DAYS=<days>"
+	@echo "                     Generate JWT token (default: DAYS=30)"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-up     Start all services"
@@ -24,6 +26,15 @@ run-api:
 .PHONY: run-worker
 run-worker:
 	uv run celery --app=qontract_api.tasks worker --loglevel=info
+
+.PHONY: generate-token
+generate-token:
+	@if [ -z "$(SUBJECT)" ]; then \
+		echo "Error: SUBJECT is required"; \
+		echo "Usage: make generate-token SUBJECT=admin DAYS=30"; \
+		exit 1; \
+	fi
+	@uv run python -m qontract_api.scripts.generate_token --username "$(SUBJECT)" --expires-days $(or $(DAYS),30)
 
 .PHONY: docker-up
 docker-up:
