@@ -125,7 +125,7 @@ def _format_pkcs12(
         key=None,
         cert=None,
         cas=[ca_obj],
-        encryption_algorithm=serialization.BestAvailableEncryption(pwd.encode("utf-8")),
+        encryption_algorithm=serialization.NoEncryption(),
     )
     return RhcsV2CertPkcs12(
         pkcs12_keystore=base64.b64encode(keystore_p12).decode("utf-8"),
