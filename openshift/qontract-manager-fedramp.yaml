@@ -113,6 +113,15 @@ objects:
                 pattern /Max retries exceeded with url: \/api\/client\/features/
               </exclude>
             </filter>
+            # tag errors for separate Slack routing (this changes the tag, so errors won't match 'integration' anymore)
+            <filter integration>
+              @type rewrite_tag_filter
+              <rule>
+                key message
+                pattern /^\[ERROR\]/
+                tag slack_errors
+              </rule>
+            </filter>
 
             <match integration>
               @type copy
@@ -138,15 +147,6 @@ objects:
                   key message
                   pattern /^\[ERROR\]/
                   tag gchat
-                </rule>
-              </store>
-              # ship errors to separate slack channel
-              <store>
-                @type rewrite_tag_filter
-                <rule>
-                  key message
-                  pattern /^\[ERROR\]/
-                  tag slack_errors
                 </rule>
               </store>
             </match>
