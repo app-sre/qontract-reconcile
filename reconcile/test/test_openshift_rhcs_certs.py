@@ -35,8 +35,8 @@ def build_vault_cert_data(
 
     if cert_format == "PKCS12":
         return {
-            "keystore.p12": "VALID_KEYSTORE",
-            "truststore.p12": "VALID_TRUSTSTORE",
+            "keystore.pkcs12": "VALID_KEYSTORE",
+            "truststore.pkcs12": "VALID_TRUSTSTORE",
             "expiration_timestamp": expiry_timestamp,
         }
     else:
@@ -100,11 +100,11 @@ def assert_vault_writes_contain_cert_data(
 
         expected_format = expected_paths[path]
         if expected_format == "PKCS12":
-            assert "keystore.p12" in secret["data"], (
-                f"PKCS12 cert {path} missing keystore.p12"
+            assert "keystore.pkcs12" in secret["data"], (
+                f"PKCS12 cert {path} missing keystore.pkcs12"
             )
-            assert "truststore.p12" in secret["data"], (
-                f"PKCS12 cert {path} missing truststore.p12"
+            assert "truststore.pkcs12" in secret["data"], (
+                f"PKCS12 cert {path} missing truststore.pkcs12"
             )
             assert "tls.crt" not in secret["data"], (
                 f"PKCS12 cert {path} should not have PEM fields"
@@ -113,7 +113,7 @@ def assert_vault_writes_contain_cert_data(
             assert "tls.crt" in secret["data"], f"PEM cert {path} missing tls.crt"
             assert "tls.key" in secret["data"], f"PEM cert {path} missing tls.key"
             assert "ca.crt" in secret["data"], f"PEM cert {path} missing ca.crt"
-            assert "keystore.p12" not in secret["data"], (
+            assert "keystore.pkcs12" not in secret["data"], (
                 f"PEM cert {path} should not have PKCS12 fields"
             )
 
@@ -206,8 +206,8 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource_pkcs12() -
     qr = construct_rhcs_cert_oc_secret(
         "pkcs12-secret",
         {
-            "keystore.p12": "FAKE_BASE64_KEYSTORE_DATA",
-            "truststore.p12": "FAKE_BASE64_TRUSTSTORE_DATA",
+            "keystore.pkcs12": "FAKE_BASE64_KEYSTORE_DATA",
+            "truststore.pkcs12": "FAKE_BASE64_TRUSTSTORE_DATA",
             "expiration_timestamp": 123456789,
         },
         {"test": "annotation"},
@@ -216,8 +216,10 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource_pkcs12() -
     assert qr.body == {
         "apiVersion": "v1",
         "data": {
-            "keystore.p12": base64.b64encode(b"FAKE_BASE64_KEYSTORE_DATA").decode(),
-            "truststore.p12": base64.b64encode(b"FAKE_BASE64_TRUSTSTORE_DATA").decode(),
+            "keystore.pkcs12": base64.b64encode(b"FAKE_BASE64_KEYSTORE_DATA").decode(),
+            "truststore.pkcs12": base64.b64encode(
+                b"FAKE_BASE64_TRUSTSTORE_DATA"
+            ).decode(),
             "expiration_timestamp": base64.b64encode(b"123456789").decode(),
         },
         "kind": "Secret",

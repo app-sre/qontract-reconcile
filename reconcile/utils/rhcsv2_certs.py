@@ -22,8 +22,8 @@ class RhcsV2CertPem(BaseModel):
 
 
 class RhcsV2CertPkcs12(BaseModel):
-    pkcs12_keystore: str = Field(alias="keystore.p12")
-    pkcs12_truststore: str = Field(alias="truststore.p12")
+    pkcs12_keystore: str = Field(alias="keystore.pkcs12")
+    pkcs12_truststore: str = Field(alias="truststore.pkcs12")
     expiration_timestamp: int
 
     class Config:
@@ -157,12 +157,12 @@ def generate_cert(
         "renewal": "false",
         "xmlOutput": "false",
     }
-    response = requests.post(issuer_url, data=data)
+    response = requests.post(issuer_url, data=data, verify=False)
     response.raise_for_status()
     cert_pem = extract_cert(response.text).group(1)
     cert_expiry_timestamp = get_cert_expiry_timestamp(cert_pem)
 
-    response = requests.get(ca_url)
+    response = requests.get(ca_url, verify=False)
     response.raise_for_status()
     ca_pem = response.text
 
