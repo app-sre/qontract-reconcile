@@ -1,0 +1,55 @@
+services:
+  # Cache/Broker (Redis or Valkey compatible)
+  cache:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - cache_data:/data
+
+  # qontract-api (FastAPI)
+  api:
+    build:
+      context: .
+      dockerfile: qontract_api/Dockerfile
+      target: prod
+    ports:
+      - "8000:8000"
+    environment:
+      - QAPI_START_MODE=api
+      - QAPI_AUTO_RELOAD=${QAPI_AUTO_RELOAD:-1}
+      - CACHE_BROKER_URL=redis://cache:6379/0
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      # Hot reload for development
+      - ./qontract_api/qontract_api:/opt/app-root/src/qontract_api/qontract_api
+      - ./reconcile:/opt/app-root/src/reconcile
+    depends_on:
+      cache:
+        condition: service_healthy
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: .
+      dockerfile: qontract_api/Dockerfile
+      target: prod
+    environment:
+      - QAPI_START_MODE=worker
+      - CACHE_BROKER_URL=redis://cache:6379/0
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./qontract_api/qontract_api:/opt/app-root/src/qontract_api/qontract_api
+      - ./reconcile:/opt/app-root/src/reconcile
+    depends_on:
+      cache:
+        condition: service_healthy
+
+volumes:
+  cache_data:
