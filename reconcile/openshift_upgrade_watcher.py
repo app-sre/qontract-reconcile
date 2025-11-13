@@ -185,7 +185,7 @@ def run(
     if defer:
         defer(oc_map.cleanup)
 
-    cluster_like_objects = [cluster.dict(by_alias=True) for cluster in clusters]
+    cluster_like_objects = [cluster.model_dump(by_alias=True) for cluster in clusters]
     ocm_map = OCMMap(
         clusters=cluster_like_objects,
         integration=QONTRACT_INTEGRATION,

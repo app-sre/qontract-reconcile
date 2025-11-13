@@ -13,7 +13,7 @@ def test_jiralert_settings_no_settings(
 ) -> None:
     data = gql_class_factory(JiralertSettingsQueryData, {"settings": []})
     with pytest.raises(AppInterfaceSettingsError):
-        get_jiralert_settings(query_func=query_func(data.dict(by_alias=True)))
+        get_jiralert_settings(query_func=query_func(data.model_dump(by_alias=True)))
 
 
 def test_jiralert_settings_multiple_settings(
@@ -40,7 +40,7 @@ def test_jiralert_settings_multiple_settings(
         },
     )
     with pytest.raises(AppInterfaceSettingsError):
-        get_jiralert_settings(query_func=query_func(data.dict(by_alias=True)))
+        get_jiralert_settings(query_func=query_func(data.model_dump(by_alias=True)))
 
 
 def test_jiralert_settings_get_vault_settings(
@@ -61,7 +61,7 @@ def test_jiralert_settings_get_vault_settings(
         },
     )
     jiralert_settings = get_jiralert_settings(
-        query_func=query_func(data.dict(by_alias=True))
+        query_func=query_func(data.model_dump(by_alias=True))
     )
     assert jiralert_settings.default_issue_type == "task"
     assert jiralert_settings.default_reopen_state == "new"

@@ -402,7 +402,7 @@ def test_aws_account_manager_reconcile_request_quotas_state_exists_all_done(
     q = AWSQuotaV1(serviceCode="serviceA", quotaCode="codeA", value=2.0)
     state_exists(
         state_key("account", TASK_REQUEST_SERVICE_QUOTA),
-        {"last_applied_quotas": [q.dict()], "ids": ["id1"]},
+        {"last_applied_quotas": [q.model_dump()], "ids": ["id1"]},
     )
 
     assert reconciler._request_quotas(aws_api, "account", quotas=[q]) == ["id1"]
@@ -416,7 +416,7 @@ def test_aws_account_manager_reconcile_request_quotas_state_exists_but_outdated(
     q2 = AWSQuotaV1(serviceCode="serviceA", quotaCode="codeB", value=2.0)
     state_exists(
         state_key("account", TASK_REQUEST_SERVICE_QUOTA),
-        {"last_applied_quotas": [q.dict()], "ids": ["id1"]},
+        {"last_applied_quotas": [q.model_dump()], "ids": ["id1"]},
     )
     aws_api.service_quotas.get_service_quota.side_effect = [
         AWSQuota(

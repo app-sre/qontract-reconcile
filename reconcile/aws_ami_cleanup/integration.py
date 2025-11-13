@@ -40,14 +40,11 @@ QONTRACT_INTEGRATION = "aws_ami_cleanup"
 MANAGED_TAG = {"Key": "managed_by_integration", "Value": QONTRACT_INTEGRATION}
 
 
-class AWSAmi(BaseModel):
+class AWSAmi(BaseModel, frozen=True):
     name: str
     image_id: str
     creation_date: datetime
     snapshot_ids: list[str]
-
-    class Config:
-        frozen = True
 
 
 def get_aws_amis_from_launch_templates(ec2_client: EC2Client) -> set[str]:
@@ -176,7 +173,7 @@ def run(dry_run: bool, thread_pool_size: int, defer: Callable | None = None) -> 
     # Build AWSApi object. We will use all those accounts listed in ami_accounts since
     # we will also need to look for used AMIs.
     accounts_dicted = [
-        account.dict(by_alias=True)
+        account.model_dump(by_alias=True)
         for account in aws_accounts or []
         if account.name in ami_accounts
     ]
