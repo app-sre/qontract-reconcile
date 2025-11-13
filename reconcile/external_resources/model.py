@@ -1,7 +1,4 @@
 import hashlib
-from abc import (
-    ABC,
-)
 from collections.abc import ItemsView, Iterable, Iterator, MutableMapping
 from enum import StrEnum
 from typing import Any
@@ -404,7 +401,7 @@ class ReconciliationStatus(BaseModel):
     resource_status: ResourceStatus
 
 
-class ModuleProvisionData(ABC, BaseModel):
+class ModuleProvisionData(BaseModel):
     pass
 
 
@@ -429,7 +426,7 @@ class ExternalResourceProvision(BaseModel):
     target_cluster: str
     target_namespace: str
     target_secret_name: str
-    module_provision_data: ModuleProvisionData
+    module_provision_data: ModuleProvisionData | TerraformModuleProvisionData
 
 
 class ExternalResource(BaseModel):
@@ -438,3 +435,9 @@ class ExternalResource(BaseModel):
 
     def hash(self) -> str:
         return hashlib.sha256(json_dumps(self.data).encode("utf-8")).hexdigest()
+
+    def export(
+        self, exclude: dict[str, Any] | None = None, indent: int | None = None
+    ) -> str:
+        """Export the ExternalResource as a JSON string."""
+        return json_dumps(self, exclude=exclude, indent=indent)
