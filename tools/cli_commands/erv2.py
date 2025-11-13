@@ -133,7 +133,9 @@ class Erv2Cli:
 
     @property
     def input_data(self) -> str:
-        return self._resource.json(exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}})
+        return self._resource.model_dump_json(
+            exclude={"data": {FLAG_RESOURCE_MANAGED_BY_ERV2}}
+        )
 
     @property
     def image(self) -> str:

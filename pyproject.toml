@@ -40,7 +40,7 @@ dependencies = [
     "parse==1.18.0",
     "prometheus-client~=0.8",
     "psycopg2-binary~=2.9",
-    "pydantic~=1.10.6",
+    "pydantic~=2.12.3",
     "PyGithub>=1.58,<1.59",
     "pyjwt~=2.7",
     "pyOpenSSL~=23.0",
@@ -58,7 +58,7 @@ dependencies = [
     # setuptools 80.9.0 set a deadline for the removal and started showing warnings when pkg_resources is used.
     "setuptools==80.8.0",
     "slack_sdk>=3.10,<4.0",
-    "sretoolbox==3.0.0",
+    "sretoolbox==3.2.0",
     "sshtunnel>=0.4.0",
     "tabulate>=0.8.6,<0.9.0",
     "terrascript==0.9.0",
@@ -234,11 +234,7 @@ runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 known-first-party = ["reconcile", "tools"]
 
 [tool.ruff.lint.pep8-naming]
-classmethod-decorators = [
-    "classmethod",
-    "pydantic.validator",
-    "pydantic.root_validator",
-]
+classmethod-decorators = ["classmethod"]
 
 [tool.coverage.run]
 branch = true
@@ -279,7 +275,6 @@ module = [
     "pygments.*",
     "pypd.*",
     "sendgrid.*",
-    "sretoolbox.*",
     "sshtunnel.*",
     "terrascript.*",
 ]

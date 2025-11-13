@@ -33,9 +33,9 @@ from reconcile.utils.ocm import OCM
 
 
 class PoolStub(AbstractPool):
-    created = False
-    deleted = False
-    updated = False
+    created: bool = False
+    deleted: bool = False
+    updated: bool = False
 
     def create(self, ocm: OCM) -> None:
         self.created = True

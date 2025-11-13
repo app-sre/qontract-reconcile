@@ -58,7 +58,7 @@ class LdapGroupsIntegration(QontractReconcileIntegration[LdapGroupsIntegrationPa
         """Return the desired state for early exit."""
         if not query_func:
             query_func = gql.get_api().query
-        return {"roles": [c.dict() for c in self.get_roles(query_func)]}
+        return {"roles": [c.model_dump() for c in self.get_roles(query_func)]}
 
     @defer
     def run(self, dry_run: bool, defer: Callable | None = None) -> None:

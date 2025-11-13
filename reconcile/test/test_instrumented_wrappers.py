@@ -38,13 +38,12 @@ def test_instrumented_skopeo(mocker: MockerFixture) -> None:
     mocked_metrics = mocker.patch("reconcile.utils.instrumented_wrappers.metrics")
     skopeo = InstrumentedSkopeo()
 
-    result = skopeo.copy(
+    skopeo.copy(
         "source",
         "dest",
         source_creds="creds",
     )
 
-    assert result == mocked_copy.return_value
     mocked_copy.assert_called_once_with(
         "source",
         "dest",

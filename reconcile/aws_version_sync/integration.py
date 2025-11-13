@@ -7,12 +7,7 @@ from enum import StrEnum
 from typing import Any
 
 import semver
-from pydantic import (
-    BaseModel,
-    ValidationError,
-    root_validator,
-    validator,
-)
+from pydantic import BaseModel, ValidationError, field_validator, model_validator
 
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     Renderer,
@@ -81,7 +76,7 @@ class SupportedResourceProvider(StrEnum):
     ELASTICACHE = "elasticache"
 
 
-class ExternalResource(BaseModel):
+class ExternalResource(BaseModel, arbitrary_types_allowed=True):
     namespace_file: str | None = None
     provider: str = "aws"
     provisioner: ExternalResourceProvisioner
@@ -94,9 +89,6 @@ class ExternalResource(BaseModel):
     # used to map AWS cache name to resource_identifier
     redis_replication_group_id: str | None = None
 
-    class Config:
-        arbitrary_types_allowed = True
-
     @property
     def key(self) -> tuple:
         return (
@@ -106,7 +98,8 @@ class ExternalResource(BaseModel):
             self.resource_identifier,
         )
 
-    @validator("resource_engine_version", pre=True)
+    @field_validator("resource_engine_version", mode="before")
+    @classmethod
     def parse_resource_engine_version(
         cls, v: str | semver.VersionInfo
     ) -> semver.VersionInfo:
@@ -114,7 +107,8 @@ class ExternalResource(BaseModel):
             return v
         return parse_semver(str(v), optional_minor_and_patch=True)
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def set_resource_engine_version_format(cls, values: dict) -> dict:
         resource_engine_version, resource_engine_version_format = (
             str(values.get("resource_engine_version")),

@@ -184,7 +184,7 @@ def test_sso_client_create_sso_client(
     secret_reader.vault_client.write.assert_called_once_with(
         secret={
             "path": secret.path,
-            "data": sso_client.dict(),
+            "data": sso_client.model_dump(),
         },
         decode_base64=False,
     )

@@ -60,8 +60,8 @@ class Parser[T: BaseModel]:
 
         if self.expected_version != self._find_by_name(self.version_ref, parts[1]):
             raise ParserVersionError("Version is outdated")
-        return self.klass(
-            **data_default_none(
-                self.klass, self._data_from_description(parts[1]), use_defaults=False
-            )
+        data = data_default_none(
+            self.klass, self._data_from_description(parts[1]), use_defaults=False
         )
+        assert isinstance(data, dict)
+        return self.klass(**data)

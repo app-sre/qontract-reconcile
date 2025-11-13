@@ -45,6 +45,7 @@ from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
+from reconcile.utils.json import json_dumps
 from reconcile.utils.secret_reader import SecretReaderBase
 
 
@@ -244,7 +245,7 @@ class ExternalResourcesManager:
             reconciliation = Reconciliation(
                 key=key,
                 resource_hash=resource.hash(),
-                input=resource.json(),
+                input=json_dumps(resource),
                 action=Action.APPLY,
                 module_configuration=module_conf,
                 linked_resources=self._find_linked_resources(spec),

@@ -3,18 +3,19 @@ import sys
 from collections.abc import (
     Callable,
     Iterable,
+    MutableMapping,
     Sequence,
 )
 from datetime import datetime
 from typing import (
     Any,
     TypedDict,
+    TypeVar,
 )
 
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
-from pydantic.utils import deep_update
-from sretoolbox.utils import retry
+from sretoolbox.utils import datatransformation, retry
 
 from reconcile import (
     openshift_users,
@@ -75,6 +76,26 @@ INTEGRATION_VERSION = "0.1.0"
 
 error_occurred = False
 
+KeyType = TypeVar("KeyType")
+
+
+def deep_update(
+    mapping: dict[KeyType, Any],
+    *updating_mappings: MutableMapping[KeyType, Any],
+) -> dict[KeyType, Any]:
+    updated_mapping = mapping.copy()
+    for updating_mapping in updating_mappings:
+        for k, v in updating_mapping.items():
+            if (
+                k in updated_mapping
+                and isinstance(updated_mapping[k], dict)
+                and isinstance(v, dict)
+            ):
+                updated_mapping[k] = deep_update(updated_mapping[k], v)
+            else:
+                updated_mapping[k] = v
+    return updated_mapping
+
 
 def get_git_api(url: str) -> GithubRepositoryApi | GitLabApi:
     """Return GitHub/GitLab API based on url."""
@@ -123,14 +144,11 @@ class State(BaseModel):
 SlackState = dict[str, dict[str, State]]
 
 
-class WorkspaceSpec(BaseModel):
+class WorkspaceSpec(BaseModel, arbitrary_types_allowed=True):
     """Slack workspace spec."""
 
     slack: SlackApi
     managed_usergroups: list[str] = []
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 SlackMap = dict[str, WorkspaceSpec]
@@ -820,7 +838,9 @@ def run(
         desired_usergroup_name=usergroup_name,
     )
     # merge the two desired states recursively
-    desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
+    desired_state = datatransformation.deep_merge(
+        desired_state, desired_state_cluster_usergroups
+    )
 
     runner_params: RunnerParams = {
         "dry_run": dry_run,
@@ -892,10 +912,10 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
             if role.tag_on_cluster_updates is not False
         ]
     return {
-        "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
+        "permissions": [p.model_dump() for p in get_permissions(gqlapi.query)],
         "pagerduty_instances": [
-            p.dict() for p in get_pagerduty_instances(gqlapi.query)
+            p.model_dump() for p in get_pagerduty_instances(gqlapi.query)
         ],
-        "users": [u.dict() for u in users],
-        "clusters": [c.dict() for c in get_clusters(gqlapi.query)],
+        "users": [u.model_dump() for u in users],
+        "clusters": [c.model_dump() for c in get_clusters(gqlapi.query)],
     }
