@@ -20,7 +20,9 @@ def script_result_fixtures() -> Fixtures:
 @pytest.fixture
 def rosa_cluster_spec() -> OCMSpec:
     cluster_data = Fixtures("clusters").get_anymarkup("rosa_hcp_spec_ai.yml")
-    return OCMSpec(**data_default_none(OCMSpec, cluster_data))
+    data = data_default_none(OCMSpec, cluster_data)
+    assert isinstance(data, dict)
+    return OCMSpec(**data)
 
 
 def test_generate_rosa_creation_script(
@@ -106,7 +108,9 @@ def test_generate_rosa_creation_script_billing_account(
 @pytest.fixture
 def rosa_classic_cluster_spec() -> OCMSpec:
     cluster_data = Fixtures("clusters").get_anymarkup("rosa_classic_spec_ai.yml")
-    return OCMSpec(**data_default_none(OCMSpec, cluster_data))
+    data = data_default_none(OCMSpec, cluster_data)
+    assert isinstance(data, dict)
+    return OCMSpec(**data)
 
 
 def test_rosa_classic_creation_script(

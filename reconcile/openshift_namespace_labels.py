@@ -229,7 +229,7 @@ def get_gql_namespaces_in_shard() -> list[NamespaceV1]:
     return [
         ns
         for ns in all_namespaces
-        if not ob.is_namespace_deleted(ns.dict(by_alias=True))
+        if not ob.is_namespace_deleted(ns.model_dump(by_alias=True))
         and is_in_shard(f"{ns.cluster.name}/{ns.name}")
     ]
 

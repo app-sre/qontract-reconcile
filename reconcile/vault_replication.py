@@ -217,7 +217,7 @@ def copy_vault_secret(
         return
 
     # If we reach here, we successfully read the destination secret
-    if dest_version is None and version is None:
+    if dest_version is None or version is None:
         # v1 secrets don't have version
         if source_data == dest_data:
             # If the secret is the same in both vaults, we don't need

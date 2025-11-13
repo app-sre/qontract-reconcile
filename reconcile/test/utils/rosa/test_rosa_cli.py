@@ -20,7 +20,7 @@ from reconcile.utils.rosa.rosa_cli import EXEC_SCRIPT, RosaJob
 def test_rosa_job_identity(
     change: dict[str, Any], expect_identity_to_change: bool, rosa_job: RosaJob
 ) -> None:
-    other_job = rosa_job.copy(deep=True, update=change)
+    other_job = rosa_job.model_copy(deep=True, update=change)
     identity_digest_changed = (
         rosa_job.unit_of_work_digest() != other_job.unit_of_work_digest()
     )

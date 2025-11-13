@@ -5,8 +5,7 @@ namespaces:
     name: cluster
     serverUrl: 'https://cluster.com'
   openshiftResources:
-  - provider: rhcs-cert
-    secret_name: test-cert-1
+  - secret_name: test-cert-1
     service_account_name: app-sre-rhcs-dev
     service_account_password:
       path: app-sre/creds/app-sre-rhcs-dev
@@ -14,8 +13,7 @@ namespaces:
       version: 1
     auto_renew_threshold_days: 7
     annotations: "{\"qontract.recycle\": \"true\"}"
-  - provider: rhcs-cert
-    secret_name: test-cert-2
+  - secret_name: test-cert-2
     service_account_name: app-sre-rhcs-dev
     service_account_password:
       path: app-sre/creds/app-sre-rhcs-dev
@@ -24,8 +22,7 @@ namespaces:
     auto_renew_threshold_days: 14
   sharedResources:
     - openshiftResources:
-        - provider: rhcs-cert
-          secret_name: test-cert-shared
+        - secret_name: test-cert-shared
           service_account_name: app-sre-rhcs-dev
           service_account_password:
             path: app-sre/creds/app-sre-rhcs-dev
@@ -46,8 +43,7 @@ namespaces:
   cluster:
     name: cluster
     serverUrl: 'https://cluster.com'
-  openshiftResources: 
-  - provider: vault-secret
+  openshiftResources: []
 
 - name: cert-from-shared-resources
   cluster:
@@ -55,8 +51,7 @@ namespaces:
     serverUrl: "https://cluster.com"
   sharedResources:
     - openshiftResources:
-        - provider: rhcs-cert
-          secret_name: test-cert-shared
+        - secret_name: test-cert-shared
           service_account_name: app-sre-rhcs-dev
           service_account_password:
             path: app-sre/creds/app-sre-rhcs-dev

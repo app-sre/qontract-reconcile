@@ -5,7 +5,7 @@ from functools import cached_property
 from typing import Any, Self
 
 from deepdiff import DeepHash
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.secret_reader import SecretReaderBase
@@ -17,7 +17,7 @@ CACHE_SOURCE_DIGEST_METADATA_KEY = "cache-source-digest"
 LATEST_CACHE_SOURCE_DIGEST_METADATA_KEY = "latest-cache-source-digest"
 
 
-class CacheKeyWithDigest(BaseModel):
+class CacheKeyWithDigest(BaseModel, frozen=True):
     integration: str
     integration_version: str
     dry_run: bool
@@ -70,9 +70,6 @@ class CacheKeyWithDigest(BaseModel):
             args.append(f"--shard {self.shard}")
         return " ".join(args)
 
-    class Config:
-        frozen = True
-
 
 class CacheKey(BaseModel):
     integration: str
@@ -122,9 +119,10 @@ class CacheKey(BaseModel):
         """
         return self.cache_key_with_digest.build_cli_delete_args()
 
-    class Config:
-        frozen = True
-        keep_untouched = (cached_property,)
+    model_config = ConfigDict(
+        frozen=True,
+        ignored_types=(cached_property,),
+    )
 
 
 class CacheValue(BaseModel):
@@ -168,7 +166,7 @@ class EarlyExitCache:
 
     def get(self, key: CacheKey) -> CacheValue:
         value = self.state.get(str(key))
-        return CacheValue.parse_obj(value)
+        return CacheValue.model_validate(value)
 
     def set(
         self,
@@ -194,7 +192,7 @@ class EarlyExitCache:
         }
         self.state.add(
             str(key),
-            value.dict(),
+            value.model_dump(),
             metadata=metadata,
             force=True,
         )

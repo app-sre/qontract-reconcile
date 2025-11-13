@@ -61,20 +61,19 @@ def get_database_access_namespaces(
     return query(query_func).namespaces_v1 or []
 
 
-class DatabaseConnectionParameters(BaseModel):
+class DatabaseConnectionParameters(
+    BaseModel, validate_by_name=True, validate_by_alias=True
+):
     host: str = Field(..., alias="db.host")
     port: str = Field(..., alias="db.port")
     user: str = Field(..., alias="db.user")
     password: str = Field(..., alias="db.password")
     database: str = Field(..., alias="db.name")
 
-    class Config:
-        allow_population_by_field_name = True
-
 
 class PSQLScriptGenerator(BaseModel):
     db_access: DatabaseAccessV1
-    current_db_access: DatabaseAccessV1 | None
+    current_db_access: DatabaseAccessV1 | None = None
     connection_parameter: DatabaseConnectionParameters
     admin_connection_parameter: DatabaseConnectionParameters
     engine: str
@@ -597,7 +596,7 @@ def _process_db_access(
     current_db_access: DatabaseAccessV1 | None = None
     if state.exists(state_key):
         current_state = state.get(state_key)
-        if current_state == db_access.dict(by_alias=True):
+        if current_state == db_access.model_dump(by_alias=True):
             return
         current_db_access = DatabaseAccessV1(**current_state)
         if current_db_access.database != db_access.database:
@@ -610,7 +609,7 @@ def _process_db_access(
 
     resource_prefix = f"dbam-{state_key.replace('/', '-')}"
     with OC_Map(
-        clusters=[namespace.cluster.dict(by_alias=True)],
+        clusters=[namespace.cluster.model_dump(by_alias=True)],
         integration=QONTRACT_INTEGRATION,
         settings=settings,
     ) as oc_map:
@@ -677,7 +676,7 @@ def _process_db_access(
             if not dry_run and not db_access.delete:
                 secret = {
                     "path": f"{vault_output_path}/{QONTRACT_INTEGRATION}/{state_key}",
-                    "data": connections["user"].dict(by_alias=True),
+                    "data": connections["user"].model_dump(by_alias=True),
                 }
                 vault_client.write(secret, decode_base64=False)
             logging.debug("job completed, cleaning up")
@@ -693,7 +692,7 @@ def _process_db_access(
                 )
             state.add(
                 state_key,
-                value=db_access.dict(by_alias=True),
+                value=db_access.model_dump(by_alias=True),
                 force=True,
             )
         else:

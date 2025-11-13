@@ -476,7 +476,7 @@ def test_get_ocm_cluster_update_spec_network_banned(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ) -> None:
     current_spec = ocm_osd_cluster_spec
-    desired_spec = current_spec.copy(deep=True)
+    desired_spec = current_spec.model_copy(deep=True)
     desired_spec.network.vpc = "0.0.0.0/0"
     _, err = occ.get_cluster_ocm_update_spec(
         osd_product, "cluster1", current_spec, desired_spec
@@ -488,7 +488,7 @@ def test_get_ocm_cluster_update_spec_network_type_ignored(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ) -> None:
     current_spec = ocm_osd_cluster_spec
-    desired_spec = current_spec.copy(deep=True)
+    desired_spec = current_spec.model_copy(deep=True)
     desired_spec.network.type = "OVNKubernetes"
     upd, err = occ.get_cluster_ocm_update_spec(
         osd_product, "cluster1", current_spec, desired_spec
@@ -500,7 +500,7 @@ def test_get_ocm_cluster_update_spec_allowed_change(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ) -> None:
     current_spec = ocm_osd_cluster_spec
-    desired_spec = current_spec.copy(deep=True)
+    desired_spec = current_spec.model_copy(deep=True)
     desired_spec.spec.storage = 2000  # type: ignore
     upd, err = occ.get_cluster_ocm_update_spec(
         osd_product, "cluster1", current_spec, desired_spec
@@ -512,7 +512,7 @@ def test_get_ocm_cluster_update_spec_not_allowed_change(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ) -> None:
     current_spec = ocm_osd_cluster_spec
-    desired_spec = current_spec.copy(deep=True)
+    desired_spec = current_spec.model_copy(deep=True)
     desired_spec.spec.multi_az = not desired_spec.spec.multi_az
     upd, err = occ.get_cluster_ocm_update_spec(
         osd_product, "cluster1", current_spec, desired_spec
@@ -527,7 +527,7 @@ def test_get_ocm_cluster_update_spec_disable_uwm(
     osd_product: OCMProductOsd, ocm_osd_cluster_spec: OCMSpec
 ) -> None:
     current_spec = ocm_osd_cluster_spec
-    desired_spec = current_spec.copy(deep=True)
+    desired_spec = current_spec.model_copy(deep=True)
     desired_spec.spec.disable_user_workload_monitoring = (
         not desired_spec.spec.disable_user_workload_monitoring
     )

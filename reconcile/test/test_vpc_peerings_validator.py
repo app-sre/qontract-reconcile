@@ -11,6 +11,9 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     VpcPeeringsValidatorQueryData,
 )
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
+    ClusterNetworkV1 as PeeredClusterNetwork,
+)
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
     ClusterSpecV1 as PeeredClusterSpec,
 )
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
@@ -39,7 +42,7 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
                             provider="cluster-vpc-accepter",
                             cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
+                                network=PeeredClusterNetwork(vpc="192.168.0.0/16"),
                                 spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),
@@ -87,7 +90,7 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
                             provider="cluster-vpc-accepter",
                             cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
+                                network=PeeredClusterNetwork(vpc="192.168.0.0/16"),
                                 spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),

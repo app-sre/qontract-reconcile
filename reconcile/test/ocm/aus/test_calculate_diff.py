@@ -65,7 +65,7 @@ def cluster_hypershift(
     version_gate_mocks[0].return_value = [
         {
             "id": f"{version_gate_4_12_ocp.id}-agreement",
-            "version_gate": version_gate_4_12_ocp.dict(by_alias=True),
+            "version_gate": version_gate_4_12_ocp.model_dump(by_alias=True),
         }
     ]
 

@@ -29,12 +29,12 @@ class AtlassianRawComponent(BaseModel):
 
     id: str
     name: str
-    description: str | None
+    description: str | None = None
     position: int
     status: str
-    automation_email: str | None
-    group_id: str | None
-    group: bool | None
+    automation_email: str | None = None
+    group_id: str | None = None
+    group: bool | None = None
 
 
 class AtlassianRawMaintenanceUpdate(BaseModel):
@@ -56,9 +56,9 @@ class AtlassianRawMaintenance(BaseModel):
     scheduled_until: str
     incident_updates: list[AtlassianRawMaintenanceUpdate]
     components: list[AtlassianRawComponent]
-    auto_transition_deliver_notifications_at_end: bool | None
-    auto_transition_deliver_notifications_at_start: bool | None
-    scheduled_remind_prior: bool | None
+    auto_transition_deliver_notifications_at_end: bool | None = None
+    auto_transition_deliver_notifications_at_start: bool | None = None
+    scheduled_remind_prior: bool | None = None
 
 
 class AtlassianAPI:

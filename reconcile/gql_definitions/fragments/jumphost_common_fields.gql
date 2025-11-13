@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 fragment CommonJumphostFields on ClusterJumpHost_v1 {
   hostname

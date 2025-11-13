@@ -112,7 +112,7 @@ def aws_report_cost_response_builder(
     total: int,
     service: str,
 ) -> AwsReportCostResponse:
-    return AwsReportCostResponse.parse_obj({
+    return AwsReportCostResponse.model_validate({
         "meta": {
             "delta": {
                 "value": delta_value,
