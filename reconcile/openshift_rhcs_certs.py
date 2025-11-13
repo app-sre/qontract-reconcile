@@ -285,3 +285,11 @@ def run(
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     if ri.has_error_registered():
         sys.exit(1)
+
+
+def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    if not (query_func := kwargs.get("query_func")):
+        query_func = gql.get_api().query
+
+    cluster_name = kwargs.get("cluster_name")
+    return {"namespace": get_namespaces_with_rhcs_certs(query_func, cluster_name)}

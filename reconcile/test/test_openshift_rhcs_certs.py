@@ -337,3 +337,16 @@ def test_openshift_rhcs_certs__get_namespaces_with_shared_resources(
     assert any(r for r in shared_ns.openshift_resources), (
         "RHCS-cert not propagated from sharedResources"
     )
+
+
+def test_openshift_rhcs_certs__early_exit_desired_state(
+    query_func: Callable[[Any], Mapping[str, Any]],
+) -> None:
+    result = rhcs_certs.early_exit_desired_state(
+        query_func=query_func,
+        cluster_name="test-cluster",
+    )
+
+    assert "namespace" in result
+    assert isinstance(result["namespace"], list)
+    assert len(result["namespace"]) == 2
