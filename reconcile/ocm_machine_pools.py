@@ -170,7 +170,10 @@ class MachinePool(AbstractPool):
         ocm.update_machine_pool(self.cluster, update_dict)
 
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
-        if self.taints != pool.taints or self.labels != pool.labels:
+        pool_taints = (
+            [p.model_dump(by_alias=True) for p in pool.taints] if pool.taints else None
+        )
+        if self.taints != pool_taints or self.labels != pool.labels:
             logging.warning(
                 f"updating labels or taints for machine pool {pool.q_id} "
                 f"will only be applied to new Nodes"
@@ -178,7 +181,7 @@ class MachinePool(AbstractPool):
 
         return (
             self.replicas != pool.replicas
-            or self.taints != pool.taints
+            or self.taints != pool_taints
             or self.labels != pool.labels
             or self.instance_type != pool.instance_type
             or self._has_diff_autoscale(pool)
@@ -251,7 +254,10 @@ class NodePool(AbstractPool):
         ocm.update_node_pool(self.cluster, update_dict)
 
     def has_diff(self, pool: ClusterMachinePoolV1) -> bool:
-        if self.taints != pool.taints or self.labels != pool.labels:
+        pool_taints = (
+            [p.model_dump(by_alias=True) for p in pool.taints] if pool.taints else None
+        )
+        if self.taints != pool_taints or self.labels != pool.labels:
             logging.warning(
                 f"updating labels or taints for node pool {pool.q_id} "
                 f"will only be applied to new Nodes"
@@ -259,7 +265,7 @@ class NodePool(AbstractPool):
 
         return (
             self.replicas != pool.replicas
-            or self.taints != pool.taints
+            or self.taints != pool_taints
             or self.labels != pool.labels
             or self.aws_node_pool.instance_type != pool.instance_type
             or self.subnet != pool.subnet
