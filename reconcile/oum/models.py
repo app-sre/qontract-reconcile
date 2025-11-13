@@ -56,7 +56,7 @@ class ClusterUserManagementSpec(BaseModel):
     errors: list[ClusterError] = Field(default_factory=list)
 
 
-class ClusterRoleReconcileResult(BaseModel, arbitrary_types_allowed=True):
+class ClusterRoleReconcileResult(BaseModel):
     """
     Holds the result of a cluster role reconciliation.
     """
@@ -64,3 +64,6 @@ class ClusterRoleReconcileResult(BaseModel, arbitrary_types_allowed=True):
     users_added: int = 0
     users_removed: int = 0
     error: Exception | None = None
+
+    class Config:
+        arbitrary_types_allowed = True

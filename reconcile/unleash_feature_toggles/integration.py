@@ -31,7 +31,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(1, 0, 0)
 
 
 class UnleashTogglesIntegrationParams(PydanticRunParams):
-    instance: str | None = None
+    instance: str | None
 
 
 def feature_toggle_equal(c: FeatureToggle, d: FeatureToggleUnleashV1) -> bool:
@@ -68,9 +68,7 @@ class UnleashTogglesIntegration(
         if not query_func:
             query_func = gql.get_api().query
         return {
-            "toggles": [
-                ft.model_dump() for ft in self.get_unleash_instances(query_func)
-            ],
+            "toggles": [ft.dict() for ft in self.get_unleash_instances(query_func)],
         }
 
     def get_unleash_instances(

@@ -42,7 +42,7 @@ def add_identity_provider(
         )
     ocm_api.post(
         api_path=ocm_cluster.identity_providers.href,
-        data=idp.model_dump(by_alias=True, exclude_none=True),
+        data=idp.dict(by_alias=True, exclude_none=True),
     )
 
 
@@ -55,7 +55,7 @@ def update_identity_provider(
         raise ValueError(f"IDP {idp.name} does not have a href!")
     ocm_api.patch(
         api_path=idp.href,
-        data=idp.model_dump(by_alias=True, exclude_none=True, exclude={"name"}),
+        data=idp.dict(by_alias=True, exclude_none=True, exclude={"name"}),
     )
 
 

@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v2
+# qenerate: plugin=pydantic_v1
 
 fragment DisableAutomations on DisableClusterAutomations_v1 {
   integrations

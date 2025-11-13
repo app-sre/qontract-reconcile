@@ -83,7 +83,7 @@ class AutomatedActionsConfigIntegration(
             query_func = gql.get_api().query
         return {
             "automated_actions_instances": [
-                c.model_dump() for c in self.get_automated_actions_instances(query_func)
+                c.dict() for c in self.get_automated_actions_instances(query_func)
             ]
         }
 
@@ -168,7 +168,7 @@ class AutomatedActionsConfigIntegration(
                 case AutomatedActionActionListV1():
                     # no special handling needed, just dump the values
                     parameters.extend(
-                        arg.model_dump(exclude_none=True, exclude_defaults=True)
+                        arg.dict(exclude_none=True, exclude_defaults=True)
                         for arg in action.action_list_arguments or []
                     )
                 case AutomatedActionExternalResourceFlushElastiCacheV1():
@@ -269,7 +269,7 @@ class AutomatedActionsConfigIntegration(
             {
                 "users": {user.username: sorted(user.roles) for user in users},
                 "roles": {
-                    role: [policy.model_dump() for policy in policies]
+                    role: [policy.dict() for policy in policies]
                     for role, policies in roles.items()
                 },
             },

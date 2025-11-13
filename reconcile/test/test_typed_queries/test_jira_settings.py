@@ -18,7 +18,7 @@ def test_no_settings(
     gql_class_factory: Callable[..., JiraSettingsQueryData],
 ) -> None:
     data = gql_class_factory(JiraSettingsQueryData, {})
-    api = gql_api_builder(data.model_dump(by_alias=True))
+    api = gql_api_builder(data.dict(by_alias=True))
     with pytest.raises(AppInterfaceSettingsError):
         get_jira_settings(gql_api=api)
 
@@ -28,7 +28,7 @@ def test_multiple_settings(
     gql_class_factory: Callable[..., JiraSettingsQueryData],
 ) -> None:
     data = gql_class_factory(JiraSettingsQueryData, {"jira_settings": [{}, {}]})
-    api = gql_api_builder(data.model_dump(by_alias=True))
+    api = gql_api_builder(data.dict(by_alias=True))
     with pytest.raises(AppInterfaceSettingsError):
         get_jira_settings(gql_api=api)
 
@@ -41,7 +41,7 @@ def test_exactly_one_setting(
         JiraSettingsQueryData,
         {"jira_settings": [{"jiraWatcher": {"readTimeout": 1, "connectTimeout": 2}}]},
     )
-    api = gql_api_builder(data.model_dump(by_alias=True))
+    api = gql_api_builder(data.dict(by_alias=True))
     jira_settings = get_jira_settings(gql_api=api)
     assert jira_settings.jira_watcher
     assert jira_settings.jira_watcher.connect_timeout == 2

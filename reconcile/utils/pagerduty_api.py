@@ -52,12 +52,9 @@ class PagerDutyTarget(Protocol):
     which must be implemented by a class to be compatible."""
 
     name: str
+    instance: PagerDutyInstance
     escalation_policy_id: str | None
     schedule_id: str | None
-
-    @property
-    def instance(self) -> PagerDutyInstance:
-        pass
 
 
 class PagerDutyConfig(BaseModel):
@@ -192,7 +189,7 @@ def get_pagerduty_name(user: PagerDutyUser) -> str:
     return user.pagerduty_username or user.org_username
 
 
-@retry(no_retry_exceptions=(PagerDutyTargetError,))
+@retry(no_retry_exceptions=PagerDutyTargetError)
 def get_usernames_from_pagerduty(
     pagerduties: Iterable[PagerDutyTarget],
     users: Iterable[PagerDutyUser],

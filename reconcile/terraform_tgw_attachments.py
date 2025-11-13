@@ -69,7 +69,7 @@ class ValidationError(Exception):
 class TGWAccountProviderInfo(BaseModel):
     name: str
     uid: str
-    assume_role: str | None = None
+    assume_role: str | None
     assume_region: str
 
 
@@ -81,10 +81,10 @@ class Requester(BaseModel):
     tgw_id: str
     tgw_arn: str
     region: str
-    routes: list[dict] | None = None
-    rules: list[dict] | None = None
-    hostedzones: list[str] | None = None
-    cidr_block: str | None = None
+    routes: list[dict] | None
+    rules: list[dict] | None
+    hostedzones: list[str] | None
+    cidr_block: str | None
     cidr_blocks: list[str]
     account: TGWAccountProviderInfo
 
@@ -92,11 +92,11 @@ class Requester(BaseModel):
 class Accepter(BaseModel):
     cidr_block: str
     region: str
-    vpc_id: str | None = None
-    route_table_ids: list[str] | None = None
-    subnets_id_az: list[dict[str, str]] | None = None
+    vpc_id: str | None
+    route_table_ids: list[str] | None
+    subnets_id_az: list[dict[str, str]] | None
     account: ClusterAccountProviderInfo
-    api_security_group_id: str | None = None
+    api_security_group_id: str | None
 
 
 class DesiredStateItem(BaseModel):
@@ -193,7 +193,7 @@ def _build_desired_state_tgw_connection(
         yield None
 
     account_tgws = awsapi.get_tgws_details(
-        peer_connection.account.model_dump(by_alias=True),
+        peer_connection.account.dict(by_alias=True),
         cluster_region,
         cluster_cidr_block,
         tags=peer_connection.tags or {},
@@ -275,7 +275,7 @@ def _build_accepter(
     )
     (vpc_id, route_table_ids, subnets_id_az, api_security_group_id) = (
         awsapi.get_cluster_vpc_details(
-            account.model_dump(by_alias=True),
+            account.dict(by_alias=True),
             route_tables=bool(peer_connection.manage_routes),
             subnets=True,
             hcp_vpc_endpoint_sg=allow_hcp_private_api_access,
@@ -318,12 +318,12 @@ def _build_ocm_map(
     clusters: Iterable[ClusterV1],
     vault_settings: AppInterfaceSettingsV1,
 ) -> OCMMap | None:
-    ocm_clusters = [c.model_dump(by_alias=True) for c in clusters if c.ocm]
+    ocm_clusters = [c.dict(by_alias=True) for c in clusters if c.ocm]
     return (
         OCMMap(
             clusters=ocm_clusters,
             integration=QONTRACT_INTEGRATION,
-            settings=vault_settings.model_dump(by_alias=True),
+            settings=vault_settings.dict(by_alias=True),
         )
         if ocm_clusters
         # this is a case for an OCP cluster which is not provisioned
@@ -347,7 +347,7 @@ def _populate_tgw_attachments_working_dirs(
     accounts_by_infra_account_name: dict[str, list[dict[str, Any]]] = {}
     for item in desired_state:
         accounts_by_infra_account_name.setdefault(item.infra_acount_name, []).append(
-            item.accepter.account.model_dump(by_alias=True)
+            item.accepter.account.dict(by_alias=True)
         )
     for infra_account_name, accounts in accounts_by_infra_account_name.items():
         ts.populate_additional_providers(infra_account_name, accounts)
@@ -429,9 +429,7 @@ def setup(
     print_to_file: str | None = None,
 ) -> tuple[SecretReaderBase, AWSApi, Terraform, Terrascript]:
     tgw_clusters = desired_state_data_source.clusters
-    all_accounts = [
-        a.model_dump(by_alias=True) for a in desired_state_data_source.accounts
-    ]
+    all_accounts = [a.dict(by_alias=True) for a in desired_state_data_source.accounts]
     account_by_name = {a["name"]: a for a in all_accounts}
     vault_settings = get_app_interface_vault_settings()
     secret_reader = create_secret_reader(vault_settings.vault)
@@ -457,7 +455,7 @@ def setup(
         "",
         thread_pool_size,
         tgw_accounts,
-        settings=vault_settings.model_dump(by_alias=True),
+        settings=vault_settings.dict(by_alias=True),
         default_tags=default_tags,
     )
     tgw_rosa_cluster_accounts = [
@@ -518,7 +516,7 @@ def run(
 ) -> None:
     desired_state_data_source = _fetch_desired_state_data_source(account_name)
     tgw_accounts = [
-        a.model_dump(by_alias=True)
+        a.dict(by_alias=True)
         for a in _filter_tgw_accounts(
             desired_state_data_source.accounts, desired_state_data_source.clusters
         )
@@ -575,7 +573,7 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     desired_state = _fetch_desired_state_data_source()
     for a in desired_state.accounts:
         a.deletion_approvals = []
-    return desired_state.model_dump(by_alias=True)
+    return desired_state.dict(by_alias=True)
 
 
 def desired_state_shard_config() -> DesiredStateShardConfig:

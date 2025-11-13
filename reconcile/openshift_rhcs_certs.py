@@ -2,7 +2,7 @@ import logging
 import sys
 import time
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any
+from typing import Any, cast
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
@@ -10,8 +10,8 @@ from reconcile.gql_definitions.common.rhcs_provider_settings import (
     RhcsProviderSettingsV1,
 )
 from reconcile.gql_definitions.rhcs.certs import (
+    NamespaceOpenshiftResourceRhcsCertV1,
     NamespaceV1,
-    OpenshiftResourceRhcsCert,
 )
 from reconcile.gql_definitions.rhcs.certs import (
     query as rhcs_certs_query,
@@ -40,6 +40,7 @@ from reconcile.utils.vault import SecretNotFoundError, VaultClient
 
 QONTRACT_INTEGRATION = "openshift-rhcs-certs"
 QONTRACT_INTEGRATION_VERSION = make_semver(1, 9, 3)
+PROVIDERS = ["rhcs-cert"]
 
 
 def desired_state_shard_config() -> DesiredStateShardConfig:
@@ -66,18 +67,22 @@ class OpenshiftRhcsCertExpiration(GaugeMetric):
         return "qontract_reconcile_rhcs_cert_expiration_timestamp"
 
 
+def _is_rhcs_cert(obj: Any) -> bool:
+    return getattr(obj, "provider", None) == "rhcs-cert"
+
+
 def get_namespaces_with_rhcs_certs(
     query_func: Callable,
     cluster_name: Iterable[str] | None = None,
 ) -> list[NamespaceV1]:
     result: list[NamespaceV1] = []
     for ns in rhcs_certs_query(query_func=query_func).namespaces or []:
-        ob.aggregate_shared_resources_typed(ns)
+        ob.aggregate_shared_resources_typed(cast("Any", ns))  # mypy: ignore[arg-type]
         if (
             integration_is_enabled(QONTRACT_INTEGRATION, ns.cluster)
             and not bool(ns.delete)
             and (not cluster_name or ns.cluster.name in cluster_name)
-            and ns.openshift_resources
+            and any(_is_rhcs_cert(r) for r in ns.openshift_resources or [])
         ):
             result.append(ns)
     return result
@@ -100,7 +105,7 @@ def construct_rhcs_cert_oc_secret(
 
 def cert_expires_within_threshold(
     ns: NamespaceV1,
-    cert_resource: OpenshiftResourceRhcsCert,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
     vault_cert_secret: Mapping[str, Any],
 ) -> bool:
     auto_renew_threshold_days = cert_resource.auto_renew_threshold_days or 7
@@ -116,7 +121,7 @@ def cert_expires_within_threshold(
 
 def get_vault_cert_secret(
     ns: NamespaceV1,
-    cert_resource: OpenshiftResourceRhcsCert,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
     vault: VaultClient,
     vault_base_path: str,
 ) -> dict | None:
@@ -135,7 +140,7 @@ def get_vault_cert_secret(
 def generate_vault_cert_secret(
     dry_run: bool,
     ns: NamespaceV1,
-    cert_resource: OpenshiftResourceRhcsCert,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
     vault: VaultClient,
     vault_base_path: str,
     issuer_url: str,
@@ -144,7 +149,7 @@ def generate_vault_cert_secret(
     logging.info(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
     )
-    sa_password = vault.read(cert_resource.service_account_password.model_dump())
+    sa_password = vault.read(cert_resource.service_account_password.dict())
     if dry_run:
         rhcs_cert = RhcsV2Cert(
             certificate="PLACEHOLDER_CERT",
@@ -166,18 +171,18 @@ def generate_vault_cert_secret(
         )
         vault.write(
             secret={
-                "data": rhcs_cert.model_dump(by_alias=True),
+                "data": rhcs_cert.dict(by_alias=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
             },
             decode_base64=False,
         )
-    return rhcs_cert.model_dump(by_alias=True)
+    return rhcs_cert.dict(by_alias=True)
 
 
 def fetch_openshift_resource_for_cert_resource(
     dry_run: bool,
     ns: NamespaceV1,
-    cert_resource: OpenshiftResourceRhcsCert,
+    cert_resource: NamespaceOpenshiftResourceRhcsCertV1,
     vault: VaultClient,
     rhcs_settings: RhcsProviderSettingsV1,
 ) -> OR:
@@ -226,13 +231,18 @@ def fetch_desired_state(
     cert_provider = get_rhcs_provider_settings(query_func=query_func)
     for ns in namespaces:
         for cert_resource in ns.openshift_resources or []:
-            ri.add_desired_resource(
-                cluster=ns.cluster.name,
-                namespace=ns.name,
-                resource=fetch_openshift_resource_for_cert_resource(
-                    dry_run, ns, cert_resource, vault, cert_provider
-                ),
-            )
+            if _is_rhcs_cert(cert_resource):
+                ri.add_desired_resource(
+                    cluster=ns.cluster.name,
+                    namespace=ns.name,
+                    resource=fetch_openshift_resource_for_cert_resource(
+                        dry_run,
+                        ns,
+                        cast("NamespaceOpenshiftResourceRhcsCertV1", cert_resource),
+                        vault,
+                        cert_provider,
+                    ),
+                )
 
 
 @defer
@@ -267,7 +277,7 @@ def run(
     state_specs = ob.init_specs_to_fetch(
         ri,
         oc_map,
-        namespaces=[ns.model_dump(by_alias=True) for ns in namespaces],
+        namespaces=[ns.dict(by_alias=True) for ns in namespaces],
         override_managed_types=["Secret"],
     )
     for spec in state_specs:
@@ -285,11 +295,3 @@ def run(
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     if ri.has_error_registered():
         sys.exit(1)
-
-
-def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    if not (query_func := kwargs.get("query_func")):
-        query_func = gql.get_api().query
-
-    cluster_name = kwargs.get("cluster_name")
-    return {"namespace": get_namespaces_with_rhcs_certs(query_func, cluster_name)}

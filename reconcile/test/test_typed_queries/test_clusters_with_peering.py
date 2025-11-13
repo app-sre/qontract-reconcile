@@ -29,7 +29,7 @@ def clusters_with_peering(
         ClustersWithPeeringQueryData,
         {
             "clusters": [
-                {"peering": peering.model_dump(by_alias=True)},
+                {"peering": peering.dict(by_alias=True)},
             ]
         },
     )
@@ -53,7 +53,7 @@ def test_get_clusters_with_peering(
     gql_api_builder: Callable[..., GqlApi],
     clusters_with_peering: ClustersWithPeeringQueryData,
 ) -> None:
-    gql_api = gql_api_builder(clusters_with_peering.model_dump(by_alias=True))
+    gql_api = gql_api_builder(clusters_with_peering.dict(by_alias=True))
 
     clusters = get_clusters_with_peering(gql_api)
 
@@ -64,7 +64,7 @@ def test_get_clusters_with_peering_when_clusters_without_peering(
     gql_api_builder: Callable[..., GqlApi],
     clusters_without_peering: ClustersWithPeeringQueryData,
 ) -> None:
-    gql_api = gql_api_builder(clusters_without_peering.model_dump(by_alias=True))
+    gql_api = gql_api_builder(clusters_without_peering.dict(by_alias=True))
 
     clusters = get_clusters_with_peering(gql_api)
 

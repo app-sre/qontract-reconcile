@@ -40,7 +40,7 @@ class InstrumentedImage(Image):
 
 
 class InstrumentedSkopeo(Skopeo):
-    def copy(self, *args: Any, **kwargs: Any) -> None:
+    def copy(self, *args: Any, **kwargs: Any) -> bytes | str:
         metrics.copy_count.labels(
             integration=INTEGRATION_NAME, shard=SHARDS, shard_id=SHARD_ID
         ).inc()

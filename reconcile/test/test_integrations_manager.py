@@ -233,7 +233,7 @@ def basic_integration(
                         "cluster": {"name": "cluster"},
                         "environment": {"name": "test"},
                     },
-                    "spec": basic_integration_spec.model_dump(
+                    "spec": basic_integration_spec.dict(
                         exclude_none=True, by_alias=True
                     ),
                     "sharding": None,
@@ -248,7 +248,7 @@ def helm_integration_spec(
     basic_integration_spec: IntegrationSpecV1,
 ) -> HelmIntegrationSpec:
     return HelmIntegrationSpec(
-        **basic_integration_spec.model_dump(by_alias=True), name="basic-integration"
+        **basic_integration_spec.dict(by_alias=True), name="basic-integration"
     )
 
 
@@ -624,12 +624,7 @@ def aws_shard_overrides(
     aws_accounts: list[sharding_aws_accounts.AWSAccountV1],
 ) -> list[AWSAccountShardSpecOverrideV1]:
     o1 = AWSAccountShardSpecOverrideV1(
-        # aws_accounts is sharding.AWSAccountV1 but must be integrations.AWSAccountV1
-        # use model_dump to convert between the two
-        shard=aws_accounts[0].model_dump(by_alias=True),
-        imageRef="acc1-image",
-        disabled=False,
-        resources=None,
+        shard=aws_accounts[0], imageRef="acc1-image", disabled=False, resources=None
     )
     resources["requests"]["cpu"] = "200m"
     resources["requests"]["memory"] = "2Mi"
@@ -638,18 +633,13 @@ def aws_shard_overrides(
 
     deploy_resources = gql_class_factory(DeployResourcesFields, resources)
     o2 = AWSAccountShardSpecOverrideV1(
-        # see above comment
-        shard=aws_accounts[1].model_dump(by_alias=True),
+        shard=aws_accounts[1],
         imageRef=None,
         resources=deploy_resources,
         disabled=False,
     )
     o3 = AWSAccountShardSpecOverrideV1(
-        # see above comment
-        shard=aws_accounts[2].model_dump(by_alias=True),
-        resources=None,
-        imageRef=None,
-        disabled=True,
+        shard=aws_accounts[2], resources=None, imageRef=None, disabled=True
     )
 
     return [o1, o2, o3]

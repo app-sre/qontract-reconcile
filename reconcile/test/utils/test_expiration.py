@@ -18,7 +18,7 @@ LAST_WEEK = TODAY - timedelta(days=7)
 
 class MyRole(BaseModel):
     just_another_attr: int = 0
-    expiration_date: str | None = None
+    expiration_date: str | None
 
 
 @pytest.mark.parametrize(

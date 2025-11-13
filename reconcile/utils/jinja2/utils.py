@@ -45,10 +45,13 @@ class Jinja2TemplateError(Exception):
         super().__init__("error processing jinja2 template: " + str(msg))
 
 
-class TemplateRenderOptions(BaseModel, frozen=True):
+class TemplateRenderOptions(BaseModel):
     trim_blocks: bool
     lstrip_blocks: bool
     keep_trailing_newline: bool
+
+    class Config:
+        frozen = True
 
     @classmethod
     def create(
@@ -72,7 +75,7 @@ def compile_jinja2_template(
 ) -> Any:
     if not template_render_options:
         template_render_options = TemplateRenderOptions.create()
-    env: dict[str, Any] = template_render_options.model_dump()
+    env: dict[str, Any] = template_render_options.dict()
     if extra_curly:
         env.update({
             "block_start_string": "{{%",

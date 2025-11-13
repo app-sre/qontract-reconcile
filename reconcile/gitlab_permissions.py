@@ -94,6 +94,14 @@ class GroupPermissionHandler:
         desired_state: dict[str, GroupSpec],
         current_state: dict[str, GroupSpec],
     ) -> None:
+        # gather list of app-interface managed repos
+        instance = queries.get_gitlab_instance()
+        managed_repos = {
+            f"{instance['url']}/{project_request['group']}/{r}"
+            for project_request in instance.get("projectRequests", [])
+            for r in project_request.get("projects", [])
+        }
+
         # get the diff data
         diff_data = diff_mappings(
             current=current_state,
@@ -104,10 +112,11 @@ class GroupPermissionHandler:
         errors: list[Exception] = []
         for repo in diff_data.add:
             project = self.gl.get_project(repo)
-            if not project:
-                logging.info(f"{repo} hasn't been created yet - skipping")
+            if not project and repo in managed_repos:
+                logging.info(
+                    f"New app-interface managed repository {repo} hasn't been created yet - skipping"
+                )
                 continue
-
             if not self.can_share_project(project):
                 errors.append(
                     GroupAccessLevelError(
@@ -127,13 +136,8 @@ class GroupPermissionHandler:
                     group_id=self.group.id,
                     access_level=self.access_level,
                 )
-
         for repo in diff_data.change:
             project = self.gl.get_project(repo)
-            if not project:
-                logging.info(f"{repo} hasn't been created yet - skipping")
-                continue
-
             if not self.can_share_project(project):
                 errors.append(
                     GroupAccessLevelError(

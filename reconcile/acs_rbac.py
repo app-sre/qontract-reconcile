@@ -65,7 +65,7 @@ class AcsRole(BaseModel):
     assignments: list[AssignmentPair]
     permission_set_name: str
     access_scope: AcsAccessScope
-    system_default: bool | None = None
+    system_default: bool | None
 
     @classmethod
     def build(cls, permission: Permission, usernames: list[str]) -> Self:
@@ -151,7 +151,7 @@ class AcsRbacIntegration(QontractReconcileIntegration[NoParams]):
                 for permission in role.oidc_permissions or []:
                     if isinstance(permission, OidcPermissionAcsV1):
                         permission_usernames[
-                            Permission(**permission.model_dump(by_alias=True))
+                            Permission(**permission.dict(by_alias=True))
                         ].append(user.org_username)
         return list(starmap(AcsRole.build, permission_usernames.items()))
 

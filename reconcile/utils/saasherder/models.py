@@ -7,7 +7,10 @@ from enum import Enum
 from typing import Any, NotRequired, TypedDict
 
 from github import Github
-from pydantic import BaseModel, Field, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+)
 
 from reconcile.gql_definitions.fragments.saas_slo_document import (
     SLODocument,
@@ -204,12 +207,7 @@ TriggerSpecUnion = (
 )
 
 
-class Namespace(
-    BaseModel,
-    validate_by_name=True,
-    validate_by_alias=True,
-    arbitrary_types_allowed=True,
-):
+class Namespace(BaseModel):
     name: str
     environment: SaasEnvironment
     app: SaasApp
@@ -219,19 +217,29 @@ class Namespace(
         ..., alias="managedResourceNames"
     )
 
+    class Config:
+        arbitrary_types_allowed = True
+        allow_population_by_field_name = True
 
-class PromotionChannelData(BaseModel, validate_by_name=True, validate_by_alias=True):
+
+class PromotionChannelData(BaseModel):
     q_type: str = Field(..., alias="type")
 
+    class Config:
+        allow_population_by_field_name = True
 
-class ParentSaasPromotion(BaseModel, validate_by_name=True, validate_by_alias=True):
+
+class ParentSaasPromotion(BaseModel):
     q_type: str = Field(..., alias="type")
-    parent_saas: str | None = None
-    target_config_hash: str | None = None
+    parent_saas: str | None
+    target_config_hash: str | None
+
+    class Config:
+        allow_population_by_field_name = True
 
 
 class PromotionData(BaseModel):
-    channel: str | None = None
+    channel: str | None
     data: list[ParentSaasPromotion | PromotionChannelData] | None = None
 
 
@@ -255,17 +263,6 @@ class Promotion(BaseModel):
     promotion_data: list[PromotionData] | None = None
     saas_file_paths: list[str] | None = None
     target_paths: list[str] | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def handle_gql_classes(cls, data: Any) -> Any:
-        if data.get("promotion_data"):
-            data["promotion_data"] = [
-                # convert a GQL class to a dict
-                item.model_dump() if hasattr(item, "model_dump") else item
-                for item in data["promotion_data"]
-            ]
-        return data
 
 
 @dataclass

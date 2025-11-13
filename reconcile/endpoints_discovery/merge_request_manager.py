@@ -64,7 +64,7 @@ class Endpoint(BaseModel):
 
     @property
     def hash(self) -> str:
-        return hashlib.sha256(json_dumps(self.model_dump()).encode()).hexdigest()
+        return hashlib.sha256(json_dumps(self.dict()).encode()).hexdigest()
 
 
 EndpointsToAdd = list[Endpoint]
