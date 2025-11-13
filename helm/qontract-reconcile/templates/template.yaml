@@ -442,6 +442,8 @@ objects:
             value: "${FLUENTD_IMAGE_TAG}"
           - name: FLUENTD_IMAGE_PULL_POLICY
             value: "${FLUENTD_IMAGE_PULL_POLICY}"
+          - name: USED_FOR_SECURITY
+            value: "${USED_FOR_SECURITY}"
           - name: CLOUDWATCH_SECRET
             value: "${CLOUDWATCH_SECRET}"
           - name: INTERNAL_CERTIFICATES_IMAGE
@@ -869,6 +871,8 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+- name: USED_FOR_SECURITY
+  value: ''
 {{- if .Values.enable_slack_error_filter }}
 - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
   value: "sd-app-sre-reconcile-errors-stage"
