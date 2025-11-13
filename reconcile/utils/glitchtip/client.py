@@ -165,7 +165,7 @@ class GlitchtipClient(ApiBase):
             **self._post(
                 f"/api/0/projects/{organization_slug}/{project_slug}/alerts/",
                 data=alert.model_dump(
-                    by_alias=True, exclude_unset=True, exclude_none=True
+                    mode="json", by_alias=True, exclude_unset=True, exclude_none=True
                 ),
             )
         )
@@ -186,7 +186,7 @@ class GlitchtipClient(ApiBase):
             **self._put(
                 f"/api/0/projects/{organization_slug}/{project_slug}/alerts/{alert.pk}/",
                 data=alert.model_dump(
-                    by_alias=True, exclude_unset=True, exclude_none=True
+                    mode="json", by_alias=True, exclude_unset=True, exclude_none=True
                 ),
             )
         )
