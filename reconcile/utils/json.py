@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Literal
 
 from pydantic import BaseModel
+from pydantic.main import IncEx
 
 JSON_COMPACT_SEPARATORS = (",", ":")
 
@@ -42,6 +43,7 @@ def json_dumps(
     # BaseModel dump parameters
     by_alias: bool = True,
     exclude_none: bool = False,
+    exclude: IncEx | None = None,
     mode: Literal["json", "python"] = "json",
 ) -> str:
     """
@@ -56,7 +58,9 @@ def json_dumps(
         A JSON formatted string.
     """
     if isinstance(data, BaseModel):
-        data = data.model_dump(mode=mode, by_alias=by_alias, exclude_none=exclude_none)
+        data = data.model_dump(
+            mode=mode, by_alias=by_alias, exclude_none=exclude_none, exclude=exclude
+        )
         if mode == "python":
             defaults = pydantic_encoder
     separators = JSON_COMPACT_SEPARATORS if compact else None

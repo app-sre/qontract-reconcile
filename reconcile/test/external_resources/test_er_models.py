@@ -4,6 +4,7 @@ import pytest
 from pytest import fixture
 
 from reconcile.external_resources.model import (
+    ExternalResource,
     ExternalResourceKey,
     ExternalResourcesInventory,
 )
@@ -179,3 +180,78 @@ def test_er_inventory_delete_flag(
     )
     assert item is not None
     assert item.marked_to_delete == expected_delete_flag
+
+
+def test_er_external_resource_export(
+    er_inventory: ExternalResourcesInventory,
+) -> None:
+    item = ExternalResource(**{
+        "data": {
+            "identifier": "test-rds",
+            "output_prefix": "test-rds-rds",
+            "timeouts": {"create": "55m", "update": "55m", "delete": "55m"},
+            "tags": {
+                "managed_by_integration": "external_resources",
+                "cluster": "test_cluster",
+                "namespace": "test_namespace",
+                "environment": "test_env",
+                "env": "test",
+                "app": "test_app",
+            },
+            "region": "us-east-1",
+        },
+        "provision": {
+            "provision_provider": "aws",
+            "provisioner": "test",
+            "provider": "rds",
+            "identifier": "test-rds",
+            "target_cluster": "test_cluster",
+            "target_namespace": "test_namespace",
+            "target_secret_name": "test-rds-rds",
+            "module_provision_data": {
+                "tf_state_bucket": "tf_state_bucket",
+                "tf_state_region": "tf_state_region",
+                "tf_state_dynamodb_table": "tf_state_dynamodb_table",
+                "tf_state_key": "aws/test/rds/test-rds/terraform.tfstate",
+            },
+        },
+    })
+    assert item is not None
+    assert (
+        item.export(indent=2)  # indent for readability in test
+        == """{
+  "data": {
+    "identifier": "test-rds",
+    "output_prefix": "test-rds-rds",
+    "region": "us-east-1",
+    "tags": {
+      "app": "test_app",
+      "cluster": "test_cluster",
+      "env": "test",
+      "environment": "test_env",
+      "managed_by_integration": "external_resources",
+      "namespace": "test_namespace"
+    },
+    "timeouts": {
+      "create": "55m",
+      "delete": "55m",
+      "update": "55m"
+    }
+  },
+  "provision": {
+    "identifier": "test-rds",
+    "module_provision_data": {
+      "tf_state_bucket": "tf_state_bucket",
+      "tf_state_dynamodb_table": "tf_state_dynamodb_table",
+      "tf_state_key": "aws/test/rds/test-rds/terraform.tfstate",
+      "tf_state_region": "tf_state_region"
+    },
+    "provider": "rds",
+    "provision_provider": "aws",
+    "provisioner": "test",
+    "target_cluster": "test_cluster",
+    "target_namespace": "test_namespace",
+    "target_secret_name": "test-rds-rds"
+  }
+}"""
+    )

@@ -150,3 +150,36 @@ def test_pydantic_mode(mode: Literal["json", "python"], expected: str) -> None:
     )
     result = json_dumps(data, compact=True, mode=mode)
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("exclude", "expected"),
+    [
+        (
+            None,
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            {"b"},
+            '{"alias":42,"c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            {"b", "d"},
+            '{"alias":42,"c":"1989-11-09T23:30:00+01:00","e":"10.5"}',
+        ),
+        (
+            {"a"},
+            '{"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+    ],
+)
+def test_pydantic_exclude(exclude: set[str] | None, expected: str) -> None:
+    data = SampleModel(
+        alias=42,
+        b="value",
+        c=datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        d=None,
+        e=Decimal("10.5"),
+    )
+    result = json_dumps(data, compact=True, exclude=exclude)
+    assert result == expected
