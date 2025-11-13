@@ -42,6 +42,7 @@ from reconcile.gql_definitions.fragments.saas_target_namespace import (
     SaasTargetNamespace,
 )
 from reconcile.utils import gql
+from reconcile.utils.environ import used_for_security_is_enabled
 from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
     ParameterError,
@@ -79,13 +80,13 @@ class SaasResourceTemplateTarget(
     ) -> str:
         """Returns a unique identifier for a target."""
         data = f"{parent_saas_file_name}:{parent_resource_template_name}:{self.name or 'default'}:{self.namespace.cluster.name}:{self.namespace.name}".encode()
-        # In FIPS mode, OpenSSL's blake2s doesn't support digest_size parameter
-        # Try with digest_size first (works in non-FIPS), fall back to default (32 bytes) if it fails
-        try:
-            return hashlib.blake2s(data, digest_size=20).hexdigest()
-        except (TypeError, ValueError):
-            # FIPS mode: use blake2s without digest_size and truncate to 20 bytes
+        if used_for_security_is_enabled():
+            # When USED_FOR_SECURITY is enabled, use blake2s without digest_size and truncate to 20 bytes
+            # This is needed for FIPS compliance where digest_size parameter is not supported
             return hashlib.blake2s(data).digest()[:20].hex()
+        else:
+            # Default behavior: use blake2s with digest_size=20
+            return hashlib.blake2s(data, digest_size=20).hexdigest()
 
 
 class SaasResourceTemplate(ConfiguredBaseModel, validate_by_alias=True):
