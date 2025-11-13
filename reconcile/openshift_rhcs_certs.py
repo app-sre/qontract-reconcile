@@ -2,7 +2,7 @@ import logging
 import sys
 import time
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any, cast
+from typing import Any
 
 import reconcile.openshift_base as ob
 import reconcile.openshift_resources_base as orb
@@ -230,11 +230,7 @@ def fetch_desired_state(
                 cluster=ns.cluster.name,
                 namespace=ns.name,
                 resource=fetch_openshift_resource_for_cert_resource(
-                    dry_run,
-                    ns,
-                    cast("OpenshiftResourceRhcsCert", cert_resource),
-                    vault,
-                    cert_provider,
+                    dry_run, ns, cert_resource, vault, cert_provider
                 ),
             )
 
