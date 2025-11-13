@@ -260,6 +260,7 @@ def calculate_diff(
                 aus.UpgradePolicyHandler(
                     action="delete",
                     policy=aus.AddonUpgradePolicy(
+                        organization_id=org_upgrade_spec.org.org_id,
                         cluster=current.cluster,
                         version=current.schedule_type,
                         id=current.id,

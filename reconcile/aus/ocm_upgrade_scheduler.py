@@ -82,7 +82,14 @@ class OCMClusterUpgradeSchedulerIntegration(
                 version_data,
                 integration=self.name,
             )
-            aus.act(dry_run, diffs, ocm_api)
+
+            aus.act(
+                dry_run,
+                diffs,
+                ocm_api,
+                self.params.rosa_role_upgrade_handler_params,
+                self.secret_reader,
+            )
 
     def expose_version_data_metrics(
         self,
