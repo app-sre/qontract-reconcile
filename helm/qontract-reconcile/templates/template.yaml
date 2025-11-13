@@ -197,6 +197,18 @@ objects:
             </filter>
             {{- end}}
 
+            {{- if $.Values.enable_slack_error_filter }}
+            # tag errors for separate Slack routing (this changes the tag, so errors won't match 'integration' anymore)
+            <filter integration>
+              @type rewrite_tag_filter
+              <rule>
+                key message
+                pattern /^\[ERROR\]/
+                tag slack_errors
+              </rule>
+            </filter>
+            {{- end}}
+
             <match integration>
               @type copy
               {{- if $logs.slack }}
@@ -228,17 +240,6 @@ objects:
                   key message
                   pattern /^\[ERROR\]/
                   tag gchat
-                </rule>
-              </store>
-              {{- end}}
-              {{- if $.Values.enable_slack_error_filter }}
-              # ship errors to separate slack channel
-              <store>
-                @type rewrite_tag_filter
-                <rule>
-                  key message
-                  pattern /^\[ERROR\]/
-                  tag slack_errors
                 </rule>
               </store>
               {{- end}}
