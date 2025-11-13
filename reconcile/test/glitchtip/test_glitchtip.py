@@ -27,7 +27,7 @@ def test_fetch_current_state(
 
     assert (
         DeepDiff(
-            [s.model_dump() for s in current_state],
+            [s.dict() for s in current_state],
             fx.get_anymarkup("current_state_expected.yml"),
             ignore_order=True,
         )
@@ -71,7 +71,7 @@ def test_desire_state(
 
     assert (
         DeepDiff(
-            [s.model_dump() for s in desired_state],
+            [s.dict() for s in desired_state],
             fx.get_anymarkup("desire_state_expected.yml"),
             ignore_order=True,
         )

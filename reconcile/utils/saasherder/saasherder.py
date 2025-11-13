@@ -764,8 +764,7 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                if not (project := self.gitlab.get_project(url)):
-                    raise Exception(f"Could not find gitlab project for {url}")
+                project = self.gitlab.get_project(url)
                 content = self.gitlab.get_raw_file(
                     project=project,
                     path=path,
@@ -801,8 +800,7 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                if not (project := self.gitlab.get_project(url)):
-                    raise Exception(f"Could not find gitlab project for {url}")
+                project = self.gitlab.get_project(url)
                 dir_contents = self.gitlab.get_directory_contents(
                     project,
                     ref=commit_sha,
@@ -827,8 +825,7 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                if not (project := self.gitlab.get_project(url)):
-                    raise Exception(f"Could not find gitlab project for {url}")
+                project = self.gitlab.get_project(url)
                 commits = project.commits.list(ref_name=ref, per_page=1, page=1)
                 return commits[0].id
             case _:
@@ -1195,13 +1192,13 @@ class SaasHerder:
         images_list = threaded.run(
             self._collect_images, resources, self.available_thread_pool_size
         )
-        images_set = set(itertools.chain.from_iterable(images_list))
-        self.images.update(images_set)
-        if not images_set:
+        images = set(itertools.chain.from_iterable(images_list))
+        self.images.update(images)
+        if not images:
             return False  # no errors
         images = threaded.run(
             self._get_image,
-            images_set,
+            images,
             self.available_thread_pool_size,
             image_patterns=spec.image_patterns,
             image_auth=spec.image_auth,
@@ -1266,9 +1263,7 @@ class SaasHerder:
             self.saas_files,
             self.thread_pool_size,
         )
-        desired_state_specs: list[TargetSpec] = list(
-            itertools.chain.from_iterable(results)
-        )
+        desired_state_specs = list(itertools.chain.from_iterable(results))
         promotions = threaded.run(
             self.populate_desired_state_saas_file,
             desired_state_specs,
@@ -1916,23 +1911,21 @@ class SaasHerder:
             name=target.name,
             ref=target.ref,
             promotion=(
-                target.promotion.model_dump(by_alias=True) if target.promotion else None
+                target.promotion.dict(by_alias=True) if target.promotion else None
             ),
             secretParameters=(
-                [p.model_dump(by_alias=True) for p in target.secret_parameters]
+                [p.dict(by_alias=True) for p in target.secret_parameters]
                 if target.secret_parameters
                 else None
             ),
             slos=(
-                [slo.model_dump(by_alias=True) for slo in target.slos]
+                [slo.dict(by_alias=True) for slo in target.slos]
                 if target.slos
                 else None
             ),
-            upstream=(
-                target.upstream.model_dump(by_alias=True) if target.upstream else None
-            ),
+            upstream=(target.upstream.dict(by_alias=True) if target.upstream else None),
             images=(
-                [i.model_dump(by_alias=True) for i in target.images]
+                [i.dict(by_alias=True) for i in target.images]
                 if target.images
                 else None
             ),
@@ -1968,16 +1961,16 @@ class SaasHerder:
         )
         if saas_file.managed_resource_names:
             state_content["saas_file_managed_resource_names"] = [
-                m.model_dump() for m in saas_file.managed_resource_names
+                m.dict() for m in saas_file.managed_resource_names
             ]
         # include secret parameters from resource template and saas file
         if resource_template.secret_parameters:
             state_content["rt_secretparameters"] = [
-                p.model_dump() for p in resource_template.secret_parameters
+                p.dict() for p in resource_template.secret_parameters
             ]
         if saas_file.secret_parameters:
             state_content["saas_file_secretparameters"] = [
-                p.model_dump() for p in saas_file.secret_parameters
+                p.dict() for p in saas_file.secret_parameters
             ]
         return state_content
 
@@ -2260,9 +2253,7 @@ class SaasHerder:
             for rt in saas_file.resource_templates:
                 for target in rt.targets:
                     template_vars = {
-                        "resource": {
-                            "namespace": target.namespace.model_dump(by_alias=True)
-                        }
+                        "resource": {"namespace": target.namespace.dict(by_alias=True)}
                     }
                     if target.parameters:
                         for param in target.parameters:

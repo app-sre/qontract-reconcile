@@ -69,9 +69,7 @@ class GlitchtipProjectAlertsIntegration(
         return QONTRACT_INTEGRATION
 
     def get_early_exit_desired_state(self) -> dict[str, Any] | None:
-        return {
-            "projects": [c.model_dump() for c in self.get_projects(gql.get_api().query)]
-        }
+        return {"projects": [c.dict() for c in self.get_projects(gql.get_api().query)]}
 
     def get_projects(self, query_func: Callable) -> list[GlitchtipProjectV1]:
         return glitchtip_project_query(query_func=query_func).glitchtip_projects or []

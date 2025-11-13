@@ -55,6 +55,6 @@ def create_service_log(
     return OCMClusterServiceLog(
         **ocm_api.post(
             api_path=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
-            data=service_log.model_dump(by_alias=True),
+            data=service_log.dict(by_alias=True),
         )
     )

@@ -12,9 +12,9 @@ from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1,
-    AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1_DisableClusterAutomationsV1,
     AutomatedActionsInstanceV1,
     AutomatedActionV1,
+    DisableClusterAutomationsV1,
     PermissionAutomatedActionsV1,
     RoleV1,
 )
@@ -170,7 +170,7 @@ def test_automated_actions_config_get_automated_actions_instances(
                     delete=False,
                     cluster=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1(
                         name="cluster",
-                        disable=AutomatedActionOpenshiftWorkloadRestartArgumentV1_NamespaceV1_ClusterV1_DisableClusterAutomationsV1(
+                        disable=DisableClusterAutomationsV1(
                             integrations=["automated-actions"]
                         ),
                     ),

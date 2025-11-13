@@ -11,6 +11,11 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 from reconcile.gql_definitions.external_resources.fragments.external_resources_module_overrides import (
     ExternalResourcesModuleOverrides,
 )
+from reconcile.gql_definitions.fragments.deploy_resources import (
+    DeployResourcesFields,
+    ResourceLimitsRequirementsV1,
+    ResourceRequestsRequirementsV1,
+)
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 
 
@@ -32,10 +37,10 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
                 outputs_secret_version="er-output-secret-version",
                 reconcile_timeout_minutes=60,
                 reconcile_drift_interval_minutes=60,
-                resources={
-                    "requests": {"cpu": "100m", "memory": "128Mi"},
-                    "limits": {"memory": "4Gi", "cpu": None},
-                },
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
             ),
         ),
         (  # Account channel
@@ -53,10 +58,10 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
                 outputs_secret_version="er-output-secret-version",
                 reconcile_timeout_minutes=60,
                 reconcile_drift_interval_minutes=60,
-                resources={
-                    "requests": {"cpu": "100m", "memory": "128Mi"},
-                    "limits": {"memory": "4Gi", "cpu": None},
-                },
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
             ),
         ),
         (  # Module Overrides image/version
@@ -74,10 +79,10 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
                 reconcile_timeout_minutes=None,
                 outputs_secret_image="overridden-secrets-image",
                 outputs_secret_version="overridden-secrets-version",
-                resources={
-                    "requests": {"cpu": "200m", "memory": "128Mi"},
-                    "limits": {"memory": "8Gi", "cpu": None},
-                },
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="200m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="8Gi", cpu=None),
+                ),
             ),
             ExternalResourceModuleConfiguration(
                 image="overridden-image",
@@ -86,10 +91,10 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
                 outputs_secret_version="overridden-secrets-version",
                 reconcile_timeout_minutes=60,
                 reconcile_drift_interval_minutes=60,
-                resources={
-                    "requests": {"cpu": "200m", "memory": "128Mi"},
-                    "limits": {"memory": "8Gi", "cpu": None},
-                },
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="200m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="8Gi", cpu=None),
+                ),
                 overridden=True,
             ),
         ),
@@ -108,10 +113,10 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
                 reconcile_timeout_minutes=None,
                 outputs_secret_image="path/to/er-output-secret-image",
                 outputs_secret_version="er-output-secret-version",
-                resources={
-                    "requests": {"cpu": "100m", "memory": "128Mi"},
-                    "limits": {"memory": "4Gi", "cpu": None},
-                },
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
             ),
             ExternalResourceModuleConfiguration(
                 image="experiment-2-image",
@@ -120,11 +125,10 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
                 outputs_secret_version="er-output-secret-version",
                 reconcile_timeout_minutes=60,
                 reconcile_drift_interval_minutes=60,
-                resources={
-                    "requests": {"cpu": "100m", "memory": "128Mi"},
-                    "limits": {"memory": "4Gi", "cpu": None},
-                },
-                overridden=True,
+                resources=DeployResourcesFields(
+                    requests=ResourceRequestsRequirementsV1(cpu="100m", memory="128Mi"),
+                    limits=ResourceLimitsRequirementsV1(memory="4Gi", cpu=None),
+                ),
             ),
         ),
     ],

@@ -6,11 +6,10 @@ from collections.abc import (
 )
 from typing import (
     Any,
-    Self,
     TypedDict,
 )
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, root_validator, validator
 
 from reconcile.gql_definitions.aws_saml_roles.aws_accounts import (
     AWSAccountV1,
@@ -60,8 +59,7 @@ class AwsSamlRolesIntegrationParams(PydanticRunParams):
     extended_early_exit_cache_ttl_seconds: int = 3600
     log_cached_log_output: bool = False
 
-    @field_validator("max_session_duration_hours")
-    @classmethod
+    @validator("max_session_duration_hours")
     def max_session_duration_range(cls, v: str | int) -> int:
         if 1 <= int(v) <= 12:
             return int(v)
@@ -72,8 +70,7 @@ class CustomPolicy(BaseModel):
     name: str
     policy: dict[str, Any]
 
-    @field_validator("name")
-    @classmethod
+    @validator("name")
     def name_size(cls, v: str) -> str:
         """Check the policy name size.
 
@@ -85,8 +82,7 @@ class CustomPolicy(BaseModel):
             )
         return v
 
-    @field_validator("policy")
-    @classmethod
+    @validator("policy")
     def policy_size(cls, v: dict[str, Any]) -> dict[str, Any]:
         """Check the policy size.
 
@@ -109,8 +105,7 @@ class AwsRole(BaseModel):
     custom_policies: list[CustomPolicy]
     managed_policies: list[ManagedPolicy]
 
-    @field_validator("name")
-    @classmethod
+    @validator("name")
     def name_size(cls, v: str) -> str:
         """Check the role name size.
 
@@ -122,23 +117,29 @@ class AwsRole(BaseModel):
             )
         return v
 
-    @model_validator(mode="after")
-    def validate_policies(self) -> Self:
+    @root_validator
+    def validate_policies(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Check the policies.
 
         See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-quotas.html
         """
-        if len(self.custom_policies) + len(self.managed_policies) > 20:
+        custom_policies = values.get("custom_policies", [])
+        managed_policies = values.get("managed_policies", [])
+        if len(custom_policies) + len(managed_policies) > 20:
             raise ValueError(
-                f"The role '{self.name}' has too many policies. AWS roles can have at most 20 policies (via quota increase). Please consider consolidating the policies."
+                f"The role '{values['name']}' has too many policies. AWS roles can have at most 20 policies (via quota increase). Please consider consolidating the policies."
             )
-        cp_names = [cp.name for cp in self.custom_policies]
+        cp_names = [cp.name for cp in custom_policies]
         if len(set(cp_names)) != len(cp_names):
-            raise ValueError(f"The role '{self.name}' has duplicate custom policies.")
-        mp_names = [mp.name for mp in self.managed_policies]
+            raise ValueError(
+                f"The role '{values['name']}' has duplicate custom policies."
+            )
+        mp_names = [mp.name for mp in managed_policies]
         if len(set(mp_names)) != len(mp_names):
-            raise ValueError(f"The role '{self.name}' has duplicate managed policies.")
-        return self
+            raise ValueError(
+                f"The role '{values['name']}' has duplicate managed policies."
+            )
+        return values
 
 
 class RunnerParams(TypedDict):
@@ -163,7 +164,7 @@ class AwsSamlRolesIntegration(
         if not query_func:
             query_func = gql.get_api().query
         return {
-            "roles": [c.model_dump() for c in self.get_roles(query_func)],
+            "roles": [c.dict() for c in self.get_roles(query_func)],
         }
 
     def get_aws_accounts(
@@ -251,9 +252,7 @@ class AwsSamlRolesIntegration(
         aws_accounts = self.get_aws_accounts(
             gql_api.query, account_name=self.params.account_name
         )
-        aws_accounts_dict = [
-            account.model_dump(by_alias=True) for account in aws_accounts
-        ]
+        aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
         aws_roles = self.get_roles(gql_api.query, account_name=self.params.account_name)
         try:
             default_tags = get_settings().default_tags

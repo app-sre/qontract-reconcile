@@ -159,7 +159,7 @@ def build_container_for_prefix(
 
     return LabelContainer(
         labels={
-            strip_prefix_if_needed(label.key): label.model_copy(
+            strip_prefix_if_needed(label.key): label.copy(
                 update={"key": strip_prefix_if_needed(label.key)}
             )
             for label in container.labels.values()

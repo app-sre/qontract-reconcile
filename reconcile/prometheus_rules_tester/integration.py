@@ -56,7 +56,7 @@ class Test(BaseModel):
     rule_path: str
     rule: dict
     rule_length: int
-    tests: list[TestContent] | None = None
+    tests: list[TestContent] | None
     result: CommandExecutionResult | None = None
     promtool_version: str
 
@@ -76,7 +76,7 @@ def fetch_rule_and_tests(
     openshift_resource = orb.fetch_openshift_resource(
         resource=rule.resource,
         parent=rule.namespace,
-        settings=vault_settings.model_dump(by_alias=True),
+        settings=vault_settings.dict(by_alias=True),
     )
 
     rule_body = openshift_resource.body
@@ -96,7 +96,7 @@ def fetch_rule_and_tests(
             test_raw_yaml = process_extracurlyjinja2_template(
                 body=test_raw_yaml,
                 vars=variables,
-                settings=vault_settings.model_dump(by_alias=True),
+                settings=vault_settings.dict(by_alias=True),
             )
 
         test_yaml_spec = yaml.safe_load(test_raw_yaml)

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 from typing import Any
 from unittest.mock import MagicMock, call
 
@@ -38,7 +39,6 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
 )
 from reconcile.status import ExitCodes
 from reconcile.utils.secret_reader import (
-    HasSecret,
     SecretReaderBase,
 )
 
@@ -172,14 +172,24 @@ def mock_app_interface_vault_settings(mocker: MockerFixture) -> None:
     )
 
 
-def secret_reader_side_effect(secret: HasSecret) -> dict[str, str]:
-    if secret.path == "aws-account-path" and secret.field == "token":
+def secret_reader_side_effect(*args: Sequence[dict[str, Any]]) -> dict[str, str]:
+    if args[0] == {
+        "path": "aws-account-path",
+        "field": "token",
+        "version": 1,
+        "q_format": "plain",
+    }:
         return {
             "aws_access_key_id": "key_id",
             "aws_secret_access_key": "access_key",
         }
 
-    if secret.path == "cf-account-path" and secret.field == "key":
+    if args[0] == {
+        "path": "cf-account-path",
+        "field": "key",
+        "version": 1,
+        "q_format": "plain",
+    }:
         return {
             "api_token": "api_token",
             "account_id": "account_id",

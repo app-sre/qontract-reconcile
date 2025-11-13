@@ -32,7 +32,7 @@ def get_selected_app_names(
             prefix = f"{namespace.app.parent_app.name}-"
         name = f"{prefix}{namespace.app.name}"
         selected_app_names.add(name)
-        app = namespace.app.model_dump(by_alias=True)
+        app = namespace.app.dict(by_alias=True)
         app["name"] = name
         apps["apps"].append(app)
 
@@ -40,7 +40,7 @@ def get_selected_app_names(
             name = f"{namespace.app.name}-{child.name}"
             if name not in selected_app_names:
                 selected_app_names.add(f"{namespace.app.name}-{child.name}")
-                child_dict = child.model_dump(by_alias=True)
+                child_dict = child.dict(by_alias=True)
                 child_dict["name"] = name
                 apps["apps"].append(child_dict)
 

@@ -8,6 +8,8 @@ Total AWS Cost for : $0.00
 
 ```json:table
 {
+  "filter": true,
+  "items": [],
   "fields": [
     {
       "key": "name",
@@ -29,9 +31,7 @@ Total AWS Cost for : $0.00
       "label": "Total ($)",
       "sortable": true
     }
-  ],
-  "filter": true,
-  "items": []
+  ]
 }
 ```
 
@@ -41,6 +41,8 @@ Month over month change for :
 
 ```json:table
 {
+  "filter": true,
+  "items": [],
   "fields": [
     {
       "key": "name",
@@ -62,9 +64,7 @@ Month over month change for :
       "label": "Total ($)",
       "sortable": true
     }
-  ],
-  "filter": true,
-  "items": []
+  ]
 }
 ```
 
