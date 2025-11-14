@@ -1,3 +1,4 @@
+import base64
 import re
 from datetime import UTC
 
@@ -5,14 +6,24 @@ import requests
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.x509.oid import NameOID
 from pydantic import BaseModel, Field
 
 
-class RhcsV2Cert(BaseModel):
+class RhcsV2CertPem(BaseModel):
     certificate: str = Field(alias="tls.crt")
     private_key: str = Field(alias="tls.key")
     ca_cert: str = Field(alias="ca.crt")
+    expiration_timestamp: int
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class RhcsV2CertPkcs12(BaseModel):
+    pkcs12_keystore: str = Field(alias="keystore.pkcs12.b64")
+    pkcs12_truststore: str = Field(alias="truststore.pkcs12.b64")
     expiration_timestamp: int
 
     class Config:
@@ -70,7 +81,62 @@ def get_cert_expiry_timestamp(js_escaped_pem: str) -> int:
     return int(dt_expiry.timestamp())
 
 
-def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cert:
+def _format_pem(
+    private_key: rsa.RSAPrivateKey,
+    cert_pem: str,
+    ca_pem: str,
+    cert_expiry_timestamp: int,
+) -> RhcsV2CertPem:
+    """Generate RhcsV2Cert with PEM components."""
+    private_key_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode()
+    return RhcsV2CertPem(
+        private_key=private_key_pem,
+        certificate=cert_pem.encode().decode("unicode_escape").replace("\\/", "/"),
+        ca_cert=ca_pem,
+        expiration_timestamp=cert_expiry_timestamp,
+    )
+
+
+def _format_pkcs12(
+    private_key: rsa.RSAPrivateKey,
+    cert_pem: str,
+    ca_pem: str,
+    uid: str,
+    pwd: str,
+    cert_expiry_timestamp: int,
+) -> RhcsV2CertPkcs12:
+    """Generate PKCS#12 keystore and truststore components, returns base64-encoded strings."""
+    clean_cert_pem = cert_pem.encode().decode("unicode_escape").replace("\\/", "/")
+    cert_obj = x509.load_pem_x509_certificate(clean_cert_pem.encode())
+    ca_obj = x509.load_pem_x509_certificate(ca_pem.encode())
+    keystore_p12 = pkcs12.serialize_key_and_certificates(
+        name=uid.encode("utf-8"),
+        key=private_key,
+        cert=cert_obj,
+        cas=[ca_obj],
+        encryption_algorithm=serialization.BestAvailableEncryption(pwd.encode("utf-8")),
+    )
+    truststore_p12 = pkcs12.serialize_key_and_certificates(
+        name=b"ca-trust",
+        key=None,
+        cert=None,
+        cas=[ca_obj],
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    return RhcsV2CertPkcs12(
+        pkcs12_keystore=base64.b64encode(keystore_p12).decode("utf-8"),
+        pkcs12_truststore=base64.b64encode(truststore_p12).decode("utf-8"),
+        expiration_timestamp=cert_expiry_timestamp,
+    )
+
+
+def generate_cert(
+    issuer_url: str, uid: str, pwd: str, ca_url: str, cert_format: str = "PEM"
+) -> RhcsV2CertPem | RhcsV2CertPkcs12:
     private_key = rsa.generate_private_key(65537, 4096)
     csr = (
         x509.CertificateSigningRequestBuilder()
@@ -81,6 +147,7 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
         )
         .sign(private_key, hashes.SHA256())
     )
+
     data = {
         "uid": uid,
         "pwd": pwd,
@@ -90,27 +157,18 @@ def generate_cert(issuer_url: str, uid: str, pwd: str, ca_url: str) -> RhcsV2Cer
         "renewal": "false",
         "xmlOutput": "false",
     }
-    response = requests.post(issuer_url, data=data)
+    response = requests.post(issuer_url, data=data, verify=False)
     response.raise_for_status()
+    cert_pem = extract_cert(response.text).group(1)
+    cert_expiry_timestamp = get_cert_expiry_timestamp(cert_pem)
 
-    cert_pem = extract_cert(response.text)
-    cert_expiry_timestamp = get_cert_expiry_timestamp(cert_pem.group(1))
-    private_key_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode()
-
-    response = requests.get(ca_url)
+    response = requests.get(ca_url, verify=False)
     response.raise_for_status()
     ca_pem = response.text
 
-    return RhcsV2Cert(
-        private_key=private_key_pem,
-        certificate=cert_pem.group(1)
-        .encode()
-        .decode("unicode_escape")
-        .replace("\\/", "/"),
-        ca_cert=ca_pem,
-        expiration_timestamp=cert_expiry_timestamp,
-    )
+    if cert_format == "PKCS12":
+        return _format_pkcs12(
+            private_key, cert_pem, ca_pem, uid, pwd, cert_expiry_timestamp
+        )
+    else:
+        return _format_pem(private_key, cert_pem, ca_pem, cert_expiry_timestamp)

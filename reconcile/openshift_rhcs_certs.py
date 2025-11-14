@@ -32,7 +32,7 @@ from reconcile.utils.openshift_resource import (
     ResourceInventory,
     base64_encode_secret_field_value,
 )
-from reconcile.utils.rhcsv2_certs import RhcsV2Cert, generate_cert
+from reconcile.utils.rhcsv2_certs import RhcsV2CertPem, RhcsV2CertPkcs12, generate_cert
 from reconcile.utils.runtime.integration import DesiredStateShardConfig
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
@@ -89,14 +89,20 @@ def get_namespaces_with_rhcs_certs(
 
 
 def construct_rhcs_cert_oc_secret(
-    secret_name: str, cert: Mapping[str, Any], annotations: Mapping[str, str]
+    secret_name: str,
+    cert: Mapping[str, Any],
+    annotations: Mapping[str, str],
+    certificate_format: str,
 ) -> OR:
     body: dict[str, Any] = {
         "apiVersion": "v1",
         "kind": "Secret",
-        "type": "kubernetes.io/tls",
         "metadata": {"name": secret_name, "annotations": annotations},
     }
+    if certificate_format == "PKCS12":
+        body["type"] = "Opaque"
+    else:
+        body["type"] = "kubernetes.io/tls"
     for k, v in cert.items():
         v = base64_encode_secret_field_value(v)
         body.setdefault("data", {})[k] = v
@@ -150,17 +156,30 @@ def generate_vault_cert_secret(
         f"Creating cert with service account credentials for '{cert_resource.service_account_name}'. cluster='{ns.cluster.name}', namespace='{ns.name}', secret='{cert_resource.secret_name}'"
     )
     sa_password = vault.read(cert_resource.service_account_password.dict())
+    cert_format = cert_resource.certificate_format or "PEM"
+
     if dry_run:
-        rhcs_cert = RhcsV2Cert(
-            certificate="PLACEHOLDER_CERT",
-            private_key="PLACEHOLDER_PRIVATE_KEY",
-            ca_cert="PLACEHOLDER_CA_CERT",
-            expiration_timestamp=int(time.time()),
-        )
+        if cert_format == "PKCS12":
+            rhcs_cert: RhcsV2CertPem | RhcsV2CertPkcs12 = RhcsV2CertPkcs12(
+                pkcs12_keystore="PLACEHOLDER_KEYSTORE",
+                pkcs12_truststore="PLACEHOLDER_TRUSTSTORE",
+                expiration_timestamp=int(time.time()),
+            )
+        else:
+            rhcs_cert = RhcsV2CertPem(
+                certificate="PLACEHOLDER_CERT",
+                private_key="PLACEHOLDER_PRIVATE_KEY",
+                ca_cert="PLACEHOLDER_CA_CERT",
+                expiration_timestamp=int(time.time()),
+            )
     else:
         try:
             rhcs_cert = generate_cert(
-                issuer_url, cert_resource.service_account_name, sa_password, ca_cert_url
+                issuer_url=issuer_url,
+                uid=cert_resource.service_account_name,
+                pwd=sa_password,
+                ca_url=ca_cert_url,
+                cert_format=cert_format,
             )
         except ValueError as e:
             raise Exception(
@@ -171,12 +190,12 @@ def generate_vault_cert_secret(
         )
         vault.write(
             secret={
-                "data": rhcs_cert.dict(by_alias=True),
+                "data": rhcs_cert.dict(by_alias=True, exclude_none=True),
                 "path": f"{vault_base_path}/{ns.cluster.name}/{ns.name}/{cert_resource.secret_name}",
             },
             decode_base64=False,
         )
-    return rhcs_cert.dict(by_alias=True)
+    return rhcs_cert.dict(by_alias=True, exclude_none=True)
 
 
 def fetch_openshift_resource_for_cert_resource(
@@ -218,6 +237,7 @@ def fetch_openshift_resource_for_cert_resource(
         secret_name=cert_resource.secret_name,
         cert=vault_cert_secret,
         annotations=cert_resource.annotations or {},
+        certificate_format=cert_resource.certificate_format or "PEM",
     )
 
 
