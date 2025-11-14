@@ -22,8 +22,8 @@ class RhcsV2CertPem(BaseModel):
 
 
 class RhcsV2CertPkcs12(BaseModel):
-    pkcs12_keystore: str = Field(alias="keystore.pkcs12")
-    pkcs12_truststore: str = Field(alias="truststore.pkcs12")
+    pkcs12_keystore: str = Field(alias="keystore.pkcs12.b64")
+    pkcs12_truststore: str = Field(alias="truststore.pkcs12.b64")
     expiration_timestamp: int
 
     class Config:
