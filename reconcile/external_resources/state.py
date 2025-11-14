@@ -271,47 +271,14 @@ class ExternalResourcesStateDynamoDB:
     def get_external_resource_state(
         self,
         key: ExternalResourceKey,
-        enable_migration: bool = False,
     ) -> ExternalResourceState:
         data = self.aws_api.dynamodb.boto3_client.get_item(
             TableName=self._table,
             ConsistentRead=True,
             Key={self.adapter.ER_KEY_HASH: {"S": key.state_path}},
         )
-        item = data.get("Item")
-        if item:
+        if "Item" in data:
             return self.adapter.deserialize(data["Item"])
-
-        old_data = self.aws_api.dynamodb.boto3_client.get_item(
-            TableName=self._table,
-            ConsistentRead=True,
-            Key={self.adapter.ER_KEY_HASH: {"S": key.hash()}},
-        )
-        old_item = old_data.get("Item")
-        if old_item:
-            old_item[self.adapter.ER_KEY_HASH]["S"] = key.state_path
-            old_item[self.adapter.RECONC]["M"][self.adapter.RECONC_RESOURCE_HASH][
-                "S"
-            ] = self._new_sha256_hash(old_item)
-            if enable_migration:
-                self.aws_api.dynamodb.boto3_client.transact_write_items(
-                    TransactItems=[
-                        {
-                            "Put": {
-                                "TableName": self._table,
-                                "Item": old_item,
-                            }
-                        },
-                        {
-                            "Delete": {
-                                "TableName": self._table,
-                                "Key": {self.adapter.ER_KEY_HASH: {"S": key.hash()}},
-                            }
-                        },
-                    ]
-                )
-            return self.adapter.deserialize(old_item)
-
         return ExternalResourceState(
             key=key,
             ts=utc_now(),

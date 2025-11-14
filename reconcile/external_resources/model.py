@@ -88,9 +88,6 @@ class ExternalResourceKey(BaseModel, frozen=True):
             provider=spec.provider,
         )
 
-    def hash(self) -> str:
-        return hashlib.md5(json_dumps(self.dict()).encode("utf-8")).hexdigest()
-
     @property
     def state_path(self) -> str:
         return f"{self.provision_provider}/{self.provisioner_name}/{self.provider}/{self.identifier}"
