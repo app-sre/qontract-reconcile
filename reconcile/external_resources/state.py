@@ -279,14 +279,13 @@ class ExternalResourcesStateDynamoDB:
         )
         if "Item" in data:
             return self.adapter.deserialize(data["Item"])
-        else:
-            return ExternalResourceState(
-                key=key,
-                ts=utc_now(),
-                resource_status=ResourceStatus.NOT_EXISTS,
-                reconciliation=Reconciliation(key=key),
-                reconciliation_errors=0,
-            )
+        return ExternalResourceState(
+            key=key,
+            ts=utc_now(),
+            resource_status=ResourceStatus.NOT_EXISTS,
+            reconciliation=Reconciliation(key=key),
+            reconciliation_errors=0,
+        )
 
     def set_external_resource_state(
         self,
