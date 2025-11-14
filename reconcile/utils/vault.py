@@ -207,7 +207,7 @@ class VaultClient:
                                a v2 KV engine)
         """
         secret_path = secret["path"]
-        secret_version = secret.get("version", SECRET_VERSION_LATEST)
+        secret_version = secret.get("version") or SECRET_VERSION_LATEST
 
         kv_version = self._get_mount_version_by_secret_path(secret_path)
 
