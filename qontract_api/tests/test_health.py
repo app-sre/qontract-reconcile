@@ -1,7 +1,5 @@
 """Tests for health check endpoints."""
 
-# ruff: noqa: ARG001 - Test code exceptions
-
 from http import HTTPStatus
 
 from fastapi.testclient import TestClient
@@ -9,11 +7,8 @@ from fastapi.testclient import TestClient
 
 def test_root_endpoint(client: TestClient) -> None:
     """Test root endpoint returns basic info."""
-    response = client.get("/")
-    assert response.status_code == HTTPStatus.OK
-    data = response.json()
-    assert data["status"] == "healthy"
-    assert "version" in data
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == HTTPStatus.TEMPORARY_REDIRECT
 
 
 def test_liveness_probe(client: TestClient) -> None:
@@ -35,22 +30,10 @@ def test_readiness_probe_without_cache(client: TestClient) -> None:
     assert "cache" in data["components"]
 
 
-def test_readiness_probe_with_cache(client: TestClient, mock_cache: None) -> None:
+def test_readiness_probe_with_cache(client_with_cache: TestClient) -> None:
     """Test readiness probe succeeds when cache is healthy."""
-    response = client.get("/health/ready")
+    response = client_with_cache.get("/health/ready")
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data["status"] == "healthy"
     assert data["components"]["cache"]["status"] == "healthy"
-
-
-def test_health_endpoint(client: TestClient, mock_cache: None) -> None:
-    """Test detailed health endpoint."""
-    response = client.get("/health")
-    assert response.status_code == HTTPStatus.OK
-    data = response.json()
-    assert "status" in data
-    assert "service" in data
-    assert "version" in data
-    assert "components" in data
-    assert "cache" in data["components"]

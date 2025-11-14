@@ -1,6 +1,19 @@
 """Data models for qontract-api."""
 
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
+
+
+class TaskStatus(StrEnum):
+    """Status for background tasks.
+
+    Used across all async API endpoints to indicate task execution state.
+    """
+
+    PENDING = "pending"  # Task queued or in progress
+    SUCCESS = "success"  # Task completed successfully
+    FAILED = "failed"  # Task failed with errors
 
 
 class TokenData(BaseModel):

@@ -17,7 +17,6 @@ help:
 	@echo "Quality:"
 	@echo "  make test          Run all checks (pytest, mypy, ruff)"
 	@echo "  make format        Format and fix code with ruff"
-	@echo "  make clean         Remove build artifacts"
 
 .PHONY: run-api
 run-api:
@@ -34,7 +33,7 @@ generate-token:
 		echo "Usage: make generate-token SUBJECT=admin DAYS=30"; \
 		exit 1; \
 	fi
-	@uv run python -m qontract_api.scripts.generate_token --username "$(SUBJECT)" --expires-days $(or $(DAYS),30)
+	@uv run python -m qontract_api.scripts.generate_token --subject "$(SUBJECT)" --expires-days $(or $(DAYS),30)
 
 .PHONY: docker-up
 docker-up:
@@ -57,17 +56,9 @@ test:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy .
-	uv run pytest
+	uv run pytest --cov=qontract_api --cov-report=term-missing --cov-report xml
 
 .PHONY: format
 format:
 	uv run ruff check --fix .
 	uv run ruff format .
-
-.PHONY: clean
-clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true

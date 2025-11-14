@@ -20,7 +20,7 @@ def test_create_access_token() -> None:
 
     # Decode to verify structure
     payload = jwt.decode(
-        token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
     )
     assert payload["sub"] == "testuser"
     assert "exp" in payload

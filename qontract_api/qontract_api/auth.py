@@ -15,11 +15,11 @@ def create_access_token(data: TokenData, expires_delta: timedelta | None = None)
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+        expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_expire_minutes)
 
     payload = {"sub": data.sub, "exp": int(expire.timestamp())}
     return jwt.encode(
-        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
     )
 
 
@@ -27,7 +27,7 @@ def decode_token(token: str) -> TokenPayload:
     """Decode and validate JWT token."""
     try:
         payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
         )
         return TokenPayload(**payload)
     except JWTError as e:

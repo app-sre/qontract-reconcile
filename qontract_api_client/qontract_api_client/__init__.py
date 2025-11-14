@@ -1,6 +1,8 @@
-"""qontract-api-client: Auto-generated client for qontract-api."""
+"""A client library for accessing qontract-api"""
 
-__version__ = "0.1.0"
+from .client import AuthenticatedClient, Client
 
-# This package will contain auto-generated client code from openapi-python-client
-# Generated in Phase 4
+__all__ = (
+    "AuthenticatedClient",
+    "Client",
+)

@@ -23,3 +23,4 @@ GIT_VERSION
 .ruff_cache
 *DS_Store
 .env
+.claude/settings.local.json

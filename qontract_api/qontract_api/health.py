@@ -1,9 +1,12 @@
 """Health check utilities for qontract-api."""
 
+from typing import Annotated
+
+from fastapi import Depends, Request
 from pydantic import BaseModel, Field
 
+from qontract_api.cache.base import CacheBackend
 from qontract_api.config import settings
-from qontract_api.dependencies import dependencies
 
 
 class HealthStatus(BaseModel):
@@ -24,27 +27,52 @@ class HealthResponse(BaseModel):
     )
 
 
-async def check_cache_health() -> HealthStatus:
-    """Check cache backend health."""
-    if not dependencies.cache:
+def get_cache_from_request(request: Request) -> CacheBackend | None:
+    """Get cache from app state, return None if not available.
+
+    This is different from the get_cache() dependency which raises HTTPException.
+    Health checks should not fail with 503, but report component status instead.
+    """
+    return getattr(request.app.state, "cache", None)
+
+
+# Type alias for dependency injection
+CacheOptionalDep = Annotated[CacheBackend | None, Depends(get_cache_from_request)]
+
+
+def check_cache_health(cache: CacheBackend | None) -> HealthStatus:
+    """Check cache backend health.
+
+    Args:
+        cache: Cache backend instance or None
+
+    Returns:
+        HealthStatus with current cache health
+    """
+    if not cache:
         return HealthStatus(status="unhealthy", message="Cache backend not initialized")
 
     try:
-        is_healthy = await dependencies.cache.ping()
-        if is_healthy:
+        if cache.ping():
             return HealthStatus(status="healthy", message="Cache backend reachable")
         return HealthStatus(status="unhealthy", message="Cache backend unreachable")
     except OSError as e:
         return HealthStatus(status="unhealthy", message=f"Cache check failed: {e}")
 
 
-async def get_health_status() -> HealthResponse:
-    """Get overall health status including all components."""
+def get_health_status(cache: CacheOptionalDep) -> HealthResponse:
+    """Get overall health status including all components.
+
+    Args:
+        cache: Cache backend from dependency injection
+
+    Returns:
+        HealthResponse with overall and component health
+    """
     components: dict[str, HealthStatus] = {}
 
     # Check cache
-    cache_health = await check_cache_health()
-    components["cache"] = cache_health
+    components["cache"] = check_cache_health(cache)
 
     # Determine overall status
     component_statuses = [c.status for c in components.values()]
@@ -57,7 +85,11 @@ async def get_health_status() -> HealthResponse:
 
     return HealthResponse(
         status=overall_status,
-        service=settings.APP_NAME,
-        version=settings.VERSION,
+        service=settings.app_name,
+        version=settings.version,
         components=components,
     )
+
+
+# Type alias for dependency injection (must be after function definition)
+HealthResponseDep = Annotated[HealthResponse, Depends(get_health_status)]

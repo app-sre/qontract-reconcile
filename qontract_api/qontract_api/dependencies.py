@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from qontract_api.auth import decode_token
@@ -10,15 +10,6 @@ from qontract_api.cache.base import CacheBackend
 from qontract_api.models import User
 
 security = HTTPBearer()
-
-
-class Dependencies:
-    """Global dependency container."""
-
-    cache: CacheBackend | None = None
-
-
-dependencies = Dependencies()
 
 
 def get_current_user(
@@ -35,3 +26,29 @@ def get_current_user(
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
+
+
+def get_cache(request: Request) -> CacheBackend:
+    """Get cache backend from app state.
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        CacheBackend instance
+
+    Raises:
+        HTTPException: If cache backend is not available
+    """
+    cache = getattr(request.app.state, "cache", None)
+    if cache is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cache backend not available",
+        )
+    return cache
+
+
+# Type aliases for dependency injection
+CacheDep = Annotated[CacheBackend, Depends(get_cache)]
+UserDep = Annotated[User, Depends(get_current_user)]

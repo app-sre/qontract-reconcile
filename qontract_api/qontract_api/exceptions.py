@@ -1,8 +1,13 @@
 """Custom exceptions and error handlers for qontract-api."""
 
 from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+from qontract_api.logger import get_logger
+
+log = get_logger(__name__)
 
 
 class ErrorDetail(BaseModel):
@@ -78,4 +83,21 @@ async def general_exception_handler(  # noqa: RUF029 - FastAPI requires async ex
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=error_detail.model_dump(),
+    )
+
+
+async def validation_exception_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    request_id = getattr(request.state, "request_id", None)
+    exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
+    log.error(f"Validation error: {exc_str}")
+    error_detail = ErrorDetail(
+        message=exc_str,
+        type="RequestValidationError",
+        request_id=request_id,
+    )
+    return JSONResponse(
+        content=error_detail.model_dump(),
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )

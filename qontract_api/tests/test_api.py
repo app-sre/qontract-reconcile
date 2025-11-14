@@ -29,7 +29,9 @@ def test_protected_endpoint_with_valid_token(client: TestClient) -> None:
     token_data = TokenData(sub="testuser")
     token = create_access_token(data=token_data)
 
-    response = client.get("/api/protected", headers={"Authorization": f"Bearer {token}"})
+    response = client.get(
+        "/api/protected", headers={"Authorization": f"Bearer {token}"}
+    )
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data["message"] == "Access granted"
