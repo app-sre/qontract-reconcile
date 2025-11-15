@@ -469,6 +469,7 @@ class SlackOutputNotificationsV1(ConfiguredBaseModel):
 
 class SlackOutputV1(ConfiguredBaseModel):
     output: Optional[str] = Field(..., alias="output")
+    send_logs: Optional[str] = Field(..., alias="sendLogs")
     workspace: SlackWorkspaceV1 = Field(..., alias="workspace")
     channel: Optional[str] = Field(..., alias="channel")
     notifications: Optional[SlackOutputNotificationsV1] = Field(..., alias="notifications")
