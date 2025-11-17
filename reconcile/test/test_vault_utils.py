@@ -9,6 +9,7 @@ from unittest.mock import (
 import pytest
 
 from reconcile.utils import vault
+from reconcile.utils.vault import SECRET_VERSION_LATEST
 
 
 class SleepCalledError(Exception):
@@ -46,3 +47,20 @@ class TestVaultUtils:
 
         with pytest.raises(SleepCalledError):
             client._auto_refresh_client_auth()
+
+    @staticmethod
+    def test_read_all_with_version_kvv2_default_to_latest_version() -> None:
+        """Test that version=None in secret defaults to SECRET_VERSION_LATEST for KV v2."""
+        with patch("reconcile.utils.vault.VaultClient.__init__", return_value=None):
+            client = vault.VaultClient()
+            client._read_all_v2 = MagicMock(return_value=({"key": "value"}, "1"))
+
+        with patch.object(client, "_get_mount_version_by_secret_path", return_value=2):
+            result = client.read_all_with_version({
+                "path": "test/secret",
+                "version": None,
+            })
+            assert result == ({"key": "value"}, "1")
+            client._read_all_v2.assert_called_once_with(
+                "test/secret", SECRET_VERSION_LATEST
+            )
