@@ -50,8 +50,8 @@ from reconcile.utils.unleash import get_feature_toggle_state
 TERRAFORM_VERSION = ["1.6.6"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
-OC_VERSIONS = ["4.16.2", "4.12.46", "4.10.15"]
-OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
+OC_VERSIONS = ["4.19.0", "4.16.2"]
+OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)"
 
 HELM_VERSIONS = ["3.11.1"]
 HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
@@ -1151,9 +1151,17 @@ def jenkins_webhooks_cleaner(ctx: click.Context) -> None:
     "--jira-board-name", help="The Jira board to act on.", default=None, multiple=True
 )
 @click.option("--board-check-interval", help="Check interval in minutes", default=120)
+@click.option(
+    "--use-cache/--no-use-cache",
+    default=True,
+    help="Use cached results for validation.",
+)
 @click.pass_context
 def jira_permissions_validator(
-    ctx: click.Context, jira_board_name: Iterable[str] | None, board_check_interval: int
+    ctx: click.Context,
+    jira_board_name: Iterable[str] | None,
+    board_check_interval: int,
+    use_cache: bool,
 ) -> None:
     import reconcile.jira_permissions_validator
 
@@ -1162,6 +1170,7 @@ def jira_permissions_validator(
         ctx,
         jira_board_name=jira_board_name,
         board_check_interval_sec=board_check_interval * 60,
+        use_cache=use_cache,
     )
 
 
@@ -1286,14 +1295,14 @@ def aws_ami_cleanup(ctx: click.Context, thread_pool_size: int) -> None:
     run_integration(reconcile.aws_ami_cleanup.integration, ctx, thread_pool_size)
 
 
-@integration.command(short_help="Set up retention period for Cloudwatch logs.")
-@threaded()
+@integration.command(short_help="Set up retention period and tags for Cloudwatch logs.")
 @click.pass_context
-def aws_cloudwatch_log_retention(ctx: click.Context, thread_pool_size: int) -> None:
+def aws_cloudwatch_log_retention(ctx: click.Context) -> None:
     import reconcile.aws_cloudwatch_log_retention.integration
 
     run_integration(
-        reconcile.aws_cloudwatch_log_retention.integration, ctx, thread_pool_size
+        reconcile.aws_cloudwatch_log_retention.integration,
+        ctx,
     )
 
 

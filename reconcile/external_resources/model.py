@@ -1,7 +1,4 @@
 import hashlib
-from abc import (
-    ABC,
-)
 from collections.abc import ItemsView, Iterable, Iterator, MutableMapping
 from enum import StrEnum
 from typing import Any
@@ -22,6 +19,7 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
     NamespaceTerraformResourceMskV1,
+    NamespaceTerraformResourceRDSProxyV1,
     NamespaceTerraformResourceRDSV1,
     NamespaceV1,
 )
@@ -87,9 +85,6 @@ class ExternalResourceKey(BaseModel, frozen=True):
             provider=spec.provider,
         )
 
-    def hash(self) -> str:
-        return hashlib.md5(json_dumps(self.dict()).encode("utf-8")).hexdigest()
-
     @property
     def state_path(self) -> str:
         return f"{self.provision_provider}/{self.provisioner_name}/{self.provider}/{self.identifier}"
@@ -102,6 +97,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceElastiCacheV1
     | NamespaceTerraformResourceKMSV1
     | NamespaceTerraformResourceCloudWatchV1
+    | NamespaceTerraformResourceRDSProxyV1
 )
 
 
@@ -136,15 +132,15 @@ class ExternalResourcesInventory(MutableMapping):
     ) -> ExternalResourceSpec:
         spec = ExternalResourceSpec(
             provision_provider=provider.provider,
-            provisioner=provider.provisioner.dict(),
-            resource=resource.dict(
+            provisioner=provider.provisioner.model_dump(),
+            resource=resource.model_dump(
                 exclude={
                     FLAG_RESOURCE_MANAGED_BY_ERV2,
                     FLAG_DELETE_RESOURCE,
                     MODULE_OVERRIDES,
                 }
             ),
-            namespace=namespace.dict(by_alias=True),
+            namespace=namespace.model_dump(by_alias=True),
         )
         spec.metadata[FLAG_DELETE_RESOURCE] = resource.delete or namespace.delete
         spec.metadata[MODULE_OVERRIDES] = resource.module_overrides
@@ -385,7 +381,7 @@ class Reconciliation(BaseModel, frozen=True):
     )
     # linked_resources store dependants resources. They will get reconciled
     # every time the parent resource reconciliation finishes.
-    linked_resources: frozenset[ExternalResourceKey] | None
+    linked_resources: frozenset[ExternalResourceKey] | None = None
 
 
 class ReconcileAction(StrEnum):
@@ -405,7 +401,7 @@ class ReconciliationStatus(BaseModel):
     resource_status: ResourceStatus
 
 
-class ModuleProvisionData(ABC, BaseModel):
+class ModuleProvisionData(BaseModel):
     pass
 
 
@@ -430,7 +426,7 @@ class ExternalResourceProvision(BaseModel):
     target_cluster: str
     target_namespace: str
     target_secret_name: str
-    module_provision_data: ModuleProvisionData
+    module_provision_data: ModuleProvisionData | TerraformModuleProvisionData
 
 
 class ExternalResource(BaseModel):
@@ -438,4 +434,10 @@ class ExternalResource(BaseModel):
     provision: ExternalResourceProvision
 
     def hash(self) -> str:
-        return hashlib.md5(json_dumps(self.data).encode("utf-8")).hexdigest()
+        return hashlib.sha256(json_dumps(self.data).encode("utf-8")).hexdigest()
+
+    def export(
+        self, exclude: dict[str, Any] | None = None, indent: int | None = None
+    ) -> str:
+        """Export the ExternalResource as a JSON string."""
+        return json_dumps(self, exclude=exclude, indent=indent)

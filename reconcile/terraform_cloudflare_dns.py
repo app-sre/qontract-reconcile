@@ -155,7 +155,7 @@ class TerraformCloudflareDNSIntegration(
 
         accts_per_zone = []
         for zone in query_zones.zones or []:
-            acct = zone.account.dict(by_alias=True)
+            acct = zone.account.model_dump(by_alias=True)
             acct["name"] = f"{zone.account.name}-{zone.identifier}"
             accts_per_zone.append(acct)
 
@@ -369,11 +369,11 @@ def cloudflare_dns_zone_to_external_resource(
             provision_provider=DEFAULT_PROVISIONER_PROVIDER,
             provisioner={"name": f"{zone.account.name}-{zone.identifier}"},
             namespace=DEFAULT_NAMESPACE,
-            resource=zone.dict(by_alias=True, exclude=DEFAULT_EXCLUDE_KEY),
+            resource=zone.model_dump(by_alias=True, exclude=DEFAULT_EXCLUDE_KEY),
         )
         external_resource_spec.resource["provider"] = DEFAULT_PROVIDER
         external_resource_spec.resource["records"] = [
-            record.dict(by_alias=True) for record in zone.records or []
+            record.model_dump(by_alias=True) for record in zone.records or []
         ]
         external_resource_specs.append(external_resource_spec)
     return external_resource_specs

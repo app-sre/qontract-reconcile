@@ -92,8 +92,7 @@ from reconcile.utils.state import State
 from reconcile.utils.vcs import VCS
 
 TARGET_CONFIG_HASH = "target_config_hash"
-
-
+TEMPLATE_API_VERSION = "template.openshift.io/v1"
 UNIQUE_SAAS_FILE_ENV_COMBO_LEN = 56
 REQUEST_TIMEOUT = 60
 
@@ -765,7 +764,8 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                project = self.gitlab.get_project(url)
+                if not (project := self.gitlab.get_project(url)):
+                    raise Exception(f"Could not find gitlab project for {url}")
                 content = self.gitlab.get_raw_file(
                     project=project,
                     path=path,
@@ -801,7 +801,8 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                project = self.gitlab.get_project(url)
+                if not (project := self.gitlab.get_project(url)):
+                    raise Exception(f"Could not find gitlab project for {url}")
                 dir_contents = self.gitlab.get_directory_contents(
                     project,
                     ref=commit_sha,
@@ -826,7 +827,8 @@ class SaasHerder:
             case "gitlab":
                 if not self.gitlab:
                     raise Exception("gitlab is not initialized")
-                project = self.gitlab.get_project(url)
+                if not (project := self.gitlab.get_project(url)):
+                    raise Exception(f"Could not find gitlab project for {url}")
                 commits = project.commits.list(ref_name=ref, per_page=1, page=1)
                 return commits[0].id
             case _:
@@ -871,10 +873,23 @@ class SaasHerder:
         """
         if parameter_name in consolidated_parameters:
             return False
-        for template_parameter in template.get("parameters", {}):
-            if template_parameter["name"] == parameter_name:
-                return True
-        return False
+        return any(
+            template_parameter["name"] == parameter_name
+            for template_parameter in template.get("parameters") or []
+        )
+
+    @staticmethod
+    def _pre_process_template(template: dict[str, Any]) -> dict[str, Any]:
+        """
+        The only supported apiVersion for OpenShift Template is "template.openshift.io/v1".
+        There are examples of templates using "v1", it can't pass validation on 4.19+ oc versions.
+
+        Args:
+            template (dict): The OpenShift template dictionary.
+        Returns:
+            dict: The OpenShift template dictionary with the correct apiVersion.
+        """
+        return template | {"apiVersion": TEMPLATE_API_VERSION}
 
     def _process_template(
         self, spec: TargetSpec
@@ -964,7 +979,8 @@ class SaasHerder:
             oc = OCLocal("cluster", None, None, local=True)
             try:
                 resources: Iterable[Mapping[str, Any]] = oc.process(
-                    template, consolidated_parameters
+                    template=self._pre_process_template(template),
+                    parameters=consolidated_parameters,
                 )
             except StatusCodeError as e:
                 logging.error(f"{error_prefix} error processing template: {e!s}")
@@ -1179,13 +1195,13 @@ class SaasHerder:
         images_list = threaded.run(
             self._collect_images, resources, self.available_thread_pool_size
         )
-        images = set(itertools.chain.from_iterable(images_list))
-        self.images.update(images)
-        if not images:
+        images_set = set(itertools.chain.from_iterable(images_list))
+        self.images.update(images_set)
+        if not images_set:
             return False  # no errors
         images = threaded.run(
             self._get_image,
-            images,
+            images_set,
             self.available_thread_pool_size,
             image_patterns=spec.image_patterns,
             image_auth=spec.image_auth,
@@ -1250,7 +1266,9 @@ class SaasHerder:
             self.saas_files,
             self.thread_pool_size,
         )
-        desired_state_specs = list(itertools.chain.from_iterable(results))
+        desired_state_specs: list[TargetSpec] = list(
+            itertools.chain.from_iterable(results)
+        )
         promotions = threaded.run(
             self.populate_desired_state_saas_file,
             desired_state_specs,
@@ -1898,21 +1916,23 @@ class SaasHerder:
             name=target.name,
             ref=target.ref,
             promotion=(
-                target.promotion.dict(by_alias=True) if target.promotion else None
+                target.promotion.model_dump(by_alias=True) if target.promotion else None
             ),
             secretParameters=(
-                [p.dict(by_alias=True) for p in target.secret_parameters]
+                [p.model_dump(by_alias=True) for p in target.secret_parameters]
                 if target.secret_parameters
                 else None
             ),
             slos=(
-                [slo.dict(by_alias=True) for slo in target.slos]
+                [slo.model_dump(by_alias=True) for slo in target.slos]
                 if target.slos
                 else None
             ),
-            upstream=(target.upstream.dict(by_alias=True) if target.upstream else None),
+            upstream=(
+                target.upstream.model_dump(by_alias=True) if target.upstream else None
+            ),
             images=(
-                [i.dict(by_alias=True) for i in target.images]
+                [i.model_dump(by_alias=True) for i in target.images]
                 if target.images
                 else None
             ),
@@ -1948,16 +1968,16 @@ class SaasHerder:
         )
         if saas_file.managed_resource_names:
             state_content["saas_file_managed_resource_names"] = [
-                m.dict() for m in saas_file.managed_resource_names
+                m.model_dump() for m in saas_file.managed_resource_names
             ]
         # include secret parameters from resource template and saas file
         if resource_template.secret_parameters:
             state_content["rt_secretparameters"] = [
-                p.dict() for p in resource_template.secret_parameters
+                p.model_dump() for p in resource_template.secret_parameters
             ]
         if saas_file.secret_parameters:
             state_content["saas_file_secretparameters"] = [
-                p.dict() for p in saas_file.secret_parameters
+                p.model_dump() for p in saas_file.secret_parameters
             ]
         return state_content
 
@@ -2240,7 +2260,9 @@ class SaasHerder:
             for rt in saas_file.resource_templates:
                 for target in rt.targets:
                     template_vars = {
-                        "resource": {"namespace": target.namespace.dict(by_alias=True)}
+                        "resource": {
+                            "namespace": target.namespace.model_dump(by_alias=True)
+                        }
                     }
                     if target.parameters:
                         for param in target.parameters:

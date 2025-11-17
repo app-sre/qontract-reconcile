@@ -806,7 +806,11 @@ def fetch_data(
         init_api_resources=init_api_resources,
     )
     state_specs = ob.init_specs_to_fetch(
-        ri, oc_map, namespaces=namespaces, override_managed_types=overrides
+        ri,
+        oc_map,
+        namespaces=namespaces,
+        override_managed_types=overrides,
+        cluster_scope_resource_validation=True,
     )
     threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri, settings=settings)
 
@@ -861,7 +865,7 @@ def canonicalize_namespaces(
             elif providers[0] == "route":
                 override = ["Route"]
             elif providers[0] == "prometheus-rule":
-                override = ["PrometheusRule"]
+                override = ["PrometheusRule.monitoring.coreos.com"]
 
             namespace_info["openshiftResources"] = ors
             canonicalized_namespaces.append(namespace_info)

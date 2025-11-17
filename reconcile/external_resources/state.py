@@ -1,7 +1,9 @@
+import json
 import logging
 from collections.abc import Mapping
 from datetime import datetime
 from enum import StrEnum
+from hashlib import sha256
 from typing import Any
 
 from pydantic import BaseModel
@@ -17,6 +19,7 @@ from reconcile.external_resources.model import (
 )
 from reconcile.utils.aws_api_typed.api import AWSApi
 from reconcile.utils.datetime_util import to_utc_microseconds_iso_format, utc_now
+from reconcile.utils.json import json_dumps
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -170,7 +173,7 @@ class DynamoDBStateAdapter:
 
     def serialize(self, state: ExternalResourceState) -> dict[str, Any]:
         return {
-            self.ER_KEY_HASH: {"S": state.key.hash()},
+            self.ER_KEY_HASH: {"S": state.key.state_path},
             self.TIMESTAMP: {"S": to_utc_microseconds_iso_format(state.ts)},
             self.RESOURCE_STATUS: {"S": state.resource_status.value},
             self.ER_KEY: {
@@ -259,24 +262,30 @@ class ExternalResourcesStateDynamoDB:
         self._table = table_name
         self.partial_resources = self._get_partial_resources()
 
+    def _new_sha256_hash(self, item: dict) -> str:
+        resource_json = item[self.adapter.RECONC]["M"][self.adapter.RECONC_INPUT]["S"]
+        resource_dict = json.loads(resource_json)
+        data = resource_dict["data"]
+        return sha256(json_dumps(data).encode("utf-8")).hexdigest()
+
     def get_external_resource_state(
-        self, key: ExternalResourceKey
+        self,
+        key: ExternalResourceKey,
     ) -> ExternalResourceState:
         data = self.aws_api.dynamodb.boto3_client.get_item(
             TableName=self._table,
             ConsistentRead=True,
-            Key={self.adapter.ER_KEY_HASH: {"S": key.hash()}},
+            Key={self.adapter.ER_KEY_HASH: {"S": key.state_path}},
         )
         if "Item" in data:
             return self.adapter.deserialize(data["Item"])
-        else:
-            return ExternalResourceState(
-                key=key,
-                ts=utc_now(),
-                resource_status=ResourceStatus.NOT_EXISTS,
-                reconciliation=Reconciliation(key=key),
-                reconciliation_errors=0,
-            )
+        return ExternalResourceState(
+            key=key,
+            ts=utc_now(),
+            resource_status=ResourceStatus.NOT_EXISTS,
+            reconciliation=Reconciliation(key=key),
+            reconciliation_errors=0,
+        )
 
     def set_external_resource_state(
         self,
@@ -289,7 +298,7 @@ class ExternalResourcesStateDynamoDB:
     def del_external_resource_state(self, key: ExternalResourceKey) -> None:
         self.aws_api.dynamodb.boto3_client.delete_item(
             TableName=self._table,
-            Key={self.adapter.ER_KEY_HASH: {"S": key.hash()}},
+            Key={self.adapter.ER_KEY_HASH: {"S": key.state_path}},
         )
 
     def _get_partial_resources(
@@ -331,7 +340,7 @@ class ExternalResourcesStateDynamoDB:
     ) -> None:
         self.aws_api.dynamodb.boto3_client.update_item(
             TableName=self._table,
-            Key={self.adapter.ER_KEY_HASH: {"S": key.hash()}},
+            Key={self.adapter.ER_KEY_HASH: {"S": key.state_path}},
             UpdateExpression="set resource_status=:new_value",
             ExpressionAttributeValues={":new_value": {"S": status.value}},
             ReturnValues="UPDATED_NEW",

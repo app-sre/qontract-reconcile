@@ -244,7 +244,7 @@ class ExternalResourcesManager:
             reconciliation = Reconciliation(
                 key=key,
                 resource_hash=resource.hash(),
-                input=resource.json(),
+                input=resource.export(),
                 action=Action.APPLY,
                 module_configuration=module_conf,
                 linked_resources=self._find_linked_resources(spec),
@@ -450,7 +450,8 @@ class ExternalResourcesManager:
             r
             for r in desired_r.union(deleted_r)
             if self._reconciliation_needs_dry_run_run(
-                r, self.state_mgr.get_external_resource_state(key=r.key)
+                r,
+                self.state_mgr.get_external_resource_state(key=r.key),
             )
         }
 

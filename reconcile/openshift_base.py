@@ -30,9 +30,11 @@ from reconcile.utils import (
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc import (
+    AmbiguousResourceTypeError,
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
     InvalidValueApplyError,
+    KindNotFoundError,
     MayNotChangeOnceSetError,
     MetaDataAnnotationsTooLongApplyError,
     OC_Map,
@@ -128,6 +130,29 @@ class ClusterMap(Protocol):
     ) -> list[str]: ...
 
 
+def validate_managed_resource_types(
+    oc: OCCli,
+    managed_resource_types: Iterable[str],
+    managed_resource_names: Iterable[Mapping[str, Any]],
+    cluster_scope_resource_validation: bool,
+) -> None:
+    """Validate the managed resource types."""
+    managed_resources = [
+        managed_resource_name["resource"]
+        for managed_resource_name in managed_resource_names
+    ]
+    for managed_resource_type in managed_resource_types:
+        # The k8s kind must be supported by the cluster
+        resource = oc.get_api_resource(managed_resource_type)
+
+        if cluster_scope_resource_validation and not resource.namespaced:
+            # cluster-scoped resources must be use managedResourceNames!
+            if managed_resource_type not in managed_resources:
+                raise ValidationError(
+                    f"Cluster-scoped resource {managed_resource_type} must be managed by name only. Please use 'managedResourceNames' field to specify the names of the resources to manage."
+                )
+
+
 def init_specs_to_fetch(
     ri: ResourceInventory,
     oc_map: ClusterMap,
@@ -136,6 +161,7 @@ def init_specs_to_fetch(
     override_managed_types: Iterable[str] | None = None,
     managed_types_key: str = "managedResourceTypes",
     cluster_admin: bool = False,
+    cluster_scope_resource_validation: bool = False,
 ) -> list[StateSpec]:
     state_specs: list[StateSpec] = []
 
@@ -163,9 +189,27 @@ def init_specs_to_fetch(
                 logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
+            managed_resource_names = namespace_info.get("managedResourceNames") or []
+            try:
+                validate_managed_resource_types(
+                    oc,
+                    managed_types,
+                    managed_resource_names,
+                    cluster_scope_resource_validation=cluster_scope_resource_validation,
+                )
+            except KindNotFoundError:
+                # We must allow kinds that are not supported by the cluster because:
+                # 1. We install CRD with an operator in the same MR
+                # 2. SAAS files initialize the namespace objects with managedResourceTypes from the SAAS file
+                #    and we can't expect that all of those are valid for all clusters
+                pass
+            except (AmbiguousResourceTypeError, ValidationError) as e:
+                ri.register_error()
+                logging.error(f"[{cluster}/{namespace_info['name']}] {e}")
+                continue
+
             namespace = namespace_info["name"]
             # These may exit but have a value of None
-            managed_resource_names = namespace_info.get("managedResourceNames") or []
             managed_resource_type_overrides = (
                 namespace_info.get("managedResourceTypeOverrides") or []
             )
@@ -340,6 +384,7 @@ def fetch_current_state(
     cluster_admin: bool = False,
     caller: str | None = None,
     init_projects: bool = False,
+    cluster_scope_resource_validation: bool = False,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -362,6 +407,7 @@ def fetch_current_state(
         clusters=clusters,
         override_managed_types=override_managed_types,
         cluster_admin=cluster_admin,
+        cluster_scope_resource_validation=cluster_scope_resource_validation,
     )
     threaded.run(
         populate_current_state,
@@ -1364,6 +1410,11 @@ class HasOpenShiftResources(Protocol):
 
 
 @runtime_checkable
+class HasOpenShiftResourcesRequired(Protocol):
+    openshift_resources: list
+
+
+@runtime_checkable
 class HasOpenshiftServiceAccountTokens(Protocol):
     openshift_service_account_tokens: list | None
 
@@ -1371,7 +1422,7 @@ class HasOpenshiftServiceAccountTokens(Protocol):
 @runtime_checkable
 class HasSharedResourcesOpenShiftResources(Protocol):
     @property
-    def shared_resources(self) -> Sequence[HasOpenShiftResources] | None: ...
+    def shared_resources(self) -> Sequence[HasOpenShiftResourcesRequired] | None: ...
 
 
 @runtime_checkable

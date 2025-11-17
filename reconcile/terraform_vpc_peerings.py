@@ -675,8 +675,8 @@ def run(
         ]
         ts.populate_configs(rosa_cluster_accounts)
 
-        for infra_account_name, items in participating_accounts.items():
-            ts.populate_additional_providers(infra_account_name, items)
+        for infra_account_name, accounts in participating_accounts.items():
+            ts.populate_additional_providers(infra_account_name, accounts)
         ts.populate_vpc_peerings(desired_state)
         working_dirs = ts.dump(print_to_file=print_to_file)
         terraform_configurations = ts.terraform_configurations()

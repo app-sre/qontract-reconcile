@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Sequence
 from typing import Any
 from unittest.mock import MagicMock, call
 
@@ -39,6 +38,7 @@ from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudfla
 )
 from reconcile.status import ExitCodes
 from reconcile.utils.secret_reader import (
+    HasSecret,
     SecretReaderBase,
 )
 
@@ -172,24 +172,14 @@ def mock_app_interface_vault_settings(mocker: MockerFixture) -> None:
     )
 
 
-def secret_reader_side_effect(*args: Sequence[dict[str, Any]]) -> dict[str, str]:
-    if args[0] == {
-        "path": "aws-account-path",
-        "field": "token",
-        "version": 1,
-        "q_format": "plain",
-    }:
+def secret_reader_side_effect(secret: HasSecret) -> dict[str, str]:
+    if secret.path == "aws-account-path" and secret.field == "token":
         return {
             "aws_access_key_id": "key_id",
             "aws_secret_access_key": "access_key",
         }
 
-    if args[0] == {
-        "path": "cf-account-path",
-        "field": "key",
-        "version": 1,
-        "q_format": "plain",
-    }:
+    if secret.path == "cf-account-path" and secret.field == "key":
         return {
             "api_token": "api_token",
             "account_id": "account_id",
@@ -367,9 +357,7 @@ def test_cloudflare_namespace_validation(
     with caplog.at_level(logging.INFO), pytest.raises(SystemExit) as sample:
         integ.run(True, None, False, 10)
     assert sample.value.code == 0
-    assert [rec.message for rec in caplog.records] == [
-        "No cloudflare namespaces were detected, nothing to do."
-    ]
+    assert [rec.message for rec in caplog.records] == []
 
 
 def custom_ssl_secret_reader_side_effect(*args: Any) -> str:

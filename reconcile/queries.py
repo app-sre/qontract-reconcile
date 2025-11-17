@@ -477,6 +477,12 @@ AWS_ACCOUNTS_QUERY = """
       integrations
     }
     deleteKeys
+    organization {
+      payerAccount {
+        organizationAccountTags
+      }
+      tags
+    }
     {% if reset_passwords %}
     resetPasswords {
       user {
@@ -499,6 +505,12 @@ AWS_ACCOUNTS_QUERY = """
         name
         uid
         supportedDeploymentRegions
+        organization {
+          payerAccount {
+            organizationAccountTags
+          }
+          tags
+        }
       }
       ... on AWSAccountSharingOptionAMI_v1 {
         regex
@@ -606,6 +618,12 @@ awsInfrastructureManagementAccounts {
       version
       format
     }
+    organization {
+      payerAccount {
+        organizationAccountTags
+      }
+      tags
+    }
   }
   accessLevel
   default
@@ -635,6 +653,12 @@ awsInfrastructureAccess {
         field
         version
         format
+      }
+      organization {
+        payerAccount {
+          organizationAccountTags
+        }
+        tags
       }
     }
     roles {
@@ -745,6 +769,12 @@ CLUSTERS_QUERY = """
             version
             format
           }
+          organization {
+            payerAccount {
+                organizationAccountTags
+            }
+            tags
+          }
           rosa {
             ocm_environments {
               ocm {
@@ -830,6 +860,12 @@ CLUSTERS_QUERY = """
                 version
                 format
               }
+              organization {
+                payerAccount {
+                  organizationAccountTags
+                }
+                tags
+              }
             }
             vpc_id
             cidr_block
@@ -848,6 +884,12 @@ CLUSTERS_QUERY = """
               version
               format
             }
+            organization {
+              payerAccount {
+                organizationAccountTags
+              }
+              tags
+            }
           }
           tags
         }
@@ -861,6 +903,12 @@ CLUSTERS_QUERY = """
               field
               version
               format
+            }
+            organization {
+              payerAccount {
+                organizationAccountTags
+              }
+              tags
             }
           }
           tags
@@ -890,6 +938,12 @@ CLUSTERS_QUERY = """
                     version
                     format
                   }
+                  organization {
+                    payerAccount {
+                      organizationAccountTags
+                    }
+                    tags
+                  }
                 }
               }
               accessLevel
@@ -914,6 +968,12 @@ CLUSTERS_QUERY = """
                       field
                       version
                       format
+                    }
+                    organization {
+                      payerAccount {
+                        organizationAccountTags
+                      }
+                      tags
                     }
                   }
                 }
@@ -1068,6 +1128,12 @@ CLUSTER_PEERING_QUERY = """
           version
           format
         }
+        organization {
+          payerAccount {
+            organizationAccountTags
+          }
+          tags
+        }
       }
       accessLevel
       default
@@ -1088,6 +1154,12 @@ CLUSTER_PEERING_QUERY = """
             field
             version
             format
+          }
+          organization {
+            payerAccount {
+              organizationAccountTags
+            }
+            tags
           }
         }
       }
@@ -1113,6 +1185,12 @@ CLUSTER_PEERING_QUERY = """
                 version
                 format
               }
+              organization {
+                payerAccount {
+                  organizationAccountTags
+                }
+                tags
+              }
             }
             vpc_id
             cidr_block
@@ -1132,6 +1210,12 @@ CLUSTER_PEERING_QUERY = """
               version
               format
             }
+            organization {
+              payerAccount {
+                organizationAccountTags
+              }
+              tags
+            }
           }
           tags
           assumeRole
@@ -1146,6 +1230,12 @@ CLUSTER_PEERING_QUERY = """
               field
               version
               format
+            }
+            organization {
+              payerAccount {
+                organizationAccountTags
+              }
+              tags
             }
           }
           tags
@@ -1176,6 +1266,12 @@ CLUSTER_PEERING_QUERY = """
                     version
                     format
                   }
+                  organization {
+                    payerAccount {
+                      organizationAccountTags
+                    }
+                    tags
+                  }
                 }
               }
             }
@@ -1190,6 +1286,12 @@ CLUSTER_PEERING_QUERY = """
                   field
                   version
                   format
+                }
+                organization {
+                  payerAccount {
+                    organizationAccountTags
+                  }
+                  tags
                 }
               }
               accessLevel
@@ -1217,6 +1319,12 @@ CLUSTER_PEERING_QUERY = """
                             version
                             format
                           }
+                          organization {
+                            payerAccount {
+                              organizationAccountTags
+                            }
+                            tags
+                          }
                         }
                       }
                     }
@@ -1231,6 +1339,12 @@ CLUSTER_PEERING_QUERY = """
                       field
                       version
                       format
+                    }
+                    organization {
+                      payerAccount {
+                        organizationAccountTags
+                      }
+                      tags
                     }
                   }
                 }
@@ -2231,6 +2345,12 @@ JIRA_BOARDS_QUICK_QUERY = """
         version
         format
       }
+      email {
+        path
+        field
+        version
+        format
+      }
     }
   }
 }
@@ -2336,6 +2456,12 @@ DNS_ZONES_QUERY = """
         field
         version
         format
+      }
+      organization {
+        payerAccount {
+          organizationAccountTags
+        }
+        tags
       }
     }
     vpc {
@@ -2695,6 +2821,10 @@ APP_METADATA = """
           server {
             serverUrl
             token {
+              path
+              field
+            }
+            email {
               path
               field
             }

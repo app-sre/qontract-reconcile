@@ -234,7 +234,7 @@ class SectorConfigError(Exception):
 
 class Sector(BaseModel):
     name: str
-    max_parallel_upgrades: str | None
+    max_parallel_upgrades: str | None = None
     dependencies: list[Sector] = Field(default_factory=list)
     _specs: dict[str, ClusterUpgradeSpec] = PrivateAttr(default_factory=dict)
 

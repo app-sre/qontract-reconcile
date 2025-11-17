@@ -151,6 +151,7 @@ from reconcile.github_org import get_default_config
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
+from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.utils import gql
 from reconcile.utils.aws_api import (
     AmiTag,
@@ -487,15 +488,10 @@ class TerrascriptClient:
         else:
             self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
+        self.default_tags = default_tags or {"app": "app-sre-infra"}
         self.populate_configs(filtered_accounts)
         self.versions: dict[str, str] = {
             a["name"]: a["providerVersion"] for a in filtered_accounts
-        }
-        self.default_tags = {
-            "tags": default_tags
-            or {
-                "app": "app-sre-infra",
-            }
         }
         tss = {}
         locks = {}
@@ -513,7 +509,7 @@ class TerrascriptClient:
                         region=region,
                         alias=region,
                         skip_region_validation=True,
-                        default_tags=self.default_tags,
+                        default_tags={"tags": config["tags"]},
                     )
 
             # Add default region, which will be in resourcesDefaultRegion
@@ -522,7 +518,7 @@ class TerrascriptClient:
                 secret_key=config["aws_secret_access_key"],
                 region=config["resourcesDefaultRegion"],
                 skip_region_validation=True,
-                default_tags=self.default_tags,
+                default_tags={"tags": config["tags"]},
             )
 
             ts += Terraform(
@@ -805,6 +801,9 @@ class TerrascriptClient:
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]
             config["resourcesDefaultRegion"] = account["resourcesDefaultRegion"]
             config["terraformState"] = account["terraformState"]
+            config["tags"] = dict(self.default_tags) | get_aws_account_tags(
+                account.get("organization", None)
+            )
             self.configs[account_name] = config
 
     def _get_partition(self, account: str) -> str:
@@ -1059,7 +1058,9 @@ class TerrascriptClient:
             ignore_changes = (
                 "all" if "all" in lifecycle.ignore_changes else lifecycle.ignore_changes
             )
-            return lifecycle.dict(by_alias=True) | {"ignore_changes": ignore_changes}
+            return lifecycle.model_dump(by_alias=True) | {
+                "ignore_changes": ignore_changes
+            }
         return None
 
     def populate_additional_providers(
@@ -1074,25 +1075,15 @@ class TerrascriptClient:
             config = self.configs[account_name]
             existing_provider_aliases = {p.get("alias") for p in ts["provider"]["aws"]}
             if alias not in existing_provider_aliases:
-                if assume_role:
-                    ts += provider.aws(
-                        access_key=config["aws_access_key_id"],
-                        secret_key=config["aws_secret_access_key"],
-                        region=region,
-                        alias=alias,
-                        assume_role={"role_arn": assume_role},
-                        skip_region_validation=True,
-                        default_tags=self.default_tags,
-                    )
-                else:
-                    ts += provider.aws(
-                        access_key=config["aws_access_key_id"],
-                        secret_key=config["aws_secret_access_key"],
-                        region=region,
-                        alias=alias,
-                        skip_region_validation=True,
-                        default_tags=self.default_tags,
-                    )
+                ts += provider.aws(
+                    access_key=config["aws_access_key_id"],
+                    secret_key=config["aws_secret_access_key"],
+                    region=region,
+                    alias=alias,
+                    skip_region_validation=True,
+                    default_tags={"tags": config["tags"]},
+                    **{"assume_role": {"role_arn": assume_role}} if assume_role else {},
+                )
 
     def populate_route53(
         self, desired_state: Iterable[Mapping[str, Any]], default_ttl: int = 300
@@ -1435,7 +1426,7 @@ class TerrascriptClient:
             req_account_name = req_account.name
             # Accepter's side of the connection - the cluster's account
             acc_account = accepter.account
-            acc_alias = self.get_provider_alias(acc_account.dict(by_alias=True))
+            acc_alias = self.get_provider_alias(acc_account.model_dump(by_alias=True))
             acc_uid = acc_account.uid
             if acc_account.assume_role:
                 acc_uid = awsh.get_account_uid_from_arn(acc_account.assume_role)
@@ -2221,6 +2212,43 @@ class TerrascriptClient:
         letters_and_digits = string.ascii_letters + string.digits
         return "".join(random.choice(letters_and_digits) for i in range(string_length))
 
+    @staticmethod
+    def _build_tf_resource_s3_lifecycle_rules(
+        versioning: bool,
+        common_values: Mapping[str, Any],
+    ) -> list[dict]:
+        lifecycle_rules = common_values.get("lifecycle_rules") or []
+        if versioning and not any(
+            "noncurrent_version_expiration" in lr for lr in lifecycle_rules
+        ):
+            # Add a default noncurrent object expiration rule
+            # if one isn't already set
+            rule = {
+                "id": "expire_noncurrent_versions",
+                "enabled": True,
+                "noncurrent_version_expiration": {"days": 30},
+                "expiration": {"expired_object_delete_marker": True},
+                "abort_incomplete_multipart_upload_days": 3,
+            }
+            lifecycle_rules.append(rule)
+
+        if storage_class := common_values.get("storage_class"):
+            sc = storage_class.upper()
+            days = "1"
+            if sc.endswith("_IA"):
+                # Infrequent Access storage class has minimum 30 days
+                # before transition
+                days = "30"
+            rule = {
+                "id": sc + "_storage_class",
+                "enabled": True,
+                "transition": {"days": days, "storage_class": sc},
+                "noncurrent_version_transition": {"days": days, "storage_class": sc},
+            }
+            lifecycle_rules.append(rule)
+
+        return lifecycle_rules
+
     def populate_tf_resource_s3(self, spec: ExternalResourceSpec) -> aws_s3_bucket:
         account = spec.provisioner_name
         identifier = spec.identifier
@@ -2260,47 +2288,11 @@ class TerrascriptClient:
         request_payer = common_values.get("request_payer")
         if request_payer:
             values["request_payer"] = request_payer
-        lifecycle_rules = common_values.get("lifecycle_rules")
-        if lifecycle_rules:
-            # common_values['lifecycle_rules'] is a list of lifecycle_rules
+        if lifecycle_rules := self._build_tf_resource_s3_lifecycle_rules(
+            versioning=versioning,
+            common_values=common_values,
+        ):
             values["lifecycle_rule"] = lifecycle_rules
-        if versioning:
-            lrs = values.get("lifecycle_rule", [])
-            expiration_rule = False
-            for lr in lrs:
-                if "noncurrent_version_expiration" in lr:
-                    expiration_rule = True
-                    break
-            if not expiration_rule:
-                # Add a default noncurrent object expiration rule if
-                # if one isn't already set
-                rule = {
-                    "id": "expire_noncurrent_versions",
-                    "enabled": "true",
-                    "noncurrent_version_expiration": {"days": 30},
-                }
-                if len(lrs) > 0:
-                    lrs.append(rule)
-                else:
-                    lrs = rule
-        sc = common_values.get("storage_class")
-        if sc:
-            sc = sc.upper()
-            days = "1"
-            if sc.endswith("_IA"):
-                # Infrequent Access storage class has minimum 30 days
-                # before transition
-                days = "30"
-            rule = {
-                "id": sc + "_storage_class",
-                "enabled": "true",
-                "transition": {"days": days, "storage_class": sc},
-                "noncurrent_version_transition": {"days": days, "storage_class": sc},
-            }
-            if values.get("lifecycle_rule"):
-                values["lifecycle_rule"].append(rule)
-            else:
-                values["lifecycle_rule"] = rule
         cors_rules = common_values.get("cors_rules")
         if cors_rules:
             # common_values['cors_rules'] is a list of cors_rules
@@ -5918,7 +5910,8 @@ class TerrascriptClient:
                 return commit.sha
             case "gitlab":
                 gitlab = self.init_gitlab()
-                project = gitlab.get_project(url)
+                if not (project := gitlab.get_project(url)):
+                    raise ValueError(f"could not find gitlab project for url {url}")
                 commits = project.commits.list(ref_name=ref, per_page=1, page=1)
                 return commits[0].id
             case _:

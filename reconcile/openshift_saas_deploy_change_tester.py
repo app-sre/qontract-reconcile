@@ -34,7 +34,7 @@ class Definition(BaseModel):
 class State(BaseModel):
     saas_file_path: str
     saas_file_name: str
-    saas_file_deploy_resources: DeployResourcesV1 | None
+    saas_file_deploy_resources: DeployResourcesV1 | None = None
     resource_template_name: str
     cluster: str
     namespace: str
@@ -44,10 +44,10 @@ class State(BaseModel):
     parameters: dict[str, Any]
     secret_parameters: dict[str, VaultSecret]
     saas_file_definitions: Definition
-    upstream: SaasResourceTemplateTargetUpstreamV1 | None
-    disable: bool | None
-    delete: bool | None
-    target_path: str | None
+    upstream: SaasResourceTemplateTargetUpstreamV1 | None = None
+    disable: bool | None = None
+    delete: bool | None = None
+    target_path: str | None = None
 
 
 def osd_run_wrapper(
@@ -213,11 +213,13 @@ def run(
     saas_file_list = SaasFileList()
     desired_saas_file_state = collect_state(saas_file_list.saas_files)
     # compare dicts against dicts which is much faster than comparing BaseModel objects
-    comparison_saas_file_state_dicts = [s.dict() for s in comparison_saas_file_state]
+    comparison_saas_file_state_dicts = [
+        s.model_dump() for s in comparison_saas_file_state
+    ]
     saas_file_state_diffs = [
         s
         for s in desired_saas_file_state
-        if s.dict() not in comparison_saas_file_state_dicts
+        if s.model_dump() not in comparison_saas_file_state_dicts
     ]
     if not saas_file_state_diffs:
         return

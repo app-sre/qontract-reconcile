@@ -150,7 +150,10 @@ class EndpointsDiscoveryIntegration(
             return []
 
         routes = defaultdict(list)
-        for item in oc.get_items(kind="Route", namespace=namespace.name):
+        for item in oc.get_items(
+            kind="Route.route.openshift.io",
+            namespace=namespace.name,
+        ):
             tls = bool(item["spec"].get("tls"))
             host = item["spec"]["host"]
             # group all routes with the same hostname/tls

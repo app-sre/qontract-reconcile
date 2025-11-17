@@ -288,7 +288,7 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
 
 def test_collect_compare_diffs(saas_files: list[SaasFile]) -> None:
     state_1 = collect_state(saas_files)
-    state_2 = [s.copy() for s in state_1]
+    state_2 = [s.model_copy() for s in state_1]
     state_1[0].ref = "another-branch"
     diffs = collect_compare_diffs(
         state_1, state_2, changed_paths=[state_1[0].saas_file_path]
@@ -300,7 +300,7 @@ def test_collect_compare_diffs(saas_files: list[SaasFile]) -> None:
 
 def test_collect_compare_diffs_other_paths(saas_files: list[SaasFile]) -> None:
     state_1 = collect_state(saas_files)
-    state_2 = [s.copy() for s in state_1]
+    state_2 = [s.model_copy() for s in state_1]
     state_1[0].ref = "another-branch"
     diffs = collect_compare_diffs(
         state_1, state_2, changed_paths=["/some/other-path.yml"]

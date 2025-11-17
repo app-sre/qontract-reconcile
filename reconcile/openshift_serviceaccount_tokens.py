@@ -177,7 +177,7 @@ def canonicalize_namespaces(namespaces: Iterable[NamespaceV1]) -> list[Namespace
             key = f"{sat.namespace.cluster.name}/{sat.namespace.name}"
             if key not in canonicalized_namespaces:
                 canonicalized_namespaces[key] = NamespaceV1(
-                    **sat.namespace.dict(by_alias=True),
+                    **sat.namespace.model_dump(by_alias=True),
                     sharedResources=None,
                     openshiftServiceAccountTokens=None,
                 )
@@ -217,7 +217,7 @@ def run(
         get_namespaces_with_serviceaccount_tokens(gql_api.query)
     )
     ri, oc_map = ob.fetch_current_state(
-        namespaces=[ns.dict(by_alias=True) for ns in namespaces],
+        namespaces=[ns.model_dump(by_alias=True) for ns in namespaces],
         thread_pool_size=thread_pool_size,
         integration=QONTRACT_INTEGRATION,
         integration_version=QONTRACT_INTEGRATION_VERSION,
