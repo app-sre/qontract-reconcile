@@ -9,7 +9,6 @@ from unittest.mock import (
 import pytest
 
 from reconcile.utils import vault
-from reconcile.utils.vault import SECRET_VERSION_LATEST
 
 
 class SleepCalledError(Exception):
@@ -62,5 +61,5 @@ class TestVaultUtils:
             })
             assert result == ({"key": "value"}, "1")
             client._read_all_v2.assert_called_once_with(
-                "test/secret", SECRET_VERSION_LATEST
+                "test/secret", vault.SECRET_VERSION_LATEST
             )
