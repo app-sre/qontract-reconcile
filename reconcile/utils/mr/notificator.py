@@ -35,7 +35,7 @@ class CreateAppInterfaceNotificator(MergeRequestBase):
         email_base_path: Path = Path("data") / "app-interface" / "emails",
         dry_run: bool = False,
     ):
-        self._notification_as_dict = notification.dict()
+        self._notification_as_dict = notification.model_dump()
         super().__init__()
         self._notification = notification
         self._email_base_path = email_base_path
