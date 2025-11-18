@@ -1191,12 +1191,12 @@ def test_oc_recycle(
     oc_cli.recycle(
         dry_run=False,
         namespace="namespace",
-        kind="kind",
+        kind="Deployment",
         name="name",
     )
 
     mock_run.assert_called_once_with(
-        OC_CLI_BASE_CMD + ["rollout", "restart", "kind/name", "-n", "namespace"],
+        OC_CLI_BASE_CMD + ["rollout", "restart", "Deployment/name", "-n", "namespace"],
         input=None,
         capture_output=True,
         check=False,

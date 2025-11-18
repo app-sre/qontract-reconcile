@@ -10,6 +10,7 @@ import re
 import subprocess
 import threading
 import time
+from collections import defaultdict
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cache, wraps
@@ -39,7 +40,6 @@ from kubernetes.dynamic.resource import (
     Resource,
     ResourceList,
 )
-from mypy.binder import defaultdict
 from prometheus_client import Counter
 from sretoolbox.utils import (
     retry,

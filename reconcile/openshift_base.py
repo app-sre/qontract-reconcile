@@ -845,6 +845,9 @@ def patch_desired_resource_for_modify(
     """
     Patch desired resource with recycle annotations to pod template from current resource.
     This is to avoid full pods recycle when changes are not affecting pod template.
+    Note desired annotations can override current annotations.
+    For example, if desired resource has kubectl.kubernetes.io/restartedAt defined,
+    it will be used instead of current resource annotation.
 
     Args:
         desired: desired resource
