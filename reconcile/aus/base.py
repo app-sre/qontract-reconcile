@@ -16,7 +16,7 @@ from typing import (
 )
 
 from croniter import croniter
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel
 from requests.exceptions import HTTPError
 from semver import VersionInfo
 
@@ -46,7 +46,7 @@ from reconcile.aus.models import (
     OrganizationUpgradeSpec,
     Sector,
 )
-from reconcile.aus.version_gates import HANDLERS
+from reconcile.aus.version_gates import HANDLERS, sts_version_gate_handler
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
@@ -79,7 +79,9 @@ from reconcile.utils.datetime_util import (
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.filtering import remove_none_values_from_dict
+from reconcile.utils.jobcontroller.controller import build_job_controller
 from reconcile.utils.ocm.addons import AddonService, AddonServiceV1, AddonServiceV2
+from reconcile.utils.ocm.base import LabelContainer
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
 )
@@ -102,6 +104,7 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.semver_helper import (
     get_version_prefix,
     parse_semver,
@@ -110,6 +113,18 @@ from reconcile.utils.semver_helper import (
 from reconcile.utils.state import init_state
 
 MIN_DELTA_MINUTES = 6
+STS_GATE_LABEL = "api.openshift.com/gate-sts"
+AUS_VERSION_GATE_APPROVALS_LABEL = "sre-capabilities.aus.version-gate-approvals"
+
+
+class RosaRoleUpgradeHandlerParams(PydanticRunParams):
+    job_controller_cluster: str
+    job_controller_namespace: str
+    rosa_job_service_account: str
+    rosa_role: str
+    rosa_job_image: str | None = None
+    integration_name: str
+    integration_version: str
 
 
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
@@ -117,6 +132,7 @@ class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ocm_organization_ids: set[str] | None = None
     excluded_ocm_organization_ids: set[str] | None = None
     ignore_sts_clusters: bool = False
+    rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None
 
 
 class ReconcileError(Exception):
@@ -404,15 +420,20 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
     cluster: OCMCluster
 
-    id: str | None
-    next_run: str | None
-    schedule: str | None
+    id: str | None = None
+    next_run: str | None = None
+    schedule: str | None = None
     schedule_type: str
     version: str
-    state: str | None
+    state: str | None = None
 
     @abstractmethod
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         pass
 
     @abstractmethod
@@ -430,7 +451,7 @@ def addon_upgrade_policy_soonest_next_run() -> str:
     return to_utc_seconds_iso_format(next_run)
 
 
-class AddonUpgradePolicy(AbstractUpgradePolicy):
+class AddonUpgradePolicy(AbstractUpgradePolicy, arbitrary_types_allowed=True):
     """Class to create and delete Addon upgrade policies in OCM"""
 
     addon_id: str
@@ -439,7 +460,12 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
     class Config:
         arbitrary_types_allowed = True
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         self.addon_service.create_addon_upgrade_policy(
             ocm_api=ocm_api,
             cluster_id=self.cluster.id,
@@ -472,13 +498,62 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
     """Class to create ClusterUpgradePolicies in OCM"""
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    organization_id: str
+    cluster_labels: LabelContainer
+
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         policy = {
             "version": self.version,
             "schedule_type": "manual",
             "next_run": self.next_run,
         }
+        if (
+            rosa_role_upgrade_handler_params
+            and secret_reader
+            and self.should_upgrade_roles()
+        ):
+            logging.info(f"Updating account and operator roles for {self.cluster.name}")
+            sts_gate_handler = sts_version_gate_handler.STSGateHandler(
+                job_controller=build_job_controller(
+                    integration=rosa_role_upgrade_handler_params.integration_name,
+                    integration_version=rosa_role_upgrade_handler_params.integration_version,
+                    cluster=rosa_role_upgrade_handler_params.job_controller_cluster,
+                    namespace=rosa_role_upgrade_handler_params.job_controller_namespace,
+                    secret_reader=secret_reader,
+                    dry_run=False,
+                ),
+                aws_iam_role=rosa_role_upgrade_handler_params.rosa_role,
+                rosa_job_service_account=rosa_role_upgrade_handler_params.rosa_job_service_account,
+                rosa_job_image=rosa_role_upgrade_handler_params.rosa_job_image,
+            )
+            if not sts_gate_handler.upgrade_rosa_roles_v2(
+                ocm_api=ocm_api,
+                cluster=self.cluster,
+                dry_run=False,
+                upgrade_version=self.version,
+                ocm_org_id=self.organization_id,
+            ):
+                logging.error(
+                    f"Failed to update account and operator roles for {self.cluster.name}"
+                )
         create_upgrade_policy(ocm_api, self.cluster.id, policy)
+
+    def should_upgrade_roles(self) -> bool:
+        handler_csv = self.cluster_labels.get_label_value(
+            AUS_VERSION_GATE_APPROVALS_LABEL
+        )
+        if not handler_csv:
+            return False
+        return (
+            self.cluster.is_sts()
+            and self.cluster.is_rosa_classic()
+            and STS_GATE_LABEL in set(handler_csv.split(","))
+        )
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         raise NotImplementedError("ClusterUpgradePolicy.delete() not implemented")
@@ -497,7 +572,12 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
 class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete ControlPlanUpgradePolicies in OCM"""
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         policy = {
             "version": self.version,
             "schedule_type": "manual",
@@ -521,10 +601,16 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 
 
 class NodePoolUpgradePolicy(AbstractUpgradePolicy):
-    node_pool: str
     """Class to create NodePoolUpgradePolicies in OCM"""
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    node_pool: str
+
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         policy = {
             "version": self.version,
             "schedule_type": "manual",
@@ -550,13 +636,19 @@ class NodePoolUpgradePolicy(AbstractUpgradePolicy):
         return f"node pool upgrade policy - {remove_none_values_from_dict(details)}"
 
 
-class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
+class UpgradePolicyHandler(BaseModel, extra="forbid"):
     """Class to handle upgrade policy actions"""
 
     action: str
     policy: AbstractUpgradePolicy
 
-    def act(self, dry_run: bool, ocm_api: OCMBaseClient) -> None:
+    def act(
+        self,
+        dry_run: bool,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
         if dry_run:
             return
@@ -566,7 +658,7 @@ class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
         elif self.action == "delete":
             self.policy.delete(ocm_api)
         elif self.action == "create":
-            self.policy.create(ocm_api)
+            self.policy.create(ocm_api, rosa_role_upgrade_handler_params, secret_reader)
 
 
 def fetch_current_state(
@@ -584,6 +676,7 @@ def fetch_current_state(
             )
             current_state.extend(
                 AddonUpgradePolicy(
+                    organization_id=spec.org.org_id,
                     id=addon_upgrade_policy.id,
                     addon_id=addon_spec.addon.addon.id,
                     cluster=spec.cluster,
@@ -620,6 +713,8 @@ def fetch_current_state(
             for upgrade_policy in upgrade_policies:
                 policy = upgrade_policy | {
                     "cluster": spec.cluster,
+                    "organization_id": spec.org.org_id,
+                    "cluster_labels": spec.cluster_labels,
                 }
                 current_state.append(ClusterUpgradePolicy(**policy))
 
@@ -1018,6 +1113,8 @@ def _create_upgrade_policy(
         )
     return ClusterUpgradePolicy(
         cluster=spec.cluster,
+        organization_id=spec.org.org_id,
+        cluster_labels=spec.cluster_labels,
         version=version,
         schedule_type="manual",
         next_run=next_schedule,
@@ -1125,11 +1222,11 @@ def calculate_diff(
                         action="create",
                         policy=AddonUpgradePolicy(
                             action="create",
+                            organization_id=spec.org.org_id,
                             cluster=spec.cluster,
                             version=version,
                             schedule_type="manual",
                             addon_id=addon_id,
-                            upgrade_type="ADDON",
                             addon_service=addon_service,
                         ),
                     )
@@ -1190,6 +1287,8 @@ def act(
     dry_run: bool,
     diffs: list[UpgradePolicyHandler],
     ocm_api: OCMBaseClient,
+    rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+    secret_reader: SecretReaderBase | None = None,
     addon_id: str | None = None,
 ) -> None:
     diffs.sort(key=sort_diffs)
@@ -1202,7 +1301,7 @@ def act(
         ):
             continue
         try:
-            diff.act(dry_run, ocm_api)
+            diff.act(dry_run, ocm_api, rosa_role_upgrade_handler_params, secret_reader)
         except HTTPError as e:
             logging.error(f"{policy.cluster.name}: {e}: {e.response.text}")
 

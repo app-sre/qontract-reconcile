@@ -244,7 +244,7 @@ class ExternalResourcesManager:
             reconciliation = Reconciliation(
                 key=key,
                 resource_hash=resource.hash(),
-                input=resource.json(),
+                input=resource.export(),
                 action=Action.APPLY,
                 module_configuration=module_conf,
                 linked_resources=self._find_linked_resources(spec),

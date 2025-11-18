@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 
 from reconcile.aus.healthchecks import (
     AUSClusterHealthCheckProvider,
@@ -13,6 +14,7 @@ from reconcile.aus.node_pool_spec import get_node_pool_specs_by_org_cluster
 from reconcile.aus.ocm_upgrade_scheduler import OCMClusterUpgradeSchedulerIntegration
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.ocm_environment import OCMEnvironment
+from reconcile.utils.ocm.base import LabelContainer
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
     discover_clusters_for_organizations,
@@ -20,6 +22,12 @@ from reconcile.utils.ocm.clusters import (
 from reconcile.utils.ocm_base_client import init_ocm_base_client
 
 QONTRACT_INTEGRATION = "ocm-upgrade-scheduler-org"
+
+
+@dataclass
+class ClusterUpgradeSpecWithLabels:
+    cluster: OCMCluster
+    cluster_labels: LabelContainer
 
 
 class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegration):
@@ -60,7 +68,10 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
                     specs=self._build_cluster_upgrade_specs(
                         org=org,
                         clusters_by_name={
-                            c.ocm_cluster.name: c.ocm_cluster
+                            c.ocm_cluster.name: ClusterUpgradeSpecWithLabels(
+                                cluster=c.ocm_cluster,
+                                cluster_labels=c.labels,
+                            )
                             for c in clusters_by_org[org.org_id]
                         },
                         cluster_health_provider=build_cluster_health_providers_for_organization(
@@ -79,7 +90,7 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
     def _build_cluster_upgrade_specs(
         self,
         org: AUSOCMOrganization,
-        clusters_by_name: dict[str, OCMCluster],
+        clusters_by_name: dict[str, ClusterUpgradeSpecWithLabels],
         cluster_health_provider: AUSClusterHealthCheckProvider,
         node_pool_specs_by_cluster_id: dict[str, list[NodePoolSpec]],
     ) -> list[ClusterUpgradeSpec]:
@@ -87,12 +98,16 @@ class OCMClusterUpgradeSchedulerOrgIntegration(OCMClusterUpgradeSchedulerIntegra
             ClusterUpgradeSpec(
                 org=org,
                 upgradePolicy=cluster.upgrade_policy,
-                cluster=clusters_by_name[cluster.name],
+                cluster=clusters_by_name[cluster.name].cluster,
+                cluster_labels=clusters_by_name[cluster.name].cluster_labels,
                 health=cluster_health_provider.cluster_health(
-                    cluster_external_id=clusters_by_name[cluster.name].external_id,
+                    cluster_external_id=clusters_by_name[
+                        cluster.name
+                    ].cluster.external_id,
                     org_id=org.org_id,
                 ),
-                nodePools=node_pool_specs_by_cluster_id.get(ocm_cluster.id) or [],
+                nodePools=node_pool_specs_by_cluster_id.get(ocm_cluster.cluster.id)
+                or [],
             )
             for cluster in org.upgrade_policy_clusters or []
             # clusters that are not in the UUID dict will be ignored because

@@ -263,13 +263,13 @@ class GitLabApi:
         # we can determine if a pending MR exists based on the title
         return any(mr.title == title for mr in mrs)
 
-    @retry()
+    @retry(no_retry_exceptions=(RuntimeError,))
     def get_project_maintainers(
         self, repo_url: str | None = None, query: dict | None = None
-    ) -> list[str] | None:
+    ) -> list[str]:
         project = self.project if repo_url is None else self.get_project(repo_url)
         if project is None:
-            return None
+            raise RuntimeError("project not found")
         members = project.members_all.list(iterator=True, query_parameters=query or {})
         return [m.username for m in members if m.access_level >= 40]
 
@@ -826,14 +826,16 @@ class GitLabApi:
         )
 
     def get_commit_sha(self, ref: str, repo_url: str) -> str:
-        project = self.get_project(repo_url)
+        if not (project := self.get_project(repo_url)):
+            raise ValueError(f"Project not found for repo_url: {repo_url}")
         commits = project.commits.list(ref_name=ref, per_page=1, page=1)
         return commits[0].id
 
     def repository_compare(
         self, repo_url: str, ref_from: str, ref_to: str
     ) -> list[dict[str, Any]]:
-        project = self.get_project(repo_url)
+        if not (project := self.get_project(repo_url)):
+            raise ValueError(f"Project not found for repo_url: {repo_url}")
         response: Any = project.repository_compare(ref_from, ref_to)
         return response.get("commits", [])
 
