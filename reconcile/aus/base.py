@@ -603,6 +603,8 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 class NodePoolUpgradePolicy(AbstractUpgradePolicy):
     """Class to create NodePoolUpgradePolicies in OCM"""
 
+    node_pool: str
+
     def create(
         self,
         ocm_api: OCMBaseClient,
