@@ -75,8 +75,10 @@ from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
 )
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "advanced-upgrade-scheduler"
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration):
@@ -378,6 +380,7 @@ def _build_org_upgrade_spec(
                     org=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                     cluster=c.ocm_cluster,
+                    cluster_labels=c.labels,
                     health=cluster_health,
                     nodePools=node_pool_specs_by_cluster_id.get(c.ocm_cluster.id) or [],
                 )

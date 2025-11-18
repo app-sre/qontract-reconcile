@@ -112,6 +112,7 @@ def test_get_ocm_env_upgrade_specs(
         org=org,
         upgradePolicy=upgrade_policy_cluster.upgrade_policy,
         cluster=cluster.ocm_cluster,
+        cluster_labels=cluster.labels,
         health=AUSClusterHealth(state={}),
         nodePools=[node_pool_spec],
     )
