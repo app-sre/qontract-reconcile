@@ -1,14 +1,16 @@
 import base64
 import time
 from collections.abc import Callable, Mapping
-from typing import Any
-from unittest.mock import MagicMock
+from typing import Any, cast
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from pytest_mock import MockerFixture
 
 import reconcile.openshift_rhcs_certs as rhcs_certs
-from reconcile.gql_definitions.rhcs.certs import NamespaceV1
+from reconcile.gql_definitions.rhcs.certs import (
+    NamespaceV1,
+)
 from reconcile.openshift_rhcs_certs import (
     QONTRACT_INTEGRATION,
     QONTRACT_INTEGRATION_VERSION,
@@ -18,10 +20,35 @@ from reconcile.openshift_rhcs_certs import (
 )
 from reconcile.test.fixtures import Fixtures
 from reconcile.typed_queries.rhcs_provider_settings import RhcsProviderSettingsV1
-from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
-from reconcile.utils.rhcsv2_certs import RhcsV2Cert
+from reconcile.utils.rhcsv2_certs import (
+    CertificateFormat,
+    RhcsV2CertPem,
+    RhcsV2CertPkcs12,
+)
 from reconcile.utils.vault import SecretNotFoundError
+
+
+def build_vault_cert_data(
+    cert_format: str = "PEM", expiring: bool = False
+) -> dict[str, str]:
+    """Helper to build vault certificate data for different formats."""
+    expiry_days = 1 if expiring else 120
+    expiry_timestamp = str(int(time.time()) + 86400 * expiry_days)
+
+    if cert_format == "PKCS12":
+        return {
+            "keystore.pkcs12.b64": "VALID_KEYSTORE",
+            "truststore.pkcs12.b64": "VALID_TRUSTSTORE",
+            "expiration_timestamp": expiry_timestamp,
+        }
+    else:
+        return {
+            "tls.crt": "VALID_CERT" if not expiring else "EXPIRED_CERT",
+            "tls.key": "VALID_KEY" if not expiring else "EXPIRED_KEY",
+            "ca.crt": "CA_CERT",
+            "expiration_timestamp": expiry_timestamp,
+        }
 
 
 @pytest.fixture
@@ -65,6 +92,88 @@ def ri(namespaces: list[NamespaceV1]) -> ResourceInventory:
     return ri_
 
 
+def assert_vault_writes_contain_cert_data__new_certs(vault_mock: MagicMock) -> None:
+    """Validate vault writes contain correct certificate data using explicit call verification."""
+    vault_mock.write.assert_has_calls(
+        [
+            # PEM certificates
+            call(
+                secret={
+                    "path": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-1",
+                    "data": {
+                        "tls.crt": ANY,
+                        "tls.key": ANY,
+                        "ca.crt": ANY,
+                        "expiration_timestamp": ANY,
+                    },
+                },
+                decode_base64=False,
+            ),
+            call(
+                secret={
+                    "path": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-2",
+                    "data": {
+                        "tls.crt": ANY,
+                        "tls.key": ANY,
+                        "ca.crt": ANY,
+                        "expiration_timestamp": ANY,
+                    },
+                },
+                decode_base64=False,
+            ),
+            call(
+                secret={
+                    "path": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-shared",
+                    "data": {
+                        "tls.crt": ANY,
+                        "tls.key": ANY,
+                        "ca.crt": ANY,
+                        "expiration_timestamp": ANY,
+                    },
+                },
+                decode_base64=False,
+            ),
+            # PKCS12 certificates
+            call(
+                secret={
+                    "path": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-pkcs12",
+                    "data": {
+                        "keystore.pkcs12.b64": ANY,
+                        "truststore.pkcs12.b64": ANY,
+                        "expiration_timestamp": ANY,
+                    },
+                },
+                decode_base64=False,
+            ),
+            call(
+                secret={
+                    "path": f"app-interface/integrations-output/{QONTRACT_INTEGRATION}/cluster/with-openshift-rhcs-certs/test-cert-shared-pkcs12",
+                    "data": {
+                        "keystore.pkcs12.b64": ANY,
+                        "truststore.pkcs12.b64": ANY,
+                        "expiration_timestamp": ANY,
+                    },
+                },
+                decode_base64=False,
+            ),
+        ],
+        any_order=True,
+    )
+
+
+def create_vault_read_all_side_effect(
+    secrets_by_name: dict[str, dict[str, str]],
+) -> Callable:
+    """Create a vault read_all side effect function that returns different cert data based on path endings."""
+
+    def read_all_side_effect(secret: dict) -> dict[str, str]:
+        path = secret["path"]
+        secret_name = path.split("/")[-1]
+        return secrets_by_name[secret_name]
+
+    return read_all_side_effect
+
+
 @pytest.fixture
 def mock_rhcs_cert_provider(mocker: MockerFixture) -> MagicMock:
     mock_provider = RhcsProviderSettingsV1(
@@ -79,18 +188,33 @@ def mock_rhcs_cert_provider(mocker: MockerFixture) -> MagicMock:
 
 @pytest.fixture
 def mock_cert_generator(mocker: MockerFixture) -> MagicMock:
-    fake_cert = RhcsV2Cert(
-        certificate="PEM_ENCODED_CERTIFICATE",
-        private_key="PEM_ENCODED_PRIVATE_KEY",
-        ca_cert="PLACEHOLDER_CA_CERT",
-        expiration_timestamp=123456789,
-    )
+    """Smart certificate generator mock that returns appropriate format based on cert_format parameter."""
+
+    def generate_cert_mock(
+        *args: Any, **kwargs: Any
+    ) -> RhcsV2CertPkcs12 | RhcsV2CertPem:
+        cert_format = kwargs.get("cert_format", "PEM")
+        if cert_format == "PKCS12":
+            return RhcsV2CertPkcs12(
+                pkcs12_keystore="FAKE_BASE64_KEYSTORE_DATA",
+                pkcs12_truststore="FAKE_BASE64_TRUSTSTORE_DATA",
+                expiration_timestamp=123456789,
+            )
+        else:
+            return RhcsV2CertPem(
+                certificate="PEM_ENCODED_CERTIFICATE",
+                private_key="PEM_ENCODED_PRIVATE_KEY",
+                ca_cert="PLACEHOLDER_CA_CERT",
+                expiration_timestamp=123456789,
+            )
+
     return mocker.patch(
-        "reconcile.openshift_rhcs_certs.generate_cert", return_value=fake_cert
+        "reconcile.openshift_rhcs_certs.generate_cert", side_effect=generate_cert_mock
     )
 
 
-def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource() -> None:
+def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource_pem() -> None:
+    """Test PEM format creates TLS secret with correct data."""
     qr = construct_rhcs_cert_oc_secret(
         "foobar",
         {
@@ -100,6 +224,7 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource() -> None:
             "expiration_timestamp": 123456789,
         },
         {"foo": "bar"},
+        CertificateFormat.PEM,
     )
     assert qr.body == {
         "apiVersion": "v1",
@@ -115,6 +240,35 @@ def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource() -> None:
     }
 
 
+def test_openshift_rhcs_certs__construct_rhcs_cert_secret_oc_resource_pkcs12() -> None:
+    """Test PKCS#12 format creates Opaque secret with correct data."""
+    qr = construct_rhcs_cert_oc_secret(
+        "pkcs12-secret",
+        {
+            "keystore.pkcs12.b64": "FAKE_BASE64_KEYSTORE_DATA",
+            "truststore.pkcs12.b64": "FAKE_BASE64_TRUSTSTORE_DATA",
+            "expiration_timestamp": 123456789,
+        },
+        {"test": "annotation"},
+        CertificateFormat.PKCS12,
+    )
+    assert qr.body == {
+        "apiVersion": "v1",
+        "data": {
+            "keystore.pkcs12.b64": base64.b64encode(
+                b"FAKE_BASE64_KEYSTORE_DATA"
+            ).decode(),
+            "truststore.pkcs12.b64": base64.b64encode(
+                b"FAKE_BASE64_TRUSTSTORE_DATA"
+            ).decode(),
+            "expiration_timestamp": base64.b64encode(b"123456789").decode(),
+        },
+        "kind": "Secret",
+        "metadata": {"name": "pkcs12-secret", "annotations": {"test": "annotation"}},
+        "type": "Opaque",
+    }
+
+
 def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     mocker: MockerFixture,
     mock_rhcs_cert_provider: MagicMock,
@@ -123,6 +277,7 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
+    """Test that new rhcs-cert definitions trigger generation"""
     mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient.get_instance")
     vault_instance = mock_vault.return_value
     vault_instance.read_all.side_effect = SecretNotFoundError("not found")
@@ -135,28 +290,14 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs(
     expected_cert_count = sum(
         1 for ns in namespaces for r in ns.openshift_resources or []
     )
-    expected_vault_paths: set[str] = {
-        f"app-interface/integrations-output/{QONTRACT_INTEGRATION}"
-        f"/{ns.cluster.name}/{ns.name}/{r.secret_name}"
-        for ns in namespaces
-        for r in ns.openshift_resources or []
-    }
 
     assert mock_cert_generator.call_count == expected_cert_count
     assert vault_instance.write.call_count == expected_cert_count
-
-    for call_ in vault_instance.write.call_args_list:
-        secret = call_.kwargs["secret"]
-        assert secret["path"] in expected_vault_paths, (
-            f"unexpected path {secret['path']}"
-        )
-        assert "tls.crt" in secret["data"]
-        assert "expiration_timestamp" in secret["data"]
-
-    # only the two *inline* certs belong to this namespace
+    assert_vault_writes_contain_cert_data__new_certs(vault_instance)
+    # inline certs + shared certs belonging to this namespace
     assert (
         len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
-        == 3
+        == 5
     )
     assert "with-different-openshift-resource-providers" not in ri._clusters["cluster"]
 
@@ -181,10 +322,9 @@ def test_openshift_rhcs_certs__fetch_desired_state_new_certs_dry_run(
 
     vault_instance.write.assert_not_called()
     mock_cert_generator.assert_not_called()
-
     assert (
         len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
-        == 3
+        == 5
     )
     assert "with-different-openshift-resource-providers" not in ri._clusters["cluster"]
 
@@ -197,29 +337,23 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
+    """Test that valid certificates in vault are reused without regeneration."""
     mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient.get_instance")
     vault_instance = mock_vault.return_value
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
     mocker.patch("reconcile.openshift_rhcs_certs.metrics.set_gauge")
 
-    ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["current"][
-        "test-cert-1"
-    ] = OR(
-        integration=QONTRACT_INTEGRATION,
-        integration_version=QONTRACT_INTEGRATION_VERSION,
-        body={
-            "apiVersion": "v1",
-            "data": {
-                "tls.crt": "PEM_ENCODED_CERTIFICATE",
-                "tls.key": "PEM_ENCODED_PRIVATE_KEY",
-                "ca.crt": "PEM_ENCODED_CA_CERT",
-                "expiration_timestamp": "123456789",
-            },
-            "kind": "Secret",
-            "metadata": {"name": "test-cert-1"},
-            "type": "kubernetes.io/tls",
-        },
+    # Set up vault to return valid, non-expired certificate data for all cert types
+    cert_secrets_by_name = {
+        "test-cert-1": build_vault_cert_data("PEM", expiring=False),
+        "test-cert-2": build_vault_cert_data("PEM", expiring=False),
+        "test-cert-shared": build_vault_cert_data("PEM", expiring=False),
+        "test-cert-pkcs12": build_vault_cert_data("PKCS12", expiring=False),
+        "test-cert-shared-pkcs12": build_vault_cert_data("PKCS12", expiring=False),
+    }
+    vault_instance.read_all.side_effect = create_vault_read_all_side_effect(
+        cert_secrets_by_name
     )
 
     fetch_desired_state(False, namespaces, ri, query_func)
@@ -229,11 +363,9 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
     )
     assert mock_cert_generator.call_count == total_cert_objects
     assert vault_instance.write.call_count == total_cert_objects
-
-    # desired now contains three secrets for the inline namespace
     assert (
         len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
-        == 3
+        == 5
     )
     assert "with-different-openshift-resource-providers" not in ri._clusters["cluster"]
 
@@ -245,36 +377,27 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
     ri: ResourceInventory,
     query_func: Callable,
 ) -> None:
-    expiring_cert = {
-        "tls.crt": "EXPIRED_CERT",
-        "tls.key": "EXPIRED_KEY",
-        "ca.crt": "CA_CERT",
-        "expiration_timestamp": str(int(time.time()) + 86400),  # 1 day from now
-    }
-    valid_cert = {
-        "tls.crt": "VALID_CERT",
-        "tls.key": "VALID_KEY",
-        "ca.crt": "CA_CERT",
-        "expiration_timestamp": str(int(time.time()) + 86400 * 120),  # 120 days
-    }
-
+    """Test that only expired certificates are regenerated."""
     mock_vault = mocker.patch("reconcile.openshift_rhcs_certs.VaultClient.get_instance")
     vault_instance = mock_vault.return_value
-
-    # Simulate returning [expiring_cert, valid_cert] for cert-1 and cert-2 respectively
-    def read_all_side_effect(secret: dict) -> dict[str, str]:
-        path = secret["path"]
-        if path.endswith("test-cert-1"):
-            return expiring_cert
-        elif path.endswith("test-cert-2") or path.endswith("test-cert-shared"):
-            return valid_cert
-        raise ValueError(f"Unexpected path: {path}")
-
-    vault_instance.read_all.side_effect = read_all_side_effect
     vault_instance.read.return_value = "FAKE_SA_PASSWORD"
     vault_instance.write.return_value = None
 
-    new_cert = RhcsV2Cert(
+    # Set up mixed scenario: some expired, some valid certificates
+    cert_secrets_by_name = {
+        "test-cert-1": build_vault_cert_data("PEM", expiring=True),  # This will expire
+        "test-cert-2": build_vault_cert_data("PEM", expiring=False),  # Valid
+        "test-cert-shared": build_vault_cert_data("PEM", expiring=False),  # Valid
+        "test-cert-pkcs12": build_vault_cert_data("PKCS12", expiring=False),  # Valid
+        "test-cert-shared-pkcs12": build_vault_cert_data(
+            "PKCS12", expiring=False
+        ),  # Valid
+    }
+    vault_instance.read_all.side_effect = create_vault_read_all_side_effect(
+        cert_secrets_by_name
+    )
+
+    new_cert = RhcsV2CertPem(
         certificate="NEW_CERT",
         private_key="NEW_KEY",
         ca_cert="CA_CERT",
@@ -286,33 +409,11 @@ def test_openshift_rhcs_certs__fetch_desired_state_expired_cert(
 
     mocker.patch("reconcile.openshift_rhcs_certs.metrics.set_gauge")
 
-    # Populate cluster with both current certs
-    for cert_name in ["test-cert-1", "test-cert-2"]:
-        ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["current"][
-            cert_name
-        ] = OR(
-            integration=QONTRACT_INTEGRATION,
-            integration_version=QONTRACT_INTEGRATION_VERSION,
-            body={
-                "apiVersion": "v1",
-                "data": {
-                    "tls.crt": "PEM_ENCODED_CERTIFICATE",
-                    "tls.key": "PEM_ENCODED_PRIVATE_KEY",
-                    "ca.crt": "PEM_ENCODED_CA_CERT",
-                    "expiration_timestamp": "123456789",
-                },
-                "kind": "Secret",
-                "metadata": {"name": cert_name},
-                "type": "kubernetes.io/tls",
-            },
-        )
-
     fetch_desired_state(False, namespaces, ri, query_func)
 
     # Only the expiring cert should be regenerated and written
     assert mock_cert_generator.call_count == 1
     assert vault_instance.write.call_count == 1
-
     # Assert correct data was written to Vault
     secret_data = vault_instance.write.call_args[1]["secret"]["data"]
     assert secret_data["tls.crt"] == "NEW_CERT"
@@ -329,11 +430,10 @@ def test_openshift_rhcs_certs__get_namespaces_with_shared_resources(
     """
     namespaces = get_namespaces_with_rhcs_certs(query_func)
     ns_by_name = {ns.name: ns for ns in namespaces}
-    assert "with-openshift-rhcs-certs" in ns_by_name
-
     shared_ns = ns_by_name["cert-from-shared-resources"]
-    assert shared_ns.openshift_resources, "shared resources not aggregated"
 
+    assert "with-openshift-rhcs-certs" in ns_by_name
+    assert shared_ns.openshift_resources, "shared resources not aggregated"
     assert any(r for r in shared_ns.openshift_resources), (
         "RHCS-cert not propagated from sharedResources"
     )
