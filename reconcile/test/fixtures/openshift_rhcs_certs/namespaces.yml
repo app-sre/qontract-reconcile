@@ -20,8 +20,7 @@ namespaces:
       field: password
       version: 1
     auto_renew_threshold_days: 14
-  - provider: rhcs-cert
-    secret_name: test-cert-pkcs12
+  - secret_name: test-cert-pkcs12
     service_account_name: app-sre-rhcs-dev
     service_account_password:
       path: app-sre/creds/app-sre-rhcs-dev
@@ -39,8 +38,7 @@ namespaces:
             field: password
             version: 1
           auto_renew_threshold_days: 30
-        - provider: rhcs-cert
-          secret_name: test-cert-shared-pkcs12
+        - secret_name: test-cert-shared-pkcs12
           service_account_name: app-sre-rhcs-dev
           service_account_password:
             path: app-sre/creds/app-sre-rhcs-dev

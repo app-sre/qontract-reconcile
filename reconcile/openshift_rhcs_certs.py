@@ -71,10 +71,6 @@ class OpenshiftRhcsCertExpiration(GaugeMetric):
         return "qontract_reconcile_rhcs_cert_expiration_timestamp"
 
 
-def _is_rhcs_cert(obj: Any) -> bool:
-    return getattr(obj, "provider", None) == "rhcs-cert"
-
-
 def _generate_placeholder_cert(
     cert_format: CertificateFormat,
 ) -> RhcsV2CertPem | RhcsV2CertPkcs12:

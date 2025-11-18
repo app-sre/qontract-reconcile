@@ -1,7 +1,7 @@
 import base64
 import time
 from collections.abc import Callable, Mapping
-from typing import Any, cast
+from typing import Any
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
@@ -13,7 +13,6 @@ from reconcile.gql_definitions.rhcs.certs import (
 )
 from reconcile.openshift_rhcs_certs import (
     QONTRACT_INTEGRATION,
-    QONTRACT_INTEGRATION_VERSION,
     construct_rhcs_cert_oc_secret,
     fetch_desired_state,
     get_namespaces_with_rhcs_certs,
@@ -358,11 +357,9 @@ def test_openshift_rhcs_certs__fetch_desired_state_existing_certs(
 
     fetch_desired_state(False, namespaces, ri, query_func)
 
-    total_cert_objects = sum(
-        1 for ns in namespaces for r in ns.openshift_resources or []
-    )
-    assert mock_cert_generator.call_count == total_cert_objects
-    assert vault_instance.write.call_count == total_cert_objects
+    # Since all certificates are valid and non-expired, none should be regenerated
+    assert mock_cert_generator.call_count == 0
+    assert vault_instance.write.call_count == 0
     assert (
         len(ri._clusters["cluster"]["with-openshift-rhcs-certs"]["Secret"]["desired"])
         == 5
