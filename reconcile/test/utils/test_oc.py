@@ -1,5 +1,6 @@
 import logging
 import os
+from subprocess import CompletedProcess
 from typing import Any, TypedDict, cast
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -636,6 +637,17 @@ class TestOCMapGetClusters(TestCase):
         self.assertFalse(oc_map.get(cluster["name"]))
 
 
+OC_CLI_BASE_CMD = [
+    "oc",
+    "--kubeconfig",
+    "/dev/null",
+    "--server",
+    "server",
+    "--token",
+    "token",
+]
+
+
 @pytest.fixture
 def oc_cli(monkeypatch: pytest.MonkeyPatch) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
@@ -710,22 +722,22 @@ def test_get_resources_used_in_pod_spec_configmap(
 
 
 def test_secret_used_in_pod_true(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.secret_used_in_pod("secret1", pod)
+    result = oc_cli.is_resource_used_in_pod("secret1", "Secret", pod)
     assert result is True
 
 
 def test_secret_used_in_pod_false(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.secret_used_in_pod("secret9999", pod)
+    result = oc_cli.is_resource_used_in_pod("secret9999", "Secret", pod)
     assert result is False
 
 
 def test_configmap_used_in_pod_true(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.configmap_used_in_pod("configmap1", pod)
+    result = oc_cli.is_resource_used_in_pod("configmap1", "ConfigMap", pod)
     assert result is True
 
 
 def test_configmap_used_in_pod_false(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.configmap_used_in_pod("configmap9999", pod)
+    result = oc_cli.is_resource_used_in_pod("configmap9999", "ConfigMap", pod)
     assert result is False
 
 
@@ -1160,6 +1172,85 @@ def test_parse_kind_string_parametrized(
     assert kind == expected_kind
     assert group == expected_group
     assert version == expected_version
+
+
+def test_oc_recycle(
+    oc_cli: OCCli,
+    mocker: MockerFixture,
+) -> None:
+    mock_run = mocker.patch(
+        "reconcile.utils.oc.subprocess.run",
+        return_value=CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=b"{}",
+            stderr=b"",
+        ),
+    )
+
+    oc_cli.recycle(
+        dry_run=False,
+        namespace="namespace",
+        kind="kind",
+        name="name",
+    )
+
+    mock_run.assert_called_once_with(
+        OC_CLI_BASE_CMD + ["rollout", "restart", "kind/name", "-n", "namespace"],
+        input=None,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_oc_recycle_pods(
+    oc_cli: OCCli,
+    mocker: MockerFixture,
+    pod: dict[str, Any],
+    deployment: dict[str, Any],
+) -> None:
+    mock_get = mocker.patch.object(
+        oc_cli,
+        "get",
+        return_value={"items": [pod]},
+    )
+    mock_get_obj_root_owner = mocker.patch.object(
+        oc_cli,
+        "get_obj_root_owner",
+        return_value=deployment,
+    )
+    mock_recycle = mocker.patch.object(oc_cli, "recycle")
+
+    oc_cli.recycle_pods(
+        dry_run=False,
+        namespace="namespace",
+        resource=OR(
+            body={
+                "metadata": {
+                    "name": "secret1",
+                    "annotations": {
+                        "qontract.recycle": "true",
+                    },
+                },
+                "kind": "Secret",
+            },
+            integration="test-integration",
+            integration_version="0.0.1",
+        ),
+    )
+
+    mock_get.assert_called_once_with("namespace", "Pod")
+    mock_get_obj_root_owner.assert_called_once_with(
+        "namespace",
+        pod,
+        allow_not_found=True,
+    )
+    mock_recycle.assert_called_once_with(
+        dry_run=False,
+        namespace="namespace",
+        kind="Deployment",
+        name="busybox",
+    )
 
 
 @pytest.fixture

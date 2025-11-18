@@ -588,7 +588,7 @@ def apply(
                 oc.resize_pvcs(namespace, owned_pvc_names, desired_storage)
 
     if recycle_pods:
-        oc.recycle_pods(dry_run, namespace, resource_type, resource)
+        oc.recycle_pods(dry_run, namespace, resource)
 
 
 def create(
