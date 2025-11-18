@@ -7,6 +7,7 @@ from enum import Enum  # noqa: F401 # pylint: disable=W0611
 from typing import (  # noqa: F401 # pylint: disable=W0611
     Any,
     Optional,
+    Union,
 )
 
 from pydantic import (  # noqa: F401 # pylint: disable=W0611
