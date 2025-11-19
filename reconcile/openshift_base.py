@@ -838,7 +838,7 @@ def handle_identical_resources(
     return actions
 
 
-def patch_desired_resource_for_modify(
+def patch_desired_resource_for_recycle_annotations(
     desired: OR,
     current: OR,
 ) -> OR:
@@ -917,17 +917,13 @@ def handle_modified_resources(
                 "privileged": options.privileged,
             }
             actions.append(action)
-            resource = patch_desired_resource_for_modify(
-                desired=dp.desired,
-                current=dp.current,
-            )
             apply_action(
                 oc_map=oc_map,
                 ri=ri,
                 cluster=cluster,
                 namespace=namespace,
                 resource_type=resource_type,
-                resource=resource,
+                resource=dp.desired,
                 options=options,
             )
     return actions
@@ -1086,6 +1082,12 @@ def _realize_resource_data_3way_diff(
     # only allow to override enable_deletion if no errors were found
     if options.enable_deletion and options.override_enable_deletion is False:
         options.enable_deletion = False
+
+    for k in data["current"].keys() & data["desired"].keys():
+        patch_desired_resource_for_recycle_annotations(
+            desired=data["desired"][k],
+            current=data["current"][k],
+        )
 
     diff_result = differ.diff_mappings(
         data["current"], data["desired"], equal=three_way_diff_using_hash

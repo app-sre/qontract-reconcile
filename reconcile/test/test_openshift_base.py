@@ -1132,98 +1132,6 @@ def test_handle_modified_resources(
 
 
 @pytest.mark.parametrize(
-    ("kind", "annotation"),
-    [
-        ("DaemonSet", "kubectl.kubernetes.io/restartedAt"),
-        ("DaemonSet", "openshift.openshift.io/restartedAt"),
-        ("Deployment", "kubectl.kubernetes.io/restartedAt"),
-        ("Deployment", "openshift.openshift.io/restartedAt"),
-        ("DeploymentConfig", "kubectl.kubernetes.io/restartedAt"),
-        ("DeploymentConfig", "openshift.openshift.io/restartedAt"),
-        ("StatefulSet", "kubectl.kubernetes.io/restartedAt"),
-        ("StatefulSet", "openshift.openshift.io/restartedAt"),
-    ],
-)
-def test_handle_modified_resources_keep_recycle_annotations(
-    mocker: MockerFixture,
-    oc_map: oc.OC_Map,
-    resource_inventory: resource.ResourceInventory,
-    kind: str,
-    annotation: str,
-    apply_options: sut.ApplyOptions,
-) -> None:
-    apply_mock = mocker.patch.object(sut, "apply", autospec=True)
-
-    cluster = "test-cluster"
-    namespace = "test-namespace"
-    data = {"use_admin_token": {"test-resource": False}}
-
-    current = build_openshift_resource(
-        kind=kind,
-        api_version="v1",
-        name="test-resource",
-        extra_body={
-            "spec": {
-                "replicas": 3,
-                "template": {
-                    "metadata": {"annotations": {annotation: "2024-01-01T00:00:00Z"}}
-                },
-            },
-        },
-        caller_name="saas-test",
-    )
-    desired = build_openshift_resource(
-        kind=kind,
-        api_version="v1",
-        name="test-resource",
-        extra_body={
-            "spec": {"replicas": 6},
-        },
-        caller_name="saas-test",
-    )
-    modified_resources = {"test-resource": DiffPair(current, desired)}
-
-    actions = sut.handle_modified_resources(
-        oc_map=oc_map,
-        ri=resource_inventory,
-        modified_resources=modified_resources,
-        cluster=cluster,
-        namespace=namespace,
-        resource_type=kind,
-        data=data,
-        options=apply_options,
-    )
-
-    assert len(actions) == 1
-    apply_mock.assert_called_with(
-        dry_run=True,
-        oc_map=oc_map,
-        cluster=cluster,
-        namespace=namespace,
-        resource_type=kind,
-        resource=build_openshift_resource(
-            kind=kind,
-            api_version="v1",
-            name="test-resource",
-            extra_body={
-                "spec": {
-                    "replicas": 6,
-                    "template": {
-                        "metadata": {
-                            "annotations": {annotation: "2024-01-01T00:00:00Z"}
-                        }
-                    },
-                },
-            },
-            caller_name="saas-test",
-        ),
-        wait_for_namespace=True,
-        recycle_pods=True,
-        privileged=False,
-    )
-
-
-@pytest.mark.parametrize(
     "apply_options, should_take_over, should_error_ri",
     [
         (  # Same Caller and Identical Resource. Nothing should happen
@@ -1447,6 +1355,97 @@ def test_realize_resource_data_3way_diff(
     assert len(actions) == len_actions
     assert apply_mock.call_count == apply_calls
     assert delete_mock.call_count == delete_calls
+
+
+@pytest.mark.parametrize(
+    ("kind", "annotation"),
+    [
+        ("DaemonSet", "kubectl.kubernetes.io/restartedAt"),
+        ("DaemonSet", "openshift.openshift.io/restartedAt"),
+        ("Deployment", "kubectl.kubernetes.io/restartedAt"),
+        ("Deployment", "openshift.openshift.io/restartedAt"),
+        ("DeploymentConfig", "kubectl.kubernetes.io/restartedAt"),
+        ("DeploymentConfig", "openshift.openshift.io/restartedAt"),
+        ("StatefulSet", "kubectl.kubernetes.io/restartedAt"),
+        ("StatefulSet", "openshift.openshift.io/restartedAt"),
+    ],
+)
+def test_realize_resource_data_3way_diff_keep_recycle_annotations(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    kind: str,
+    annotation: str,
+    apply_options: sut.ApplyOptions,
+) -> None:
+    apply_mock = mocker.patch.object(sut, "apply", autospec=True)
+
+    cluster = "test-cluster"
+    namespace = "test-namespace"
+
+    current = build_openshift_resource(
+        kind=kind,
+        api_version="v1",
+        name="test-resource",
+        extra_body={
+            "spec": {
+                "replicas": 3,
+                "template": {
+                    "metadata": {"annotations": {annotation: "2024-01-01T00:00:00Z"}}
+                },
+            },
+        },
+        caller_name="saas-test",
+    )
+    desired = build_openshift_resource(
+        kind=kind,
+        api_version="v1",
+        name="test-resource",
+        extra_body={
+            "spec": {"replicas": 6},
+        },
+        caller_name="saas-test",
+    )
+    data = {
+        "current": {"test-resource": current},
+        "desired": {"test-resource": desired},
+        "use_admin_token": {"test-resource": False},
+    }
+
+    actions = sut._realize_resource_data_3way_diff(
+        oc_map=oc_map,
+        ri_item=(cluster, namespace, kind, data),
+        ri=resource_inventory,
+        options=apply_options,
+    )
+
+    assert len(actions) == 1
+    apply_mock.assert_called_with(
+        dry_run=True,
+        oc_map=oc_map,
+        cluster=cluster,
+        namespace=namespace,
+        resource_type=kind,
+        resource=build_openshift_resource(
+            kind=kind,
+            api_version="v1",
+            name="test-resource",
+            extra_body={
+                "spec": {
+                    "replicas": 6,
+                    "template": {
+                        "metadata": {
+                            "annotations": {annotation: "2024-01-01T00:00:00Z"}
+                        }
+                    },
+                },
+            },
+            caller_name="saas-test",
+        ),
+        wait_for_namespace=True,
+        recycle_pods=True,
+        privileged=False,
+    )
 
 
 def test_get_state_count_combinations() -> None:
