@@ -10,6 +10,7 @@ import re
 import subprocess
 import threading
 import time
+from collections import defaultdict
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import cache, wraps
@@ -46,7 +47,6 @@ from sretoolbox.utils import (
 )
 
 from reconcile.status import RunningState
-from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.json import json_dumps
 from reconcile.utils.jump_host import (
     JumphostParameters,
@@ -70,6 +70,16 @@ urllib3.disable_warnings()
 GET_REPLICASET_MAX_ATTEMPTS = 20
 DEFAULT_GROUP = ""
 PROJECT_KIND = "Project.project.openshift.io"
+POD_RECYCLE_SUPPORTED_TRIGGER_KINDS = [
+    "ConfigMap",
+    "Secret",
+]
+POD_RECYCLE_SUPPORTED_OWNER_KINDS = [
+    "DaemonSet",
+    "Deployment",
+    "DeploymentConfig",
+    "StatefulSet",
+]
 
 oc_run_execution_counter = Counter(
     name="oc_run_execution_counter",
@@ -123,14 +133,6 @@ class NoOutputError(Exception):
 
 
 class JSONParsingError(Exception):
-    pass
-
-
-class RecyclePodsUnsupportedKindError(Exception):
-    pass
-
-
-class RecyclePodsInvalidAnnotationValueError(Exception):
     pass
 
 
@@ -922,108 +924,105 @@ class OCCli:
             if not status["ready"]:
                 raise PodNotReadyError(name)
 
-    def recycle_pods(
-        self, dry_run: bool, namespace: str, dep_kind: str, dep_resource: OR
-    ) -> None:
-        """recycles pods which are using the specified resources.
-        will only act on Secrets containing the 'qontract.recycle' annotation.
-        dry_run: simulate pods recycle.
-        namespace: namespace in which dependant resource is applied.
-        dep_kind: dependant resource kind. currently only supports Secret.
-        dep_resource: dependant resource."""
-
-        supported_kinds = ["Secret", "ConfigMap"]
-        if dep_kind not in supported_kinds:
+    def _is_resource_supported_to_trigger_recycle(
+        self,
+        namespace: str,
+        resource: OR,
+    ) -> bool:
+        if resource.kind not in POD_RECYCLE_SUPPORTED_TRIGGER_KINDS:
             logging.debug([
                 "skipping_pod_recycle_unsupported",
                 self.cluster_name,
                 namespace,
-                dep_kind,
+                resource.kind,
+                resource.name,
             ])
-            return
+            return False
 
-        dep_annotations = dep_resource.body["metadata"].get("annotations", {})
         # Note, that annotations might have been set to None explicitly
-        dep_annotations = dep_resource.body["metadata"].get("annotations") or {}
-        qontract_recycle = dep_annotations.get("qontract.recycle")
-        if qontract_recycle is True:
-            raise RecyclePodsInvalidAnnotationValueError('should be "true"')
+        annotations = resource.body["metadata"].get("annotations") or {}
+        qontract_recycle = annotations.get("qontract.recycle")
         if qontract_recycle != "true":
             logging.debug([
                 "skipping_pod_recycle_no_annotation",
                 self.cluster_name,
                 namespace,
-                dep_kind,
+                resource.kind,
+                resource.name,
             ])
+            return False
+        return True
+
+    def recycle_pods(
+        self,
+        dry_run: bool,
+        namespace: str,
+        resource: OR,
+    ) -> None:
+        """
+        recycles pods which are using the specified resources.
+        will only act on Secret or ConfigMap containing the 'qontract.recycle' annotation.
+
+        Args:
+            dry_run (bool): if True, will only log the recycle action without executing it
+            namespace (str): namespace of the resource
+            resource (OR): resource object (Secret or ConfigMap) to check for pod usage
+        """
+
+        if not self._is_resource_supported_to_trigger_recycle(namespace, resource):
             return
 
-        dep_name = dep_resource.name
         pods = self.get(namespace, "Pod")["items"]
-
-        if dep_kind == "Secret":
-            pods_to_recycle = [
-                pod for pod in pods if self.secret_used_in_pod(dep_name, pod)
-            ]
-        elif dep_kind == "ConfigMap":
-            pods_to_recycle = [
-                pod for pod in pods if self.configmap_used_in_pod(dep_name, pod)
-            ]
-        else:
-            raise RecyclePodsUnsupportedKindError(dep_kind)
-
-        recyclables: dict[str, list[dict[str, Any]]] = {}
-        supported_recyclables = [
-            "Deployment",
-            "DeploymentConfig",
-            "StatefulSet",
-            "DaemonSet",
+        pods_to_recycle = [
+            pod
+            for pod in pods
+            if self.is_resource_used_in_pod(
+                name=resource.name,
+                kind=resource.kind,
+                pod=pod,
+            )
         ]
+
+        recycle_names_by_kind = defaultdict(set)
         for pod in pods_to_recycle:
             owner = self.get_obj_root_owner(namespace, pod, allow_not_found=True)
             kind = owner["kind"]
-            if kind not in supported_recyclables:
-                continue
-            recyclables.setdefault(kind, [])
-            exists = False
-            for obj in recyclables[kind]:
-                owner_name = owner["metadata"]["name"]
-                if obj["metadata"]["name"] == owner_name:
-                    exists = True
-                    break
-            if not exists:
-                recyclables[kind].append(owner)
+            if kind in POD_RECYCLE_SUPPORTED_OWNER_KINDS:
+                recycle_names_by_kind[kind].add(owner["metadata"]["name"])
 
-        for kind, objs in recyclables.items():
-            for obj in objs:
-                self.recycle(dry_run, namespace, kind, obj)
+        for kind, names in recycle_names_by_kind.items():
+            for name in names:
+                self.recycle(
+                    dry_run=dry_run,
+                    namespace=namespace,
+                    kind=kind,
+                    name=name,
+                )
 
-    @retry(exceptions=ObjectHasBeenModifiedError)
     def recycle(
-        self, dry_run: bool, namespace: str, kind: str, obj: MutableMapping[str, Any]
+        self,
+        dry_run: bool,
+        namespace: str,
+        kind: str,
+        name: str,
     ) -> None:
-        """Recycles an object by adding a recycle.time annotation
-
-        :param dry_run: Is this a dry run
-        :param namespace: Namespace to work in
-        :param kind: Object kind
-        :param obj: Object to recycle
         """
-        name = obj["metadata"]["name"]
+        Recycles an object using oc rollout restart, which will add an annotation
+        kubectl.kubernetes.io/restartedAt with the current timestamp to the pod
+        template, triggering a rolling restart.
+
+        Args:
+            dry_run (bool): if True, will only log the recycle action without executing it
+            namespace (str): namespace of the object to recycle
+            kind (str): kind of the object to recycle
+            name (str): name of the object to recycle
+        """
         logging.info([f"recycle_{kind.lower()}", self.cluster_name, namespace, name])
         if not dry_run:
-            now = utc_now()
-            recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
-
-            # get the object in case it was modified
-            obj = self.get(namespace, kind, name)
-            # honor update strategy by setting annotations to force
-            # a new rollout
-            a = obj["spec"]["template"]["metadata"].get("annotations", {})
-            a["recycle.time"] = recycle_time
-            obj["spec"]["template"]["metadata"]["annotations"] = a
-            cmd = ["apply", "-n", namespace, "-f", "-"]
-            stdin = json_dumps(obj)
-            self._run(cmd, stdin=stdin, apply=True)
+            self._run(
+                ["rollout", "restart", f"{kind}/{name}", "-n", namespace],
+                apply=True,
+            )
 
     def get_obj_root_owner(
         self,
@@ -1065,12 +1064,24 @@ class OCCli:
                     )
         return obj
 
-    def secret_used_in_pod(self, name: str, pod: Mapping[str, Any]) -> bool:
-        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "Secret")
-        return name in used_resources
+    def is_resource_used_in_pod(
+        self,
+        name: str,
+        kind: str,
+        pod: Mapping[str, Any],
+    ) -> bool:
+        """
+        Check if a resource (Secret or ConfigMap) is used in a Pod.
 
-    def configmap_used_in_pod(self, name: str, pod: Mapping[str, Any]) -> bool:
-        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
+        Args:
+            name: Name of the resource
+            kind: "Secret" or "ConfigMap"
+            pod: Pod object
+
+        Returns:
+            True if the resource is used in the Pod, False otherwise.
+        """
+        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], kind)
         return name in used_resources
 
     @staticmethod
@@ -1079,25 +1090,39 @@ class OCCli:
         kind: str,
         include_optional: bool = True,
     ) -> dict[str, set[str]]:
-        if kind not in {"Secret", "ConfigMap"}:
-            raise KeyError(f"unsupported resource kind: {kind}")
+        """
+        Get resources (Secrets or ConfigMaps) used in a Pod spec.
+        Returns a dictionary where keys are resource names and values are sets of keys used from that resource.
+
+        Args:
+            spec: Pod spec
+            kind: "Secret" or "ConfigMap"
+            include_optional: Whether to include optional resources
+
+        Returns:
+            A dictionary mapping resource names to sets of keys used.
+        """
+        match kind:
+            case "Secret":
+                volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
+                    "secret",
+                    "secretName",
+                    "secretRef",
+                    "secretKeyRef",
+                    "name",
+                )
+            case "ConfigMap":
+                volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
+                    "configMap",
+                    "name",
+                    "configMapRef",
+                    "configMapKeyRef",
+                    "name",
+                )
+            case _:
+                raise KeyError(f"unsupported resource kind: {kind}")
+
         optional = "optional"
-        if kind == "Secret":
-            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
-                "secret",
-                "secretName",
-                "secretRef",
-                "secretKeyRef",
-                "name",
-            )
-        elif kind == "ConfigMap":
-            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
-                "configMap",
-                "name",
-                "configMapRef",
-                "configMapKeyRef",
-                "name",
-            )
 
         resources: dict[str, set[str]] = {}
         for v in spec.get("volumes") or []:
@@ -1126,8 +1151,8 @@ class OCCli:
                         continue
                     resource_name = resource_ref[env_ref]
                     resources.setdefault(resource_name, set())
-                    secret_key = resource_ref["key"]
-                    resources[resource_name].add(secret_key)
+                    key = resource_ref["key"]
+                    resources[resource_name].add(key)
                 except (KeyError, TypeError):
                     continue
 
