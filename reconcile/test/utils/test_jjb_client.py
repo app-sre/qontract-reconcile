@@ -6,7 +6,8 @@ from unittest.mock import MagicMock
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.utils.jjb_client import JJB
+from reconcile.test.fixtures import Fixtures
+from reconcile.utils.jjb_client import JJB, MissingJobUrlError
 
 
 @pytest.fixture
@@ -104,6 +105,11 @@ def patch_et_parse(mocker: MockerFixture) -> MagicMock:
     et = mocker.patch("reconcile.utils.jjb_client.ET")
     et.parse.return_value.getroot.return_value.tag = "job"
     return et
+
+
+@pytest.fixture
+def fxt() -> Fixtures:
+    return Fixtures("jjb_client")
 
 
 def test_get_job_by_repo_url(
@@ -213,3 +219,20 @@ def test_get_jobs_parses_jjb_templates() -> None:
                 job["properties"][0]["github"]["url"]
                 == "https://github.com/example/sample-service"
             )
+
+
+def test_get_repo_url_ghprb(fxt: Fixtures) -> None:
+    url = JJB.get_repo_url(fxt.get_anymarkup("ghprb-job.yaml"))
+    assert url == "https://github.com/RedHatInsights/acs-ui"
+
+
+def test_get_repo_url_gh_branch_source(fxt: Fixtures) -> None:
+    url = JJB.get_repo_url(fxt.get_anymarkup("gh-branch-source-job.yaml"))
+    assert url == "https://github.com/app-sre/github-branch-source-from-ci-ext"
+
+
+def test_get_repo_url_error() -> None:
+    with pytest.raises(MissingJobUrlError) as e:
+        JJB.get_repo_url({"display-name": "lol"})
+
+    assert "Cannot find job url for lol" in str(e.value)

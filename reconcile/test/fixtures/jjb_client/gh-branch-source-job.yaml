@@ -1,0 +1,35 @@
+description: 'Multibranch pipeline for app-sre/github-branch-source-from-ci-ext
+
+  Runs PR checks and builds/deploys branches using Jenkinsfile
+
+  Replaces: gh-pr-check + gh-build-master
+
+  Managed by App-Interface https://gitlab.cee.redhat.com/service/app-interface
+
+  <!-- Managed by Jenkins Job Builder -->'
+display-name: app-sre/github-branch-source-from-ci-ext - PR Check & Build (GitHub
+  Branch Source)
+name: app-sre-github-branch-source-from-ci-ext-gh-pr-and-build
+periodic-folder-trigger: 1d
+project-type: multibranch
+properties:
+- build-discarder:
+    days-to-keep: 30
+    num-to-keep: 100
+scm:
+- github:
+    api-uri: https://github-mirror.devshift.net
+    build-strategies:
+    - all-strategies-match:
+        strategies:
+        - regular-branches: true
+        - skip-initial-build: false
+    credentials-id: b48f637e-ae74-429f-b45e-fada68228a62
+    discover-branches: true
+    discover-pr-forks-strategy: merge-current
+    discover-pr-forks-trust: permission
+    discover-pr-origin: merge-current
+    notification-context: jenkins
+    repo: github-branch-source-from-ci-ext
+    repo-owner: app-sre
+script-path: Jenkinsfile
