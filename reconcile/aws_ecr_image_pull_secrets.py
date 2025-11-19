@@ -21,7 +21,7 @@ def get_password(token: str) -> str:
 
 def construct_dockercfg_secret_data(data: Mapping[str, Any]) -> dict[str, str]:
     auth_data = data["authorizationData"][0]
-    server = auth_data["proxyEndpoint"]
+    server = auth_data["proxyEndpoint"].replace("https://", "")
     token = auth_data["authorizationToken"]
     password = get_password(token)
     data = {
