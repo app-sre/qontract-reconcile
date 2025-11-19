@@ -33,6 +33,10 @@ from reconcile.utils.vcs import GITHUB_BASE_URL
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
 
 
+class MissingJobUrlError(Exception):
+    pass
+
+
 class JJB:
     """Wrapper around Jenkins Jobs"""
 
@@ -355,7 +359,19 @@ class JJB:
 
     @staticmethod
     def get_repo_url(job: Mapping[str, Any]) -> str:
-        repo_url_raw = job["properties"][0]["github"]["url"]
+        repo_url_raw = job.get("properties", [{}])[0].get("github", {}).get("url")
+
+        # we may be in a Github Branch Source type of job
+        if not repo_url_raw:
+            gh_org = job.get("scm", [{}])[0].get("github", {}).get("repo-owner")
+            gh_repo = job.get("scm", [{}])[0].get("github", {}).get("repo")
+            if gh_org and gh_repo:
+                repo_url_raw = f"https://github.com/{gh_org}/{gh_repo}/"
+            else:
+                raise MissingJobUrlError(
+                    f"Cannot find job url for {job['display-name']}"
+                )
+
         return repo_url_raw.strip("/").replace(".git", "")
 
     @staticmethod
