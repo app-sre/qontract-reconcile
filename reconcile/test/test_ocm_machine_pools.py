@@ -118,6 +118,20 @@ def machine_pool() -> MachinePool:
 
 
 @pytest.fixture
+def autoscale_machine_pool() -> MachinePool:
+    return MachinePool(
+        id="pool1",
+        replicas=None,
+        labels=None,
+        taints=None,
+        cluster="cluster1",
+        cluster_type=ClusterType.OSD,
+        instance_type="m5.xlarge",
+        autoscaling=MachinePoolAutoscaling(min_replicas=1, max_replicas=2),
+    )
+
+
+@pytest.fixture
 def cluster_machine_pool() -> ClusterMachinePoolV1:
     return ClusterMachinePoolV1(
         id="pool1",
@@ -428,6 +442,25 @@ def test_machine_pool_update(machine_pool: MachinePool, ocm_mock: Mock) -> None:
             "cluster": "cluster1",
             "labels": {"foo": "bar"},
             "autoscaling": None,
+        },
+    )
+
+
+def test_machine_pool_update_with_autoscale(
+    autoscale_machine_pool: MachinePool, ocm_mock: Mock
+) -> None:
+    autoscale_machine_pool.update(ocm=ocm_mock)
+
+    ocm_mock.update_machine_pool.assert_called_once_with(
+        "cluster1",
+        {
+            "id": "pool1",
+            "replicas": None,
+            "cluster": "cluster1",
+            "autoscaling": {
+                "max_replicas": 2,
+                "min_replicas": 1,
+            },
         },
     )
 

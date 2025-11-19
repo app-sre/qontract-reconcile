@@ -29,7 +29,9 @@ from reconcile.utils import (
     metrics,
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.differ import DiffPair
 from reconcile.utils.oc import (
+    POD_RECYCLE_SUPPORTED_OWNER_KINDS,
     AmbiguousResourceTypeError,
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
@@ -62,6 +64,10 @@ AUTH_METHOD_USER_KEY = {
     "oidc": "org_username",
     "rhidp": "org_username",
 }
+RECYCLE_POD_ANNOTATIONS = [
+    "kubectl.kubernetes.io/restartedAt",
+    "openshift.openshift.io/restartedAt",
+]
 
 
 class ValidationError(Exception):
@@ -588,7 +594,7 @@ def apply(
                 oc.resize_pvcs(namespace, owned_pvc_names, desired_storage)
 
     if recycle_pods:
-        oc.recycle_pods(dry_run, namespace, resource_type, resource)
+        oc.recycle_pods(dry_run, namespace, resource)
 
 
 def create(
@@ -832,10 +838,56 @@ def handle_identical_resources(
     return actions
 
 
+def patch_desired_resource_for_recycle_annotations(
+    desired: OR,
+    current: OR,
+) -> OR:
+    """
+    Patch desired resource with recycle annotations to pod template from current resource.
+    This is to avoid full pods recycle when changes are not affecting pod template.
+    Note desired annotations can override current annotations.
+    For example, if desired resource has kubectl.kubernetes.io/restartedAt defined,
+    it will be used instead of current resource annotation.
+
+    Args:
+        desired: desired resource
+        current: current resource
+
+    Returns:
+        patched desired resource
+    """
+    if current.kind not in POD_RECYCLE_SUPPORTED_OWNER_KINDS:
+        return desired
+
+    current_annotations = (
+        current.body.get("spec", {})
+        .get("template", {})
+        .get("metadata", {})
+        .get("annotations")
+        or {}
+    )
+    patch_annotations = {
+        k: value
+        for k in RECYCLE_POD_ANNOTATIONS
+        if (value := current_annotations.get(k))
+    }
+    if patch_annotations:
+        desired_annotations = (
+            desired.body.setdefault("spec", {})
+            .setdefault("template", {})
+            .setdefault("metadata", {})
+            .setdefault("annotations", {})
+        )
+        desired.body["spec"]["template"]["metadata"]["annotations"] = (
+            patch_annotations | desired_annotations
+        )
+    return desired
+
+
 def handle_modified_resources(
     oc_map: ClusterMap,
     ri: ResourceInventory,
-    modified_resources: Mapping[Any, Any],
+    modified_resources: Mapping[str, DiffPair[OR, OR]],
     cluster: str,
     namespace: str,
     resource_type: str,
@@ -1030,6 +1082,12 @@ def _realize_resource_data_3way_diff(
     # only allow to override enable_deletion if no errors were found
     if options.enable_deletion and options.override_enable_deletion is False:
         options.enable_deletion = False
+
+    for k in data["current"].keys() & data["desired"].keys():
+        patch_desired_resource_for_recycle_annotations(
+            desired=data["desired"][k],
+            current=data["current"][k],
+        )
 
     diff_result = differ.diff_mappings(
         data["current"], data["desired"], equal=three_way_diff_using_hash

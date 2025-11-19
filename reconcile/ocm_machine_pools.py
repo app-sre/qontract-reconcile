@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 from enum import Enum
 from typing import Any, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, SerializeAsAny, model_validator
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
@@ -107,7 +107,7 @@ class AbstractPool(ABC, BaseModel):
     labels: Mapping[str, str] | None = None
     cluster: str
     cluster_type: ClusterType = Field(..., exclude=True)
-    autoscaling: AbstractAutoscaling | None = None
+    autoscaling: SerializeAsAny[AbstractAutoscaling] | None = None
 
     @model_validator(mode="before")
     @classmethod
