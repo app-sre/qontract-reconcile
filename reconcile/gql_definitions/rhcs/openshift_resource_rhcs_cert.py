@@ -39,4 +39,5 @@ class OpenshiftResourceRhcsCert(ConfiguredBaseModel):
     service_account_name: str = Field(..., alias="service_account_name")
     service_account_password: Union[VaultSecretV1_VaultSecretV1, VaultSecretV1] = Field(..., alias="service_account_password")
     auto_renew_threshold_days: Optional[int] = Field(..., alias="auto_renew_threshold_days")
+    certificate_format: Optional[str] = Field(..., alias="certificate_format")
     annotations: Optional[Json] = Field(..., alias="annotations")

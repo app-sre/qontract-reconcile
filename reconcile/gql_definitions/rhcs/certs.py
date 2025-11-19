@@ -45,6 +45,7 @@ fragment OpenshiftResourceRhcsCert on NamespaceOpenshiftResourceRhcsCert_v1 {
     }
   }
   auto_renew_threshold_days
+  certificate_format
   annotations
 }
 
