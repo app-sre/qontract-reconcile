@@ -339,7 +339,7 @@ class JJB:
                 job_name = job["name"]
                 try:
                     repos.add(self.get_repo_url(job))
-                except KeyError:
+                except MissingJobUrlError:
                     logging.debug(f"missing github url: {job_name}")
         return repos
 
