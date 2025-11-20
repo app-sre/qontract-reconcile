@@ -450,7 +450,6 @@ class VaultSecretsReconciler(SecretsReconciler):
             logging.debug("Reading Secret %s", secret_path)
             data = self.secrets_reader.read_all({"path": secret_path})
             spec.metadata[SECRET_UPDATED_AT] = data[SECRET_UPDATED_AT]
-            del data[SECRET_UPDATED_AT]
-            spec.secret = data
+            spec.secret = {k: v for k, v in data.items() if k != SECRET_UPDATED_AT}
         except SecretNotFoundError:
             logging.info("Error getting secret from vault, skipping. [%s]", secret_path)
