@@ -248,6 +248,8 @@ objects:
             value: "${USE_NATIVE_CLIENT}"
           - name: KUBE_SA_TOKEN_PATH
             value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
+          - name: USED_FOR_SECURITY
+            value: "${USED_FOR_SECURITY}"
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
           - name: GOV_SLACK
@@ -268,8 +270,6 @@ objects:
             value: "${FLUENTD_IMAGE_TAG}"
           - name: FLUENTD_IMAGE_PULL_POLICY
             value: "${FLUENTD_IMAGE_PULL_POLICY}"
-          - name: USED_FOR_SECURITY
-            value: "${USED_FOR_SECURITY}"
           - name: CLOUDWATCH_SECRET
             value: "${CLOUDWATCH_SECRET}"
           - name: INTERNAL_CERTIFICATES_IMAGE
