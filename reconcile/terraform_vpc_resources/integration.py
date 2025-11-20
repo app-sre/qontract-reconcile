@@ -159,7 +159,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             accounts = self._filter_accounts(data, account_name)
             if account_name and not accounts:
                 msg = f"The account {account_name} doesn't have any managed vpcs or the {QONTRACT_INTEGRATION} integration is disabled for this account. Verify your input"
-                logging.info(msg)
+                logging.debug(msg)
                 sys.exit(ExitCodes.SUCCESS)
         else:
             logging.debug("No VPC requests found, nothing to do.")
