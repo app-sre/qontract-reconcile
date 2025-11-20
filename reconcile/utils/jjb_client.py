@@ -420,7 +420,7 @@ class JJB:
                 try:
                     if self.get_repo_url(job).lower() == repo_url.rstrip("/").lower():
                         return job
-                except KeyError:
+                except MissingJobUrlError:
                     # something wrong here. ignore this job
                     pass
         raise ValueError(f"job with {job_type=} and {repo_url=} not found")
