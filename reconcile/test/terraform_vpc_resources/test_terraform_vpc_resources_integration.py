@@ -16,6 +16,7 @@ from reconcile.gql_definitions.fragments.aws_vpc_request import (
 )
 from reconcile.status import ExitCodes
 from reconcile.terraform_vpc_resources.integration import (
+    QONTRACT_INTEGRATION,
     TerraformVpcResources,
     TerraformVpcResourcesParams,
 )
@@ -141,9 +142,7 @@ def test_log_message_for_accounts_having_vpc_requests(
     ):
         TerraformVpcResources(params).run(dry_run=True)
 
-    error_msg = (
-        f"The account {account_name} doesn't have any managed vpc. Verify your input"
-    )
+    error_msg = f"The account {account_name} doesn't have any managed vpcs or the {QONTRACT_INTEGRATION} integration is disabled for this account. Verify your input"
     assert sample.value.code == ExitCodes.SUCCESS
     assert [error_msg] == [rec.message for rec in caplog.records]
 
@@ -320,3 +319,34 @@ def test_vpc_and_subnet_tags(
 
     expected_availability_zones = ["us-east-1a", "us-east-1b"]
     assert subnets["availability_zones"] == expected_availability_zones
+
+
+def test_disabled_integration_for_account(
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    mock_gql: MagicMock,
+    gql_class_factory: Callable,
+    mock_app_interface_vault_settings: MagicMock,
+    mock_create_secret_reader: MagicMock,
+) -> None:
+    # Mock a query with an account that has the integration disabled
+    vpc_data = vpc_request_dict()
+    vpc_data["account"]["disable"] = {"integrations": ["terraform-vpc-resources"]}
+    mocked_query = mocker.patch(
+        "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
+        autospec=True,
+    )
+    mocked_query.return_value = [gql_class_factory(VPCRequest, vpc_data)]
+
+    account_name = "some-account"
+    params = TerraformVpcResourcesParams(
+        account_name=account_name, print_to_file=None, thread_pool_size=1
+    )
+    with (
+        caplog.at_level(logging.DEBUG),
+        pytest.raises(SystemExit) as sample,
+    ):
+        TerraformVpcResources(params).run(dry_run=True)
+    error_msg = f"The account {account_name} doesn't have any managed vpcs or the {QONTRACT_INTEGRATION} integration is disabled for this account. Verify your input"
+    assert sample.value.code == ExitCodes.SUCCESS
+    assert [error_msg] == [rec.message for rec in caplog.records]

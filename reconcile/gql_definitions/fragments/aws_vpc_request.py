@@ -28,6 +28,10 @@ class ConfiguredBaseModel(BaseModel):
     )
 
 
+class DisableClusterAutomationsV1(ConfiguredBaseModel):
+    integrations: Optional[list[str]] = Field(..., alias="integrations")
+
+
 class DeletionApprovalV1(ConfiguredBaseModel):
     q_type: str = Field(..., alias="type")
     name: str = Field(..., alias="name")
@@ -39,6 +43,7 @@ class AWSAccountV1(ConfiguredBaseModel):
     uid: str = Field(..., alias="uid")
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     automation_token: VaultSecret = Field(..., alias="automationToken")
+    disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
     supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     provider_version: str = Field(..., alias="providerVersion")
