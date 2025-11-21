@@ -419,6 +419,8 @@ objects:
             value: "${USE_NATIVE_CLIENT}"
           - name: KUBE_SA_TOKEN_PATH
             value: "${KUBE_SA_TOKEN_MOUNT_PATH}/${KUBE_SA_TOKEN_FILENAME}"
+          - name: USED_FOR_SECURITY
+            value: "${USED_FOR_SECURITY}"
           {{- if $integration.environmentAware }}
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
@@ -869,6 +871,8 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+- name: USED_FOR_SECURITY
+  value: ''
 {{- if .Values.enable_slack_error_filter }}
 - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
   value: "sd-app-sre-reconcile-errors-stage"
