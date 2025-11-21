@@ -40,7 +40,7 @@ from reconcile.utils.terrascript_aws_client import (
 )
 from reconcile.utils.vcs import VCS
 
-QONTRACT_INTEGRATION = "terraform-vpc-resources"
+QONTRACT_INTEGRATION = "terraform_vpc_resources"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 QONTRACT_TF_PREFIX = "qrtvr"
 AWS_PROVIDER_VERSION = "5.7.1"
@@ -67,7 +67,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
             vpc.account
             for vpc in data
             if (
-                integration_is_enabled(QONTRACT_INTEGRATION, vpc.account)
+                integration_is_enabled(self.name, vpc.account)
                 and (not account_name or vpc.account.name == account_name)
             )
         ]

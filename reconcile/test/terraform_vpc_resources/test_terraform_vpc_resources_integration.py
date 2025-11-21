@@ -331,7 +331,7 @@ def test_disabled_integration_for_account(
 ) -> None:
     # Mock a query with an account that has the integration disabled
     vpc_data = vpc_request_dict()
-    vpc_data["account"]["disable"] = {"integrations": [QONTRACT_INTEGRATION]}
+    vpc_data["account"]["disable"] = {"integrations": ["terraform-vpc-resources"]}
     mocked_query = mocker.patch(
         "reconcile.terraform_vpc_resources.integration.get_aws_vpc_requests",
         autospec=True,
