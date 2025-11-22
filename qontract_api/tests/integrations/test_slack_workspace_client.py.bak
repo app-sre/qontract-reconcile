@@ -1,0 +1,330 @@
+"""Unit tests for SlackWorkspaceClient."""
+
+# ruff: noqa: SLF001
+# ruff: noqa: PLR2004 - Magic values acceptable in tests for readability
+
+from unittest.mock import MagicMock
+
+import pytest
+from qontract_utils.slack_api import (
+    SlackApi,
+    SlackChannel,
+    SlackUser,
+    SlackUsergroup,
+    SlackUserProfile,
+)
+
+from qontract_api.cache.base import CacheBackend
+from qontract_api.config import Settings
+from qontract_api.integrations.slack_usergroups.slack_workspace_client import (
+    CachedChannels,
+    CachedUsergroups,
+    CachedUsers,
+    SlackWorkspaceClient,
+)
+
+
+@pytest.fixture
+def mock_slack_api() -> MagicMock:
+    """Create mock SlackApi."""
+    mock = MagicMock(spec=SlackApi)
+    mock.workspace_name = "test-workspace"
+    return mock
+
+
+@pytest.fixture
+def mock_cache() -> MagicMock:
+    """Create mock CacheBackend."""
+    return MagicMock(spec=CacheBackend)
+
+
+@pytest.fixture
+def mock_settings() -> Settings:
+    """Create Settings with test values."""
+    settings = Settings()
+    settings.slack.usergroup_cache_ttl = 300
+    settings.slack.users_cache_ttl = 900
+    settings.slack.channels_cache_ttl = 900
+    return settings
+
+
+@pytest.fixture
+def client(
+    mock_slack_api: MagicMock, mock_cache: MagicMock, mock_settings: Settings
+) -> SlackWorkspaceClient:
+    """Create SlackWorkspaceClient with mocks."""
+    return SlackWorkspaceClient(
+        slack_api=mock_slack_api,
+        cache=mock_cache,
+        settings=mock_settings,
+    )
+
+
+def test_cache_key_users(client: SlackWorkspaceClient) -> None:
+    """Test cache key generation for users."""
+    assert client._cache_key_users() == "slack:test-workspace:users"
+
+
+def test_cache_key_usergroups(client: SlackWorkspaceClient) -> None:
+    """Test cache key generation for usergroups."""
+    assert client._cache_key_usergroups() == "slack:test-workspace:usergroups"
+
+
+def test_cache_key_channels(client: SlackWorkspaceClient) -> None:
+    """Test cache key generation for channels."""
+    assert client._cache_key_channels() == "slack:test-workspace:channels"
+
+
+def test_get_users_cache_hit(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Test get_users returns cached data on cache hit."""
+    # Setup cache hit with CachedDict
+    user = SlackUser(
+        id="U1",
+        name="user1",
+        deleted=False,
+        profile=SlackUserProfile(),
+    )
+    cached_dict = CachedDict[SlackUser](items=[user])
+    mock_cache.get_obj.return_value = cached_dict
+
+    users = client.get_users()
+
+    assert len(users) == 1
+    assert "U1" in users
+    assert users["U1"].name == "user1"
+    mock_cache.get_obj.assert_called_once()
+    client.slack_api.users_list.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_get_users_cache_miss(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test get_users fetches from API on cache miss."""
+    # Setup cache miss
+    mock_cache.get_obj.return_value = None
+    mock_cache.lock.return_value.__enter__ = MagicMock()
+    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
+
+    # Setup API response
+    mock_user = SlackUser(
+        id="U1",
+        name="user1",
+        deleted=False,
+        profile=SlackUserProfile(),
+    )
+    mock_slack_api.users_list.return_value = [mock_user]
+
+    users = client.get_users()
+
+    assert len(users) == 1
+    assert "U1" in users
+    mock_slack_api.users_list.assert_called_once()
+    mock_cache.set_obj.assert_called_once()
+
+
+def test_get_users_acquires_lock_on_cache_miss(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test get_users acquires distributed lock when fetching from API."""
+    mock_cache.get_obj.return_value = None
+    mock_cache.lock.return_value.__enter__ = MagicMock()
+    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
+
+    mock_user = SlackUser(id="U1", name="user1", profile=SlackUserProfile())
+    mock_slack_api.users_list.return_value = [mock_user]
+
+    client.get_users()
+
+    mock_cache.lock.assert_called_once_with("slack:test-workspace:users")
+
+
+def test_get_usergroups_cache_hit(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Test get_usergroups returns cached data on cache hit."""
+    # Setup cache hit with CachedDict[SlackUsergroup]
+    ug = SlackUsergroup(id="UG1", handle="team", name="Team")
+    cached_dict = CachedDict[SlackUsergroup](items=[ug])
+    mock_cache.get_obj.return_value = cached_dict
+
+    usergroups = client.get_usergroups()
+
+    assert len(usergroups) == 1
+    assert "UG1" in usergroups
+    assert usergroups["UG1"].handle == "team"
+    client.slack_api.usergroups_list.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_get_channels_cache_miss(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test get_channels fetches from API on cache miss."""
+    mock_cache.get_obj.return_value = None
+    mock_cache.lock.return_value.__enter__ = MagicMock()
+    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
+
+    mock_channel = SlackChannel(id="C1", name="general")
+    mock_slack_api.conversations_list.return_value = [mock_channel]
+
+    channels = client.get_channels()
+
+    assert len(channels) == 1
+    assert "C1" in channels
+    mock_slack_api.conversations_list.assert_called_once()
+
+
+def test_get_users_by_ids(client: SlackWorkspaceClient, mock_cache: MagicMock) -> None:
+    """Test get_users_by_ids returns subset of users."""
+    # Setup cache hit with CachedDict[SlackUser]
+    u1 = SlackUser(id="U1", name="user1", profile=SlackUserProfile())
+    u2 = SlackUser(id="U2", name="user2", profile=SlackUserProfile())
+    cached_dict = CachedDict[SlackUser](items=[u1, u2])
+    mock_cache.get_obj.return_value = cached_dict
+
+    users = client.get_users_by_ids(["U1"])
+
+    assert len(users) == 1
+    assert users[0].id == "U1"
+    assert all(u.id != "U2" for u in users)
+
+
+def test_get_usergroup_by_handle(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Test get_usergroup_by_handle finds usergroup."""
+    # Setup cache hit with CachedDict[SlackUsergroup]
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_dict = CachedDict[SlackUsergroup](items=[ug])
+    mock_cache.get_obj.return_value = cached_dict
+
+    usergroup = client.get_usergroup_by_handle("oncall")
+
+    assert usergroup is not None
+    assert usergroup.id == "UG1"
+    assert usergroup.handle == "oncall"
+
+
+def test_get_usergroup_by_handle_not_found(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Test get_usergroup_by_handle returns None if not found."""
+    # Setup cache hit with CachedDict[SlackUsergroup]
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_dict = CachedDict[SlackUsergroup](items=[ug])
+    mock_cache.get_obj.return_value = cached_dict
+
+    usergroup = client.get_usergroup_by_handle("notfound")
+
+    assert usergroup is None
+
+
+def test_get_usergroup_by_id(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Test get_usergroup_by_id finds usergroup."""
+    # Setup cache hit with CachedDict[SlackUsergroup]
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_dict = CachedDict[SlackUsergroup](items=[ug])
+    mock_cache.get_obj.return_value = cached_dict
+
+    usergroup = client.get_usergroup_by_id("UG1")
+
+    assert usergroup is not None
+    assert usergroup.id == "UG1"
+
+
+def test_update_usergroup_calls_api_and_updates_cache(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test update_usergroup calls API and updates cache."""
+    updated_ug = SlackUsergroup(
+        id="UG1",
+        handle="oncall",
+        name="Updated Name",
+        description="Updated desc",
+    )
+    mock_slack_api.usergroups_update.return_value = updated_ug
+    mock_cache.lock.return_value.__enter__ = MagicMock()
+    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
+
+    # Setup cache with existing usergroup
+    # Setup cache hit with CachedDict[SlackUsergroup]
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_dict = CachedDict[SlackUsergroup](items=[ug])
+    mock_cache.get_obj.return_value = cached_dict
+
+    result = client.update_usergroup(
+        usergroup_id="UG1",
+        name="Updated Name",
+        description="Updated desc",
+    )
+
+    assert result.name == "Updated Name"
+    mock_slack_api.usergroups_update.assert_called_once_with(
+        usergroup_id="UG1",
+        name="Updated Name",
+        description="Updated desc",
+        channels=None,
+    )
+    # Verify cache update was attempted
+    mock_cache.lock.assert_called_once_with("slack:test-workspace:usergroups")
+
+
+def test_update_usergroup_users_calls_api_and_updates_cache(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test update_usergroup_users calls API and updates cache."""
+    updated_ug = SlackUsergroup(
+        id="UG1",
+        handle="oncall",
+        users=["U1", "U2"],
+    )
+    mock_slack_api.usergroups_users_update.return_value = updated_ug
+    mock_cache.lock.return_value.__enter__ = MagicMock()
+    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
+
+    # Setup cache hit with CachedDict[SlackUsergroup]
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_dict = CachedDict[SlackUsergroup](items=[ug])
+    mock_cache.get_obj.return_value = cached_dict
+
+    result = client.update_usergroup_users(
+        usergroup_id="UG1",
+        users=["U1", "U2"],
+    )
+
+    assert len(result.users) == 2
+    mock_slack_api.usergroups_users_update.assert_called_once_with(
+        usergroup_id="UG1",
+        users=["U1", "U2"],
+    )
+    mock_cache.lock.assert_called_once()
+
+
+def test_get_channels_by_ids(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Test get_channels_by_ids returns subset of channels."""
+    # Setup cache hit with CachedDict[SlackChannel]
+    c1 = SlackChannel(id="C1", name="general")
+    c2 = SlackChannel(id="C2", name="random")
+    cached_dict = CachedDict[SlackChannel](items=[c1, c2])
+    mock_cache.get_obj.return_value = cached_dict
+
+    channels = client.get_channels_by_ids(["C1"])
+
+    assert len(channels) == 1
+    assert channels[0].id == "C1"
+    assert all(ch.id != "C2" for ch in channels)
