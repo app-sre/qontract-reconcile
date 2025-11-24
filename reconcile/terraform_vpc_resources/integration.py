@@ -24,6 +24,7 @@ from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
     PydanticRunParams,
@@ -62,12 +63,14 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
     ) -> list[AWSAccountV1]:
         """Return a list of accounts extracted from the provided VPCRequests.
         If account_name is given returns the account object with that name."""
-        accounts = [vpc.account for vpc in data]
-
-        if account_name:
-            accounts = [account for account in accounts if account.name == account_name]
-
-        return accounts
+        return [
+            vpc.account
+            for vpc in data
+            if (
+                integration_is_enabled(self.name, vpc.account)
+                and (not account_name or vpc.account.name == account_name)
+            )
+        ]
 
     def _handle_outputs(
         self, requests: Iterable[VPCRequest], outputs: Mapping[str, Any]
@@ -155,7 +158,7 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         if data:
             accounts = self._filter_accounts(data, account_name)
             if account_name and not accounts:
-                msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
+                msg = f"The account {account_name} doesn't have any managed vpcs or the {QONTRACT_INTEGRATION} integration is disabled for this account. Verify your input"
                 logging.debug(msg)
                 sys.exit(ExitCodes.SUCCESS)
         else:

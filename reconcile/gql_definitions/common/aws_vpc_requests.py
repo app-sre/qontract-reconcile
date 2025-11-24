@@ -48,6 +48,9 @@ fragment VPCRequest on VPCRequest_v1 {
     automationToken {
       ...VaultSecret
     }
+    disable {
+      integrations
+    }
     supportedDeploymentRegions
     resourcesDefaultRegion
     providerVersion
