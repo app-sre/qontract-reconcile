@@ -4033,6 +4033,7 @@ class TerrascriptClient:
             policy_values: dict[str, Any] = {
                 "resource_arn": "${" + kinesis_tf_resource.arn + "}",
                 "policy": policy,
+                "depends_on": self.get_dependencies([kinesis_tf_resource]),
             }
             if provider:
                 policy_values["provider"] = provider
