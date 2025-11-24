@@ -1,5 +1,6 @@
 import copy
 from datetime import UTC, datetime
+from unittest.mock import create_autospec
 
 from pytest import fixture
 
@@ -10,8 +11,11 @@ from reconcile.external_resources.meta import (
 from reconcile.external_resources.secrets_sync import (
     SECRET_UPDATED_AT,
     SecretHelper,
+    VaultSecretsReconciler,
 )
-from reconcile.utils.openshift_resource import OpenshiftResource
+from reconcile.utils.external_resource_spec import ExternalResourceSpec
+from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @fixture
@@ -93,3 +97,36 @@ def test_current_new_data_dont_triggers_update(
 ) -> None:
     current.body["data"]["new_key"] = "new_value"
     assert SecretHelper.compare(current, desired) is True
+
+
+def test_vault_secrets_reconciler_read_secret_preserves_kv_v2_cached_data() -> None:
+    """Test that _read_secret doesn't mutate cached data"""
+    original_secret_data = {
+        "db_host": "example.com",
+        "db_password": "secret123",
+        SECRET_UPDATED_AT: "2025-11-20T17:24:32Z",
+    }
+    # Mock secret reader to return the same object (simulating KV v2 cache behavior)
+    mock_secrets_reader = create_autospec(SecretReaderBase)
+    mock_secrets_reader.read_all.return_value = original_secret_data
+
+    reconciler = VaultSecretsReconciler(
+        ri=ResourceInventory(),
+        secrets_reader=mock_secrets_reader,
+        vault_path="test-path",
+        thread_pool_size=1,
+        dry_run=True,
+    )
+    spec = ExternalResourceSpec(
+        provision_provider="test-provider",
+        provisioner={"name": "test-provisioner"},
+        resource={"provider": "test-provider", "identifier": "test-id"},
+        namespace={"name": "test-namespace", "cluster": {"name": "test-cluster"}},
+    )
+
+    original_secret_data_copy = copy.deepcopy(original_secret_data)
+    # Call _read_secret twice (simulating loop iterations accessing same cached object)
+    reconciler._read_secret(spec)
+    reconciler._read_secret(spec)
+    # Confirm original cached data is unchanged
+    assert original_secret_data == original_secret_data_copy
