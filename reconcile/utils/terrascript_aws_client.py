@@ -373,6 +373,10 @@ class aws_s3_bucket_logging(Resource):
     pass
 
 
+class aws_kinesis_resource_policy(Resource):
+    pass
+
+
 class aws_cloudfront_log_delivery_canonical_user_id(Data):
     pass
 
@@ -4018,6 +4022,21 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/kinesis_stream.html
         kinesis_tf_resource = aws_kinesis_stream(identifier, **kinesis_values)
         tf_resources.append(kinesis_tf_resource)
+
+        # kinesis resource policy (optional)
+        policy = common_values.get("policy")
+        if policy:
+            policy_identifier = f"{identifier}-policy"
+            policy_values: dict[str, Any] = {
+                "resource_arn": "${" + kinesis_tf_resource.arn + "}",
+                "policy": policy,
+            }
+            if provider:
+                policy_values["provider"] = provider
+            kinesis_policy_tf_resource = aws_kinesis_resource_policy(
+                policy_identifier, **policy_values
+            )
+            tf_resources.append(kinesis_policy_tf_resource)
 
         es_identifier = common_values.get("es_identifier", None)
         if es_identifier:
