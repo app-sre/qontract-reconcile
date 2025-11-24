@@ -22,6 +22,7 @@ from reconcile.utils.terrascript_aws_client import (
     OutputResourceNameNotUniqueError,
     ProviderExcludedError,
     TerrascriptClient,
+    aws_kinesis_resource_policy,
 )
 
 
@@ -511,6 +512,35 @@ def test_terraform_state_when_not_present_error(ts: TerrascriptClient) -> None:
 
 
 def build_s3_spec(
+    resource: dict,
+) -> ExternalResourceSpec:
+    provider = "aws"
+    provisioner = {"name": "a"}
+    namespace = {
+        "name": "n",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": provider,
+                "provisioner": provisioner,
+                "resources": [resource],
+            },
+        ],
+        "cluster": {"name": "c"},
+        "environment": {
+            "name": "e",
+        },
+        "app": {"name": "app"},
+    }
+    return ExternalResourceSpec(
+        provision_provider=provider,
+        provisioner=provisioner,
+        resource=resource,
+        namespace=namespace,
+    )
+
+
+def build_kinesis_spec(
     resource: dict,
 ) -> ExternalResourceSpec:
     provider = "aws"
@@ -1517,3 +1547,167 @@ def test__apply_secret_format_bad_format(ts: TerrascriptClient) -> None:
     secret_format = '{"key1": {"key2": "{{ foo }}"}}'
     with pytest.raises(ValueError, match="dictionary value"):
         ts._apply_secret_format(secret_format, secret)
+
+
+@pytest.fixture
+def kinesis_spec_without_policy() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "kinesis-stream",
+        "provider": "kinesis",
+        "region": "us-east-1",
+        "defaults": '{"shard_count": 1}',
+    }
+    return build_kinesis_spec(resource)
+
+
+@pytest.fixture
+def kinesis_spec_with_policy() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "kinesis-stream",
+        "provider": "kinesis",
+        "region": "us-east-1",
+        "defaults": '{"shard_count": 1}',
+        "policy": '{"Version":"2012-10-17","Statement":[]}',
+    }
+    return build_kinesis_spec(resource)
+
+
+@pytest.fixture
+def kinesis_spec_with_policy_and_region() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "kinesis-stream",
+        "provider": "kinesis",
+        "region": "us-west-2",
+        "defaults": '{"shard_count": 1}',
+        "policy": '{"Version":"2012-10-17","Statement":[]}',
+    }
+    return build_kinesis_spec(resource)
+
+
+@pytest.fixture
+def expected_kinesis_resource_policy() -> aws_kinesis_resource_policy:
+    return aws_kinesis_resource_policy(
+        "kinesis-stream-policy",
+        **{
+            "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+        },
+    )
+
+
+@pytest.fixture
+def expected_kinesis_resource_policy_with_region() -> aws_kinesis_resource_policy:
+    return aws_kinesis_resource_policy(
+        "kinesis-stream-policy",
+        **{
+            "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+            "provider": "aws.us-west-2",
+        },
+    )
+
+
+def test_populate_tf_resource_kinesis_without_policy(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    kinesis_spec_without_policy: ExternalResourceSpec,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "shard_count": 1,
+            "region": "us-east-1",
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_kinesis(kinesis_spec_without_policy)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    kinesis_streams = [
+        r for r in tf_resources if type(r).__name__ == "aws_kinesis_stream"
+    ]
+    assert len(kinesis_streams) == 1
+
+    kinesis_policies = [
+        r for r in tf_resources if type(r).__name__ == "aws_kinesis_resource_policy"
+    ]
+    assert len(kinesis_policies) == 0
+
+
+def test_populate_tf_resource_kinesis_with_policy(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    kinesis_spec_with_policy: ExternalResourceSpec,
+    expected_kinesis_resource_policy: aws_kinesis_resource_policy,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "shard_count": 1,
+            "region": "us-east-1",
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_kinesis(kinesis_spec_with_policy)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    assert expected_kinesis_resource_policy in tf_resources
+
+
+def test_populate_tf_resource_kinesis_with_policy_and_region(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    kinesis_spec_with_policy_and_region: ExternalResourceSpec,
+    expected_kinesis_resource_policy_with_region: aws_kinesis_resource_policy,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "_multiregion_account", return_value=True)
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "shard_count": 1,
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+            "region": "us-west-2",
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_kinesis(kinesis_spec_with_policy_and_region)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    assert expected_kinesis_resource_policy_with_region in tf_resources
