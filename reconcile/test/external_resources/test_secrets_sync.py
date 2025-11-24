@@ -1,6 +1,6 @@
 import copy
 from datetime import UTC, datetime
-from unittest.mock import Mock
+from unittest.mock import create_autospec
 
 from pytest import fixture
 
@@ -15,6 +15,7 @@ from reconcile.external_resources.secrets_sync import (
 )
 from reconcile.utils.external_resource_spec import ExternalResourceSpec
 from reconcile.utils.openshift_resource import OpenshiftResource, ResourceInventory
+from reconcile.utils.secret_reader import SecretReaderBase
 
 
 @fixture
@@ -106,7 +107,7 @@ def test_vault_secrets_reconciler_read_secret_preserves_kv_v2_cached_data() -> N
         SECRET_UPDATED_AT: "2025-11-20T17:24:32Z",
     }
     # Mock secret reader to return the same object (simulating KV v2 cache behavior)
-    mock_secrets_reader = Mock()
+    mock_secrets_reader = create_autospec(SecretReaderBase)
     mock_secrets_reader.read_all.return_value = original_secret_data
 
     reconciler = VaultSecretsReconciler(
@@ -122,11 +123,10 @@ def test_vault_secrets_reconciler_read_secret_preserves_kv_v2_cached_data() -> N
         resource={"provider": "test-provider", "identifier": "test-id"},
         namespace={"name": "test-namespace", "cluster": {"name": "test-cluster"}},
     )
+
+    original_secret_data_copy = copy.deepcopy(original_secret_data)
     # Call _read_secret twice (simulating loop iterations accessing same cached object)
     reconciler._read_secret(spec)
     reconciler._read_secret(spec)
-
     # Confirm original cached data is unchanged
-    assert SECRET_UPDATED_AT in original_secret_data, (
-        "Original cached data was mutated!"
-    )
+    assert original_secret_data == original_secret_data_copy
