@@ -272,6 +272,7 @@ VARIABLE_KEYS = [
     "lifecycle",
     "max_session_duration",
     "secret_format",
+    "policy",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -370,6 +371,10 @@ class aws_s3_bucket_acl(Resource):
 
 
 class aws_s3_bucket_logging(Resource):
+    pass
+
+
+class aws_kinesis_resource_policy(Resource):
     pass
 
 
@@ -4018,6 +4023,22 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/kinesis_stream.html
         kinesis_tf_resource = aws_kinesis_stream(identifier, **kinesis_values)
         tf_resources.append(kinesis_tf_resource)
+
+        # kinesis resource policy (optional)
+        # Terraform resource reference:
+        # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_resource_policy
+        if policy := common_values.get("policy"):
+            policy_identifier = f"{identifier}-policy"
+            policy_values: dict[str, Any] = {
+                "resource_arn": "${" + kinesis_tf_resource.arn + "}",
+                "policy": policy,
+            }
+            if provider:
+                policy_values["provider"] = provider
+            kinesis_policy_tf_resource = aws_kinesis_resource_policy(
+                policy_identifier, **policy_values
+            )
+            tf_resources.append(kinesis_policy_tf_resource)
 
         es_identifier = common_values.get("es_identifier", None)
         if es_identifier:
