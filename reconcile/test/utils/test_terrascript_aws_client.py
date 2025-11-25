@@ -1591,7 +1591,6 @@ def expected_kinesis_resource_policy() -> aws_kinesis_resource_policy:
         **{
             "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
             "policy": '{"Version":"2012-10-17","Statement":[]}',
-            "depends_on": ["aws_kinesis_stream.kinesis-stream"],
         },
     )
 
@@ -1603,7 +1602,6 @@ def expected_kinesis_resource_policy_with_region() -> aws_kinesis_resource_polic
         **{
             "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
             "policy": '{"Version":"2012-10-17","Statement":[]}',
-            "depends_on": ["aws_kinesis_stream.kinesis-stream"],
             "provider": "aws.us-west-2",
         },
     )
