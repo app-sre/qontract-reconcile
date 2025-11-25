@@ -4027,8 +4027,7 @@ class TerrascriptClient:
         # kinesis resource policy (optional)
         # Terraform resource reference:
         # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_resource_policy
-        policy = common_values.get("policy")
-        if policy:
+        if policy := common_values.get("policy"):
             policy_identifier = f"{identifier}-policy"
             policy_values: dict[str, Any] = {
                 "resource_arn": "${" + kinesis_tf_resource.arn + "}",
