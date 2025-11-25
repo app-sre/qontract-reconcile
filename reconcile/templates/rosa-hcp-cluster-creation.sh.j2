@@ -47,7 +47,7 @@ rosa create cluster --cluster-name={{ cluster_name }} \
     --service-cidr {{ cluster.network.service }} \
     --pod-cidr {{ cluster.network.pod }} \
     --host-prefix 23 \
-    --replicas {{ cluster.machine_pools | length }} \
+    --replicas 3 \
     --compute-machine-type {{ cluster.machine_pools[0].instance_type }} \
     {% if cluster.spec.private -%}
     --private \

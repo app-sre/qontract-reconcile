@@ -37,7 +37,7 @@ rosa create cluster -y --cluster-name=cluster-2 \
     --service-cidr 172.30.0.0/16 \
     --pod-cidr 10.128.0.0/14 \
     --host-prefix 23 \
-    --replicas 1 \
+    --replicas 3 \
     --compute-machine-type m5.xlarge \
     --disable-workload-monitoring \
     --channel-group stable
