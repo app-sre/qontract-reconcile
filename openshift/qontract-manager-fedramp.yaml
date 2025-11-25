@@ -113,9 +113,10 @@ objects:
                 pattern /Max retries exceeded with url: \/api\/client\/features/
               </exclude>
             </filter>
-            # tag errors for separate Slack routing (this changes the tag, so errors won't match 'integration' anymore)
+            # tag errors for separate Slack routing (creates slack_errors tag while keeping integration tag)
             <filter integration>
               @type rewrite_tag_filter
+              emit_unmatched true
               <rule>
                 key message
                 pattern /^\[ERROR\]/
