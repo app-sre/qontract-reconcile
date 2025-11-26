@@ -20,6 +20,11 @@ from pydantic import BaseModel
 from requests.exceptions import HTTPError
 from semver import VersionInfo
 
+from reconcile.aus.aus_sts_gate_handler import (
+    AUS_VERSION_GATE_APPROVALS_LABEL,
+    STS_GATE_LABEL,
+    AUSSTSGateHandler,
+)
 from reconcile.aus.cluster_version_data import (
     VersionData,
     VersionDataMap,
@@ -46,7 +51,7 @@ from reconcile.aus.models import (
     OrganizationUpgradeSpec,
     Sector,
 )
-from reconcile.aus.version_gates import HANDLERS, sts_version_gate_handler
+from reconcile.aus.version_gates import HANDLERS
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
@@ -113,8 +118,6 @@ from reconcile.utils.semver_helper import (
 from reconcile.utils.state import init_state
 
 MIN_DELTA_MINUTES = 6
-STS_GATE_LABEL = "api.openshift.com/gate-sts"
-AUS_VERSION_GATE_APPROVALS_LABEL = "sre-capabilities.aus.version-gate-approvals"
 
 
 class RosaRoleUpgradeHandlerParams(PydanticRunParams):
@@ -518,7 +521,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             and self.should_upgrade_roles()
         ):
             logging.info(f"Updating account and operator roles for {self.cluster.name}")
-            sts_gate_handler = sts_version_gate_handler.STSGateHandler(
+            sts_gate_handler = AUSSTSGateHandler(
                 job_controller=build_job_controller(
                     integration=rosa_role_upgrade_handler_params.integration_name,
                     integration_version=rosa_role_upgrade_handler_params.integration_version,
@@ -531,7 +534,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                 rosa_job_service_account=rosa_role_upgrade_handler_params.rosa_job_service_account,
                 rosa_job_image=rosa_role_upgrade_handler_params.rosa_job_image,
             )
-            if not sts_gate_handler.upgrade_rosa_roles_v2(
+            if not sts_gate_handler.upgrade_rosa_roles(
                 ocm_api=ocm_api,
                 cluster=self.cluster,
                 dry_run=False,

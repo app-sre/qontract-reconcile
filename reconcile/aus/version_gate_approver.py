@@ -7,16 +7,12 @@ from reconcile.aus.base import gates_to_agree, get_orgs_for_environment
 from reconcile.aus.version_gates import (
     ingress_gate_handler,
     ocp_gate_handler,
-    sts_version_gate_handler,
 )
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
 )
 from reconcile.utils import gql
 from reconcile.utils.grouping import group_by
-from reconcile.utils.jobcontroller.controller import (
-    build_job_controller,
-)
 from reconcile.utils.ocm.base import (
     ClusterDetails,
     LabelContainer,
@@ -63,19 +59,6 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
 
     def initialize_handlers(self, query_func: Callable) -> None:
         self.handlers: dict[str, GateHandler] = {
-            sts_version_gate_handler.GATE_LABEL: sts_version_gate_handler.STSGateHandler(
-                job_controller=build_job_controller(
-                    integration=QONTRACT_INTEGRATION,
-                    integration_version=QONTRACT_INTEGRATION_VERSION,
-                    cluster=self.params.job_controller_cluster,
-                    namespace=self.params.job_controller_namespace,
-                    secret_reader=self.secret_reader,
-                    dry_run=False,
-                ),
-                aws_iam_role=self.params.rosa_role,
-                rosa_job_service_account=self.params.rosa_job_service_account,
-                rosa_job_image=self.params.rosa_job_image,
-            ),
             ocp_gate_handler.GATE_LABEL: ocp_gate_handler.OCPGateHandler(),
             ingress_gate_handler.GATE_LABEL: ingress_gate_handler.IngressGateHandler(),
         }
