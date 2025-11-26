@@ -521,7 +521,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
             and self.should_upgrade_roles()
         ):
             logging.info(f"Updating account and operator roles for {self.cluster.name}")
-            sts_gate_handler = AUSSTSGateHandler(
+            aus_sts_gate_handler = AUSSTSGateHandler(
                 job_controller=build_job_controller(
                     integration=rosa_role_upgrade_handler_params.integration_name,
                     integration_version=rosa_role_upgrade_handler_params.integration_version,
@@ -534,7 +534,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
                 rosa_job_service_account=rosa_role_upgrade_handler_params.rosa_job_service_account,
                 rosa_job_image=rosa_role_upgrade_handler_params.rosa_job_image,
             )
-            if not sts_gate_handler.upgrade_rosa_roles(
+            if not aus_sts_gate_handler.upgrade_rosa_roles(
                 ocm_api=ocm_api,
                 cluster=self.cluster,
                 dry_run=False,
@@ -552,6 +552,11 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         )
         if not handler_csv:
             return False
+        print("--------------------------------")
+        print(self.cluster.is_sts())
+        print(self.cluster.is_rosa_classic())
+        print(STS_GATE_LABEL in set(handler_csv.split(",")))
+        print("--------------------------------")
         return (
             self.cluster.is_sts()
             and self.cluster.is_rosa_classic()

@@ -734,14 +734,12 @@ def test_policy_handler_create_cluster_upgrade_with_sts_enabled(
         "reconcile.aus.base.build_job_controller", return_value=mock_job_controller
     )
 
-    sts_gate_handler_mock = mocker.patch(
-        "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
+    aus_sts_gate_handler_mock = mocker.patch(
+        "reconcile.aus.base.AUSSTSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = sts_gate_handler_mock.return_value
-    sts_handler_instance.upgrade_rosa_roles.return_value = True
-    sts_handler_instance.handle.return_value = True
-    sts_handler_instance.gate_applicable_to_cluster.return_value = True
+    aus_sts_handler_instance = aus_sts_gate_handler_mock.return_value
+    aus_sts_handler_instance.upgrade_rosa_roles.return_value = True
 
     mock_sts = OCMAWSSTS(
         enabled=True,
@@ -785,7 +783,7 @@ def test_policy_handler_create_cluster_upgrade_with_sts_enabled(
         },
     )
 
-    sts_gate_handler_mock.assert_called_once_with(
+    aus_sts_gate_handler_mock.assert_called_once_with(
         job_controller=mock_job_controller,
         aws_iam_role=rosa_role_upgrade_handler_params.rosa_role,
         rosa_job_service_account=rosa_role_upgrade_handler_params.rosa_job_service_account,
@@ -808,14 +806,12 @@ def test_policy_handler_create_cluster_upgrade_without_sts_enabled(
         "reconcile.aus.base.build_job_controller", return_value=mock_job_controller
     )
 
-    sts_gate_handler_mock = mocker.patch(
-        "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
+    aus_sts_gate_handler_mock = mocker.patch(
+        "reconcile.aus.base.AUSSTSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = sts_gate_handler_mock.return_value
-    sts_handler_instance.upgrade_rosa_roles.return_value = True
-    sts_handler_instance.handle.return_value = True
-    sts_handler_instance.gate_applicable_to_cluster.return_value = True
+    aus_sts_handler_instance = aus_sts_gate_handler_mock.return_value
+    aus_sts_handler_instance.upgrade_rosa_roles.return_value = True
     handler = base.UpgradePolicyHandler(
         policy=cluster_upgrade_policy,
         action="create",
@@ -845,7 +841,7 @@ def test_policy_handler_create_cluster_upgrade_without_sts_enabled(
         },
     )
 
-    sts_gate_handler_mock.assert_not_called()
+    aus_sts_gate_handler_mock.assert_not_called()
 
 
 def test_policy_handler_create_cluster_upgrade_without_sts_enabled_and_rosa_classic(
@@ -863,14 +859,12 @@ def test_policy_handler_create_cluster_upgrade_without_sts_enabled_and_rosa_clas
         "reconcile.aus.base.build_job_controller", return_value=mock_job_controller
     )
 
-    sts_gate_handler_mock = mocker.patch(
-        "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
+    aus_sts_gate_handler_mock = mocker.patch(
+        "reconcile.aus.base.AUSSTSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = sts_gate_handler_mock.return_value
-    sts_handler_instance.upgrade_rosa_roles.return_value = True
-    sts_handler_instance.handle.return_value = True
-    sts_handler_instance.gate_applicable_to_cluster.return_value = True
+    aus_sts_handler_instance = aus_sts_gate_handler_mock.return_value
+    aus_sts_handler_instance.upgrade_rosa_roles.return_value = True
     cluster_upgrade_policy.cluster.hypershift.enabled = False
     handler = base.UpgradePolicyHandler(
         policy=cluster_upgrade_policy,
@@ -902,7 +896,7 @@ def test_policy_handler_create_cluster_upgrade_without_sts_enabled_and_rosa_clas
         },
     )
 
-    sts_gate_handler_mock.assert_not_called()
+    aus_sts_gate_handler_mock.assert_not_called()
 
 
 def test_policy_handler_create_cluster_upgrade_without_gate_labels(
@@ -920,14 +914,12 @@ def test_policy_handler_create_cluster_upgrade_without_gate_labels(
         "reconcile.aus.base.build_job_controller", return_value=mock_job_controller
     )
 
-    sts_gate_handler_mock = mocker.patch(
-        "reconcile.aus.version_gates.sts_version_gate_handler.STSGateHandler",
+    aus_sts_gate_handler_mock = mocker.patch(
+        "reconcile.aus.base.AUSSTSGateHandler",
         autospec=True,
     )
-    sts_handler_instance = sts_gate_handler_mock.return_value
-    sts_handler_instance.upgrade_rosa_roles.return_value = True
-    sts_handler_instance.handle.return_value = True
-    sts_handler_instance.gate_applicable_to_cluster.return_value = True
+    aus_sts_handler_instance = aus_sts_gate_handler_mock.return_value
+    aus_sts_handler_instance.upgrade_rosa_roles.return_value = True
     cluster_upgrade_policy.cluster_labels = build_label_container([])
     mock_sts = OCMAWSSTS(
         enabled=True,
@@ -971,7 +963,7 @@ def test_policy_handler_create_cluster_upgrade_without_gate_labels(
         },
     )
 
-    sts_gate_handler_mock.assert_not_called()
+    aus_sts_gate_handler_mock.assert_not_called()
 
 
 def test_policy_handler_create_control_plane_upgrade(
