@@ -64,7 +64,7 @@ objects:
           - name: GOV_SLACK_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
-                key: gov_slack.webhook_url
+                key: slack.webhook_url
                 name: app-interface
           - name: POD_NAME
             valueFrom:
