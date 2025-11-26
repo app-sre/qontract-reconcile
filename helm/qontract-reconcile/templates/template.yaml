@@ -135,13 +135,13 @@ objects:
           - name: GOV_SLACK_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
-                key: gov_slack.triggers_url
+                key: slack.triggers_url
                 name: app-interface
           {{- else }}
           - name: GOV_SLACK_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
-                key: gov_slack.webhook_url
+                key: slack.webhook_url
                 name: app-interface
           {{- end }}
           {{- end }}
