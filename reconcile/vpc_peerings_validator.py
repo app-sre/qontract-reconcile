@@ -165,7 +165,7 @@ def validate_no_public_to_public_peerings(
                 cluster.allowed_to_bypass_public_peering_restriction
                 and peer.allowed_to_bypass_public_peering_restriction
             ):
-                logging.info(
+                logging.debug(
                     f"{cluster.name} and {peer.name} are both allowed to skip \
                     the check 'no peering with public clusters' check, so their \
                     peering is allowed"
