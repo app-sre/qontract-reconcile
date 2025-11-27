@@ -552,11 +552,7 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
         )
         if not handler_csv:
             return False
-        print("--------------------------------")
-        print(self.cluster.is_sts())
-        print(self.cluster.is_rosa_classic())
-        print(STS_GATE_LABEL in set(handler_csv.split(",")))
-        print("--------------------------------")
+
         return (
             self.cluster.is_sts()
             and self.cluster.is_rosa_classic()
