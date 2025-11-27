@@ -7,6 +7,7 @@ from reconcile.aus.base import gates_to_agree, get_orgs_for_environment
 from reconcile.aus.version_gates import (
     ingress_gate_handler,
     ocp_gate_handler,
+    sts_version_gate_handler,
 )
 from reconcile.gql_definitions.common.ocm_environments import (
     query as ocm_environment_query,
@@ -59,6 +60,7 @@ class VersionGateApprover(QontractReconcileIntegration[VersionGateApproverParams
 
     def initialize_handlers(self, query_func: Callable) -> None:
         self.handlers: dict[str, GateHandler] = {
+            sts_version_gate_handler.GATE_LABEL: sts_version_gate_handler.STSGateHandler(),
             ocp_gate_handler.GATE_LABEL: ocp_gate_handler.OCPGateHandler(),
             ingress_gate_handler.GATE_LABEL: ingress_gate_handler.IngressGateHandler(),
         }
