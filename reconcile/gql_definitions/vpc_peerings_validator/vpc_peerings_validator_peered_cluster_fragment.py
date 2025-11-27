@@ -34,6 +34,7 @@ class ClusterSpecV1(ConfiguredBaseModel):
 
 class VpcPeeringsValidatorPeeredCluster(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    allowed_to_bypass_public_peering_restriction: Optional[bool] = Field(..., alias="allowedToBypassPublicPeeringRestriction")
     network: Optional[ClusterNetworkV1] = Field(..., alias="network")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")

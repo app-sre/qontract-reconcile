@@ -23,6 +23,7 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_pee
 DEFINITION = """
 fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
   name
+  allowedToBypassPublicPeeringRestriction
   network {
     vpc
   }
@@ -35,6 +36,7 @@ fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
     name
+    allowedToBypassPublicPeeringRestriction
     network {
       vpc
     }
@@ -128,6 +130,7 @@ class ClusterPeeringV1(ConfiguredBaseModel):
 
 class ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    allowed_to_bypass_public_peering_restriction: Optional[bool] = Field(..., alias="allowedToBypassPublicPeeringRestriction")
     network: Optional[ClusterNetworkV1] = Field(..., alias="network")
     spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")

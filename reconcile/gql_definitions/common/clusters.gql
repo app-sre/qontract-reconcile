@@ -12,6 +12,7 @@ query Clusters($name: String) {
     managedGroups
     managedClusterRoles
     insecureSkipTLSVerify
+    allowedToBypassPublicPeeringRestriction
     jumpHost {
       ...CommonJumphostFields
     }
