@@ -242,6 +242,7 @@ query TerraformResourcesNamespaces {
             identifier
             defaults
             es_identifier
+            policy
             output_resource_name
             annotations
           }
