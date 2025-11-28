@@ -2,8 +2,18 @@ import contextlib
 import sys
 from collections.abc import Callable
 
+from dataclasses import dataclass
+from typing import Any, Self
 import reconcile.openshift_base as ob
 from reconcile import queries
+from pydantic.main import BaseModel
+from reconcile.gql_definitions.common.app_interface_clusterrole import (
+    BotV1,
+    ClusterV1,
+    UserV1,
+    RoleV1,
+)
+from reconcile.typed_queries.app_interface_clusterroles import get_app_interface_clusterroles
 from reconcile.utils import (
     expiration,
     gql,
@@ -47,6 +57,106 @@ QONTRACT_INTEGRATION = "openshift-clusterrolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
+class OCResource(BaseModel, arbitrary_types_allowed=True):
+    resource: OR
+    resource_name: str
+    
+@dataclass
+class ServiceAccountSpec:
+    sa_namespace_name: str
+    sa_name: str
+    
+    @classmethod
+    def create_sa_spec(cls, bots: list[BotV1] | None) -> list[Self]:
+        return [
+            cls(
+                sa_namespace_name=full_service_account[0],
+                sa_name=full_service_account[1],
+            )
+            for bot in bots or []
+            if bot.openshift_serviceaccount
+            and (full_service_account := bot.openshift_serviceaccount.split("/"))
+            and len(full_service_account) == 2
+        ]
+
+class ClusterRoleBindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=True):
+    cluster_role_name: str
+    cluster: ClusterV1
+    usernames: set[str]
+    openshift_service_accounts: list[ServiceAccountSpec]
+    
+    @classmethod
+    def create_cluster_role_binding_specs(cls, cluster_role: RoleV1) -> list[Self]:
+        cluster_role_binding_spec = [
+            cls(
+                cluster_role_name=cluster_role.name,
+                cluster=access.cluster,
+                usernames=ClusterRoleBindingSpec.get_usernames_from_users_and_cluster(cluster_role.users, access.cluster),
+                openshift_service_accounts=ServiceAccountSpec.create_sa_spec(cluster_role.bots),
+            )
+            for access in cluster_role.access or []
+            if access.cluster and access.cluster_role
+        ]
+        return cluster_role_binding_spec
+
+    def get_oc_resources(self) -> list[OCResource]:
+        user_oc_resources = [
+            self.construct_user_oc_resource(username) for username in self.usernames
+        ]
+        sa_oc_resources = [
+            self.construct_sa_oc_resource(sa.sa_namespace_name, sa.sa_name)
+            for sa in self.openshift_service_accounts
+        ]
+        return user_oc_resources + sa_oc_resources
+    
+    def construct_user_oc_resource(self, user: str) -> OCResource:
+        name = f"{self.cluster_role_name}-{user}"
+        body: dict[str, Any] = {
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "kind": "ClusterRoleBinding",
+            "metadata": {"name": name},
+            "roleRef": {"name": self.cluster_role_name, "kind": "ClusterRole"},
+            "subjects": [{"kind": "User", "name": user}],
+        }
+        return OCResource(
+            resource=OR(
+                body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
+            ),
+            resource_name=name,
+        )
+    
+    def construct_sa_oc_resource(self, sa_namespace_name: str, sa_name: str) -> OCResource:
+        name = f"{self.cluster_role_name}-{sa_namespace_name}-{sa_name}"
+        body: dict[str, Any] = {
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "kind": "ClusterRoleBinding",
+            "metadata": {"name": name},
+            "roleRef": {"name": self.cluster_role_name, "kind": "ClusterRole"},
+            "subjects": [{"kind": "ServiceAccount", "name": sa_name, "namespace": sa_namespace_name}],
+        }
+        return OCResource(
+            resource=OR(
+                body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
+            ),
+            resource_name=name,
+        )
+    
+    @staticmethod
+    def get_usernames_from_users_and_cluster(
+        users: list[UserV1] | None = None, cluster: ClusterV1 | None = None
+    ) -> set[str]:
+        auth_dict = [
+            auth.model_dump(by_alias=True) for auth in cluster.auth
+        ]
+        user_keys = ob.determine_user_keys_for_access(cluster.name, auth_dict)
+        return {
+            name
+            for user in users or []
+            for user_key in user_keys or []
+            if (name := getattr(user, user_key, None))
+        }
+    
+
 def construct_user_oc_resource(role: str, user: str) -> tuple[OR, str]:
     name = f"{role}-{user}"
     # Note: In OpenShift 4.x this resource is in rbac.authorization.k8s.io/v1
@@ -84,6 +194,28 @@ def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[O
         name,
     )
 
+
+def fetch_desired_state_v2(ri: ResourceInventory | None, oc_map: ob.ClusterMap) -> list[dict[str, str]]:
+    
+    cluster_roles: list[RoleV1] = expiration.filter(get_app_interface_clusterroles())
+    cluster_role_binding_specs = [
+        ClusterRoleBindingSpec.create_cluster_role_binding_specs(cluster_role)
+        for cluster_role in cluster_roles
+    ]
+    for cluster_role_binding_spec in cluster_role_binding_specs:
+        for oc_resource in cluster_role_binding_spec.get_oc_resources():
+            if not ri.get_desired(
+                cluster_role_binding_spec.cluster.name,
+                cluster_role_binding_spec.namespace.name,
+                "ClusterRoleBinding.rbac.authorization.k8s.io",
+                oc_resource.resource_name,
+            ):
+                ri.add_desired_resource(
+                    cluster=cluster_role_binding_spec.cluster.name,
+                    namespace=cluster_role_binding_spec.namespace.name,
+                    resource=oc_resource.resource,
+                    privileged=oc_resource.privileged,
+                )
 
 def fetch_desired_state(
     ri: ResourceInventory | None, oc_map: ob.ClusterMap
