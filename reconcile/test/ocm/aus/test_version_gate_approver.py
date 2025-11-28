@@ -11,13 +11,9 @@ from reconcile.aus.version_gate_approver import (
     VersionGateApproverParams,
     get_enabled_gate_handlers,
 )
-from reconcile.aus.version_gates import ocp_gate_handler, sts_version_gate_handler
+from reconcile.aus.version_gates import ocp_gate_handler
 from reconcile.aus.version_gates.handler import GateHandler
-from reconcile.aus.version_gates.sts_version_gate_handler import STSGateHandler
-from reconcile.test.ocm.aus.conftest import (
-    VERSION_GATE_4_13_OCP_ID,
-    VERSION_GATE_4_13_STS_ID,
-)
+from reconcile.test.ocm.aus.conftest import VERSION_GATE_4_13_OCP_ID
 from reconcile.test.ocm.aus.fixtures import NoopGateHandler
 from reconcile.test.ocm.fixtures import build_ocm_cluster
 from reconcile.test.ocm.test_utils_ocm_labels import build_subscription_label
@@ -56,10 +52,6 @@ def integration(job_controller: K8sJobController) -> VersionGateApprover:
         )
     )
     approver.handlers = {
-        sts_version_gate_handler.GATE_LABEL: STSGateHandler(
-            job_controller=job_controller,
-            aws_iam_role="role",
-        ),
         ocp_gate_handler.GATE_LABEL: NoopGateHandler(),
     }
     return approver
@@ -101,7 +93,7 @@ def integration(job_controller: K8sJobController) -> VersionGateApprover:
                 available_upgrades=["4.13.1"],
             ),
             [VERSION_GATE_4_13_OCP_ID],
-            [VERSION_GATE_4_13_STS_ID],
+            [],
         ),
         # minor ROSA HCP upgrade: OCP gate already acked, STS gate not acked
         (
@@ -114,7 +106,7 @@ def integration(job_controller: K8sJobController) -> VersionGateApprover:
                 available_upgrades=["4.13.1"],
             ),
             [VERSION_GATE_4_13_OCP_ID],
-            [VERSION_GATE_4_13_STS_ID],
+            [],
         ),
         # minor OSD upgrade: OCP gate not acked, STS gate not relevant
         (
@@ -149,7 +141,7 @@ def integration(job_controller: K8sJobController) -> VersionGateApprover:
                 available_upgrades=["4.13.1"],
             ),
             [],
-            [VERSION_GATE_4_13_OCP_ID, VERSION_GATE_4_13_STS_ID],
+            [VERSION_GATE_4_13_OCP_ID],
         ),
         # no upgrades available
         (
