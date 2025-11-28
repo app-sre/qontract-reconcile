@@ -113,3 +113,14 @@ helm-test: generate
 
 unittest: ## Run unit tests
 	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml
+
+.PHONY: generate-client
+generate-client:
+	@rm -rf qontract_api_client/qontract_api_client/*
+	docker compose run --remove-orphans --rm generate-qontact-api-client
+	@touch qontract_api_client/qontract_api_client/py.typed
+
+poc-tests:
+	make -C qontract_api test
+# 	cd qontract_api_client && make test
+	make -C qontract_utils test

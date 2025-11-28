@@ -1225,6 +1225,18 @@ def slack_usergroups(
     )
 
 
+@integration.command(short_help="Manage Slack User Groups (channels and users).")
+@workspace_name
+@usergroup_name
+@click.pass_context
+def slack_usergroups_api(
+    ctx: click.Context, workspace_name: str | None, usergroup_name: str | None
+) -> None:
+    import reconcile.slack_usergroups_api
+
+    run_integration(reconcile.slack_usergroups_api, ctx, workspace_name, usergroup_name)
+
+
 @integration.command(short_help="Manage permissions on GitLab projects.")
 @threaded()
 @click.pass_context
