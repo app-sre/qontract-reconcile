@@ -4,6 +4,11 @@ from functools import wraps
 from typing import Any
 
 
+def used_for_security_is_enabled() -> bool:
+    used_for_security_env = os.getenv("USED_FOR_SECURITY", "false")
+    return used_for_security_env.lower() == "true"
+
+
 def environ(variables: Iterable[str] | None = None) -> Callable:
     """Check that environment variables are set before execution."""
     if variables is None:
