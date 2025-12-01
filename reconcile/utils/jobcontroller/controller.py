@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from typing import Protocol, TextIO
 
-from kubernetes.client import (  # type: ignore[attr-defined]
+from kubernetes.client import (
     ApiClient,
     V1Job,
     V1ObjectMeta,
@@ -100,7 +100,7 @@ class K8sJobController:
         """
         new_cache = {}
         for item in self.oc.get_items(
-            kind="Job",
+            kind="Job.batch",
             namespace=self.namespace,
         ):
             openshift_resource = OpenshiftResource(

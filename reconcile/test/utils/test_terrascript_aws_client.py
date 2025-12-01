@@ -22,6 +22,7 @@ from reconcile.utils.terrascript_aws_client import (
     OutputResourceNameNotUniqueError,
     ProviderExcludedError,
     TerrascriptClient,
+    aws_kinesis_resource_policy,
 )
 
 
@@ -103,10 +104,7 @@ def expected_default_region_aws_provider() -> dict[str, Any]:
 
 
 def test_init_with_default_tags(
-    mocker: MockerFixture,
-    default_account: dict[str, Any],
-    expected_supported_region_aws_provider: dict[str, Any],
-    expected_default_region_aws_provider: dict[str, Any],
+    mocker: MockerFixture, default_account: dict[str, Any]
 ) -> None:
     mocked_secret_reader = mocker.patch(
         "reconcile.utils.terrascript_aws_client.SecretReader",
@@ -117,16 +115,31 @@ def test_init_with_default_tags(
         "aws_secret_access_key": "some-secret-key",
     }
 
+    default_tags = {"tag1": "value1", "tag2": "value2"}
     ts = TerrascriptClient(
         "a_integration",
         "prefix",
         1,
         [default_account],
+        default_tags=default_tags,
     )
 
     assert ts.tss["account1"]["provider"]["aws"] == [
-        expected_supported_region_aws_provider,
-        expected_default_region_aws_provider,
+        {
+            "access_key": "some-key-id",
+            "secret_key": "some-secret-key",
+            "region": "us-east-1",
+            "alias": "us-east-1",
+            "skip_region_validation": True,
+            "default_tags": {"tags": default_tags},
+        },
+        {
+            "access_key": "some-key-id",
+            "secret_key": "some-secret-key",
+            "region": "us-east-1",
+            "skip_region_validation": True,
+            "default_tags": {"tags": default_tags},
+        },
     ]
 
 
@@ -203,6 +216,7 @@ def test_populate_additional_providers(
         "prefix",
         1,
         [default_account],
+        default_tags=None,
     )
     ts.populate_configs([cluster_account_no_assume_role])
     ts.populate_additional_providers(
@@ -219,7 +233,7 @@ def test_populate_additional_providers(
 
 @pytest.fixture
 def ts() -> TerrascriptClient:
-    return TerrascriptClient("", "", 1, [])
+    return TerrascriptClient("", "", 1, [], default_tags=None)
 
 
 def test_aws_username_org(ts: TerrascriptClient) -> None:
@@ -526,6 +540,35 @@ def build_s3_spec(
     )
 
 
+def build_kinesis_spec(
+    resource: dict,
+) -> ExternalResourceSpec:
+    provider = "aws"
+    provisioner = {"name": "a"}
+    namespace = {
+        "name": "n",
+        "managedExternalResources": True,
+        "externalResources": [
+            {
+                "provider": provider,
+                "provisioner": provisioner,
+                "resources": [resource],
+            },
+        ],
+        "cluster": {"name": "c"},
+        "environment": {
+            "name": "e",
+        },
+        "app": {"name": "app"},
+    }
+    return ExternalResourceSpec(
+        provision_provider=provider,
+        provisioner=provisioner,
+        resource=resource,
+        namespace=namespace,
+    )
+
+
 @pytest.fixture
 def s3_default_spec() -> ExternalResourceSpec:
     resource = {"identifier": "s3-bucket", "provider": "s3", "region": "us-east-1"}
@@ -547,6 +590,15 @@ def expected_s3_default_bucket() -> aws_s3_bucket:
                 "app": "app",
             },
             "lifecycle": {"ignore_changes": ["grant"]},
+            "lifecycle_rule": [
+                {
+                    "id": "expire_noncurrent_versions",
+                    "enabled": True,
+                    "noncurrent_version_expiration": {"days": 30},
+                    "expiration": {"expired_object_delete_marker": True},
+                    "abort_incomplete_multipart_upload_days": 3,
+                }
+            ],
             "server_side_encryption_configuration": {
                 "rule": {
                     "apply_server_side_encryption_by_default": {
@@ -566,6 +618,62 @@ def test_populate_tf_resource_s3(
     bucket_tf_resource = ts.populate_tf_resource_s3(s3_default_spec)
 
     assert bucket_tf_resource == expected_s3_default_bucket
+
+
+@pytest.fixture
+def s3_spec_with_noncurrent_version_expiration() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-bucket",
+        "provider": "s3",
+        "region": "us-east-1",
+        "overrides": '{"lifecycle_rules": [{"id": "some-rule", "noncurrent_version_expiration": {"days": 1}, "enabled": true}]}',
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture
+def expected_with_noncurrent_version_expiration() -> aws_s3_bucket:
+    return aws_s3_bucket(
+        "s3-bucket",
+        **{
+            "bucket": "s3-bucket",
+            "versioning": {"enabled": True},
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+            "lifecycle": {"ignore_changes": ["grant"]},
+            "lifecycle_rule": [
+                {
+                    "id": "some-rule",
+                    "enabled": True,
+                    "noncurrent_version_expiration": {"days": 1},
+                }
+            ],
+            "server_side_encryption_configuration": {
+                "rule": {
+                    "apply_server_side_encryption_by_default": {
+                        "sse_algorithm": "AES256"
+                    }
+                }
+            },
+        },
+    )
+
+
+def test_populate_tf_resource_s3_with_noncurrent_version_expiration(
+    ts: TerrascriptClient,
+    s3_spec_with_noncurrent_version_expiration: ExternalResourceSpec,
+    expected_with_noncurrent_version_expiration: aws_s3_bucket,
+) -> None:
+    bucket_tf_resource = ts.populate_tf_resource_s3(
+        s3_spec_with_noncurrent_version_expiration
+    )
+
+    assert bucket_tf_resource == expected_with_noncurrent_version_expiration
 
 
 @pytest.fixture
@@ -636,6 +744,15 @@ def expected_s3_bucket_with_region() -> aws_s3_bucket:
                 "app": "app",
             },
             "lifecycle": {"ignore_changes": ["grant"]},
+            "lifecycle_rule": [
+                {
+                    "id": "expire_noncurrent_versions",
+                    "enabled": True,
+                    "noncurrent_version_expiration": {"days": 30},
+                    "expiration": {"expired_object_delete_marker": True},
+                    "abort_incomplete_multipart_upload_days": 3,
+                }
+            ],
             "server_side_encryption_configuration": {
                 "rule": {
                     "apply_server_side_encryption_by_default": {
@@ -779,6 +896,7 @@ def ts_for_alb(mocker: MockerFixture) -> TerrascriptClient:
                 "resourcesDefaultRegion": "us-east-1",
             }
         ],
+        default_tags=None,
     )
 
 
@@ -1351,3 +1469,245 @@ def test_populate_tf_resource_alb_with_query_string_none_key_condition(
         {"key": "version", "value": "v2"},
     ]
     assert condition["query_string"] == expected_query_string
+
+
+@pytest.mark.parametrize(
+    "test_input,expected",
+    [
+        ({"a": 1, "b": 2}, {"a": 1, "b": 2}),
+        ({"a": 1, "b.c": 2}, {"a": 1, "b": {"c": 2}}),
+        ({"a.b": 1, "a.c": 2}, {"a": {"b": 1, "c": 2}}),
+        ({"a.b.c": 1, "a.b.d": 2}, {"a": {"b": {"c": 1, "d": 2}}}),
+    ],
+)
+def test__unflatten_dotted_keys_dict(
+    ts: TerrascriptClient, test_input: dict[str, str], expected: dict[str, Any]
+) -> None:
+    assert ts._unflatten_dotted_keys_dict(test_input) == expected
+
+
+@pytest.mark.parametrize(
+    "test_input",
+    [
+        {"a.b": 1, "a.b.c": 2},
+        {"a.b.c": 2, "a.b": 1},
+        {"x.y.z": 1, "x.y": 2, "x": 3},
+    ],
+)
+def test__unflatten_dotted_keys_dict_conflicting_keys(
+    ts: TerrascriptClient, test_input: dict[str, str]
+) -> None:
+    with pytest.raises(ValueError, match="Conflicting keys detected"):
+        ts._unflatten_dotted_keys_dict(test_input)
+
+
+# _apply_secret_format tests
+def test__apply_secret_format_dotted_ok(ts: TerrascriptClient) -> None:
+    dotted_secret = {
+        "db.host": "gabi-stage.cuwmzfmkc2w0.us-east-1.rds.amazonaws.com",
+        "db.name": "gabi",
+        "db.password": "a-nice-password",
+        "db.port": "5432",
+        "db.user": "gabi",
+        "external-resources/updated_at": "2025-10-06T07:28:39Z",
+    }
+
+    dotted_secret_format = '{"password":"{{ db.password }}","username":"{{ db.user }}"}'
+
+    formatted_secret = ts._apply_secret_format(dotted_secret_format, dotted_secret)
+    assert formatted_secret == {
+        "password": dotted_secret["db.password"],
+        "username": dotted_secret["db.user"],
+    }
+
+
+def test__apply_secret_format_non_dotted_ok(ts: TerrascriptClient) -> None:
+    non_dotted_secret = {
+        "host": "gabi-stage.cuwmzfmkc2w0.us-east-1.rds.amazonaws.com",
+        "name": "gabi",
+        "password": "a-nice-password",
+        "port": "5432",
+        "user": "gabi",
+        "external-resources/updated_at": "2025-10-06T07:28:39Z",
+    }
+
+    non_dotted_secret_format = '{"password":"{{ password }}","username":"{{ user }}"}'
+
+    formatted_secret = ts._apply_secret_format(
+        non_dotted_secret_format, non_dotted_secret
+    )
+    assert formatted_secret == {
+        "password": non_dotted_secret["password"],
+        "username": non_dotted_secret["user"],
+    }
+
+
+def test__apply_secret_format_bad_format(ts: TerrascriptClient) -> None:
+    secret = {"foo": "bar"}
+    secret_format = '{"key1": {"key2": "{{ foo }}"}}'
+    with pytest.raises(ValueError, match="dictionary value"):
+        ts._apply_secret_format(secret_format, secret)
+
+
+@pytest.fixture
+def kinesis_spec_without_policy() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "kinesis-stream",
+        "provider": "kinesis",
+        "region": "us-east-1",
+        "defaults": '{"shard_count": 1}',
+    }
+    return build_kinesis_spec(resource)
+
+
+@pytest.fixture
+def kinesis_spec_with_policy() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "kinesis-stream",
+        "provider": "kinesis",
+        "region": "us-east-1",
+        "defaults": '{"shard_count": 1}',
+        "policy": '{"Version":"2012-10-17","Statement":[]}',
+    }
+    return build_kinesis_spec(resource)
+
+
+@pytest.fixture
+def kinesis_spec_with_policy_and_region() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "kinesis-stream",
+        "provider": "kinesis",
+        "region": "us-west-2",
+        "defaults": '{"shard_count": 1}',
+        "policy": '{"Version":"2012-10-17","Statement":[]}',
+    }
+    return build_kinesis_spec(resource)
+
+
+@pytest.fixture
+def expected_kinesis_resource_policy() -> aws_kinesis_resource_policy:
+    return aws_kinesis_resource_policy(
+        "kinesis-stream-policy",
+        **{
+            "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+        },
+    )
+
+
+@pytest.fixture
+def expected_kinesis_resource_policy_with_region() -> aws_kinesis_resource_policy:
+    return aws_kinesis_resource_policy(
+        "kinesis-stream-policy",
+        **{
+            "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+            "provider": "aws.us-west-2",
+        },
+    )
+
+
+def test_populate_tf_resource_kinesis_without_policy(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    kinesis_spec_without_policy: ExternalResourceSpec,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "shard_count": 1,
+            "region": "us-east-1",
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_kinesis(kinesis_spec_without_policy)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    kinesis_streams = [
+        r for r in tf_resources if type(r).__name__ == "aws_kinesis_stream"
+    ]
+    assert len(kinesis_streams) == 1
+
+    kinesis_policies = [
+        r for r in tf_resources if type(r).__name__ == "aws_kinesis_resource_policy"
+    ]
+    assert len(kinesis_policies) == 0
+
+
+def test_populate_tf_resource_kinesis_with_policy(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    kinesis_spec_with_policy: ExternalResourceSpec,
+    expected_kinesis_resource_policy: aws_kinesis_resource_policy,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "shard_count": 1,
+            "region": "us-east-1",
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_kinesis(kinesis_spec_with_policy)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    assert expected_kinesis_resource_policy in tf_resources
+
+
+def test_populate_tf_resource_kinesis_with_policy_and_region(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    kinesis_spec_with_policy_and_region: ExternalResourceSpec,
+    expected_kinesis_resource_policy_with_region: aws_kinesis_resource_policy,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "_multiregion_account", return_value=True)
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "shard_count": 1,
+            "policy": '{"Version":"2012-10-17","Statement":[]}',
+            "region": "us-west-2",
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_kinesis(kinesis_spec_with_policy_and_region)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    assert expected_kinesis_resource_policy_with_region in tf_resources

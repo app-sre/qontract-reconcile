@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import operator
 import os
-import re
 from functools import lru_cache
 from threading import Lock
 from typing import (
@@ -25,6 +24,7 @@ import reconcile.utils.lean_terraform_client as terraform
 from reconcile.utils.secret_reader import SecretReader, SecretReaderBase
 
 if TYPE_CHECKING:
+    import re
     from collections.abc import (
         Iterable,
         Iterator,
@@ -1074,28 +1074,40 @@ class AWSApi:
         return [rt["RouteTableId"] for rt in vpc_route_tables]
 
     @staticmethod
-    def _filter_amis(
-        images: Iterable[ImageTypeDef], regex: str
-    ) -> list[dict[str, Any]]:
-        results = []
-        pattern = re.compile(regex)
-        for i in images:
-            if not re.search(pattern, i["Name"]):
-                continue
-            if i["State"] != "available":
-                continue
-            item = {"image_id": i["ImageId"], "tags": i.get("Tags", [])}
-            results.append(item)
+    def normalize_tags(tags: Iterable[TagTypeDef]) -> dict[str, str]:
+        return {tag["Key"]: tag["Value"] for tag in tags}
 
-        return results
+    @staticmethod
+    def _filter_amis(
+        images: Iterable[ImageTypeDef],
+        regex: re.Pattern,
+    ) -> dict[str, dict[str, str]]:
+        return {
+            image["ImageId"]: AWSApi.normalize_tags(image.get("Tags", []))
+            for image in images
+            if regex.search(image["Name"]) and image["State"] == "available"
+        }
 
     def get_amis_details(
         self,
         account: Mapping[str, Any],
         owner_account: Mapping[str, Any],
-        regex: str,
+        regex: re.Pattern,
         region: str | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, dict[str, str]]:
+        """
+        Get AMI details for an account, find AMI name matches regex and state is available.
+        Return ImageId and normalized tags.
+
+        Args:
+            account: AWS account
+            owner_account: AMI owner AWS account uid
+            regex: regex to filter AMI name
+            region: AWS account region
+
+        Returns:
+            dict[str, dict[str, str]]: Key is AMI ImageId, value is AMI normalized tags.
+        """
         ec2 = self._account_ec2_client(account["name"], region_name=region)
         images = self.get_account_amis(ec2, owner=owner_account["uid"])
         return self._filter_amis(images, regex)
@@ -1175,12 +1187,31 @@ class AWSApi:
         client = self._account_cloudwatch_client(account_name, region_name=region_name)
         client.delete_log_group(logGroupName=group_name)
 
-    def create_tag(
-        self, account: Mapping[str, Any], resource_id: str, tag: Mapping[str, str]
+    def create_tags(
+        self,
+        account: Mapping[str, Any],
+        resource_id: str,
+        tags: Mapping[str, str],
     ) -> None:
+        """
+        Create tags on EC2 resources (AMI)
+
+        Args:
+            account: AWS account
+            resource_id: AWS resource id
+            tags: tags to update
+
+        Returns:
+            None
+        """
         ec2 = self._account_ec2_client(account["name"])
-        tag_type_def: TagTypeDef = {"Key": tag["Key"], "Value": tag["Value"]}
-        ec2.create_tags(Resources=[resource_id], Tags=[tag_type_def])
+        formatted_tags: list[TagTypeDef] = [
+            {"Key": k, "Value": v} for k, v in tags.items()
+        ]
+        ec2.create_tags(
+            Resources=[resource_id],
+            Tags=formatted_tags,
+        )
 
     def get_alb_network_interface_ips(
         self, account: awsh.Account, service_name: str

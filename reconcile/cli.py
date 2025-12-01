@@ -50,10 +50,10 @@ from reconcile.utils.unleash import get_feature_toggle_state
 TERRAFORM_VERSION = ["1.6.6"]
 TERRAFORM_VERSION_REGEX = r"^Terraform\sv([\d]+\.[\d]+\.[\d]+)$"
 
-OC_VERSIONS = ["4.16.2", "4.12.46", "4.10.15"]
-OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)$"
+OC_VERSIONS = ["4.19.0", "4.16.2"]
+OC_VERSION_REGEX = r"^Client\sVersion:\s([\d]+\.[\d]+\.[\d]+)"
 
-HELM_VERSIONS = ["3.11.1"]
+HELM_VERSIONS = ["3.19.2"]
 HELM_VERSION_REGEX = r"^version.BuildInfo{Version:\"v([\d]+\.[\d]+\.[\d]+)\".*$"
 
 
@@ -1028,7 +1028,7 @@ def aws_account_manager(
     "--state-tmpl-resource",
     help="Resource name of the state template-collection template in the app-interface.",
     required=True,
-    default="/terraform-init/terraform-state.yml",
+    default="/terraform-init/terraform-state.yml.j2",
 )
 @click.option(
     "--template-collection-root-path",
@@ -1036,12 +1036,26 @@ def aws_account_manager(
     required=True,
     default="data/templating/collections/terraform-init",
 )
+@click.option(
+    "--cloudformation-template-resource",
+    help="Resource name of the CloudFormation template to create the S3 bucket",
+    required=True,
+    default="/terraform-init/terraform-state-s3-bucket.yaml",
+)
+@click.option(
+    "--cloudformation-import-template-resource",
+    help="Resource name of the CloudFormation template to import existing S3 bucket",
+    required=True,
+    default="/terraform-init/terraform-state-s3-bucket-import.yaml",
+)
 @click.pass_context
 def terraform_init(
     ctx: click.Context,
     account_name: str | None,
     state_tmpl_resource: str,
     template_collection_root_path: str,
+    cloudformation_template_resource: str,
+    cloudformation_import_template_resource: str,
 ) -> None:
     from reconcile.terraform_init.integration import (
         TerraformInitIntegration,
@@ -1054,6 +1068,8 @@ def terraform_init(
                 account_name=account_name,
                 state_tmpl_resource=state_tmpl_resource,
                 template_collection_root_path=template_collection_root_path,
+                cloudformation_template_resource=cloudformation_template_resource,
+                cloudformation_import_template_resource=cloudformation_import_template_resource,
             )
         ),
         ctx=ctx,
@@ -1135,9 +1151,17 @@ def jenkins_webhooks_cleaner(ctx: click.Context) -> None:
     "--jira-board-name", help="The Jira board to act on.", default=None, multiple=True
 )
 @click.option("--board-check-interval", help="Check interval in minutes", default=120)
+@click.option(
+    "--use-cache/--no-use-cache",
+    default=True,
+    help="Use cached results for validation.",
+)
 @click.pass_context
 def jira_permissions_validator(
-    ctx: click.Context, jira_board_name: Iterable[str] | None, board_check_interval: int
+    ctx: click.Context,
+    jira_board_name: Iterable[str] | None,
+    board_check_interval: int,
+    use_cache: bool,
 ) -> None:
     import reconcile.jira_permissions_validator
 
@@ -1146,6 +1170,7 @@ def jira_permissions_validator(
         ctx,
         jira_board_name=jira_board_name,
         board_check_interval_sec=board_check_interval * 60,
+        use_cache=use_cache,
     )
 
 
@@ -1270,14 +1295,14 @@ def aws_ami_cleanup(ctx: click.Context, thread_pool_size: int) -> None:
     run_integration(reconcile.aws_ami_cleanup.integration, ctx, thread_pool_size)
 
 
-@integration.command(short_help="Set up retention period for Cloudwatch logs.")
-@threaded()
+@integration.command(short_help="Set up retention period and tags for Cloudwatch logs.")
 @click.pass_context
-def aws_cloudwatch_log_retention(ctx: click.Context, thread_pool_size: int) -> None:
+def aws_cloudwatch_log_retention(ctx: click.Context) -> None:
     import reconcile.aws_cloudwatch_log_retention.integration
 
     run_integration(
-        reconcile.aws_cloudwatch_log_retention.integration, ctx, thread_pool_size
+        reconcile.aws_cloudwatch_log_retention.integration,
+        ctx,
     )
 
 
@@ -2830,6 +2855,36 @@ def ocm_addons_upgrade_scheduler_org(
     default=bool(os.environ.get("IGNORE_STS_CLUSTERS")),
     help="Ignore STS clusters",
 )
+@click.option(
+    "--job-controller-cluster",
+    help="The cluster holding the job-controller namepsace",
+    required=False,
+    envvar="JOB_CONTROLLER_CLUSTER",
+)
+@click.option(
+    "--job-controller-namespace",
+    help="The namespace used for ROSA jobs",
+    required=False,
+    envvar="JOB_CONTROLLER_NAMESPACE",
+)
+@click.option(
+    "--rosa-job-service-account",
+    help="The service-account used for ROSA jobs",
+    required=False,
+    envvar="ROSA_JOB_SERVICE_ACCOUNT",
+)
+@click.option(
+    "--rosa-job-image",
+    help="The container image to use to run ROSA cli command jobs",
+    required=False,
+    envvar="ROSA_JOB_IMAGE",
+)
+@click.option(
+    "--rosa-role",
+    help="The role to assume in the ROSA cluster account",
+    required=False,
+    envvar="ROSA_ROLE",
+)
 @click.pass_context
 def advanced_upgrade_scheduler(
     ctx: click.Context,
@@ -2837,9 +2892,21 @@ def advanced_upgrade_scheduler(
     org_id: Iterable[str],
     exclude_org_id: Iterable[str],
     ignore_sts_clusters: bool,
+    job_controller_cluster: str | None,
+    job_controller_namespace: str | None,
+    rosa_job_service_account: str | None,
+    rosa_role: str | None,
+    rosa_job_image: str | None,
 ) -> None:
-    from reconcile.aus.advanced_upgrade_service import AdvancedUpgradeServiceIntegration
-    from reconcile.aus.base import AdvancedUpgradeSchedulerBaseIntegrationParams
+    from reconcile.aus.advanced_upgrade_service import (
+        QONTRACT_INTEGRATION,
+        QONTRACT_INTEGRATION_VERSION,
+        AdvancedUpgradeServiceIntegration,
+    )
+    from reconcile.aus.base import (
+        AdvancedUpgradeSchedulerBaseIntegrationParams,
+        RosaRoleUpgradeHandlerParams,
+    )
 
     run_class_integration(
         integration=AdvancedUpgradeServiceIntegration(
@@ -2848,6 +2915,22 @@ def advanced_upgrade_scheduler(
                 ocm_organization_ids=set(org_id),
                 excluded_ocm_organization_ids=set(exclude_org_id),
                 ignore_sts_clusters=ignore_sts_clusters,
+                rosa_role_upgrade_handler_params=RosaRoleUpgradeHandlerParams(
+                    job_controller_cluster=job_controller_cluster,
+                    job_controller_namespace=job_controller_namespace,
+                    rosa_job_service_account=rosa_job_service_account,
+                    rosa_role=rosa_role,
+                    rosa_job_image=rosa_job_image,
+                    integration_name=QONTRACT_INTEGRATION,
+                    integration_version=QONTRACT_INTEGRATION_VERSION,
+                )
+                if all([
+                    job_controller_cluster,
+                    job_controller_namespace,
+                    rosa_job_service_account,
+                    rosa_role,
+                ])
+                else None,
             )
         ),
         ctx=ctx,

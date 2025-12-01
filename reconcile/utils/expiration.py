@@ -6,6 +6,8 @@ from typing import (
     cast,
 )
 
+from reconcile.utils.datetime_util import ensure_utc, utc_now
+
 DATE_FORMAT = "%Y-%m-%d"
 
 
@@ -17,12 +19,14 @@ DictsOrRoles = TypeVar("DictsOrRoles", bound=Iterable[FilterableRole] | Iterable
 
 
 def date_expired(date: str) -> bool:
-    exp_date = datetime.datetime.strptime(date, DATE_FORMAT).date()
-    current_date = datetime.datetime.utcnow().date()
+    exp_date = ensure_utc(datetime.datetime.strptime(date, DATE_FORMAT)).date()  # noqa: DTZ007
+    current_date = utc_now().date()
     return current_date >= exp_date
 
 
-def filter(roles: DictsOrRoles | None) -> DictsOrRoles:
+def filter[DictsOrRoles: Iterable[FilterableRole] | Iterable[dict]](
+    roles: DictsOrRoles | None,
+) -> DictsOrRoles:
     """Filters roles and returns the ones which are not yet expired."""
     filtered = []
     for r in roles or []:

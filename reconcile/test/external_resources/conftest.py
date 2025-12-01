@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pytest import fixture
 
@@ -101,7 +101,7 @@ def state(
 ) -> ExternalResourceState:
     return ExternalResourceState(
         key=key,
-        ts=datetime(2024, 1, 1, 17, 14, 0),
+        ts=datetime(2024, 1, 1, 17, 14, 0, tzinfo=UTC),
         resource_status=ResourceStatus.NOT_EXISTS,
         reconciliation=reconciliation,
         reconciliation_errors=0,
@@ -111,9 +111,9 @@ def state(
 @fixture
 def module() -> ExternalResourcesModuleV1:
     return ExternalResourcesModuleV1(
-        module_type="cdktf",
+        module_type="terraform",
         provision_provider="aws",
-        provider="aws-iam-role",
+        provider="rds",
         reconcile_drift_interval_minutes=60,
         reconcile_timeout_minutes=60,
         outputs_secret_sync=True,

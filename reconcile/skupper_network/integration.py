@@ -85,7 +85,7 @@ def compile_skupper_sites(
                 or skupper_network.site_controller_templates
             ):
                 tmpl_vars = tmpl.variables or {}
-                tmpl_vars["resource"] = {"namespace": ns.dict(by_alias=True)}
+                tmpl_vars["resource"] = {"namespace": ns.model_dump(by_alias=True)}
 
                 site_controller_objects.append(
                     load_site_controller_template(tmpl.path, tmpl_vars)
@@ -304,6 +304,6 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     skupper_networks = get_skupper_networks(gqlapi.query)
     return {
         "skupper_sites": [
-            site.dict() for site in compile_skupper_sites(skupper_networks)
+            site.model_dump() for site in compile_skupper_sites(skupper_networks)
         ],
     }

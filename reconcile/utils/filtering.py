@@ -6,7 +6,7 @@ KeyType = TypeVar("KeyType")
 ValueType = TypeVar("ValueType")
 
 
-def remove_none_values_from_dict(
+def remove_none_values_from_dict[KeyType, ValueType](
     a_dict: dict[KeyType, ValueType | None],
 ) -> dict[KeyType, ValueType]:
     """

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -137,13 +138,13 @@ def test_get_aws_amis_success(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-rhel7.*",
         age_in_seconds=30,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 1
@@ -155,13 +156,13 @@ def test_get_aws_amis_unmatched_regex(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-centos7.*",
         age_in_seconds=30,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 0
@@ -172,13 +173,13 @@ def test_get_aws_amis_different_account(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner="789123456789",
         regex="ci-int-jenkins-worker-rhel7.*",
         age_in_seconds=30,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 0
@@ -189,13 +190,13 @@ def test_get_aws_amis_too_young(
     rhel_image: CreateImageResultTypeDef,
     suse_image: CreateImageResultTypeDef,
 ) -> None:
-    utc_now = datetime.utcnow() + timedelta(seconds=60)
+    utc_now = datetime.now(tz=UTC) + timedelta(seconds=60)
     amis = get_aws_amis(
         ec2_client=ec2_client,
         owner=MOTO_DEFAULT_ACCOUNT,
         regex="ci-int-jenkins-worker-rhel7.*",
         age_in_seconds=90,
-        utc_now=utc_now,
+        now=utc_now,
     )
 
     assert len(amis) == 0

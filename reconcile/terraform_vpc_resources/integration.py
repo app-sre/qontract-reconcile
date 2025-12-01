@@ -20,9 +20,11 @@ from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.aws_vpc_requests import get_aws_vpc_requests
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
+from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import (
     DesiredStateShardConfig,
     PydanticRunParams,
@@ -61,12 +63,14 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
     ) -> list[AWSAccountV1]:
         """Return a list of accounts extracted from the provided VPCRequests.
         If account_name is given returns the account object with that name."""
-        accounts = [vpc.account for vpc in data]
-
-        if account_name:
-            accounts = [account for account in accounts if account.name == account_name]
-
-        return accounts
+        return [
+            vpc.account
+            for vpc in data
+            if (
+                integration_is_enabled(self.name, vpc.account)
+                and (not account_name or vpc.account.name == account_name)
+            )
+        ]
 
     def _handle_outputs(
         self, requests: Iterable[VPCRequest], outputs: Mapping[str, Any]
@@ -154,20 +158,28 @@ class TerraformVpcResources(QontractReconcileIntegration[TerraformVpcResourcesPa
         if data:
             accounts = self._filter_accounts(data, account_name)
             if account_name and not accounts:
-                msg = f"The account {account_name} doesn't have any managed vpc. Verify your input"
+                msg = f"The account {account_name} doesn't have any managed vpcs or the {QONTRACT_INTEGRATION} integration is disabled for this account. Verify your input"
                 logging.debug(msg)
                 sys.exit(ExitCodes.SUCCESS)
         else:
             logging.debug("No VPC requests found, nothing to do.")
             sys.exit(ExitCodes.SUCCESS)
 
-        accounts_untyped: list[dict] = [acc.dict(by_alias=True) for acc in accounts]
+        accounts_untyped: list[dict] = [
+            acc.model_dump(by_alias=True) for acc in accounts
+        ]
+        try:
+            default_tags = get_settings().default_tags
+        except ValueError:
+            # no external resources settings found
+            default_tags = None
         with TerrascriptClient(
             integration=QONTRACT_INTEGRATION,
             integration_prefix=QONTRACT_TF_PREFIX,
             thread_pool_size=thread_pool_size,
             accounts=accounts_untyped,
             secret_reader=secret_reader,
+            default_tags=default_tags,
         ) as ts_client:
             ts_client.populate_vpc_requests(data, AWS_PROVIDER_VERSION)
 

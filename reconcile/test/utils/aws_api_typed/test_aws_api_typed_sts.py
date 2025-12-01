@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -27,7 +27,7 @@ def aws_api_sts(sts_client: STSClient) -> AWSApiSts:
 def test_aws_api_typed_sts_assume_role(
     aws_api_sts: AWSApiSts, sts_client: MagicMock
 ) -> None:
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     sts_client.assume_role.return_value = {
         "Credentials": {
             "AccessKeyId": "access_key_id",
@@ -46,7 +46,7 @@ def test_aws_api_typed_sts_assume_role(
 def test_aws_api_typed_sts_get_session_token(
     aws_api_sts: AWSApiSts, sts_client: MagicMock
 ) -> None:
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     sts_client.get_session_token.return_value = {
         "Credentials": {
             "AccessKeyId": "access_key_id",

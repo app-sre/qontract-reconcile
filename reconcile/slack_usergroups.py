@@ -3,18 +3,19 @@ import sys
 from collections.abc import (
     Callable,
     Iterable,
+    MutableMapping,
     Sequence,
 )
 from datetime import datetime
 from typing import (
     Any,
     TypedDict,
+    TypeVar,
 )
 
 from github.GithubException import UnknownObjectException
 from pydantic import BaseModel
-from pydantic.utils import deep_update
-from sretoolbox.utils import retry
+from sretoolbox.utils import datatransformation, retry
 
 from reconcile import (
     openshift_users,
@@ -40,6 +41,7 @@ from reconcile.typed_queries.app_interface_vault_settings import (
 )
 from reconcile.typed_queries.pagerduty_instances import get_pagerduty_instances
 from reconcile.utils import gql
+from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.exceptions import (
     AppInterfaceSettingsError,
@@ -73,6 +75,26 @@ QONTRACT_INTEGRATION = "slack-usergroups"
 INTEGRATION_VERSION = "0.1.0"
 
 error_occurred = False
+
+KeyType = TypeVar("KeyType")
+
+
+def deep_update(
+    mapping: dict[KeyType, Any],
+    *updating_mappings: MutableMapping[KeyType, Any],
+) -> dict[KeyType, Any]:
+    updated_mapping = mapping.copy()
+    for updating_mapping in updating_mappings:
+        for k, v in updating_mapping.items():
+            if (
+                k in updated_mapping
+                and isinstance(updated_mapping[k], dict)
+                and isinstance(v, dict)
+            ):
+                updated_mapping[k] = deep_update(updated_mapping[k], v)
+            else:
+                updated_mapping[k] = v
+    return updated_mapping
 
 
 def get_git_api(url: str) -> GithubRepositoryApi | GitLabApi:
@@ -122,14 +144,11 @@ class State(BaseModel):
 SlackState = dict[str, dict[str, State]]
 
 
-class WorkspaceSpec(BaseModel):
+class WorkspaceSpec(BaseModel, arbitrary_types_allowed=True):
     """Slack workspace spec."""
 
     slack: SlackApi
     managed_usergroups: list[str] = []
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 SlackMap = dict[str, WorkspaceSpec]
@@ -357,11 +376,11 @@ def get_slack_usernames_from_owners(
 
 def get_slack_usernames_from_schedule(schedule: Iterable[ScheduleEntryV1]) -> list[str]:
     """Return list of usernames from all schedules."""
-    now = datetime.utcnow()
+    now = utc_now()
     all_slack_usernames: list[str] = []
     for entry in schedule:
-        start = datetime.strptime(entry.start, DATE_FORMAT)
-        end = datetime.strptime(entry.end, DATE_FORMAT)
+        start = ensure_utc(datetime.strptime(entry.start, DATE_FORMAT))  # noqa: DTZ007
+        end = ensure_utc(datetime.strptime(entry.end, DATE_FORMAT))  # noqa: DTZ007
         if start <= now <= end:
             all_slack_usernames.extend(get_slack_username(u) for u in entry.users)
     return all_slack_usernames
@@ -819,7 +838,9 @@ def run(
         desired_usergroup_name=usergroup_name,
     )
     # merge the two desired states recursively
-    desired_state = deep_update(desired_state, desired_state_cluster_usergroups)
+    desired_state = datatransformation.deep_merge(
+        desired_state, desired_state_cluster_usergroups
+    )
 
     runner_params: RunnerParams = {
         "dry_run": dry_run,
@@ -891,10 +912,10 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
             if role.tag_on_cluster_updates is not False
         ]
     return {
-        "permissions": [p.dict() for p in get_permissions(gqlapi.query)],
+        "permissions": [p.model_dump() for p in get_permissions(gqlapi.query)],
         "pagerduty_instances": [
-            p.dict() for p in get_pagerduty_instances(gqlapi.query)
+            p.model_dump() for p in get_pagerduty_instances(gqlapi.query)
         ],
-        "users": [u.dict() for u in users],
-        "clusters": [c.dict() for c in get_clusters(gqlapi.query)],
+        "users": [u.model_dump() for u in users],
+        "clusters": [c.model_dump() for c in get_clusters(gqlapi.query)],
     }

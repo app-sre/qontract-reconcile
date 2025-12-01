@@ -16,6 +16,7 @@ from reconcile import queries
 from reconcile.status import ExitCodes
 from reconcile.utils.aggregated_list import RunnerError
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.external_resources import get_external_resource_specs
@@ -65,8 +66,10 @@ def fetch_desired_state(
     gabi_instances: Iterable[Mapping], ri: ResourceInventory
 ) -> None:
     for g in gabi_instances:
-        expiration_date = datetime.strptime(g["expirationDate"], "%Y-%m-%d").date()
-        if (expiration_date - date.today()).days > EXPIRATION_DAYS_MAX:
+        expiration_date = ensure_utc(
+            datetime.strptime(g["expirationDate"], "%Y-%m-%d")  # noqa: DTZ007
+        ).date()
+        if (expiration_date - utc_now().date()).days > EXPIRATION_DAYS_MAX:
             raise RunnerError(
                 f"The maximum expiration date of {g['name']} shall not "
                 f"exceed {EXPIRATION_DAYS_MAX} days from today"

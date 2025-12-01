@@ -27,6 +27,7 @@ from reconcile.gql_definitions.terraform_resources.terraform_resources_namespace
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.terraform_namespaces import get_namespaces
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
@@ -136,7 +137,7 @@ def fetch_current_state(
         use_jump_host=use_jump_host,
         thread_pool_size=thread_pool_size,
     )
-    namespaces_dicts = [ns.dict(by_alias=True) for ns in namespaces]
+    namespaces_dicts = [ns.model_dump(by_alias=True) for ns in namespaces]
     state_specs = ob.init_specs_to_fetch(
         ri, oc_map, namespaces=namespaces_dicts, override_managed_types=["Secret"]
     )
@@ -158,6 +159,7 @@ def init_working_dirs(
     accounts: list[dict[str, Any]],
     thread_pool_size: int,
     settings: Mapping[str, Any] | None = None,
+    default_tags: Mapping[str, str] | None = None,
 ) -> tuple[Terrascript, dict[str, str]]:
     ts = Terrascript(
         QONTRACT_INTEGRATION,
@@ -165,6 +167,7 @@ def init_working_dirs(
         thread_pool_size,
         accounts,
         settings=settings,
+        default_tags=default_tags,
     )
     working_dirs = ts.dump()
     return ts, working_dirs
@@ -241,8 +244,15 @@ def setup(
     secret_reader = create_secret_reader(use_vault=vault_settings.vault)
 
     settings = queries.get_app_interface_settings() or {}
+    try:
+        default_tags = get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     # initialize terrascript (scripting engine to generate terraform manifests)
-    ts, working_dirs = init_working_dirs(accounts, thread_pool_size, settings=settings)
+    ts, working_dirs = init_working_dirs(
+        accounts, thread_pool_size, settings=settings, default_tags=default_tags
+    )
 
     # initialize terraform client
     # it is used to plan and apply according to the output of terrascript
@@ -263,7 +273,7 @@ def setup(
         )
     else:
         ocm_map = None
-    tf_namespaces_dicts = [ns.dict(by_alias=True) for ns in tf_namespaces]
+    tf_namespaces_dicts = [ns.model_dump(by_alias=True) for ns in tf_namespaces]
 
     provider_exclusions = settings.get("terraformResourcesProviderExclusions") or []
     ts.init_populate_specs(
@@ -285,16 +295,16 @@ def filter_tf_namespaces(
 ) -> list[NamespaceV1]:
     tf_namespaces = []
     for namespace_info in namespaces:
-        if ob.is_namespace_deleted(namespace_info.dict(by_alias=True)):
+        if ob.is_namespace_deleted(namespace_info.model_dump(by_alias=True)):
             continue
-        if not managed_external_resources(namespace_info.dict(by_alias=True)):
+        if not managed_external_resources(namespace_info.model_dump(by_alias=True)):
             continue
 
         if not account_names:
             tf_namespaces.append(namespace_info)
             continue
 
-        specs = get_external_resource_specs(namespace_info.dict(by_alias=True))
+        specs = get_external_resource_specs(namespace_info.model_dump(by_alias=True))
         if not specs:
             tf_namespaces.append(namespace_info)
             continue
@@ -557,7 +567,7 @@ def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
     }
     for ns_info in get_tf_namespaces():
         for spec in get_external_resource_specs(
-            ns_info.dict(by_alias=True), provision_provider=PROVIDER_AWS
+            ns_info.model_dump(by_alias=True), provision_provider=PROVIDER_AWS
         ):
             resource_paths = [
                 spec.resource.get("defaults"),

@@ -1,4 +1,3 @@
-import datetime as dt
 import logging
 import sys
 from abc import (
@@ -17,7 +16,7 @@ from typing import (
 )
 
 from croniter import croniter
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel
 from requests.exceptions import HTTPError
 from semver import VersionInfo
 
@@ -47,7 +46,7 @@ from reconcile.aus.models import (
     OrganizationUpgradeSpec,
     Sector,
 )
-from reconcile.aus.version_gates import HANDLERS
+from reconcile.aus.version_gates import HANDLERS, sts_version_gate_handler
 from reconcile.gql_definitions.advanced_upgrade_service.aus_organization import (
     query as aus_organizations_query,
 )
@@ -71,10 +70,18 @@ from reconcile.utils.clusterhealth.telemeter import (
     TELEMETER_SOURCE,
     TelemeterClusterHealthProvider,
 )
+from reconcile.utils.datetime_util import (
+    ensure_utc,
+    from_utc_iso_format,
+    to_utc_seconds_iso_format,
+    utc_now,
+)
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.filtering import remove_none_values_from_dict
+from reconcile.utils.jobcontroller.controller import build_job_controller
 from reconcile.utils.ocm.addons import AddonService, AddonServiceV1, AddonServiceV2
+from reconcile.utils.ocm.base import LabelContainer
 from reconcile.utils.ocm.clusters import (
     OCMCluster,
 )
@@ -97,6 +104,7 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
 )
+from reconcile.utils.secret_reader import SecretReaderBase
 from reconcile.utils.semver_helper import (
     get_version_prefix,
     parse_semver,
@@ -105,6 +113,18 @@ from reconcile.utils.semver_helper import (
 from reconcile.utils.state import init_state
 
 MIN_DELTA_MINUTES = 6
+STS_GATE_LABEL = "api.openshift.com/gate-sts"
+AUS_VERSION_GATE_APPROVALS_LABEL = "sre-capabilities.aus.version-gate-approvals"
+
+
+class RosaRoleUpgradeHandlerParams(PydanticRunParams):
+    job_controller_cluster: str
+    job_controller_namespace: str
+    rosa_job_service_account: str
+    rosa_role: str
+    rosa_job_image: str | None = None
+    integration_name: str
+    integration_version: str
 
 
 class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
@@ -112,6 +132,7 @@ class AdvancedUpgradeSchedulerBaseIntegrationParams(PydanticRunParams):
     ocm_organization_ids: set[str] | None = None
     excluded_ocm_organization_ids: set[str] | None = None
     ignore_sts_clusters: bool = False
+    rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None
 
 
 class ReconcileError(Exception):
@@ -399,15 +420,20 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
     cluster: OCMCluster
 
-    id: str | None
-    next_run: str | None
-    schedule: str | None
+    id: str | None = None
+    next_run: str | None = None
+    schedule: str | None = None
     schedule_type: str
     version: str
-    state: str | None
+    state: str | None = None
 
     @abstractmethod
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         pass
 
     @abstractmethod
@@ -420,12 +446,12 @@ class AbstractUpgradePolicy(ABC, BaseModel):
 
 
 def addon_upgrade_policy_soonest_next_run() -> str:
-    now = datetime.now(tz=dt.UTC)
+    now = utc_now()
     next_run = now + timedelta(minutes=MIN_DELTA_MINUTES)
-    return next_run.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return to_utc_seconds_iso_format(next_run)
 
 
-class AddonUpgradePolicy(AbstractUpgradePolicy):
+class AddonUpgradePolicy(AbstractUpgradePolicy, arbitrary_types_allowed=True):
     """Class to create and delete Addon upgrade policies in OCM"""
 
     addon_id: str
@@ -434,7 +460,12 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
     class Config:
         arbitrary_types_allowed = True
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         self.addon_service.create_addon_upgrade_policy(
             ocm_api=ocm_api,
             cluster_id=self.cluster.id,
@@ -467,13 +498,62 @@ class AddonUpgradePolicy(AbstractUpgradePolicy):
 class ClusterUpgradePolicy(AbstractUpgradePolicy):
     """Class to create ClusterUpgradePolicies in OCM"""
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    organization_id: str
+    cluster_labels: LabelContainer
+
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         policy = {
             "version": self.version,
             "schedule_type": "manual",
             "next_run": self.next_run,
         }
+        if (
+            rosa_role_upgrade_handler_params
+            and secret_reader
+            and self.should_upgrade_roles()
+        ):
+            logging.info(f"Updating account and operator roles for {self.cluster.name}")
+            sts_gate_handler = sts_version_gate_handler.STSGateHandler(
+                job_controller=build_job_controller(
+                    integration=rosa_role_upgrade_handler_params.integration_name,
+                    integration_version=rosa_role_upgrade_handler_params.integration_version,
+                    cluster=rosa_role_upgrade_handler_params.job_controller_cluster,
+                    namespace=rosa_role_upgrade_handler_params.job_controller_namespace,
+                    secret_reader=secret_reader,
+                    dry_run=False,
+                ),
+                aws_iam_role=rosa_role_upgrade_handler_params.rosa_role,
+                rosa_job_service_account=rosa_role_upgrade_handler_params.rosa_job_service_account,
+                rosa_job_image=rosa_role_upgrade_handler_params.rosa_job_image,
+            )
+            if not sts_gate_handler.upgrade_rosa_roles_v2(
+                ocm_api=ocm_api,
+                cluster=self.cluster,
+                dry_run=False,
+                upgrade_version=self.version,
+                ocm_org_id=self.organization_id,
+            ):
+                logging.error(
+                    f"Failed to update account and operator roles for {self.cluster.name}"
+                )
         create_upgrade_policy(ocm_api, self.cluster.id, policy)
+
+    def should_upgrade_roles(self) -> bool:
+        handler_csv = self.cluster_labels.get_label_value(
+            AUS_VERSION_GATE_APPROVALS_LABEL
+        )
+        if not handler_csv:
+            return False
+        return (
+            self.cluster.is_sts()
+            and self.cluster.is_rosa_classic()
+            and STS_GATE_LABEL in set(handler_csv.split(","))
+        )
 
     def delete(self, ocm_api: OCMBaseClient) -> None:
         raise NotImplementedError("ClusterUpgradePolicy.delete() not implemented")
@@ -492,7 +572,12 @@ class ClusterUpgradePolicy(AbstractUpgradePolicy):
 class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
     """Class to create and delete ControlPlanUpgradePolicies in OCM"""
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         policy = {
             "version": self.version,
             "schedule_type": "manual",
@@ -516,10 +601,16 @@ class ControlPlaneUpgradePolicy(AbstractUpgradePolicy):
 
 
 class NodePoolUpgradePolicy(AbstractUpgradePolicy):
-    node_pool: str
     """Class to create NodePoolUpgradePolicies in OCM"""
 
-    def create(self, ocm_api: OCMBaseClient) -> None:
+    node_pool: str
+
+    def create(
+        self,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         policy = {
             "version": self.version,
             "schedule_type": "manual",
@@ -545,13 +636,19 @@ class NodePoolUpgradePolicy(AbstractUpgradePolicy):
         return f"node pool upgrade policy - {remove_none_values_from_dict(details)}"
 
 
-class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
+class UpgradePolicyHandler(BaseModel, extra="forbid"):
     """Class to handle upgrade policy actions"""
 
     action: str
     policy: AbstractUpgradePolicy
 
-    def act(self, dry_run: bool, ocm_api: OCMBaseClient) -> None:
+    def act(
+        self,
+        dry_run: bool,
+        ocm_api: OCMBaseClient,
+        rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+        secret_reader: SecretReaderBase | None = None,
+    ) -> None:
         logging.info(f"{self.action} {self.policy.summarize()}")
         if dry_run:
             return
@@ -561,7 +658,7 @@ class UpgradePolicyHandler(BaseModel, extra=Extra.forbid):
         elif self.action == "delete":
             self.policy.delete(ocm_api)
         elif self.action == "create":
-            self.policy.create(ocm_api)
+            self.policy.create(ocm_api, rosa_role_upgrade_handler_params, secret_reader)
 
 
 def fetch_current_state(
@@ -579,6 +676,7 @@ def fetch_current_state(
             )
             current_state.extend(
                 AddonUpgradePolicy(
+                    organization_id=spec.org.org_id,
                     id=addon_upgrade_policy.id,
                     addon_id=addon_spec.addon.addon.id,
                     cluster=spec.cluster,
@@ -615,6 +713,8 @@ def fetch_current_state(
             for upgrade_policy in upgrade_policies:
                 policy = upgrade_policy | {
                     "cluster": spec.cluster,
+                    "organization_id": spec.org.org_id,
+                    "cluster_labels": spec.cluster_labels,
                 }
                 current_state.append(ClusterUpgradePolicy(**policy))
 
@@ -638,8 +738,8 @@ def update_history(
         version_data (VersionData): version data, including history of soakdays
         upgrade_policies (list): query results of clusters upgrade policies
     """
-    now = datetime.utcnow()
-    check_in = version_data.check_in or now
+    now = utc_now()
+    check_in = ensure_utc(version_data.check_in or now)
 
     # we iterate over clusters upgrade policies and update the version history
     for spec in org_upgrade_spec.specs:
@@ -930,7 +1030,7 @@ def verify_schedule_should_skip(
     # immediately
     delay_minutes = 1 if addon_id else MIN_DELTA_MINUTES
     next_schedule = iter.get_next(
-        dt.datetime, start_time=now + timedelta(minutes=delay_minutes)
+        datetime, start_time=now + timedelta(minutes=delay_minutes)
     )
     next_schedule_in_seconds = (next_schedule - now).total_seconds()
     next_schedule_in_hours = next_schedule_in_seconds / 3600  # seconds in hour
@@ -947,7 +1047,7 @@ def verify_schedule_should_skip(
             f"[{desired.org.org_id}/{desired.org.name}/{desired.cluster.name}] skipping cluster with no upcoming upgrade"
         )
         return None
-    return next_schedule.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return to_utc_seconds_iso_format(next_schedule)
 
 
 def verify_max_upgrades_should_skip(
@@ -1013,6 +1113,8 @@ def _create_upgrade_policy(
         )
     return ClusterUpgradePolicy(
         cluster=spec.cluster,
+        organization_id=spec.org.org_id,
+        cluster_labels=spec.cluster_labels,
         version=version,
         schedule_type="manual",
         next_run=next_schedule,
@@ -1024,8 +1126,8 @@ def _calculate_node_pool_diffs(
 ) -> UpgradePolicyHandler | None:
     for pool in spec.node_pools:
         if parse_semver(pool.version).match(f"<{spec.current_version}"):
-            next_schedule = (now + timedelta(minutes=MIN_DELTA_MINUTES)).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
+            next_schedule = to_utc_seconds_iso_format(
+                now + timedelta(minutes=MIN_DELTA_MINUTES)
             )
             return UpgradePolicyHandler(
                 action="create",
@@ -1082,7 +1184,7 @@ def calculate_diff(
             set_upgrading(spec.cluster.id, spec.effective_mutexes, sector_name)
 
     addon_service = init_addon_service(desired_state.org.environment)
-    now = datetime.utcnow()
+    now = utc_now()
     gates = get_version_gates(ocm_api)
     for spec in desired_state.specs:
         sector_name = spec.upgrade_policy.conditions.sector
@@ -1120,11 +1222,11 @@ def calculate_diff(
                         action="create",
                         policy=AddonUpgradePolicy(
                             action="create",
+                            organization_id=spec.org.org_id,
                             cluster=spec.cluster,
                             version=version,
                             schedule_type="manual",
                             addon_id=addon_id,
-                            upgrade_type="ADDON",
                             addon_service=addon_service,
                         ),
                     )
@@ -1185,6 +1287,8 @@ def act(
     dry_run: bool,
     diffs: list[UpgradePolicyHandler],
     ocm_api: OCMBaseClient,
+    rosa_role_upgrade_handler_params: RosaRoleUpgradeHandlerParams | None = None,
+    secret_reader: SecretReaderBase | None = None,
     addon_id: str | None = None,
 ) -> None:
     diffs.sort(key=sort_diffs)
@@ -1197,7 +1301,7 @@ def act(
         ):
             continue
         try:
-            diff.act(dry_run, ocm_api)
+            diff.act(dry_run, ocm_api, rosa_role_upgrade_handler_params, secret_reader)
         except HTTPError as e:
             logging.error(f"{policy.cluster.name}: {e}: {e.response.text}")
 
@@ -1297,10 +1401,8 @@ def remaining_soak_day_metric_values_for_cluster(
                 remaining_soakdays[idx] = UPGRADE_STARTED_METRIC_VALUE
                 if current_upgrade.next_run:
                     # if an upgrade runs for over 6 hours, we mark it as a long running upgrade
-                    next_run = datetime.strptime(
-                        current_upgrade.next_run, "%Y-%m-%dT%H:%M:%SZ"
-                    )
-                    now = datetime.utcnow()
+                    next_run = from_utc_iso_format(current_upgrade.next_run)
+                    now = utc_now()
                     hours_ago = (now - next_run).total_seconds() / 3600
                     if hours_ago >= 6:
                         remaining_soakdays[idx] = UPGRADE_LONG_RUNNING_METRIC_VALUE

@@ -1,4 +1,5 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -267,7 +268,7 @@ def test_remaining_soak_day_metric_values_for_cluster_long_running_upgrade() -> 
             cluster=spec.cluster,
             version="4.13.11",
             state="started",
-            next_run=datetime.utcnow() - timedelta(hours=7),
+            next_run=datetime.now(tz=UTC) - timedelta(hours=7),
         ),
     ) == {"4.13.11": UPGRADE_LONG_RUNNING_METRIC_VALUE}
 

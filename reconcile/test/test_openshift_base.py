@@ -8,6 +8,7 @@ import yaml
 from kubernetes.dynamic import Resource
 from pydantic import BaseModel
 from pytest_mock import MockerFixture
+from sretoolbox.utils.datatransformation import deep_merge
 
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
@@ -48,7 +49,25 @@ def namespaces() -> list[dict[str, Any]]:
 
 @pytest.fixture
 def oc_cs1(mocker: MockerFixture) -> oc.OCClient:
-    return mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    def mock_get_api_resource(kind: str) -> oc.OCCliApiResource:
+        if kind.startswith("ClusterRoleBinding"):
+            return oc.OCCliApiResource(
+                kind="ClusterRoleBinding",
+                group="rbac.authorization.k8s.io",
+                api_version="v1",
+                namespaced=False,
+            )
+        return oc.OCCliApiResource(
+            kind="Template",
+            group="template.openshift.io",
+            api_version="v1",
+            namespaced=True,
+        )
+
+    m = mocker.patch("reconcile.utils.oc.OCNative", autospec=True)
+    m.get_api_resource = mock_get_api_resource
+
+    return m
 
 
 @pytest.fixture
@@ -390,7 +409,7 @@ def test_namespaces_managed_fully_qualified_types(
         cluster:
           name: cs1
         managedResourceTypes:
-        - Kind.fully.qualified
+        - Template.template.openshift.io
         openshiftResources:
         - provider: resource
           path: /some/path.yml
@@ -401,7 +420,7 @@ def test_namespaces_managed_fully_qualified_types(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind.fully.qualified",
+            kind="Template.template.openshift.io",
             resource_names=None,
         ),
         sut.DesiredStateSpec(
@@ -433,9 +452,9 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
         cluster:
           name: cs1
         managedResourceTypes:
-        - Kind.fully.qualified
+        - Template.template.openshift.io
         managedResourceNames:
-        - resource: Kind.fully.qualified
+        - resource: Template.template.openshift.io
           resourceNames:
           - n1
           - n2
@@ -449,7 +468,7 @@ def test_namespaces_managed_fully_qualified_types_with_resource_names(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind.fully.qualified",
+            kind="Template.template.openshift.io",
             resource_names=["n1", "n2"],
         ),
         sut.DesiredStateSpec(
@@ -481,13 +500,13 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
         cluster:
           name: cs1
         managedResourceTypes:
-        - Kind.fully.qualified
-        - Kind
+        - Template.template.openshift.io
+        - Deployment
         managedResourceNames:
-        - resource: Kind.fully.qualified
+        - resource: Template.template.openshift.io
           resourceNames:
           - fname
-        - resource: Kind
+        - resource: Deployment
           resourceNames:
           - name
         openshiftResources:
@@ -500,14 +519,14 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind.fully.qualified",
+            kind="Template.template.openshift.io",
             resource_names=["fname"],
         ),
         sut.CurrentStateSpec(
             oc=oc_cs1,
             cluster="cs1",
             namespace="ns1",
-            kind="Kind",
+            kind="Deployment",
             resource_names=["name"],
         ),
         sut.DesiredStateSpec(
@@ -524,6 +543,138 @@ def test_namespaces_managed_mixed_qualified_types_with_resource_names(
         resource_inventory,
         oc_map,
         namespaces=[namespace],
+    )
+
+    assert len(expected) == len(rs)
+    for e in expected:
+        assert e in rs
+
+
+def test_namespaces_managed_resources_cluster_scoped_resource(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCNative,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        managedResourceNames:
+        - resource: ClusterRoleBinding.rbac.authorization.k8s.io
+          resourceNames:
+          - resource1
+          - resource2
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="ClusterRoleBinding.rbac.authorization.k8s.io",
+            resource_names=["resource1", "resource2"],
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+            privileged=False,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+    )
+
+    assert len(expected) == len(rs)
+    for e in expected:
+        assert e in rs
+
+
+def test_namespaces_managed_resources_cluster_scoped_resource_no_managed_resource_names(
+    resource_inventory: resource.ResourceInventory, oc_map: oc.OC_Map
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+        cluster_scope_resource_validation=True,
+    )
+    assert resource_inventory.has_error_registered()
+
+
+def test_namespaces_managed_resources_cluster_scoped_resource_validation_disabled(
+    resource_inventory: resource.ResourceInventory,
+    oc_map: oc.OC_Map,
+    oc_cs1: oc.OCNative,
+) -> None:
+    namespace = yaml.safe_load(
+        """
+        name: ns1
+        cluster:
+          name: cs1
+
+        managedResourceTypes:
+        - ClusterRoleBinding.rbac.authorization.k8s.io
+
+        openshiftResources:
+        - provider: resource
+          path: /some/path.yml
+        """
+    )
+
+    expected: list[sut.StateSpec] = [
+        sut.CurrentStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            kind="ClusterRoleBinding.rbac.authorization.k8s.io",
+            resource_names=None,
+        ),
+        sut.DesiredStateSpec(
+            oc=oc_cs1,
+            cluster="cs1",
+            namespace="ns1",
+            resource={"provider": "resource", "path": "/some/path.yml"},
+            parent=namespace,
+            privileged=False,
+        ),
+    ]
+
+    rs = sut.init_specs_to_fetch(
+        resource_inventory,
+        oc_map,
+        namespaces=[namespace],
+        cluster_scope_resource_validation=False,
     )
 
     assert len(expected) == len(rs)
@@ -566,7 +717,7 @@ def test_populate_current_state(
     # prepare client and resource inventory
     oc_cs1.init_api_resources = True
     oc_cs1.api_resources = api_resources
-    oc_cs1.get_items = lambda kind, **kwargs: [
+    oc_cs1.get_items = lambda kind, **kwargs: [  # type: ignore[method-assign]
         build_resource("Kind", "fully.qualified/v1", "name")
     ]
     resource_inventory.initialize_resource_type("cs1", "ns1", "Kind.fully.qualified")
@@ -768,14 +919,14 @@ def build_openshift_resource(
     error_details: str = "",
     caller_name: str = "",
 ) -> resource.OpenshiftResource:
-    body = {
-        "kind": kind,
-        "apiVersion": api_version,
-        "metadata": {"name": name},
-    }
-    if extra_body:
-        body |= extra_body
-
+    body = deep_merge(
+        {
+            "kind": kind,
+            "apiVersion": api_version,
+            "metadata": {"name": name},
+        },
+        extra_body or {},
+    )
     return resource.OpenshiftResource(
         body=body,
         integration=integration,
@@ -1206,6 +1357,97 @@ def test_realize_resource_data_3way_diff(
     assert delete_mock.call_count == delete_calls
 
 
+@pytest.mark.parametrize(
+    ("kind", "annotation"),
+    [
+        ("DaemonSet", "kubectl.kubernetes.io/restartedAt"),
+        ("DaemonSet", "openshift.openshift.io/restartedAt"),
+        ("Deployment", "kubectl.kubernetes.io/restartedAt"),
+        ("Deployment", "openshift.openshift.io/restartedAt"),
+        ("DeploymentConfig", "kubectl.kubernetes.io/restartedAt"),
+        ("DeploymentConfig", "openshift.openshift.io/restartedAt"),
+        ("StatefulSet", "kubectl.kubernetes.io/restartedAt"),
+        ("StatefulSet", "openshift.openshift.io/restartedAt"),
+    ],
+)
+def test_realize_resource_data_3way_diff_keep_recycle_annotations(
+    mocker: MockerFixture,
+    oc_map: oc.OC_Map,
+    resource_inventory: resource.ResourceInventory,
+    kind: str,
+    annotation: str,
+    apply_options: sut.ApplyOptions,
+) -> None:
+    apply_mock = mocker.patch.object(sut, "apply", autospec=True)
+
+    cluster = "test-cluster"
+    namespace = "test-namespace"
+
+    current = build_openshift_resource(
+        kind=kind,
+        api_version="v1",
+        name="test-resource",
+        extra_body={
+            "spec": {
+                "replicas": 3,
+                "template": {
+                    "metadata": {"annotations": {annotation: "2024-01-01T00:00:00Z"}}
+                },
+            },
+        },
+        caller_name="saas-test",
+    )
+    desired = build_openshift_resource(
+        kind=kind,
+        api_version="v1",
+        name="test-resource",
+        extra_body={
+            "spec": {"replicas": 6},
+        },
+        caller_name="saas-test",
+    )
+    data = {
+        "current": {"test-resource": current},
+        "desired": {"test-resource": desired},
+        "use_admin_token": {"test-resource": False},
+    }
+
+    actions = sut._realize_resource_data_3way_diff(
+        oc_map=oc_map,
+        ri_item=(cluster, namespace, kind, data),
+        ri=resource_inventory,
+        options=apply_options,
+    )
+
+    assert len(actions) == 1
+    apply_mock.assert_called_with(
+        dry_run=True,
+        oc_map=oc_map,
+        cluster=cluster,
+        namespace=namespace,
+        resource_type=kind,
+        resource=build_openshift_resource(
+            kind=kind,
+            api_version="v1",
+            name="test-resource",
+            extra_body={
+                "spec": {
+                    "replicas": 6,
+                    "template": {
+                        "metadata": {
+                            "annotations": {annotation: "2024-01-01T00:00:00Z"}
+                        }
+                    },
+                },
+            },
+            caller_name="saas-test",
+        ),
+        wait_for_namespace=True,
+        recycle_pods=True,
+        privileged=False,
+    )
+
+
 def test_get_state_count_combinations() -> None:
     state = [
         {"cluster": "c1"},
@@ -1220,10 +1462,13 @@ def test_get_state_count_combinations() -> None:
 
 def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
     class OpenShiftResourcesStub(BaseModel):
-        openshift_resources: list | None
+        openshift_resources: list | None = None
+
+    class OpenShiftResourcesStubRequired(BaseModel):
+        openshift_resources: list
 
     class OpenShiftResourcesAndSharedResourcesStub(OpenShiftResourcesStub, BaseModel):
-        shared_resources: list[OpenShiftResourcesStub] | None
+        shared_resources: list[OpenShiftResourcesStubRequired] | None = None
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=[1], shared_resources=None
@@ -1233,14 +1478,14 @@ def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=None,
-        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+        shared_resources=[OpenShiftResourcesStubRequired(openshift_resources=[2])],
     )
     sut.aggregate_shared_resources_typed(namespace=namespace)
     assert namespace.openshift_resources == [2]
 
     namespace = OpenShiftResourcesAndSharedResourcesStub(
         openshift_resources=[1],
-        shared_resources=[OpenShiftResourcesStub(openshift_resources=[2])],
+        shared_resources=[OpenShiftResourcesStubRequired(openshift_resources=[2])],
     )
     sut.aggregate_shared_resources_typed(namespace=namespace)
     assert namespace.openshift_resources == [1, 2]
@@ -1248,12 +1493,12 @@ def test_aggregate_shared_resources_typed_openshift_service_resources() -> None:
 
 def test_aggregate_shared_resources_typed_openshift_service_account_token() -> None:
     class OpenshiftServiceAccountTokensStub(BaseModel):
-        openshift_service_account_tokens: list | None
+        openshift_service_account_tokens: list | None = None
 
     class OpenshiftServiceAccountTokensAndSharedResourcesStub(
         OpenshiftServiceAccountTokensStub, BaseModel
     ):
-        shared_resources: list[OpenshiftServiceAccountTokensStub] | None
+        shared_resources: list[OpenshiftServiceAccountTokensStub] | None = None
 
     namespace = OpenshiftServiceAccountTokensAndSharedResourcesStub(
         openshift_service_account_tokens=[1], shared_resources=None

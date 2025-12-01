@@ -178,6 +178,22 @@ class RosaSession:
             )
             result.write_logs_to_logger(logging.info)
 
+    def upgrade_rosa_roles(
+        self,
+        cluster_name: str,
+        upgrade_version: str,
+        policy_version: str,
+        dry_run: bool,
+    ) -> None:
+        logging.info(
+            f"Upgrade  roles in AWS account {self.aws_account_id} to {upgrade_version}"
+        )
+        if not dry_run:
+            result = self.cli_execute(
+                f"rosa upgrade roles  -c {cluster_name} --cluster-version {upgrade_version}  --policy-version {policy_version} -y -m=auto"
+            )
+            result.write_logs_to_logger(logging.info)
+
 
 def generate_rosa_creation_script(
     cluster_name: str, cluster: OCMSpec, dry_run: bool

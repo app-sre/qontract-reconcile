@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 fragment AWSAccountCommon on AWSAccount_v1 {
   path
@@ -29,4 +29,7 @@ fragment AWSAccountCommon on AWSAccount_v1 {
   deleteKeys
   premiumSupport
   partition
+  organization {
+    ...AWSOrganization
+  }
 }

@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query OCMOrganizationSharding {
   ocm_organizations: ocm_instances_v1 {

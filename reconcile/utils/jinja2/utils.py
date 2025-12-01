@@ -1,13 +1,10 @@
 import datetime
 import os
-import subprocess
-import tempfile
 from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
 
 import jinja2
-import yaml
 from github import Github
 from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel
@@ -18,6 +15,7 @@ from reconcile.checkpoint import url_makes_sense
 from reconcile.github_org import get_default_config
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.helpers import flatten
 from reconcile.utils.jinja2.extensions import B64EncodeExtension, RaiseErrorExtension
@@ -38,7 +36,7 @@ from reconcile.utils.secret_reader import (
     SecretReader,
     SecretReaderBase,
 )
-from reconcile.utils.sloth import process_sloth_output
+from reconcile.utils.sloth import generate_sloth_rules
 from reconcile.utils.vault import SecretFieldNotFoundError
 
 
@@ -47,13 +45,10 @@ class Jinja2TemplateError(Exception):
         super().__init__("error processing jinja2 template: " + str(msg))
 
 
-class TemplateRenderOptions(BaseModel):
+class TemplateRenderOptions(BaseModel, frozen=True):
     trim_blocks: bool
     lstrip_blocks: bool
     keep_trailing_newline: bool
-
-    class Config:
-        frozen = True
 
     @classmethod
     def create(
@@ -77,7 +72,7 @@ def compile_jinja2_template(
 ) -> Any:
     if not template_render_options:
         template_render_options = TemplateRenderOptions.create()
-    env: dict[str, Any] = template_render_options.dict()
+    env: dict[str, Any] = template_render_options.model_dump()
     if extra_curly:
         env.update({
             "block_start_string": "{{%",
@@ -192,89 +187,6 @@ def list_s3_objects(
         )
 
 
-def sloth_alerts(
-    service: str,
-    slo_name: str,
-    objective: float,
-    error_query: str,
-    total_query: str,
-    version: str = "prometheus/v1",
-) -> str:
-    """Generate Prometheus rules using sloth: https://sloth.dev
-
-    Args:
-        service: Service name identifier
-        slo_name: Name of the SLO
-        objective: Target percentage (e.g. 99.9)
-        error_query: Prometheus query for error events
-        total_query: Prometheus query for total events
-        version: Spec version (default: "prometheus/v1")
-
-    Returns:
-        Generated Prometheus rules as YAML string
-    """
-    # Build the SLO definition
-    slo = {
-        "name": slo_name,
-        "objective": objective,
-        "description": f"{slo_name} SLO for {service}",
-        "sli": {
-            "events": {
-                "error_query": error_query.replace("{{window}}", "{{.window}}"),
-                "total_query": total_query.replace("{{window}}", "{{.window}}"),
-            }
-        },
-        "alerting": {
-            "name": f"{service.title()}{slo_name.title()}",
-            "annotations": {
-                "summary": f"High error rate on '{service}' {slo_name}",
-                "message": f"High error rate on '{service}' {slo_name}",
-            },
-            "page_alert": {
-                "labels": {
-                    "severity": "critical",
-                    "service": service,
-                    "slo": slo_name,
-                }
-            },
-            "ticket_alert": {
-                "labels": {
-                    "severity": "medium",
-                    "service": service,
-                    "slo": slo_name,
-                }
-            },
-        },
-    }
-
-    spec = {
-        "version": version,
-        "service": service,
-        "slos": [slo],
-    }
-
-    with (
-        tempfile.NamedTemporaryFile(
-            encoding="utf-8", mode="w", suffix=".yml"
-        ) as input_file,
-        tempfile.NamedTemporaryFile(
-            encoding="utf-8", mode="w", suffix=".yml"
-        ) as output_file,
-    ):
-        yaml.dump(spec, input_file, allow_unicode=True)
-        cmd = ["sloth", "generate", "-i", input_file.name, "-o", output_file.name]
-        try:
-            subprocess.run(cmd, capture_output=True, check=True, text=True)
-        except subprocess.CalledProcessError as e:
-            error_msg = f"{e}"
-            if e.stdout:
-                error_msg += f"\nstdout: {e.stdout}"
-            if e.stderr:
-                error_msg += f"\nstderr: {e.stderr}"
-            raise SlothGenerateError(error_msg) from e
-        return process_sloth_output(output_file.name)
-
-
 @retry()
 def lookup_secret(
     path: str,
@@ -345,10 +257,8 @@ def process_jinja2_template(
         "s3": lookup_s3_object,
         "s3_ls": list_s3_objects,
         "flatten_dict": flatten,
-        "yesterday": lambda: (datetime.datetime.now() - datetime.timedelta(1)).strftime(
-            "%Y-%m-%d"
-        ),
-        "sloth_alerts": sloth_alerts,
+        "yesterday": lambda: (utc_now() - datetime.timedelta(1)).strftime("%Y-%m-%d"),
+        "sloth_alerts": generate_sloth_rules,
     })
     if "_template_mocks" in vars:
         for k, v in vars["_template_mocks"].items():
@@ -379,11 +289,6 @@ def process_extracurlyjinja2_template(
         secret_reader=secret_reader,
         template_render_options=template_render_options,
     )
-
-
-class SlothGenerateError(Exception):
-    def __init__(self, msg: Any):
-        super().__init__("sloth generate failed: " + str(msg))
 
 
 class FetchSecretError(Exception):

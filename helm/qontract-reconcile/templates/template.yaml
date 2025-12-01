@@ -1,5 +1,5 @@
 ---
-apiVersion: v1
+apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
   name: qontract-reconcile
@@ -85,6 +85,13 @@ objects:
               secretKeyRef:
                 key: slack.webhook_url
                 name: app-interface
+          {{- if $.Values.enable_slack_error_filter }}
+          - name: SLACK_ERRORS_ONLY_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.errors_only_webhook_url
+                name: app-interface
+          {{- end }}
           {{- if $integration.trigger }}
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL_TRIGGER}
@@ -94,6 +101,10 @@ objects:
           {{- end }}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          {{- if $.Values.enable_slack_error_filter }}
+          - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+            value: ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
+          {{- end }}
           {{- end }}
           {{- if $logs.googleChat }}
 
@@ -114,6 +125,25 @@ objects:
               secretKeyRef:
                 key: google_chat.webhook_url
                 name: app-interface
+          {{- end }}
+          {{- if eq $.Values.gov_slack "true" }}
+          {{- /*
+          "*-triggers" integrations will be sent to a separate gov_slack channel as
+          they are much noisier than other integrations
+          */}}
+          {{- if $integration.trigger }}
+          - name: GOV_SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: gov_slack.triggers_url
+                name: app-interface
+          {{- else }}
+          - name: GOV_SLACK_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: gov_slack.webhook_url
+                name: app-interface
+          {{- end }}
           {{- end }}
           - name: POD_NAME
             valueFrom:
@@ -201,6 +231,17 @@ objects:
                 </rule>
               </store>
               {{- end}}
+              {{- if $.Values.enable_slack_error_filter }}
+              # ship errors to separate slack channel
+              <store>
+                @type rewrite_tag_filter
+                <rule>
+                  key message
+                  pattern /^\[ERROR\]/
+                  tag slack_errors
+                </rule>
+              </store>
+              {{- end}}
             </match>
 
             {{- if $logs.googleChat }}
@@ -224,6 +265,40 @@ objects:
               </buffer>
             </match>
             {{- end }}
+
+            {{- if eq $.Values.gov_slack "true" }}
+            <match gov_slack>
+              @type teams
+              webhook_url "${GOV_SLACK_WEBHOOK_URL}&threadKey=${POD_NAME}"
+              text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
+              buffered true
+              <buffer>
+                @type file
+                path /fluentd/buffer
+
+                flush_mode interval
+                flush_interval 15s
+                flush_at_shutdown true
+
+                retry_max_times 0
+                retry_wait 30
+
+                disable_chunk_backup true
+              </buffer>
+            </match>
+            {{- end }}
+
+            {{- if $.Values.enable_slack_error_filter }}
+            <match slack_errors>
+              @type slack
+              webhook_url ${SLACK_ERRORS_ONLY_WEBHOOK_URL}
+              channel ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
+              icon_emoji ${SLACK_ICON_EMOJI}
+              username sd-app-sre-bot
+              flush_interval 10s
+              message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
+            </match>
+            {{- end }}
             EOF
           volumeMounts:
           - name: fluentd-config
@@ -242,6 +317,10 @@ objects:
               containerPort: 9090
           env:
           {{- if $logs.googleChat }}
+          - name: PREFIX_LOG_LEVEL
+            value: "true"
+          {{- end }}
+          {{- if eq $.Values.gov_slack "true" }}
           - name: PREFIX_LOG_LEVEL
             value: "true"
           {{- end }}
@@ -343,7 +422,7 @@ objects:
           {{- if $integration.environmentAware }}
           - name: ENVIRONMENT_NAME
             value: "${ENVIRONMENT_NAME}"
-          {{- if $.Values.gov_slack }}
+          {{- if eq $.Values.gov_slack "true" }}
           - name: GOV_SLACK
             value: "${GOV_SLACK}"
           {{- end }}
@@ -509,6 +588,10 @@ objects:
           - name: buffer
             mountPath: /fluentd/buffer
           {{- end }}
+          {{- if eq $.Values.gov_slack "true" }}
+          - name: buffer
+            mountPath: /fluentd/buffer
+          {{- end }}
         volumes:
         - name: qontract-reconcile-sa-token
           projected:
@@ -540,6 +623,10 @@ objects:
         - name: tmp-dir
           emptyDir: { }
         {{- if $logs.googleChat }}
+        - name: buffer
+          emptyDir: {}
+        {{- end }}
+        {{- if eq $.Values.gov_slack "true" }}
         - name: buffer
           emptyDir: {}
         {{- end }}
@@ -721,9 +808,9 @@ parameters:
   value: Always
 - name: ENVIRONMENT_NAME
   value: app-interface
-{{- if .Values.gov_slack }}
+{{- if eq $.Values.gov_slack "true" }}
 - name: GOV_SLACK
-  value: "{{ .Values.gov_slack }}"
+  value: "{{ $.Values.gov_slack }}"
   required: false
 {{- end }}
 - name: DRY_RUN
@@ -782,6 +869,11 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+{{- if .Values.enable_slack_error_filter }}
+- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+  value: "sd-app-sre-reconcile-errors-stage"
+  required: false
+{{- end }}
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS

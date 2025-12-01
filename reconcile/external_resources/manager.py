@@ -1,7 +1,7 @@
 import logging
 from collections import Counter
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from typing import cast
 
 from sretoolbox.utils import threaded
 
@@ -41,6 +41,7 @@ from reconcile.external_resources.state import (
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
     ExternalResourcesSettingsV1,
 )
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )
@@ -67,7 +68,7 @@ def setup_factories(
                 resource_factories=setup_aws_resource_factories(
                     er_inventory, secret_reader
                 ),
-                default_tags=settings.default_tags,
+                default_tags=cast("dict[str, str]", settings.default_tags),
             )
         }
     )
@@ -142,7 +143,7 @@ class ExternalResourcesManager:
     def _resource_drift_detection_ttl_expired(
         self, reconciliation: Reconciliation, state: ExternalResourceState
     ) -> bool:
-        return (datetime.now(state.ts.tzinfo) - state.ts).total_seconds() > (
+        return (utc_now() - state.ts).total_seconds() > (
             reconciliation.module_configuration.reconcile_drift_interval_minutes * 60
         )
 
@@ -243,7 +244,7 @@ class ExternalResourcesManager:
             reconciliation = Reconciliation(
                 key=key,
                 resource_hash=resource.hash(),
-                input=resource.json(),
+                input=resource.export(),
                 action=Action.APPLY,
                 module_configuration=module_conf,
                 linked_resources=self._find_linked_resources(spec),
@@ -356,7 +357,7 @@ class ExternalResourcesManager:
     def _set_resource_reconciliation_in_progress(
         self, r: Reconciliation, state: ExternalResourceState
     ) -> None:
-        state.ts = datetime.now(UTC)
+        state.ts = utc_now()
         if r.action == Action.APPLY:
             state.resource_status = ResourceStatus.IN_PROGRESS
         elif r.action == Action.DESTROY:
@@ -449,7 +450,8 @@ class ExternalResourcesManager:
             r
             for r in desired_r.union(deleted_r)
             if self._reconciliation_needs_dry_run_run(
-                r, self.state_mgr.get_external_resource_state(key=r.key)
+                r,
+                self.state_mgr.get_external_resource_state(key=r.key),
             )
         }
 

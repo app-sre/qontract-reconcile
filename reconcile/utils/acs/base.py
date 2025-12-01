@@ -6,7 +6,7 @@ from typing import (
 )
 
 import requests
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from reconcile.gql_definitions.acs.acs_instances import AcsInstanceV1
 from reconcile.gql_definitions.acs.acs_instances import query as acs_instances_query
@@ -19,8 +19,11 @@ class AcsBaseApi(BaseModel):
     timeout: int = 30
     session: requests.Session = requests.Session()
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(
+        validate_by_name=True,
+        validate_by_alias=True,
+        arbitrary_types_allowed=True,
+    )
 
     def __enter__(self) -> Self:
         return self

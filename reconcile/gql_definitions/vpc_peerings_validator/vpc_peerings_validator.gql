@@ -1,8 +1,9 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
     name
+    allowedToBypassPublicPeeringRestriction
     network {
       vpc
     }

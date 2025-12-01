@@ -133,6 +133,8 @@ def test_setup(
     mocked_queries.get_app_interface_settings.return_value = None
     mocked_ts = mocker.patch("reconcile.terraform_users.Terrascript", autospec=True)
     mocked_aws = mocker.patch("reconcile.terraform_users.AWSApi", autospec=True)
+    mocked_get_settings = mocker.patch("reconcile.terraform_users.get_settings")
+    mocked_get_settings.return_value.default_tags = None
     thread_pool_size = 1
 
     accounts, working_dirs, setup_err, aws_api = integ.setup(None, thread_pool_size, [])
@@ -148,6 +150,7 @@ def test_setup(
         thread_pool_size,
         [test_aws_account],
         settings=None,
+        default_tags=None,
     )
     mocked_ts.return_value.populate_users.assert_called_once_with(
         [test_aws_account_role],

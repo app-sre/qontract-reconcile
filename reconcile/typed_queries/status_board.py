@@ -56,7 +56,8 @@ def get_selected_app_metadata(
             "deployment_saas_files": deployment_saas_files,
         }
 
-        app = namespace.app.dict(by_alias=True)
+        selected_app_names.add(name)
+        app = namespace.app.model_dump(by_alias=True)
         app["name"] = name
         apps["apps"].append(app)
 
@@ -71,7 +72,8 @@ def get_selected_app_metadata(
                     "deployment_saas_files": deployment_saas_files,
                 }
 
-                child_dict = child.dict(by_alias=True)
+                selected_app_names.add(f"{namespace.app.name}-{child.name}")
+                child_dict = child.model_dump(by_alias=True)
                 child_dict["name"] = name
                 apps["apps"].append(child_dict)
 

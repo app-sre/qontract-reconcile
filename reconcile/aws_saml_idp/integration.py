@@ -19,6 +19,7 @@ from reconcile.gql_definitions.aws_saml_idp.aws_accounts import (
     query as aws_accounts_query,
 )
 from reconcile.status import ExitCodes
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import gql
 from reconcile.utils.aws_api import AWSApi
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
@@ -81,7 +82,7 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         if not query_func:
             query_func = gql.get_api().query
         return {
-            "accounts": [c.dict() for c in self.get_aws_accounts(query_func)],
+            "accounts": [c.model_dump() for c in self.get_aws_accounts(query_func)],
         }
 
     def get_aws_accounts(
@@ -124,20 +125,27 @@ class AwsSamlIdpIntegration(QontractReconcileIntegration[AwsSamlIdpIntegrationPa
         aws_accounts = self.get_aws_accounts(
             gql_api.query, account_name=self.params.account_name
         )
-        aws_accounts_dict = [account.dict(by_alias=True) for account in aws_accounts]
-
+        aws_accounts_dict = [
+            account.model_dump(by_alias=True) for account in aws_accounts
+        ]
+        try:
+            default_tags = get_settings().default_tags
+        except ValueError:
+            # no external resources settings found
+            default_tags = None
         ts = TerrascriptClient(
             self.name.replace("-", "_"),
             "",
             self.params.thread_pool_size,
             aws_accounts_dict,
             secret_reader=self.secret_reader,
+            default_tags=default_tags,
         )
 
         for saml_idp_config in self.build_saml_idp_config(
             aws_accounts,
             saml_idp_name=self.params.saml_idp_name,
-            saml_metadata=self.get_saml_metadata(self.params.saml_metadata_url),
+            saml_metadata=self.get_saml_metadata(str(self.params.saml_metadata_url)),
         ):
             ts.populate_saml_idp(
                 account_name=saml_idp_config.account_name,

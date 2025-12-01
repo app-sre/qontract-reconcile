@@ -1,5 +1,5 @@
 import re
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel
 
@@ -17,7 +17,7 @@ class ParserVersionError(Exception):
 T = TypeVar("T", bound=BaseModel)
 
 
-class Parser(Generic[T]):
+class Parser[T: BaseModel]:
     """This class is only concerned with parsing an MR description rendered by the Renderer."""
 
     def __init__(
@@ -60,8 +60,8 @@ class Parser(Generic[T]):
 
         if self.expected_version != self._find_by_name(self.version_ref, parts[1]):
             raise ParserVersionError("Version is outdated")
-        return self.klass(
-            **data_default_none(
-                self.klass, self._data_from_description(parts[1]), use_defaults=False
-            )
+        data = data_default_none(
+            self.klass, self._data_from_description(parts[1]), use_defaults=False
         )
+        assert isinstance(data, dict)
+        return self.klass(**data)

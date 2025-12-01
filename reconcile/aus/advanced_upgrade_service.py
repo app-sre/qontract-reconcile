@@ -1,13 +1,13 @@
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Optional
+from typing import Annotated, Optional
 
 from pydantic import (
     BaseModel,
     Field,
     ValidationError,
-    validator,
+    field_validator,
 )
 from pydantic.dataclasses import dataclass
 
@@ -75,8 +75,10 @@ from reconcile.utils.ocm_base_client import (
     OCMBaseClient,
     init_ocm_base_client,
 )
+from reconcile.utils.semver_helper import make_semver
 
 QONTRACT_INTEGRATION = "advanced-upgrade-scheduler"
+QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 
 class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration):
@@ -289,13 +291,16 @@ class OrganizationLabelSet(BaseModel):
 
     blocked_versions: CSV | None = Field(alias=aus_label_key("blocked-versions"))
 
-    sector_max_parallel_upgrades: dict[str, str] = labelset_groupfield(
-        group_prefix=aus_label_key("sector-max-parallel-upgrades.")
-    )
+    sector_max_parallel_upgrades: Annotated[
+        dict[str, str],
+        labelset_groupfield(
+            group_prefix=aus_label_key("sector-max-parallel-upgrades.")
+        ),
+    ]
 
-    sector_deps: dict[str, CSV] = labelset_groupfield(
-        group_prefix=aus_label_key("sector-deps.")
-    )
+    sector_deps: Annotated[
+        dict[str, CSV], labelset_groupfield(group_prefix=aus_label_key("sector-deps."))
+    ]
     """
     Each sector with dependencies is represented as a `sector-deps.<sector-name>` label
     with a CSV formatted list of dependant sectors. The custom `labelset_groupfield``
@@ -357,7 +362,7 @@ def _build_org_upgrade_spec(
         ]
 
     org_labelset = build_labelset(org_labels, OrganizationLabelSet)
-    final_org = org.copy(deep=True)
+    final_org = org.model_copy(deep=True)
     final_org.blocked_versions = org_labelset.blocked_versions  # type: ignore
     final_org.sectors = org_labelset.sector_dependencies()
     final_org.inherit_version_data = inherit_version_data
@@ -375,6 +380,7 @@ def _build_org_upgrade_spec(
                     org=org_upgrade_spec.org,
                     upgradePolicy=upgrade_policy,
                     cluster=c.ocm_cluster,
+                    cluster_labels=c.labels,
                     health=cluster_health,
                     nodePools=node_pool_specs_by_cluster_id.get(c.ocm_cluster.id) or [],
                 )
@@ -411,7 +417,7 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     """
 
     soak_days: int = Field(alias=aus_label_key("soak-days"), ge=0)
-    workloads: CSV = Field(alias=aus_label_key("workloads"), csv_min_items=1)
+    workloads: CSV = Field(alias=aus_label_key("workloads"), min_length=1)
     schedule: str = Field(alias=aus_label_key("schedule"))
     mutexes: CSV | None = Field(alias=aus_label_key("mutexes"))
     sector: str | None = Field(alias=aus_label_key("sector"))
@@ -419,14 +425,14 @@ class ClusterUpgradePolicyLabelSet(BaseModel):
     version_gate_approvals: CSV | None = Field(
         alias=aus_label_key("version-gate-approvals")
     )
-    _schedule_validator = validator("schedule", allow_reuse=True)(cron_validator)
+    _schedule_validator = field_validator("schedule")(cron_validator)
 
     def build_labels_dict(self) -> dict[str, str]:
         """
         Build a dictionary of all labels in this labelset.
         """
         labels = {}
-        for k, v in self.dict(by_alias=True).items():
+        for k, v in self.model_dump(by_alias=True).items():
             if v is None:
                 continue
             if isinstance(v, list):

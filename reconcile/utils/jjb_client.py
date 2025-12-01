@@ -9,6 +9,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Mapping
 from os import path
+from pathlib import Path
 from subprocess import (
     PIPE,
     STDOUT,
@@ -17,10 +18,9 @@ from subprocess import (
 from typing import Any
 
 import yaml
-from jenkins_jobs.builder import JenkinsManager
 from jenkins_jobs.errors import JenkinsJobsException
-from jenkins_jobs.parser import YamlParser
-from jenkins_jobs.registry import ModuleRegistry
+from jenkins_jobs.loader import load_files
+from jenkins_jobs.roots import Roots
 from sretoolbox.utils import retry
 
 from reconcile.utils import throughput
@@ -31,6 +31,10 @@ from reconcile.utils.state import State
 from reconcile.utils.vcs import GITHUB_BASE_URL
 
 JJB_INI = "[jenkins]\nurl = https://JENKINS_URL"
+
+
+class MissingJobUrlError(Exception):
+    pass
 
 
 class JJB:
@@ -292,13 +296,10 @@ class JJB:
 
         args = ["--conf", ini_path, "test", config_path]
         jjb = self.get_jjb(args)
-        builder = JenkinsManager(jjb.jjb_config)
-        registry = ModuleRegistry(jjb.jjb_config, builder.plugins_list)
-        parser = YamlParser(jjb.jjb_config)
-        parser.load_files(jjb.options.path)
-        jobs, _ = parser.expandYaml(registry, jjb.options.names)
-
-        return jobs
+        roots = Roots(jjb.jjb_config)
+        load_files(jjb.jjb_config, roots, [Path(config_path)])
+        job_view_data_list = roots.generate_jobs()
+        return [job.data for job in job_view_data_list]
 
     def get_job_webhooks_data(self) -> dict[str, list[dict[str, Any]]]:
         job_webhooks_data: dict[str, list[dict[str, Any]]] = {}
@@ -338,7 +339,7 @@ class JJB:
                 job_name = job["name"]
                 try:
                     repos.add(self.get_repo_url(job))
-                except KeyError:
+                except MissingJobUrlError:
                     logging.debug(f"missing github url: {job_name}")
         return repos
 
@@ -358,7 +359,19 @@ class JJB:
 
     @staticmethod
     def get_repo_url(job: Mapping[str, Any]) -> str:
-        repo_url_raw = job["properties"][0]["github"]["url"]
+        repo_url_raw = job.get("properties", [{}])[0].get("github", {}).get("url")
+
+        # we may be in a Github Branch Source type of job
+        if not repo_url_raw:
+            gh_org = job.get("scm", [{}])[0].get("github", {}).get("repo-owner")
+            gh_repo = job.get("scm", [{}])[0].get("github", {}).get("repo")
+            if gh_org and gh_repo:
+                repo_url_raw = f"https://github.com/{gh_org}/{gh_repo}/"
+            else:
+                raise MissingJobUrlError(
+                    f"Cannot find job url for {job['display-name']}"
+                )
+
         return repo_url_raw.strip("/").replace(".git", "")
 
     @staticmethod
@@ -407,7 +420,7 @@ class JJB:
                 try:
                     if self.get_repo_url(job).lower() == repo_url.rstrip("/").lower():
                         return job
-                except KeyError:
+                except MissingJobUrlError:
                     # something wrong here. ignore this job
                     pass
         raise ValueError(f"job with {job_type=} and {repo_url=} not found")

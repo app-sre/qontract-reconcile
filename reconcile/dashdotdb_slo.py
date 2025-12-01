@@ -119,4 +119,4 @@ def run(
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
-    return {doc.name: doc.dict() for doc in get_slo_documents()}
+    return {doc.name: doc.model_dump() for doc in get_slo_documents()}

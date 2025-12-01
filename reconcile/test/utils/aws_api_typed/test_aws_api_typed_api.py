@@ -3,9 +3,16 @@ from boto3 import Session
 from pytest_mock import MockerFixture
 
 from reconcile.utils.aws_api_typed.account import AWSApiAccount
-from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials, SubApi
+from reconcile.utils.aws_api_typed.api import (
+    DEFAULT_CONFIG,
+    AWSApi,
+    AWSStaticCredentials,
+    SubApi,
+)
+from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
+from reconcile.utils.aws_api_typed.logs import AWSApiLogs
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
 from reconcile.utils.aws_api_typed.s3 import AWSApiS3
 from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
@@ -52,8 +59,10 @@ def test_aws_api_typed_api_close(aws_api: AWSApi, mocker: MockerFixture) -> None
     "api_cls, client_name",
     [
         (AWSApiAccount, "account"),
+        (AWSApiCloudFormation, "cloudformation"),
         (AWSApiDynamoDB, "dynamodb"),
         (AWSApiIam, "iam"),
+        (AWSApiLogs, "logs"),
         (AWSApiOrganizations, "organizations"),
         (AWSApiS3, "s3"),
         (AWSApiServiceQuotas, "service-quotas"),
@@ -75,13 +84,18 @@ def test_aws_api_typed_api_init_sub_api(
     sub_api = aws_api._init_sub_api(api_cls)
 
     assert isinstance(sub_api, api_cls)
-    session_mock.client.assert_called_once_with(client_name)
+    session_mock.client.assert_called_once_with(client_name, config=DEFAULT_CONFIG)
     assert aws_api._session_clients == [client]
 
 
 def test_aws_api_typed_api_account(aws_api: AWSApi) -> None:
     sub_api = aws_api.account
     assert isinstance(sub_api, AWSApiAccount)
+
+
+def test_aws_api_typed_api_cloudformation(aws_api: AWSApi) -> None:
+    sub_api = aws_api.cloudformation
+    assert isinstance(sub_api, AWSApiCloudFormation)
 
 
 def test_aws_api_typed_api_dynamodb(aws_api: AWSApi) -> None:
@@ -92,6 +106,11 @@ def test_aws_api_typed_api_dynamodb(aws_api: AWSApi) -> None:
 def test_aws_api_typed_api_iam(aws_api: AWSApi) -> None:
     sub_api = aws_api.iam
     assert isinstance(sub_api, AWSApiIam)
+
+
+def test_aws_api_typed_api_logs(aws_api: AWSApi) -> None:
+    sub_api = aws_api.logs
+    assert isinstance(sub_api, AWSApiLogs)
 
 
 def test_aws_api_typed_api_organizations(aws_api: AWSApi) -> None:

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from types import ModuleType
 from typing import (
     Any,
-    Generic,
     Optional,
     TypeVar,
 )
@@ -120,7 +119,7 @@ class PydanticRunParams(RunParams, BaseModel):
     def copy_and_update(
         self: PydanticRunParamsSelfTypeVar, update: dict[str, Any]
     ) -> PydanticRunParamsSelfTypeVar:
-        return self.copy(update=update)
+        return self.model_copy(update=update)
 
     def get(self, field: str) -> Any:
         return getattr(self, field)
@@ -144,7 +143,7 @@ IntegrationClassTypeVar = TypeVar(
 )
 
 
-class QontractReconcileIntegration(ABC, Generic[RunParamsTypeVar]):
+class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
     """
     The base class for all integrations. It defines the basic interface to interact
     with an integration and offers hook methods that allow the integration to opt

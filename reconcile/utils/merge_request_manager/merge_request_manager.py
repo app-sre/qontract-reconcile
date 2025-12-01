@@ -1,7 +1,7 @@
 import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
@@ -17,12 +17,12 @@ T = TypeVar("T", bound=BaseModel)
 
 
 @dataclass
-class OpenMergeRequest(Generic[T]):
+class OpenMergeRequest[T: BaseModel]:
     raw: ProjectMergeRequest
     mr_info: T
 
 
-class MergeRequestManagerBase(Generic[T]):
+class MergeRequestManagerBase[T: BaseModel]:
     """ """
 
     def __init__(self, vcs: VCS, parser: Parser, mr_label: str):
@@ -42,7 +42,7 @@ class MergeRequestManagerBase(Generic[T]):
         expected_data: dict[str, Any],
     ) -> OpenMergeRequest | None:
         for mr in self._open_mrs:
-            mr_info_dict = mr.mr_info.dict()
+            mr_info_dict = mr.mr_info.model_dump()
             if all(mr_info_dict.get(k) == expected_data.get(k) for k in expected_data):
                 return mr
 

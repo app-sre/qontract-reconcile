@@ -156,7 +156,7 @@ def run_integration_cfg(run_cfg: IntegrationRunConfiguration) -> None:
         _integration_wet_run(run_cfg.integration)
 
 
-def _integration_wet_run(
+def _integration_wet_run[RunParamsTypeVar: RunParams](
     integration: QontractReconcileIntegration[RunParamsTypeVar],
 ) -> None:
     """
@@ -165,7 +165,7 @@ def _integration_wet_run(
     integration.run(False)
 
 
-def _integration_dry_run(
+def _integration_dry_run[RunParamsTypeVar: RunParams](
     integration: QontractReconcileIntegration[RunParamsTypeVar],
     desired_state_diff: DesiredStateDiff | None,
 ) -> None:

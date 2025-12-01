@@ -1,7 +1,15 @@
 import json
-from typing import Any
+from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
+from enum import Enum
+from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
-from reconcile.utils.json import json_dumps
+import pytest
+from pydantic import BaseModel, Field
+
+from reconcile.utils.json import json_dumps, pydantic_encoder
 
 
 def test_basic_serialization() -> None:
@@ -44,3 +52,134 @@ def test_cls() -> None:
     data = {"numbers": {1, 2, 3}}
     result = json_dumps(data, cls=CustomEncoder)
     assert json.loads(result) == {"numbers": [1, 2, 3]}
+
+
+class SampleModel(BaseModel):
+    a: int = Field(..., alias="alias")
+    b: str
+    c: datetime
+    d: str | None = None
+    e: Decimal
+
+
+@pytest.mark.parametrize(
+    ("by_alias", "exclude_none", "expected"),
+    [
+        (
+            False,
+            False,
+            '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            False,
+            True,
+            '{"a":42,"b":"value","c":"1989-11-09T23:30:00+01:00","e":"10.5"}',
+        ),
+        (
+            True,
+            False,
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            True,
+            True,
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","e":"10.5"}',
+        ),
+    ],
+)
+def test_pydantic_model(by_alias: bool, exclude_none: bool, expected: str) -> None:
+    data = SampleModel(
+        alias=42,
+        b="value",
+        c=datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        d=None,
+        e=Decimal("10.5"),
+    )
+    result = json_dumps(
+        data, compact=True, by_alias=by_alias, exclude_none=exclude_none
+    )
+    assert result == expected
+
+
+def test_mixed_objects_with_pydantic_encoder() -> None:
+    class NestedModel(BaseModel):
+        x: int
+        y: str
+
+    class TestEnum(Enum):
+        FOO = "bar"
+
+    @dataclass
+    class DataclassModel:
+        path: str
+
+    data = {
+        "a": 42,
+        "b": "value",
+        "c": NestedModel(x=1, y="nested"),
+        "d": datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        "e": TestEnum.FOO,
+        "f": DataclassModel(path="/some/path"),
+        "g": date(1989, 11, 9),
+    }
+    result = json_dumps(data, compact=True, defaults=pydantic_encoder)
+    expected = '{"a":42,"b":"value","c":{"x":1,"y":"nested"},"d":"1989-11-09T23:30:00+01:00","e":"bar","f":{"path":"/some/path"},"g":"1989-11-09"}'
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        (
+            "json",
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            "python",
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":10.5}',
+        ),
+    ],
+)
+def test_pydantic_mode(mode: Literal["json", "python"], expected: str) -> None:
+    data = SampleModel(
+        alias=42,
+        b="value",
+        c=datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        d=None,
+        e=Decimal("10.5"),
+    )
+    result = json_dumps(data, compact=True, mode=mode)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("exclude", "expected"),
+    [
+        (
+            None,
+            '{"alias":42,"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            {"b"},
+            '{"alias":42,"c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+        (
+            {"b", "d"},
+            '{"alias":42,"c":"1989-11-09T23:30:00+01:00","e":"10.5"}',
+        ),
+        (
+            {"a"},
+            '{"b":"value","c":"1989-11-09T23:30:00+01:00","d":null,"e":"10.5"}',
+        ),
+    ],
+)
+def test_pydantic_exclude(exclude: set[str] | None, expected: str) -> None:
+    data = SampleModel(
+        alias=42,
+        b="value",
+        c=datetime(1989, 11, 9, 23, 30, 0, tzinfo=ZoneInfo("Europe/Berlin")),
+        d=None,
+        e=Decimal("10.5"),
+    )
+    result = json_dumps(data, compact=True, exclude=exclude)
+    assert result == expected

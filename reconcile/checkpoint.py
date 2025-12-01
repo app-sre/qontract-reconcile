@@ -26,6 +26,7 @@ from jira import Issue
 
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.jira_client import JiraClient
+from reconcile.utils.secret_reader import SecretReaderBase
 
 DEFAULT_CHECKPOINT_LABELS = ("sre-checkpoint",)
 
@@ -118,8 +119,8 @@ def file_ticket(
 def report_invalid_metadata(
     app: Mapping[str, Any],
     path: str,
-    board: Mapping[str, str | Mapping],
-    settings: Mapping[str, Any],
+    board: Mapping[str, Any],
+    secret_reader: SecretReaderBase,
     parent: str,
     dry_run: bool = False,
 ) -> None:
@@ -150,7 +151,14 @@ def report_invalid_metadata(
             path=path,
         )
     else:
-        jira = JiraClient(board, settings)
+        jira = JiraClient.create(
+            project_name=board["name"],
+            token=secret_reader.read_secret(board["server"]["token"]),
+            email=secret_reader.read_secret(board["server"]["email"])
+            if board["server"]["email"]
+            else None,
+            server_url=board["server"]["server_url"],
+        )
         do_cut = partial(
             file_ticket,  # type: ignore
             jira=jira,

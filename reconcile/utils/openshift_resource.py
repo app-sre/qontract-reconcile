@@ -4,8 +4,8 @@ from __future__ import annotations
 import base64
 import contextlib
 import copy
-import datetime
 import hashlib
+import logging
 import re
 from threading import Lock
 from typing import TYPE_CHECKING, Any
@@ -14,6 +14,7 @@ import semver
 from pydantic import BaseModel
 
 from reconcile.external_resources.meta import SECRET_UPDATED_AT
+from reconcile.utils.datetime_util import to_utc_seconds_iso_format, utc_now
 from reconcile.utils.json import json_dumps
 from reconcile.utils.metrics import GaugeMetric
 
@@ -368,8 +369,8 @@ class OpenshiftResource:
         annotations[QONTRACT_ANNOTATION_INTEGRATION] = self.integration
         annotations[QONTRACT_ANNOTATION_INTEGRATION_VERSION] = self.integration_version
         annotations[QONTRACT_ANNOTATION_SHA256SUM] = sha256sum
-        now = datetime.datetime.utcnow().replace(microsecond=0).isoformat()
-        annotations[QONTRACT_ANNOTATION_UPDATE] = now
+        now = utc_now()
+        annotations[QONTRACT_ANNOTATION_UPDATE] = to_utc_seconds_iso_format(now)
         if self.caller_name:
             annotations[QONTRACT_ANNOTATION_CALLER_NAME] = self.caller_name
 
@@ -601,6 +602,10 @@ class ResourceInventory:
         resource: OpenshiftResource,
         privileged: bool = False,
     ) -> None:
+        if cluster not in self._clusters:
+            logging.error(f"Cluster {cluster} not initialized in ResourceInventory")
+            return
+
         if resource.kind_and_group in self._clusters[cluster][namespace]:
             kind = resource.kind_and_group
         else:

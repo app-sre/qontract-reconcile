@@ -38,10 +38,7 @@ def binary_version(
     def deco_binary_version(f: Callable) -> Callable:
         @wraps(f)
         def f_binary_version(*args: Any, **kwargs: Any) -> None:
-            regex = re.compile(search_regex)
-
-            cmd = [binary]
-            cmd.extend(version_args)
+            cmd = [binary, *version_args]
             try:
                 result = subprocess.run(cmd, capture_output=True, check=True)
             except subprocess.CalledProcessError as e:
@@ -50,15 +47,13 @@ def binary_version(
                 )
                 raise Exception(msg) from e
 
-            found = False
-            match = None
-            for line in result.stdout.splitlines():
-                match = regex.search(line.decode("utf-8"))
-                if match is not None:
-                    found = True
-                    break
+            match = re.search(
+                search_regex,
+                result.stdout.decode("utf-8"),
+                re.MULTILINE,
+            )
 
-            if not found or not match:
+            if match is None:
                 raise Exception(
                     f"Could not find version for binary '{binary}' via regex "
                     f"for binary version check: "

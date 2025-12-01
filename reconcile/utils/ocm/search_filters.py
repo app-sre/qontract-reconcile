@@ -5,7 +5,6 @@ from abc import (
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import (
-    UTC,
     datetime,
 )
 from enum import Enum
@@ -15,6 +14,8 @@ from typing import (
 )
 
 import dateparser
+
+from reconcile.utils.datetime_util import utc_now
 
 
 @dataclass
@@ -166,16 +167,12 @@ class DateRangeCondition(FilterCondition):
             return date
         parsed = dateparser.parse(
             date,
-            settings={"RELATIVE_BASE": DateRangeCondition.now()},
+            settings={"RELATIVE_BASE": utc_now()},
         )
         if parsed is None:
             raise InvalidFilterError(f"Invalid relative date: {date}")
 
         return parsed
-
-    @staticmethod
-    def now() -> datetime:
-        return datetime.now(tz=UTC)
 
 
 class InvalidFilterError(Exception):

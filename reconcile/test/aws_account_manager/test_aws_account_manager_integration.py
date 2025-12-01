@@ -1,9 +1,9 @@
+import datetime
 from collections.abc import Callable
 from textwrap import dedent
 from unittest.mock import ANY, MagicMock
 
 import pytest
-from dateutil import parser
 from pytest_mock import MockerFixture
 
 from reconcile.aws_account_manager import integration
@@ -33,8 +33,11 @@ def test_aws_account_manager_utils_integration_render_account_tmpl_files(
     intg: AwsAccountMgmtIntegration,
     account_request: AWSAccountRequestV1,
 ) -> None:
-    datetime_mock = mocker.patch.object(integration, "datetime", autospec=True)
-    datetime_mock.now.return_value = parser.parse("2024-09-30T20:15:00+00")
+    mocker.patch.object(
+        integration,
+        "utc_now",
+        return_value=datetime.datetime(2024, 9, 30, 20, 15, 0, tzinfo=datetime.UTC),
+    )
     tmpl = dedent("""
     # test access variables
     {{ accountRequest.name }}

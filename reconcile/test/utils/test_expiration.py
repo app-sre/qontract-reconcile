@@ -1,4 +1,5 @@
 from datetime import (
+    UTC,
     datetime,
     timedelta,
 )
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 
 from reconcile.utils import expiration
 
-TODAY = datetime.utcnow().date()
+TODAY = datetime.now(tz=UTC).date()
 YESTERDAY = TODAY - timedelta(days=1)
 TOMORROW = TODAY + timedelta(days=1)
 NEXT_WEEK = TODAY + timedelta(days=7)
@@ -17,7 +18,7 @@ LAST_WEEK = TODAY - timedelta(days=7)
 
 class MyRole(BaseModel):
     just_another_attr: int = 0
-    expiration_date: str | None
+    expiration_date: str | None = None
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, cast
 
 import boto3
@@ -103,11 +104,16 @@ def test_default_region(aws_api: AWSApi, accounts: list[dict]) -> None:
 
 
 def test_filter_amis_regex(aws_api: AWSApi) -> None:
-    regex = "^match.*$"
+    regex = re.compile(r"^match.*$")
     images = [
         cast(
             "ImageTypeDef",
-            {"Name": "match-regex", "ImageId": "id1", "State": "available", "Tags": []},
+            {
+                "Name": "match-regex",
+                "ImageId": "id1",
+                "State": "available",
+                "Tags": [{"Key": "k", "Value": "v"}],
+            },
         ),
         cast(
             "ImageTypeDef",
@@ -120,12 +126,12 @@ def test_filter_amis_regex(aws_api: AWSApi) -> None:
         ),
     ]
     results = aws_api._filter_amis(images, regex)
-    expected = {"image_id": "id1", "tags": []}
-    assert results == [expected]
+    expected = {"id1": {"k": "v"}}
+    assert results == expected
 
 
 def test_filter_amis_state(aws_api: AWSApi) -> None:
-    regex = "^match.*$"
+    regex = re.compile(r"^match.*$")
     images = [
         cast(
             "ImageTypeDef",
@@ -133,7 +139,7 @@ def test_filter_amis_state(aws_api: AWSApi) -> None:
                 "Name": "match-regex-1",
                 "ImageId": "id1",
                 "State": "available",
-                "Tags": [],
+                "Tags": [{"Key": "k", "Value": "v"}],
             },
         ),
         cast(
@@ -147,8 +153,8 @@ def test_filter_amis_state(aws_api: AWSApi) -> None:
         ),
     ]
     results = aws_api._filter_amis(images, regex)
-    expected = {"image_id": "id1", "tags": []}
-    assert results == [expected]
+    expected = {"id1": {"k": "v"}}
+    assert results == expected
 
 
 @pytest.fixture

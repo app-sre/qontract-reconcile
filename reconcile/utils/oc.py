@@ -10,16 +10,16 @@ import re
 import subprocess
 import threading
 import time
+from collections import defaultdict
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime
 from functools import cache, wraps
 from subprocess import Popen
 from threading import Lock
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
 import urllib3
-from kubernetes.client import (  # type: ignore[attr-defined]
+from kubernetes.client import (
     ApiClient,
     Configuration,
 )
@@ -68,7 +68,18 @@ if TYPE_CHECKING:
 urllib3.disable_warnings()
 
 GET_REPLICASET_MAX_ATTEMPTS = 20
-
+DEFAULT_GROUP = ""
+PROJECT_KIND = "Project.project.openshift.io"
+POD_RECYCLE_SUPPORTED_TRIGGER_KINDS = [
+    "ConfigMap",
+    "Secret",
+]
+POD_RECYCLE_SUPPORTED_OWNER_KINDS = [
+    "DaemonSet",
+    "Deployment",
+    "DeploymentConfig",
+    "StatefulSet",
+]
 
 oc_run_execution_counter = Counter(
     name="oc_run_execution_counter",
@@ -125,14 +136,6 @@ class JSONParsingError(Exception):
     pass
 
 
-class RecyclePodsUnsupportedKindError(Exception):
-    pass
-
-
-class RecyclePodsInvalidAnnotationValueError(Exception):
-    pass
-
-
 class PodNotReadyError(Exception):
     pass
 
@@ -142,6 +145,14 @@ class JobNotRunningError(Exception):
 
 
 class RequestEntityTooLargeError(Exception):
+    pass
+
+
+class KindNotFoundError(Exception):
+    pass
+
+
+class AmbiguousResourceTypeError(Exception):
     pass
 
 
@@ -380,10 +391,7 @@ class OCCli:
 
         self.init_projects = init_projects
         if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
+            kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
@@ -453,10 +461,7 @@ class OCCli:
 
         self.init_projects = init_projects
         if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
+            kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
         self.slow_oc_reconcile_threshold = float(
@@ -637,11 +642,9 @@ class OCCli:
     def project_exists(self, name: str) -> bool:
         if name in self.projects:
             return True
+        kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
         try:
-            if self.is_kind_supported("Project"):
-                self.get(None, "Project.project.openshift.io", name)
-            else:
-                self.get(None, "Namespace", name)
+            self.get(None, kind, name)
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return False
@@ -650,7 +653,7 @@ class OCCli:
 
     @OCDecorators.process_reconcile_time
     def new_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
-        if self.is_kind_supported("Project"):
+        if self.is_kind_supported(PROJECT_KIND):
             cmd = ["new-project", namespace]
         else:
             cmd = ["create", "namespace", namespace]
@@ -666,7 +669,7 @@ class OCCli:
 
     @OCDecorators.process_reconcile_time
     def delete_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
-        if self.is_kind_supported("Project"):
+        if self.is_kind_supported(PROJECT_KIND):
             cmd = ["delete", "project", namespace]
         else:
             cmd = ["delete", "namespace", namespace]
@@ -715,9 +718,9 @@ class OCCli:
 
     def sa_get_token(self, namespace: str, name: str) -> str:
         cmd = ["sa", "-n", namespace, "get-token", name]
-        return self._run(cmd)
+        return self._run(cmd).decode("utf-8")
 
-    def get_api_resources(self) -> dict[str, Any]:
+    def get_api_resources(self) -> dict[str, list[OCCliApiResource]]:
         with self.api_resources_lock:
             if not self.api_resources:
                 cmd = ["api-resources", "--no-headers"]
@@ -921,108 +924,105 @@ class OCCli:
             if not status["ready"]:
                 raise PodNotReadyError(name)
 
-    def recycle_pods(
-        self, dry_run: bool, namespace: str, dep_kind: str, dep_resource: OR
-    ) -> None:
-        """recycles pods which are using the specified resources.
-        will only act on Secrets containing the 'qontract.recycle' annotation.
-        dry_run: simulate pods recycle.
-        namespace: namespace in which dependant resource is applied.
-        dep_kind: dependant resource kind. currently only supports Secret.
-        dep_resource: dependant resource."""
-
-        supported_kinds = ["Secret", "ConfigMap"]
-        if dep_kind not in supported_kinds:
+    def _is_resource_supported_to_trigger_recycle(
+        self,
+        namespace: str,
+        resource: OR,
+    ) -> bool:
+        if resource.kind not in POD_RECYCLE_SUPPORTED_TRIGGER_KINDS:
             logging.debug([
                 "skipping_pod_recycle_unsupported",
                 self.cluster_name,
                 namespace,
-                dep_kind,
+                resource.kind,
+                resource.name,
             ])
-            return
+            return False
 
-        dep_annotations = dep_resource.body["metadata"].get("annotations", {})
         # Note, that annotations might have been set to None explicitly
-        dep_annotations = dep_resource.body["metadata"].get("annotations") or {}
-        qontract_recycle = dep_annotations.get("qontract.recycle")
-        if qontract_recycle is True:
-            raise RecyclePodsInvalidAnnotationValueError('should be "true"')
+        annotations = resource.body["metadata"].get("annotations") or {}
+        qontract_recycle = annotations.get("qontract.recycle")
         if qontract_recycle != "true":
             logging.debug([
                 "skipping_pod_recycle_no_annotation",
                 self.cluster_name,
                 namespace,
-                dep_kind,
+                resource.kind,
+                resource.name,
             ])
+            return False
+        return True
+
+    def recycle_pods(
+        self,
+        dry_run: bool,
+        namespace: str,
+        resource: OR,
+    ) -> None:
+        """
+        recycles pods which are using the specified resources.
+        will only act on Secret or ConfigMap containing the 'qontract.recycle' annotation.
+
+        Args:
+            dry_run (bool): if True, will only log the recycle action without executing it
+            namespace (str): namespace of the resource
+            resource (OR): resource object (Secret or ConfigMap) to check for pod usage
+        """
+
+        if not self._is_resource_supported_to_trigger_recycle(namespace, resource):
             return
 
-        dep_name = dep_resource.name
         pods = self.get(namespace, "Pod")["items"]
-
-        if dep_kind == "Secret":
-            pods_to_recycle = [
-                pod for pod in pods if self.secret_used_in_pod(dep_name, pod)
-            ]
-        elif dep_kind == "ConfigMap":
-            pods_to_recycle = [
-                pod for pod in pods if self.configmap_used_in_pod(dep_name, pod)
-            ]
-        else:
-            raise RecyclePodsUnsupportedKindError(dep_kind)
-
-        recyclables: dict[str, list[dict[str, Any]]] = {}
-        supported_recyclables = [
-            "Deployment",
-            "DeploymentConfig",
-            "StatefulSet",
-            "DaemonSet",
+        pods_to_recycle = [
+            pod
+            for pod in pods
+            if self.is_resource_used_in_pod(
+                name=resource.name,
+                kind=resource.kind,
+                pod=pod,
+            )
         ]
+
+        recycle_names_by_kind = defaultdict(set)
         for pod in pods_to_recycle:
             owner = self.get_obj_root_owner(namespace, pod, allow_not_found=True)
             kind = owner["kind"]
-            if kind not in supported_recyclables:
-                continue
-            recyclables.setdefault(kind, [])
-            exists = False
-            for obj in recyclables[kind]:
-                owner_name = owner["metadata"]["name"]
-                if obj["metadata"]["name"] == owner_name:
-                    exists = True
-                    break
-            if not exists:
-                recyclables[kind].append(owner)
+            if kind in POD_RECYCLE_SUPPORTED_OWNER_KINDS:
+                recycle_names_by_kind[kind].add(owner["metadata"]["name"])
 
-        for kind, objs in recyclables.items():
-            for obj in objs:
-                self.recycle(dry_run, namespace, kind, obj)
+        for kind, names in recycle_names_by_kind.items():
+            for name in names:
+                self.recycle(
+                    dry_run=dry_run,
+                    namespace=namespace,
+                    kind=kind,
+                    name=name,
+                )
 
-    @retry(exceptions=ObjectHasBeenModifiedError)
     def recycle(
-        self, dry_run: bool, namespace: str, kind: str, obj: MutableMapping[str, Any]
+        self,
+        dry_run: bool,
+        namespace: str,
+        kind: str,
+        name: str,
     ) -> None:
-        """Recycles an object by adding a recycle.time annotation
-
-        :param dry_run: Is this a dry run
-        :param namespace: Namespace to work in
-        :param kind: Object kind
-        :param obj: Object to recycle
         """
-        name = obj["metadata"]["name"]
+        Recycles an object using oc rollout restart, which will add an annotation
+        kubectl.kubernetes.io/restartedAt with the current timestamp to the pod
+        template, triggering a rolling restart.
+
+        Args:
+            dry_run (bool): if True, will only log the recycle action without executing it
+            namespace (str): namespace of the object to recycle
+            kind (str): kind of the object to recycle
+            name (str): name of the object to recycle
+        """
         logging.info([f"recycle_{kind.lower()}", self.cluster_name, namespace, name])
         if not dry_run:
-            now = datetime.now()
-            recycle_time = now.strftime("%d/%m/%Y %H:%M:%S")
-
-            # get the object in case it was modified
-            obj = self.get(namespace, kind, name)
-            # honor update strategy by setting annotations to force
-            # a new rollout
-            a = obj["spec"]["template"]["metadata"].get("annotations", {})
-            a["recycle.time"] = recycle_time
-            obj["spec"]["template"]["metadata"]["annotations"] = a
-            cmd = ["apply", "-n", namespace, "-f", "-"]
-            stdin = json_dumps(obj)
-            self._run(cmd, stdin=stdin, apply=True)
+            self._run(
+                ["rollout", "restart", f"{kind}/{name}", "-n", namespace],
+                apply=True,
+            )
 
     def get_obj_root_owner(
         self,
@@ -1064,12 +1064,24 @@ class OCCli:
                     )
         return obj
 
-    def secret_used_in_pod(self, name: str, pod: Mapping[str, Any]) -> bool:
-        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "Secret")
-        return name in used_resources
+    def is_resource_used_in_pod(
+        self,
+        name: str,
+        kind: str,
+        pod: Mapping[str, Any],
+    ) -> bool:
+        """
+        Check if a resource (Secret or ConfigMap) is used in a Pod.
 
-    def configmap_used_in_pod(self, name: str, pod: Mapping[str, Any]) -> bool:
-        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], "ConfigMap")
+        Args:
+            name: Name of the resource
+            kind: "Secret" or "ConfigMap"
+            pod: Pod object
+
+        Returns:
+            True if the resource is used in the Pod, False otherwise.
+        """
+        used_resources = self.get_resources_used_in_pod_spec(pod["spec"], kind)
         return name in used_resources
 
     @staticmethod
@@ -1078,25 +1090,39 @@ class OCCli:
         kind: str,
         include_optional: bool = True,
     ) -> dict[str, set[str]]:
-        if kind not in {"Secret", "ConfigMap"}:
-            raise KeyError(f"unsupported resource kind: {kind}")
+        """
+        Get resources (Secrets or ConfigMaps) used in a Pod spec.
+        Returns a dictionary where keys are resource names and values are sets of keys used from that resource.
+
+        Args:
+            spec: Pod spec
+            kind: "Secret" or "ConfigMap"
+            include_optional: Whether to include optional resources
+
+        Returns:
+            A dictionary mapping resource names to sets of keys used.
+        """
+        match kind:
+            case "Secret":
+                volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
+                    "secret",
+                    "secretName",
+                    "secretRef",
+                    "secretKeyRef",
+                    "name",
+                )
+            case "ConfigMap":
+                volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
+                    "configMap",
+                    "name",
+                    "configMapRef",
+                    "configMapKeyRef",
+                    "name",
+                )
+            case _:
+                raise KeyError(f"unsupported resource kind: {kind}")
+
         optional = "optional"
-        if kind == "Secret":
-            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
-                "secret",
-                "secretName",
-                "secretRef",
-                "secretKeyRef",
-                "name",
-            )
-        elif kind == "ConfigMap":
-            volume_kind, volume_kind_ref, env_from_kind, env_kind, env_ref = (
-                "configMap",
-                "name",
-                "configMapRef",
-                "configMapKeyRef",
-                "name",
-            )
 
         resources: dict[str, set[str]] = {}
         for v in spec.get("volumes") or []:
@@ -1125,8 +1151,8 @@ class OCCli:
                         continue
                     resource_name = resource_ref[env_ref]
                     resources.setdefault(resource_name, set())
-                    secret_key = resource_ref["key"]
-                    resources[resource_name].add(secret_key)
+                    key = resource_ref["key"]
+                    resources[resource_name].add(key)
                 except (KeyError, TypeError):
                     continue
 
@@ -1187,7 +1213,7 @@ class OCCli:
     def _run_json(
         self, cmd: list[str], allow_not_found: bool = False
     ) -> dict[str, Any]:
-        out = self._run(cmd, allow_not_found=allow_not_found)
+        out = self._run(cmd, allow_not_found=allow_not_found).decode("utf-8")
 
         try:
             out_json = json.loads(out)
@@ -1196,76 +1222,90 @@ class OCCli:
 
         return out_json
 
-    def _parse_kind(self, kind_name: str) -> tuple[str, str]:
-        # This is a provisional solution while we work in redefining
-        # the api resources initialization.
-        if not self.api_resources:
-            self.get_api_resources()
+    def parse_kind(self, kind: str) -> tuple[str, str, str]:
+        """Parse a Kubernetes kind string into its components.
 
-        kind_group = kind_name.split(".", 1)
-        kind = kind_group[0]
-        if kind in self.api_resources:
-            group_version = self.api_resources[kind][0].group_version
-        else:
-            raise StatusCodeError(f"{self.server}: {kind} does not exist")
+        Supports three formats:
+        - kind
+        - kind.group.whatever
+        - kind.group.whatever/version
 
-        # if a kind_group has more than 1 entry than the kind_name is in
-        # the format kind.apigroup.  Find the apigroup/version that matches
-        # the apigroup passed with the kind_name
-        if len(kind_group) > 1:
-            apigroup_override = kind_group[1]
-            find = False
-            for gv in self.api_resources[kind]:
-                if apigroup_override == gv.group:
-                    if not gv.group:
-                        group_version = gv.api_version
-                    else:
-                        group_version = f"{gv.group}/{gv.api_version}"
-                    find = True
-                    break
+        Args:
+            kind: A Kubernetes kind string in one of the supported formats
 
-            if not find:
-                raise StatusCodeError(
-                    f"{self.server}: {apigroup_override} does not have kind {kind}"
-                )
-        return (kind, group_version)
+        Returns:
+            Tuple of (kind, group, version) where missing parts are empty strings
+
+        Raises:
+            ValueError: If the kind string format is invalid
+
+        Examples:
+            >>> parse_kind_string("Deployment")
+            ('Deployment', '', '')
+            >>> parse_kind_string("ClusterRoleBinding.rbac.authorization.k8s.io")
+            ('ClusterRoleBinding', 'rbac.authorization.k8s.io', '')
+            >>> parse_kind_string("CustomResource.mygroup.example.com/v1")
+            ('CustomResource', 'mygroup.example.com', 'v1')
+        """
+        pattern = r"^(?P<kind>[^./]+)(?:\.(?P<group>[^/]+))?(?:/(?P<version>.+))?$"
+        match = re.match(pattern, kind)
+        if not match:
+            raise ValueError(f"Invalid kind string: {kind}")
+
+        kind = match.group("kind") or ""
+        group = match.group("group") or DEFAULT_GROUP
+        version = match.group("version") or ""
+
+        return kind, group, version
 
     def is_kind_supported(self, kind: str) -> bool:
-        # This is a provisional solution while we work in redefining
-        # the api resources initialization.
-        if not self.api_resources:
-            self.get_api_resources()
+        """Returns True if the given kind is supported by the cluster, False otherwise.
 
-        if "." in kind:
-            try:
-                self._parse_kind(kind)
-                return True
-            except StatusCodeError:
-                return False
-        else:
-            return kind in self.api_resources
+        Kind can be either kind, kind.group or kind.group/version."""
+        try:
+            self.get_api_resource(kind)
+            return True
+        except KindNotFoundError:
+            return False
 
     def is_kind_namespaced(self, kind: str) -> bool:
-        # This is a provisional solution while we work in redefining
-        # the api resources initialization.
+        """Returns True if the given kind is namespaced, False if it's cluster scoped.
+
+        Kind can be either kind, kind.group or kind.group/version."""
+        return self.get_api_resource(kind).namespaced
+
+    def get_api_resource(self, kind: str) -> OCCliApiResource:
+        """Return the OCCliApiResource for the given resource type.
+
+        Resource type can be either kind, kind.group or kind.group/version.
+        If kind is not unique, group must be specified."""
+
         if not self.api_resources:
-            self.get_api_resources()
+            raise RuntimeError("API resources not initialized")
 
-        kg = kind.split(".", 1)
-        kind = kg[0]
+        kind, group, _ = self.parse_kind(kind)
 
-        # Same Kinds might exist in different api groups
-        kind_resources = self.api_resources.get(kind)
-        if not kind_resources:
-            raise StatusCodeError(f"Kind {kind} does not exist in the ApiServer")
+        if not (resources := self.api_resources.get(kind)):
+            # the kind not found at all
+            raise KindNotFoundError(f"Unsupported resource type: {kind}")
 
-        if len(kg) > 1:
-            group = kg[1]
-            for r in kind_resources:
-                if group == r.group:
-                    return r.namespaced
-            raise StatusCodeError(f"Kind: {kind} does nod exist in the ApiServer")
-        return kind_resources[0].namespaced
+        if len(resources) == 1 and group == DEFAULT_GROUP:
+            return resources[0]
+
+        # get the resource with the specified group
+        if resource := next((r for r in resources if r.group == group), None):
+            return resource
+
+        # no resource with the specified group found
+        if group == DEFAULT_GROUP:
+            message = (
+                f"Ambiguous resource type: {kind}. "
+                "Please fully qualify it with its API group. E.g., ClusterRoleBinding -> ClusterRoleBinding.rbac.authorization.k8s.io"
+            )
+            raise AmbiguousResourceTypeError(message)
+
+        # group was specified but no matching resource found
+        raise KindNotFoundError(f"Unsupported resource type: {kind}")
 
 
 REQUEST_TIMEOUT = 60
@@ -1305,20 +1345,19 @@ class OCNative(OCCli):
 
             server = connection_parameters.server_url
 
-        if server:
-            self.client = self._get_client(server, token)
-            self.api_resources = self.get_api_resources()
+        if not server:
+            raise Exception("Server name is required!")
 
-        else:
-            raise Exception("A method relies on client/api_kind_version to be set")
+        if not token:
+            raise Exception("Token is required!")
+
+        self.client = self._get_client(server, token)
+        self.api_resources = self.get_api_resources()
 
         self.projects = set()
         self.init_projects = init_projects
         if self.init_projects:
-            if self.is_kind_supported("Project"):
-                kind = "Project.project.openshift.io"
-            else:
-                kind = "Namespace"
+            kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
     def __enter__(self) -> OCNative:
@@ -1368,8 +1407,10 @@ class OCNative(OCCli):
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
-        k, group_version = self._parse_kind(kind)
-        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+        resource = self.get_api_resource(kind)
+        obj_client = self._get_obj_client(
+            group_version=resource.group_version, kind=resource.kind
+        )
 
         namespace = ""
         if "namespace" in kwargs:
@@ -1421,8 +1462,10 @@ class OCNative(OCCli):
         name: str | None = None,
         allow_not_found: bool = False,
     ) -> dict[str, Any]:
-        k, group_version = self._parse_kind(kind)
-        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+        resource = self.get_api_resource(kind)
+        obj_client = self._get_obj_client(
+            group_version=resource.group_version, kind=resource.kind
+        )
         try:
             obj = obj_client.get(
                 name=name,
@@ -1436,8 +1479,10 @@ class OCNative(OCCli):
             raise StatusCodeError(f"[{self.server}]: {e}") from None
 
     def get_all(self, kind: str, all_namespaces: bool = False) -> dict[str, Any]:
-        k, group_version = self._parse_kind(kind)
-        obj_client = self._get_obj_client(group_version=group_version, kind=k)
+        resource = self.get_api_resource(kind)
+        obj_client = self._get_obj_client(
+            group_version=resource.group_version, kind=resource.kind
+        )
         try:
             return obj_client.get(_request_timeout=REQUEST_TIMEOUT).to_dict()
         except NotFoundError as e:

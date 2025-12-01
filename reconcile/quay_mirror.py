@@ -66,7 +66,7 @@ class QuayMirror:
     }
     """
 
-    response_cache: dict[tuple[str, str], Response] = {}
+    response_cache: dict[tuple[str, str | None], Response] = {}
 
     def __init__(
         self,

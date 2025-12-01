@@ -85,14 +85,14 @@ def test_get_region_from_availability_zone(az: str, region: str) -> None:
 
 
 class Disable(BaseModel):
-    integrations: list[str] | None
+    integrations: list[str] | None = None
 
 
 class AWSAccountSSO(BaseModel):
     name: str
     uid: str
-    sso: bool | None
-    disable: Disable | None
+    sso: bool | None = None
+    disable: Disable | None = None
 
 
 @pytest.mark.parametrize(

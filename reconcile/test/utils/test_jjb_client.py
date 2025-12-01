@@ -1,10 +1,13 @@
+import tempfile
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.utils.jjb_client import JJB
+from reconcile.test.fixtures import Fixtures
+from reconcile.utils.jjb_client import JJB, MissingJobUrlError
 
 
 @pytest.fixture
@@ -104,6 +107,11 @@ def patch_et_parse(mocker: MockerFixture) -> MagicMock:
     return et
 
 
+@pytest.fixture
+def fxt() -> Fixtures:
+    return Fixtures("jjb_client")
+
+
 def test_get_job_by_repo_url(
     patch_jjb: Any, gitlab_job_fixture: dict[str, Any]
 ) -> None:
@@ -177,3 +185,54 @@ def test_print_diff_with_invalid_job_name(
             "create",
         )
     assert str(e_info.value) == "Invalid job name contains '/' in ci-int: group/project"
+
+
+def test_get_jobs_parses_jjb_templates() -> None:
+    """Test that get_jobs parses JJB templates and generates job definitions using real jenkins-jobs library"""
+    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "jjb"
+    ini_path = fixtures_dir / "jenkins.ini"
+    config_path = fixtures_dir / "jobs.yaml"
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        instance_ini = Path(temp_dir) / "jenkins.ini"
+        jjb_config = Path(temp_dir) / "config.yaml"
+
+        instance_ini.write_text(ini_path.read_text())
+        jjb_config.write_text(config_path.read_text())
+
+        jjb = JJB(configs=[], print_only=True)
+
+        jobs = jjb.get_jobs(temp_dir, "jenkins")
+
+        assert isinstance(jobs, list)
+        assert len(jobs) == 2
+
+        job_names = [job["name"] for job in jobs]
+        assert "sample-service-build" in job_names
+        assert "sample-service-pr-check" in job_names
+
+        for job in jobs:
+            assert "name" in job
+            assert "properties" in job
+            assert "github" in job["properties"][0]
+            assert (
+                job["properties"][0]["github"]["url"]
+                == "https://github.com/example/sample-service"
+            )
+
+
+def test_get_repo_url_ghprb(fxt: Fixtures) -> None:
+    url = JJB.get_repo_url(fxt.get_anymarkup("ghprb-job.yaml"))
+    assert url == "https://github.com/RedHatInsights/acs-ui"
+
+
+def test_get_repo_url_gh_branch_source(fxt: Fixtures) -> None:
+    url = JJB.get_repo_url(fxt.get_anymarkup("gh-branch-source-job.yaml"))
+    assert url == "https://github.com/app-sre/github-branch-source-from-ci-ext"
+
+
+def test_get_repo_url_error() -> None:
+    with pytest.raises(MissingJobUrlError) as e:
+        JJB.get_repo_url({"display-name": "lol"})
+
+    assert "Cannot find job url for lol" in str(e.value)

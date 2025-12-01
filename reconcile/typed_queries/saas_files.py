@@ -6,7 +6,6 @@ from typing import Any
 from jsonpath_ng.exceptions import JsonPathParserError
 from pydantic import (
     BaseModel,
-    Extra,
     Field,
     Json,
 )
@@ -51,7 +50,12 @@ from reconcile.utils.json import json_dumps
 from reconcile.utils.jsonpath import parse_jsonpath
 
 
-class SaasResourceTemplateTarget(ConfiguredBaseModel):
+class SaasResourceTemplateTarget(
+    ConfiguredBaseModel,
+    validate_by_alias=True,
+    # ignore `namespaceSelector` and 'provider' fields from the GQL schema
+    extra="ignore",
+):
     path: str | None = Field(..., alias="path")
     name: str | None = Field(..., alias="name")
     # the namespace must be required to fulfill the saas file schema (utils.saasherder.interface.SaasFile)
@@ -79,12 +83,8 @@ class SaasResourceTemplateTarget(ConfiguredBaseModel):
             digest_size=20,
         ).hexdigest()
 
-    class Config:
-        # ignore `namespaceSelector` and 'provider' fields from the GQL schema
-        extra = Extra.ignore
 
-
-class SaasResourceTemplate(ConfiguredBaseModel):
+class SaasResourceTemplate(ConfiguredBaseModel, validate_by_alias=True):
     name: str = Field(..., alias="name")
     url: str = Field(..., alias="url")
     path: str = Field(..., alias="path")
@@ -97,7 +97,7 @@ class SaasResourceTemplate(ConfiguredBaseModel):
     targets: list[SaasResourceTemplateTarget] = Field(..., alias="targets")
 
 
-class SaasFile(ConfiguredBaseModel):
+class SaasFile(ConfiguredBaseModel, validate_by_alias=True):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     labels: Json | None = Field(..., alias="labels")
@@ -221,7 +221,7 @@ class SaasFileList:
             with self._namespaces_as_dict_lock:
                 self._namespaces_as_dict_cache = {
                     "namespace": [
-                        ns.dict(by_alias=True, exclude_none=True)
+                        ns.model_dump(by_alias=True, exclude_none=True)
                         for ns in self.namespaces
                     ]
                 }
@@ -283,7 +283,7 @@ class SaasFileList:
             if app_name and saas_file.app.name != app_name:
                 continue
 
-            sf = saas_file.copy(deep=True)
+            sf = saas_file.model_copy(deep=True)
             if env_name:
                 for rt in sf.resource_templates[:]:
                     for target in rt.targets[:]:
@@ -314,7 +314,7 @@ def convert_parameters_to_json_string(root: dict[str, Any]) -> dict[str, Any]:
 
 
 def export_model(model: BaseModel) -> dict[str, Any]:
-    return convert_parameters_to_json_string(model.dict(by_alias=True))
+    return convert_parameters_to_json_string(model.model_dump(by_alias=True))
 
 
 def get_saas_files(

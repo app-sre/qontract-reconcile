@@ -7,6 +7,7 @@ from typing import Any, TypedDict
 import reconcile.utils.terraform_client as terraform
 import reconcile.utils.terrascript_aws_client as terrascript
 from reconcile import queries
+from reconcile.typed_queries import external_resources
 from reconcile.utils import (
     aws_api,
     ocm,
@@ -654,8 +655,18 @@ def run(
         ])
 
     account_by_name = {a["name"]: a for a in accounts}
+    try:
+        default_tags = external_resources.get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     with terrascript.TerrascriptClient(
-        QONTRACT_INTEGRATION, "", thread_pool_size, infra_accounts, settings=settings
+        QONTRACT_INTEGRATION,
+        "",
+        thread_pool_size,
+        infra_accounts,
+        settings=settings,
+        default_tags=default_tags,
     ) as ts:
         rosa_cluster_accounts = [
             account_by_name[c["spec"]["account"]["name"]]
@@ -664,8 +675,8 @@ def run(
         ]
         ts.populate_configs(rosa_cluster_accounts)
 
-        for infra_account_name, items in participating_accounts.items():
-            ts.populate_additional_providers(infra_account_name, items)
+        for infra_account_name, accounts in participating_accounts.items():
+            ts.populate_additional_providers(infra_account_name, accounts)
         ts.populate_vpc_peerings(desired_state)
         working_dirs = ts.dump(print_to_file=print_to_file)
         terraform_configurations = ts.terraform_configurations()

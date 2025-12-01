@@ -1,7 +1,4 @@
-import os
-
 import pytest
-import yaml
 from jsonpath_ng.exceptions import JsonPathParserError
 
 from reconcile.utils.jinja2.filters import (
@@ -11,7 +8,6 @@ from reconcile.utils.jinja2.filters import (
     matches_jsonpath,
     str_format,
 )
-from reconcile.utils.sloth import process_sloth_output
 
 
 def test_hash_list_empty() -> None:
@@ -132,18 +128,3 @@ def test_str_format() -> None:
     value = "path/to/object"
     format = "s3://%s"
     assert str_format(value, format) == "s3://path/to/object"
-
-
-def test_process_sloth_output_schema_compliance() -> None:
-    fixture_dir = os.path.join(os.path.dirname(__file__), "fixtures", "jinja2")
-    sloth_output_path = os.path.join(fixture_dir, "sloth_output.yaml")
-    expected_result_path = os.path.join(fixture_dir, "expected_result.yaml")
-
-    with open(expected_result_path, encoding="utf-8") as f:
-        expected_result = f.read()
-    result = process_sloth_output(sloth_output_path)
-    # Parse both results as YAML for comparison
-    result_data = yaml.safe_load(result)
-    expected_data = yaml.safe_load(expected_result)
-
-    assert result_data == expected_data

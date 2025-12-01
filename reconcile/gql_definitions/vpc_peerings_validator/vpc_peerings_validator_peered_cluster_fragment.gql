@@ -1,7 +1,8 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
   name
+  allowedToBypassPublicPeeringRestriction
   network {
     vpc
   }

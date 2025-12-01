@@ -30,7 +30,7 @@ rosa create cluster --cluster-name=cluster-1 \
     --service-cidr 172.30.0.0/16 \
     --pod-cidr 10.128.0.0/14 \
     --host-prefix 23 \
-    --replicas 1 \
+    --replicas 3 \
     --compute-machine-type m5.xlarge \
     --disable-workload-monitoring \
     --properties provision_shard_id:provision_shard_id \

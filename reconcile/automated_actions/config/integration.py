@@ -7,7 +7,7 @@ from collections.abc import (
 from typing import Any
 
 import yaml
-from kubernetes.client import (  # type: ignore[attr-defined]
+from kubernetes.client import (
     ApiClient,
     V1ConfigMap,
     V1ObjectMeta,
@@ -20,6 +20,7 @@ from reconcile.gql_definitions.automated_actions.instance import (
     AutomatedActionExternalResourceFlushElastiCacheV1,
     AutomatedActionExternalResourceRdsRebootV1,
     AutomatedActionExternalResourceRdsSnapshotV1,
+    AutomatedActionOpenshiftTriggerCronjobV1,
     AutomatedActionOpenshiftWorkloadDeleteV1,
     AutomatedActionOpenshiftWorkloadRestartArgumentV1,
     AutomatedActionOpenshiftWorkloadRestartV1,
@@ -82,7 +83,7 @@ class AutomatedActionsConfigIntegration(
             query_func = gql.get_api().query
         return {
             "automated_actions_instances": [
-                c.dict() for c in self.get_automated_actions_instances(query_func)
+                c.model_dump() for c in self.get_automated_actions_instances(query_func)
             ]
         }
 
@@ -167,7 +168,7 @@ class AutomatedActionsConfigIntegration(
                 case AutomatedActionActionListV1():
                     # no special handling needed, just dump the values
                     parameters.extend(
-                        arg.dict(exclude_none=True, exclude_defaults=True)
+                        arg.model_dump(exclude_none=True, exclude_defaults=True)
                         for arg in action.action_list_arguments or []
                     )
                 case AutomatedActionExternalResourceFlushElastiCacheV1():
@@ -205,6 +206,17 @@ class AutomatedActionsConfigIntegration(
                                 "account": f"^{rds_snapshot_er.provisioner.name}$",
                                 "identifier": rds_snapshot_arg.identifier,
                             })
+                case AutomatedActionOpenshiftTriggerCronjobV1():
+                    parameters.extend(
+                        {
+                            # all parameter values are regexes in the OPA policy
+                            # therefore, cluster and namespace must be fixed to the current strings
+                            "cluster": f"^{arg.namespace.cluster.name}$",
+                            "namespace": f"^{arg.namespace.name}$",
+                            "cronjob": arg.cronjob,
+                        }
+                        for arg in action.openshift_trigger_cronjob_arguments
+                    )
                 case AutomatedActionOpenshiftWorkloadDeleteV1():
                     parameters.extend(
                         {
@@ -257,7 +269,7 @@ class AutomatedActionsConfigIntegration(
             {
                 "users": {user.username: sorted(user.roles) for user in users},
                 "roles": {
-                    role: [policy.dict() for policy in policies]
+                    role: [policy.model_dump() for policy in policies]
                     for role, policies in roles.items()
                 },
             },

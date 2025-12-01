@@ -11,7 +11,6 @@ IMAGE_TAG := $(shell git rev-parse --short=7 HEAD)
 BUILD_TARGET := prod-image
 
 .EXPORT_ALL_VARIABLES:
-# TWINE_USERNAME & TWINE_PASSWORD are available in jenkins job
 
 
 ifneq (,$(wildcard $(CURDIR)/.docker))
@@ -24,21 +23,6 @@ CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
 
 help: ## Prints help for targets with comments
 	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-
-build:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build -t $(IMAGE_NAME):latest -f dockerfiles/Dockerfile.deprecated --target $(BUILD_TARGET) . --progress=plain
-	@$(CONTAINER_ENGINE) tag $(IMAGE_NAME):latest $(IMAGE_NAME):$(IMAGE_TAG)
-
-build-dev:
-	@DOCKER_BUILDKIT=1 $(CONTAINER_ENGINE) build --progress=plain --build-arg CONTAINER_UID=$(CONTAINER_UID) -t $(IMAGE_NAME)-dev:latest -f dockerfiles/Dockerfile.deprecated --target dev-image .
-
-push:
-	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):latest
-	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)
-
-rc:
-	@$(CONTAINER_ENGINE) build -t $(IMAGE_NAME):$(IMAGE_TAG)-rc --build-arg quay_expiration=3d -f dockerfiles/Dockerfile.deprecated --target prod-image .
-	@$(CONTAINER_ENGINE) --config=$(DOCKER_CONF) push $(IMAGE_NAME):$(IMAGE_TAG)-rc
 
 generate:
 	@mkdir -p openshift
@@ -89,8 +73,8 @@ pypi-konflux:
 	uv build --sdist --wheel
 	uv publish
 
-dev-venv: clean ## Create a local venv for your IDE and remote debugging
-	uv sync --python 3.11
+dev-venv: clean # Create/Update a local venv for your IDE and remote debugging
+	uv sync -U
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'

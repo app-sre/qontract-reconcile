@@ -1,4 +1,4 @@
-# qenerate: plugin=pydantic_v1
+# qenerate: plugin=pydantic_v2
 
 fragment VPCRequest on VPCRequest_v1 {
   identifier
@@ -9,6 +9,9 @@ fragment VPCRequest on VPCRequest_v1 {
     terraformUsername
     automationToken {
       ...VaultSecret
+    }
+    disable {
+      integrations
     }
     supportedDeploymentRegions
     resourcesDefaultRegion
@@ -21,6 +24,9 @@ fragment VPCRequest on VPCRequest_v1 {
       type
       name
       expiration
+    }
+    organization {
+      ...AWSOrganization
     }
   }
   region

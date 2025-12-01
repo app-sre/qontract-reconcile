@@ -1,5 +1,6 @@
 import logging
 import os
+from subprocess import CompletedProcess
 from typing import Any, TypedDict, cast
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -16,6 +17,8 @@ from reconcile.utils.oc import (
     LABEL_MAX_KEY_PREFIX_LENGTH,
     LABEL_MAX_VALUE_LENGTH,
     OC,
+    AmbiguousResourceTypeError,
+    KindNotFoundError,
     OC_Map,
     OCCli,
     OCLogMsg,
@@ -132,7 +135,7 @@ class TestValidatePodReady(TestCase):
         oc = cast("OCCli", OC("cluster", "server", "token", local=True))
         with self.assertRaises(PodNotReadyError):
             # Bypass the retry stuff
-            oc.validate_pod_ready.__wrapped__(oc, "namespace", "podname")
+            oc.validate_pod_ready.__wrapped__(oc, "namespace", "podname")  # type: ignore[attr-defined]
 
 
 @patch.dict(os.environ, {"USE_NATIVE_CLIENT": "False"}, clear=True)
@@ -634,6 +637,17 @@ class TestOCMapGetClusters(TestCase):
         self.assertFalse(oc_map.get(cluster["name"]))
 
 
+OC_CLI_BASE_CMD = [
+    "oc",
+    "--kubeconfig",
+    "/dev/null",
+    "--server",
+    "server",
+    "--token",
+    "token",
+]
+
+
 @pytest.fixture
 def oc_cli(monkeypatch: pytest.MonkeyPatch) -> OCCli:
     monkeypatch.setenv("USE_NATIVE_CLIENT", "False")
@@ -708,22 +722,22 @@ def test_get_resources_used_in_pod_spec_configmap(
 
 
 def test_secret_used_in_pod_true(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.secret_used_in_pod("secret1", pod)
+    result = oc_cli.is_resource_used_in_pod("secret1", "Secret", pod)
     assert result is True
 
 
 def test_secret_used_in_pod_false(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.secret_used_in_pod("secret9999", pod)
+    result = oc_cli.is_resource_used_in_pod("secret9999", "Secret", pod)
     assert result is False
 
 
 def test_configmap_used_in_pod_true(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.configmap_used_in_pod("configmap1", pod)
+    result = oc_cli.is_resource_used_in_pod("configmap1", "ConfigMap", pod)
     assert result is True
 
 
 def test_configmap_used_in_pod_false(oc_cli: OCCli, pod: dict[str, Any]) -> None:
-    result = oc_cli.configmap_used_in_pod("configmap9999", pod)
+    result = oc_cli.is_resource_used_in_pod("configmap9999", "ConfigMap", pod)
     assert result is False
 
 
@@ -1034,18 +1048,23 @@ def test_get_replicaset_allow_empty(
     assert oc_cli.get_replicaset("namespace", deployment, allow_empty=True) == {}
 
 
+K1_G1 = Resource(
+    prefix="", kind="kind1", group="group1", api_version="v1", namespaced=True
+)
+K2_G2 = Resource(
+    prefix="", kind="kind2", group="group2", api_version="v2", namespaced=False
+)
+K3_G1 = Resource(
+    prefix="", kind="kind3", group="group1", api_version="v1", namespaced=True
+)
+K3_G2 = Resource(
+    prefix="", kind="kind3", group="group2", api_version="v2", namespaced=True
+)
+
+
 @pytest.fixture
 def api_resources() -> dict[str, list[Resource]]:
-    k1_g1 = Resource(
-        prefix="", kind="kind1", group="group1", api_version="v1", namespaced=True
-    )
-    k1_g11 = Resource(
-        prefix="", kind="kind1", group="group11", api_version="v1", namespaced=True
-    )
-    k2_g2 = Resource(
-        prefix="", kind="kind2", group="group2", api_version="v2", namespaced=False
-    )
-    return {"kind1": [k1_g1, k1_g11], "kind2": [k2_g2]}
+    return {"kind1": [K1_G1], "kind2": [K2_G2], "kind3": [K3_G1, K3_G2]}
 
 
 @pytest.fixture
@@ -1058,12 +1077,24 @@ def oc_api_resources(
     return OC("cluster", "server", "token", local=True, init_api_resources=True)  # type: ignore[return-value]
 
 
+def test_is_kind_supported(oc_api_resources: OCCli) -> None:
+    assert oc_api_resources.is_kind_supported("kind1")
+
+
+def test_is_kind_supported_full_qualified(oc_api_resources: OCCli) -> None:
+    assert oc_api_resources.is_kind_supported("kind1.group1")
+
+
+def test_is_kind_supported_bad_kind(oc_api_resources: OCCli) -> None:
+    assert not oc_api_resources.is_kind_supported("unknown")
+
+
 def test_is_kind_namespaced(oc_api_resources: OCCli) -> None:
     assert oc_api_resources.is_kind_namespaced("kind1")
 
 
 def test_is_kind_namespaced_full_name(oc_api_resources: OCCli) -> None:
-    assert oc_api_resources.is_kind_namespaced("kind1.group11")
+    assert oc_api_resources.is_kind_namespaced("kind1.group1")
 
 
 def test_is_kind_not_namespaced(oc_api_resources: OCCli) -> None:
@@ -1072,6 +1103,154 @@ def test_is_kind_not_namespaced(oc_api_resources: OCCli) -> None:
 
 def test_is_kind_not_namespaced_full_name(oc_api_resources: OCCli) -> None:
     assert not oc_api_resources.is_kind_namespaced("kind2.group2")
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        ("kind1", K1_G1),
+        ("kind2", K2_G2),
+        ("kind3.group1", K3_G1),
+        ("kind3.group2", K3_G2),
+        # bad group of single kind
+        pytest.param(
+            "kind2.unknown", None, marks=pytest.mark.xfail(raises=KindNotFoundError)
+        ),
+        # unknown kind
+        pytest.param(
+            "unknown", None, marks=pytest.mark.xfail(raises=KindNotFoundError)
+        ),
+        # ambiguous kind
+        pytest.param(
+            "kind3", None, marks=pytest.mark.xfail(raises=AmbiguousResourceTypeError)
+        ),
+        # bad group of multiple kind
+        pytest.param(
+            "kind3.unknown", None, marks=pytest.mark.xfail(raises=KindNotFoundError)
+        ),
+    ],
+)
+def test_find_resource(oc_api_resources: OCCli, kind: str, expected: Resource) -> None:
+    assert oc_api_resources.get_api_resource(kind) == expected
+
+
+@pytest.mark.parametrize(
+    ("kind_string", "expected_kind", "expected_group", "expected_version"),
+    [
+        ("Pod", "Pod", "", ""),
+        ("Service", "Service", "", ""),
+        ("Secret.core", "Secret", "core", ""),
+        ("Template.template.openshift.io", "Template", "template.openshift.io", ""),
+        (
+            "Template.template.openshift.io/v1",
+            "Template",
+            "template.openshift.io",
+            "v1",
+        ),
+        ("CronJob.batch/v1", "CronJob", "batch", "v1"),
+        (
+            "CustomResourceDefinition.apiextensions.k8s.io/v1",
+            "CustomResourceDefinition",
+            "apiextensions.k8s.io",
+            "v1",
+        ),
+        pytest.param("", "", "", "", marks=pytest.mark.xfail),
+        pytest.param("..", "", "", "", marks=pytest.mark.xfail),
+        pytest.param(".group", "", "", "", marks=pytest.mark.xfail),
+        pytest.param(".group.lala/version", "", "", "", marks=pytest.mark.xfail),
+    ],
+)
+def test_parse_kind_string_parametrized(
+    oc_cli: OCCli,
+    kind_string: str,
+    expected_kind: str,
+    expected_group: str,
+    expected_version: str,
+) -> None:
+    """Parametrized test for various kind string formats."""
+    kind, group, version = oc_cli.parse_kind(kind_string)
+    assert kind == expected_kind
+    assert group == expected_group
+    assert version == expected_version
+
+
+def test_oc_recycle(
+    oc_cli: OCCli,
+    mocker: MockerFixture,
+) -> None:
+    mock_run = mocker.patch(
+        "reconcile.utils.oc.subprocess.run",
+        return_value=CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=b"{}",
+            stderr=b"",
+        ),
+    )
+
+    oc_cli.recycle(
+        dry_run=False,
+        namespace="namespace",
+        kind="Deployment",
+        name="name",
+    )
+
+    mock_run.assert_called_once_with(
+        OC_CLI_BASE_CMD + ["rollout", "restart", "Deployment/name", "-n", "namespace"],
+        input=None,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_oc_recycle_pods(
+    oc_cli: OCCli,
+    mocker: MockerFixture,
+    pod: dict[str, Any],
+    deployment: dict[str, Any],
+) -> None:
+    mock_get = mocker.patch.object(
+        oc_cli,
+        "get",
+        return_value={"items": [pod]},
+    )
+    mock_get_obj_root_owner = mocker.patch.object(
+        oc_cli,
+        "get_obj_root_owner",
+        return_value=deployment,
+    )
+    mock_recycle = mocker.patch.object(oc_cli, "recycle")
+
+    oc_cli.recycle_pods(
+        dry_run=False,
+        namespace="namespace",
+        resource=OR(
+            body={
+                "metadata": {
+                    "name": "secret1",
+                    "annotations": {
+                        "qontract.recycle": "true",
+                    },
+                },
+                "kind": "Secret",
+            },
+            integration="test-integration",
+            integration_version="0.0.1",
+        ),
+    )
+
+    mock_get.assert_called_once_with("namespace", "Pod")
+    mock_get_obj_root_owner.assert_called_once_with(
+        "namespace",
+        pod,
+        allow_not_found=True,
+    )
+    mock_recycle.assert_called_once_with(
+        dry_run=False,
+        namespace="namespace",
+        kind="Deployment",
+        name="busybox",
+    )
 
 
 @pytest.fixture

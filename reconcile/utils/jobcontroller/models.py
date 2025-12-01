@@ -38,6 +38,8 @@ class JobValidationError(Exception):
 
 
 JOB_GENERATION_ANNOTATION = "qontract-reconcile/job.generation"
+MAX_JOB_NAME_LENGTH = 63
+UNIT_OF_WORK_DIGEST_LENGTH = 10
 
 
 class K8sJob(ABC):
@@ -72,7 +74,21 @@ class K8sJob(ABC):
     """
 
     def name(self) -> str:
-        return f"{self.name_prefix()}-{self.unit_of_work_digest()}"
+        """
+        Generate the full job name by combining the name prefix with a digest.
+
+        The name is constructed from the name_prefix (truncated to ensure total
+        length compliance) and the unit_of_work_digest. The total length is
+        limited to MAX_JOB_NAME_LENGTH (63 characters) to comply with Kubernetes
+        naming constraints.
+
+        Returns:
+            A unique job name in the format: {name_prefix}-{digest}
+        """
+        prefix = self.name_prefix()[
+            : MAX_JOB_NAME_LENGTH - UNIT_OF_WORK_DIGEST_LENGTH - 1
+        ]
+        return f"{prefix}-{self.unit_of_work_digest(UNIT_OF_WORK_DIGEST_LENGTH)}"
 
     @abstractmethod
     def name_prefix(self) -> str:

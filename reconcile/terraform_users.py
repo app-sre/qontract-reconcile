@@ -11,6 +11,7 @@ from reconcile import (
 )
 from reconcile.change_owners.diff import IDENTIFIER_FIELD_NAME
 from reconcile.gql_definitions.common.pgp_reencryption_settings import query
+from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import (
     expiration,
     gql,
@@ -126,12 +127,18 @@ def setup(
     participating_aws_accounts = _filter_participating_aws_accounts(accounts, roles)
 
     settings = queries.get_app_interface_settings()
+    try:
+        default_tags = get_settings().default_tags
+    except ValueError:
+        # no external resources settings found
+        default_tags = None
     ts = Terrascript(
         QONTRACT_INTEGRATION,
         QONTRACT_TF_PREFIX,
         thread_pool_size,
         participating_aws_accounts,
         settings=settings,
+        default_tags=default_tags,
     )
     err = ts.populate_users(
         roles,

@@ -2,18 +2,15 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from datetime import (
-    UTC,
-    datetime,
-)
+from datetime import datetime
 
-from dateutil.parser import isoparse
 from pydantic import BaseModel
 
 from reconcile.gql_definitions.statuspage.statuspages import (
     ManualStatusProviderV1,
     StatusProviderV1,
 )
+from reconcile.utils.datetime_util import from_utc_iso_format, utc_now
 
 # This module defines the interface for status providers for components on status
 # pages. A status provider is responsible for determining the status of a component.
@@ -70,7 +67,7 @@ class ManualStatusProvider(StatusProvider, BaseModel):
             raise ValueError(
                 "manual component status time window is invalid: end before start"
             )
-        now = datetime.now(UTC)
+        now = utc_now()
         if self.start and now < self.start:
             return False
         return not (self.end and self.end < now)
@@ -84,8 +81,8 @@ def build_status_provider_config(
     provider specific implementation that provides the status resolution logic.
     """
     if isinstance(cfg, ManualStatusProviderV1):
-        start = isoparse(cfg.manual.q_from) if cfg.manual.q_from else None
-        end = isoparse(cfg.manual.until) if cfg.manual.until else None
+        start = from_utc_iso_format(cfg.manual.q_from) if cfg.manual.q_from else None
+        end = from_utc_iso_format(cfg.manual.until) if cfg.manual.until else None
         return ManualStatusProvider(
             component_status=cfg.manual.component_status,
             start=start,

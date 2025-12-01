@@ -6,9 +6,11 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from boto3 import Session
+from botocore.config import Config
 from pydantic import BaseModel
 
 import reconcile.utils.aws_api_typed.account
+import reconcile.utils.aws_api_typed.cloudformation
 import reconcile.utils.aws_api_typed.dynamodb
 import reconcile.utils.aws_api_typed.iam
 import reconcile.utils.aws_api_typed.organization
@@ -17,8 +19,10 @@ import reconcile.utils.aws_api_typed.service_quotas
 import reconcile.utils.aws_api_typed.sts
 import reconcile.utils.aws_api_typed.support
 from reconcile.utils.aws_api_typed.account import AWSApiAccount
+from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 from reconcile.utils.aws_api_typed.iam import AWSApiIam
+from reconcile.utils.aws_api_typed.logs import AWSApiLogs
 from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
 from reconcile.utils.aws_api_typed.s3 import AWSApiS3
 from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
@@ -31,13 +35,22 @@ if TYPE_CHECKING:
 SubApi = TypeVar(
     "SubApi",
     AWSApiAccount,
+    AWSApiCloudFormation,
     AWSApiDynamoDB,
+    AWSApiLogs,
     AWSApiIam,
     AWSApiOrganizations,
     AWSApiS3,
     AWSApiServiceQuotas,
     AWSApiSts,
     AWSApiSupport,
+)
+
+DEFAULT_CONFIG = Config(
+    retries={
+        "mode": "standard",
+        "total_max_attempts": 10,
+    },
 )
 
 
@@ -174,28 +187,34 @@ class AWSApi:
         """Return a new or cached sub api client."""
         match api_cls:
             case reconcile.utils.aws_api_typed.account.AWSApiAccount:
-                client = self.session.client("account")
+                client = self.session.client("account", config=DEFAULT_CONFIG)
+                api = api_cls(client)
+            case reconcile.utils.aws_api_typed.cloudformation.AWSApiCloudFormation:
+                client = self.session.client("cloudformation", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
-                client = self.session.client("dynamodb")
+                client = self.session.client("dynamodb", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.iam.AWSApiIam:
-                client = self.session.client("iam")
+                client = self.session.client("iam", config=DEFAULT_CONFIG)
+                api = api_cls(client)
+            case reconcile.utils.aws_api_typed.logs.AWSApiLogs:
+                client = self.session.client("logs", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
-                client = self.session.client("organizations")
+                client = self.session.client("organizations", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.s3.AWSApiS3:
-                client = self.session.client("s3")
+                client = self.session.client("s3", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.service_quotas.AWSApiServiceQuotas:
-                client = self.session.client("service-quotas")
+                client = self.session.client("service-quotas", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.sts.AWSApiSts:
-                client = self.session.client("sts")
+                client = self.session.client("sts", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case reconcile.utils.aws_api_typed.support.AWSApiSupport:
-                client = self.session.client("support")
+                client = self.session.client("support", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case _:
                 raise ValueError(f"Unknown API class: {api_cls}")
@@ -205,8 +224,13 @@ class AWSApi:
 
     @cached_property
     def account(self) -> AWSApiAccount:
-        """Return an AWS Acount Api client"""
+        """Return an AWS Account Api client"""
         return self._init_sub_api(AWSApiAccount)
+
+    @cached_property
+    def cloudformation(self) -> AWSApiCloudFormation:
+        """Return an AWS CloudFormation Api client"""
+        return self._init_sub_api(AWSApiCloudFormation)
 
     @cached_property
     def dynamodb(self) -> AWSApiDynamoDB:
@@ -217,6 +241,11 @@ class AWSApi:
     def iam(self) -> AWSApiIam:
         """Return an AWS IAM Api client."""
         return self._init_sub_api(AWSApiIam)
+
+    @cached_property
+    def logs(self) -> AWSApiLogs:
+        """Return an AWS Logs Api client."""
+        return self._init_sub_api(AWSApiLogs)
 
     @cached_property
     def organizations(self) -> AWSApiOrganizations:

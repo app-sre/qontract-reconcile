@@ -1,9 +1,7 @@
 from collections.abc import Generator
-from datetime import (
-    datetime,
-    timedelta,
-)
+from datetime import timedelta
 
+from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.ocm.base import (
     OCMClusterServiceLog,
     OCMClusterServiceLogCreateModel,
@@ -47,7 +45,7 @@ def create_service_log(
                 .eq("severity", service_log.severity.value)
                 .eq("summary", service_log.summary)
                 .eq("description", service_log.description)
-                .after("created_at", datetime.utcnow() - dedup_interval),
+                .after("created_at", utc_now() - dedup_interval),
             ),
             None,
         )
@@ -57,6 +55,6 @@ def create_service_log(
     return OCMClusterServiceLog(
         **ocm_api.post(
             api_path=CLUSTER_SERVICE_LOGS_CREATE_ENDPOINT,
-            data=service_log.dict(by_alias=True),
+            data=service_log.model_dump(by_alias=True),
         )
     )

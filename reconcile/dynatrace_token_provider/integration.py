@@ -82,7 +82,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         return {
             "version": QONTRACT_INTEGRATION_VERSION,
             "specs": {
-                spec.name: spec.dict()
+                spec.name: spec.model_dump()
                 for spec in get_dynatrace_token_provider_token_specs()
             },
         }

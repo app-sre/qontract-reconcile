@@ -251,8 +251,6 @@ def deepdiff_path_to_jsonpath(deep_diff_path: str) -> jsonpath_ng.JSONPath:
             case int():
                 return jsonpath_ng.Index(element)
             case str():
-                if "." in element:
-                    return jsonpath_ng.Fields(f"'{element}'")
                 return jsonpath_ng.Fields(element)
 
     path_parts = [build_jsonpath_part(p) for p in parse_path(deep_diff_path)]

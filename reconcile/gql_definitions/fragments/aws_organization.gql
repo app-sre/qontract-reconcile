@@ -1,0 +1,8 @@
+# qenerate: plugin=pydantic_v2
+
+fragment AWSOrganization on AWSOrganization_v1 {
+  payerAccount {
+    organizationAccountTags
+  }
+  tags
+}

@@ -97,13 +97,14 @@ def test_cloudflare_dns_zone_to_external_resource(
         provision_provider=DEFAULT_PROVISIONER_PROVIDER,
         provisioner={"name": "fakeaccount-zoneid"},
         namespace=DEFAULT_NAMESPACE,
-        resource=cloudflare_dns_zones[0].dict(
+        resource=cloudflare_dns_zones[0].model_dump(
             by_alias=True, exclude=DEFAULT_EXCLUDE_KEY
         ),
     )
     expected_external_resource.resource["provider"] = DEFAULT_PROVIDER
     expected_external_resource.resource["records"] = [
-        record.dict(by_alias=True) for record in cloudflare_dns_zones[0].records or []
+        record.model_dump(by_alias=True)
+        for record in cloudflare_dns_zones[0].records or []
     ]
     expected_result = [expected_external_resource]
 

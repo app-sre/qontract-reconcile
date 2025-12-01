@@ -11,6 +11,9 @@ from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator imp
     VpcPeeringsValidatorQueryData,
 )
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
+    ClusterNetworkV1 as PeeredClusterNetwork,
+)
+from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
     ClusterSpecV1 as PeeredClusterSpec,
 )
 from reconcile.gql_definitions.vpc_peerings_validator.vpc_peerings_validator_peered_cluster_fragment import (
@@ -31,6 +34,7 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
             ClusterV1(
                 name="cluster1",
                 network=ClusterNetworkV1(vpc="192.168.0.0/16"),
+                allowedToBypassPublicPeeringRestriction=False,
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -39,7 +43,8 @@ def query_data_i2p() -> VpcPeeringsValidatorQueryData:
                             provider="cluster-vpc-accepter",
                             cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
+                                network=PeeredClusterNetwork(vpc="192.168.0.0/16"),
+                                allowedToBypassPublicPeeringRestriction=False,
                                 spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),
@@ -80,6 +85,7 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
                 name="cluster1",
                 spec=ClusterSpecV1(private=False),
                 network=ClusterNetworkV1(vpc="192.168.0.0/16"),
+                allowedToBypassPublicPeeringRestriction=False,
                 internal=False,
                 peering=ClusterPeeringV1(
                     connections=[
@@ -87,7 +93,8 @@ def query_data_p2p() -> VpcPeeringsValidatorQueryData:
                             provider="cluster-vpc-accepter",
                             cluster=VpcPeeringsValidatorPeeredCluster(
                                 name="cluster2",
-                                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
+                                network=PeeredClusterNetwork(vpc="192.168.0.0/16"),
+                                allowedToBypassPublicPeeringRestriction=False,
                                 spec=PeeredClusterSpec(private=False),
                                 internal=False,
                             ),
@@ -163,6 +170,7 @@ def query_data_vpc_cidr_overlap() -> VpcPeeringsValidatorQueryData:
             ClusterV1(
                 name="clustertest",
                 network=ClusterNetworkV1(vpc="10.20.0.0/20"),
+                allowedToBypassPublicPeeringRestriction=False,
                 spec=ClusterSpecV1(private=True),
                 internal=True,
                 peering=ClusterPeeringV1(
@@ -192,3 +200,56 @@ def test_create_dict_for_validate_no_cidr_overlap(
     query_data_vpc_cidr_overlap: VpcPeeringsValidatorQueryData,
 ) -> None:
     assert validate_no_cidr_overlap(query_data_vpc_cidr_overlap) is False
+
+
+# Creates an object for use to validate the truth table for the public-public
+# peering prohibition exception granted in APPSRE-12582.
+# Both sides must have the exception
+def create_appsre_12582_object(
+    allowleft: bool, allowright: bool
+) -> VpcPeeringsValidatorQueryData:
+    return VpcPeeringsValidatorQueryData(
+        clusters=[
+            ClusterV1(
+                name="left",
+                network=ClusterNetworkV1(vpc="192.168.0.0/16"),
+                allowedToBypassPublicPeeringRestriction=allowleft,
+                spec=ClusterSpecV1(private=False),
+                internal=False,
+                peering=ClusterPeeringV1(
+                    connections=[
+                        ClusterPeeringConnectionClusterAccepterV1(
+                            provider="cluster-vpc-accepter",
+                            cluster=VpcPeeringsValidatorPeeredCluster(
+                                name="right",
+                                network=PeeredClusterNetwork(vpc="192.168.0.0/16"),
+                                allowedToBypassPublicPeeringRestriction=allowright,
+                                spec=PeeredClusterSpec(private=False),
+                                internal=False,
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    )
+
+
+def test_validate_public_peering_exception_left_ok_right_not_ok() -> None:
+    obj = create_appsre_12582_object(allowleft=True, allowright=False)
+    assert validate_no_public_to_public_peerings(obj) is False
+
+
+def test_validate_public_peering_exception_left_not_ok_right_ok() -> None:
+    obj = create_appsre_12582_object(allowleft=False, allowright=True)
+    assert validate_no_public_to_public_peerings(obj) is False
+
+
+def test_validate_public_peering_exception_left_not_ok_right_not_ok() -> None:
+    obj = create_appsre_12582_object(allowleft=False, allowright=False)
+    assert validate_no_public_to_public_peerings(obj) is False
+
+
+def test_validate_public_peering_exception_left_ok_right_ok() -> None:
+    obj = create_appsre_12582_object(allowleft=True, allowright=True)
+    assert validate_no_public_to_public_peerings(obj) is True

@@ -22,7 +22,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Self,
-    TypeAlias,
     cast,
 )
 
@@ -152,6 +151,7 @@ from reconcile.github_org import get_default_config
 from reconcile.gql_definitions.terraform_resources.terraform_resources_namespaces import (
     NamespaceTerraformResourceLifecycleV1,
 )
+from reconcile.typed_queries.aws_account_tags import get_aws_account_tags
 from reconcile.utils import gql
 from reconcile.utils.aws_api import (
     AmiTag,
@@ -178,7 +178,10 @@ from reconcile.utils.external_resources import (
 from reconcile.utils.git import is_file_in_git_repo
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.jenkins_api import JenkinsApi
-from reconcile.utils.jinja2.utils import process_extracurlyjinja2_template
+from reconcile.utils.jinja2.utils import (
+    process_extracurlyjinja2_template,
+    process_jinja2_template,
+)
 from reconcile.utils.json import json_dumps
 from reconcile.utils.password_validator import (
     PasswordPolicy,
@@ -203,7 +206,7 @@ if TYPE_CHECKING:
     from reconcile.utils.ocm import OCMMap
 
 
-TFResource: TypeAlias = type[
+type TFResource = type[
     Resource | Data | Module | Provider | Variable | Output | Locals | Terraform
 ]
 
@@ -268,6 +271,8 @@ VARIABLE_KEYS = [
     "extra_tags",
     "lifecycle",
     "max_session_duration",
+    "secret_format",
+    "policy",
 ]
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
@@ -285,12 +290,6 @@ SUPPORTED_ALB_LISTENER_RULE_CONDITION_TYPE_MAPPING = {
     "path-pattern": "path_pattern",
     "query-string": "query_string",
     "source-ip": "source_ip",
-}
-
-DEFAULT_TAGS = {
-    "tags": {
-        "app": "app-sre-infra",
-    },
 }
 
 AWS_ELB_ACCOUNT_IDS = {
@@ -372,6 +371,10 @@ class aws_s3_bucket_acl(Resource):
 
 
 class aws_s3_bucket_logging(Resource):
+    pass
+
+
+class aws_kinesis_resource_policy(Resource):
     pass
 
 
@@ -476,6 +479,7 @@ class TerrascriptClient:
         integration_prefix: str,
         thread_pool_size: int,
         accounts: Iterable[MutableMapping[str, Any]],
+        default_tags: Mapping[str, str] | None,
         settings: Mapping[str, Any] | None = None,
         prefetch_resources_by_schemas: Iterable[str] | None = None,
         secret_reader: SecretReaderBase | None = None,
@@ -489,6 +493,7 @@ class TerrascriptClient:
         else:
             self.secret_reader = SecretReader(settings=settings)
         self.configs: dict[str, dict] = {}
+        self.default_tags = default_tags or {"app": "app-sre-infra"}
         self.populate_configs(filtered_accounts)
         self.versions: dict[str, str] = {
             a["name"]: a["providerVersion"] for a in filtered_accounts
@@ -509,7 +514,7 @@ class TerrascriptClient:
                         region=region,
                         alias=region,
                         skip_region_validation=True,
-                        default_tags=DEFAULT_TAGS,
+                        default_tags={"tags": config["tags"]},
                     )
 
             # Add default region, which will be in resourcesDefaultRegion
@@ -518,7 +523,7 @@ class TerrascriptClient:
                 secret_key=config["aws_secret_access_key"],
                 region=config["resourcesDefaultRegion"],
                 skip_region_validation=True,
-                default_tags=DEFAULT_TAGS,
+                default_tags={"tags": config["tags"]},
             )
 
             ts += Terraform(
@@ -801,6 +806,9 @@ class TerrascriptClient:
             config["supportedDeploymentRegions"] = account["supportedDeploymentRegions"]
             config["resourcesDefaultRegion"] = account["resourcesDefaultRegion"]
             config["terraformState"] = account["terraformState"]
+            config["tags"] = dict(self.default_tags) | get_aws_account_tags(
+                account.get("organization", None)
+            )
             self.configs[account_name] = config
 
     def _get_partition(self, account: str) -> str:
@@ -1055,7 +1063,9 @@ class TerrascriptClient:
             ignore_changes = (
                 "all" if "all" in lifecycle.ignore_changes else lifecycle.ignore_changes
             )
-            return lifecycle.dict(by_alias=True) | {"ignore_changes": ignore_changes}
+            return lifecycle.model_dump(by_alias=True) | {
+                "ignore_changes": ignore_changes
+            }
         return None
 
     def populate_additional_providers(
@@ -1070,25 +1080,15 @@ class TerrascriptClient:
             config = self.configs[account_name]
             existing_provider_aliases = {p.get("alias") for p in ts["provider"]["aws"]}
             if alias not in existing_provider_aliases:
-                if assume_role:
-                    ts += provider.aws(
-                        access_key=config["aws_access_key_id"],
-                        secret_key=config["aws_secret_access_key"],
-                        region=region,
-                        alias=alias,
-                        assume_role={"role_arn": assume_role},
-                        skip_region_validation=True,
-                        default_tags=DEFAULT_TAGS,
-                    )
-                else:
-                    ts += provider.aws(
-                        access_key=config["aws_access_key_id"],
-                        secret_key=config["aws_secret_access_key"],
-                        region=region,
-                        alias=alias,
-                        skip_region_validation=True,
-                        default_tags=DEFAULT_TAGS,
-                    )
+                ts += provider.aws(
+                    access_key=config["aws_access_key_id"],
+                    secret_key=config["aws_secret_access_key"],
+                    region=region,
+                    alias=alias,
+                    skip_region_validation=True,
+                    default_tags={"tags": config["tags"]},
+                    **{"assume_role": {"role_arn": assume_role}} if assume_role else {},
+                )
 
     def populate_route53(
         self, desired_state: Iterable[Mapping[str, Any]], default_ttl: int = 300
@@ -1431,7 +1431,7 @@ class TerrascriptClient:
             req_account_name = req_account.name
             # Accepter's side of the connection - the cluster's account
             acc_account = accepter.account
-            acc_alias = self.get_provider_alias(acc_account.dict(by_alias=True))
+            acc_alias = self.get_provider_alias(acc_account.model_dump(by_alias=True))
             acc_uid = acc_account.uid
             if acc_account.assume_role:
                 acc_uid = awsh.get_account_uid_from_arn(acc_account.assume_role)
@@ -2217,6 +2217,43 @@ class TerrascriptClient:
         letters_and_digits = string.ascii_letters + string.digits
         return "".join(random.choice(letters_and_digits) for i in range(string_length))
 
+    @staticmethod
+    def _build_tf_resource_s3_lifecycle_rules(
+        versioning: bool,
+        common_values: Mapping[str, Any],
+    ) -> list[dict]:
+        lifecycle_rules = common_values.get("lifecycle_rules") or []
+        if versioning and not any(
+            "noncurrent_version_expiration" in lr for lr in lifecycle_rules
+        ):
+            # Add a default noncurrent object expiration rule
+            # if one isn't already set
+            rule = {
+                "id": "expire_noncurrent_versions",
+                "enabled": True,
+                "noncurrent_version_expiration": {"days": 30},
+                "expiration": {"expired_object_delete_marker": True},
+                "abort_incomplete_multipart_upload_days": 3,
+            }
+            lifecycle_rules.append(rule)
+
+        if storage_class := common_values.get("storage_class"):
+            sc = storage_class.upper()
+            days = "1"
+            if sc.endswith("_IA"):
+                # Infrequent Access storage class has minimum 30 days
+                # before transition
+                days = "30"
+            rule = {
+                "id": sc + "_storage_class",
+                "enabled": True,
+                "transition": {"days": days, "storage_class": sc},
+                "noncurrent_version_transition": {"days": days, "storage_class": sc},
+            }
+            lifecycle_rules.append(rule)
+
+        return lifecycle_rules
+
     def populate_tf_resource_s3(self, spec: ExternalResourceSpec) -> aws_s3_bucket:
         account = spec.provisioner_name
         identifier = spec.identifier
@@ -2256,47 +2293,11 @@ class TerrascriptClient:
         request_payer = common_values.get("request_payer")
         if request_payer:
             values["request_payer"] = request_payer
-        lifecycle_rules = common_values.get("lifecycle_rules")
-        if lifecycle_rules:
-            # common_values['lifecycle_rules'] is a list of lifecycle_rules
+        if lifecycle_rules := self._build_tf_resource_s3_lifecycle_rules(
+            versioning=versioning,
+            common_values=common_values,
+        ):
             values["lifecycle_rule"] = lifecycle_rules
-        if versioning:
-            lrs = values.get("lifecycle_rule", [])
-            expiration_rule = False
-            for lr in lrs:
-                if "noncurrent_version_expiration" in lr:
-                    expiration_rule = True
-                    break
-            if not expiration_rule:
-                # Add a default noncurrent object expiration rule if
-                # if one isn't already set
-                rule = {
-                    "id": "expire_noncurrent_versions",
-                    "enabled": "true",
-                    "noncurrent_version_expiration": {"days": 30},
-                }
-                if len(lrs) > 0:
-                    lrs.append(rule)
-                else:
-                    lrs = rule
-        sc = common_values.get("storage_class")
-        if sc:
-            sc = sc.upper()
-            days = "1"
-            if sc.endswith("_IA"):
-                # Infrequent Access storage class has minimum 30 days
-                # before transition
-                days = "30"
-            rule = {
-                "id": sc + "_storage_class",
-                "enabled": "true",
-                "transition": {"days": days, "storage_class": sc},
-                "noncurrent_version_transition": {"days": days, "storage_class": sc},
-            }
-            if values.get("lifecycle_rule"):
-                values["lifecycle_rule"].append(rule)
-            else:
-                values["lifecycle_rule"] = rule
         cors_rules = common_values.get("cors_rules")
         if cors_rules:
             # common_values['cors_rules'] is a list of cors_rules
@@ -4022,6 +4023,22 @@ class TerrascriptClient:
         # https://www.terraform.io/docs/providers/aws/r/kinesis_stream.html
         kinesis_tf_resource = aws_kinesis_stream(identifier, **kinesis_values)
         tf_resources.append(kinesis_tf_resource)
+
+        # kinesis resource policy (optional)
+        # Terraform resource reference:
+        # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_resource_policy
+        if policy := common_values.get("policy"):
+            policy_identifier = f"{identifier}-policy"
+            policy_values: dict[str, Any] = {
+                "resource_arn": "${" + kinesis_tf_resource.arn + "}",
+                "policy": policy,
+            }
+            if provider:
+                policy_values["provider"] = provider
+            kinesis_policy_tf_resource = aws_kinesis_resource_policy(
+                policy_identifier, **policy_values
+            )
+            tf_resources.append(kinesis_policy_tf_resource)
 
         es_identifier = common_values.get("es_identifier", None)
         if es_identifier:
@@ -5809,6 +5826,10 @@ class TerrascriptClient:
         assert secret  # make mypy happy
         secret_data = self.secret_reader.read_all(secret)
 
+        secret_format = common_values.get("secret_format")
+        if secret_format is not None:
+            secret_data = self._apply_secret_format(str(secret_format), secret_data)
+
         version_values: dict[str, Any] = {
             "secret_id": "${" + aws_secret_resource.id + "}",
             "secret_string": json_dumps(secret_data),
@@ -5832,6 +5853,66 @@ class TerrascriptClient:
 
         self.add_resources(account, tf_resources)
 
+    @staticmethod
+    def _unflatten_dotted_keys_dict(flat_dict: dict[str, str]) -> dict[str, Any]:
+        """Convert a flat dictionary with dotted keys to a nested dictionary.
+
+        Example:
+            {"db.host": "localhost", "db.port": "5432"} ->
+            {"db": {"host": "localhost", "port": "5432"}}
+
+        Raises:
+            ValueError: If there are conflicting keys (e.g., "a.b" and "a.b.c")
+        """
+        result: dict[str, Any] = {}
+        for key, value in flat_dict.items():
+            parts = key.split(".")
+            current = result
+            for i, part in enumerate(parts[:-1]):
+                if part not in current:
+                    current[part] = {}
+                elif not isinstance(current[part], dict):
+                    # Conflict: trying to traverse through a non-dict value
+                    conflicting_path = ".".join(parts[: i + 1])
+                    raise ValueError(
+                        f"Conflicting keys detected: '{conflicting_path}' is both a "
+                        f"value and a nested path in key '{key}'"
+                    )
+                current = current[part]
+
+            # Check if we're trying to set a value where a dict already exists
+            if parts[-1] in current and isinstance(current[parts[-1]], dict):
+                raise ValueError(
+                    f"Conflicting keys detected: '{key}' conflicts with nested keys"
+                )
+
+            current[parts[-1]] = value
+
+        return result
+
+    @staticmethod
+    def _apply_secret_format(
+        secret_format: str, secret_data: dict[str, str]
+    ) -> dict[str, str]:
+        # Convert flat dict with dotted keys to nested dict for Jinja2
+        nested_secret_data = TerrascriptClient._unflatten_dotted_keys_dict(secret_data)
+        rendered_data = process_jinja2_template(secret_format, nested_secret_data)
+
+        parsed_data = json.loads(rendered_data)
+
+        if not isinstance(parsed_data, dict):
+            raise ValueError("secret_format must be a dictionary")
+
+        # validate secret is a dict[str, str]
+        for k, v in parsed_data.items():
+            if not isinstance(k, str):
+                raise ValueError(f"key '{k}' is not a string")
+
+            if not isinstance(v, str):
+                raise ValueError(f"dictionary value '{v}' under '{k}' is not a string")
+
+        return parsed_data
+
     def get_commit_sha(self, repo_info: Mapping) -> str:
         url = repo_info["url"]
         ref = repo_info["ref"]
@@ -5850,7 +5931,8 @@ class TerrascriptClient:
                 return commit.sha
             case "gitlab":
                 gitlab = self.init_gitlab()
-                project = gitlab.get_project(url)
+                if not (project := gitlab.get_project(url)):
+                    raise ValueError(f"could not find gitlab project for url {url}")
                 commits = project.commits.list(ref_name=ref, per_page=1, page=1)
                 return commits[0].id
             case _:

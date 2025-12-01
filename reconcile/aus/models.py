@@ -14,6 +14,7 @@ from reconcile.aus.healthchecks import AUSClusterHealth
 from reconcile.gql_definitions.fragments.aus_organization import AUSOCMOrganization
 from reconcile.gql_definitions.fragments.upgrade_policy import ClusterUpgradePolicyV1
 from reconcile.utils.ocm.addons import OCMAddonInstallation
+from reconcile.utils.ocm.base import LabelContainer
 from reconcile.utils.ocm.clusters import OCMCluster
 from reconcile.utils.semver_helper import parse_semver
 
@@ -33,6 +34,7 @@ class ClusterUpgradeSpec(BaseModel):
 
     org: AUSOCMOrganization
     cluster: OCMCluster
+    cluster_labels: LabelContainer | None = None
     upgrade_policy: ClusterUpgradePolicyV1 = Field(..., alias="upgradePolicy")
     health: AUSClusterHealth
     node_pools: list[NodePoolSpec] = Field(default_factory=list, alias="nodePools")
@@ -232,7 +234,7 @@ class SectorConfigError(Exception):
 
 class Sector(BaseModel):
     name: str
-    max_parallel_upgrades: str | None
+    max_parallel_upgrades: str | None = None
     dependencies: list[Sector] = Field(default_factory=list)
     _specs: dict[str, ClusterUpgradeSpec] = PrivateAttr(default_factory=dict)
 

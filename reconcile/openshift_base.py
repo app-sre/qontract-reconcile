@@ -29,10 +29,14 @@ from reconcile.utils import (
     metrics,
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
+from reconcile.utils.differ import DiffPair
 from reconcile.utils.oc import (
+    POD_RECYCLE_SUPPORTED_OWNER_KINDS,
+    AmbiguousResourceTypeError,
     DeploymentFieldIsImmutableError,
     FieldIsImmutableError,
     InvalidValueApplyError,
+    KindNotFoundError,
     MayNotChangeOnceSetError,
     MetaDataAnnotationsTooLongApplyError,
     OC_Map,
@@ -60,6 +64,10 @@ AUTH_METHOD_USER_KEY = {
     "oidc": "org_username",
     "rhidp": "org_username",
 }
+RECYCLE_POD_ANNOTATIONS = [
+    "kubectl.kubernetes.io/restartedAt",
+    "openshift.openshift.io/restartedAt",
+]
 
 
 class ValidationError(Exception):
@@ -128,6 +136,29 @@ class ClusterMap(Protocol):
     ) -> list[str]: ...
 
 
+def validate_managed_resource_types(
+    oc: OCCli,
+    managed_resource_types: Iterable[str],
+    managed_resource_names: Iterable[Mapping[str, Any]],
+    cluster_scope_resource_validation: bool,
+) -> None:
+    """Validate the managed resource types."""
+    managed_resources = [
+        managed_resource_name["resource"]
+        for managed_resource_name in managed_resource_names
+    ]
+    for managed_resource_type in managed_resource_types:
+        # The k8s kind must be supported by the cluster
+        resource = oc.get_api_resource(managed_resource_type)
+
+        if cluster_scope_resource_validation and not resource.namespaced:
+            # cluster-scoped resources must be use managedResourceNames!
+            if managed_resource_type not in managed_resources:
+                raise ValidationError(
+                    f"Cluster-scoped resource {managed_resource_type} must be managed by name only. Please use 'managedResourceNames' field to specify the names of the resources to manage."
+                )
+
+
 def init_specs_to_fetch(
     ri: ResourceInventory,
     oc_map: ClusterMap,
@@ -136,6 +167,7 @@ def init_specs_to_fetch(
     override_managed_types: Iterable[str] | None = None,
     managed_types_key: str = "managedResourceTypes",
     cluster_admin: bool = False,
+    cluster_scope_resource_validation: bool = False,
 ) -> list[StateSpec]:
     state_specs: list[StateSpec] = []
 
@@ -163,9 +195,27 @@ def init_specs_to_fetch(
                 logging.log(level=ex.log_level, msg=ex.message)
                 continue
 
+            managed_resource_names = namespace_info.get("managedResourceNames") or []
+            try:
+                validate_managed_resource_types(
+                    oc,
+                    managed_types,
+                    managed_resource_names,
+                    cluster_scope_resource_validation=cluster_scope_resource_validation,
+                )
+            except KindNotFoundError:
+                # We must allow kinds that are not supported by the cluster because:
+                # 1. We install CRD with an operator in the same MR
+                # 2. SAAS files initialize the namespace objects with managedResourceTypes from the SAAS file
+                #    and we can't expect that all of those are valid for all clusters
+                pass
+            except (AmbiguousResourceTypeError, ValidationError) as e:
+                ri.register_error()
+                logging.error(f"[{cluster}/{namespace_info['name']}] {e}")
+                continue
+
             namespace = namespace_info["name"]
             # These may exit but have a value of None
-            managed_resource_names = namespace_info.get("managedResourceNames") or []
             managed_resource_type_overrides = (
                 namespace_info.get("managedResourceTypeOverrides") or []
             )
@@ -340,6 +390,7 @@ def fetch_current_state(
     cluster_admin: bool = False,
     caller: str | None = None,
     init_projects: bool = False,
+    cluster_scope_resource_validation: bool = False,
 ) -> tuple[ResourceInventory, OC_Map]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()
@@ -362,6 +413,7 @@ def fetch_current_state(
         clusters=clusters,
         override_managed_types=override_managed_types,
         cluster_admin=cluster_admin,
+        cluster_scope_resource_validation=cluster_scope_resource_validation,
     )
     threaded.run(
         populate_current_state,
@@ -542,7 +594,7 @@ def apply(
                 oc.resize_pvcs(namespace, owned_pvc_names, desired_storage)
 
     if recycle_pods:
-        oc.recycle_pods(dry_run, namespace, resource_type, resource)
+        oc.recycle_pods(dry_run, namespace, resource)
 
 
 def create(
@@ -786,10 +838,56 @@ def handle_identical_resources(
     return actions
 
 
+def patch_desired_resource_for_recycle_annotations(
+    desired: OR,
+    current: OR,
+) -> OR:
+    """
+    Patch desired resource with recycle annotations to pod template from current resource.
+    This is to avoid full pods recycle when changes are not affecting pod template.
+    Note desired annotations can override current annotations.
+    For example, if desired resource has kubectl.kubernetes.io/restartedAt defined,
+    it will be used instead of current resource annotation.
+
+    Args:
+        desired: desired resource
+        current: current resource
+
+    Returns:
+        patched desired resource
+    """
+    if current.kind not in POD_RECYCLE_SUPPORTED_OWNER_KINDS:
+        return desired
+
+    current_annotations = (
+        current.body.get("spec", {})
+        .get("template", {})
+        .get("metadata", {})
+        .get("annotations")
+        or {}
+    )
+    patch_annotations = {
+        k: value
+        for k in RECYCLE_POD_ANNOTATIONS
+        if (value := current_annotations.get(k))
+    }
+    if patch_annotations:
+        desired_annotations = (
+            desired.body.setdefault("spec", {})
+            .setdefault("template", {})
+            .setdefault("metadata", {})
+            .setdefault("annotations", {})
+        )
+        desired.body["spec"]["template"]["metadata"]["annotations"] = (
+            patch_annotations | desired_annotations
+        )
+    return desired
+
+
 def handle_modified_resources(
     oc_map: ClusterMap,
     ri: ResourceInventory,
-    modified_resources: Mapping[Any, Any],
+    modified_resources: Mapping[str, DiffPair[OR, OR]],
     cluster: str,
     namespace: str,
     resource_type: str,
@@ -984,6 +1082,12 @@ def _realize_resource_data_3way_diff(
     # only allow to override enable_deletion if no errors were found
     if options.enable_deletion and options.override_enable_deletion is False:
         options.enable_deletion = False
+
+    for k in data["current"].keys() & data["desired"].keys():
+        patch_desired_resource_for_recycle_annotations(
+            desired=data["desired"][k],
+            current=data["current"][k],
+        )
 
     diff_result = differ.diff_mappings(
         data["current"], data["desired"], equal=three_way_diff_using_hash
@@ -1364,6 +1468,11 @@ class HasOpenShiftResources(Protocol):
 
 
 @runtime_checkable
+class HasOpenShiftResourcesRequired(Protocol):
+    openshift_resources: list
+
+
+@runtime_checkable
 class HasOpenshiftServiceAccountTokens(Protocol):
     openshift_service_account_tokens: list | None
 
@@ -1371,7 +1480,7 @@ class HasOpenshiftServiceAccountTokens(Protocol):
 @runtime_checkable
 class HasSharedResourcesOpenShiftResources(Protocol):
     @property
-    def shared_resources(self) -> Sequence[HasOpenShiftResources] | None: ...
+    def shared_resources(self) -> Sequence[HasOpenShiftResourcesRequired] | None: ...
 
 
 @runtime_checkable

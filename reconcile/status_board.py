@@ -54,7 +54,7 @@ class AbstractStatusBoard(ABC, BaseModel):
     """Abstract class for upgrade policies
     Used to create and delete upgrade policies in OCM."""
 
-    id: str | None
+    id: str | None = None
     name: str
     fullname: str
 
@@ -90,7 +90,7 @@ class AbstractStatusBoard(ABC, BaseModel):
 
 
 class Product(AbstractStatusBoard):
-    applications: list["Application"] | None
+    applications: list["Application"] | None = None
 
     def create(self, ocm: OCMBaseClient) -> None:
         spec = self.to_ocm_spec()
@@ -123,7 +123,7 @@ class Product(AbstractStatusBoard):
 
 class Application(AbstractStatusBoard):
     product: Product
-    services: list["Service"] | None
+    services: list["Service"] | None = None
     metadata: ApplicationMetadataSpec
 
     def create(self, ocm: OCMBaseClient) -> None:
@@ -229,9 +229,9 @@ class Service(AbstractStatusBoard):
 
 
 # Resolve forward references after class definitions
-Product.update_forward_refs()
-Application.update_forward_refs()
-Service.update_forward_refs()
+Product.model_rebuild()
+Application.model_rebuild()
+Service.model_rebuild()
 
 
 class UpdateNotSupportedError(Exception):
