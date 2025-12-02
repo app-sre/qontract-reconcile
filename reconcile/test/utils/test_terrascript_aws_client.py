@@ -1,4 +1,5 @@
 import contextlib
+import json
 from dataclasses import dataclass
 from typing import Any
 from unittest.mock import MagicMock
@@ -1711,3 +1712,267 @@ def test_populate_tf_resource_kinesis_with_policy_and_region(
     assert identifier == "a"
 
     assert expected_kinesis_resource_policy_with_region in tf_resources
+
+
+@pytest.fixture
+def s3_cloudfront_spec_without_bucket_policy() -> ExternalResourceSpec:
+    resource = {
+        "identifier": "s3-cf-bucket",
+        "provider": "s3-cloudfront",
+        "region": "us-east-1",
+        "get_object_enable_dirs": ["assets", "images"],
+        "distribution_config": {
+            "enabled": True,
+            "default_root_object": "index.html",
+        },
+    }
+    return build_s3_spec(resource)
+
+
+@pytest.fixture
+def s3_cloudfront_spec_with_bucket_policy_string() -> ExternalResourceSpec:
+    custom_policy = json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "CustomStatement",
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::s3-cf-bucket/custom/*",
+            }
+        ],
+    })
+    resource = {
+        "identifier": "s3-cf-bucket",
+        "provider": "s3-cloudfront",
+        "region": "us-east-1",
+        "get_object_enable_dirs": ["assets"],
+        "bucket_policy": custom_policy,
+        "distribution_config": {
+            "enabled": True,
+            "default_root_object": "index.html",
+        },
+    }
+    return build_s3_spec(resource)
+
+
+def test_populate_tf_resource_s3_cloudfront_without_bucket_policy(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    s3_cloudfront_spec_without_bucket_policy: ExternalResourceSpec,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "populate_tf_resource_s3", return_value=MagicMock())
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "region": "us-east-1",
+            "get_object_enable_dirs": ["assets", "images"],
+            "distribution_config": {
+                "enabled": True,
+                "default_root_object": "index.html",
+            },
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_s3_cloudfront(s3_cloudfront_spec_without_bucket_policy)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    bucket_policies = [
+        r for r in tf_resources if type(r).__name__ == "aws_s3_bucket_policy"
+    ]
+    assert len(bucket_policies) == 1
+
+    bucket_policy = bucket_policies[0]
+    policy_doc = json.loads(bucket_policy.policy)
+    assert len(policy_doc["Statement"]) == 1
+    assert policy_doc["Statement"][0]["Sid"] == "Grant access to CloudFront Origin Identity"
+
+
+def test_populate_tf_resource_s3_cloudfront_with_bucket_policy_string(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    s3_cloudfront_spec_with_bucket_policy_string: ExternalResourceSpec,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "populate_tf_resource_s3", return_value=MagicMock())
+    custom_policy = json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "CustomStatement",
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::s3-cf-bucket/custom/*",
+            }
+        ],
+    })
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "region": "us-east-1",
+            "get_object_enable_dirs": ["assets"],
+            "bucket_policy": custom_policy,
+            "distribution_config": {
+                "enabled": True,
+                "default_root_object": "index.html",
+            },
+            "tags": {
+                "managed_by_integration": "",
+                "cluster": "c",
+                "namespace": "n",
+                "environment": "e",
+                "app": "app",
+            },
+        },
+    )
+
+    ts.populate_tf_resource_s3_cloudfront(s3_cloudfront_spec_with_bucket_policy_string)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    bucket_policies = [
+        r for r in tf_resources if type(r).__name__ == "aws_s3_bucket_policy"
+    ]
+    assert len(bucket_policies) == 1
+
+    bucket_policy = bucket_policies[0]
+    policy_doc = json.loads(bucket_policy.policy)
+    assert len(policy_doc["Statement"]) == 2
+
+    sids = [stmt["Sid"] for stmt in policy_doc["Statement"]]
+    assert "CustomStatement" in sids
+    assert "Grant access to CloudFront Origin Identity" in sids
+
+
+def test_populate_tf_resource_s3_cloudfront_with_bucket_policy_multiple_statements(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+) -> None:
+    mocked_add_resources = mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "populate_tf_resource_s3", return_value=MagicMock())
+    custom_policy = json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "Statement1",
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::s3-cf-bucket/path1/*",
+            },
+            {
+                "Sid": "Statement2",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:*",
+                "Resource": "arn:aws:s3:::s3-cf-bucket/private/*",
+            },
+        ],
+    })
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "region": "us-east-1",
+            "get_object_enable_dirs": ["assets"],
+            "bucket_policy": custom_policy,
+            "distribution_config": {
+                "enabled": True,
+                "default_root_object": "index.html",
+            },
+            "tags": {},
+        },
+    )
+
+    resource = {
+        "identifier": "s3-cf-bucket",
+        "provider": "s3-cloudfront",
+        "region": "us-east-1",
+        "get_object_enable_dirs": ["assets"],
+        "bucket_policy": custom_policy,
+        "distribution_config": {
+            "enabled": True,
+            "default_root_object": "index.html",
+        },
+    }
+    spec = build_s3_spec(resource)
+
+    ts.populate_tf_resource_s3_cloudfront(spec)
+
+    mocked_add_resources.assert_called_once()
+    identifier, tf_resources = mocked_add_resources.call_args.args
+    assert identifier == "a"
+
+    bucket_policies = [
+        r for r in tf_resources if type(r).__name__ == "aws_s3_bucket_policy"
+    ]
+    assert len(bucket_policies) == 1
+
+    bucket_policy = bucket_policies[0]
+    policy_doc = json.loads(bucket_policy.policy)
+    assert len(policy_doc["Statement"]) == 3
+
+    sids = [stmt["Sid"] for stmt in policy_doc["Statement"]]
+    assert "Statement1" in sids
+    assert "Statement2" in sids
+    assert "Grant access to CloudFront Origin Identity" in sids
+
+
+def test_populate_tf_resource_s3_cloudfront_calls_s3_with_skip_bucket_policy(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    s3_cloudfront_spec_with_bucket_policy_string: ExternalResourceSpec,
+) -> None:
+    mocker.patch.object(ts, "add_resources")
+    mocked_populate_s3 = mocker.patch.object(
+        ts, "populate_tf_resource_s3", return_value=MagicMock()
+    )
+    custom_policy = json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "CustomStatement",
+                "Effect": "Allow",
+                "Principal": {"AWS": "arn:aws:iam::123456789012:root"},
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::s3-cf-bucket/custom/*",
+            }
+        ],
+    })
+    mocker.patch.object(
+        ts,
+        "init_values",
+        return_value={
+            "region": "us-east-1",
+            "get_object_enable_dirs": ["assets"],
+            "bucket_policy": custom_policy,
+            "distribution_config": {
+                "enabled": True,
+                "default_root_object": "index.html",
+            },
+            "tags": {},
+        },
+    )
+
+    ts.populate_tf_resource_s3_cloudfront(s3_cloudfront_spec_with_bucket_policy_string)
+
+    mocked_populate_s3.assert_called_once()
+    call_kwargs = mocked_populate_s3.call_args.kwargs
+    assert call_kwargs.get("skip_bucket_policy") is True

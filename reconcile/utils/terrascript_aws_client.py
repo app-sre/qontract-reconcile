@@ -2254,7 +2254,9 @@ class TerrascriptClient:
 
         return lifecycle_rules
 
-    def populate_tf_resource_s3(self, spec: ExternalResourceSpec) -> aws_s3_bucket:
+    def populate_tf_resource_s3(
+        self, spec: ExternalResourceSpec, skip_bucket_policy: bool = False
+    ) -> aws_s3_bucket:
         account = spec.provisioner_name
         identifier = spec.identifier
         common_values = self.init_values(spec)
@@ -2543,7 +2545,7 @@ class TerrascriptClient:
             tf_resources.append(notification_tf_resource)
 
         bucket_policy = common_values.get("bucket_policy")
-        if bucket_policy:
+        if bucket_policy and not skip_bucket_policy:
             values = {
                 "bucket": identifier,
                 "policy": bucket_policy,
@@ -3388,7 +3390,7 @@ class TerrascriptClient:
         common_values = self.init_values(spec)
         output_prefix = spec.output_prefix
 
-        bucket_tf_resource = self.populate_tf_resource_s3(spec)
+        bucket_tf_resource = self.populate_tf_resource_s3(spec, skip_bucket_policy=True)
 
         tf_resources: list[TFResource] = []
 
@@ -3399,23 +3401,29 @@ class TerrascriptClient:
 
         # bucket policy for cloudfront
         values_policy: dict[str, Any] = {"bucket": identifier}
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Sid": "Grant access to CloudFront Origin Identity",
-                    "Effect": "Allow",
-                    "Principal": {"AWS": "${" + cf_oai_tf_resource.iam_arn + "}"},
-                    "Action": "s3:GetObject",
-                    "Resource": [
-                        f"arn:aws:s3:::{identifier}/{enable_dir}/*"
-                        for enable_dir in common_values.get(
-                            "get_object_enable_dirs", []
-                        )
-                    ],
-                }
+        cf_statement = {
+            "Sid": "Grant access to CloudFront Origin Identity",
+            "Effect": "Allow",
+            "Principal": {"AWS": "${" + cf_oai_tf_resource.iam_arn + "}"},
+            "Action": "s3:GetObject",
+            "Resource": [
+                f"arn:aws:s3:::{identifier}/{enable_dir}/*"
+                for enable_dir in common_values.get("get_object_enable_dirs", [])
             ],
         }
+
+        custom_bucket_policy = common_values.get("bucket_policy")
+        if custom_bucket_policy:
+            # if the user specifies a custom bucket policy then we merge their statements with the cloudfront origin identity policy
+            if isinstance(custom_bucket_policy, str):
+                custom_bucket_policy = json.loads(custom_bucket_policy)
+            custom_bucket_policy.setdefault("Statement", []).append(cf_statement)
+            policy = custom_bucket_policy
+        else:
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [cf_statement],
+            }
         values_policy["policy"] = json_dumps(policy)
         values_policy["depends_on"] = self.get_dependencies([bucket_tf_resource])
         region = common_values.get("region") or self.default_regions.get(account)
