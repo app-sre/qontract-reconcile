@@ -1798,7 +1798,10 @@ def test_populate_tf_resource_s3_cloudfront_without_bucket_policy(
     bucket_policy = bucket_policies[0]
     policy_doc = json.loads(bucket_policy.policy)
     assert len(policy_doc["Statement"]) == 1
-    assert policy_doc["Statement"][0]["Sid"] == "Grant access to CloudFront Origin Identity"
+    assert (
+        policy_doc["Statement"][0]["Sid"]
+        == "Grant access to CloudFront Origin Identity"
+    )
 
 
 def test_populate_tf_resource_s3_cloudfront_with_bucket_policy_string(
