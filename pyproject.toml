@@ -66,6 +66,9 @@ dependencies = [
     "urllib3~=2.2",
     "websocket-client<0.55.0,>=0.35",
     "yamllint==1.34.0",
+    # TODO
+    "qontract-api-client",
+    "qontract-utils",
 ]
 
 [dependency-groups]
@@ -120,6 +123,15 @@ template-validation = "tools.template_validation:main"
 homepage = "https://github.com/app-sre/qontract-reconcile"
 repository = "https://github.com/app-sre/qontract-reconcile"
 documentation = "https://github.com/app-sre/qontract-reconcile"
+
+[tool.uv.sources]
+qontract-api = { workspace = true }
+qontract-api-client = { workspace = true }
+qontract-utils = { workspace = true }
+
+
+[tool.uv.workspace]
+members = ["qontract_api", "qontract_api_client", "qontract_utils"]
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]

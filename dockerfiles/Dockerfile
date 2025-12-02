@@ -10,6 +10,8 @@ COPY pyproject.toml uv.lock README.md ./
 COPY helm helm
 COPY tools tools
 COPY reconcile reconcile
+COPY qontract_utils qontract_utils
+COPY qontract_api_client qontract_api_client
 
 ENV \
     # use venv from ubi image
