@@ -137,7 +137,7 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 # Below are all of the packages that don't implement stub packages. Mypy will throw an error if we don't ignore the
 # missing imports. See: https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
-module = ["celery.*", "jose"]
+module = ["celery.*", "jose", "billiard.einfo.*"]
 ignore_missing_imports = true
 
 # [tool.coverage.report]
