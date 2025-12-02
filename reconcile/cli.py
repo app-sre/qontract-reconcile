@@ -38,6 +38,7 @@ from reconcile.utils.runtime.integration import (
     ModuleBasedQontractReconcileIntegration,
     NoParams,
     PydanticRunParams,
+    QontractReconcileApiIntegration,
     QontractReconcileIntegration,
 )
 from reconcile.utils.runtime.meta import IntegrationMeta
@@ -563,7 +564,7 @@ def run_integration(
 
 
 def run_class_integration(
-    integration: QontractReconcileIntegration,
+    integration: QontractReconcileIntegration | QontractReconcileApiIntegration,
     ctx: click.Context,
 ) -> None:
     register_faulthandler()
@@ -1237,6 +1238,29 @@ def slack_usergroups(
         enable_extended_early_exit,
         extended_early_exit_cache_ttl_seconds,
         log_cached_log_output,
+    )
+
+
+@integration.command(short_help="Manage Slack User Groups (channels and users).")
+@workspace_name
+@usergroup_name
+@click.pass_context
+def slack_usergroups_api(
+    ctx: click.Context, workspace_name: str | None, usergroup_name: str | None
+) -> None:
+    from reconcile.slack_usergroups_api import (
+        SlackUsergroupsIntegration,
+        SlackUsergroupsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=SlackUsergroupsIntegration(
+            SlackUsergroupsIntegrationParams(
+                workspace_name=workspace_name,
+                usergroup_name=usergroup_name,
+            )
+        ),
+        ctx=ctx,
     )
 
 

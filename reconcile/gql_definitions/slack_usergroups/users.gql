@@ -4,6 +4,7 @@ query SlackUsergroupClusterUser {
   users: users_v1 {
     ...User
     tag_on_cluster_updates
+    tag_on_merge_requests
     roles {
       tag_on_cluster_updates
       access {
