@@ -55,7 +55,7 @@ ROLES_QUERY = """
 
 QONTRACT_INTEGRATION = "openshift-clusterrolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
-
+NAMESPACE_CLUSTER_SCOPE = "cluster"
 
 class OCResource(BaseModel, arbitrary_types_allowed=True):
     resource: OR
@@ -89,7 +89,7 @@ class ClusterRoleBindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_
     def create_cluster_role_binding_specs(cls, cluster_role: RoleV1) -> list[Self]:
         cluster_role_binding_spec = [
             cls(
-                cluster_role_name=cluster_role.name,
+                cluster_role_name=access.cluster_role,
                 cluster=access.cluster,
                 usernames=ClusterRoleBindingSpec.get_usernames_from_users_and_cluster(cluster_role.users, access.cluster),
                 openshift_service_accounts=ServiceAccountSpec.create_sa_spec(cluster_role.bots),
@@ -209,14 +209,16 @@ def fetch_desired_state_v2(ri: ResourceInventory | None, allowed_clusters: set[s
         for oc_resource in cluster_role_binding_spec.get_oc_resources():
             if not ri.get_desired(
                 cluster_role_binding_spec.cluster.name,
-                "cluster",
+                NAMESPACE_CLUSTER_SCOPE,
                 "ClusterRoleBinding.rbac.authorization.k8s.io",
                 oc_resource.resource_name,
             ):
-                ri.add_desired_resource(
+                ri.add_desired(
                     cluster=cluster_role_binding_spec.cluster.name,
-                    namespace="cluster",
-                    resource=oc_resource.resource,
+                    namespace=NAMESPACE_CLUSTER_SCOPE,
+                    resource_type="ClusterRoleBinding.rbac.authorization.k8s.io",
+                    name=oc_resource.resource_name,
+                    value=oc_resource.resource,
                 )
 
 def fetch_desired_state(
