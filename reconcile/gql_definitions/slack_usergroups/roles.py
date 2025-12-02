@@ -29,25 +29,35 @@ fragment User on User_v1 {
   tag_on_merge_requests
 }
 
-query SlackUsergroupClusterUser {
-  users: users_v1 {
-    ...User
-    tag_on_cluster_updates
-    tag_on_merge_requests
-    roles {
-      tag_on_cluster_updates
-      access {
+query SlackUsergroupsRoles {
+  roles: roles_v1 {
+    name
+    access {
+      cluster {
+        auth {
+          service
+        }
+        name
+      }
+      group
+      namespace {
         cluster {
           name
-        }
-        namespace {
-          name
-          cluster {
-            name
+          auth {
+            service
           }
         }
+        delete
+        managedRoles
       }
     }
+    expirationDate
+    users {
+      ...User
+      tag_on_cluster_updates
+      tag_on_merge_requests
+    }
+    tag_on_cluster_updates
   }
 }
 """
@@ -59,40 +69,54 @@ class ConfiguredBaseModel(BaseModel):
     )
 
 
+class ClusterAuthV1(ConfiguredBaseModel):
+    service: str = Field(..., alias="service")
+
+
 class ClusterV1(ConfiguredBaseModel):
+    auth: list[ClusterAuthV1] = Field(..., alias="auth")
     name: str = Field(..., alias="name")
+
+
+class NamespaceV1_ClusterV1_ClusterAuthV1(ConfiguredBaseModel):
+    service: str = Field(..., alias="service")
 
 
 class NamespaceV1_ClusterV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
+    auth: list[NamespaceV1_ClusterV1_ClusterAuthV1] = Field(..., alias="auth")
 
 
 class NamespaceV1(ConfiguredBaseModel):
-    name: str = Field(..., alias="name")
     cluster: NamespaceV1_ClusterV1 = Field(..., alias="cluster")
+    delete: Optional[bool] = Field(..., alias="delete")
+    managed_roles: Optional[bool] = Field(..., alias="managedRoles")
 
 
 class AccessV1(ConfiguredBaseModel):
     cluster: Optional[ClusterV1] = Field(..., alias="cluster")
+    group: Optional[str] = Field(..., alias="group")
     namespace: Optional[NamespaceV1] = Field(..., alias="namespace")
-
-
-class RoleV1(ConfiguredBaseModel):
-    tag_on_cluster_updates: Optional[bool] = Field(..., alias="tag_on_cluster_updates")
-    access: Optional[list[AccessV1]] = Field(..., alias="access")
 
 
 class UserV1(User):
     tag_on_cluster_updates: Optional[bool] = Field(..., alias="tag_on_cluster_updates")
     tag_on_merge_requests: Optional[bool] = Field(..., alias="tag_on_merge_requests")
+
+
+class RoleV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    access: Optional[list[AccessV1]] = Field(..., alias="access")
+    expiration_date: Optional[str] = Field(..., alias="expirationDate")
+    users: list[UserV1] = Field(..., alias="users")
+    tag_on_cluster_updates: Optional[bool] = Field(..., alias="tag_on_cluster_updates")
+
+
+class SlackUsergroupsRolesQueryData(ConfiguredBaseModel):
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
 
 
-class SlackUsergroupClusterUserQueryData(ConfiguredBaseModel):
-    users: Optional[list[UserV1]] = Field(..., alias="users")
-
-
-def query(query_func: Callable, **kwargs: Any) -> SlackUsergroupClusterUserQueryData:
+def query(query_func: Callable, **kwargs: Any) -> SlackUsergroupsRolesQueryData:
     """
     This is a convenience function which queries and parses the data into
     concrete types. It should be compatible with most GQL clients.
@@ -105,7 +129,7 @@ def query(query_func: Callable, **kwargs: Any) -> SlackUsergroupClusterUserQuery
         kwargs: optional arguments that will be passed to the query function
 
     Returns:
-        SlackUsergroupClusterUserQueryData: queried data parsed into generated classes
+        SlackUsergroupsRolesQueryData: queried data parsed into generated classes
     """
     raw_data: dict[Any, Any] = query_func(DEFINITION, **kwargs)
-    return SlackUsergroupClusterUserQueryData(**raw_data)
+    return SlackUsergroupsRolesQueryData(**raw_data)
