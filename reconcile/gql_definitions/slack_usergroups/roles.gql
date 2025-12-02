@@ -1,0 +1,32 @@
+# qenerate: plugin=pydantic_v2
+query SlackUsergroupsRoles {
+  roles: roles_v1 {
+    name
+    access {
+      cluster {
+        auth {
+          service
+        }
+        name
+      }
+      group
+      namespace {
+        cluster {
+          name
+          auth {
+            service
+          }
+        }
+        delete
+        managedRoles
+      }
+    }
+    expirationDate
+    users {
+      ...User
+      tag_on_cluster_updates
+      tag_on_merge_requests
+    }
+    tag_on_cluster_updates
+  }
+}
