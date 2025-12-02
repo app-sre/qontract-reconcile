@@ -195,26 +195,28 @@ def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[O
     )
 
 
-def fetch_desired_state_v2(ri: ResourceInventory | None, oc_map: ob.ClusterMap) -> list[dict[str, str]]:
-    
+def fetch_desired_state_v2(ri: ResourceInventory | None, allowed_clusters: set[str] | None = None) -> list[dict[str, str]]:
+    if allowed_clusters is not None and not allowed_clusters:
+        return []
     cluster_roles: list[RoleV1] = expiration.filter(get_app_interface_clusterroles())
     cluster_role_binding_specs = [
-        ClusterRoleBindingSpec.create_cluster_role_binding_specs(cluster_role)
+        cluster_role_binding_spec
         for cluster_role in cluster_roles
+        for cluster_role_binding_spec in ClusterRoleBindingSpec.create_cluster_role_binding_specs(cluster_role)
+        if cluster_role_binding_spec.cluster.name in allowed_clusters
     ]
     for cluster_role_binding_spec in cluster_role_binding_specs:
         for oc_resource in cluster_role_binding_spec.get_oc_resources():
             if not ri.get_desired(
                 cluster_role_binding_spec.cluster.name,
-                cluster_role_binding_spec.namespace.name,
+                "cluster",
                 "ClusterRoleBinding.rbac.authorization.k8s.io",
                 oc_resource.resource_name,
             ):
                 ri.add_desired_resource(
                     cluster=cluster_role_binding_spec.cluster.name,
-                    namespace=cluster_role_binding_spec.namespace.name,
+                    namespace="cluster",
                     resource=oc_resource.resource,
-                    privileged=oc_resource.privileged,
                 )
 
 def fetch_desired_state(
@@ -316,7 +318,7 @@ def run(
     )
     if defer:
         defer(oc_map.cleanup)
-    fetch_desired_state(ri, oc_map)
+    fetch_desired_state_v2(ri, oc_map.clusters())
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 
