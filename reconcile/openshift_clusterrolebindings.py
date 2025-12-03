@@ -169,7 +169,7 @@ class ClusterRoleBindingSpec(
 
     @staticmethod
     def get_usernames_from_users_and_cluster(
-        users: list[UserV1] | None = None, cluster: ClusterV1 | None = None
+        users: list[UserV1], cluster: ClusterV1
     ) -> set[str]:
         auth_dict = [auth.model_dump(by_alias=True) for auth in cluster.auth]
         user_keys = ob.determine_user_keys_for_access(cluster.name, auth_dict)
@@ -221,19 +221,22 @@ def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[O
 
 def fetch_desired_state_v2(
     ri: ResourceInventory | None, allowed_clusters: set[str] | None = None
-) -> list[dict[str, str]]:
+) -> None:
     if allowed_clusters is not None and not allowed_clusters:
-        return []
+        return None
     cluster_roles: list[RoleV1] = expiration.filter(get_app_interface_clusterroles())
+    clusters_to_check = allowed_clusters or set()
     cluster_role_binding_specs = [
         cluster_role_binding_spec
         for cluster_role in cluster_roles
         for cluster_role_binding_spec in ClusterRoleBindingSpec.create_cluster_role_binding_specs(
             cluster_role
         )
-        if cluster_role_binding_spec.cluster.name in allowed_clusters
+        if cluster_role_binding_spec.cluster.name in clusters_to_check
     ]
     for cluster_role_binding_spec in cluster_role_binding_specs:
+        if ri is None:
+            continue
         for oc_resource in cluster_role_binding_spec.get_oc_resources():
             if not ri.get_desired(
                 cluster_role_binding_spec.cluster.name,
@@ -349,7 +352,7 @@ def run(
     )
     if defer:
         defer(oc_map.cleanup)
-    fetch_desired_state_v2(ri, oc_map.clusters())
+    fetch_desired_state_v2(ri, set(oc_map.clusters()))
     ob.publish_metrics(ri, QONTRACT_INTEGRATION)
     ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
 

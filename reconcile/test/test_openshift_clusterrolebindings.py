@@ -240,5 +240,10 @@ def test_fetch_desired_state_v2_empty_clusters(mocker: MockerFixture) -> None:
     mocker.patch(
         "reconcile.openshift_clusterrolebindings.get_app_interface_clusterroles"
     ).return_value = get_app_interface_test_clusterroles()
-    result = fetch_desired_state_v2(ri, allowed_clusters=set())
-    assert result == []
+    fetch_desired_state_v2(ri, allowed_clusters=set())
+    assert not ri.get_desired(
+        "test-cluster5",
+        NAMESPACE_CLUSTER_SCOPE,
+        "ClusterRoleBinding.rbac.authorization.k8s.io",
+        "test-clusterrole5-test-org-user",
+    )
