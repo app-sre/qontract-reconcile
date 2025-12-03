@@ -159,6 +159,19 @@ def validate_no_public_to_public_peerings(
             if peer.internal or (peer.spec and peer.spec.private):
                 continue
 
+            # If both sides are allowed to override this check, then we can
+            # allow the peering.
+            if (
+                cluster.allowed_to_bypass_public_peering_restriction
+                and peer.allowed_to_bypass_public_peering_restriction
+            ):
+                logging.debug(
+                    f"{cluster.name} and {peer.name} are both allowed to skip \
+                    the check 'no peering with public clusters' check, so their \
+                    peering is allowed"
+                )
+                continue
+
             valid = False
             pair = {cluster.name, peer.name}
             if pair in found_pairs:

@@ -2,6 +2,7 @@
 
 fragment VpcPeeringsValidatorPeeredCluster on Cluster_v1 {
   name
+  allowedToBypassPublicPeeringRestriction
   network {
     vpc
   }

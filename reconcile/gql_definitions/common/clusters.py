@@ -113,6 +113,7 @@ query Clusters($name: String) {
     managedGroups
     managedClusterRoles
     insecureSkipTLSVerify
+    allowedToBypassPublicPeeringRestriction
     jumpHost {
       ...CommonJumphostFields
     }
@@ -635,6 +636,7 @@ class ClusterV1(ConfiguredBaseModel):
     managed_groups: Optional[list[str]] = Field(..., alias="managedGroups")
     managed_cluster_roles: Optional[bool] = Field(..., alias="managedClusterRoles")
     insecure_skip_tls_verify: Optional[bool] = Field(..., alias="insecureSkipTLSVerify")
+    allowed_to_bypass_public_peering_restriction: Optional[bool] = Field(..., alias="allowedToBypassPublicPeeringRestriction")
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     auth: list[Union[ClusterAuthGithubOrgTeamV1, ClusterAuthGithubOrgV1, ClusterAuthV1]] = Field(..., alias="auth")
     ocm: Optional[OpenShiftClusterManagerV1] = Field(..., alias="ocm")

@@ -3,6 +3,7 @@
 query VpcPeeringsValidator {
   clusters: clusters_v1 {
     name
+    allowedToBypassPublicPeeringRestriction
     network {
       vpc
     }
