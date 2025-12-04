@@ -69,7 +69,7 @@ class SecretBackend(ABC):
     _instances: ClassVar[dict[str, "SecretBackend"]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
-    @classmethod
+    @classmethod  # TODO: backend specific parameters e.g. VaultSettings, AWSKMSSettings
     def get_instance(cls, backend_type: str, **kwargs: Any) -> "SecretBackend":
         """Get singleton secret backend instance (thread-safe factory).
 

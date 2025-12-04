@@ -3,7 +3,6 @@
 from collections.abc import Callable
 from typing import Any
 
-from qontract_utils.secret_reader import SecretBackend
 from qontract_utils.vcs import (
     GitHubProvider,
     GitLabProvider,
@@ -15,6 +14,7 @@ from qontract_utils.vcs import (
 from qontract_api.cache import CacheBackend
 from qontract_api.config import GitHubProviderSettings, GitLabProviderSettings, Settings
 from qontract_api.rate_limit.token_bucket import TokenBucket
+from qontract_api.secret_manager import SecretManager
 
 
 class VCSProviderFactory:
@@ -46,7 +46,7 @@ class VCSProviderFactory:
         self,
         registry: VCSProviderRegistry,
         cache: CacheBackend,
-        secret_reader: SecretBackend,
+        secret_manager: SecretManager,
         settings: Settings,
     ) -> None:
         """Initialize VCS provider factory.
@@ -60,7 +60,7 @@ class VCSProviderFactory:
         self._registry = registry
         self._cache = cache
         self._settings = settings
-        self._secret_reader = secret_reader
+        self._secret_manager = secret_manager
 
     def detect_provider(self, url: str) -> VCSProviderProtocol:
         """Detect VCS provider from repository URL.
@@ -127,7 +127,7 @@ class VCSProviderFactory:
                             f"No token provider configured for organization: {gh_repo.owner}"
                         )
                     org_url = "default"
-                token = self._secret_reader.read(
+                token = self._secret_manager.read(
                     provider_settings.organizations[org_url].token
                 )
             case GitLabProviderSettings():
@@ -139,7 +139,7 @@ class VCSProviderFactory:
                             f"No token provider configured for GitLab instance: {gl_url}"
                         )
                     gl_url = "default"
-                token = self._secret_reader.read(
+                token = self._secret_manager.read(
                     provider_settings.instances[gl_url].token
                 )
             case _:
