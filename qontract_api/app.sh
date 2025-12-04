@@ -2,7 +2,7 @@
 echo "Starting Qontract API ..."
 
 # shellcheck disable=SC2154
-if [[ "${QAPI_DEBUG}" == "1" ]]; then
+if [[ "${QAPI_LOG_LEVEL}" == "DEBUG" ]]; then
     set -x
 fi
 

@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from qontract_api.config import settings
-from qontract_api.dependencies import CacheDep, SecretReaderDep
+from qontract_api.dependencies import CacheDep, SecretManagerDep
 from qontract_api.external.vcs.models import RepoOwnersResponse, VCSProvider
 from qontract_api.external.vcs.vcs_factory import create_vcs_workspace_client
 from qontract_api.logger import get_logger
@@ -27,7 +27,7 @@ router = APIRouter(
 )
 def get_repo_owners(
     cache: CacheDep,
-    secret_reader: SecretReaderDep,
+    secret_manager: SecretManagerDep,
     url: Annotated[
         str,
         Query(description="Repository URL (e.g., https://github.com/owner/repo)"),
@@ -85,7 +85,7 @@ def get_repo_owners(
     client = create_vcs_workspace_client(
         repo_url=url,
         cache=cache,
-        secret_reader=secret_reader,
+        secret_manager=secret_manager,
         settings=settings,
     )
 

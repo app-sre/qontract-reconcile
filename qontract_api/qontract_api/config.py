@@ -82,7 +82,7 @@ class SlackSettings(BaseModel):
         description="Token bucket capacity",
     )
     rate_limit_refill_rate: float = Field(
-        default=1.0,
+        default=0.3,
         description="Token bucket refill rate (tokens per second)",
     )
 
@@ -129,11 +129,11 @@ class PagerDutySettings(BaseModel):
         description="PagerDuty rate limit tier (tier1/tier2/tier3/tier4)",
     )
     rate_limit_tokens: int = Field(
-        default=20,
+        default=10,
         description="Token bucket capacity",
     )
     rate_limit_refill_rate: float = Field(
-        default=1.0,
+        default=0.5,
         description="Token bucket refill rate (tokens per second)",
     )
 

@@ -1,6 +1,5 @@
 """Factory for creating VCS workspace clients with provider registry."""
 
-from qontract_utils.secret_reader import SecretBackend
 from qontract_utils.vcs.provider_registry import get_default_registry
 
 from qontract_api.cache import CacheBackend
@@ -8,6 +7,7 @@ from qontract_api.config import Settings
 from qontract_api.external.vcs.provider_factory import VCSProviderFactory
 from qontract_api.external.vcs.vcs_workspace_client import VCSWorkspaceClient
 from qontract_api.logger import get_logger
+from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 def create_vcs_workspace_client(
     repo_url: str,
     cache: CacheBackend,
-    secret_reader: SecretBackend,
+    secret_manager: SecretManager,
     settings: Settings,
 ) -> VCSWorkspaceClient:
     """Create VCSWorkspaceClient with provider registry pattern.
@@ -52,7 +52,7 @@ def create_vcs_workspace_client(
     provider_factory = VCSProviderFactory(
         registry=registry,
         cache=cache,
-        secret_reader=secret_reader,
+        secret_manager=secret_manager,
         settings=settings,
     )
 

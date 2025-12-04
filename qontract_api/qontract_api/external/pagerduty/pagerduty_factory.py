@@ -4,7 +4,6 @@ Service layer should use PagerDutyWorkspaceClient, not PagerDutyApi directly.
 """
 
 from qontract_utils.pagerduty_api import PagerDutyApi, PagerDutyApiCallContext
-from qontract_utils.secret_reader import SecretBackend
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
@@ -13,6 +12,7 @@ from qontract_api.external.pagerduty.pagerduty_workspace_client import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.rate_limit.token_bucket import TokenBucket
+from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 
@@ -56,7 +56,7 @@ def create_pagerduty_api(
         Args:
             _context: API call context with method, verb, and instance info (unused)
         """
-        token_bucket.acquire(tokens=1, timeout=30)
+        token_bucket.acquire(tokens=1, timeout=300)
 
     # Create PagerDutyApi with rate limiting hook and config from settings
     return PagerDutyApi(
@@ -70,7 +70,7 @@ def create_pagerduty_api(
 def create_pagerduty_workspace_client(
     instance_name: str,
     cache: CacheBackend,
-    secret_reader: SecretBackend,
+    secret_manager: SecretManager,
     settings: Settings,
 ) -> PagerDutyWorkspaceClient:
     """Create PagerDutyWorkspaceClient with caching, distributed locking, and rate limiting.
@@ -97,7 +97,7 @@ def create_pagerduty_workspace_client(
     # Create underlying PagerDutyApi with rate limiting
     pagerduty_api = create_pagerduty_api(
         instance_name=instance_name,
-        token=secret_reader.read(settings.pagerduty.instances[instance_name].token),
+        token=secret_manager.read(settings.pagerduty.instances[instance_name].token),
         cache=cache,
         settings=settings,
     )
