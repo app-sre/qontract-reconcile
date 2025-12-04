@@ -617,9 +617,9 @@ QAPI_SECRETS__PROVIDERS__AWS__REGION=us-west-2
 
 ## Alternatives Considered
 
-### Alternative 1: Factory Pattern Only (Rejected)
+### Alternative 1: Static Branches (Rejected)
 
-Simple factory functions without registry.
+Simple static branch functions without registry.
 
 ```python
 def create_client(context: str, credentials: str):
