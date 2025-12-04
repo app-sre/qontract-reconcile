@@ -2446,8 +2446,7 @@ class TerrascriptClient:
         output_name = output_prefix + "__endpoint"
         tf_resources.append(Output(output_name, value=endpoint))
 
-        sqs_identifier = common_values.get("sqs_identifier")
-        if sqs_identifier is not None:
+        if sqs_identifier := common_values.get("sqs_identifier"):
             sqs_values = {"name": sqs_identifier}
             sqs_provider = values.get("provider")
             if sqs_provider:
@@ -2466,11 +2465,9 @@ class TerrascriptClient:
                     }
                 ],
             }
-            filter_prefix = common_values.get("filter_prefix")
-            if filter_prefix is not None:
+            if filter_prefix := common_values.get("filter_prefix"):
                 notification_values["queue"][0]["filter_prefix"] = filter_prefix
-            filter_suffix = common_values.get("filter_suffix")
-            if filter_suffix is not None:
+            if filter_suffix := common_values.get("filter_suffix"):
                 notification_values["queue"][0]["filter_suffix"] = filter_suffix
 
             notification_tf_resource = aws_s3_bucket_notification(
@@ -2557,6 +2554,7 @@ class TerrascriptClient:
         spec: ExternalResourceSpec,
         bucket_tf_resource: aws_s3_bucket,
         policy: str,
+        common_values: dict[str, Any],
     ) -> list[TFResource]:
         """Create S3 bucket policy resource.
 
@@ -2564,7 +2562,6 @@ class TerrascriptClient:
         """
         account = spec.provisioner_name
         identifier = spec.identifier
-        common_values = self.init_values(spec)
         region = common_values.get("region") or self.default_regions.get(account)
         assert region  # make mypy happy
 
@@ -2667,7 +2664,7 @@ class TerrascriptClient:
         if bucket_policy:
             tf_resources.extend(
                 self._populate_tf_resource_s3_bucket_policy(
-                    spec, bucket_tf_resource, bucket_policy
+                    spec, bucket_tf_resource, bucket_policy, common_values
                 )
             )
 
@@ -3493,7 +3490,7 @@ class TerrascriptClient:
 
         tf_resources.extend(
             self._populate_tf_resource_s3_bucket_policy(
-                spec, bucket_tf_resource, json_dumps(policy)
+                spec, bucket_tf_resource, json_dumps(policy), common_values
             )
         )
 
