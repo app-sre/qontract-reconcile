@@ -4,11 +4,11 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from qontract_utils.secret_reader import SecretBackend
 
 from qontract_api.auth import decode_token
 from qontract_api.cache.base import CacheBackend
 from qontract_api.models import User
+from qontract_api.secret_manager import SecretManager
 
 security = HTTPBearer()
 
@@ -50,7 +50,7 @@ def get_cache(request: Request) -> CacheBackend:
     return cache
 
 
-def get_secret_backend(request: Request) -> SecretBackend:
+def get_secret_manager(request: Request) -> SecretManager:
     """Get secret backend from app state.
 
     Args:
@@ -60,16 +60,16 @@ def get_secret_backend(request: Request) -> SecretBackend:
     Raises:
         HTTPException: If secret backend is not available
     """
-    secret_backend = getattr(request.app.state, "secret_backend", None)
-    if secret_backend is None:
+    secret_manager = getattr(request.app.state, "secret_manager", None)
+    if secret_manager is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Secret backend not available",
         )
-    return secret_backend
+    return secret_manager
 
 
 # Type aliases for dependency injection
 CacheDep = Annotated[CacheBackend, Depends(get_cache)]
 UserDep = Annotated[User, Depends(get_current_user)]
-SecretReaderDep = Annotated[SecretBackend, Depends(get_secret_backend)]
+SecretManagerDep = Annotated[SecretManager, Depends(get_secret_manager)]

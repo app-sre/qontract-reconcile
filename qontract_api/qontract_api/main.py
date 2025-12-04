@@ -40,8 +40,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
     - SecretBackend (Vault for secret management)
     """
     from qontract_api.cache.factory import get_cache  # noqa: PLC0415
-    from qontract_api.secret_reader.factory import (  # noqa: PLC0415
-        get_secret_backend,
+    from qontract_api.secret_manager._factory import (  # noqa: PLC0415
+        get_secret_manager,
     )
 
     # Startup: Initialize cache backend using factory (singleton pattern)
@@ -49,13 +49,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
 
     # Startup: Initialize secret backend using factory (singleton pattern)
     # This creates the Vault client connection and starts token auto-refresh thread
-    _app.state.secret_backend = get_secret_backend()
+    _app.state.secret_manager = get_secret_manager(cache=_app.state.cache)
 
     yield
 
     # Cleanup secret backend on shutdown
-    if hasattr(_app.state, "secret_backend") and _app.state.secret_backend is not None:
-        _app.state.secret_backend.close()
+    if hasattr(_app.state, "secret_manager") and _app.state.secret_manager is not None:
+        _app.state.secret_manager.close()
 
     # Cleanup cache backend on shutdown
     if hasattr(_app.state, "cache") and _app.state.cache is not None:

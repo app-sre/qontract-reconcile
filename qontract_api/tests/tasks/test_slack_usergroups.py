@@ -10,7 +10,7 @@ from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
-from qontract_api.integrations.slack_usergroups.task import (
+from qontract_api.integrations.slack_usergroups.tasks import (
     generate_lock_key,
     reconcile_slack_usergroups_task,
 )
@@ -69,13 +69,13 @@ def test_generate_lock_key_multiple_workspaces() -> None:
     assert lock_key == "workspace-a,workspace-b"
 
 
-@patch("qontract_api.integrations.slack_usergroups.task.settings")
-@patch("qontract_api.integrations.slack_usergroups.task.get_cache")
-@patch("qontract_api.integrations.slack_usergroups.task.get_secret_backend")
-@patch("qontract_api.integrations.slack_usergroups.task.SlackClientFactory")
+@patch("qontract_api.integrations.slack_usergroups.tasks.settings")
+@patch("qontract_api.integrations.slack_usergroups.tasks.get_cache")
+@patch("qontract_api.integrations.slack_usergroups.tasks.get_secret_manager")
+@patch("qontract_api.integrations.slack_usergroups.tasks.SlackClientFactory")
 def test_reconcile_task_dry_run_success(
     mock_factory_class: MagicMock,
-    mock_get_secret_backend: MagicMock,
+    mock_get_secret_manager: MagicMock,
     mock_get_cache: MagicMock,
     mock_settings: MagicMock,
     sample_workspaces: list[SlackWorkspace],
@@ -105,7 +105,7 @@ def test_reconcile_task_dry_run_success(
 
     mock_secret_backend = MagicMock()
     mock_secret_backend.read.return_value = "xoxb-test-token"
-    mock_get_secret_backend.return_value = mock_secret_backend
+    mock_get_secret_manager.return_value = mock_secret_backend
 
     mock_slack_client = MagicMock()
     mock_slack_client.get_slack_usergroups.return_value = []

@@ -38,10 +38,9 @@ celery_app = Celery(
     event_serializer="json",
     accept_content=["application/json", "application/x-python-serialize"],
     result_accept_content=["application/json", "application/x-python-serialize"],
-    # TODO auto-discover tasks!
     include=[
         "qontract_api.tasks.health",
-        # "qontract_api.tasks.slack_usergroups",
+        "qontract_api.integrations.slack_usergroups.tasks",
     ],
 )
 

@@ -20,7 +20,7 @@ from qontract_api.integrations.slack_usergroups.slack_client_factory import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
-from qontract_api.secret_reader.factory import get_secret_backend
+from qontract_api.secret_manager._factory import get_secret_manager
 from qontract_api.tasks import BackgroundTask, celery_app, deduplicated_task
 
 logger = get_logger(__name__)
@@ -80,13 +80,13 @@ def reconcile_slack_usergroups_task(
     try:
         # Get shared dependencies
         cache = get_cache()
-        secret_backend = get_secret_backend()
+        secret_manager = get_secret_manager(cache=cache)
 
         # Create factory and service
         slack_client_factory = SlackClientFactory(cache=cache, settings=settings)
         service = SlackUsergroupsService(
             slack_client_factory=slack_client_factory,
-            secret_reader=secret_backend,
+            secret_manager=secret_manager,
             settings=settings,
         )
 

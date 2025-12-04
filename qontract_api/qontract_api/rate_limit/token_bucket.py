@@ -2,7 +2,6 @@
 
 import logging
 import time
-from threading import Lock
 
 from pydantic import BaseModel
 
@@ -56,7 +55,7 @@ class TokenBucket:
         self.bucket_name = bucket_name
         self.capacity = capacity
         self.refill_rate = refill_rate
-        self._sync_lock = Lock()
+        self._cache_key = f"rate_limit:{self.bucket_name}:state"
 
     def acquire(self, tokens: int = 1, timeout: float = 30) -> None:
         """
@@ -79,10 +78,10 @@ class TokenBucket:
             timeout,
         )
 
-        with self._sync_lock:
-            start_time = time.time()
+        start_time = time.time()
 
-            while True:
+        while True:
+            with self.cache.lock(self._cache_key):
                 current_tokens = self._refill_tokens()
                 logger.debug(
                     "Bucket '%s' has %.2f tokens available (requested: %d)",
@@ -103,38 +102,38 @@ class TokenBucket:
                     )
                     return
 
-                # Not enough tokens - check timeout
-                elapsed = time.time() - start_time
-                if elapsed >= timeout:
-                    logger.debug(
-                        "Rate limit timeout for bucket '%s': requested %d tokens, "
-                        "only %.2f available after %.1fs",
-                        self.bucket_name,
-                        tokens,
-                        current_tokens,
-                        elapsed,
-                    )
-                    raise RateLimitExceeded(
-                        f"Rate limit exceeded for {self.bucket_name}: "
-                        f"requested {tokens} tokens, only {current_tokens:.2f} available"
-                    )
-
-                # Calculate wait time
-                tokens_needed = tokens - current_tokens
-                wait_time = min(
-                    tokens_needed / self.refill_rate,  # Time to refill needed tokens
-                    timeout - elapsed,  # Remaining timeout
-                    1.0,  # Max 1 second per iteration
-                )
-
+            # Not enough tokens - check timeout
+            elapsed = time.time() - start_time
+            if elapsed >= timeout:
                 logger.debug(
-                    "Bucket '%s' waiting %.2fs for %.2f tokens to refill (rate=%.2f/s)",
+                    "Rate limit timeout for bucket '%s': requested %d tokens, "
+                    "only %.2f available after %.1fs",
                     self.bucket_name,
-                    wait_time,
-                    tokens_needed,
-                    self.refill_rate,
+                    tokens,
+                    current_tokens,
+                    elapsed,
                 )
-                time.sleep(wait_time)
+                raise RateLimitExceeded(
+                    f"Rate limit exceeded for {self.bucket_name}: "
+                    f"requested {tokens} tokens, only {current_tokens:.2f} available"
+                )
+
+            # Calculate wait time
+            tokens_needed = tokens - current_tokens
+            wait_time = min(
+                tokens_needed / self.refill_rate,  # Time to refill needed tokens
+                timeout - elapsed,  # Remaining timeout
+                1.0,  # Max 1 second per iteration
+            )
+
+            logger.info(
+                "Bucket '%s' waiting %.2fs for %.2f tokens to refill (rate=%.2f/s)",
+                self.bucket_name,
+                wait_time,
+                tokens_needed,
+                self.refill_rate,
+            )
+            time.sleep(wait_time)
 
     def _refill_tokens(self) -> float:
         """
@@ -175,40 +174,24 @@ class TokenBucket:
         """
         Get bucket state from cache.
 
-        Uses CacheBackend.get_obj() for synchronous cache access with Pydantic model (ADR-005).
-
         Returns:
             TokenBucketState with current bucket state or initial state if not cached
         """
-        cache_key = f"rate_limit:{self.bucket_name}:state"
-
         # Get cached value using sync method (follows ADR-005)
-        cached_state = self.cache.get_obj(cache_key, cls=TokenBucketState)
-
-        if cached_state:
+        if cached_state := self.cache.get_obj(self._cache_key, cls=TokenBucketState):
             return cached_state
 
-        # No cached state - return initial state (bucket is full)
-        return TokenBucketState(
-            tokens=self.capacity,
-            last_refill_time=time.time(),
-        )
+        return TokenBucketState(tokens=self.capacity, last_refill_time=time.time())
 
     def _update_bucket_state(self, new_tokens: float, refill_time: float) -> None:
         """
         Update bucket state in cache.
 
-        Uses CacheBackend.set_obj() for synchronous cache access with Pydantic model (ADR-005).
-
         Args:
             new_tokens: New token count
             refill_time: Timestamp of last refill
         """
-        cache_key = f"rate_limit:{self.bucket_name}:state"
-        state = TokenBucketState(
-            tokens=new_tokens,
-            last_refill_time=refill_time,
-        )
+        state = TokenBucketState(tokens=new_tokens, last_refill_time=refill_time)
 
         # TTL: 2x capacity / refill_rate (time to fully refill bucket twice)
         ttl = int((self.capacity / self.refill_rate) * 2)
@@ -220,5 +203,4 @@ class TokenBucket:
             ttl,
         )
 
-        # Update cache using sync method (follows ADR-005)
-        self.cache.set_obj(cache_key, state, ttl=ttl)
+        self.cache.set_obj(self._cache_key, state, ttl=ttl)

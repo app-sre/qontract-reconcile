@@ -45,7 +45,7 @@ def mock_settings() -> Settings:
 
 
 @pytest.fixture
-def mock_secret_reader() -> MagicMock:
+def mock_secret_manager() -> MagicMock:
     """Mock SecretBackend for testing."""
     from qontract_api.config import Secret
 
@@ -78,13 +78,13 @@ def mock_slack_client_factory(mock_slack_client: MagicMock) -> MagicMock:
 @pytest.fixture
 def service(
     mock_slack_client_factory: MagicMock,
-    mock_secret_reader: MagicMock,
+    mock_secret_manager: MagicMock,
     mock_settings: Settings,
 ) -> SlackUsergroupsService:
     """Create SlackUsergroupsService with mocks."""
     return SlackUsergroupsService(
         slack_client_factory=mock_slack_client_factory,
-        secret_reader=mock_secret_reader,
+        secret_manager=mock_secret_manager,
         settings=mock_settings,
     )
 
@@ -95,7 +95,7 @@ def service(
 def test_service_initialization(service: SlackUsergroupsService) -> None:
     """Test service initializes with all dependencies."""
     assert service.slack_client_factory is not None
-    assert service.secret_reader is not None
+    assert service.secret_manager is not None
     assert service.settings is not None
 
 
@@ -401,7 +401,7 @@ def test_reconcile_multiple_actions_dry_run(
 def test_reconcile_error_in_workspace_processing(
     service: SlackUsergroupsService,
     mock_slack_client: MagicMock,
-    mock_secret_reader: MagicMock,
+    mock_secret_manager: MagicMock,
 ) -> None:
     """Test reconcile handles errors in workspace processing."""
     workspace = SlackWorkspace(
@@ -410,8 +410,8 @@ def test_reconcile_error_in_workspace_processing(
         usergroups=[],
     )
 
-    # Mock: secret_reader raises exception
-    mock_secret_reader.read.side_effect = Exception("Secret read error")
+    # Mock: mock_secret_manager raises exception
+    mock_secret_manager.read.side_effect = Exception("Secret read error")
 
     result = service.reconcile(workspaces=[workspace], dry_run=True)
 
@@ -463,7 +463,7 @@ def test_reconcile_error_in_action_execution(
 def test_create_slack_client_uses_factory(
     service: SlackUsergroupsService,
     mock_slack_client_factory: MagicMock,
-    mock_secret_reader: MagicMock,
+    mock_secret_manager: MagicMock,
     mock_settings: Settings,
 ) -> None:
     """Test _create_slack_client uses factory and secret reader."""
@@ -485,8 +485,8 @@ def test_create_slack_client_uses_factory(
     client = service._create_slack_client(workspace_name="test-workspace")
 
     # Verify secret was read with correct Secret object
-    mock_secret_reader.read.assert_called_once()
-    call_args = mock_secret_reader.read.call_args[0][0]
+    mock_secret_manager.read.assert_called_once()
+    call_args = mock_secret_manager.read.call_args[0][0]
     assert isinstance(call_args, Secret)
     assert call_args.path == "slack/test-workspace/token"
 

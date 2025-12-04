@@ -3,7 +3,6 @@
 from collections.abc import Iterable
 
 from qontract_utils.differ import diff_iterables
-from qontract_utils.secret_reader.base import SecretBackend
 
 from qontract_api.config import Settings
 from qontract_api.integrations.slack_usergroups.models import (
@@ -23,6 +22,7 @@ from qontract_api.integrations.slack_usergroups.slack_workspace_client import (
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
+from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 
@@ -39,7 +39,7 @@ class SlackUsergroupsService:
     def __init__(
         self,
         slack_client_factory: SlackClientFactory,
-        secret_reader: SecretBackend,
+        secret_manager: SecretManager,
         settings: Settings,
     ) -> None:
         """Initialize service.
@@ -50,7 +50,7 @@ class SlackUsergroupsService:
             settings: Application settings
         """
         self.slack_client_factory = slack_client_factory
-        self.secret_reader = secret_reader
+        self.secret_manager = secret_manager
         self.settings = settings
 
     def _create_slack_client(self, workspace_name: str) -> SlackWorkspaceClient:
@@ -64,7 +64,7 @@ class SlackUsergroupsService:
         Returns:
             SlackWorkspaceClient instance with full caching + compute layer
         """
-        token = self.secret_reader.read(
+        token = self.secret_manager.read(
             self.settings.slack.workspaces[workspace_name]
             .integrations["slack-usergroups"]
             .token
@@ -217,10 +217,18 @@ class SlackUsergroupsService:
 
         # Process each workspace
         for workspace in workspaces:
+            logger.info(f"Reconciling workspace: {workspace.name}")
             try:
                 slack = self._create_slack_client(workspace.name)
+                logger.info(
+                    f"Fetching current usergroups for workspace: {workspace.name}"
+                )
                 current_state = slack.get_slack_usergroups(workspace.managed_usergroups)
+                logger.info(
+                    f"Cleaning desired usergroups for workspace: {workspace.name}"
+                )
                 desired_state = slack.clean_slack_usergroups(workspace.usergroups)
+                logger.info(f"Calculating actions for workspace: {workspace.name}")
                 all_actions.extend(
                     self._calculate_update_actions(
                         workspace=workspace.name,

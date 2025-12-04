@@ -8,6 +8,7 @@ thread-safe factory methods.
 """
 
 from qontract_utils.secret_reader.base import (
+    Secret,
     SecretAccessForbiddenError,
     SecretBackend,
     SecretBackendError,
@@ -15,6 +16,7 @@ from qontract_utils.secret_reader.base import (
 )
 
 __all__ = [
+    "Secret",
     "SecretAccessForbiddenError",
     "SecretBackend",
     "SecretBackendError",

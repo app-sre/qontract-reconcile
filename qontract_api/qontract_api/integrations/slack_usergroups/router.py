@@ -14,7 +14,7 @@ from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroupsTaskResponse,
     SlackUsergroupsTaskResult,
 )
-from qontract_api.integrations.slack_usergroups.task import (
+from qontract_api.integrations.slack_usergroups.tasks import (
     reconcile_slack_usergroups_task,
 )
 from qontract_api.logger import get_logger

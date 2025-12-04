@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
+from qontract_api.constants import REQUEST_ID_HEADER
 from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroup,
     SlackUsergroupActionCreate,
@@ -60,10 +61,6 @@ def test_post_reconcile_queues_task(
     sample_reconcile_request: SlackUsergroupsReconcileRequest,
 ) -> None:
     """Test POST /reconcile queues Celery task and returns task ID."""
-    mock_async_result = MagicMock()
-    mock_async_result.id = "test-task-id-123"
-    mock_task.delay.return_value = mock_async_result
-
     response = client.post(
         "/api/v1/integrations/slack-usergroups/reconcile",
         json=sample_reconcile_request.model_dump(),
@@ -72,13 +69,14 @@ def test_post_reconcile_queues_task(
 
     assert response.status_code == HTTPStatus.ACCEPTED
     data = response.json()
-    assert data["id"] == "test-task-id-123"
+    request_id = response.headers[REQUEST_ID_HEADER]
+    assert data["id"] == request_id
     assert data["status"] == TaskStatus.PENDING.value
     assert "status_url" in data
-    assert "/reconcile/test-task-id-123" in data["status_url"]
+    assert f"/reconcile/{request_id}" in data["status_url"]
 
-    mock_task.delay.assert_called_once()
-    call_kwargs = mock_task.delay.call_args.kwargs
+    mock_task.apply_async.assert_called_once()
+    call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
     assert call_kwargs["dry_run"] is True
     assert len(call_kwargs["workspaces"]) == 1
 
@@ -92,10 +90,6 @@ def test_post_reconcile_dry_run_false(
     auth_headers: dict[str, str],
 ) -> None:
     """Test POST /reconcile with dry_run=False."""
-    mock_async_result = MagicMock()
-    mock_async_result.id = "task-123"
-    mock_task.delay.return_value = mock_async_result
-
     request_data = {
         "workspaces": [
             {
@@ -115,7 +109,7 @@ def test_post_reconcile_dry_run_false(
     )
 
     assert response.status_code == HTTPStatus.ACCEPTED
-    call_kwargs = mock_task.delay.call_args.kwargs
+    call_kwargs = mock_task.apply_async.call_args.kwargs["kwargs"]
     assert call_kwargs["dry_run"] is False
 
 

@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from qontract_api.config import settings
-from qontract_api.dependencies import CacheDep, SecretReaderDep
+from qontract_api.dependencies import CacheDep, SecretManagerDep
 from qontract_api.external.pagerduty.models import (
     EscalationPolicyUsersResponse,
     PagerDutyUser,
@@ -38,7 +38,7 @@ def get_schedule_users(
         Query(description="PagerDuty instance name (e.g., 'app-sre')"),
     ],
     cache: CacheDep,
-    secret_reader: SecretReaderDep,
+    secret_manager: SecretManagerDep,
 ) -> ScheduleUsersResponse:
     """Get users currently on-call in a PagerDuty schedule.
 
@@ -74,7 +74,7 @@ def get_schedule_users(
     client = create_pagerduty_workspace_client(
         instance_name=instance,
         cache=cache,
-        secret_reader=secret_reader,
+        secret_manager=secret_manager,
         settings=settings,
     )
     users = client.get_schedule_users(schedule_id)
@@ -104,7 +104,7 @@ def get_escalation_policy_users(
         Query(description="PagerDuty instance name (e.g., 'app-sre')"),
     ],
     cache: CacheDep,
-    secret_reader: SecretReaderDep,
+    secret_manager: SecretManagerDep,
 ) -> EscalationPolicyUsersResponse:
     """Get users in a PagerDuty escalation policy.
 
@@ -140,7 +140,7 @@ def get_escalation_policy_users(
     client = create_pagerduty_workspace_client(
         instance_name=instance,
         cache=cache,
-        secret_reader=secret_reader,
+        secret_manager=secret_manager,
         settings=settings,
     )
     users = client.get_escalation_policy_users(policy_id)
