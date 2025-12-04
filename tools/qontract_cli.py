@@ -188,6 +188,7 @@ from tools.cli_commands.gpg_encrypt import (
     GPGEncryptCommand,
     GPGEncryptCommandData,
 )
+from tools.cli_commands.qontract_api import generate_qontract_api_config
 from tools.cli_commands.systems_and_tools import get_systems_and_tools_inventory
 from tools.sre_checkpoints import (
     full_name,
@@ -4882,6 +4883,43 @@ def top_talkers(ctx: click.Context, top: int) -> None:
             str(stat.events),
         )
     console.print(table)
+
+
+@root.group()
+@click.pass_context
+def qontract_api(ctx: click.Context) -> None:
+    """Qontract API related commands"""
+
+    ctx.obj["gqlapi"] = gql.get_api()
+
+
+@qontract_api.command()
+@click.option(
+    "--default-github-org-name",
+    required=True,
+    help="Use this GitHub organization as default for qontract-api config.",
+    # default: data/dependencies/github/app-sre.yml
+    default="app-sre",
+)
+@click.option(
+    "--default-gitlab-instance-name",
+    required=True,
+    help="Use this GitLab instance as default for qontract-api config.",
+    # default: data/dependencies/gitlab/gitlab.yml
+    default="gitlab-cee",
+)
+@click.pass_context
+def generate_config(
+    ctx: click.Context, default_github_org_name: str, default_gitlab_instance_name: str
+) -> None:
+    """Generate qontract-api config based on app-interface data"""
+    gqlapi: gql.GqlApi = ctx.obj["gqlapi"]
+    config_data = generate_qontract_api_config(
+        gqlapi.query,
+        default_github_org=default_github_org_name,
+        default_gitlab_instance=default_gitlab_instance_name,
+    )
+    print(yaml.safe_dump(config_data))
 
 
 if __name__ == "__main__":

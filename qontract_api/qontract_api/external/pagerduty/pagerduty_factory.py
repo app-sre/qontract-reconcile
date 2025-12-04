@@ -84,6 +84,7 @@ def create_pagerduty_workspace_client(
     Args:
         instance_name: PagerDuty instance name
         cache: Cache backend for distributed cache and rate limit state
+        secret_manager: Secret backend for retrieving PagerDuty tokens
         settings: Application settings with PagerDuty configuration
 
     Returns:

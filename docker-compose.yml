@@ -42,13 +42,6 @@ services:
     depends_on:
       cache:
         condition: service_healthy
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
-    #   start_interval: 1s
-    #   start_period: 1s
-    #   interval: 10s
-    #   timeout: 1s
-    #   retries: 10
 
   # Celery Worker
   worker:

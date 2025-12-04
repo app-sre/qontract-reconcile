@@ -1,0 +1,10 @@
+# qenerate: plugin=pydantic_v2
+
+query QontractApiPagerduty {
+  instances: pagerduty_instances_v1 {
+    name
+    token {
+      ...VaultSecret
+    }
+  }
+}

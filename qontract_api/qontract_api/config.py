@@ -154,11 +154,11 @@ class PagerDutySettings(BaseModel):
 
 
 class GitHubOrgSettings(BaseModel):
-    """GitHub organisation-specific configuration."""
+    """GitHub organization-specific configuration."""
 
     token: Secret = Field(
         ...,
-        description="GitHub organisation token secret path",
+        description="GitHub organization token secret path",
     )
 
 
@@ -188,9 +188,9 @@ class GitHubProviderSettings(BaseModel):
         description="Token bucket refill rate (tokens per second)",
     )
 
-    organisations: dict[str, GitHubOrgSettings] = Field(
+    organizations: dict[str, GitHubOrgSettings] = Field(
         default_factory=dict,
-        description="GitHub organisation-specific settings by GitHub organisation URL",
+        description="GitHub organization-specific settings by GitHub organization URL",
     )
 
 
@@ -309,6 +309,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
         env_prefix="QAPI_",
         env_nested_delimiter="__",
         json_file=".env.json",
@@ -333,6 +335,7 @@ class Settings(BaseSettings):
             dotenv_settings,
             JsonConfigSettingsSource(settings_cls),
             YamlConfigSettingsSource(settings_cls),
+            YamlConfigSettingsSource(settings_cls, yaml_file="/config/config.yml"),
         )
 
     # Application
