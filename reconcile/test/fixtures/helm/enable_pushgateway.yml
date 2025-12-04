@@ -180,6 +180,8 @@ parameters:
   value: ''
 - name: PUSHGATEWAY_SECRET_NAME
   value: push-gateway-auth-url
+- name: USED_FOR_SECURITY
+  value: ''
 - name: INTEG_MEMORY_LIMIT
   value: 90Mi
 - name: INTEG_CPU_REQUEST
