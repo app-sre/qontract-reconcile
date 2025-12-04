@@ -47,7 +47,6 @@ def get_schedule_users(
 
     Args:
         schedule_id: PagerDuty schedule ID
-        cache: Cache backend for PagerDuty API responses
         instance: PagerDuty instance name
 
     Returns:
@@ -114,7 +113,6 @@ def get_escalation_policy_users(
 
     Args:
         policy_id: PagerDuty escalation policy ID
-        cache: Cache backend for PagerDuty API responses
         instance: PagerDuty instance name
 
     Returns:
