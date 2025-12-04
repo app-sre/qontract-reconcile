@@ -154,7 +154,7 @@ class CacheBackend(ABC):
 **Why sync is required:**
 
 - Used by both FastAPI endpoints and background workers
-- Valkey/Redis client is sync-only
+- Cache backend (Valkey/Redis/DynamoDB/Firestore/... client) may does not have async client
 - Must work in all execution contexts
 
 ### ❌ Bad: Mixing Async/Sync with Event Loop Detection
