@@ -390,10 +390,10 @@ from qontract_utils.secret_reader.base import SecretBackend
 def test_slack_usergroups_service_reconcile():
     """Test service with mocked dependencies."""
     # Mock dependencies using Protocol types
-    mock_secret_reader = MagicMock(spec=SecretBackend)
+    mock_secret_reader = create_autospec(SecretBackend)
     mock_secret_reader.read.return_value = "xoxb-mock-token"
 
-    mock_factory = MagicMock(spec=SlackClientFactory)
+    mock_factory = create_autospec(SlackClientFactory)
     mock_slack_client = MagicMock()
     mock_factory.create_workspace_client.return_value = mock_slack_client
 
@@ -413,8 +413,8 @@ def test_slack_usergroups_service_reconcile():
     )
 
     # Verify interactions
-    assert mock_secret_reader.read.called
-    assert mock_factory.create_workspace_client.called
+    assert mock_secret_reader.read.assert_called_once_with(...)
+    assert mock_factory.create_workspace_client.assert_called_once_with(...)
     assert result.status == TaskStatus.COMPLETED
 ```
 
