@@ -2254,14 +2254,22 @@ class TerrascriptClient:
 
         return lifecycle_rules
 
-    def populate_tf_resource_s3(self, spec: ExternalResourceSpec) -> aws_s3_bucket:
+    def _populate_tf_resource_s3_bucket(
+        self,
+        spec: ExternalResourceSpec,
+        common_values: dict[str, Any],
+    ) -> tuple[aws_s3_bucket, list[TFResource]]:
+        """Create S3 bucket with configuration and notifications.
+
+        Creates aws_s3_bucket with versioning, encryption, lifecycle rules,
+        CORS, logging, and replication. Also creates aws_s3_bucket_notification
+        for SQS/SNS event notifications if configured.
+        """
         account = spec.provisioner_name
         identifier = spec.identifier
-        common_values = self.init_values(spec)
         output_prefix = spec.output_prefix
 
         tf_resources: list[TFResource] = []
-        self.init_common_outputs(tf_resources, spec)
 
         # s3 bucket
         # Terraform resource reference:
@@ -2438,8 +2446,7 @@ class TerrascriptClient:
         output_name = output_prefix + "__endpoint"
         tf_resources.append(Output(output_name, value=endpoint))
 
-        sqs_identifier = common_values.get("sqs_identifier", None)
-        if sqs_identifier is not None:
+        if sqs_identifier := common_values.get("sqs_identifier"):
             sqs_values = {"name": sqs_identifier}
             sqs_provider = values.get("provider")
             if sqs_provider:
@@ -2458,11 +2465,9 @@ class TerrascriptClient:
                     }
                 ],
             }
-            filter_prefix = common_values.get("filter_prefix", None)
-            if filter_prefix is not None:
+            if filter_prefix := common_values.get("filter_prefix"):
                 notification_values["queue"][0]["filter_prefix"] = filter_prefix
-            filter_suffix = common_values.get("filter_suffix", None)
-            if filter_suffix is not None:
+            if filter_suffix := common_values.get("filter_suffix"):
                 notification_values["queue"][0]["filter_suffix"] = filter_suffix
 
             notification_tf_resource = aws_s3_bucket_notification(
@@ -2542,21 +2547,48 @@ class TerrascriptClient:
             )
             tf_resources.append(notification_tf_resource)
 
-        bucket_policy = common_values.get("bucket_policy")
-        if bucket_policy:
-            values = {
-                "bucket": identifier,
-                "policy": bucket_policy,
-                "depends_on": self.get_dependencies([bucket_tf_resource]),
-            }
-            if self._multiregion_account(account):
-                values["provider"] = "aws." + region
-            bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
-            tf_resources.append(bucket_policy_tf_resource)
+        return bucket_tf_resource, tf_resources
 
-        # iam resources
-        # Terraform resource reference:
-        # https://www.terraform.io/docs/providers/aws/r/iam_access_key.html
+    def _populate_tf_resource_s3_bucket_policy(
+        self,
+        spec: ExternalResourceSpec,
+        bucket_tf_resource: aws_s3_bucket,
+        policy: str,
+        common_values: dict[str, Any],
+    ) -> list[TFResource]:
+        """Create S3 bucket policy resource.
+
+        Creates aws_s3_bucket_policy with the provided policy document.
+        """
+        account = spec.provisioner_name
+        identifier = spec.identifier
+        region = common_values.get("region") or self.default_regions.get(account)
+        assert region  # make mypy happy
+
+        values: dict[str, Any] = {
+            "bucket": identifier,
+            "policy": policy,
+            "depends_on": self.get_dependencies([bucket_tf_resource]),
+        }
+        if self._multiregion_account(account):
+            values["provider"] = "aws." + region
+        bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values)
+        return [bucket_policy_tf_resource]
+
+    def _populate_tf_resource_s3_iam(
+        self,
+        spec: ExternalResourceSpec,
+        bucket_tf_resource: aws_s3_bucket,
+        common_values: dict[str, Any],
+    ) -> list[TFResource]:
+        """Create IAM resources for S3 bucket access.
+
+        Creates aws_iam_user, aws_iam_access_key, aws_iam_policy,
+        and aws_iam_user_policy_attachment for bucket access.
+        """
+        identifier = spec.identifier
+        output_prefix = spec.output_prefix
+        tf_resources: list[TFResource] = []
 
         # iam user for bucket
         values = {
@@ -2613,6 +2645,32 @@ class TerrascriptClient:
             depends_on=self.get_dependencies([user_tf_resource, tf_aws_iam_policy]),
         )
         tf_resources.append(tf_user_policy_attachment)
+
+        return tf_resources
+
+    def populate_tf_resource_s3(self, spec: ExternalResourceSpec) -> aws_s3_bucket:
+        account = spec.provisioner_name
+        common_values = self.init_values(spec)
+
+        tf_resources: list[TFResource] = []
+        self.init_common_outputs(tf_resources, spec)
+
+        bucket_tf_resource, bucket_resources = self._populate_tf_resource_s3_bucket(
+            spec, common_values
+        )
+        tf_resources.extend(bucket_resources)
+
+        bucket_policy = common_values.get("bucket_policy")
+        if bucket_policy:
+            tf_resources.extend(
+                self._populate_tf_resource_s3_bucket_policy(
+                    spec, bucket_tf_resource, bucket_policy, common_values
+                )
+            )
+
+        tf_resources.extend(
+            self._populate_tf_resource_s3_iam(spec, bucket_tf_resource, common_values)
+        )
 
         self.add_resources(account, tf_resources)
 
@@ -3388,42 +3446,53 @@ class TerrascriptClient:
         common_values = self.init_values(spec)
         output_prefix = spec.output_prefix
 
-        bucket_tf_resource = self.populate_tf_resource_s3(spec)
-
         tf_resources: list[TFResource] = []
+        self.init_common_outputs(tf_resources, spec)
+
+        bucket_tf_resource, bucket_resources = self._populate_tf_resource_s3_bucket(
+            spec, common_values
+        )
+        tf_resources.extend(bucket_resources)
+
+        tf_resources.extend(
+            self._populate_tf_resource_s3_iam(spec, bucket_tf_resource, common_values)
+        )
 
         # cloudfront origin access identity
         values = {"comment": f"{identifier}-cf-identity"}
         cf_oai_tf_resource = aws_cloudfront_origin_access_identity(identifier, **values)
         tf_resources.append(cf_oai_tf_resource)
 
-        # bucket policy for cloudfront
-        values_policy: dict[str, Any] = {"bucket": identifier}
-        policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Sid": "Grant access to CloudFront Origin Identity",
-                    "Effect": "Allow",
-                    "Principal": {"AWS": "${" + cf_oai_tf_resource.iam_arn + "}"},
-                    "Action": "s3:GetObject",
-                    "Resource": [
-                        f"arn:aws:s3:::{identifier}/{enable_dir}/*"
-                        for enable_dir in common_values.get(
-                            "get_object_enable_dirs", []
-                        )
-                    ],
-                }
+        # bucket policy for cloudfront - merge custom policy with CloudFront access statement
+        cf_statement = {
+            "Sid": "Grant access to CloudFront Origin Identity",
+            "Effect": "Allow",
+            "Principal": {"AWS": "${" + cf_oai_tf_resource.iam_arn + "}"},
+            "Action": "s3:GetObject",
+            "Resource": [
+                f"arn:aws:s3:::{identifier}/{enable_dir}/*"
+                for enable_dir in common_values.get("get_object_enable_dirs", [])
             ],
         }
-        values_policy["policy"] = json_dumps(policy)
-        values_policy["depends_on"] = self.get_dependencies([bucket_tf_resource])
-        region = common_values.get("region") or self.default_regions.get(account)
-        assert region  # make mypy happy
-        if self._multiregion_account(account):
-            values_policy["provider"] = "aws." + region
-        bucket_policy_tf_resource = aws_s3_bucket_policy(identifier, **values_policy)
-        tf_resources.append(bucket_policy_tf_resource)
+
+        custom_bucket_policy = common_values.get("bucket_policy")
+        if custom_bucket_policy:
+            # if the user specifies a custom bucket policy then we merge their statements with the cloudfront origin identity policy
+            if isinstance(custom_bucket_policy, str):
+                custom_bucket_policy = json.loads(custom_bucket_policy)
+            custom_bucket_policy.setdefault("Statement", []).append(cf_statement)
+            policy = custom_bucket_policy
+        else:
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [cf_statement],
+            }
+
+        tf_resources.extend(
+            self._populate_tf_resource_s3_bucket_policy(
+                spec, bucket_tf_resource, json_dumps(policy), common_values
+            )
+        )
 
         distribution_config = common_values.get("distribution_config", {})
         # aws_s3_bucket_acl
