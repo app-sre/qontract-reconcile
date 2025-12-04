@@ -204,7 +204,7 @@ Separate API communication, caching+compute, and business logic into distinct la
 
 ## Implementation Guidelines
 
-### Layer 1: API Client (Pure Communication)
+### Layer 1: External Client Wrapper (Pure Communication)
 
 Lives in shared utilities package (e.g., `qontract_utils/external_api/`).
 
@@ -231,14 +231,14 @@ class ExternalApiClient:
 - [ ] No business logic
 - [ ] Easy to mock (HTTP client dependency)
 
-### Layer 2: Workspace Client (Cache + Compute)
+### Layer 2: Persistence/Repository (Cache + Compute)
 
 Lives in application code (e.g., `qontract_api/integrations/external_api/`).
 
 ```python
 T = TypeVar("T", bound=BaseModel)
 
-class WorkspaceClient:
+class RepositoryClient:
     """Cache + compute layer with distributed locking."""
 
     def __init__(
