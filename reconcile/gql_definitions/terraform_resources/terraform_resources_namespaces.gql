@@ -186,6 +186,7 @@ query TerraformResourcesNamespaces {
             defaults
             output_resource_name
             storage_class
+            bucket_policy
             annotations
           }
           ... on NamespaceTerraformResourceS3SQS_v1 {
