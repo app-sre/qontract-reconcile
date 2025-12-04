@@ -17,7 +17,7 @@ trap "rm -rf ${PROMETHEUS_MULTIPROC_DIR}" INT TERM EXIT
 
 START_MODE="${QAPI_START_MODE:-api}"
 APP_PORT="${QAPI_APP_PORT:-8080}"
-AUTO_RELOAD="${QAPI_AUTO_RELOAD:-0}"
+AUTO_RELOAD="${AUTO_RELOAD:-0}"
 UVICORN_OPTS="${QAPI_UVICORN_OPTS:- --host 0.0.0.0 --proxy-headers --forwarded-allow-ips=* --no-access-log}"
 UVICORN_OPTS="${UVICORN_OPTS} --port ${APP_PORT}"
 # start celery worker with solo pool by default to ensure only one worker is running
@@ -27,7 +27,6 @@ CELERY_OPTS="${QAPI_CELERY_OPTS:- --pool solo}"
 DEBUGGER_PORT=${DEBUGPY_PORT:-5678}
 DEBUGGER_ENABLED="${DEBUGGER_ENABLED:-false}"
 
-CMD_CHAIN=""
 if [[ "${AUTO_RELOAD}" == "1" ]]; then
     echo "---> Auto-reload enabled ..."
     CMD_CHAIN=(watchmedo auto-restart -d /opt/app-root/src -p '*.py;*.env*' --recursive --kill-after 1 --debug-force-polling --)

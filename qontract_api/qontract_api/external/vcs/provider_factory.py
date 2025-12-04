@@ -121,14 +121,14 @@ class VCSProviderFactory:
             case GitHubProviderSettings():
                 gh_repo = GitHubProvider.parse_url(url)
                 org_url = gh_repo.owner_url
-                if org_url not in provider_settings.organisations:
-                    if "default" not in provider_settings.organisations:
+                if org_url not in provider_settings.organizations:
+                    if "default" not in provider_settings.organizations:
                         raise ValueError(
-                            f"No token provider configured for organisation: {gh_repo.owner}"
+                            f"No token provider configured for organization: {gh_repo.owner}"
                         )
                     org_url = "default"
                 token = self._secret_reader.read(
-                    provider_settings.organisations[org_url].token
+                    provider_settings.organizations[org_url].token
                 )
             case GitLabProviderSettings():
                 gl_repo = GitLabProvider.parse_url(url)
