@@ -308,10 +308,11 @@ When migrating a utility from `reconcile/utils/` to `qontract_utils/`:
 ### Example Migration Workflow
 
 1. **Identify** utility needed by qontract-api (e.g., `reconcile/utils/sharding.py`)
-2. **Refactor** to `qontract_utils/sharding.py` with improved API
-3. **Test** with comprehensive unit tests
-4. **Use in qontract-api** - Import from `qontract_utils.sharding`
-5. **Update reconcile** (future) - Migrate reconcile to use `qontract_utils.sharding`
+1. **Ensure current tests** cover existing functionality in reconcile
+1. **Extract and Refactor** to `qontract_utils/sharding.py` with improved API (no simple copy!)
+1. **Refactor Test** migrate existing tests to `qontract_utils/tests/test_sharding.py`, add refactor them tests as needed
+1. **Use in qontract-api** - Import from `qontract_utils.sharding`
+1. **Update reconcile** (future) - Migrate reconcile to use `qontract_utils.sharding`
 
 ## References
 
