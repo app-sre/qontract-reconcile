@@ -14,7 +14,7 @@ from reconcile.openshift_clusterrolebindings import (
     NAMESPACE_CLUSTER_SCOPE,
     ClusterRoleBindingSpec,
     OCResource,
-    fetch_desired_state_v2,
+    fetch_desired_state,
 )
 from reconcile.utils.openshift_resource import (
     OpenshiftResource as OR,
@@ -159,7 +159,7 @@ def test_get_oc_resources() -> None:
     )
 
 
-def test_fetch_desired_state_v2_with_filtered_clusters(
+def test_fetch_desired_state_with_filtered_clusters(
     mocker: MockerFixture,
 ) -> None:
     ri = ResourceInventory()
@@ -176,7 +176,7 @@ def test_fetch_desired_state_v2_with_filtered_clusters(
     mocker.patch(
         "reconcile.openshift_clusterrolebindings.get_app_interface_clusterroles"
     ).return_value = get_app_interface_test_clusterroles()
-    fetch_desired_state_v2(ri, allowed_clusters={"test-cluster5"})
+    fetch_desired_state(ri, allowed_clusters={"test-cluster5"})
     assert ri.get_desired(
         "test-cluster5",
         NAMESPACE_CLUSTER_SCOPE,
@@ -191,7 +191,7 @@ def test_fetch_desired_state_v2_with_filtered_clusters(
     )
 
 
-def test_fetch_desired_state_v2_without_filtered_clusters(
+def test_fetch_desired_state_without_filtered_clusters(
     mocker: MockerFixture,
 ) -> None:
     ri = ResourceInventory()
@@ -213,7 +213,7 @@ def test_fetch_desired_state_v2_without_filtered_clusters(
     mocker.patch(
         "reconcile.openshift_clusterrolebindings.get_app_interface_clusterroles"
     ).return_value = get_app_interface_test_clusterroles()
-    fetch_desired_state_v2(
+    fetch_desired_state(
         ri, allowed_clusters={"test-cluster5", "test-cluster", "test-cluster2"}
     )
     assert ri.get_desired(
@@ -230,7 +230,7 @@ def test_fetch_desired_state_v2_without_filtered_clusters(
     )
 
 
-def test_fetch_desired_state_v2_empty_clusters(mocker: MockerFixture) -> None:
+def test_fetch_desired_state_empty_clusters(mocker: MockerFixture) -> None:
     ri = ResourceInventory()
     ri.initialize_resource_type(
         "test-cluster5",
@@ -240,7 +240,7 @@ def test_fetch_desired_state_v2_empty_clusters(mocker: MockerFixture) -> None:
     mocker.patch(
         "reconcile.openshift_clusterrolebindings.get_app_interface_clusterroles"
     ).return_value = get_app_interface_test_clusterroles()
-    fetch_desired_state_v2(ri, allowed_clusters=set())
+    fetch_desired_state(ri, allowed_clusters=set())
     assert not ri.get_desired(
         "test-cluster5",
         NAMESPACE_CLUSTER_SCOPE,

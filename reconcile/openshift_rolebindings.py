@@ -206,42 +206,6 @@ class RoleBindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed
         )
 
 
-def construct_user_oc_resource(role: str, user: str) -> tuple[OR, str]:
-    name = f"{role}-{user}"
-    body = {
-        "apiVersion": "rbac.authorization.k8s.io/v1",
-        "kind": "RoleBinding",
-        "metadata": {"name": name},
-        "roleRef": {"kind": "ClusterRole", "name": role},
-        "subjects": [{"kind": "User", "name": user}],
-    }
-    return (
-        OR(
-            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
-        ),
-        name,
-    )
-
-
-def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[OR, str]:
-    name = f"{role}-{namespace}-{sa_name}"
-    body = {
-        "apiVersion": "rbac.authorization.k8s.io/v1",
-        "kind": "RoleBinding",
-        "metadata": {"name": name},
-        "roleRef": {"kind": "ClusterRole", "name": role},
-        "subjects": [
-            {"kind": "ServiceAccount", "name": sa_name, "namespace": namespace}
-        ],
-    }
-    return (
-        OR(
-            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
-        ),
-        name,
-    )
-
-
 def fetch_desired_state(
     ri: ResourceInventory | None,
     support_role_ref: bool = False,
