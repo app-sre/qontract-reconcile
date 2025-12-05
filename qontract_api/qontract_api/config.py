@@ -308,6 +308,7 @@ class Settings(BaseSettings):
     """Application settings from environment variables."""
 
     model_config = SettingsConfigDict(
+        env_file=".env",
         case_sensitive=False,
         env_prefix="QAPI_",
         env_nested_delimiter="__",

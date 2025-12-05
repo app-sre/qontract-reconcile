@@ -25,6 +25,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     # development and testing tools
+    "fastapi-cli==0.0.16",
     "httpx==0.28.1",
     "mypy==1.18.2",
     "pytest-asyncio==1.3.0",
