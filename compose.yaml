@@ -1,19 +1,7 @@
-services:
-  # Cache/Broker (Redis or Valkey compatible)
-  cache:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    volumes:
-      - cache_data:/data
-    networks:
-      - qontract-development
+include:
+- compose.redis.yaml
 
+services:
   # qontract-api (FastAPI)
   api:
     build:
@@ -107,9 +95,6 @@ services:
       - ./qontract_api_client/qontract_api_client:/opt/app-root/src/qontract_api_client
     networks:
       - qontract-development
-
-volumes:
-  cache_data:
 
 networks:
   qontract-development:
