@@ -1249,6 +1249,31 @@ def slack_usergroups_api(
     )
 
 
+@integration.command(short_help="Manage Slack User Groups (channels and users). api v2")
+@workspace_name
+@usergroup_name
+@click.pass_context
+def slack_usergroups_api_v2(
+    ctx: click.Context,
+    workspace_name: str | None,
+    usergroup_name: str | None,
+) -> None:
+    from reconcile.slack_usergroups_api_v2 import (
+        SlackUsergroupsIntegration,
+        SlackUsergroupsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=SlackUsergroupsIntegration(
+            SlackUsergroupsIntegrationParams(
+                workspace_name=workspace_name,
+                usergroup_name=usergroup_name,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manage permissions on GitLab projects.")
 @threaded()
 @click.pass_context
