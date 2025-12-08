@@ -1,69 +1,66 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, TypeVar, cast
+from typing import (
+    Any,
+    Literal,
+    TypeVar,
+    cast,
+)
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="HealthStatus")
+T = TypeVar("T", bound="UserSourceGitOwners")
 
 
 @_attrs_define
-class HealthStatus:
-    """Health status for a component.
-
+class UserSourceGitOwners:
+    """
     Attributes:
-        status (str): Health status: healthy, unhealthy, degraded
-        message (None | str | Unset): Optional status message
+        git_url (str):
+        provider (Literal['git_owners'] | Unset):  Default: 'git_owners'.
     """
 
-    status: str
-    message: None | str | Unset = UNSET
+    git_url: str
+    provider: Literal["git_owners"] | Unset = "git_owners"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        status = self.status
+        git_url = self.git_url
 
-        message: None | str | Unset
-        if isinstance(self.message, Unset):
-            message = UNSET
-        else:
-            message = self.message
+        provider = self.provider
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "status": status,
+            "git_url": git_url,
         })
-        if message is not UNSET:
-            field_dict["message"] = message
+        if provider is not UNSET:
+            field_dict["provider"] = provider
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        status = d.pop("status")
+        git_url = d.pop("git_url")
 
-        def _parse_message(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
+        provider = cast(Literal["git_owners"] | Unset, d.pop("provider", UNSET))
+        if provider != "git_owners" and not isinstance(provider, Unset):
+            raise ValueError(
+                f"provider must match const 'git_owners', got '{provider}'"
+            )
 
-        message = _parse_message(d.pop("message", UNSET))
-
-        health_status = cls(
-            status=status,
-            message=message,
+        user_source_git_owners = cls(
+            git_url=git_url,
+            provider=provider,
         )
 
-        health_status.additional_properties = d
-        return health_status
+        user_source_git_owners.additional_properties = d
+        return user_source_git_owners
 
     @property
     def additional_keys(self) -> list[str]:

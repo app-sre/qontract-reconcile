@@ -21,13 +21,16 @@ def _get_kwargs() -> dict[str, Any]:
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> HealthResponse:
+) -> HealthResponse | None:
     if response.status_code == 200:
         response_200 = HealthResponse.from_dict(response.json())
 
         return response_200
 
-    raise errors.UnexpectedStatus(response.status_code, response.content)
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
 
 
 def _build_response(
@@ -69,7 +72,7 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-) -> HealthResponse:
+) -> HealthResponse | None:
     """Readiness
 
      Readiness probe - returns 200 if service is ready to accept requests.
@@ -82,12 +85,9 @@ def sync(
         HealthResponse
     """
 
-    parsed = sync_detailed(
+    return sync_detailed(
         client=client,
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed
 
 
 async def asyncio_detailed(
@@ -116,7 +116,7 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-) -> HealthResponse:
+) -> HealthResponse | None:
     """Readiness
 
      Readiness probe - returns 200 if service is ready to accept requests.
@@ -129,11 +129,8 @@ async def asyncio(
         HealthResponse
     """
 
-    parsed = (
+    return (
         await asyncio_detailed(
             client=client,
         )
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed

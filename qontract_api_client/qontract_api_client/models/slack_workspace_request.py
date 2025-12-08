@@ -7,25 +7,25 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
-    from ..models.slack_usergroup import SlackUsergroup
+    from ..models.slack_usergroup_request import SlackUsergroupRequest
 
 
-T = TypeVar("T", bound="SlackWorkspace")
+T = TypeVar("T", bound="SlackWorkspaceRequest")
 
 
 @_attrs_define
-class SlackWorkspace:
+class SlackWorkspaceRequest:
     """A Slack workspace with its token and usergroups.
 
     Attributes:
         name (str): Workspace name (unique identifier)
-        usergroups (list[SlackUsergroup]): List of usergroups in this workspace
+        usergroups (list[SlackUsergroupRequest]): List of usergroups in this workspace
         managed_usergroups (list[str]): This list shows the usergroup handles/names managed by qontract-api. Any user
             group not included here will be abandoned during reconciliation.
     """
 
     name: str
-    usergroups: list[SlackUsergroup]
+    usergroups: list[SlackUsergroupRequest]
     managed_usergroups: list[str]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -51,7 +51,7 @@ class SlackWorkspace:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.slack_usergroup import SlackUsergroup
+        from ..models.slack_usergroup_request import SlackUsergroupRequest
 
         d = dict(src_dict)
         name = d.pop("name")
@@ -59,20 +59,20 @@ class SlackWorkspace:
         usergroups = []
         _usergroups = d.pop("usergroups")
         for usergroups_item_data in _usergroups:
-            usergroups_item = SlackUsergroup.from_dict(usergroups_item_data)
+            usergroups_item = SlackUsergroupRequest.from_dict(usergroups_item_data)
 
             usergroups.append(usergroups_item)
 
         managed_usergroups = cast(list[str], d.pop("managed_usergroups"))
 
-        slack_workspace = cls(
+        slack_workspace_request = cls(
             name=name,
             usergroups=usergroups,
             managed_usergroups=managed_usergroups,
         )
 
-        slack_workspace.additional_properties = d
-        return slack_workspace
+        slack_workspace_request.additional_properties = d
+        return slack_workspace_request
 
     @property
     def additional_keys(self) -> list[str]:

@@ -37,13 +37,16 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> RepoOwnersResponse:
+) -> RepoOwnersResponse | None:
     if response.status_code == 200:
         response_200 = RepoOwnersResponse.from_dict(response.json())
 
         return response_200
 
-    raise errors.UnexpectedStatus(response.status_code, response.content)
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
 
 
 def _build_response(
@@ -130,7 +133,7 @@ def sync(
     url_query: str,
     path: str | Unset = "/",
     ref: str | Unset = "master",
-) -> RepoOwnersResponse:
+) -> RepoOwnersResponse | None:
     r"""Get Repo Owners
 
      Get OWNERS file data from a Git repository.
@@ -178,15 +181,12 @@ def sync(
         RepoOwnersResponse
     """
 
-    parsed = sync_detailed(
+    return sync_detailed(
         client=client,
         url_query=url_query,
         path=path,
         ref=ref,
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed
 
 
 async def asyncio_detailed(
@@ -260,7 +260,7 @@ async def asyncio(
     url_query: str,
     path: str | Unset = "/",
     ref: str | Unset = "master",
-) -> RepoOwnersResponse:
+) -> RepoOwnersResponse | None:
     r"""Get Repo Owners
 
      Get OWNERS file data from a Git repository.
@@ -308,7 +308,7 @@ async def asyncio(
         RepoOwnersResponse
     """
 
-    parsed = (
+    return (
         await asyncio_detailed(
             client=client,
             url_query=url_query,
@@ -316,6 +316,3 @@ async def asyncio(
             ref=ref,
         )
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed

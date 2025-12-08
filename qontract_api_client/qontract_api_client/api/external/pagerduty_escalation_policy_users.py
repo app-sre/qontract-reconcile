@@ -1,6 +1,5 @@
 from http import HTTPStatus
 from typing import Any
-from urllib.parse import quote
 
 import httpx
 
@@ -24,9 +23,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v1/external/pagerduty/escalation-policies/{policy_id}/users".format(
-            policy_id=quote(str(policy_id), safe=""),
-        ),
+        "url": f"/api/v1/external/pagerduty/escalation-policies/{policy_id}/users",
         "params": params,
     }
 
@@ -35,13 +32,16 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> EscalationPolicyUsersResponse:
+) -> EscalationPolicyUsersResponse | None:
     if response.status_code == 200:
         response_200 = EscalationPolicyUsersResponse.from_dict(response.json())
 
         return response_200
 
-    raise errors.UnexpectedStatus(response.status_code, response.content)
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
 
 
 def _build_response(
@@ -119,7 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     instance: str,
-) -> EscalationPolicyUsersResponse:
+) -> EscalationPolicyUsersResponse | None:
     r"""Get Escalation Policy Users
 
      Get users in a PagerDuty escalation policy.
@@ -161,14 +161,11 @@ def sync(
         EscalationPolicyUsersResponse
     """
 
-    parsed = sync_detailed(
+    return sync_detailed(
         policy_id=policy_id,
         client=client,
         instance=instance,
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed
 
 
 async def asyncio_detailed(
@@ -233,7 +230,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     instance: str,
-) -> EscalationPolicyUsersResponse:
+) -> EscalationPolicyUsersResponse | None:
     r"""Get Escalation Policy Users
 
      Get users in a PagerDuty escalation policy.
@@ -275,13 +272,10 @@ async def asyncio(
         EscalationPolicyUsersResponse
     """
 
-    parsed = (
+    return (
         await asyncio_detailed(
             policy_id=policy_id,
             client=client,
             instance=instance,
         )
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed

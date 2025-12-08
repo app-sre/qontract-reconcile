@@ -1,6 +1,5 @@
 from http import HTTPStatus
 from typing import Any
-from urllib.parse import quote
 
 import httpx
 
@@ -29,9 +28,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v1/integrations/slack-usergroups/reconcile/{task_id}".format(
-            task_id=quote(str(task_id), safe=""),
-        ),
+        "url": f"/api/v1/integrations/slack-usergroups-v2/reconcile/{task_id}",
         "params": params,
     }
 
@@ -40,13 +37,16 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> SlackUsergroupsTaskResult:
+) -> SlackUsergroupsTaskResult | None:
     if response.status_code == 200:
         response_200 = SlackUsergroupsTaskResult.from_dict(response.json())
 
         return response_200
 
-    raise errors.UnexpectedStatus(response.status_code, response.content)
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
 
 
 def _build_response(
@@ -116,7 +116,7 @@ def sync(
     *,
     client: AuthenticatedClient,
     timeout: int | None | Unset = UNSET,
-) -> SlackUsergroupsTaskResult:
+) -> SlackUsergroupsTaskResult | None:
     """Slack Usergroups Task Status
 
      Retrieve reconciliation result (blocking or non-blocking).
@@ -150,14 +150,11 @@ def sync(
         SlackUsergroupsTaskResult
     """
 
-    parsed = sync_detailed(
+    return sync_detailed(
         task_id=task_id,
         client=client,
         timeout=timeout,
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed
 
 
 async def asyncio_detailed(
@@ -214,7 +211,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     timeout: int | None | Unset = UNSET,
-) -> SlackUsergroupsTaskResult:
+) -> SlackUsergroupsTaskResult | None:
     """Slack Usergroups Task Status
 
      Retrieve reconciliation result (blocking or non-blocking).
@@ -248,13 +245,10 @@ async def asyncio(
         SlackUsergroupsTaskResult
     """
 
-    parsed = (
+    return (
         await asyncio_detailed(
             task_id=task_id,
             client=client,
             timeout=timeout,
         )
     ).parsed
-    if parsed is None:
-        raise TypeError("Expected parsed response to be not None")
-    return parsed

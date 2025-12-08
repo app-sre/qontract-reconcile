@@ -5,20 +5,22 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.slack_usergroups_reconcile_request import SlackUsergroupsReconcileRequest
+from ...models.slack_usergroups_reconcile_request_v2 import (
+    SlackUsergroupsReconcileRequestV2,
+)
 from ...models.slack_usergroups_task_response import SlackUsergroupsTaskResponse
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: SlackUsergroupsReconcileRequest,
+    body: SlackUsergroupsReconcileRequestV2,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/api/v1/integrations/slack-usergroups/reconcile",
+        "url": "/api/v1/integrations/slack-usergroups-v2/reconcile",
     }
 
     _kwargs["json"] = body.to_dict()
@@ -57,7 +59,7 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: SlackUsergroupsReconcileRequest,
+    body: SlackUsergroupsReconcileRequestV2,
 ) -> Response[SlackUsergroupsTaskResponse]:
     """Slack Usergroups
 
@@ -75,7 +77,8 @@ def sync_detailed(
         SlackUsergroupsTaskResponse with task_id and status_url
 
     Args:
-        body (SlackUsergroupsReconcileRequest): Request model for Slack usergroups reconciliation.
+        body (SlackUsergroupsReconcileRequestV2): Request model for Slack usergroups
+            reconciliation.
 
             POST requests always queue a background task (async execution).
 
@@ -101,7 +104,7 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: SlackUsergroupsReconcileRequest,
+    body: SlackUsergroupsReconcileRequestV2,
 ) -> SlackUsergroupsTaskResponse | None:
     """Slack Usergroups
 
@@ -119,7 +122,8 @@ def sync(
         SlackUsergroupsTaskResponse with task_id and status_url
 
     Args:
-        body (SlackUsergroupsReconcileRequest): Request model for Slack usergroups reconciliation.
+        body (SlackUsergroupsReconcileRequestV2): Request model for Slack usergroups
+            reconciliation.
 
             POST requests always queue a background task (async execution).
 
@@ -140,7 +144,7 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: SlackUsergroupsReconcileRequest,
+    body: SlackUsergroupsReconcileRequestV2,
 ) -> Response[SlackUsergroupsTaskResponse]:
     """Slack Usergroups
 
@@ -158,7 +162,8 @@ async def asyncio_detailed(
         SlackUsergroupsTaskResponse with task_id and status_url
 
     Args:
-        body (SlackUsergroupsReconcileRequest): Request model for Slack usergroups reconciliation.
+        body (SlackUsergroupsReconcileRequestV2): Request model for Slack usergroups
+            reconciliation.
 
             POST requests always queue a background task (async execution).
 
@@ -182,7 +187,7 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: SlackUsergroupsReconcileRequest,
+    body: SlackUsergroupsReconcileRequestV2,
 ) -> SlackUsergroupsTaskResponse | None:
     """Slack Usergroups
 
@@ -200,7 +205,8 @@ async def asyncio(
         SlackUsergroupsTaskResponse with task_id and status_url
 
     Args:
-        body (SlackUsergroupsReconcileRequest): Request model for Slack usergroups reconciliation.
+        body (SlackUsergroupsReconcileRequestV2): Request model for Slack usergroups
+            reconciliation.
 
             POST requests always queue a background task (async execution).
 
