@@ -1,0 +1,155 @@
+"""Celery tasks for Slack usergroups reconciliation.
+
+This module defines background tasks for reconciling Slack usergroups.
+Tasks run in Celery workers, separate from the FastAPI application.
+"""
+
+from typing import Any
+
+from celery import Task
+
+from qontract_api.cache.factory import get_cache
+from qontract_api.config import settings
+from qontract_api.external.pagerduty import create_pagerduty_workspace_client
+from qontract_api.external.vcs import create_vcs_workspace_client
+from qontract_api.integrations.slack_usergroups_v2.models import (
+    SlackUsergroupsReconcilePayload,
+    SlackUsergroupsTaskResult,
+)
+from qontract_api.integrations.slack_usergroups_v2.service import SlackUsergroupsService
+from qontract_api.integrations.slack_usergroups_v2.slack_client_factory import (
+    SlackClientFactory,
+)
+from qontract_api.integrations.slack_usergroups_v2.user_source_git_owners_resolver import (
+    UserSourceGitOwnersResolver,
+)
+from qontract_api.integrations.slack_usergroups_v2.user_source_org_usernames_resolver import (
+    UserSourceOrgUsernamesResolver,
+)
+from qontract_api.integrations.slack_usergroups_v2.user_source_pager_duty_schedule_resolver import (
+    UserSourcePagerDutyResolver,
+)
+from qontract_api.logger import get_logger
+from qontract_api.models import TaskStatus
+from qontract_api.secret_reader.factory import get_secret_backend
+from qontract_api.tasks import BackgroundTask, celery_app, deduplicated_task
+
+logger = get_logger(__name__)
+
+
+def generate_lock_key(
+    _self: Task, payload: SlackUsergroupsReconcilePayload, **_: Any
+) -> str:
+    """Generate lock key for task deduplication.
+
+    Lock key is based on workspace names to prevent concurrent reconciliations
+    for the same workspaces.
+
+    Args:
+        payload: contains a list of workspace dictionaries (serialized SlackWorkspace models)
+
+    Returns:w
+        Lock key suffix (workspace names joined by comma)
+    """
+    workspace_names = sorted(ws.name for ws in payload.workspaces)
+    return ",".join(workspace_names)
+
+
+@celery_app.task(base=BackgroundTask, bind=True)
+@deduplicated_task(lock_key_fn=generate_lock_key, timeout=600)
+def reconcile_slack_usergroups_task(
+    self: Any,  # Celery Task instance (bind=True)
+    payload: SlackUsergroupsReconcilePayload,
+    *,
+    dry_run: bool = True,
+) -> SlackUsergroupsTaskResult | dict[str, str]:
+    """Reconcile Slack usergroups (background task).
+
+    This task runs in a Celery worker, not in the FastAPI application.
+    Uses global cache instance (get_cache()) shared across all tasks in worker.
+
+    Args:
+        self: Celery task instance (bind=True)
+        payload: Reconciliation payload
+        dry_run: If True, only calculate actions without executing
+
+    Returns:
+        SlackUsergroupsTaskResult on success
+        {"status": "skipped", "reason": "duplicate_task"} if duplicate task
+
+    Note:
+        @deduplicated_task decorator may return early if duplicate task is detected.
+        This prevents concurrent reconciliations for the same workspaces.
+    """
+    request_id = self.request.id
+    logger.info(
+        f"Starting reconciliation task {request_id}",
+        extra={
+            "workspace_count": len(payload.workspaces),
+            "dry_run": dry_run,
+        },
+    )
+
+    try:
+        # Get shared dependencies
+        cache = get_cache()
+        secret_backend = get_secret_backend()
+
+        # Create factory and service
+        slack_client_factory = SlackClientFactory(cache=cache, settings=settings)
+        user_source_git_owners_resolver = UserSourceGitOwnersResolver(
+            users=payload.users,
+            cache=cache,
+            secret_reader=secret_backend,
+            settings=settings,
+            vcs_workspace_client_builder=create_vcs_workspace_client,
+        )
+        user_source_org_usernames_resolver = UserSourceOrgUsernamesResolver(
+            users=payload.users,
+        )
+        user_source_pagerduty_resolver = UserSourcePagerDutyResolver(
+            users=payload.users,
+            cache=cache,
+            secret_reader=secret_backend,
+            settings=settings,
+            pagerduty_workspace_client_builder=create_pagerduty_workspace_client,
+        )
+        service = SlackUsergroupsService(
+            slack_client_factory=slack_client_factory,
+            secret_reader=secret_backend,
+            settings=settings,
+            user_source_git_owners_resolver=user_source_git_owners_resolver,
+            user_source_org_usernames_resolver=user_source_org_usernames_resolver,
+            user_source_pagerduty_resolver=user_source_pagerduty_resolver,
+        )
+
+        # Execute reconciliation
+        result = service.reconcile(
+            payload=payload,
+            dry_run=dry_run,
+        )
+
+        logger.info(
+            f"Task {request_id} completed",
+            extra={
+                "status": result.status,
+                "total_actions": len(result.actions),
+                "applied_count": result.applied_count,
+                "actions": [action.model_dump() for action in result.actions],
+                "errors": result.errors,
+            },
+        )
+
+        return result
+
+    except Exception as e:
+        logger.exception(
+            f"Task {request_id} failed with error",
+            extra={"error": str(e)},
+        )
+        return SlackUsergroupsTaskResult(
+            status=TaskStatus.FAILED,
+            actions=[],
+            applied_count=0,
+            errors=[str(e)],
+        )

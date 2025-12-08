@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from reconcile.utils.runtime.desired_state_diff import (
     build_desired_state_diff,
 )
 from reconcile.utils.runtime.integration import (
+    QontractReconcileApiIntegration,
     QontractReconcileIntegration,
     RunParams,
 )
@@ -28,7 +30,7 @@ class IntegrationRunConfiguration:
     Holds all required context and configuration for an integration run.
     """
 
-    integration: QontractReconcileIntegration
+    integration: QontractReconcileIntegration | QontractReconcileApiIntegration
     valdiate_schemas: bool
     """
     Whether to fail an integration if it queries schemas it is not allowed to.
@@ -66,10 +68,18 @@ class IntegrationRunConfiguration:
     """
 
     def main_bundle_desired_state(self) -> dict[str, Any] | None:
+        if not isinstance(self.integration, QontractReconcileIntegration):
+            raise RuntimeError(
+                "main_bundle_desired_state is only available for QontractReconcileIntegration"
+            )
         self.switch_to_main_bundle()
         return self.integration.get_early_exit_desired_state()
 
     def comparison_bundle_desired_state(self) -> dict[str, Any] | None:
+        if not isinstance(self.integration, QontractReconcileIntegration):
+            raise RuntimeError(
+                "comparison_bundle_desired_state is only available for QontractReconcileIntegration"
+            )
         self.switch_to_comparison_bundle()
         data = self.integration.get_early_exit_desired_state()
         self.switch_to_main_bundle()
@@ -133,6 +143,7 @@ def get_desired_state_diff(
         logging.exception("Failed to fetch desired state for current bundle")
         return None
 
+    assert isinstance(run_cfg.integration, QontractReconcileIntegration)
     return build_desired_state_diff(
         run_cfg.integration.get_desired_state_shard_config()
         if run_cfg.check_only_affected_shards
@@ -157,16 +168,21 @@ def run_integration_cfg(run_cfg: IntegrationRunConfiguration) -> None:
 
 
 def _integration_wet_run[RunParamsTypeVar: RunParams](
-    integration: QontractReconcileIntegration[RunParamsTypeVar],
+    integration: QontractReconcileIntegration[RunParamsTypeVar]
+    | QontractReconcileApiIntegration[RunParamsTypeVar],
 ) -> None:
     """
     Runs an integration in wet mode, i.e. not in dry-run mode.
     """
-    integration.run(False)
+    if isinstance(integration, QontractReconcileIntegration):
+        integration.run(False)
+    else:
+        asyncio.run(integration.async_run(False))
 
 
 def _integration_dry_run[RunParamsTypeVar: RunParams](
-    integration: QontractReconcileIntegration[RunParamsTypeVar],
+    integration: QontractReconcileIntegration[RunParamsTypeVar]
+    | QontractReconcileApiIntegration[RunParamsTypeVar],
     desired_state_diff: DesiredStateDiff | None,
 ) -> None:
     """
@@ -189,7 +205,8 @@ def _integration_dry_run[RunParamsTypeVar: RunParams](
     # we can still try to run the integration in sharded mode on the
     # affected shards only
     if (
-        integration.supports_sharded_dry_run_mode()
+        isinstance(integration, QontractReconcileIntegration)
+        and integration.supports_sharded_dry_run_mode()
         and not integration.params_have_shard_info()  # already running in sharded mode?
         and desired_state_diff
         and desired_state_diff.affected_shards
@@ -201,6 +218,7 @@ def _integration_dry_run[RunParamsTypeVar: RunParams](
             sharded_integration = integration.build_integration_instance_for_shard(
                 shard
             )
+            # TODO: support async mode for sharded dry-runs
             sharded_integration.run(True)
 
         # run all shards
@@ -220,8 +238,11 @@ def _integration_dry_run[RunParamsTypeVar: RunParams](
         else:
             return
 
-    # if not, we run the integration in full
-    integration.run(True)
+    if isinstance(integration, QontractReconcileIntegration):
+        # if not, we run the integration in full
+        integration.run(True)
+    else:
+        asyncio.run(integration.async_run(True))
 
 
 def _is_task_result_an_error(result: Any) -> bool:
