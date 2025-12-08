@@ -97,6 +97,11 @@ class SlackUsergroup(BaseModel, frozen=True):
         description="List of channel names (e.g., #general, team-channel)",
     )
 
+    @field_validator("users", "channels", mode="after")
+    @classmethod
+    def sorted_list(cls, value: list[str]) -> list[str]:
+        return sorted(value)
+
 
 # Type-safe action models
 class SlackUsergroupActionCreate(BaseModel, frozen=True):

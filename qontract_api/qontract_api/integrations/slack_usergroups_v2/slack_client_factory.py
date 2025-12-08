@@ -12,7 +12,7 @@ from qontract_utils.slack_api import SlackApi, SlackApiCallContext
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
-from qontract_api.integrations.slack_usergroups.slack_workspace_client import (
+from qontract_api.integrations.slack_usergroups_v2.slack_workspace_client import (
     SlackWorkspaceClient,
 )
 from qontract_api.rate_limit.token_bucket import TokenBucket

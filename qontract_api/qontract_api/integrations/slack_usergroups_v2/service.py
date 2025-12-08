@@ -218,7 +218,7 @@ class SlackUsergroupsService:
     ) -> set[str]:
         # TODO: extract to UserSourceFactory if more sources are needed
         match source.provider:
-            case "org_username":
+            case "org_usernames":
                 return self.user_source_org_usernames_resolver.resolve(
                     source.org_usernames
                 )

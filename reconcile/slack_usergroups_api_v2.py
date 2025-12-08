@@ -19,13 +19,23 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
-from qontract_api_client.api.integrations.slack_usergroups import (
-    asyncio as reconcile_slack_usergroups,
-)
-from qontract_api_client.api.integrations.slack_usergroups_task_status import (
+from qontract_api_client.api.integrations.slack_usergroups_task_status_v2 import (
     asyncio as slack_usergroups_task_status,
 )
-from qontract_api_client.models import SlackUsergroupActionUpdateUsers
+from qontract_api_client.api.integrations.slack_usergroups_v2 import (
+    asyncio as reconcile_slack_usergroups,
+)
+from qontract_api_client.models import (
+    SlackUsergroupActionUpdateUsers,
+    SlackUsergroupRequest,
+    SlackUsergroupsReconcilePayload,
+    SlackUsergroupsReconcileRequestV2,
+    SlackUsergroupsUser,
+    SlackWorkspaceRequest,
+    UserSourceGitOwners,
+    UserSourceOrgUsernames,
+    UserSourcePagerDuty,
+)
 from qontract_api_client.models.task_status import TaskStatus
 
 from reconcile.gql_definitions.slack_usergroups.clusters import ClusterV1
@@ -56,52 +66,13 @@ INTEGRATION_VERSION = "0.1.0"
 DATE_FORMAT = "%Y-%m-%d %H:%M"
 
 
-class SlackUsergroupUserSourceOrgUsernames(BaseModel):
-    provider: str
-    org_usernames: list[str]
-
-
-class SlackUsergroupUserSourceGitOwners(BaseModel):
-    provider: str
-    git_url: str
-
-
-class SlackUsergroupUserSourcePagerDuty(BaseModel):
-    provider: str
-    instance_name: str
-    schedule_id: str | None
-    escalation_policy_id: str | None
-
-
-class SlackUsergroup(BaseModel, arbitrary_types_allowed=True):
-    handle: str
-    description: str
-    channels: list[str]
-    user_sources: list[
-        SlackUsergroupUserSourceOrgUsername
-        | SlackUsergroupUserSourceGitOwners
-        | SlackUsergroupUserSourcePagerDuty
-    ]
-
-
 class SlackWorkspace(BaseModel, arbitrary_types_allowed=True):
     """A Slack workspace with its token and usergroups."""
 
     name: str
-    usergroups: list[SlackUsergroup]
+    usergroups: list[SlackUsergroupRequest]
     managed_usergroups: list[str]
     default_channel: str
-
-
-class User(BaseModel):
-    org_username: str
-    github_username: str | None
-    pagerduty_username: str | None
-
-
-class DesiredSpec(BaseModel):
-    workspaces: list[SlackWorkspace]
-    users: list[User]
 
 
 class SlackUsergroupsIntegrationParams(PydanticRunParams):
@@ -204,7 +175,7 @@ class SlackUsergroupsIntegration(
         permission: PermissionSlackUsergroupV1,
         desired_workspace_name: str | None,
         desired_usergroup_name: str | None,
-    ) -> tuple[str, SlackUsergroup] | None:
+    ) -> tuple[str, SlackUsergroupRequest] | None:
         """Process a single permission and return (workspace_name, usergroup)."""
         if permission.skip or not permission.workspace.managed_usergroups:
             return None
@@ -233,26 +204,24 @@ class SlackUsergroupsIntegration(
         users_from_roles = self.compile_users_from_roles(permission.roles)
         users_from_schedule = self.compile_users_from_schedule(permission.schedule)
         user_sources: list[
-            SlackUsergroupUserSourceOrgUsernames
-            | SlackUsergroupUserSourceGitOwners
-            | SlackUsergroupUserSourcePagerDuty
+            UserSourceGitOwners | UserSourceOrgUsernames | UserSourcePagerDuty
         ] = [
-            SlackUsergroupUserSourceOrgUsernames(
-                provider="org_username",
+            UserSourceOrgUsernames(
+                provider="org_usernames",
                 org_usernames=sorted(set(users_from_roles + users_from_schedule)),
             )
         ]
         if permission.owners_from_repos:
             user_sources.extend(
-                SlackUsergroupUserSourceGitOwners(
-                    provider="git-owners",
+                UserSourceGitOwners(
+                    provider="git_owners",
                     git_url=url,
                 )
                 for url in permission.owners_from_repos
             )
         if permission.pagerduty:
             user_sources.extend(
-                SlackUsergroupUserSourcePagerDuty(
+                UserSourcePagerDuty(
                     provider="pagerduty",
                     instance_name=pd.instance.name,
                     schedule_id=pd.schedule_id,
@@ -260,7 +229,7 @@ class SlackUsergroupsIntegration(
                 )
                 for pd in permission.pagerduty
             )
-        slack_usergroup = SlackUsergroup(
+        slack_usergroup = SlackUsergroupRequest(
             handle=usergroup_handle,
             description=permission.description or "",
             channels=sorted(set(permission.channels or [])),
@@ -276,7 +245,7 @@ class SlackUsergroupsIntegration(
     ) -> list[SlackWorkspace]:
         """Compile the desired slack-usergroups from permissions."""
         # Build workspace -> usergroups mapping
-        workspaces_map: dict[str, list[SlackUsergroup]] = defaultdict(list)
+        workspaces_map: dict[str, list[SlackUsergroupRequest]] = defaultdict(list)
         for permission in permissions:
             if result := self._process_permission(
                 permission,
@@ -395,12 +364,12 @@ class SlackUsergroupsIntegration(
                 # Filter by workspace if specified
                 if desired_workspace_name and workspace.name != desired_workspace_name:
                     continue
-                slack_usergroup = SlackUsergroup(
+                slack_usergroup = SlackUsergroupRequest(
                     handle=usergroup_handle,
                     description=f"Users with access to the {cluster.name} cluster",
                     channels=[workspace.default_channel],
                     user_sources=[
-                        SlackUsergroupUserSourceOrgUsernames(
+                        UserSourceOrgUsernames(
                             provider="org_usernames",
                             org_usernames=sorted(users),
                         )
@@ -415,23 +384,23 @@ class SlackUsergroupsIntegration(
 
     async def reconcile(
         self,
-        desired_spec: DesiredSpec,
+        payload: SlackUsergroupsReconcilePayload,
         dry_run: bool = True,
     ) -> None:
         """Call qontract-api to reconcile Slack usergroups.
 
         Args:
-            desired_spec: Desired specification
+            payload: Desired specification
             dry_run: If True, only calculate actions without executing
 
         Returns:
             Response from qontract-api
         """
-        request_data = SlackUsergroupsReconcileRequest(
-            payload=desired_spec,
+        request_data = SlackUsergroupsReconcileRequestV2(
+            payload=payload,
             dry_run=dry_run,
         )
-        response = reconcile_slack_usergroups(
+        response = await reconcile_slack_usergroups(
             client=self.qontract_api_client, body=request_data
         )
         return response
@@ -458,23 +427,31 @@ class SlackUsergroupsIntegration(
             desired_usergroup_name=self.params.usergroup_name,
         )
 
-        desired_spec = DesiredSpec(
-            workspaces=workspaces,
+        payload = SlackUsergroupsReconcilePayload(
+            workspaces=[
+                SlackWorkspaceRequest(
+                    name=workspace.name,
+                    usergroups=workspace.usergroups,
+                    managed_usergroups=workspace.managed_usergroups,
+                )
+                for workspace in workspaces
+            ],
             users=[
-                User(
+                SlackUsergroupsUser(
                     org_username=user.org_username,
                     github_username=user.github_username,
                     pagerduty_username=user.pagerduty_username,
+                    tag_on_merge_requests=user.tag_on_merge_requests,
                 )
                 for user in users
             ],
         )
 
-        if not desired_spec.workspaces or not desired_spec.users:
+        if not payload.workspaces or not payload.users:
             logging.warning("No desired state found, nothing to reconcile")
             return
 
-        task = await self.reconcile(desired_spec=desired_spec, dry_run=dry_run)
+        task = await self.reconcile(payload=payload, dry_run=dry_run)
         if dry_run:
             # wait for task completion and get the action list
             task_result = await slack_usergroups_task_status(
