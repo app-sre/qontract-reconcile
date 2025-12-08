@@ -90,7 +90,7 @@ def slack_usergroups(
 
 @router.get(
     "/reconcile/{task_id}",
-    operation_id="slack-usergroups-task-status",
+    operation_id="slack-usergroups-task-status-v2",
 )
 async def slack_usergroups_task_status(
     task_id: str,

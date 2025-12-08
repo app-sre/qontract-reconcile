@@ -28,7 +28,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": f"/api/v1/integrations/slack-usergroups/reconcile/{task_id}",
+        "url": f"/api/v1/integrations/slack-usergroups-v2/reconcile/{task_id}",
         "params": params,
     }
 
