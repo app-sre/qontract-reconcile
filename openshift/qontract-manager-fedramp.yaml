@@ -158,7 +158,7 @@ objects:
               buffered true
               <buffer>
                 @type file
-                path /fluentd/buffer
+                path /fluentd/buffer/gchat
 
                 flush_mode interval
                 flush_interval 15s
@@ -177,7 +177,7 @@ objects:
               buffered true
               <buffer>
                 @type file
-                path /fluentd/buffer
+                path /fluentd/buffer/gov_slack
 
                 flush_mode interval
                 flush_interval 15s
@@ -197,6 +197,19 @@ objects:
               username sd-app-sre-bot
               flush_interval 10s
               message "\`\`\`[integrations-manager] %s\`\`\`"
+              <buffer>
+                @type file
+                path /fluentd/buffer/errors_only
+
+                flush_mode interval
+                flush_interval 15s
+                flush_at_shutdown true
+
+                retry_max_times 0
+                retry_wait 30
+
+                disable_chunk_backup true
+              </buffer>
             </match>
             EOF
           volumeMounts:
