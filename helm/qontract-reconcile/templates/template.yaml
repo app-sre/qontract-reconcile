@@ -254,7 +254,7 @@ objects:
               buffered true
               <buffer>
                 @type file
-                path /fluentd/buffer/gchat
+                path /fluentd/buffer
 
                 flush_mode interval
                 flush_interval 15s
