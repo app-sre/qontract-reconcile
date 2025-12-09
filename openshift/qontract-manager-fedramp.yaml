@@ -171,7 +171,7 @@ objects:
               </buffer>
             </match>
             <match gov_slack>
-              @type teams
+              @type slack
               webhook_url "${GOV_SLACK_WEBHOOK_URL}&threadKey=${POD_NAME}"
               text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
               buffered true
