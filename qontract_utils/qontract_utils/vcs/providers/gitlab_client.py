@@ -6,6 +6,8 @@ from dataclasses import dataclass
 import gitlab
 from gitlab.v4.objects import Project
 
+from qontract_utils.hooks import invoke_with_hooks
+
 
 @dataclass
 class GitLabApiCallContext:
@@ -27,7 +29,7 @@ class GitLabRepoApi:
         token: GitLab personal access token
         gitlab_url: GitLab instance URL (default: https://gitlab.com)
         timeout: Request timeout in seconds
-        before_api_call_hooks: List of hooks called before each API call
+        pre_hooks: List of hooks called before each API call
     """
 
     def __init__(
@@ -36,13 +38,12 @@ class GitLabRepoApi:
         token: str,
         gitlab_url: str,
         timeout: int = 30,
-        before_api_call_hooks: list[Callable[[GitLabApiCallContext], None]]
-        | None = None,
+        pre_hooks: list[Callable[[GitLabApiCallContext], None]] | None = None,
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
         self._timeout = timeout
-        self._before_api_call_hooks = before_api_call_hooks or []
+        self._pre_hooks = pre_hooks or []
 
         # Create GitLab client
         self._gitlab = gitlab.Gitlab(
@@ -51,15 +52,6 @@ class GitLabRepoApi:
             timeout=timeout,
         )
         self._project: Project = self._gitlab.projects.get(project_id)
-
-    def _execute_hooks(self, context: GitLabApiCallContext) -> None:
-        """Execute all before_api_call_hooks with the given context.
-
-        Args:
-            context: API call context with method, repo_url, project_id
-        """
-        for hook in self._before_api_call_hooks:
-            hook(context)
 
     def get_file(self, path: str, ref: str = "master") -> str | None:
         """Fetch file content from repository.
@@ -71,15 +63,16 @@ class GitLabRepoApi:
         Returns:
             File content as string, or None if file not found
         """
-        context = GitLabApiCallContext(
-            method="get_file",
-            repo_url=self.repo_url,
-            project_id=self.project_id,
-        )
-        self._execute_hooks(context)
-
         try:
-            file = self._project.files.get(file_path=path, ref=ref)
+            with invoke_with_hooks(
+                GitLabApiCallContext(
+                    method="get_file",
+                    repo_url=self.repo_url,
+                    project_id=self.project_id,
+                ),
+                pre_hooks=self._pre_hooks,
+            ):
+                file = self._project.files.get(file_path=path, ref=ref)
             return file.decode().decode("utf-8")
         except Exception:  # noqa: BLE001
             # File not found or other error - python-gitlab can raise various exceptions

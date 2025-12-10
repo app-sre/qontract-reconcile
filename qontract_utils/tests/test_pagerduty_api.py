@@ -59,48 +59,28 @@ def test_pagerduty_api_client_created_with_token(
     mock_pagerduty_client.assert_called_once_with(api_key="test-api-key")
 
 
-def test_pagerduty_api_before_hooks_includes_metrics(
+def test_pagerduty_api_pre_hooks_includes_metrics(
     mock_pagerduty_client: MagicMock,
 ) -> None:
     """Test that metrics hook is always included."""
     api = PagerDutyApi("instance", "token")
 
     # Should have at least the metrics hook
-    assert len(api._before_api_call_hooks) >= 1
+    assert len(api._pre_hooks) >= 1
 
 
-def test_pagerduty_api_before_hooks_custom(mock_pagerduty_client: MagicMock) -> None:
+def test_pagerduty_api_pre_hooks_custom(mock_pagerduty_client: MagicMock) -> None:
     """Test custom hooks are added after metrics hook."""
     custom_hook = MagicMock()
     api = PagerDutyApi(
         "instance",
         "token",
-        before_api_call_hooks=[custom_hook],
+        pre_hooks=[custom_hook],
     )
 
     # Should have metrics hook + custom hook
-    assert len(api._before_api_call_hooks) == 2
-    assert api._before_api_call_hooks[1] == custom_hook
-
-
-def test_pagerduty_api_call_hooks(pagerduty_api: PagerDutyApi) -> None:
-    """Test _call_hooks creates correct context and calls all hooks."""
-    hook1 = MagicMock()
-    hook2 = MagicMock()
-    pagerduty_api._before_api_call_hooks = [hook1, hook2]
-
-    pagerduty_api._call_hooks("schedules.get", "GET")
-
-    # Both hooks should be called
-    assert hook1.call_count == 1
-    assert hook2.call_count == 1
-
-    # Verify context passed to hooks
-    context = hook1.call_args[0][0]
-    assert isinstance(context, PagerDutyApiCallContext)
-    assert context.method == "schedules.get"
-    assert context.verb == "GET"
-    assert context.instance == "test-instance"
+    assert len(api._pre_hooks) == 2
+    assert api._pre_hooks[1] == custom_hook
 
 
 # NOTE: _extract_org_username method removed - org_username is now a property on PagerDutyUser
@@ -216,7 +196,7 @@ def test_get_schedule_users_calls_hooks(
 ) -> None:
     """Test get_schedule_users calls hooks before API call."""
     hook = MagicMock()
-    pagerduty_api._before_api_call_hooks = [hook]
+    pagerduty_api._pre_hooks = [hook]
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
     pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
 
@@ -387,7 +367,7 @@ def test_get_escalation_policy_users_calls_hooks(
 ) -> None:
     """Test get_escalation_policy_users calls hooks before API call."""
     hook = MagicMock()
-    pagerduty_api._before_api_call_hooks = [hook]
+    pagerduty_api._pre_hooks = [hook]
     mock_policy: dict = {"escalation_rules": []}
     pagerduty_api._client.rget = MagicMock(return_value=mock_policy)
 
