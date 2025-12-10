@@ -274,7 +274,7 @@ objects:
               buffered true
               <buffer>
                 @type file
-                path /fluentd/buffer
+                path /fluentd/buffer/gov-slack
 
                 flush_mode interval
                 flush_interval 15s
