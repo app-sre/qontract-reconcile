@@ -65,6 +65,9 @@ Content-Type: application/json
 }
 
 Response: 202 Accepted
+Headers:
+  * Location: /api/v1/integrations/slack-usergroups/reconcile/550e8400-e29b-41d4-a716-446655440000
+Body:
 {
   "task_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "queued",
