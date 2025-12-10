@@ -167,7 +167,7 @@ class ProviderProtocol(Protocol):
         credentials: Any,
         timeout: int,
         hooks: list[Callable] | None = None,
-        **provider_kwargs: Any,
+        provider_settings: Any,
     ) -> Any:
         """Create provider-specific client instance.
 
@@ -176,7 +176,7 @@ class ProviderProtocol(Protocol):
             credentials: Authentication credentials (token, API key, etc.)
             timeout: Request timeout in seconds
             hooks: Optional list of before-request hooks (rate limiting, logging)
-            provider_kwargs: Provider-specific configuration options
+            provider_settings: Provider-specific configuration options
 
         Returns:
             Configured provider client instance
@@ -186,14 +186,14 @@ class ProviderProtocol(Protocol):
                 owner=parsed["owner"],
                 repo=parsed["repo"],
                 token=credentials,
-                github_api_url=provider_kwargs.get("api_url"),
+                github_api_url=provider_settings.api_url,
                 timeout=timeout,
                 before_api_call_hooks=hooks,
             )
 
         Example Secret Manager:
             return VaultClient(
-                url=provider_kwargs.get("vault_url"),
+                url=provider_settings.vault_url,
                 token=credentials,
                 timeout=timeout,
             )
@@ -298,14 +298,14 @@ class GitHubProvider:
 
         return {"owner": parts[0], "repo": parts[1]}
 
-    def create_client(self, url, token, timeout, hooks=None, **kwargs):
+    def create_client(self, url, token, timeout, hooks=None, provider_settings: GitHubProviderSettings):
         """Create GitHub API client."""
         parsed = self.parse_context(url)
         return GitHubRepoApi(
             owner=parsed["owner"],
             repo=parsed["repo"],
             token=token,
-            github_api_url=kwargs.get("api_url", "https://api.github.com"),
+            github_api_url=provider_settings.api_url,
             timeout=timeout,
             before_api_call_hooks=hooks or [],
         )
@@ -326,10 +326,10 @@ class VaultSecretProvider:
         # secret/data/myapp/db-password → {"path": "secret/data/myapp/db-password"}
         return {"path": path}
 
-    def create_client(self, path, token, timeout, hooks=None, **kwargs):
+    def create_client(self, path, token, timeout, hooks=None, provider_settings: VaultProviderSettings):
         """Create Vault client."""
         return VaultClient(
-            url=kwargs.get("vault_url", "http://localhost:8200"),
+            url=provider_settings.vault_url,
             token=token,
             timeout=timeout,
             namespace=kwargs.get("namespace"),
@@ -396,15 +396,15 @@ class ProviderFactory[T: ProviderProtocol]:
         credentials = self._credential_providers[provider.name]()
 
         # 3. Get provider-specific settings
-        provider_settings = self._get_provider_settings(provider.name)
+        provider_config = self._get_provider_config(provider.name)
 
         # 4. Create rate limiting hooks (if cache available)
         hooks = []
         if self._cache:
-            hooks.append(self._create_rate_limit_hook(provider.name, provider_settings))
+            hooks.append(self._create_rate_limit_hook(provider.name, provider_config))
 
-        # 5. Build provider-specific kwargs
-        kwargs = self._build_provider_kwargs(provider.name, provider_settings)
+        # 5. Build provider-specific settings
+        provider_settings = self._build_provider_settings(provider.name, provider_config)
 
         # 6. Provider creates client with all configuration
         client = provider.create_client(
@@ -412,12 +412,12 @@ class ProviderFactory[T: ProviderProtocol]:
             credentials=credentials,
             timeout=provider_settings.api_timeout,
             hooks=hooks,
-            **kwargs,
+            provider_settings=provider_settings,
         )
 
         return client, provider.name
 
-    def _get_provider_settings(self, provider_name: str) -> Any:
+    def _get_provider_config(self, provider_name: str) -> Any:
         """Get provider-specific settings from application config."""
         # Example: settings.vcs.providers.github
         #          settings.secrets.providers.vault
@@ -427,8 +427,8 @@ class ProviderFactory[T: ProviderProtocol]:
         """Create rate limiting hook for provider."""
         ...
 
-    def _build_provider_kwargs(self, provider_name: str, settings: Any) -> dict[str, Any]:
-        """Build provider-specific kwargs from settings."""
+    def _build_provider_settings(self, provider_name: str, settings: Any) -> GitHubProviderSettings | VaultProviderSettings | ...:
+        """Build provider-specific settings."""
         ...
 ```
 
