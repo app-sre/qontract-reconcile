@@ -61,8 +61,8 @@ class SlackSettings(BaseModel):
         description="Slack API timeout in seconds",
     )
     api_max_retries: int = Field(
-        default=5,
-        description="Slack API max retries for failed requests",
+        default=100,
+        description="Slack API max retries for failed requests including rate limiting",
     )
     api_method_configs: dict[str, dict[str, Any]] = Field(
         default_factory=lambda: {
@@ -70,20 +70,6 @@ class SlackSettings(BaseModel):
             "conversations.list": {"limit": 1000},
         },
         description="Slack API method-specific configurations",
-    )
-
-    # Rate Limiting (Token Bucket)
-    rate_limit_tier: str = Field(
-        default="tier2",
-        description="Slack rate limit tier (tier1/tier2/tier3/tier4)",
-    )
-    rate_limit_tokens: int = Field(
-        default=20,
-        description="Token bucket capacity",
-    )
-    rate_limit_refill_rate: float = Field(
-        default=0.3,
-        description="Token bucket refill rate (tokens per second)",
     )
 
     # Cache TTLs (seconds)
@@ -121,20 +107,6 @@ class PagerDutySettings(BaseModel):
     api_timeout: int = Field(
         default=30,
         description="PagerDuty API timeout in seconds",
-    )
-
-    # Rate Limiting (Token Bucket)
-    rate_limit_tier: str = Field(
-        default="tier2",
-        description="PagerDuty rate limit tier (tier1/tier2/tier3/tier4)",
-    )
-    rate_limit_tokens: int = Field(
-        default=10,
-        description="Token bucket capacity",
-    )
-    rate_limit_refill_rate: float = Field(
-        default=0.5,
-        description="Token bucket refill rate (tokens per second)",
     )
 
     # Cache TTLs (seconds)

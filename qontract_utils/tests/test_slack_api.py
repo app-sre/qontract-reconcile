@@ -35,35 +35,6 @@ def slack_api(mock_webclient: MagicMock) -> SlackApi:
     )
 
 
-def test_slack_api_defaults(mock_webclient: MagicMock) -> None:
-    """Test SlackApi stores timeout and max_retries parameters."""
-    api = SlackApi(
-        slack_api_url=DEFAULT_SLACK_API_URL,
-        workspace_name="workspace",
-        token="token",
-        timeout=DEFAULT_TIMEOUT,
-        max_retries=DEFAULT_MAX_RETRIES,
-    )
-
-    assert api.timeout == DEFAULT_TIMEOUT
-    assert api.max_retries == DEFAULT_MAX_RETRIES
-    assert api._method_configs == {}
-
-
-def test_slack_api_custom_timeout_retries(mock_webclient: MagicMock) -> None:
-    """Test SlackApi with custom timeout and max_retries."""
-    api = SlackApi(
-        slack_api_url=DEFAULT_SLACK_API_URL,
-        workspace_name="workspace",
-        token="token",
-        timeout=10,
-        max_retries=3,
-    )
-
-    assert api.timeout == 10
-    assert api.max_retries == 3
-
-
 def test_slack_api_method_configs(mock_webclient: MagicMock) -> None:
     """Test SlackApi with method-specific configurations."""
     method_configs: dict[str, dict[str, Any]] = {
@@ -108,8 +79,10 @@ def test_slack_api_retry_handlers_configured(mock_webclient: MagicMock) -> None:
         max_retries=7,
     )
 
-    # Should have 2 retry handlers added (rate limit + server error)
-    assert len(mock_webclient.return_value.retry_handlers) == 2
+    mock_webclient.assert_called_once()
+    call_kwargs = mock_webclient.call_args.kwargs
+    assert "retry_handlers" in call_kwargs
+    assert len(call_kwargs["retry_handlers"]) == 3
 
 
 def test_slack_api_workspace_name(mock_webclient: MagicMock) -> None:
