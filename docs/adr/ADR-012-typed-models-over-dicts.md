@@ -234,11 +234,6 @@ workspace.usergroups[0].config.users  # ← Fully typed!
   - **Mitigation:** Use TypedDict for truly simple cases (internal only)
   - **Mitigation:** API contracts benefit from formality
 
-- **Cannot modify frozen models:** Need to use `.model_copy()` for changes
-  - **Mitigation:** Immutability prevents bugs - this is a feature, not a bug
-  - **Mitigation:** Use `.model_copy(update={...})` when modification needed
-  - **Mitigation:** Most API models are read-only anyway
-
 ## Implementation Guidelines
 
 ### Pattern 1: Immutable Nested Model Hierarchy
