@@ -116,9 +116,6 @@ def manage_namespace(
 
     action = Action.DELETE if desired_state.delete else Action.CREATE
 
-    if namespace.startswith("openshift-"):
-        raise ValueError(f'cannot {action} a project starting with "openshift-"')
-
     logging.info([str(action), desired_state.cluster, namespace])
     if not dry_run:
         match action:
