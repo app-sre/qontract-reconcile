@@ -86,6 +86,7 @@ class SlackService:
 - Hard to mock for unit tests
 - Violates Dependency Inversion Principle
 - Service knows too much about how to get secrets
+- Requires monkey patching for testing. This is not a common concept in other languages which makes it harder to use for Python beginners.
 
 ### Alternative 2: Dependency Injection Framework
 
