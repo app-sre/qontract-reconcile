@@ -7,11 +7,14 @@ from typing import TYPE_CHECKING, Any
 
 from slack_sdk import WebClient
 from slack_sdk.http_retry import (
+    ConnectionErrorRetryHandler,
     HttpRequest,
     HttpResponse,
-    RateLimitErrorRetryHandler,
     RetryHandler,
     RetryState,
+)
+from slack_sdk.http_retry import (
+    RateLimitErrorRetryHandler as SlackSDKRateLimitErrorRetryHandler,
 )
 
 from qontract_utils.hooks import invoke_with_hooks
@@ -69,9 +72,25 @@ class ServerErrorRetryHandler(RetryHandler):
         response: HttpResponse | None = None,
         error: Exception | None = None,  # noqa: ARG002 - Required parameter for RetryHandler protocol
     ) -> bool:
+        # retry on all 5xx server errors (slack_sdk ServerErrorRetryHandler only retries on 500 and 503, 504)
         return (
             response is not None
             and response.status_code >= http.HTTPStatus.INTERNAL_SERVER_ERROR
+        )
+
+
+class RateLimitErrorRetryHandler(SlackSDKRateLimitErrorRetryHandler):
+    def prepare_for_next_attempt(
+        self,
+        *,
+        state: RetryState,
+        request: HttpRequest,
+        response: HttpResponse | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        logger.warning(f"Rate limit hit for request {request.url}.")
+        super().prepare_for_next_attempt(
+            state=state, request=request, response=response, error=error
         )
 
 
@@ -93,16 +112,14 @@ class SlackApi:
         Args:
             workspace_name: Slack workspace name (ex. coreos)
             token: Slack API token
-            timeout: API timeout in seconds (default: 30)
-            max_retries: Max retries for failed requests (default: 5)
+            timeout: API timeout in seconds
+            max_retries: Max retries for failed requests
             method_configs: Method-specific configs, e.g., {"users.list": {"limit": 1000}}
             pre_hooks: List of hooks called before every API call.
                 Hooks receive SlackApiCallContext with method, verb, and workspace info.
                 Metrics hook (_metrics_hook) is automatically included.
         """
         self.workspace_name = workspace_name
-        self.timeout = timeout
-        self.max_retries = max_retries
         self._method_configs = method_configs or {}
 
         # Build hooks list: always include metrics hook, then user hooks
@@ -112,16 +129,13 @@ class SlackApi:
 
         self._sc = WebClient(
             token=token,
-            timeout=self.timeout,
-            # Determine the appropriate Slack API base URL based on GOV_SLACK environment variable
+            timeout=timeout,
             base_url=slack_api_url,
-        )
-        # Add retry handlers in addition to the defaults provided by the Slack client
-        self._sc.retry_handlers.append(
-            RateLimitErrorRetryHandler(max_retry_count=self.max_retries)
-        )
-        self._sc.retry_handlers.append(
-            ServerErrorRetryHandler(max_retry_count=self.max_retries)
+            retry_handlers=[
+                ConnectionErrorRetryHandler(max_retry_count=max_retries),
+                RateLimitErrorRetryHandler(max_retry_count=max_retries),
+                ServerErrorRetryHandler(max_retry_count=max_retries),
+            ],
         )
 
     def users_list(self) -> list[SlackUser]:
@@ -147,9 +161,7 @@ class SlackApi:
                 ),
                 pre_hooks=self._pre_hooks,
             ):
-                result = self._sc.api_call(
-                    "users.list", http_verb="GET", params=additional_kwargs
-                )
+                result = self._sc.api_call("users.list", params=additional_kwargs)
 
             users.extend(SlackUser(**user_data) for user_data in result["members"])
 
@@ -333,7 +345,7 @@ class SlackApi:
                 pre_hooks=self._pre_hooks,
             ):
                 result = self._sc.api_call(
-                    "conversations.list", http_verb="GET", params=additional_kwargs
+                    "conversations.list", params=additional_kwargs
                 )
 
             channels.extend(
