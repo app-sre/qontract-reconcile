@@ -15,15 +15,24 @@ from qontract_utils.vcs.provider_registry import (
     VCSProviderRegistry,
     get_default_registry,
 )
-from qontract_utils.vcs.providers import GitHubProvider, GitLabProvider
 from qontract_utils.vcs.providers.github_client import GitHubRepoApi
+from qontract_utils.vcs.providers.github_provider import (
+    GitHubProvider,
+    GitHubProviderSettings,
+)
 from qontract_utils.vcs.providers.gitlab_client import GitLabRepoApi
+from qontract_utils.vcs.providers.gitlab_provider import (
+    GitLabProvider,
+    GitLabProviderSettings,
+)
 from qontract_utils.vcs.vcs_client import VCSClient
 
 __all__ = [
     "GitHubProvider",
+    "GitHubProviderSettings",
     "GitHubRepoApi",
     "GitLabProvider",
+    "GitLabProviderSettings",
     "GitLabRepoApi",
     "OwnersFileData",
     "OwnersParser",
