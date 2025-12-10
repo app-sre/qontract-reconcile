@@ -72,7 +72,7 @@ class VCSProviderProtocol(Protocol):
         token: str,
         timeout: int,
         hooks: list[Callable[[Any], None]],
-        **provider_kwargs: Any,
+        provider_settings: Any,
     ) -> VCSApiProtocol:
         """Create VCS API client instance for this provider.
 
@@ -81,8 +81,7 @@ class VCSProviderProtocol(Protocol):
             token: API authentication token
             timeout: Request timeout in seconds
             hooks: List of hook functions to execute before API calls
-            **provider_kwargs: Provider-specific keyword arguments
-                (e.g., github_api_url for GitHub)
+            provider_settings: Provider-specific settings
 
         Returns:
             VCS API client instance implementing VCSApiProtocol
