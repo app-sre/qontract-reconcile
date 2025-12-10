@@ -197,6 +197,19 @@ objects:
             </filter>
             {{- end}}
 
+            {{- if $.Values.enable_slack_error_filter }}
+            # tag errors for separate Slack routing (creates slack_errors tag while keeping integration tag)
+            <filter integration>
+              @type rewrite_tag_filter
+              emit_unmatched true
+              <rule>
+                key message
+                pattern /^\[ERROR\]/
+                tag slack_errors
+              </rule>
+            </filter>
+            {{- end}}
+
             <match integration>
               @type copy
               {{- if $logs.slack }}
@@ -231,17 +244,6 @@ objects:
                 </rule>
               </store>
               {{- end}}
-              {{- if $.Values.enable_slack_error_filter }}
-              # ship errors to separate slack channel
-              <store>
-                @type rewrite_tag_filter
-                <rule>
-                  key message
-                  pattern /^\[ERROR\]/
-                  tag slack_errors
-                </rule>
-              </store>
-              {{- end}}
             </match>
 
             {{- if $logs.googleChat }}
@@ -268,13 +270,13 @@ objects:
 
             {{- if eq $.Values.gov_slack "true" }}
             <match gov_slack>
-              @type teams
+              @type slack
               webhook_url "${GOV_SLACK_WEBHOOK_URL}&threadKey=${POD_NAME}"
               text "<%= Time.at(time) %> [${POD_NAME}] <%= record['message'] %>\n\n"
               buffered true
               <buffer>
                 @type file
-                path /fluentd/buffer
+                path /fluentd/buffer/gov_slack
 
                 flush_mode interval
                 flush_interval 15s
@@ -297,6 +299,19 @@ objects:
               username sd-app-sre-bot
               flush_interval 10s
               message "\`\`\`[{{ $integration.name }}] %s\`\`\`"
+              <buffer>
+                @type file
+                path /fluentd/buffer/errors_only
+
+                flush_mode interval
+                flush_interval 15s
+                flush_at_shutdown true
+
+                retry_max_times 0
+                retry_wait 30
+
+                disable_chunk_backup true
+              </buffer>
             </match>
             {{- end }}
             EOF
