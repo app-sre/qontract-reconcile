@@ -58,7 +58,9 @@ class SlackApiCallContext:
 **3. Multiple Hooks Support**:
 
 ```python
-before_api_call_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None
+pre_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None
+post_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None
+error_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None
 ```
 
 **4. Built-in Hooks** (always included):
@@ -72,10 +74,12 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
 **5. Hook Execution**:
 
 ```python
-def _call_hooks(self, method: str, verb: str) -> None:
-    context = SlackApiCallContext(method=method, verb=verb, workspace=self.workspace_name)
-    for hook in self._before_api_call_hooks:
-        hook(context)
+with invoke_with_hooks(
+    context=SlackApiCallContext(method="chat.postMessage", verb="POST", workspace=self.workspace_name),
+    pre_hooks=self.pre_hooks,
+):
+    self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
+
 ```
 
 ## Implementation Example: SlackApi
@@ -85,6 +89,7 @@ def _call_hooks(self, method: str, verb: str) -> None:
 ```python
 from dataclasses import dataclass
 from collections.abc import Callable, Sequence
+from qontract_utils.hooks import invoke_with_hooks
 
 @dataclass(frozen=True)
 class SlackApiCallContext:
@@ -102,25 +107,24 @@ class SlackApi:
         self,
         workspace_name: str,
         token: str,
-        before_api_call_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
+        pre_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
         *,
         init_usergroups: bool = True,
         channel: str | None = None,
         **chat_kwargs: Any,
     ) -> None:
         # Always include metrics hook first, then user hooks
-        self._before_api_call_hooks = [_metrics_hook]
-        if before_api_call_hooks:
-            self._before_api_call_hooks.extend(before_api_call_hooks)
-
-    def _call_hooks(self, method: str, verb: str) -> None:
-        context = SlackApiCallContext(method=method, verb=verb, workspace=self.workspace_name)
-        for hook in self._before_api_call_hooks:
-            hook(context)
+        self._pre_hooks = [_metrics_hook]
+        if pre_hooks:
+            self._pre_hooks.extend(pre_hooks)
 
     def chat_post_message(self, text: str) -> None:
-        self._call_hooks("chat.postMessage", "POST")  # Automatic metrics + user hooks!
-        self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
+        with invoke_with_hooks(
+            context=SlackApiCallContext(method="chat.postMessage", verb="POST", workspace=self.workspace_name),
+            pre_hooks=self.pre_hooks,
+        ):
+            self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
+
 ```
 
 ### Factory Pattern with Rate Limiting Hook
@@ -136,7 +140,7 @@ def create_slack_api(workspace_name: str, token: str, cache: CacheBackend, setti
     return SlackApi(
         workspace_name,
         token,
-        before_api_call_hooks=[rate_limit_hook],
+        pre_hooks=[rate_limit_hook],
         init_usergroups=True,
     )
 ```
@@ -196,11 +200,13 @@ def create_slack_api_with_full_observability(
     return SlackApi(
         workspace_name,
         token,
-        before_api_call_hooks=[
+        pre_hooks=[
             rate_limit_hook,    # Executed 2nd (after built-in metrics)
             logging_hook,       # Executed 3rd
             tracing_hook,       # Executed 4th
         ],
+        post_hooks=[post_api_call_hook], # Executed after successful API calls
+        error_hooks=[error_handling_hook], # Executed on API call errors
         init_usergroups=True,
     )
 ```
@@ -222,87 +228,11 @@ def create_slack_api_with_full_observability(
 
 ## Future Enhancements
 
-The current implementation focuses on `before_api_call_hooks`. Future versions could support additional hook types for comprehensive API lifecycle management.
+The current implementation focuses on `pre_hooks`. Future versions could support additional hook types for comprehensive API lifecycle management.
 
 ### Other Possible Hook Types
 
-#### 1. `after_api_call_hooks`
-
-Execute hooks after successful API calls.
-
-**Signature:**
-
-```python
-Callable[[<Service>ApiCallContext, Response], None]
-```
-
-**Use Cases:**
-
-- **Response caching**: Cache API responses for performance
-- **Success metrics**: Track successful API call latency, response sizes
-- **Audit logging**: Log successful operations with response data
-- **Webhooks**: Trigger notifications on successful operations
-
-**Example:**
-
-```python
-def cache_response_hook(context: SlackApiCallContext, response: Any) -> None:
-    """Cache successful API responses."""
-    cache_key = f"slack:{context.workspace}:{context.method}"
-    cache.set(cache_key, response, ttl=300)
-
-def success_metrics_hook(context: SlackApiCallContext, response: Any) -> None:
-    """Track successful API call metrics."""
-    slack_success.labels(context.method, context.workspace).inc()
-
-SlackApi(
-    workspace_name,
-    token,
-    after_api_call_hooks=[cache_response_hook, success_metrics_hook],
-)
-```
-
-#### 2. `on_error_hooks`
-
-Execute hooks when API calls fail with exceptions.
-
-**Signature:**
-
-```python
-Callable[[<Service>ApiCallContext, Exception], None]
-```
-
-**Use Cases:**
-
-- **Error metrics**: Track API failure rates by error type
-- **Alerting**: Send alerts on critical errors
-- **Error logging**: Log detailed error context for debugging
-- **Retry decision logic**: Decide whether to retry based on error type
-
-**Example:**
-
-```python
-def error_metrics_hook(context: SlackApiCallContext, error: Exception) -> None:
-    """Track API error metrics by type."""
-    error_type = type(error).__name__
-    slack_errors.labels(context.method, error_type, context.workspace).inc()
-
-def alert_on_auth_error_hook(context: SlackApiCallContext, error: Exception) -> None:
-    """Alert on authentication failures."""
-    if isinstance(error, SlackApiError) and error.response.get("error") == "invalid_auth":
-        alertmanager.send_alert(
-            severity="critical",
-            summary=f"Slack auth failed for workspace {context.workspace}",
-        )
-
-SlackApi(
-    workspace_name,
-    token,
-    on_error_hooks=[error_metrics_hook, alert_on_auth_error_hook],
-)
-```
-
-#### 3. `on_retry_hooks`
+#### 1. `retry_hooks`
 
 Execute hooks before each retry attempt.
 
@@ -335,11 +265,11 @@ def retry_metrics_hook(context: SlackApiCallContext, retry_attempt: int) -> None
 SlackApi(
     workspace_name,
     token,
-    on_retry_hooks=[retry_metrics_hook],
+    retry_hooks=[retry_metrics_hook],
 )
 ```
 
-#### 4. `on_timeout_hooks`
+#### 2. `timeout_hooks`
 
 Execute hooks when API calls timeout.
 
@@ -372,43 +302,9 @@ def timeout_metrics_hook(context: SlackApiCallContext, timeout_duration: float) 
 SlackApi(
     workspace_name,
     token,
-    on_timeout_hooks=[timeout_metrics_hook],
+    timeout_hooks=[timeout_metrics_hook],
 )
 ```
-
-### Backward Compatibility
-
-New hook types will be introduced as **optional parameters** to maintain backward compatibility:
-
-```python
-class SlackApi:
-    def __init__(
-        self,
-        workspace_name: str,
-        token: str,
-        before_api_call_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
-        after_api_call_hooks: Sequence[Callable[[SlackApiCallContext, Any], None]] | None = None,  # New
-        on_error_hooks: Sequence[Callable[[SlackApiCallContext, Exception], None]] | None = None,  # New
-        on_retry_hooks: Sequence[Callable[[SlackApiCallContext, int], None]] | None = None,  # New
-        on_timeout_hooks: Sequence[Callable[[SlackApiCallContext, float], None]] | None = None,  # New
-        **kwargs: Any,
-    ) -> None:
-        ...
-```
-
-**Migration Path:**
-
-1. Existing code using `before_api_call_hooks` continues to work unchanged
-2. New hook types are opt-in (default: `None`)
-3. Services can adopt new hooks incrementally
-4. No breaking changes to existing API wrappers
-
-### Implementation Timeline
-
-- **Phase 1 (Current)**: `before_api_call_hooks` - Rate limiting, logging, tracing
-- **Phase 2 (Next)**: `after_api_call_hooks` - Response caching, success metrics
-- **Phase 3 (Future)**: `on_error_hooks` - Error handling, alerting
-- **Phase 4 (Future)**: `on_retry_hooks`, `on_timeout_hooks` - Advanced resilience patterns
 
 ## Alternatives Considered
 
@@ -481,7 +377,7 @@ Service-specific context dataclasses with multiple hook support.
 
 1. **Define service-specific context** (frozen dataclass with `method`, `verb`, + service fields)
 2. **Create built-in metrics hook** (track API calls with service-specific labels)
-3. **Accept hook list in `__init__`**: `before_api_call_hooks: Sequence[Callable[[...], None]] | None`
+3. **Accept hook list in `__init__`**: `pre_hooks: Sequence[Callable[[...], None]] | None`
 4. **Always include metrics hook first**, then extend with user hooks
 5. **Implement `_call_hooks` method** (create context, execute all hooks)
 6. **Call hooks before API calls**: `self._call_hooks(method, verb)` in every API method
