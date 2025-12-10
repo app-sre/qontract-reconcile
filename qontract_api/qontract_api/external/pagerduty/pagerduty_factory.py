@@ -26,7 +26,7 @@ def create_pagerduty_api(
     """Create PagerDutyApi instance with rate limiting hook and config from settings.
 
     Creates a TokenBucket rate limiter configured from settings and injects it
-    as a before_api_call_hook into PagerDutyApi. This ensures all PagerDuty API calls
+    as a pre_hook into PagerDutyApi. This ensures all PagerDuty API calls
     are rate-limited according to the configured tier.
 
     Prometheus metrics are automatically tracked via the built-in _metrics_hook.
@@ -63,7 +63,7 @@ def create_pagerduty_api(
         instance_name,
         token,
         timeout=settings.pagerduty.api_timeout,
-        before_api_call_hooks=[rate_limit_hook],
+        pre_hooks=[rate_limit_hook],
     )
 
 

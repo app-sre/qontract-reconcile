@@ -364,7 +364,7 @@ The integration can perform these reconciliation actions:
   - `QAPI_SLACK__RATE_LIMIT_TIER`: Slack tier (tier1-tier4, default: tier2)
   - `QAPI_SLACK__RATE_LIMIT_TOKENS`: Bucket capacity (default: 20)
   - `QAPI_SLACK__RATE_LIMIT_REFILL_RATE`: Tokens per second (default: 1.0)
-- Rate limit applies to all Slack API calls (enforced via before_api_call_hook)
+- Rate limit applies to all Slack API calls (enforced via pre-hooks)
 - Distributed rate limiting using Redis backend
 
 **Caching:**

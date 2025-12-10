@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from github import Github
 from github.Repository import Repository
 
+from qontract_utils.hooks import invoke_with_hooks
+
 
 @dataclass
 class GitHubApiCallContext:
@@ -29,7 +31,7 @@ class GitHubRepoApi:
         token: GitHub personal access token
         github_api_url: GitHub API base URL (default: https://api.github.com)
         timeout: Request timeout in seconds
-        before_api_call_hooks: List of hooks called before each API call
+        pre_hooks: List of hooks called before each API call
     """
 
     def __init__(
@@ -39,29 +41,19 @@ class GitHubRepoApi:
         token: str,
         github_api_url: str = "https://api.github.com",
         timeout: int = 30,
-        before_api_call_hooks: list[Callable[[GitHubApiCallContext], None]]
-        | None = None,
+        pre_hooks: list[Callable[[GitHubApiCallContext], None]] | None = None,
     ) -> None:
         self.owner = owner
         self.repo = repo
         self.repo_url = f"https://github.com/{owner}/{repo}"
         self._timeout = timeout
-        self._before_api_call_hooks = before_api_call_hooks or []
+        self._pre_hooks = pre_hooks or []
 
         # PyGithub expects base_url without /api/v3
         self._github = Github(
             login_or_token=token, base_url=github_api_url.rstrip("/"), timeout=timeout
         )
         self._repository: Repository = self._github.get_repo(f"{owner}/{repo}")
-
-    def _execute_hooks(self, context: GitHubApiCallContext) -> None:
-        """Execute all before_api_call_hooks with the given context.
-
-        Args:
-            context: API call context with method, repo_url, owner, repo
-        """
-        for hook in self._before_api_call_hooks:
-            hook(context)
 
     def get_file(self, path: str, ref: str = "master") -> str | None:
         """Fetch file content from repository.
@@ -73,16 +65,17 @@ class GitHubRepoApi:
         Returns:
             File content as string, or None if file not found
         """
-        context = GitHubApiCallContext(
-            method="get_file",
-            repo_url=self.repo_url,
-            owner=self.owner,
-            repo=self.repo,
-        )
-        self._execute_hooks(context)
-
         try:
-            content_file = self._repository.get_contents(path, ref=ref)
+            with invoke_with_hooks(
+                GitHubApiCallContext(
+                    method="get_file",
+                    repo_url=self.repo_url,
+                    owner=self.owner,
+                    repo=self.repo,
+                ),
+                pre_hooks=self._pre_hooks,
+            ):
+                content_file = self._repository.get_contents(path, ref=ref)
             if isinstance(content_file, list):
                 # Path is a directory, not a file
                 return None

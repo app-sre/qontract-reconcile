@@ -9,7 +9,7 @@ Layer 1 (Pure Communication):
 
 Hook System (ADR-006):
 - PagerDutyApiCallContext: Context passed to hooks
-- before_api_call_hooks: Hook system for metrics, rate limiting, logging
+- pre_hooks: Hook system for metrics, rate limiting, logging
 
 Example:
     >>> from qontract_utils.pagerduty_api import PagerDutyApi, PagerDutyUser
