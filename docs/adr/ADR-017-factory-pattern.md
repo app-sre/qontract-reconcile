@@ -1,4 +1,4 @@
-# ADR-017: Provider Registry Pattern
+# ADR-017: Factory Pattern
 
 **Status:** Accepted
 **Date:** 2025-11-14
@@ -44,19 +44,19 @@ Without a structured pattern, applications typically handle multiple providers u
 
 ## Decision
 
-Implement **Provider Registry Pattern** for managing external service providers with complete dependency injection.
+Implement **Factory Pattern** for managing external service providers with complete dependency injection.
 
 The pattern separates concerns into distinct components:
 
 1. **Provider Protocol**: Defines interface all providers must implement
-2. **Provider Registry**: Centralized registry managing provider instances
+2. **Factory**: Centralized registry managing provider instances
 3. **Provider Implementations**: Self-contained provider classes (GitHub, Vault, AWS, etc.)
 4. **Provider Factory**: Creates clients with provider-specific configuration and rate limiting
 5. **Client Layer**: Provider-agnostic client using dependency injection
 
-### Why Provider Registry Pattern?
+### Why Factory Pattern?
 
-The Provider Registry Pattern solves the fundamental problem of **extensibility with dependency injection**:
+The Factory Pattern solves the fundamental problem of **extensibility with dependency injection**:
 
 - **Registry as Service Locator**: Providers register themselves, core code doesn't need to know about them
 - **Auto-Detection**: Registry iterates providers to find matching one based on context
@@ -203,7 +203,7 @@ class ProviderProtocol(Protocol):
 
 **Why Protocol?** Type-safe interface without inheritance. Providers don't need to subclass, just implement the protocol methods.
 
-#### 2. Provider Registry
+#### 2. Registry
 
 Centralized registry for provider management:
 
@@ -338,7 +338,7 @@ class VaultSecretProvider:
 
 **Why Self-Contained?** Each provider owns its detection logic, parsing rules, and client creation. No dependencies on other providers.
 
-#### 4. Provider Factory
+#### 4. Factory
 
 Creates clients with provider-specific configuration:
 
@@ -695,7 +695,7 @@ Dynamic plugin loading with entry points.
 
 **Rejected:** Over-engineered for requirements.
 
-### Alternative 4: Provider Registry Pattern (Selected)
+### Alternative 4: Factory Pattern (Selected)
 
 **Pros:**
 
