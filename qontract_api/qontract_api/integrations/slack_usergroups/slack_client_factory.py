@@ -69,7 +69,7 @@ class SlackClientFactory:
             timeout=self.settings.slack.api_timeout,
             max_retries=self.settings.slack.api_max_retries,
             method_configs=self.settings.slack.api_method_configs,
-            before_api_call_hooks=[rate_limit_hook],
+            pre_hooks=[rate_limit_hook],
         )
 
     def create_workspace_client(

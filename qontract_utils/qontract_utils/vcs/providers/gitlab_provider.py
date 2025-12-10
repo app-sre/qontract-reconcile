@@ -97,7 +97,7 @@ class GitLabProvider:
             url: GitLab repository URL
             token: GitLab API token
             timeout: Request timeout in seconds
-            hooks: List of hooks for before_api_call_hooks
+            hooks: List of hooks for pre_hooks
             **provider_kwargs: Optional keyword arguments (currently unused)
 
         Returns:
@@ -113,5 +113,5 @@ class GitLabProvider:
             token=token,
             gitlab_url=parsed_url.gitlab_url,
             timeout=timeout,
-            before_api_call_hooks=hooks,
+            pre_hooks=hooks,
         )

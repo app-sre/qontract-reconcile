@@ -125,7 +125,7 @@ def test_slack_api_workspace_name(mock_webclient: MagicMock) -> None:
     assert api.workspace_name == "test-workspace"
 
 
-def test_slack_api_before_hooks_includes_metrics(mock_webclient: MagicMock) -> None:
+def test_slack_api_pre_hooks_includes_metrics(mock_webclient: MagicMock) -> None:
     """Test that metrics hook is always included."""
     api = SlackApi(
         slack_api_url=DEFAULT_SLACK_API_URL,
@@ -136,10 +136,10 @@ def test_slack_api_before_hooks_includes_metrics(mock_webclient: MagicMock) -> N
     )
 
     # Should have at least the metrics hook
-    assert len(api._before_api_call_hooks) >= 1
+    assert len(api._pre_hooks) >= 1
 
 
-def test_slack_api_before_hooks_custom(mock_webclient: MagicMock) -> None:
+def test_slack_api_pre_hooks_custom(mock_webclient: MagicMock) -> None:
     """Test custom hooks are added after metrics hook."""
     custom_hook = MagicMock()
     api = SlackApi(
@@ -148,12 +148,12 @@ def test_slack_api_before_hooks_custom(mock_webclient: MagicMock) -> None:
         token="token",
         timeout=DEFAULT_TIMEOUT,
         max_retries=DEFAULT_MAX_RETRIES,
-        before_api_call_hooks=[custom_hook],
+        pre_hooks=[custom_hook],
     )
 
     # Should have metrics hook + custom hook
-    assert len(api._before_api_call_hooks) == 2
-    assert api._before_api_call_hooks[1] == custom_hook
+    assert len(api._pre_hooks) == 2
+    assert api._pre_hooks[1] == custom_hook
 
 
 # Typed methods tests

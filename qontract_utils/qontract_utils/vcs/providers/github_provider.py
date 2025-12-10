@@ -96,7 +96,7 @@ class GitHubProvider:
             url: GitHub repository URL
             token: GitHub API token
             timeout: Request timeout in seconds
-            hooks: List of hooks for before_api_call_hooks
+            hooks: List of hooks for pre_hooks
             **provider_kwargs: Optional keyword arguments:
                 - github_api_url: GitHub API base URL (default: https://api.github.com)
 
@@ -115,5 +115,5 @@ class GitHubProvider:
             token=token,
             github_api_url=github_api_url,
             timeout=timeout,
-            before_api_call_hooks=hooks,
+            pre_hooks=hooks,
         )
