@@ -26,7 +26,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 | [ADR-014](ADR-014-three-layer-architecture-for-external-apis.md) | Three-Layer Architecture for External API Integrations | Accepted |
 | [ADR-015](ADR-015-cache-update-strategy.md)                      | Cache Update Instead of Invalidation                   | Accepted |
 | [ADR-016](ADR-016-two-tier-cache.md)                             | Two-Tier Cache Architecture (Memory + Redis)           | Accepted |
-| [ADR-017](ADR-017-provider-registry-pattern.md)                  | Provider Registry Pattern                              | Accepted |
+| [ADR-017](ADR-017-factory-pattern.md)                            | Factory Pattern                                        | Accepted |
 
 ## ADR Categories
 
@@ -53,7 +53,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 - [ADR-014](ADR-014-three-layer-architecture-for-external-apis.md) - Three-layer architecture for external APIs
 - [ADR-015](ADR-015-cache-update-strategy.md) - Cache update strategy (update vs invalidation)
 - [ADR-016](ADR-016-two-tier-cache.md) - Two-tier cache (memory + Redis) for performance
-- [ADR-017](ADR-017-vcs-provider-registry-pattern.md) - VCS provider registry pattern for extensibility
+- [ADR-017](ADR-017-factory-pattern.md) - Factory pattern for extensibility
 
 ### Code Conventions
 
