@@ -6,14 +6,14 @@ task execution using distributed locking through the CacheBackend abstraction.
 Uses global cache instance (get_cache()) to avoid creating multiple connections.
 """
 
-import logging
 from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
 from qontract_api.cache.factory import get_cache
+from qontract_api.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -62,7 +62,8 @@ def deduplicated_task(
 
             logger.debug(
                 f"Attempting to acquire lock for task {func.__name__}",
-                extra={"lock_key": lock_key, "timeout": timeout},
+                lock_key=lock_key,
+                timeout=timeout,
             )
 
             # Try to acquire lock (non-blocking via exception handling)
@@ -71,10 +72,8 @@ def deduplicated_task(
                 with cache.lock(lock_key, timeout=timeout):
                     logger.debug(
                         f"Lock acquired for task {func.__name__}",
-                        extra={
-                            "lock_key": lock_key,
-                            "lock_key_suffix": lock_key_suffix,
-                        },
+                        lock_key=lock_key,
+                        lock_key_suffix=lock_key_suffix,
                     )
 
                     # Execute task
@@ -82,10 +81,8 @@ def deduplicated_task(
 
                     logger.debug(
                         f"Lock released for task {func.__name__}",
-                        extra={
-                            "lock_key": lock_key,
-                            "lock_key_suffix": lock_key_suffix,
-                        },
+                        lock_key=lock_key,
+                        lock_key_suffix=lock_key_suffix,
                     )
 
                     return result
@@ -94,7 +91,8 @@ def deduplicated_task(
                 # Lock could not be acquired - duplicate task is running
                 logger.warning(
                     f"Task {func.__name__} already running, skipping duplicate",
-                    extra={"lock_key": lock_key, "lock_key_suffix": lock_key_suffix},
+                    lock_key=lock_key,
+                    lock_key_suffix=lock_key_suffix,
                 )
                 return {"status": "skipped", "reason": "duplicate_task"}
 

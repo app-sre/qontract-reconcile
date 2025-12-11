@@ -323,7 +323,7 @@ class Settings(BaseSettings):
     )
     log_exclude_loggers: str = Field(
         default="slack_sdk,httpcore,github.Requester",
-        description="Comma-separated list of logger names to exclude from DEBUG logging",
+        description="Comma-separated list of logger names to exclude from logging",
     )
 
     # Cache Backend

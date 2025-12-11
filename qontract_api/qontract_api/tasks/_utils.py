@@ -2,7 +2,6 @@
 
 # ruff: noqa: PLR6301, ARG002
 import asyncio
-import logging
 import time
 from collections.abc import Callable
 from typing import Any, Protocol, TypeVar, runtime_checkable
@@ -13,9 +12,10 @@ from celery.result import AsyncResult
 from fastapi import HTTPException, status
 from hvac.exceptions import VaultError
 
+from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @runtime_checkable
@@ -144,7 +144,8 @@ def get_celery_task_result[T: TaskResult](
             if isinstance(result, dict) and result.get("status") == "skipped":
                 logger.info(
                     f"Task {task_id} was skipped (duplicate)",
-                    extra={"task_id": task_id, "reason": result.get("reason")},
+                    task_id=task_id,
+                    reason=result.get("reason"),
                 )
                 # Construct result (result_cls is a Pydantic model, not Protocol)
                 return result_cls(
@@ -160,17 +161,14 @@ def get_celery_task_result[T: TaskResult](
 
             # Unexpected result type - should not happen with pickle
             msg = f"Unexpected result type for task {task_id}: {type(result)}"
-            logger.error(msg, extra={"task_id": task_id, "result_type": type(result)})
+            logger.error(msg, task_id=task_id, result_type=type(result))
             raise ValueError(msg)
 
         case states.FAILURE:
             error_msg = (
                 str(async_result.result) if async_result.result else "Unknown error"
             )
-            logger.error(
-                f"Task {task_id} failed",
-                extra={"task_id": task_id, "error": error_msg},
-            )
+            logger.error(f"Task {task_id} failed", task_id=task_id, error=error_msg)
             return result_cls(
                 status=TaskStatus.FAILED,
                 actions=[],
@@ -182,7 +180,8 @@ def get_celery_task_result[T: TaskResult](
             # PENDING/STARTED/RETRY: Task not done yet
             logger.debug(
                 f"Task {task_id} still pending",
-                extra={"task_id": task_id, "celery_state": async_result.state},
+                task_id=task_id,
+                celery_state=async_result.state,
             )
             return result_cls(
                 status=TaskStatus.PENDING,
@@ -198,11 +197,10 @@ class BackgroundTask(Task):
     max_retries = 3
 
     def before_start(self, *_: Any, **__: Any) -> None:
-        logger.info("status=%s", TaskStatus.PENDING)
+        logger.info("Initializing task", status=TaskStatus.PENDING)
 
     def on_success(self, retval: Any, task_id: str, args: tuple, kwargs: dict) -> None:
-        result = "ok"
-        logger.info("status=%s - %s", TaskStatus.SUCCESS, result)
+        logger.info("Task succeeded", status=TaskStatus.SUCCESS, result="ok")
 
     def on_failure(
         self,
@@ -212,8 +210,7 @@ class BackgroundTask(Task):
         kwargs: dict,
         einfo: ExceptionInfo,
     ) -> None:
-        result = str(exc)
-        logger.error("status=%s - %s", TaskStatus.FAILED, result)
+        logger.error("Task failed", status=TaskStatus.FAILED, result=str(exc))
 
     def on_retry(
         self,
@@ -223,4 +220,4 @@ class BackgroundTask(Task):
         kwargs: dict,
         einfo: ExceptionInfo,
     ) -> None:
-        logger.debug("retrying due to %s", exc)
+        logger.info("Task retrying", status=TaskStatus.PENDING, error=str(exc))

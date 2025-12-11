@@ -5,11 +5,12 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 
+import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from qontract_api.constants import REQUEST_ID_HEADER
-from qontract_api.logger import get_logger, request_id_context
+from qontract_api.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -25,20 +26,18 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 
-        # Set request ID in context for logging
-        token = request_id_context.set(request_id)
+        # add request_id to all log entries
+        # unfortunately, structlog's contextvars doesn't work well with FastAPI (async vs sync)
+        # you may need to use request.state.request_id explicitly in log calls, see RequestLoggingMiddleware below
+        structlog.contextvars.bind_contextvars(request_id=request_id)
 
-        try:
-            # Process request
-            response = await call_next(request)
+        # Process request
+        response = await call_next(request)
 
-            # Add request ID to response headers
-            response.headers[REQUEST_ID_HEADER] = request_id
+        # Add request ID to response headers
+        response.headers[REQUEST_ID_HEADER] = request_id
 
-            return response
-        finally:
-            # Reset context
-            request_id_context.reset(token)
+        return response
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -49,7 +48,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """Process request and log details."""
         start_time = time.time()
-
+        # Log request with structured fields
+        logger.info(
+            f"Start {request.method} {request.url.path}",
+            http_method=request.method,
+            http_path=str(request.url.path),
+            client_host=request.client.host if request.client else None,
+            request_id=request.state.request_id,
+        )
         # Process request
         response = await call_next(request)
 
@@ -57,16 +63,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         duration = time.time() - start_time
 
         # Log request with structured fields
-        # request_id is automatically added by RequestIDFilter
         logger.info(
-            f"{request.method} {request.url.path} - {response.status_code} - {duration:.3f}s",
-            extra={
-                "http_method": request.method,
-                "http_path": str(request.url.path),
-                "http_status": response.status_code,
-                "duration_seconds": round(duration, 3),
-                "client_host": request.client.host if request.client else None,
-            },
+            f"Done {request.method} {request.url.path}",
+            http_method=request.method,
+            http_path=str(request.url.path),
+            http_status=response.status_code,
+            duration_seconds=round(duration, 3),
+            client_host=request.client.host if request.client else None,
+            request_id=request.state.request_id,
         )
 
         return response
@@ -125,20 +129,19 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
 
                 logger.debug(
                     "Decompressed gzip request",
-                    extra={
-                        "compressed_size": len(compressed_body),
-                        "decompressed_size": len(decompressed),
-                        "compression_ratio": round(
-                            (1 - len(compressed_body) / len(decompressed)) * 100, 1
-                        )
-                        if len(decompressed) > 0
-                        else 0,
-                    },
+                    compressed_size=len(compressed_body),
+                    decompressed_size=len(decompressed),
+                    compression_ratio=round(
+                        (1 - len(compressed_body) / len(decompressed)) * 100, 1
+                    )
+                    if len(decompressed) > 0
+                    else 0,
+                    request_id=request.state.request_id,
                 )
             except gzip.BadGzipFile as e:
                 logger.exception(
                     "Failed to decompress gzip request",
-                    extra={"error": str(e)},
+                    request_id=request.state.request_id,
                 )
                 return Response(
                     content=f"Invalid gzip data: {e}",
@@ -147,7 +150,7 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
             except Exception as e:
                 logger.exception(
                     "Unexpected error decompressing request",
-                    extra={"error": str(e)},
+                    request_id=request.state.request_id,
                 )
                 return Response(
                     content=f"Failed to decompress request: {e}",

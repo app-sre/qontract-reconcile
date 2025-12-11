@@ -76,10 +76,7 @@ def get_repo_owners(
             "reviewers": ["github_user3"]
         }
     """
-    logger.info(
-        f"Fetching OWNERS for repository {url}",
-        extra={"url": url, "path": path, "ref": ref},
-    )
+    logger.info(f"Fetching OWNERS for repository {url}", url=url, path=path, ref=ref)
 
     # Create VCS workspace client (auto-detects GitHub/GitLab from URL)
     client = create_vcs_workspace_client(
@@ -94,14 +91,12 @@ def get_repo_owners(
 
     logger.info(
         f"Found {len(owners.approvers)} approvers and {len(owners.reviewers)} reviewers for {url}",
-        extra={
-            "url": url,
-            "path": path,
-            "ref": ref,
-            "vcs_type": client.provider_name,
-            "approvers_count": len(owners.approvers),
-            "reviewers_count": len(owners.reviewers),
-        },
+        url=url,
+        path=path,
+        ref=ref,
+        vcs_type=client.provider_name,
+        approvers_count=len(owners.approvers),
+        reviewers_count=len(owners.reviewers),
     )
 
     # Return immutable response model (ADR-012)
