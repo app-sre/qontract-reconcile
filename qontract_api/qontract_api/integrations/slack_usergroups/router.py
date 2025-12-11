@@ -53,11 +53,9 @@ def slack_usergroups(
     """
     logger.info(
         f"Queuing reconciliation task for user {current_user.username}",
-        extra={
-            "username": current_user.username,
-            "dry_run": reconcile_request.dry_run,
-            "workspace_count": len(reconcile_request.workspaces),
-        },
+        username=current_user.username,
+        dry_run=reconcile_request.dry_run,
+        workspace_count=len(reconcile_request.workspaces),
     )
     request_id = request.state.request_id
 
@@ -77,7 +75,8 @@ def slack_usergroups(
 
     logger.info(
         f"Task queued: {request_id}",
-        extra={"username": current_user.username, "status_url": status_url},
+        username=current_user.username,
+        status_url=status_url,
     )
 
     return SlackUsergroupsTaskResponse(
@@ -123,12 +122,10 @@ async def slack_usergroups_task_status(
     """
     logger.info(
         f"Retrieving result for task {task_id}",
-        extra={
-            "username": current_user.username,
-            "task_id": task_id,
-            "timeout": timeout,
-            "blocking": timeout is not None,
-        },
+        username=current_user.username,
+        task_id=task_id,
+        timeout=timeout,
+        blocking=timeout is not None,
     )
 
     return await wait_for_task_completion(

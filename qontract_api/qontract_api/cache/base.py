@@ -14,7 +14,6 @@ Singleton Pattern:
 - Ensures in-memory cache is shared across all users in the same process
 """
 
-import logging
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
@@ -25,7 +24,9 @@ from cachetools import TTLCache
 from pydantic import BaseModel
 from qontract_utils.json_utils import json_dumps, json_loads
 
-logger = logging.getLogger(__name__)
+from qontract_api.logger import get_logger
+
+logger = get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -273,7 +274,7 @@ class CacheBackend(ABC):
         except (ConnectionError, TimeoutError) as e:
             logger.warning(
                 f"Cache backend unavailable, memory-only mode: {e}",
-                extra={"cache_key": key},
+                cache_key=key,
             )
             return None
 
@@ -300,7 +301,7 @@ class CacheBackend(ABC):
         except (ConnectionError, TimeoutError) as e:
             logger.warning(
                 f"Cache backend unavailable, memory-only mode: {e}",
-                extra={"cache_key": key},
+                cache_key=key,
             )
 
     @abstractmethod

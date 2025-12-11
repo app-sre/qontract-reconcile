@@ -5,14 +5,18 @@ from typing import Any
 
 from qontract_utils.vcs import (
     GitHubProvider,
+    GitHubProviderSettings,
     GitLabProvider,
+    GitLabProviderSettings,
     VCSApiProtocol,
     VCSProviderProtocol,
     VCSProviderRegistry,
 )
 
 from qontract_api.cache import CacheBackend
-from qontract_api.config import GitHubProviderSettings, GitLabProviderSettings, Settings
+from qontract_api.config import GitHubProviderSettings as GitHubProviderConfig
+from qontract_api.config import GitLabProviderSettings as GitLabProviderConfig
+from qontract_api.config import Settings
 from qontract_api.rate_limit.token_bucket import TokenBucket
 from qontract_api.secret_manager import SecretManager
 
@@ -22,24 +26,6 @@ class VCSProviderFactory:
 
     Manages VCS providers and creates API clients with provider-specific
     configuration and rate limiting.
-
-    Args:
-        registry: VCS provider registry with registered providers
-        cache: Cache backend for distributed rate limit state
-        settings: Application settings with VCS configuration
-        token_providers: Dict mapping provider name to token retrieval function
-            Example: {"github": get_github_token_fn, "gitlab": get_gitlab_token_fn}
-
-    Example:
-        >>> registry = get_default_registry()
-        >>> token_providers = {
-        ...     "github": lambda: get_token_from_vault("secret/github"),
-        ...     "gitlab": lambda: get_token_from_vault("secret/gitlab"),
-        ... }
-        >>> factory = VCSProviderFactory(registry, cache, settings, token_providers)
-        >>> api_client, provider_name = factory.create_api_client(
-        ...     "https://github.com/owner/repo"
-        ... )
     """
 
     def __init__(
@@ -49,14 +35,7 @@ class VCSProviderFactory:
         secret_manager: SecretManager,
         settings: Settings,
     ) -> None:
-        """Initialize VCS provider factory.
-
-        Args:
-            registry: VCS provider registry
-            cache: Cache backend for rate limiting
-            settings: Application settings
-            token_providers: Provider name to token function mapping
-        """
+        """Initialize VCS provider factory."""
         self._registry = registry
         self._cache = cache
         self._settings = settings
@@ -106,62 +85,55 @@ class VCSProviderFactory:
             >>> name
             'github'
         """
-        # 1. Get provider (detect or lookup by name)
         if provider_name:
             provider = self._registry.get_provider(provider_name)
         else:
             provider = self._registry.detect_provider(url)
 
-        # 3. Get provider settings
-        provider_settings: GitHubProviderSettings | GitLabProviderSettings = getattr(
+        provider_config: GitHubProviderConfig | GitLabProviderConfig = getattr(
             self._settings.vcs.providers, provider.name
         )
 
-        match provider_settings:
-            case GitHubProviderSettings():
+        match provider_config:
+            case GitHubProviderConfig():
                 gh_repo = GitHubProvider.parse_url(url)
                 org_url = gh_repo.owner_url
-                if org_url not in provider_settings.organizations:
-                    if "default" not in provider_settings.organizations:
+                if org_url not in provider_config.organizations:
+                    if "default" not in provider_config.organizations:
                         raise ValueError(
                             f"No token provider configured for organization: {gh_repo.owner}"
                         )
                     org_url = "default"
                 token = self._secret_manager.read(
-                    provider_settings.organizations[org_url].token
+                    provider_config.organizations[org_url].token
                 )
-            case GitLabProviderSettings():
+            case GitLabProviderConfig():
                 gl_repo = GitLabProvider.parse_url(url)
                 gl_url = gl_repo.gitlab_url
-                if gl_url not in provider_settings.instances:
-                    if "default" not in provider_settings.instances:
+                if gl_url not in provider_config.instances:
+                    if "default" not in provider_config.instances:
                         raise ValueError(
                             f"No token provider configured for GitLab instance: {gl_url}"
                         )
                     gl_url = "default"
                 token = self._secret_manager.read(
-                    provider_settings.instances[gl_url].token
+                    provider_config.instances[gl_url].token
                 )
             case _:
                 raise ValueError(f"No token provider configured for: {provider.name}")
 
-        # 4. Create rate limiter hook
         rate_limit_hook = self._create_rate_limit_hook(
             provider_name=provider.name,
             url=url,
-            provider_settings=provider_settings,
+            provider_settings=provider_config,
         )
 
-        # 5. Build provider-specific kwargs
-        kwargs = self._build_provider_kwargs(provider.name, provider_settings)
-
-        # 6. Provider creates API client
         api_client = provider.create_api_client(
             url=url,
             token=token,
-            timeout=provider_settings.api_timeout,
+            timeout=provider_config.api_timeout,
             hooks=[rate_limit_hook],
-            **kwargs,
+            provider_settings=self._build_provider_settings(provider_config),
         )
 
         return api_client, provider.name
@@ -198,29 +170,16 @@ class VCSProviderFactory:
         return rate_limit_hook
 
     @staticmethod
-    def _build_provider_kwargs(
-        provider_name: str,
-        provider_settings: Any,
-    ) -> dict[str, Any]:
-        """Build provider-specific keyword arguments.
-
-        Args:
-            provider_name: Provider name (e.g., "github", "gitlab")
-            provider_settings: Provider-specific settings
-
-        Returns:
-            Dict of provider-specific kwargs
-
-        Example:
-            >>> kwargs = factory._build_provider_kwargs("github", github_settings)
-            >>> kwargs
-            {"github_api_url": "https://api.github.com"}
-        """
-        kwargs: dict[str, Any] = {}
-
-        # GitHub-specific kwargs
-        if provider_name == "github":
-            kwargs["github_api_url"] = provider_settings.api_url
-
-        # GitLab doesn't need extra kwargs (gitlab_url extracted from URL by provider)
-        return kwargs
+    def _build_provider_settings(
+        provider_config: GitHubProviderConfig | GitLabProviderConfig,
+    ) -> GitHubProviderSettings | GitLabProviderSettings:
+        """Build provider-specific settings."""
+        match provider_config:
+            case GitHubProviderConfig():
+                return GitHubProviderSettings(
+                    github_api_url=provider_config.api_url,
+                )
+            case GitLabProviderConfig():
+                return GitLabProviderSettings()
+            case _:
+                raise ValueError(f"Unsupported provider config: {provider_config}")

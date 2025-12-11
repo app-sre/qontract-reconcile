@@ -24,6 +24,16 @@ class Repo(BaseModel):
         return f"https://github.com/{self.owner}"
 
 
+class GitHubProviderSettings(BaseModel):
+    """GitHub provider settings.
+
+    Attributes:
+        organizations: Mapping of organization URLs to token provider functions.
+    """
+
+    github_api_url: str = "https://api.github.com"
+
+
 class GitHubProvider:
     """GitHub VCS provider implementation.
 
@@ -88,7 +98,7 @@ class GitHubProvider:
         token: str,
         timeout: int,
         hooks: list[Callable[[Any], None]],
-        **provider_kwargs: Any,
+        provider_settings: GitHubProviderSettings,
     ) -> VCSApiProtocol:
         """Create GitHubRepoApi instance.
 
@@ -107,13 +117,12 @@ class GitHubProvider:
             ValueError: If URL cannot be parsed
         """
         parsed_url = self.parse_url(url)
-        github_api_url = provider_kwargs.get("github_api_url", "https://api.github.com")
 
         return GitHubRepoApi(
             owner=parsed_url.owner,
             repo=parsed_url.name,
             token=token,
-            github_api_url=github_api_url,
+            github_api_url=provider_settings.github_api_url,
             timeout=timeout,
             pre_hooks=hooks,
         )

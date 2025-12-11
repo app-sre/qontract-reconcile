@@ -19,6 +19,10 @@ class Repo(BaseModel):
     gitlab_url: str
 
 
+class GitLabProviderSettings(BaseModel):
+    """GitLab provider settings."""
+
+
 class GitLabProvider:
     """GitLab VCS provider implementation.
 
@@ -89,7 +93,7 @@ class GitLabProvider:
         token: str,
         timeout: int,
         hooks: list[Callable[[Any], None]],
-        **_provider_kwargs: Any,
+        provider_settings: GitLabProviderSettings,  # noqa: ARG002
     ) -> VCSApiProtocol:
         """Create GitLabRepoApi instance.
 

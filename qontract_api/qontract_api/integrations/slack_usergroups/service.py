@@ -94,23 +94,19 @@ class SlackUsergroupsService:
             case SlackUsergroupActionCreate():
                 logger.info(
                     f"Creating usergroup: {action.workspace}/{action.usergroup}",
-                    extra={
-                        "action_type": action.action_type,
-                        "workspace": action.workspace,
-                        "usergroup": action.usergroup,
-                    },
+                    action_type=action.action_type,
+                    workspace=action.workspace,
+                    usergroup=action.usergroup,
                 )
                 slack.create_usergroup(handle=action.usergroup)
 
             case SlackUsergroupActionUpdateUsers():
                 logger.info(
                     f"Updating users for {action.workspace}/{action.usergroup}: users={action.users}",
-                    extra={
-                        "action_type": action.action_type,
-                        "workspace": action.workspace,
-                        "usergroup": action.usergroup,
-                        "users": action.users,
-                    },
+                    action_type=action.action_type,
+                    workspace=action.workspace,
+                    usergroup=action.usergroup,
+                    users=action.users,
                 )
                 slack.update_usergroup_users(
                     handle=action.usergroup, users=action.users
@@ -119,13 +115,11 @@ class SlackUsergroupsService:
             case SlackUsergroupActionUpdateMetadata():
                 logger.info(
                     f"Updating metadata for {action.workspace}/{action.usergroup}: channels={action.channels} description={action.description}",
-                    extra={
-                        "action_type": action.action_type,
-                        "workspace": action.workspace,
-                        "usergroup": action.usergroup,
-                        "channels": action.channels,
-                        "description": action.description,
-                    },
+                    action_type=action.action_type,
+                    workspace=action.workspace,
+                    usergroup=action.usergroup,
+                    channels=action.channels,
+                    description=action.description,
                 )
                 slack.update_usergroup(
                     handle=action.usergroup,

@@ -71,10 +71,8 @@ def reconcile_slack_usergroups_task(
     request_id = self.request.id
     logger.info(
         f"Starting reconciliation task {request_id}",
-        extra={
-            "workspace_count": len(workspaces),
-            "dry_run": dry_run,
-        },
+        workspace_count=len(workspaces),
+        dry_run=dry_run,
     )
 
     try:
@@ -98,22 +96,17 @@ def reconcile_slack_usergroups_task(
 
         logger.info(
             f"Task {request_id} completed",
-            extra={
-                "status": result.status,
-                "total_actions": len(result.actions),
-                "applied_count": result.applied_count,
-                "actions": [action.model_dump() for action in result.actions],
-                "errors": result.errors,
-            },
+            status=result.status,
+            total_actions=len(result.actions),
+            applied_count=result.applied_count,
+            actions=[action.model_dump() for action in result.actions],
+            errors=result.errors,
         )
 
         return result
 
     except Exception as e:
-        logger.exception(
-            f"Task {request_id} failed with error",
-            extra={"error": str(e)},
-        )
+        logger.exception(f"Task {request_id} failed with error")
         return SlackUsergroupsTaskResult(
             status=TaskStatus.FAILED,
             actions=[],

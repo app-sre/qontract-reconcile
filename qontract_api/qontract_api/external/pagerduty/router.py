@@ -66,11 +66,6 @@ def get_schedule_users(
             ]
         }
     """
-    logger.info(
-        f"Fetching users for schedule {schedule_id}",
-        extra={"schedule_id": schedule_id, "instance": instance},
-    )
-
     client = create_pagerduty_workspace_client(
         instance_name=instance,
         cache=cache,
@@ -81,11 +76,9 @@ def get_schedule_users(
 
     logger.info(
         f"Found {len(users)} users in schedule {schedule_id}",
-        extra={
-            "schedule_id": schedule_id,
-            "instance": instance,
-            "user_count": len(users),
-        },
+        schedule_id=schedule_id,
+        instance=instance,
+        user_count=len(users),
     )
 
     return ScheduleUsersResponse(
@@ -132,11 +125,6 @@ def get_escalation_policy_users(
             ]
         }
     """
-    logger.info(
-        f"Fetching users for escalation policy {policy_id}",
-        extra={"policy_id": policy_id, "instance": instance},
-    )
-
     client = create_pagerduty_workspace_client(
         instance_name=instance,
         cache=cache,
@@ -145,13 +133,11 @@ def get_escalation_policy_users(
     )
     users = client.get_escalation_policy_users(policy_id)
 
-    logger.info(
+    logger.debug(
         f"Found {len(users)} users in escalation policy {policy_id}",
-        extra={
-            "policy_id": policy_id,
-            "instance": instance,
-            "user_count": len(users),
-        },
+        policy_id=policy_id,
+        instance=instance,
+        user_count=len(users),
     )
 
     return EscalationPolicyUsersResponse(

@@ -10,14 +10,14 @@ dependencies = [
     "cachetools==6.2.2",
     "celery==5.5.3",
     "fastapi==0.121.1",
-    "prometheus-client>=0.23.1",
-    "prometheus-fastapi-instrumentator>=7.1.0",
+    "prometheus-client==0.23.1",
+    "prometheus-fastapi-instrumentator==7.1.0",
     "pydantic-settings==2.12.0",
     "pydantic==2.12.4",
     "python-jose[cryptography]==3.5.0",
-    "python-json-logger==4.0.0",
     "qontract-utils",
     "redis==7.1.0",
+    "structlog==25.5.0",
     "uvicorn[standard]==0.38.0",
 ]
 
@@ -32,6 +32,7 @@ dev = [
     "pytest==9.0.1",
     "ruff==0.14.4",
     "types-cachetools==6.2.0.20251022",
+    "types-hvac==2.4.0.20251115",
 ]
 
 [build-system]

@@ -3,6 +3,7 @@
 from typing import Any
 
 import celery
+import structlog
 from celery import Celery
 
 from qontract_api.config import settings
@@ -19,8 +20,11 @@ from qontract_api.tasks._utils import (
 def setup_loggers(*_: Any, **__: Any) -> None:
     """Setup Celery logger to use application logging configuration."""
     setup_logging()
-    celery_logger = get_logger("celery")
-    setup_logger(celery_logger, log_level="INFO")
+
+
+@celery.signals.task_prerun.connect
+def on_task_prerun(task_id: str, task: celery.Task, *_: Any, **__: Any) -> None:
+    structlog.contextvars.bind_contextvars(request_id=task_id, task_name=task.name)
 
 
 # Create Celery app
@@ -50,5 +54,7 @@ __all__ = [
     "celery_app",
     "deduplicated_task",
     "get_celery_task_result",
+    "get_logger",
+    "setup_logger",
     "wait_for_task_completion",
 ]

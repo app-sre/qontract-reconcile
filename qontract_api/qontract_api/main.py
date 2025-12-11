@@ -27,6 +27,8 @@ from qontract_api.middleware import (
 )
 from qontract_api.routers.api_v1 import api_v1_router
 
+log = setup_logging()
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
@@ -43,6 +45,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
     from qontract_api.secret_manager._factory import (  # noqa: PLC0415
         get_secret_manager,
     )
+
+    log.info("Starting application lifespan setup")
 
     # Startup: Initialize cache backend using factory (singleton pattern)
     _app.state.cache = get_cache()
@@ -61,8 +65,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
     if hasattr(_app.state, "cache") and _app.state.cache is not None:
         _app.state.cache.close()
 
-
-setup_logging()
 
 app = FastAPI(
     title=settings.app_name,
@@ -104,10 +106,13 @@ def custom_openapi() -> dict[str, Any]:
 # See https://fastapi.tiangolo.com/how-to/extending-openapi/#override-the-method for details
 app.openapi = custom_openapi  # type: ignore[method-assign]
 
-# Add middleware (order matters - first added is outermost)
+# Add middleware (order matters - first added is the inner-most)
+# last executed middleware: GzipRequestMiddleware to handle gzip decompression
+app.add_middleware(GzipRequestMiddleware)
+# second executed middleware: RequestLoggingMiddleware to log all requests
 app.add_middleware(RequestLoggingMiddleware)
+# first executed middleware: RequestIDMiddleware so request_id is available in other middleware
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(GzipRequestMiddleware)  # Decompress gzip requests before parsing
 
 # Include API version routers
 app.include_router(api_v1_router)
