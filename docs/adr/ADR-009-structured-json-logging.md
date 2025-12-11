@@ -47,8 +47,7 @@ We adopt **dual-mode structured logging** with JSON format for production and st
 
 **Production Mode (JSON):**
 
-- Use `python-json-logger` library for structured JSON output
-- Custom formatter includes all extra fields automatically
+- Use `structlog` library for structured JSON output
 - Request ID automatically added to every log entry
 
 **Development Mode (Standard):**
@@ -122,23 +121,23 @@ logging.basicConfig(
 
 ### Alternative 3: Structured JSON Logging (Selected)
 
-Use `python-json-logger` with custom formatter for automatic field inclusion.
+Use `structlog` with custom formatter for automatic field inclusion.
 
 ```python
 # Production (LOG_FORMAT_JSON=true)
 {
-  "timestamp": "2025-11-18 10:30:45",
-  "level": "INFO",
-  "logger": "qontract_api.service",
-  "message": "Reconciling usergroup",
-  "request_id": "abc-123",
-  "workspace": "app-sre",
-  "usergroup": "on-call",
-  "duration_seconds": 0.123
+    "client_host": "172.18.0.3",
+    "event": "Start GET /api/v1/external/pagerduty/schedules/PQ022DV/users",
+    "http_method": "GET",
+    "http_path": "/api/v1/external/pagerduty/schedules/PQ022DV/users",
+    "level": "info",
+    "request_id": "e3b32fc5-cf4f-4fc2-9fb8-bff4fb4231df",
+    "timestamp": "2025-12-11 12:14:24"
 }
 
+
 # Development (LOG_FORMAT_JSON=false)
-2025-11-18 10:30:45 - qontract_api.service - INFO - Reconciling usergroup
+2025-12-11 12:16:18 [info     ] Start GET /api/v1/external/pagerduty/schedules/PQ022DV/users client_host=172.18.0.5 http_method=GET http_path=/api/v1/external/pagerduty/schedules/PQ022DV/users request_id=993c9e0c-c112-4d70-8aa7-9f6f27dfc7a7
 ```
 
 **Pros:**
@@ -152,7 +151,7 @@ Use `python-json-logger` with custom formatter for automatic field inclusion.
 
 **Cons:**
 
-- External dependency (`python-json-logger`)
+- External dependency (`structlog`)
 - JSON harder to read in console
   - **Mitigation:** Development mode uses standard format
 
@@ -171,7 +170,7 @@ Use `python-json-logger` with custom formatter for automatic field inclusion.
 
 ### Negative
 
-- **External dependency:** Requires `python-json-logger` library
+- **External dependency:** Requires `structlog` library
   - **Mitigation:** Well-maintained library (2M+ downloads/month)
   - **Mitigation:** Small dependency footprint
 
@@ -187,120 +186,26 @@ Use `python-json-logger` with custom formatter for automatic field inclusion.
 
 ### Logger Configuration
 
-Setup logging with dual-mode support:
-
-```python
-from pythonjsonlogger.json import JsonFormatter
-from qontract_api.config import settings
-
-def setup_logging() -> logging.Logger:
-    """Configure logging with JSON or standard format."""
-    handler = logging.StreamHandler(sys.stdout)
-
-    if settings.log_format_json:
-        # JSON formatter for production
-        formatter = CustomJsonFormatter(
-            "%(timestamp)s %(level)s %(logger)s %(message)s"
-        )
-    else:
-        # Standard formatter for development
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-
-    handler.setFormatter(formatter)
-    handler.addFilter(RequestIDFilter())
-
-    root_logger = logging.getLogger()
-    root_logger.addHandler(handler)
-
-    return logging.getLogger("qontract_api")
-```
-
-### Custom JSON Formatter
-
-Include all extra fields automatically:
-
-```python
-class CustomJsonFormatter(JsonFormatter):
-    """Custom JSON formatter with enhanced field mapping."""
-
-    def add_fields(
-        self,
-        log_record: dict[str, object],
-        record: logging.LogRecord,
-        message_dict: dict[str, object],
-    ) -> None:
-        """Add fields to the JSON log record."""
-        super().add_fields(log_record, record, message_dict)
-
-        # Standard fields
-        log_record["timestamp"] = self.formatTime(record)
-        log_record["level"] = record.levelname
-        log_record["logger"] = record.name
-        log_record["message"] = record.getMessage()
-
-        # Add request_id if available
-        if hasattr(record, "request_id") and record.request_id:
-            log_record["request_id"] = record.request_id
-
-        # Include all extra fields (workspace, usergroup, etc.)
-        excluded_fields = {
-            "name", "msg", "args", "created", "filename", ...
-        }
-        log_record.update({
-            key: value
-            for key, value in record.__dict__.items()
-            if key not in excluded_fields and not key.startswith("_")
-        })
-```
-
-### Request ID Tracking
-
-Use context variable for automatic request ID injection:
-
-```python
-from contextvars import ContextVar
-
-# Context variable for request ID
-request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
-
-class RequestIDFilter(logging.Filter):
-    """Add request_id to all log records."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.request_id = request_id_context.get()
-        return True
-
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Set request ID in context for each request."""
-
-    async def dispatch(self, request: Request, call_next):
-        request_id = str(uuid.uuid4())
-        token = request_id_context.set(request_id)
-
-        try:
-            response = await call_next(request)
-            response.headers["X-Request-ID"] = request_id
-            return response
-        finally:
-            request_id_context.reset(token)
-```
+Setup logging with dual-mode support. See `qontract_api/logger.py` for implementation details.
 
 ### Logging with Extra Fields
 
 Log with arbitrary extra fields:
 
 ```python
+
+from qontract_api.logger import get_logger
+
+logger = get_logger(__name__)
+
 logger.info(
     "Reconciling usergroup",
-    extra={
-        "workspace": workspace_name,
-        "usergroup": usergroup_handle,
-        "action_type": "update",
-        "users_added": 3,
-        "users_removed": 1,
-    }
+    # just use keyword arguments for extra fields
+    workspace=workspace_name,
+    usergroup=usergroup_handle,
+    action_type="update",
+    users_added=3,
+    users_removed=1,
 )
 ```
 
@@ -311,7 +216,7 @@ logger.info(
   "timestamp": "2025-11-18 10:30:45",
   "level": "INFO",
   "logger": "qontract_api.service",
-  "message": "Reconciling usergroup",
+  "event": "Reconciling usergroup",
   "request_id": "abc-123",
   "workspace": "app-sre",
   "usergroup": "on-call",
@@ -376,7 +281,7 @@ Example queries in log aggregation systems:
 
 - Implementation: `qontract_api/qontract_api/logger.py`
 - Middleware: `qontract_api/qontract_api/middleware.py`
-- External library: [python-json-logger](https://github.com/madzak/python-json-logger)
+- External library: [structlog](http://structlog.org)
 - Related patterns: Request ID tracking, Context variables in Python
 
 ---
