@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v2
+
+query QontractApiSlackWorkspace {
+  workspaces: slack_workspaces_v1 {
+    name
+    integrations {
+      name
+      token {
+        ...VaultSecret
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# qenerate: plugin=pydantic_v2
+
+query QontractApiGitlab {
+  instances: gitlabinstance_v1 {
+    name
+    url
+    token {
+      ...VaultSecret
+    }
+  }
+}

@@ -33,6 +33,7 @@ query SlackUsergroupClusterUser {
   users: users_v1 {
     ...User
     tag_on_cluster_updates
+    tag_on_merge_requests
     roles {
       tag_on_cluster_updates
       access {
@@ -83,6 +84,7 @@ class RoleV1(ConfiguredBaseModel):
 
 class UserV1(User):
     tag_on_cluster_updates: Optional[bool] = Field(..., alias="tag_on_cluster_updates")
+    tag_on_merge_requests: Optional[bool] = Field(..., alias="tag_on_merge_requests")
     roles: Optional[list[RoleV1]] = Field(..., alias="roles")
 
 
