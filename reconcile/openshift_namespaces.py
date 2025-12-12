@@ -43,6 +43,7 @@ class DesiredState:
     cluster: str
     namespace: str
     delete: bool
+    cluster_admin: bool
 
 
 class NamespaceDuplicateError(Exception):
@@ -92,6 +93,7 @@ def build_desired_state(
             cluster=namespace.cluster.name,
             namespace=namespace.name,
             delete=namespace.delete or False,
+            cluster_admin=namespace.cluster_admin or False,
         )
         for namespace in namespaces
     ]
@@ -104,7 +106,7 @@ def manage_namespace(
 ) -> None:
     namespace = desired_state.namespace
 
-    oc = oc_map.get(desired_state.cluster)
+    oc = oc_map.get(desired_state.cluster, privileged=desired_state.cluster_admin)
     if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
         return
