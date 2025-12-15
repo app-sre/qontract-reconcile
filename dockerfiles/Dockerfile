@@ -44,8 +44,9 @@ RUN useradd --uid ${CONTAINER_UID} reconcile && \
 # Use a different workdir so venv can't be overwritten by volume mount
 WORKDIR /opt/app-root/src
 
+COPY --from=build-image --chown=reconcile:root $APP_ROOT $APP_ROOT
 COPY --from=build-image --chown=reconcile:root /work/ ./
-RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-cache --group debugger --no-group dev
+RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-cache --group debugger --no-group dev --verbose
 
 WORKDIR /work
 USER reconcile
