@@ -9,8 +9,8 @@ from collections.abc import Callable
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.common.app_interface_roles import NamespaceV1, RoleV1
 from reconcile.gql_definitions.common.namespaces import NamespaceV1 as CommonNamespaceV1
-from reconcile.openshift_rolebindings.base import OpenShiftBindingsBase
-from reconcile.openshift_rolebindings.models import OCResource, RoleBindingSpec
+from reconcile.openshift_bindings.base import OpenShiftBindingsBase
+from reconcile.openshift_bindings.models import OCResource, RoleBindingSpec
 from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
 from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import expiration

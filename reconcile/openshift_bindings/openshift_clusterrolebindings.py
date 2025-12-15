@@ -9,7 +9,7 @@ from collections.abc import Callable
 
 import reconcile.openshift_base as ob
 from reconcile import queries
-from reconcile.openshift_rolebindings.base import OpenShiftBindingsBase
+from reconcile.openshift_bindings.base import OpenShiftBindingsBase
 from reconcile.utils import expiration, gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
@@ -26,6 +26,7 @@ class ClusterRoleBindingsIntegration(OpenShiftBindingsBase):
     """Manages ClusterRoleBindings across OpenShift clusters."""
 
     NAMESPACE_CLUSTER_SCOPE = "cluster"
+    RESOURCE_KIND = "ClusterRoleBinding"
 
     @property
     def integration_name(self) -> str:
@@ -37,7 +38,7 @@ class ClusterRoleBindingsIntegration(OpenShiftBindingsBase):
 
     @property
     def resource_kind(self) -> str:
-        return "ClusterRoleBinding"
+        return self.RESOURCE_KIND
 
     def get_resources_to_reconcile(self) -> list[dict]:
         """Return clusters that have managed cluster roles."""
@@ -47,17 +48,16 @@ class ClusterRoleBindingsIntegration(OpenShiftBindingsBase):
             if cluster_info.get("managedClusterRoles")
             and cluster_info.get("automationToken")
         ]
-
-    def fetch_current_state(
-        self,
-        items: list[dict],
-        thread_pool_size: int,
-        internal: bool | None,
-        use_jump_host: bool,
-    ) -> tuple[ResourceInventory, ob.ClusterMap]:
-        """Fetch current ClusterRoleBindings state from clusters."""
-        return ob.fetch_current_state(
-            clusters=items,
+        
+    def reconcile(self, dry_run: bool, thread_pool_size: int, internal: bool | None, use_jump_host: bool) -> None:
+        clusters = [
+            cluster_info
+            for cluster_info in queries.get_clusters()
+            if cluster_info.get("managedClusterRoles")
+            and cluster_info.get("automationToken")
+        ]
+        ri, oc_map = ob.fetch_current_state(
+            clusters=clusters,
             thread_pool_size=thread_pool_size,
             integration=self.integration_name,
             integration_version=self.integration_version,
@@ -65,6 +65,17 @@ class ClusterRoleBindingsIntegration(OpenShiftBindingsBase):
             internal=internal,
             use_jump_host=use_jump_host,
         )
+        self.fetch_desired_state(ri, oc_map)
+        ob.publish_metrics(ri, self.integration_name)
+        ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
+        if ri.has_error_registered():
+            sys.exit(1)
+        
+    def fetch_desired_state(self, ri: ResourceInventory, oc_map: ob.ClusterMap) -> None:
+        pass
+        
+    def cleanup(self) -> None:
+    
 
 @defer
 def run(

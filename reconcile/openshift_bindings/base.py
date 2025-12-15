@@ -4,41 +4,29 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import reconcile.openshift_base as ob
-from reconcile.openshift_rolebindings.models import OCResource
+from reconcile.openshift_bindings.models import OCResource
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
 
 class OpenShiftBindingsBase(ABC):
-    """Abstract base class for OpenShift role binding integrations.
-
-    This class provides common functionality for both namespace-scoped
-    RoleBindings and cluster-scoped ClusterRoleBindings.
-    """
 
     @property
     @abstractmethod
     def integration_name(self) -> str:
-        """Return the integration name (e.g., 'openshift-rolebindings')."""
         ...
 
     @property
     @abstractmethod
     def integration_version(self) -> str:
-        """Return the semantic version."""
         ...
 
     @property
     @abstractmethod
     def resource_kind(self) -> str:
-        """Return 'RoleBinding' or 'ClusterRoleBinding'."""
         ...
 
-    @property
-    def managed_type(self) -> str:
-        """Return the managed resource type for OpenShift."""
-        return f"{self.resource_kind}.rbac.authorization.k8s.io"
-
+    
     def construct_user_oc_resource(
         self,
         role: str,
@@ -176,11 +164,4 @@ class OpenShiftBindingsBase(ABC):
         Returns:
             Tuple of ResourceInventory and ClusterMap for cleanup.
         """
-        items = self.get_resources_to_reconcile()
-        ri, oc_map = self.fetch_current_state(
-            items, thread_pool_size, internal, use_jump_host
-        )
-        self.fetch_desired_state(ri, oc_map)
-        ob.publish_metrics(ri, self.integration_name)
-        ob.realize_data(dry_run, oc_map, ri, thread_pool_size)
-        return ri, oc_map
+        ...

@@ -49,9 +49,8 @@ class ServiceAccountSpec:
 
 class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=True):
     """Base specification for role bindings (cluster or namespace scoped)."""
-
+    role_kind: str 
     role_name: str
-    role_kind: str  # "Role" or "ClusterRole"
     cluster: ClusterV1
     usernames: set[str]
     openshift_service_accounts: list[ServiceAccountSpec]
@@ -78,7 +77,7 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
 
 class RoleBindingSpec(BindingSpec):
     """Namespace-scoped RoleBinding specification."""
-
+    role_kind: str 
     namespace: NamespaceV1
     privileged: bool = False
 
@@ -151,6 +150,5 @@ class RoleBindingSpec(BindingSpec):
 
 class ClusterRoleBindingSpec(BindingSpec):
     """Cluster-scoped ClusterRoleBinding specification."""
-
-    pass  # No namespace needed for cluster-scoped bindings
+    
 
