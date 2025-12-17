@@ -28,6 +28,8 @@ from gitlab.v4.objects import (
     ProjectMemberAll,
     ProjectMemberAllManager,
     ProjectMergeRequest,
+    ProjectMergeRequestApproval,
+    ProjectMergeRequestApprovalManager,
     ProjectMergeRequestManager,
     ProjectMergeRequestNote,
     ProjectMergeRequestNoteManager,
@@ -301,8 +303,17 @@ def test_get_merge_request_comments() -> None:
     note.id = 2
     note.system = False
     mr.notes.list.return_value = [note]
+    mr.approvals = create_autospec(ProjectMergeRequestApprovalManager)
+    approvals = create_autospec(ProjectMergeRequestApproval)
+    approvals.approved_by = [
+        {
+            "user": {"id": 3, "username": "author_c"},
+            "approved_at": "2023-01-03T00:00:00Z",
+        },
+    ]
+    mr.approvals.get.return_value = approvals
 
-    comments = GitLabApi.get_merge_request_comments(mr, True)
+    comments = GitLabApi.get_merge_request_comments(mr, True, True, "/sup")
 
     expected_comments = [
         Comment(
@@ -310,6 +321,12 @@ def test_get_merge_request_comments() -> None:
             body="description",
             created_at="2023-01-01T00:00:00Z",
             id=0,
+        ),
+        Comment(
+            username="author_c",
+            body="/sup",
+            created_at="2023-01-03T00:00:00Z",
+            id=3,
         ),
         Comment(
             username="author_b",
@@ -321,6 +338,7 @@ def test_get_merge_request_comments() -> None:
     ]
     assert comments == expected_comments
     mr.notes.list.assert_called_once_with(iterator=True)
+    mr.approvals.get.assert_called_once()
 
 
 def test_delete_comment() -> None:

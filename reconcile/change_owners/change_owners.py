@@ -391,7 +391,12 @@ def run(
                 good_to_test_approvers,
             )
             approver_decisions = get_approver_decisions_from_mr_comments(
-                gl.get_merge_request_comments(merge_request, include_description=True)
+                gl.get_merge_request_comments(
+                    merge_request,
+                    include_description=True,
+                    include_approvals=True,
+                    approval_body=DecisionCommand.APPROVED.value,
+                )
             )
             change_decisions = apply_decisions_to_changes(
                 changes,
