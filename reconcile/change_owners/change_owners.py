@@ -115,6 +115,64 @@ def manage_conditional_label(
     return set(new_labels)
 
 
+def build_status_message(
+    self_serviceable: bool,
+    authoritative: bool,
+    change_admitted: bool,
+    approver_reachability: set[str],
+    supported_commands: list[str],
+) -> str:
+    """
+    Build a user-friendly status message based on the MR state.
+    """
+    # Commands section - always show this
+    commands_text = (
+        f"**Available commands:** {' '.join(f'`{cmd}`' for cmd in supported_commands)}"
+    )
+
+    if not change_admitted:
+        return f"""## ⏸️ Approval Required
+Your changes need `/good-to-test` approval from a listed approver before review can begin.
+
+{_build_approver_contact_section(approver_reachability)}
+
+{commands_text}"""
+
+    if not self_serviceable:
+        return f"""## 🔍 AppSRE Review Required
+**What happens next:**
+* AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
+* Please don't ping directly unless this is **urgent**
+* See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info
+
+{_build_approver_contact_section(approver_reachability)}
+
+{commands_text}"""
+
+    # Self-serviceable case
+    status_message = """## ✅ Ready for Review
+Get `/lgtm` approval from the listed approvers below."""
+
+    if not authoritative:
+        status_message += "\n\n⚠️ **Code changes detected** - please review carefully"
+
+    return f"""{status_message}
+
+{_build_approver_contact_section(approver_reachability)}
+
+{commands_text}"""
+
+
+def _build_approver_contact_section(approver_reachability: set[str]) -> str:
+    """Build the approver contact information section."""
+    if not approver_reachability:
+        return ""
+
+    return "**Reach out to approvers:**\n" + "\n".join([
+        f"* {ar}" for ar in approver_reachability
+    ])
+
+
 def write_coverage_report_to_mr(
     self_serviceable: bool,
     change_decisions: list[ChangeDecision],
@@ -135,7 +193,7 @@ def write_coverage_report_to_mr(
         startswith=change_coverage_report_header,
     )
 
-    # add new report comment
+    # Build change coverage table
     results = []
     approver_reachability = set()
     for d in change_decisions:
@@ -166,38 +224,30 @@ def write_coverage_report_to_mr(
             item["status"] = "approved"
         item["approvers"] = approvers
         results.append(item)
+
     coverage_report = format_table(
         results, ["file", "change", "status", "approvers"], table_format="github"
     )
 
-    self_serviceability_hint = "All changes require an `/lgtm` from a listed approver "
-    if not self_serviceable:
-        self_serviceability_hint += (
-            "but <b>not all changes are self-serviceable and require AppSRE approval</b>."
-            "The AppSRE Interrupt Catcher (IC) will review your Merge Request (MR) as it comes up in their "
-            "<a href='https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md'>queue</a>, "
-            "please do not ping them directly unless this is <b>urgent</b>."
-            "\nPlease see https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette for more information. Thank you :)"
-        )
-    if not authoritative:
-        self_serviceability_hint += "\n\nchanges outside of data and resources detected - <b>PAY EXTRA ATTENTION WHILE REVIEWING</b>\n\n"
-
-    if not change_admitted:
-        self_serviceability_hint += "\n\nchanges are not admitted. Please request `/good-to-test` from one of the approvers.\n\n"
-
-    approver_reachability_hint = "Reach out to approvers for reviews"
-    if approver_reachability:
-        approver_reachability_hint += " on\n" + "\n".join([
-            f"* {ar}" for ar in approver_reachability or []
-        ])
-    gl.add_comment_to_merge_request(
-        merge_request,
-        f"{change_coverage_report_header}<br/>"
-        f"{self_serviceability_hint}\n"
-        f"{coverage_report}\n\n"
-        f"{approver_reachability_hint}\n\n"
-        + f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+    # Build user-friendly status message
+    supported_commands = [d.value for d in DecisionCommand]
+    status_message = build_status_message(
+        self_serviceable=self_serviceable,
+        authoritative=authoritative,
+        change_admitted=change_admitted,
+        approver_reachability=approver_reachability,
+        supported_commands=supported_commands,
     )
+
+    # Create the full comment
+    full_comment = f"""{change_coverage_report_header}
+
+{status_message}
+
+## 📋 Change Summary
+{coverage_report}"""
+
+    gl.add_comment_to_merge_request(merge_request, full_comment)
 
 
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
