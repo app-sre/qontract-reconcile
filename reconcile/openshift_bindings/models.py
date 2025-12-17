@@ -26,6 +26,10 @@ class OCResource(BaseModel, arbitrary_types_allowed=True):
 
 
 @dataclass
+class OCResourceData:
+    body: dict[str, Any]
+    name:str
+@dataclass
 class ServiceAccountSpec:
     """Service account specification with namespace and name."""
 
@@ -49,8 +53,9 @@ class ServiceAccountSpec:
 
 class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=True):
     """Base specification for role bindings (cluster or namespace scoped)."""
-    role_kind: str 
+
     role_name: str
+    role_kind: str  # "Role" or "ClusterRole"
     cluster: ClusterV1
     usernames: set[str]
     openshift_service_accounts: list[ServiceAccountSpec]
@@ -74,10 +79,52 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
             if (name := getattr(user, user_key, None))
         }
 
+    def get_oc_resources(self) -> list[OCResourceData]:
+        user_oc_resources = [
+            self.construct_user_oc_resource(username) for username in self.usernames
+        ]
+        sa_oc_resources = [
+            self.construct_sa_oc_resource(sa.sa_namespace_name, sa.sa_name)
+            for sa in self.openshift_service_accounts
+        ]
+        return user_oc_resources + sa_oc_resources
+
+    def construct_user_oc_resource(
+        self, username: str, resource_kind: str
+    ) -> OCResourceData:
+        name = f"{self.role_name}-{username}"
+        body: dict[str, Any] = {
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "kind": resource_kind,
+            "metadata": {"name": name},
+            "roleRef": {"kind": self.role_kind, "name": self.role_name},
+            "subjects": [{"kind": "User", "name": username}],
+        }
+        return OCResourceData(body=body, name=name)
+
+    def construct_sa_oc_resource(
+        self, sa_namespace_name: str, sa_name: str, resource_kind: str
+    ) -> OCResourceData:
+        name = f"{self.role_name}-{sa_namespace_name}-{sa_name}"
+        body: dict[str, Any] = {
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "kind": resource_kind,
+            "metadata": {"name": name},
+            "roleRef": {"kind": self.role_kind, "name": self.role_name},
+            "subjects": [
+                {
+                    "kind": "ServiceAccount",
+                    "name": sa_name,
+                    "namespace": sa_namespace_name,
+                }
+            ],
+        }
+        return OCResourceData(body=body, name=name)
+
 
 class RoleBindingSpec(BindingSpec):
     """Namespace-scoped RoleBinding specification."""
-    role_kind: str 
+
     namespace: NamespaceV1
     privileged: bool = False
 
@@ -133,7 +180,9 @@ class RoleBindingSpec(BindingSpec):
             for access in role.access or []
             if (
                 access.namespace
-                and (namespace_validator is None or namespace_validator(access.namespace))
+                and (
+                    namespace_validator is None or namespace_validator(access.namespace)
+                )
                 and (
                     role_binding_spec := cls.create_role_binding_spec(
                         access,
@@ -150,5 +199,5 @@ class RoleBindingSpec(BindingSpec):
 
 class ClusterRoleBindingSpec(BindingSpec):
     """Cluster-scoped ClusterRoleBinding specification."""
-    
 
+    pass  # No namespace needed for cluster-scoped bindings
