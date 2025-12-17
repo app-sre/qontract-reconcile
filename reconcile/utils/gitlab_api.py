@@ -444,6 +444,8 @@ class GitLabApi:
     def get_merge_request_comments(
         merge_request: ProjectMergeRequest,
         include_description: bool = False,
+        include_approvals: bool = False,
+        approval_body: str = "",
     ) -> list[Comment]:
         comments = []
         if include_description:
@@ -454,6 +456,16 @@ class GitLabApi:
                     body=merge_request.description or "",
                     created_at=merge_request.created_at,
                 )
+            )
+        if include_approvals:
+            comments.extend(
+                Comment(
+                    id=approval["user"]["id"],
+                    username=approval["user"]["username"],
+                    body=approval_body,
+                    created_at=approval["approved_at"],
+                )
+                for approval in merge_request.approvals.get().approved_by
             )
         comments.extend(
             Comment(
