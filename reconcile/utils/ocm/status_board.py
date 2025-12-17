@@ -21,7 +21,7 @@ class IDSpec(TypedDict):
 
 
 class ApplicationMetadataSpec(TypedDict):
-    deployment_saas_files: list[str]
+    deployment_saas_files: set[str]
 
 
 class ApplicationOCMSpec(BaseOCMSpec):

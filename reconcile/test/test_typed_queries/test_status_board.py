@@ -67,28 +67,28 @@ def test_get_selected_app_metadata(status_board_product: StatusBoardProductV1) -
     )
     assert app_names == {
         "oof-bar": {
-            "deployment_saas_files": [],
+            "deployment_saas_files": set[str](),
         },
         "bar-oof-bar": {
-            "deployment_saas_files": [],
+            "deployment_saas_files": set[str](),
         },
         "foo": {
-            "deployment_saas_files": [],
+            "deployment_saas_files": set[str](),
         },
     }
 
     app_names = get_selected_app_metadata([], status_board_product)
     assert app_names == {
         "excluded": {
-            "deployment_saas_files": [],
+            "deployment_saas_files": set[str](),
         },
         "oof-bar": {
-            "deployment_saas_files": [],
+            "deployment_saas_files": set[str](),
         },
         "bar-oof-bar": {
-            "deployment_saas_files": [],
+            "deployment_saas_files": set[str](),
         },
         "foo": {
-            "deployment_saas_files": [],
+            "deployment_saas_files": set[str](),
         },
     }

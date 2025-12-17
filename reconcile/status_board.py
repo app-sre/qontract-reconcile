@@ -123,7 +123,7 @@ class Product(AbstractStatusBoard):
 
 class Application(AbstractStatusBoard):
     product: Product
-    services: list["Service"] | None
+    services: list["Service"] | None = None
     metadata: ApplicationMetadataSpec
 
     def create(self, ocm: OCMBaseClient) -> None:

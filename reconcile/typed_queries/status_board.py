@@ -40,6 +40,7 @@ def get_selected_app_metadata(
     product: StatusBoardProductV1,
 ) -> dict[str, ApplicationMetadataSpec]:
     selected_app_metadata: dict[str, ApplicationMetadataSpec] = {}
+    selected_app_names: set[str] = set()
 
     apps: dict[str, Any] = {"apps": []}
     for namespace in product.product_environment.namespaces or []:
@@ -51,20 +52,25 @@ def get_selected_app_metadata(
         app = namespace.app.model_dump(by_alias=True)
         app["name"] = name
 
-        deployment_saas_files = []
+        deployment_saas_files = set[str]()
         if namespace.app.saas_files:
-            deployment_saas_files = {
+            deployment_saas_files.update(
                 saas_file.name
                 for saas_file in namespace.app.saas_files
                 if "Deployment" in saas_file.managed_resource_types
                 or "ClowdApp" in saas_file.managed_resource_types
-            }
+            )
 
-        selected_app_metadata[name] = {
-            "deployment_saas_files": deployment_saas_files,
-        }
+        selected_app_metadata[name] = ApplicationMetadataSpec(
+            deployment_saas_files=deployment_saas_files.union(
+                saas_file.name
+                for saas_file in namespace.app.saas_files or []
+                if "Deployment" in saas_file.managed_resource_types
+                or "ClowdApp" in saas_file.managed_resource_types
+            ),
+        )
 
-        app = namespace.app.dict(by_alias=True)
+        app = namespace.app.model_dump(by_alias=True)
         app["name"] = name
         apps["apps"].append(app)
 
@@ -75,32 +81,31 @@ def get_selected_app_metadata(
                 child_dict = child.model_dump(by_alias=True)
                 child_dict["name"] = name
 
-                deployment_saas_files = []
+                deployment_saas_files = set[str]()
 
                 if child.saas_files:
-                    deployment_saas_files = {
+                    deployment_saas_files.update(
                         saas_file.name
                         for saas_file in child.saas_files
                         if "Deployment" in saas_file.managed_resource_types
-                    }
+                        or "ClowdApp" in saas_file.managed_resource_types
+                    )
 
                 selected_app_metadata[name] = {
                     "deployment_saas_files": deployment_saas_files,
                 }
 
-                child_dict = child.dict(by_alias=True)
+                child_dict = child.model_dump(by_alias=True)
                 child_dict["name"] = name
                 apps["apps"].append(child_dict)
 
     selectors = set(global_selectors)
     if product.app_selectors:
         selectors.update(product.app_selectors.exclude or [])
-
     for selector in selectors:
         apps_to_remove: set[str] = set()
         results = parser.parse(selector).find(apps)
         apps_to_remove.update(match.value["name"] for match in results)
         for app_name in apps_to_remove:
             selected_app_metadata.pop(app_name, None)
-
     return selected_app_metadata
