@@ -125,40 +125,38 @@ def build_status_message(
     """
     Build a user-friendly status message based on the MR state.
     """
-    # Commands section - always show this
-    commands_text = (
-        f"**Available commands:** {' '.join(f'`{cmd}`' for cmd in supported_commands)}"
-    )
+    approver_section = _build_approver_contact_section(approver_reachability)
 
+    # Check if changes are not admitted (security gate - takes priority)
     if not change_admitted:
         return f"""## ⏸️ Approval Required
 Your changes need `/good-to-test` approval from a listed approver before review can begin.
 
-{_build_approver_contact_section(approver_reachability)}
+{approver_section}"""
+
+    commands_text = (
+        f"**Available commands:** {' '.join(f'`{cmd}`' for cmd in supported_commands)}"
+    )
+
+    code_warning = ""
+    if not authoritative:
+        code_warning = "⚠️ **Code changes outside of data and resources detected** - please review carefully\n\n"
+
+    if self_serviceable:
+        return f"""## ✅ Ready for Review
+Get `/lgtm` approval from the listed approvers below.
+
+{code_warning}{approver_section}
 
 {commands_text}"""
 
-    if not self_serviceable:
-        return f"""## 🔍 AppSRE Review Required
+    return f"""## 🔍 AppSRE Review Required
 **What happens next:**
 * AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
 * Please don't ping directly unless this is **urgent**
 * See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info
 
-{_build_approver_contact_section(approver_reachability)}
-
-{commands_text}"""
-
-    # Self-serviceable case
-    status_message = """## ✅ Ready for Review
-Get `/lgtm` approval from the listed approvers below."""
-
-    if not authoritative:
-        status_message += "\n\n⚠️ **Code changes detected** - please review carefully"
-
-    return f"""{status_message}
-
-{_build_approver_contact_section(approver_reachability)}
+{code_warning}{approver_section}
 
 {commands_text}"""
 
