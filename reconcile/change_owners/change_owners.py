@@ -23,6 +23,7 @@ from reconcile.change_owners.changes import (
 )
 from reconcile.change_owners.decision import (
     ChangeDecision,
+    ChangeResponsibles,
     DecisionCommand,
     apply_decisions_to_changes,
     get_approver_decisions_from_mr_comments,
@@ -171,6 +172,21 @@ def _build_approver_contact_section(approver_reachability: set[str]) -> str:
     ])
 
 
+def _format_change_responsible(cr: ChangeResponsibles) -> str:
+    """
+    Format a ChangeResponsibles object.
+    """
+    usernames = [
+        f"@{a.org_username}"
+        if (a.tag_on_merge_requests or len(cr.approvers) == 1)
+        else a.org_username
+        for a in cr.approvers
+    ]
+
+    usernames_text = " ".join(usernames)
+    return f"<details><summary>{cr.context}</summary>\n\n{usernames_text}\n\n</details>"
+
+
 def write_coverage_report_to_mr(
     self_serviceable: bool,
     change_decisions: list[ChangeDecision],
@@ -195,10 +211,7 @@ def write_coverage_report_to_mr(
     results = []
     approver_reachability = set()
     for d in change_decisions:
-        approvers = [
-            f"{cr.context} - {' '.join([f'@{a.org_username}' if (a.tag_on_merge_requests or len(cr.approvers) == 1) else a.org_username for a in cr.approvers])}"
-            for cr in d.change_responsibles
-        ]
+        approvers = [_format_change_responsible(cr) for cr in d.change_responsibles]
         if d.coverable_by_fragment_decisions:
             approvers.append(
                 "automatically approved if all sub-properties are approved"
@@ -220,7 +233,7 @@ def write_coverage_report_to_mr(
             item["status"] = "hold"
         elif d.is_approved():
             item["status"] = "approved"
-        item["approvers"] = approvers
+        item["approvers"] = "".join(approvers)
         results.append(item)
 
     coverage_report = format_table(
