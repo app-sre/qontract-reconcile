@@ -309,12 +309,6 @@ def test_get_robot_account_details_success(quay_api: QuayApi) -> None:
         json=permissions_data,
         status=200,
     )
-    responses.add(
-        responses.GET,
-        f"https://{BASE_URL}/api/v1/organization/{ORG}/robots/test-robot/permissions",
-        json=permissions_data,
-        status=200,
-    )
 
     result = quay_api.get_robot_account_details(f"{ORG}+test-robot")
 
