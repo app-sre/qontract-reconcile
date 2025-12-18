@@ -74,7 +74,7 @@ pypi-konflux:
 	uv publish
 
 dev-venv: clean # Create/Update a local venv for your IDE and remote debugging
-	uv sync -U
+	uv sync -U --all-packages
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
@@ -113,3 +113,14 @@ helm-test: generate
 
 unittest: ## Run unit tests
 	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml
+
+.PHONY: generate-client
+generate-client:
+	@rm -rf qontract_api_client/qontract_api_client/*
+	docker compose run --remove-orphans --rm generate-qontact-api-client
+	@touch qontract_api_client/qontract_api_client/py.typed
+
+poc-tests:
+	make -C qontract_api test
+# 	cd qontract_api_client && make test
+	make -C qontract_utils test
