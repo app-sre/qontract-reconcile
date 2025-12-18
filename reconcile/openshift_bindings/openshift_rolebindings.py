@@ -3,6 +3,7 @@
 Manages namespace-scoped RoleBindings within OpenShift namespaces.
 """
 
+import sys
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.common.app_interface_roles import NamespaceV1, RoleV1
 from reconcile.gql_definitions.common.namespaces import NamespaceV1 as CommonNamespaceV1
@@ -68,14 +69,6 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
     def resource_kind(self) -> str:
         return "RoleBinding"
 
-    def get_resources_to_reconcile(self) -> list[dict]:
-        """Return namespaces that have managed roles."""
-        return [
-            namespace.model_dump(by_alias=True, exclude={"openshift_resources"})
-            for namespace in get_namespaces()
-            if is_valid_namespace(namespace)
-        ]
-
     def fetch_current_state(self) -> tuple[ResourceInventory, OC_Map]:
         """Fetch current RoleBindings state from namespaces."""
         namespaces = [
@@ -130,3 +123,17 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
                         privileged=oc_resource.privileged,
                     )
         return users_desired_state
+    
+    def reconcile(
+        self,
+        dry_run: bool,
+        ri: ResourceInventory,
+        oc_map: OC_Map,
+        support_role_ref: bool = False,
+        enforced_user_keys: list[str] | None = None,
+    ) -> None:
+        self.fetch_desired_state(ri, support_role_ref, enforced_user_keys, allowed_clusters=set(oc_map.clusters()))
+        ob.publish_metrics(ri, self.integration_name)
+        ob.realize_data(dry_run, oc_map, ri, self.thread_pool_size)
+        if ri.has_error_registered():
+            sys.exit(1)

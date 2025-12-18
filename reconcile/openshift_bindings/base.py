@@ -66,7 +66,11 @@ class OpenShiftBindingsBase(ABC):
 
     @abstractmethod
     def fetch_desired_state(
-        self, ri: ResourceInventory | None, oc_map: OC_Map
+        self,
+        ri: ResourceInventory | None,
+        support_role_ref: bool = False,
+        enforced_user_keys: list[str] | None = None,
+        allowed_clusters: set[str] | None = None,
     ) -> list[dict[str, str]]:
         """Fetch and populate the desired state.
 

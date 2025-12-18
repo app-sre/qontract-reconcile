@@ -6,11 +6,10 @@ from typing import Any, Self
 from pydantic import BaseModel
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.app_interface_roles import (
+from reconcile.gql_definitions.common.app_interface_clusterrole import (
     AccessV1,
     BotV1,
     ClusterV1,
-    NamespaceV1,
     RoleV1,
     UserV1,
 )
@@ -199,5 +198,21 @@ class RoleBindingSpec(BindingSpec):
 
 class ClusterRoleBindingSpec(BindingSpec):
     """Cluster-scoped ClusterRoleBinding specification."""
+    @classmethod
+    def create_cluster_role_binding_specs(cls, cluster_role: RoleV1) -> list[Self]:
+        cluster_role_binding_spec = [
+            cls(
+                cluster_role_name=access.cluster_role,
+                cluster=access.cluster,
+                usernames=ClusterRoleBindingSpec.get_usernames_from_users_and_cluster(
+                    cluster_role.users, access.cluster
+                ),
+                openshift_service_accounts=ServiceAccountSpec.create_sa_spec(
+                    cluster_role.bots
+                ),
+            )
+            for access in cluster_role.access or []
+            if access.cluster and access.cluster_role
+        ]
+        return cluster_role_binding_spec
 
-    pass  # No namespace needed for cluster-scoped bindings
