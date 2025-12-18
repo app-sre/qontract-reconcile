@@ -11,16 +11,38 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    url_query: str,
-    path: str | Unset = "/",
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
+    repo_url: str,
+    owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
 
-    params["url"] = url_query
+    params["secret_manager_url"] = secret_manager_url
 
     params["path"] = path
+
+    json_field: None | str | Unset
+    if isinstance(field, Unset):
+        json_field = UNSET
+    else:
+        json_field = field
+    params["field"] = json_field
+
+    json_version: int | None | Unset
+    if isinstance(version, Unset):
+        json_version = UNSET
+    else:
+        json_version = version
+    params["version"] = json_version
+
+    params["repo_url"] = repo_url
+
+    params["owners_file"] = owners_file
 
     params["ref"] = ref
 
@@ -60,8 +82,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    url_query: str,
-    path: str | Unset = "/",
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
+    repo_url: str,
+    owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> Response[RepoOwnersResponse]:
     r"""Get Repo Owners
@@ -71,15 +97,8 @@ def sync_detailed(
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
 
-    Path modes:
-    - \"/\" - Root OWNERS file only
-    - \"/path\" - Specific path with inherited owners from parent directories
-
     Args:
-        cache: Cache backend for VCS API responses
-        url: Repository URL (e.g., https://github.com/openshift/osdctl)
-        path: Path mode (/, /path, or ALL)
-        ref: Git reference (branch, tag, commit SHA)
+        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
 
     Returns:
         RepoOwnersResponse with provider type, approvers, and reviewers lists
@@ -98,9 +117,13 @@ def sync_detailed(
         }
 
     Args:
-        url_query (str): Repository URL (e.g., https://github.com/owner/repo)
-        path (str | Unset): Path mode: '/' (root OWNERS), '/path' (specific path with inheritance)
-            Default: '/'.
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
+        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
+        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
+            /path/to/OWNERS) Default: '/OWNERS'.
         ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
 
     Raises:
@@ -112,8 +135,12 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        url_query=url_query,
+        secret_manager_url=secret_manager_url,
         path=path,
+        field=field,
+        version=version,
+        repo_url=repo_url,
+        owners_file=owners_file,
         ref=ref,
     )
 
@@ -127,8 +154,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    url_query: str,
-    path: str | Unset = "/",
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
+    repo_url: str,
+    owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> RepoOwnersResponse:
     r"""Get Repo Owners
@@ -138,15 +169,8 @@ def sync(
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
 
-    Path modes:
-    - \"/\" - Root OWNERS file only
-    - \"/path\" - Specific path with inherited owners from parent directories
-
     Args:
-        cache: Cache backend for VCS API responses
-        url: Repository URL (e.g., https://github.com/openshift/osdctl)
-        path: Path mode (/, /path, or ALL)
-        ref: Git reference (branch, tag, commit SHA)
+        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
 
     Returns:
         RepoOwnersResponse with provider type, approvers, and reviewers lists
@@ -165,9 +189,13 @@ def sync(
         }
 
     Args:
-        url_query (str): Repository URL (e.g., https://github.com/owner/repo)
-        path (str | Unset): Path mode: '/' (root OWNERS), '/path' (specific path with inheritance)
-            Default: '/'.
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
+        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
+        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
+            /path/to/OWNERS) Default: '/OWNERS'.
         ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
 
     Raises:
@@ -180,8 +208,12 @@ def sync(
 
     parsed = sync_detailed(
         client=client,
-        url_query=url_query,
+        secret_manager_url=secret_manager_url,
         path=path,
+        field=field,
+        version=version,
+        repo_url=repo_url,
+        owners_file=owners_file,
         ref=ref,
     ).parsed
     if parsed is None:
@@ -192,8 +224,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    url_query: str,
-    path: str | Unset = "/",
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
+    repo_url: str,
+    owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> Response[RepoOwnersResponse]:
     r"""Get Repo Owners
@@ -203,15 +239,8 @@ async def asyncio_detailed(
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
 
-    Path modes:
-    - \"/\" - Root OWNERS file only
-    - \"/path\" - Specific path with inherited owners from parent directories
-
     Args:
-        cache: Cache backend for VCS API responses
-        url: Repository URL (e.g., https://github.com/openshift/osdctl)
-        path: Path mode (/, /path, or ALL)
-        ref: Git reference (branch, tag, commit SHA)
+        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
 
     Returns:
         RepoOwnersResponse with provider type, approvers, and reviewers lists
@@ -230,9 +259,13 @@ async def asyncio_detailed(
         }
 
     Args:
-        url_query (str): Repository URL (e.g., https://github.com/owner/repo)
-        path (str | Unset): Path mode: '/' (root OWNERS), '/path' (specific path with inheritance)
-            Default: '/'.
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
+        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
+        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
+            /path/to/OWNERS) Default: '/OWNERS'.
         ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
 
     Raises:
@@ -244,8 +277,12 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        url_query=url_query,
+        secret_manager_url=secret_manager_url,
         path=path,
+        field=field,
+        version=version,
+        repo_url=repo_url,
+        owners_file=owners_file,
         ref=ref,
     )
 
@@ -257,8 +294,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    url_query: str,
-    path: str | Unset = "/",
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
+    repo_url: str,
+    owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> RepoOwnersResponse:
     r"""Get Repo Owners
@@ -268,15 +309,8 @@ async def asyncio(
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
 
-    Path modes:
-    - \"/\" - Root OWNERS file only
-    - \"/path\" - Specific path with inherited owners from parent directories
-
     Args:
-        cache: Cache backend for VCS API responses
-        url: Repository URL (e.g., https://github.com/openshift/osdctl)
-        path: Path mode (/, /path, or ALL)
-        ref: Git reference (branch, tag, commit SHA)
+        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
 
     Returns:
         RepoOwnersResponse with provider type, approvers, and reviewers lists
@@ -295,9 +329,13 @@ async def asyncio(
         }
 
     Args:
-        url_query (str): Repository URL (e.g., https://github.com/owner/repo)
-        path (str | Unset): Path mode: '/' (root OWNERS), '/path' (specific path with inheritance)
-            Default: '/'.
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
+        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
+        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
+            /path/to/OWNERS) Default: '/OWNERS'.
         ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
 
     Raises:
@@ -311,8 +349,12 @@ async def asyncio(
     parsed = (
         await asyncio_detailed(
             client=client,
-            url_query=url_query,
+            secret_manager_url=secret_manager_url,
             path=path,
+            field=field,
+            version=version,
+            repo_url=repo_url,
+            owners_file=owners_file,
             ref=ref,
         )
     ).parsed

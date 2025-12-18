@@ -13,31 +13,55 @@ from qontract_utils.secret_reader.base import (
     SecretBackendError,
     SecretNotFoundError,
 )
-from qontract_utils.secret_reader.providers.vault import VaultSecretBackend
+from qontract_utils.secret_reader.providers.vault import (
+    VaultSecretBackend,
+    VaultSecretBackendSettings,
+)
 
 
 class Secret(BaseModel):
+    url: str = "https://vault.test"
     path: str
     field: str | None = None
     version: int | None = None
 
 
+@pytest.fixture
+def approle_settings() -> VaultSecretBackendSettings:
+    """Create AppRole auth settings for testing."""
+    return VaultSecretBackendSettings(
+        server="https://vault.test",
+        role_id="test-role-id",
+        secret_id="test-secret-id",
+        auto_refresh=False,
+    )
+
+
+@pytest.fixture
+def kube_settings() -> VaultSecretBackendSettings:
+    """Create Kubernetes auth settings for testing."""
+    return VaultSecretBackendSettings(
+        server="https://vault.test",
+        kube_auth_role="test-kube-role",
+        kube_auth_mount="kubernetes",
+        kube_sa_token_path="/var/run/secrets/kubernetes.io/serviceaccount/token",
+        auto_refresh=False,
+    )
+
+
 class TestVaultSecretBackendAuthentication:
     """Test Vault authentication methods."""
 
-    def test_init_with_approle_auth(self) -> None:
+    def test_init_with_approle_auth(
+        self, approle_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test initialization with AppRole authentication."""
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            backend = VaultSecretBackend(
-                server="https://vault.test",
-                role_id="test-role-id",
-                secret_id="test-secret-id",
-                auto_refresh=False,
-            )
+            backend = VaultSecretBackend(approle_settings)
 
             mock_client_class.assert_called_once_with(url="https://vault.test")
             mock_client.auth.approle.login.assert_called_once_with(
@@ -46,7 +70,9 @@ class TestVaultSecretBackendAuthentication:
             )
             assert backend is not None
 
-    def test_init_with_kubernetes_auth(self) -> None:
+    def test_init_with_kubernetes_auth(
+        self, kube_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test initialization with Kubernetes authentication."""
         mock_jwt_token = "test-jwt-token"
 
@@ -58,13 +84,7 @@ class TestVaultSecretBackendAuthentication:
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            backend = VaultSecretBackend(
-                server="https://vault.test",
-                kube_auth_role="test-kube-role",
-                kube_auth_mount="kubernetes",
-                kube_sa_token_path="/var/run/secrets/kubernetes.io/serviceaccount/token",
-                auto_refresh=False,
-            )
+            backend = VaultSecretBackend(kube_settings)
 
             mock_client_class.assert_called_once_with(url="https://vault.test")
             mock_client.auth.kubernetes.login.assert_called_once_with(
@@ -85,11 +105,15 @@ class TestVaultSecretBackendAuthentication:
                 match="Must provide either AppRole credentials.*or Kubernetes auth credentials",
             ):
                 VaultSecretBackend(
-                    server="https://vault.test",
-                    auto_refresh=False,
+                    VaultSecretBackendSettings(
+                        server="https://vault.test",
+                        auto_refresh=False,
+                    )
                 )
 
-    def test_init_failed_authentication_raises_error(self) -> None:
+    def test_init_failed_authentication_raises_error(
+        self, approle_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that failed authentication raises SecretBackendError."""
         with (
             patch("hvac.Client") as mock_client_class,
@@ -99,12 +123,7 @@ class TestVaultSecretBackendAuthentication:
             mock_client.is_authenticated.return_value = False
             mock_client_class.return_value = mock_client
 
-            VaultSecretBackend(
-                server="https://vault.test",
-                role_id="test-role-id",
-                secret_id="test-secret-id",
-                auto_refresh=False,
-            )
+            VaultSecretBackend(approle_settings)
 
 
 class TestVaultSecretBackendRead:
@@ -117,12 +136,13 @@ class TestVaultSecretBackendRead:
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            self.backend = VaultSecretBackend(
+            settings = VaultSecretBackendSettings(
                 server="https://vault.test",
                 role_id="test-role-id",
                 secret_id="test-secret-id",
                 auto_refresh=False,
             )
+            self.backend = VaultSecretBackend(settings)
             self.mock_client = mock_client
 
     def test_read_single_field_secret(self) -> None:
@@ -251,12 +271,13 @@ class TestVaultSecretBackendReadAll:
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            self.backend = VaultSecretBackend(
+            settings = VaultSecretBackendSettings(
                 server="https://vault.test",
                 role_id="test-role-id",
                 secret_id="test-secret-id",
                 auto_refresh=False,
             )
+            self.backend = VaultSecretBackend(settings)
             self.mock_client = mock_client
 
     def test_read_all_returns_all_fields(self) -> None:
@@ -334,12 +355,13 @@ class TestVaultSecretBackendAutoRefresh:
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            backend = VaultSecretBackend(
+            settings = VaultSecretBackendSettings(
                 server="https://vault.test",
                 role_id="test-role-id",
                 secret_id="test-secret-id",
                 auto_refresh=True,
             )
+            backend = VaultSecretBackend(settings)
 
             assert hasattr(backend, "_refresh_thread")
             assert backend._refresh_thread.daemon is True
@@ -348,19 +370,16 @@ class TestVaultSecretBackendAutoRefresh:
             # Cleanup
             backend.close()
 
-    def test_auto_refresh_disabled_does_not_start_thread(self) -> None:
+    def test_auto_refresh_disabled_does_not_start_thread(
+        self, approle_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that auto-refresh thread does not start when auto_refresh=False."""
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            backend = VaultSecretBackend(
-                server="https://vault.test",
-                role_id="test-role-id",
-                secret_id="test-secret-id",
-                auto_refresh=False,
-            )
+            backend = VaultSecretBackend(approle_settings)
 
             assert not hasattr(backend, "_refresh_thread")
 
@@ -368,19 +387,16 @@ class TestVaultSecretBackendAutoRefresh:
 class TestVaultSecretBackendClose:
     """Test Vault close operations."""
 
-    def test_close_sets_closed_flag(self) -> None:
+    def test_close_sets_closed_flag(
+        self, approle_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that close() sets the _closed flag."""
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            backend = VaultSecretBackend(
-                server="https://vault.test",
-                role_id="test-role-id",
-                secret_id="test-secret-id",
-                auto_refresh=False,
-            )
+            backend = VaultSecretBackend(approle_settings)
 
             assert not backend._closed
 
@@ -397,12 +413,13 @@ class TestVaultSecretBackendClose:
             mock_client.is_authenticated.return_value = True
             mock_client_class.return_value = mock_client
 
-            backend = VaultSecretBackend(
+            settings = VaultSecretBackendSettings(
                 server="https://vault.test",
                 role_id="test-role-id",
                 secret_id="test-secret-id",
                 auto_refresh=True,
             )
+            backend = VaultSecretBackend(settings)
 
             # Thread should be running
             assert backend._refresh_thread.is_alive()
@@ -421,7 +438,9 @@ class TestVaultSecretBackendClose:
 class TestVaultSecretBackendCustomMountPoint:
     """Test Vault with custom mount point."""
 
-    def test_custom_mount_point(self) -> None:
+    def test_custom_mount_point(
+        self, approle_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that custom mount_point is used for KV operations."""
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
@@ -431,12 +450,7 @@ class TestVaultSecretBackendCustomMountPoint:
             }
             mock_client_class.return_value = mock_client
 
-            backend = VaultSecretBackend(
-                server="https://vault.test",
-                role_id="test-role-id",
-                secret_id="test-secret-id",
-                auto_refresh=False,
-            )
+            backend = VaultSecretBackend(approle_settings)
 
             backend.read(Secret(path="app-sre-secrets/workspace-1/token"))
 

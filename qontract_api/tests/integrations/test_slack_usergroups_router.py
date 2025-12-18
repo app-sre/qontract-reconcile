@@ -16,7 +16,7 @@ from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
-from qontract_api.models import TaskStatus, TokenData
+from qontract_api.models import Secret, TaskStatus, TokenData
 
 
 @pytest.fixture
@@ -45,6 +45,10 @@ def sample_reconcile_request() -> SlackUsergroupsReconcileRequest:
                         ),
                     )
                 ],
+                token=Secret(
+                    secret_manager_url="https://vault.example.com",
+                    path="secret/slack/test-workspace",
+                ),
             )
         ],
         dry_run=True,
@@ -94,9 +98,12 @@ def test_post_reconcile_dry_run_false(
         "workspaces": [
             {
                 "name": "test-workspace",
-                "vault_token_path": "slack/test-workspace/token",
                 "managed_usergroups": ["oncall"],
                 "usergroups": [],
+                "token": {
+                    "secret_manager_url": "https://vault.example.com",
+                    "path": "secret/slack/test-workspace",
+                },
             }
         ],
         "dry_run": False,

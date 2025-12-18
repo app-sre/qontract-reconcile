@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
+from qontract_utils.vcs.models import Provider
 from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 from qontract_utils.vcs.providers.gitlab_client import GitLabRepoApi
 
@@ -30,7 +31,7 @@ class GitLabProvider:
     Detects GitLab URLs by checking for "gitlab" in hostname.
     """
 
-    name = "gitlab"
+    type = Provider.GITLAB
 
     @staticmethod
     def detect(url: str) -> bool:

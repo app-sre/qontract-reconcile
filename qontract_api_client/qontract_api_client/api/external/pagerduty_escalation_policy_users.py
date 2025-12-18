@@ -7,18 +7,37 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.escalation_policy_users_response import EscalationPolicyUsersResponse
-from ...types import UNSET, Response
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     policy_id: str,
     *,
-    instance: str,
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
 
-    params["instance"] = instance
+    params["secret_manager_url"] = secret_manager_url
+
+    params["path"] = path
+
+    json_field: None | str | Unset
+    if isinstance(field, Unset):
+        json_field = UNSET
+    else:
+        json_field = field
+    params["field"] = json_field
+
+    json_version: int | None | Unset
+    if isinstance(version, Unset):
+        json_version = UNSET
+    else:
+        json_version = version
+    params["version"] = json_version
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -59,7 +78,10 @@ def sync_detailed(
     policy_id: str,
     *,
     client: AuthenticatedClient | Client,
-    instance: str,
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
 ) -> Response[EscalationPolicyUsersResponse]:
     r"""Get Escalation Policy Users
 
@@ -70,7 +92,6 @@ def sync_detailed(
 
     Args:
         policy_id: PagerDuty escalation policy ID
-        cache: Cache backend for PagerDuty API responses
         instance: PagerDuty instance name
 
     Returns:
@@ -92,7 +113,10 @@ def sync_detailed(
 
     Args:
         policy_id (str):
-        instance (str): PagerDuty instance name (e.g., 'app-sre')
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -104,7 +128,10 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         policy_id=policy_id,
-        instance=instance,
+        secret_manager_url=secret_manager_url,
+        path=path,
+        field=field,
+        version=version,
     )
 
     response = client.get_httpx_client().request(
@@ -118,7 +145,10 @@ def sync(
     policy_id: str,
     *,
     client: AuthenticatedClient | Client,
-    instance: str,
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
 ) -> EscalationPolicyUsersResponse:
     r"""Get Escalation Policy Users
 
@@ -129,7 +159,6 @@ def sync(
 
     Args:
         policy_id: PagerDuty escalation policy ID
-        cache: Cache backend for PagerDuty API responses
         instance: PagerDuty instance name
 
     Returns:
@@ -151,7 +180,10 @@ def sync(
 
     Args:
         policy_id (str):
-        instance (str): PagerDuty instance name (e.g., 'app-sre')
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -164,7 +196,10 @@ def sync(
     parsed = sync_detailed(
         policy_id=policy_id,
         client=client,
-        instance=instance,
+        secret_manager_url=secret_manager_url,
+        path=path,
+        field=field,
+        version=version,
     ).parsed
     if parsed is None:
         raise TypeError("Expected parsed response to be not None")
@@ -175,7 +210,10 @@ async def asyncio_detailed(
     policy_id: str,
     *,
     client: AuthenticatedClient | Client,
-    instance: str,
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
 ) -> Response[EscalationPolicyUsersResponse]:
     r"""Get Escalation Policy Users
 
@@ -186,7 +224,6 @@ async def asyncio_detailed(
 
     Args:
         policy_id: PagerDuty escalation policy ID
-        cache: Cache backend for PagerDuty API responses
         instance: PagerDuty instance name
 
     Returns:
@@ -208,7 +245,10 @@ async def asyncio_detailed(
 
     Args:
         policy_id (str):
-        instance (str): PagerDuty instance name (e.g., 'app-sre')
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -220,7 +260,10 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         policy_id=policy_id,
-        instance=instance,
+        secret_manager_url=secret_manager_url,
+        path=path,
+        field=field,
+        version=version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -232,7 +275,10 @@ async def asyncio(
     policy_id: str,
     *,
     client: AuthenticatedClient | Client,
-    instance: str,
+    secret_manager_url: str,
+    path: str,
+    field: None | str | Unset = UNSET,
+    version: int | None | Unset = UNSET,
 ) -> EscalationPolicyUsersResponse:
     r"""Get Escalation Policy Users
 
@@ -243,7 +289,6 @@ async def asyncio(
 
     Args:
         policy_id: PagerDuty escalation policy ID
-        cache: Cache backend for PagerDuty API responses
         instance: PagerDuty instance name
 
     Returns:
@@ -265,7 +310,10 @@ async def asyncio(
 
     Args:
         policy_id (str):
-        instance (str): PagerDuty instance name (e.g., 'app-sre')
+        secret_manager_url (str): Secret Manager URL
+        path (str): Path to the secret
+        field (None | str | Unset): Specific field within the secret
+        version (int | None | Unset): Version of the secret
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -279,7 +327,10 @@ async def asyncio(
         await asyncio_detailed(
             policy_id=policy_id,
             client=client,
-            instance=instance,
+            secret_manager_url=secret_manager_url,
+            path=path,
+            field=field,
+            version=version,
         )
     ).parsed
     if parsed is None:

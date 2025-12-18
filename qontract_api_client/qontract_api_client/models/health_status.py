@@ -53,7 +53,7 @@ class HealthStatus:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast("None | str | Unset", data)
+            return cast(None | str | Unset, data)
 
         message = _parse_message(d.pop("message", UNSET))
 

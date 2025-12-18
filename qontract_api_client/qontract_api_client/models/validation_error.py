@@ -52,7 +52,7 @@ class ValidationError:
         for loc_item_data in _loc:
 
             def _parse_loc_item(data: object) -> int | str:
-                return cast("int | str", data)
+                return cast(int | str, data)
 
             loc_item = _parse_loc_item(loc_item_data)
 

@@ -26,7 +26,7 @@ def mock_pagerduty_client() -> Generator[MagicMock, None, None]:
 def pagerduty_api(mock_pagerduty_client: MagicMock) -> PagerDutyApi:
     """Create PagerDutyApi instance with mocked client."""
     return PagerDutyApi(
-        instance_name="test-instance",
+        id="test-instance",
         token="test-token",
     )
 
@@ -35,7 +35,7 @@ def test_pagerduty_api_defaults(mock_pagerduty_client: MagicMock) -> None:
     """Test PagerDutyApi uses default timeout."""
     api = PagerDutyApi("instance", "token")
 
-    assert api.instance_name == "instance"
+    assert api.id == "instance"
     assert api._timeout == TIMEOUT
 
 
@@ -405,7 +405,7 @@ def test_pagerduty_api_call_context_immutable() -> None:
     context = PagerDutyApiCallContext(
         method="test",
         verb="GET",
-        instance="test-instance",
+        id="test-instance",
     )
 
     with pytest.raises(AttributeError):  # dataclass frozen=True raises AttributeError

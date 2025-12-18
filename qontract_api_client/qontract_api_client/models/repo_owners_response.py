@@ -59,9 +59,9 @@ class RepoOwnersResponse:
         d = dict(src_dict)
         provider = VCSProvider(d.pop("provider"))
 
-        approvers = cast("list[str]", d.pop("approvers", UNSET))
+        approvers = cast(list[str], d.pop("approvers", UNSET))
 
-        reviewers = cast("list[str]", d.pop("reviewers", UNSET))
+        reviewers = cast(list[str], d.pop("reviewers", UNSET))
 
         repo_owners_response = cls(
             provider=provider,

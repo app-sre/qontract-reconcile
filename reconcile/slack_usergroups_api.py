@@ -51,6 +51,7 @@ from qontract_api_client.api.integrations.slack_usergroups_task_status import (
 from qontract_api_client.models import (
     SlackUsergroupActionUpdateUsers,
 )
+from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.slack_usergroup import SlackUsergroup
 from qontract_api_client.models.slack_usergroup_config import SlackUsergroupConfig
 from qontract_api_client.models.slack_workspace import (
@@ -58,23 +59,32 @@ from qontract_api_client.models.slack_workspace import (
 )
 from qontract_api_client.models.task_status import TaskStatus
 from qontract_api_client.models.vcs_provider import VCSProvider
+from qontract_utils.vcs import VCSProviderRegistry, get_default_registry
 
-from reconcile.gql_definitions.slack_usergroups.clusters import ClusterV1
-from reconcile.gql_definitions.slack_usergroups.clusters import query as clusters_query
-from reconcile.gql_definitions.slack_usergroups.permissions import (
+from reconcile.gql_definitions.slack_usergroups_api.clusters import ClusterV1
+from reconcile.gql_definitions.slack_usergroups_api.clusters import (
+    query as clusters_query,
+)
+from reconcile.gql_definitions.slack_usergroups_api.permissions import (
     PagerDutyTargetV1,
     PermissionSlackUsergroupV1,
     RoleV1,
     ScheduleV1,
+    VaultSecret,
 )
-from reconcile.gql_definitions.slack_usergroups.permissions import (
+from reconcile.gql_definitions.slack_usergroups_api.permissions import (
     query as permissions_query,
 )
-from reconcile.gql_definitions.slack_usergroups.roles import RoleV1 as ClusterAccessRole
-from reconcile.gql_definitions.slack_usergroups.roles import UserV1 as ClusterAccessUser
-from reconcile.gql_definitions.slack_usergroups.roles import query as roles_query
-from reconcile.gql_definitions.slack_usergroups.users import UserV1
-from reconcile.gql_definitions.slack_usergroups.users import query as users_query
+from reconcile.gql_definitions.slack_usergroups_api.roles import (
+    RoleV1 as ClusterAccessRole,
+)
+from reconcile.gql_definitions.slack_usergroups_api.roles import (
+    UserV1 as ClusterAccessUser,
+)
+from reconcile.gql_definitions.slack_usergroups_api.roles import query as roles_query
+from reconcile.gql_definitions.slack_usergroups_api.users import UserV1
+from reconcile.gql_definitions.slack_usergroups_api.users import query as users_query
+from reconcile.typed_queries.vcs import Vcs, get_vcs_instances
 from reconcile.utils import expiration, gql
 from reconcile.utils.datetime_util import ensure_utc, utc_now
 from reconcile.utils.disabled_integrations import integration_is_enabled
@@ -95,6 +105,7 @@ class SlackWorkspace(BaseModel, arbitrary_types_allowed=True):
     usergroups: list[SlackUsergroup]
     managed_usergroups: list[str]
     default_channel: str
+    token: VaultSecret
 
 
 class SlackUsergroupsIntegrationParams(PydanticRunParams):
@@ -102,6 +113,40 @@ class SlackUsergroupsIntegrationParams(PydanticRunParams):
 
     workspace_name: str | None
     usergroup_name: str | None
+
+
+def get_token_from_url(
+    vcs_reg: VCSProviderRegistry, vcs_instances: Iterable[Vcs], url: str
+) -> VaultSecret:
+    """Get the token for a given VCS URL from the VCS instances.
+
+    Args:
+        vcs_reg: VCS provider registry
+        vcs_instances: List of VCS instances
+        url: VCS repository URL
+    Returns:
+        VaultSecret token if found, else raises ValueError
+    """
+    vcs_provider = vcs_reg.detect_provider(url)
+    repo = vcs_provider.parse_url(url)
+    if not (
+        repo_owner_url := getattr(repo, "owner_url", None)
+        or getattr(repo, "gitlab_url", None)
+    ):
+        raise ValueError(f"Cannot extract owner URL from repo: {repo}")
+
+    # Find matching VCS instance by repo owner URL
+    for vcs in vcs_instances:
+        if vcs.url == repo_owner_url:
+            return vcs.token
+
+    # Fallback to default VCS instance for the Github provider
+    if vcs_provider.type == VCSProvider.GITHUB:
+        for vcs in vcs_instances:
+            if vcs.default:
+                return vcs.token
+
+    raise ValueError(f"No matching VCS instance found for URL: {url}")
 
 
 class SlackUsergroupsIntegration(
@@ -195,6 +240,7 @@ class SlackUsergroupsIntegration(
     async def fetch_owners(
         self,
         url: str,
+        token: VaultSecret,
         gh_to_org_username: Mapping[str, str],
         users_map: Mapping[str, UserV1],
     ) -> list[str]:
@@ -206,7 +252,13 @@ class SlackUsergroupsIntegration(
             url, ref = url.rsplit(":", 1)
 
         response = await get_repo_owners(
-            client=self.qontract_api_client, url_query=url, path="/", ref=ref
+            client=self.qontract_api_client,
+            repo_url=url,
+            ref=ref,
+            secret_manager_url=self.secret_manager_url,
+            path=token.path,
+            field=token.field,
+            version=token.version,
         )
         assert isinstance(response, RepoOwnersResponse)
 
@@ -228,6 +280,7 @@ class SlackUsergroupsIntegration(
     async def compile_users_from_git_owners(
         self,
         urls: Iterable[str] | None,
+        vcs_instances: Iterable[Vcs],
         app_interface_users: list[UserV1],
     ) -> list[str]:
         """Extract usernames from git OWNERS files.
@@ -248,8 +301,19 @@ class SlackUsergroupsIntegration(
             for user in app_interface_users
         }
         users_map = {user.org_username: user for user in app_interface_users}
+        vcs_reg = get_default_registry()
 
-        tasks = [self.fetch_owners(url, gh_to_org_username, users_map) for url in urls]
+        tasks = [
+            self.fetch_owners(
+                url,
+                get_token_from_url(
+                    vcs_reg=vcs_reg, vcs_instances=vcs_instances, url=url
+                ),
+                gh_to_org_username,
+                users_map,
+            )
+            for url in urls
+        ]
         results = await asyncio.gather(*tasks)
 
         # Extract usernames
@@ -279,7 +343,10 @@ class SlackUsergroupsIntegration(
                     get_pagerduty_schedule_users(
                         client=self.qontract_api_client,
                         schedule_id=pagerduty.schedule_id,
-                        instance=pagerduty.instance.name,
+                        secret_manager_url=self.secret_manager_url,
+                        path=pagerduty.instance.token.path,
+                        field=pagerduty.instance.token.field,
+                        version=pagerduty.instance.token.version,
                     )
                 )
             if pagerduty.escalation_policy_id:
@@ -287,7 +354,10 @@ class SlackUsergroupsIntegration(
                     get_pagerduty_escalation_policy_users(
                         client=self.qontract_api_client,
                         policy_id=pagerduty.escalation_policy_id,
-                        instance=pagerduty.instance.name,
+                        secret_manager_url=self.secret_manager_url,
+                        path=pagerduty.instance.token.path,
+                        field=pagerduty.instance.token.field,
+                        version=pagerduty.instance.token.version,
                     )
                 )
 
@@ -300,6 +370,7 @@ class SlackUsergroupsIntegration(
         self,
         permission: PermissionSlackUsergroupV1,
         app_interface_users: list[UserV1],
+        vcs_instances: Iterable[Vcs],
         desired_workspace_name: str | None,
         desired_usergroup_name: str | None,
     ) -> tuple[str, SlackUsergroup] | None:
@@ -336,6 +407,7 @@ class SlackUsergroupsIntegration(
             await self.compile_users_from_git_owners(
                 urls=permission.owners_from_repos,
                 app_interface_users=app_interface_users,
+                vcs_instances=vcs_instances,
             )
         )
         # Add users from PagerDuty schedules
@@ -359,6 +431,7 @@ class SlackUsergroupsIntegration(
         self,
         permissions: list[PermissionSlackUsergroupV1],
         app_interface_users: list[UserV1],
+        vcs_instances: Iterable[Vcs],
         desired_workspace_name: str | None = None,
         desired_usergroup_name: str | None = None,
     ) -> list[SlackWorkspace]:
@@ -368,6 +441,7 @@ class SlackUsergroupsIntegration(
             self._process_permission(
                 permission,
                 app_interface_users,
+                vcs_instances,
                 desired_workspace_name,
                 desired_usergroup_name,
             )
@@ -381,25 +455,25 @@ class SlackUsergroupsIntegration(
                 workspace_name, usergroup = result
                 workspaces_map[workspace_name].append(usergroup)
 
-        # Build workspace -> permission mapping for efficient lookup
-        permissions_by_workspace = {p.workspace.name: p for p in permissions}
+        workspaces_by_name = {p.workspace.name: p.workspace for p in permissions}
 
         # Build workspaces
         workspaces = []
         for workspace_name, usergroups in workspaces_map.items():
-            permission = permissions_by_workspace[workspace_name]
-
+            workspace = workspaces_by_name[workspace_name]
             # Extract channel from workspace integrations
             default_channel = None
-            if permission.workspace.integrations:
-                for integration in permission.workspace.integrations:
+            token = None
+            if workspace.integrations:
+                for integration in workspace.integrations:
                     if integration.name in {"slack-usergroups", QONTRACT_INTEGRATION}:
                         default_channel = integration.channel
+                        token = integration.token
                         break
 
-            if not default_channel:
-                logging.warning(
-                    f"Workspace {workspace_name} has no slack-usergroups integration channel, skipping"
+            if not default_channel or not token:
+                logging.error(
+                    f"Workspace {workspace_name} has no slack-usergroups integration setting, skipping"
                 )
                 continue
 
@@ -407,10 +481,11 @@ class SlackUsergroupsIntegration(
                 SlackWorkspace(
                     name=workspace_name,
                     usergroups=usergroups,
-                    managed_usergroups=permission.workspace.managed_usergroups
+                    managed_usergroups=workspace.managed_usergroups
                     if not desired_usergroup_name
                     else [desired_usergroup_name],
                     default_channel=default_channel,
+                    token=token,
                 )
             )
 
@@ -527,6 +602,12 @@ class SlackUsergroupsIntegration(
                     name=workspace.name,
                     usergroups=workspace.usergroups,
                     managed_usergroups=workspace.managed_usergroups,
+                    token=Secret(
+                        secret_manager_url=self.secret_manager_url,
+                        path=workspace.token.path,
+                        field=workspace.token.field,
+                        version=workspace.token.version,
+                    ),
                 )
                 for workspace in workspaces
             ],
@@ -545,10 +626,12 @@ class SlackUsergroupsIntegration(
         users = self.get_users(query_func=gqlapi.query)
         clusters = self.get_clusters(query_func=gqlapi.query)
         roles = self.get_roles(query_func=gqlapi.query)
+        vcs_instances = get_vcs_instances(query_func=gqlapi.query)
 
         workspaces = await self.compile_desired_state_from_permissions(
             permissions=permissions,
             app_interface_users=users,
+            vcs_instances=vcs_instances,
             desired_workspace_name=self.params.workspace_name,
             desired_usergroup_name=self.params.usergroup_name,
         )

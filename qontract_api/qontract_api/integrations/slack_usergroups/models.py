@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from qontract_api.models import TaskStatus
+from qontract_api.models import Secret, TaskStatus
 
 
 class SlackUsergroupConfig(BaseModel, frozen=True):
@@ -43,6 +43,10 @@ class SlackWorkspace(BaseModel, frozen=True):
     managed_usergroups: list[str] = Field(
         ...,
         description="This list shows the usergroup handles/names managed by qontract-api. Any user group not included here will be abandoned during reconciliation.",
+    )
+    token: Secret = Field(
+        ...,
+        description="Secret reference for the Slack workspace token",
     )
 
 

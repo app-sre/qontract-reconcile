@@ -3,6 +3,7 @@
 from collections.abc import Iterable
 
 from qontract_utils.differ import diff_iterables
+from qontract_utils.secret_reader import Secret
 
 from qontract_api.config import Settings
 from qontract_api.integrations.slack_usergroups.models import (
@@ -53,7 +54,9 @@ class SlackUsergroupsService:
         self.secret_manager = secret_manager
         self.settings = settings
 
-    def _create_slack_client(self, workspace_name: str) -> SlackWorkspaceClient:
+    def _create_slack_client(
+        self, workspace_name: str, token: Secret
+    ) -> SlackWorkspaceClient:
         """Create SlackWorkspaceClient with caching, locking, and rate limiting.
 
         Fetches token from secret backend and uses factory to create client.
@@ -64,16 +67,10 @@ class SlackUsergroupsService:
         Returns:
             SlackWorkspaceClient instance with full caching + compute layer
         """
-        token = self.secret_manager.read(
-            self.settings.slack.workspaces[workspace_name]
-            .integrations["slack-usergroups"]
-            .token
-        )
-
         # Use factory to create client
         return self.slack_client_factory.create_workspace_client(
             workspace_name=workspace_name,
-            token=token,
+            token=self.secret_manager.read(token),
         )
 
     @staticmethod
@@ -213,7 +210,7 @@ class SlackUsergroupsService:
         for workspace in workspaces:
             logger.info(f"Reconciling workspace: {workspace.name}")
             try:
-                slack = self._create_slack_client(workspace.name)
+                slack = self._create_slack_client(workspace.name, workspace.token)
                 logger.info(
                     f"Fetching current usergroups for workspace: {workspace.name}"
                 )

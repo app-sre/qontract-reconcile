@@ -3,6 +3,7 @@
 Implements registry pattern for extensible VCS provider support.
 """
 
+from qontract_utils.vcs.models import Provider
 from qontract_utils.vcs.provider_protocol import VCSProviderProtocol
 from qontract_utils.vcs.providers import GitHubProvider, GitLabProvider
 
@@ -18,13 +19,13 @@ class VCSProviderRegistry:
         >>> registry.register(GitHubProvider())
         >>> registry.register(GitLabProvider())
         >>> provider = registry.detect_provider("https://github.com/owner/repo")
-        >>> provider.name
-        'github'
+        >>> provider.type
+        Provider.GITHUB
     """
 
     def __init__(self) -> None:
         """Initialize empty provider registry."""
-        self._providers: dict[str, VCSProviderProtocol] = {}
+        self._providers: dict[Provider, VCSProviderProtocol] = {}
 
     def register(self, provider: VCSProviderProtocol) -> None:
         """Register a VCS provider.
@@ -35,11 +36,11 @@ class VCSProviderRegistry:
         Raises:
             ValueError: If provider with same name already registered
         """
-        if provider.name in self._providers:
-            msg = f"Provider already registered: {provider.name}"
+        if provider.type in self._providers:
+            msg = f"Provider already registered: {provider.type.value}"
             raise ValueError(msg)
 
-        self._providers[provider.name] = provider
+        self._providers[provider.type] = provider
 
     def detect_provider(self, url: str) -> VCSProviderProtocol:
         """Auto-detect VCS provider from repository URL.
@@ -69,7 +70,7 @@ class VCSProviderRegistry:
         msg = f"No VCS provider found for URL: {url}"
         raise ValueError(msg)
 
-    def get_provider(self, name: str) -> VCSProviderProtocol:
+    def get_provider(self, provider_type: Provider) -> VCSProviderProtocol:
         """Get VCS provider by name.
 
         Args:
@@ -87,13 +88,13 @@ class VCSProviderRegistry:
             >>> provider.name
             'github'
         """
-        if name not in self._providers:
-            msg = f"Provider not found: {name}"
+        if provider_type not in self._providers:
+            msg = f"Provider not found: {provider_type.value}"
             raise ValueError(msg)
 
-        return self._providers[name]
+        return self._providers[provider_type]
 
-    def list_providers(self) -> list[str]:
+    def list_providers(self) -> list[Provider]:
         """List all registered provider names.
 
         Returns:
@@ -102,7 +103,7 @@ class VCSProviderRegistry:
         Example:
             >>> registry = get_default_registry()
             >>> registry.list_providers()
-            ['github', 'gitlab']
+            [Provider.GITHUB, Provider.GITLAB]
         """
         return list(self._providers.keys())
 

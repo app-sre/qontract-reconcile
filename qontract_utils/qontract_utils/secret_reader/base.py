@@ -11,7 +11,10 @@ Similar to CacheBackend pattern:
 
 import threading
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+
+if TYPE_CHECKING:
+    from qontract_utils.secret_reader.providers.vault import VaultSecretBackendSettings
 
 
 class SecretNotFoundError(Exception):
@@ -31,6 +34,9 @@ class Secret(Protocol):
     field: str | None
     version: int | None
 
+    @property
+    def url(self) -> str: ...
+
 
 class SecretBackend(ABC):
     """Abstract base class for secret backends.
@@ -42,6 +48,9 @@ class SecretBackend(ABC):
     Singleton Pattern (double-checked locking):
     - get_instance() provides thread-safe singleton per backend type
     - reset_singleton() for testing cleanup
+
+    Required Instance Variables:
+    - url (str): Backend server URL (enforced via abstract property)
 
     Example:
         # Initialize Vault backend
@@ -69,8 +78,18 @@ class SecretBackend(ABC):
     _instances: ClassVar[dict[str, "SecretBackend"]] = {}
     _lock: ClassVar[threading.Lock] = threading.Lock()
 
-    @classmethod  # TODO: backend specific parameters e.g. VaultSettings, AWSKMSSettings
-    def get_instance(cls, backend_type: str, **kwargs: Any) -> "SecretBackend":
+    @property
+    @abstractmethod
+    def url(self) -> str:
+        """Backend server URL (e.g., 'https://vault.example.com').
+
+        Concrete implementations must provide this property.
+        """
+
+    @classmethod
+    def get_instance(
+        cls, backend_type: str, backend_settings: "VaultSecretBackendSettings"
+    ) -> "SecretBackend":
         """Get singleton secret backend instance (thread-safe factory).
 
         Uses double-checked locking for thread safety. Each backend type
@@ -114,12 +133,18 @@ class SecretBackend(ABC):
                 # Factory: Create backend based on type
                 match backend_type:
                     case "vault":
-                        # Import moved inside to avoid circular imports
+                        # Import here to avoid circular dependency
                         from qontract_utils.secret_reader.providers.vault import (  # noqa: PLC0415
                             VaultSecretBackend,
+                            VaultSecretBackendSettings,
                         )
 
-                        cls._instances[backend_type] = VaultSecretBackend(**kwargs)
+                        assert isinstance(
+                            backend_settings, VaultSecretBackendSettings
+                        )  # for mypy
+                        cls._instances[backend_type] = VaultSecretBackend(
+                            backend_settings
+                        )
                     case _:
                         msg = f"Unsupported secret backend: {backend_type}"
                         raise ValueError(msg)

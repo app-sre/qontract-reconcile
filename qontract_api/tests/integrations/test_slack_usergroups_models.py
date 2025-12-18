@@ -11,7 +11,7 @@ from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
-from qontract_api.models import TaskStatus
+from qontract_api.models import Secret, TaskStatus
 
 
 def test_slack_usergroup_config_minimal() -> None:
@@ -52,10 +52,15 @@ def test_slack_workspace_model() -> None:
     """Test SlackWorkspace model with usergroups."""
     config = SlackUsergroupConfig(description="Test group")
     usergroup = SlackUsergroup(handle="test-group", config=config)
+    token = Secret(
+        secret_manager_url="https://vault.example.com",
+        path="secret/slack/test-workspace",
+    )
     workspace = SlackWorkspace(
         name="test-workspace",
         usergroups=[usergroup],
         managed_usergroups=["test-group"],
+        token=token,
     )
     assert workspace.name == "test-workspace"
     assert len(workspace.usergroups) == 1
@@ -66,10 +71,15 @@ def test_reconcile_request_dry_run_default_true() -> None:
     """Test that dry_run defaults to True (CRITICAL safety feature)."""
     config = SlackUsergroupConfig()
     usergroup = SlackUsergroup(handle="test-group", config=config)
+    token = Secret(
+        secret_manager_url="https://vault.example.com",
+        path="secret/slack/test-workspace",
+    )
     workspace = SlackWorkspace(
         name="test-workspace",
         usergroups=[usergroup],
         managed_usergroups=["test-group"],
+        token=token,
     )
     request = SlackUsergroupsReconcileRequest(workspaces=[workspace])
     assert request.dry_run is True  # MUST be True by default!
@@ -79,10 +89,15 @@ def test_reconcile_request_dry_run_explicit_false() -> None:
     """Test that dry_run can be explicitly set to False."""
     config = SlackUsergroupConfig()
     usergroup = SlackUsergroup(handle="test-group", config=config)
+    token = Secret(
+        secret_manager_url="https://vault.example.com",
+        path="secret/slack/test-workspace",
+    )
     workspace = SlackWorkspace(
         name="test-workspace",
         usergroups=[usergroup],
         managed_usergroups=["test-group"],
+        token=token,
     )
     request = SlackUsergroupsReconcileRequest(workspaces=[workspace], dry_run=False)
     assert request.dry_run is False

@@ -62,13 +62,11 @@ class PagerDutyWorkspaceClient:
     # CACHE KEY HELPERS
     def _cache_key_schedule_users(self, schedule_id: str) -> str:
         """Generate cache key for schedule users."""
-        return (
-            f"pagerduty:{self.pagerduty_api.instance_name}:schedule:{schedule_id}:users"
-        )
+        return f"pagerduty:{self.pagerduty_api.id}:schedule:{schedule_id}:users"
 
     def _cache_key_escalation_policy_users(self, policy_id: str) -> str:
         """Generate cache key for escalation policy users."""
-        return f"pagerduty:{self.pagerduty_api.instance_name}:escalation_policy:{policy_id}:users"
+        return f"pagerduty:{self.pagerduty_api.id}:escalation_policy:{policy_id}:users"
 
     # CACHE OPERATIONS (using two-tier cache from CacheBackend)
     def _get_cached_schedule_users(self, cache_key: str) -> list[PagerDutyUser] | None:

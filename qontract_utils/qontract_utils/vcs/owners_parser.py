@@ -40,11 +40,11 @@ class OwnersParser:
         self._aliases: dict[str, list[str]] | None = None
         self._yaml = yaml_client() if yaml_client else create_ruamel_instance()
 
-    def get_owners(self, path: str = "/") -> RepoOwners:
+    def get_owners(self, owners_file: str = "/OWNERS") -> RepoOwners:
         """Get owners defined in OWNERS file at specified path.
 
         Args:
-            path: Path to directory containing OWNERS file (default: root "/")
+            owners_file: Path to OWNERS file (default: "/OWNERS")
 
         Returns:
             RepoOwners with approvers and reviewers from OWNERS file at path
@@ -53,20 +53,14 @@ class OwnersParser:
             All exception handling is done here. Private methods will raise
             exceptions that are caught and logged with repo_url context.
         """
-        # Normalize path to ensure
-        # * it ends with a single slash if not root
-        # * it does not start with a slash
-        # * it does not contain dots
-        path = (path.removesuffix("/") + "/").strip(".").lstrip("/")
-        owners_file_path = f"{path}OWNERS"
-
+        owners_file = owners_file.lstrip("/")
         try:
-            raw_owners = self._vcs_client.get_file(path=owners_file_path, ref=self._ref)
+            raw_owners = self._vcs_client.get_file(path=owners_file, ref=self._ref)
             if not raw_owners:
                 return RepoOwners(approvers=[], reviewers=[])
         except Exception as e:  # noqa: BLE001
             logger.warning(
-                f"Non-parsable OWNERS file: {self._repo_url}/{owners_file_path} - {e}"
+                f"Non-parsable OWNERS file: {self._repo_url}/{owners_file} - {e}"
             )
             return RepoOwners(approvers=[], reviewers=[])
 

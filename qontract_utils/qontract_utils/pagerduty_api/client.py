@@ -38,7 +38,7 @@ class PagerDutyApiCallContext:
 
     method: str
     verb: str
-    instance: str
+    id: str
 
 
 def _metrics_hook(context: PagerDutyApiCallContext) -> None:
@@ -65,7 +65,7 @@ class PagerDutyApi:
         ...     # Rate limiting logic
         ...     pass
         >>> api = PagerDutyApi(
-        ...     instance_name="app-sre",
+        ...     id="app-sre",
         ...     token="...",
         ...     pre_hooks=[rate_limit_hook]
         ... )
@@ -76,7 +76,7 @@ class PagerDutyApi:
 
     def __init__(
         self,
-        instance_name: str,
+        id: str,  # noqa: A002
         token: str,
         timeout: int = TIMEOUT,
         pre_hooks: Sequence[Callable[[PagerDutyApiCallContext], None]] | None = None,
@@ -84,12 +84,12 @@ class PagerDutyApi:
         """Initialize PagerDuty API client.
 
         Args:
-            instance_name: PagerDuty instance name (for logging/metrics)
+            id: PagerDuty ID (for logging, metrics and cache keys)
             token: PagerDuty API token
             timeout: API request timeout in seconds (default: 30)
             pre_hooks: Optional hooks called before API requests
         """
-        self.instance_name = instance_name
+        self.id = id
         self._timeout = timeout
 
         # Setup hook system - always include metrics hook
@@ -118,11 +118,7 @@ class PagerDutyApi:
             jsmith
         """
         with invoke_with_hooks(
-            PagerDutyApiCallContext(
-                method="users.get",
-                verb="GET",
-                instance=self.instance_name,
-            ),
+            PagerDutyApiCallContext(method="users.get", verb="GET", id=self.id),
             pre_hooks=self._pre_hooks,
         ):
             user_data = self._client.rget(f"/users/{user_id}")  # type: ignore[misc]
@@ -151,11 +147,7 @@ class PagerDutyApi:
             ['jsmith', 'mdoe']
         """
         with invoke_with_hooks(
-            PagerDutyApiCallContext(
-                method="schedules.get",
-                verb="GET",
-                instance=self.instance_name,
-            ),
+            PagerDutyApiCallContext(method="schedules.get", verb="GET", id=self.id),
             pre_hooks=self._pre_hooks,
         ):
             # Calculate time window: now to now + 60s
@@ -198,9 +190,7 @@ class PagerDutyApi:
         """
         with invoke_with_hooks(
             PagerDutyApiCallContext(
-                method="escalation_policies.get",
-                verb="GET",
-                instance=self.instance_name,
+                method="escalation_policies.get", verb="GET", id=self.id
             ),
             pre_hooks=self._pre_hooks,
         ):

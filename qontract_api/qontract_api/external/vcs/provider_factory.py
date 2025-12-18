@@ -4,21 +4,19 @@ from collections.abc import Callable
 from typing import Any
 
 from qontract_utils.vcs import (
-    GitHubProvider,
     GitHubProviderSettings,
-    GitLabProvider,
     GitLabProviderSettings,
     VCSApiProtocol,
     VCSProviderProtocol,
     VCSProviderRegistry,
 )
+from qontract_utils.vcs.models import Provider
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import GitHubProviderSettings as GitHubProviderConfig
 from qontract_api.config import GitLabProviderSettings as GitLabProviderConfig
 from qontract_api.config import Settings
 from qontract_api.rate_limit.token_bucket import TokenBucket
-from qontract_api.secret_manager import SecretManager
 
 
 class VCSProviderFactory:
@@ -30,16 +28,16 @@ class VCSProviderFactory:
 
     def __init__(
         self,
+        token: str,
         registry: VCSProviderRegistry,
         cache: CacheBackend,
-        secret_manager: SecretManager,
         settings: Settings,
     ) -> None:
         """Initialize VCS provider factory."""
         self._registry = registry
         self._cache = cache
         self._settings = settings
-        self._secret_manager = secret_manager
+        self._token = token
 
     def detect_provider(self, url: str) -> VCSProviderProtocol:
         """Detect VCS provider from repository URL.
@@ -58,7 +56,7 @@ class VCSProviderFactory:
     def create_api_client(
         self,
         url: str,
-        provider_name: str | None = None,
+        provider_type: Provider | None = None,
     ) -> tuple[VCSApiProtocol, str]:
         """Create VCS API client with rate limiting.
 
@@ -85,58 +83,30 @@ class VCSProviderFactory:
             >>> name
             'github'
         """
-        if provider_name:
-            provider = self._registry.get_provider(provider_name)
+        if provider_type:
+            provider = self._registry.get_provider(provider_type)
         else:
             provider = self._registry.detect_provider(url)
 
         provider_config: GitHubProviderConfig | GitLabProviderConfig = getattr(
-            self._settings.vcs.providers, provider.name
+            self._settings.vcs.providers, provider.type.value
         )
 
-        match provider_config:
-            case GitHubProviderConfig():
-                gh_repo = GitHubProvider.parse_url(url)
-                org_url = gh_repo.owner_url
-                if org_url not in provider_config.organizations:
-                    if "default" not in provider_config.organizations:
-                        raise ValueError(
-                            f"No token provider configured for organization: {gh_repo.owner}"
-                        )
-                    org_url = "default"
-                token = self._secret_manager.read(
-                    provider_config.organizations[org_url].token
-                )
-            case GitLabProviderConfig():
-                gl_repo = GitLabProvider.parse_url(url)
-                gl_url = gl_repo.gitlab_url
-                if gl_url not in provider_config.instances:
-                    if "default" not in provider_config.instances:
-                        raise ValueError(
-                            f"No token provider configured for GitLab instance: {gl_url}"
-                        )
-                    gl_url = "default"
-                token = self._secret_manager.read(
-                    provider_config.instances[gl_url].token
-                )
-            case _:
-                raise ValueError(f"No token provider configured for: {provider.name}")
-
         rate_limit_hook = self._create_rate_limit_hook(
-            provider_name=provider.name,
+            provider_name=provider.type.value,
             url=url,
             provider_settings=provider_config,
         )
 
         api_client = provider.create_api_client(
             url=url,
-            token=token,
+            token=self._token,
             timeout=provider_config.api_timeout,
             hooks=[rate_limit_hook],
             provider_settings=self._build_provider_settings(provider_config),
         )
 
-        return api_client, provider.name
+        return api_client, provider.type.value
 
     def _create_rate_limit_hook(
         self,

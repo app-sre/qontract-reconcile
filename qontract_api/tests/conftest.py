@@ -1,10 +1,23 @@
 """Pytest configuration and fixtures."""
 
+import os
 from collections.abc import Generator
 from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_env() -> None:
+    """Setup test environment variables."""
+    # Set up minimal required settings for tests
+    os.environ.setdefault(
+        "QAPI_SECRETS__DEFAULT_PROVIDER_URL", "https://vault.example.org"
+    )
+    os.environ.setdefault(
+        "QAPI_SECRETS__PROVIDERS", '[{"url": "https://vault.example.org"}]'
+    )
 
 
 @pytest.fixture
