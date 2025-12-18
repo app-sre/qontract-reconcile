@@ -184,7 +184,7 @@ def _format_change_responsible(cr: ChangeResponsibles) -> str:
     ]
 
     usernames_text = " ".join(usernames)
-    return f"<details><summary>{cr.context}</summary>\n\n{usernames_text}\n\n</details>"
+    return f"<details><summary>{cr.context}</summary>{usernames_text}</details>"
 
 
 def write_coverage_report_to_mr(
