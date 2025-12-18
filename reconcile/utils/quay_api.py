@@ -1,10 +1,17 @@
-from typing import Any
+from typing import Any, TypedDict
 
 import requests
 
 
 class QuayTeamNotFoundError(Exception):
     pass
+
+
+class RobotAccountDetails(TypedDict):
+    name: str
+    description: str | None
+    teams: list[dict[str, str]]
+    repositories: list[dict[str, str]]
 
 
 class QuayApi:
@@ -308,7 +315,7 @@ class QuayApi:
         r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
         r.raise_for_status()
 
-    def get_robot_account_details(self, robot_name: str) -> dict[str, Any] | None:
+    def get_robot_account_details(self, robot_name: str) -> RobotAccountDetails | None:
         """Get detailed information about a robot account including teams and repositories"""
         robot_short_name = robot_name.split("+")[1]
         url = (
@@ -363,13 +370,13 @@ class QuayApi:
 
         return robot_data
 
-    def list_robot_accounts_detailed(self) -> list[dict[str, Any]]:
+    def list_robot_accounts_detailed(self) -> list[RobotAccountDetails]:
         """List all robot accounts with detailed information including teams and repositories"""
         robots = self.list_robot_accounts()
         if not robots:
             return []
 
-        detailed_robots = []
+        detailed_robots: list[RobotAccountDetails] = []
         for robot in robots:
             robot_name = robot["name"]
             details = self.get_robot_account_details(robot_name)

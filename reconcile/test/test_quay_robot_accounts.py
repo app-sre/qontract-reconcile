@@ -1,5 +1,4 @@
-from typing import Any
-from unittest.mock import Mock, create_autospec
+from unittest.mock import create_autospec
 
 import pytest
 
@@ -20,7 +19,7 @@ from reconcile.quay_robot_accounts import (
     calculate_diff,
     get_current_robot_accounts,
 )
-from reconcile.utils.quay_api import QuayApi
+from reconcile.utils.quay_api import QuayApi, RobotAccountDetails
 
 
 @pytest.fixture
@@ -43,14 +42,14 @@ def mock_robot_gql() -> QuayRobotV1:
 
 
 @pytest.fixture
-def mock_current_robot() -> dict[str, Any]:
+def mock_current_robot() -> RobotAccountDetails:
     """Mock current robot account from Quay API"""
-    return {
-        "name": "existing-robot",
-        "description": "Existing robot",
-        "teams": [{"name": "team1"}],
-        "repositories": [{"name": "repo1", "role": "read"}],
-    }
+    return RobotAccountDetails(
+        name="existing-robot",
+        description="Existing robot",
+        teams=[{"name": "team1"}],
+        repositories=[{"name": "repo1", "role": "read"}],
+    )
 
 
 @pytest.fixture
@@ -134,7 +133,7 @@ def test_build_desired_state_empty_teams_repos(mock_robot_gql: QuayRobotV1) -> N
 
 
 def test_build_current_state_single_robot(
-    mock_current_robot: dict[str, Any], mock_quay_api_store: QuayApiStore
+    mock_current_robot: RobotAccountDetails, mock_quay_api_store: QuayApiStore
 ) -> None:
     """Test building current state with a single robot"""
     current_robots = {("quay-instance", "test-org"): [mock_current_robot]}
@@ -154,26 +153,24 @@ def test_build_current_state_single_robot(
     assert state.repositories == {"repo1": "read"}
 
 
-def test_build_current_state_no_org_key(mock_current_robot: dict[str, Any]) -> None:
+def test_build_current_state_no_org_key(
+    mock_current_robot: RobotAccountDetails,
+) -> None:
     """Test building current state with no matching org key"""
     current_robots = {("unknown-instance", "unknown-org"): [mock_current_robot]}
     quay_api_store: QuayApiStore = {}
 
-    current_state: dict[tuple[str, str, str], RobotAccountState] = build_current_state(
-        current_robots, quay_api_store
-    )
+    current_state = build_current_state(current_robots, quay_api_store)
     assert len(current_state) == 0
 
 
 def test_build_current_state_empty_robots(mock_quay_api_store: QuayApiStore) -> None:
     """Test building current state with empty robot list"""
-    current_robots: dict[tuple[str, str], list[dict[str, Any]]] = {
+    current_robots: dict[tuple[str, str], list[RobotAccountDetails]] = {
         ("quay-instance", "test-org"): []
     }
 
-    current_state: dict[tuple[str, str, str], RobotAccountState] = build_current_state(
-        current_robots, mock_quay_api_store
-    )
+    current_state = build_current_state(current_robots, mock_quay_api_store)
     assert len(current_state) == 0
 
 
@@ -210,7 +207,7 @@ def test_calculate_diff_create_robot() -> None:
 def test_calculate_diff_delete_robot() -> None:
     """Test calculating diff when robot needs to be deleted"""
     desired_state: dict[tuple[str, str, str], RobotAccountState] = {}
-    current_state: dict[tuple[str, str, str], RobotAccountState] = {
+    current_state = {
         ("instance", "org", "old-robot"): RobotAccountState(
             name="old-robot",
             description="Old robot",
@@ -221,7 +218,7 @@ def test_calculate_diff_delete_robot() -> None:
         )
     }
 
-    actions: list[RobotAccountAction] = calculate_diff(desired_state, current_state)
+    actions = calculate_diff(desired_state, current_state)
 
     assert len(actions) == 1
     assert actions[0].action == "delete"
@@ -251,7 +248,7 @@ def test_calculate_diff_team_changes() -> None:
         )
     }
 
-    actions: list[RobotAccountAction] = calculate_diff(desired_state, current_state)
+    actions = calculate_diff(desired_state, current_state)
 
     action_types = [a.action for a in actions]
     assert "add_team" in action_types
@@ -293,7 +290,7 @@ def test_calculate_diff_repository_changes() -> None:
         )
     }
 
-    actions: list[RobotAccountAction] = calculate_diff(desired_state, current_state)
+    actions = calculate_diff(desired_state, current_state)
 
     action_types = [a.action for a in actions]
     assert "set_repo_permission" in action_types
@@ -308,7 +305,7 @@ def test_calculate_diff_repository_changes() -> None:
 
 def test_calculate_diff_no_changes() -> None:
     """Test calculating diff when no changes are needed"""
-    state: RobotAccountState = RobotAccountState(
+    state = RobotAccountState(
         name="robot",
         description="Robot",
         org_name="org",
@@ -319,19 +316,30 @@ def test_calculate_diff_no_changes() -> None:
     desired_state = {("instance", "org", "robot"): state}
     current_state = {("instance", "org", "robot"): state}
 
-    actions: list[RobotAccountAction] = calculate_diff(desired_state, current_state)
+    actions = calculate_diff(desired_state, current_state)
     assert len(actions) == 0
 
 
 def test_get_current_robot_accounts_success(mock_quay_api_store: QuayApiStore) -> None:
     """Test successful fetching of current robot accounts"""
-    mock_robots: list[dict[str, Any]] = [{"name": "robot1"}, {"name": "robot2"}]
+    mock_robots = [
+        RobotAccountDetails(
+            name="robot1",
+            description="Robot 1",
+            teams=[{"name": "team1"}],
+            repositories=[{"name": "repo1", "role": "read"}],
+        ),
+        RobotAccountDetails(
+            name="robot2",
+            description="Robot 2",
+            teams=[{"name": "team2"}],
+            repositories=[{"name": "repo2", "role": "write"}],
+        ),
+    ]
     mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
     mock_api.list_robot_accounts_detailed.return_value = mock_robots  # type: ignore
 
-    result: dict[tuple[str, str], list[dict[str, Any]]] = get_current_robot_accounts(
-        mock_quay_api_store
-    )
+    result = get_current_robot_accounts(mock_quay_api_store)
 
     assert len(result) == 1
     assert ("quay-instance", "test-org") in result
@@ -345,9 +353,7 @@ def test_get_current_robot_accounts_exception(
     mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
     mock_api.list_robot_accounts_detailed.side_effect = Exception("API Error")  # type: ignore
 
-    result: dict[tuple[str, str], list[dict[str, Any]]] = get_current_robot_accounts(
-        mock_quay_api_store
-    )
+    result = get_current_robot_accounts(mock_quay_api_store)
 
     assert len(result) == 1
     assert result["quay-instance", "test-org"] == []
