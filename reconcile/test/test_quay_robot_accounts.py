@@ -1,5 +1,5 @@
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, create_autospec
 
 import pytest
 
@@ -20,6 +20,7 @@ from reconcile.quay_robot_accounts import (
     calculate_diff,
     get_current_robot_accounts,
 )
+from reconcile.utils.quay_api import QuayApi
 
 
 @pytest.fixture
@@ -55,14 +56,8 @@ def mock_current_robot() -> dict[str, Any]:
 @pytest.fixture
 def mock_quay_api_store() -> QuayApiStore:
     """Mock QuayApiStore"""
-    mock_api = Mock()
+    mock_api = create_autospec(QuayApi)
     mock_api.list_robot_accounts_detailed.return_value = []
-    mock_api.create_robot_account.return_value = None
-    mock_api.delete_robot_account.return_value = None
-    mock_api.add_user_to_team.return_value = None
-    mock_api.remove_user_from_team.return_value = None
-    mock_api.set_repo_robot_permissions.return_value = None
-    mock_api.delete_repo_robot_permissions.return_value = None
 
     org_key = OrgKey("quay-instance", "test-org")
     return {
