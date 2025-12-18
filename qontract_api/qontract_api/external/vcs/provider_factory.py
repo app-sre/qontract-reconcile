@@ -1,8 +1,5 @@
 """Factory for creating VCS API clients with rate limiting and provider management."""
 
-from collections.abc import Callable
-from typing import Any
-
 from qontract_utils.vcs import (
     GitHubProviderSettings,
     GitLabProviderSettings,
@@ -16,7 +13,6 @@ from qontract_api.cache import CacheBackend
 from qontract_api.config import GitHubProviderSettings as GitHubProviderConfig
 from qontract_api.config import GitLabProviderSettings as GitLabProviderConfig
 from qontract_api.config import Settings
-from qontract_api.rate_limit.token_bucket import TokenBucket
 
 
 class VCSProviderFactory:
@@ -92,52 +88,15 @@ class VCSProviderFactory:
             self._settings.vcs.providers, provider.type.value
         )
 
-        rate_limit_hook = self._create_rate_limit_hook(
-            provider_name=provider.type.value,
-            url=url,
-            provider_settings=provider_config,
-        )
-
         api_client = provider.create_api_client(
             url=url,
             token=self._token,
             timeout=provider_config.api_timeout,
-            hooks=[rate_limit_hook],
+            hooks=[],
             provider_settings=self._build_provider_settings(provider_config),
         )
 
         return api_client, provider.type.value
-
-    def _create_rate_limit_hook(
-        self,
-        provider_name: str,
-        url: str,
-        provider_settings: Any,
-    ) -> Callable[[Any], None]:
-        """Create rate limiting hook for provider.
-
-        Args:
-            provider_name: Provider name (e.g., "github")
-            url: Repository URL (for bucket naming)
-            provider_settings: Provider-specific settings with rate limit config
-
-        Returns:
-            Hook function that acquires token before API call
-        """
-        # Create token bucket with provider-specific settings
-        bucket_name = f"{provider_name}:{provider_settings.rate_limit_tier}:{url}"
-        token_bucket = TokenBucket(
-            cache=self._cache,
-            bucket_name=bucket_name,
-            capacity=provider_settings.rate_limit_tokens,
-            refill_rate=provider_settings.rate_limit_refill_rate,
-        )
-
-        def rate_limit_hook(_context: Any) -> None:
-            """Rate limiting hook - acquires token before API call."""
-            token_bucket.acquire(tokens=1, timeout=30)
-
-        return rate_limit_hook
 
     @staticmethod
     def _build_provider_settings(
