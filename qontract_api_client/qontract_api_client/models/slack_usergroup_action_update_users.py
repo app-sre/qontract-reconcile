@@ -71,15 +71,13 @@ class SlackUsergroupActionUpdateUsers:
 
         usergroup = d.pop("usergroup")
 
-        users = cast("list[str]", d.pop("users"))
+        users = cast(list[str], d.pop("users"))
 
-        users_to_add = cast("list[str]", d.pop("users_to_add"))
+        users_to_add = cast(list[str], d.pop("users_to_add"))
 
-        users_to_remove = cast("list[str]", d.pop("users_to_remove"))
+        users_to_remove = cast(list[str], d.pop("users_to_remove"))
 
-        action_type = cast(
-            "Literal['update_users'] | Unset", d.pop("action_type", UNSET)
-        )
+        action_type = cast(Literal["update_users"] | Unset, d.pop("action_type", UNSET))
         if action_type != "update_users" and not isinstance(action_type, Unset):
             raise ValueError(
                 f"action_type must match const 'update_users', got '{action_type}'"

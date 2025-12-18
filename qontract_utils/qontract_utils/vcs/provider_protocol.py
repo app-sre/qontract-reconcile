@@ -7,6 +7,8 @@ extensible provider registry pattern.
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from qontract_utils.vcs.models import Provider
+
 
 class VCSApiProtocol(Protocol):
     """Protocol for VCS API clients (GitHub, GitLab, etc.).
@@ -38,8 +40,8 @@ class VCSProviderProtocol(Protocol):
     to support the provider registry pattern.
     """
 
-    name: str
-    """Provider name (e.g., 'github', 'gitlab')"""
+    """Provider type (e.g., 'github', 'gitlab')"""
+    type: Provider
 
     def detect(self, url: str) -> bool:
         """Detect if this provider can handle the given repository URL.

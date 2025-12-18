@@ -272,6 +272,14 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
             },
         )
 
+    @property
+    def secret_manager_url(self) -> str:
+        """
+        Returns the configured secret manager URL.
+        """
+        config = get_config()
+        return config["vault"]["server"]
+
     @abstractmethod
     async def async_run(self, dry_run: bool) -> None:
         """

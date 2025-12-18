@@ -106,7 +106,7 @@ def test_get_owners_cache_hit(
     )
     mock_cache.get_obj.return_value = cached_owners
 
-    owners = github_client.get_owners(path="/", ref="main")
+    owners = github_client.get_owners(owners_file="/", ref="main")
 
     assert owners.approvers == ["user1", "user2"]
     assert owners.reviewers == ["user3"]
@@ -130,7 +130,7 @@ def test_get_owners_cache_miss(
         )
     )
 
-    owners = github_client.get_owners(path="/", ref="main")
+    owners = github_client.get_owners(owners_file="/", ref="main")
 
     assert owners.approvers == ["api_user1"]
     assert owners.reviewers == ["api_user2"]
@@ -152,7 +152,7 @@ def test_get_owners_acquires_lock_on_cache_miss(
         return_value=RepoOwners(approvers=[], reviewers=[])
     )
 
-    github_client.get_owners(path="/", ref="main")
+    github_client.get_owners(owners_file="/", ref="main")
 
     # Verify lock was acquired
     mock_cache.lock.assert_called_once_with(
@@ -173,7 +173,7 @@ def test_get_owners_double_check_after_lock(
     )
     mock_cache.get_obj.side_effect = [None, cached_owners]  # Miss, then hit after lock
 
-    owners = github_client.get_owners(path="/", ref="main")
+    owners = github_client.get_owners(owners_file="/", ref="main")
 
     # Should return cached data without calling _fetch_owners
     assert owners.approvers == ["cached_user"]
@@ -192,7 +192,7 @@ def test_get_owners_different_paths(
     )
 
     # Test root path
-    github_client.get_owners(path="/", ref="main")
+    github_client.get_owners(owners_file="/", ref="main")
     assert (
         "vcs:owners:https://github.com/test-org/test-repo:/:main"
         in mock_cache.get_obj.call_args[0][0]
@@ -202,7 +202,7 @@ def test_get_owners_different_paths(
     mock_cache.reset_mock()
 
     # Test subdirectory path
-    github_client.get_owners(path="/src/controllers", ref="main")
+    github_client.get_owners(owners_file="/src/controllers", ref="main")
     assert (
         "vcs:owners:https://github.com/test-org/test-repo:/src/controllers:main"
         in mock_cache.get_obj.call_args[0][0]
@@ -220,7 +220,7 @@ def test_get_owners_different_refs(
     )
 
     # Test branch ref
-    github_client.get_owners(path="/", ref="main")
+    github_client.get_owners(owners_file="/", ref="main")
     assert (
         "vcs:owners:https://github.com/test-org/test-repo:/:main"
         in mock_cache.get_obj.call_args[0][0]
@@ -230,7 +230,7 @@ def test_get_owners_different_refs(
     mock_cache.reset_mock()
 
     # Test tag ref
-    github_client.get_owners(path="/", ref="v1.2.3")
+    github_client.get_owners(owners_file="/", ref="v1.2.3")
     assert (
         "vcs:owners:https://github.com/test-org/test-repo:/:v1.2.3"
         in mock_cache.get_obj.call_args[0][0]
@@ -240,7 +240,7 @@ def test_get_owners_different_refs(
     mock_cache.reset_mock()
 
     # Test commit SHA ref
-    github_client.get_owners(path="/", ref="abc123def456")
+    github_client.get_owners(owners_file="/", ref="abc123def456")
     assert (
         "vcs:owners:https://github.com/test-org/test-repo:/:abc123def456"
         in mock_cache.get_obj.call_args[0][0]
@@ -257,7 +257,7 @@ def test_get_owners_empty_owners_file(
         return_value=RepoOwners(approvers=[], reviewers=[])
     )
 
-    owners = github_client.get_owners(path="/", ref="main")
+    owners = github_client.get_owners(owners_file="/", ref="main")
 
     assert owners.approvers == []
     assert owners.reviewers == []
@@ -278,7 +278,7 @@ def test_gitlab_get_owners(
         )
     )
 
-    owners = gitlab_client.get_owners(path="/", ref="main")
+    owners = gitlab_client.get_owners(owners_file="/", ref="main")
 
     assert owners.approvers == ["gitlab_user1"]
     assert owners.reviewers == ["gitlab_user2"]

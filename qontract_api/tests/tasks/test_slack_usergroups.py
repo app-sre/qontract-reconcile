@@ -14,7 +14,7 @@ from qontract_api.integrations.slack_usergroups.tasks import (
     generate_lock_key,
     reconcile_slack_usergroups_task,
 )
-from qontract_api.models import TaskStatus
+from qontract_api.models import Secret, TaskStatus
 
 
 @pytest.fixture
@@ -34,6 +34,10 @@ def sample_workspaces() -> list[SlackWorkspace]:
                     ),
                 )
             ],
+            token=Secret(
+                secret_manager_url="https://vault.example.com",
+                path="secret/slack/workspace-1",
+            ),
         )
     ]
 
@@ -55,11 +59,19 @@ def test_generate_lock_key_multiple_workspaces() -> None:
             name="workspace-b",
             managed_usergroups=[],
             usergroups=[],
+            token=Secret(
+                secret_manager_url="https://vault.example.com",
+                path="secret/slack/workspace-b",
+            ),
         ),
         SlackWorkspace(
             name="workspace-a",
             managed_usergroups=[],
             usergroups=[],
+            token=Secret(
+                secret_manager_url="https://vault.example.com",
+                path="secret/slack/workspace-a",
+            ),
         ),
     ]
     mock_self = MagicMock()
@@ -69,7 +81,6 @@ def test_generate_lock_key_multiple_workspaces() -> None:
     assert lock_key == "workspace-a,workspace-b"
 
 
-@patch("qontract_api.integrations.slack_usergroups.tasks.settings")
 @patch("qontract_api.integrations.slack_usergroups.tasks.get_cache")
 @patch("qontract_api.integrations.slack_usergroups.tasks.get_secret_manager")
 @patch("qontract_api.integrations.slack_usergroups.tasks.SlackClientFactory")
@@ -77,28 +88,9 @@ def test_reconcile_task_dry_run_success(
     mock_factory_class: MagicMock,
     mock_get_secret_manager: MagicMock,
     mock_get_cache: MagicMock,
-    mock_settings: MagicMock,
     sample_workspaces: list[SlackWorkspace],
 ) -> None:
     """Test task execution in dry-run mode."""
-    from qontract_api.config import (
-        Secret,
-        Settings,
-        SlackIntegrationsSettings,
-        SlackWorkspaceSettings,
-    )
-
-    # Setup settings mock
-    settings_instance = Settings()
-    settings_instance.slack.workspaces["workspace-1"] = SlackWorkspaceSettings(
-        integrations={
-            "slack-usergroups": SlackIntegrationsSettings(
-                token=Secret(path="slack/workspace-1/token")
-            )
-        }
-    )
-    mock_settings.slack = settings_instance.slack
-
     # Setup mocks
     mock_cache = MagicMock()
     mock_get_cache.return_value = mock_cache

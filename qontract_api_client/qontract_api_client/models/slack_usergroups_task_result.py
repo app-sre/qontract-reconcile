@@ -65,9 +65,9 @@ class SlackUsergroupsTaskResult:
             actions = []
             for actions_item_data in self.actions:
                 actions_item: dict[str, Any]
-                if isinstance(
-                    actions_item_data, SlackUsergroupActionCreate
-                ) or isinstance(actions_item_data, SlackUsergroupActionUpdateUsers):
+                if isinstance(actions_item_data, SlackUsergroupActionCreate):
+                    actions_item = actions_item_data.to_dict()
+                elif isinstance(actions_item_data, SlackUsergroupActionUpdateUsers):
                     actions_item = actions_item_data.to_dict()
                 else:
                     actions_item = actions_item_data.to_dict()
@@ -172,12 +172,12 @@ class SlackUsergroupsTaskResult:
             try:
                 if not isinstance(data, list):
                     raise TypeError()
-                errors_type_0 = cast("list[str]", data)
+                errors_type_0 = cast(list[str], data)
 
                 return errors_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast("list[str] | None | Unset", data)
+            return cast(list[str] | None | Unset, data)
 
         errors = _parse_errors(d.pop("errors", UNSET))
 

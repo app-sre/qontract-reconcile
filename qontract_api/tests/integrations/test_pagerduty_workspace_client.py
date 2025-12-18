@@ -6,7 +6,12 @@ import pytest
 from qontract_utils.pagerduty_api import PagerDutyApi, PagerDutyUser
 
 from qontract_api.cache.base import CacheBackend
-from qontract_api.config import PagerDutySettings, Settings
+from qontract_api.config import (
+    PagerDutySettings,
+    SecretSettings,
+    Settings,
+    VaultSettings,
+)
 from qontract_api.external.pagerduty.pagerduty_workspace_client import (
     CachedEscalationPolicyUsers,
     CachedScheduleUsers,
@@ -18,7 +23,7 @@ from qontract_api.external.pagerduty.pagerduty_workspace_client import (
 def mock_pagerduty_api() -> MagicMock:
     """Create mock PagerDutyApi."""
     api = MagicMock(spec=PagerDutyApi)
-    api.instance_name = "test-instance"
+    api.id = "test-instance"
     return api
 
 
@@ -39,7 +44,15 @@ def settings() -> Settings:
         pagerduty=PagerDutySettings(
             schedule_cache_ttl=300,
             escalation_policy_cache_ttl=600,
-        )
+        ),
+        secrets=SecretSettings(
+            providers=[
+                VaultSettings(
+                    url="https://vault.example.com",
+                )
+            ],
+            default_provider_url="https://vault.example.com",
+        ),
     )
 
 

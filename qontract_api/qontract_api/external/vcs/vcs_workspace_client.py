@@ -30,7 +30,7 @@ class VCSWorkspaceClient:
         ...     cache=cache,
         ...     settings=settings,
         ... )
-        >>> owners = client.get_owners(path="/", ref="main")
+        >>> owners = client.get_owners(owners_file="/OWNERS", ref="main")
     """
 
     def __init__(
@@ -67,7 +67,7 @@ class VCSWorkspaceClient:
 
         self.provider_name = provider_name
 
-    def get_owners(self, path: str, ref: str = "master") -> RepoOwners:
+    def get_owners(self, owners_file: str, ref: str = "master") -> RepoOwners:
         """Get OWNERS data for repository path with caching.
 
         Implements two-tier caching with distributed locking:
@@ -76,14 +76,14 @@ class VCSWorkspaceClient:
         3. Return cached data
 
         Args:
-            path: Repository path ("/" for root, "/src" for specific path, "ALL" for all)
+            owners_file: Owners file path
             ref: Git reference (branch, tag, commit SHA)
 
         Returns:
             RepoOwners with approvers and reviewers lists
         """
         # Cache key includes repo_url, path, and ref
-        cache_key = f"vcs:owners:{self.repo_url}:{path}:{ref}"
+        cache_key = f"vcs:owners:{self.repo_url}:{owners_file}:{ref}"
 
         # Try to get from cache first
         cached_owners = self._cache.get_obj(cache_key, RepoOwners)
@@ -99,7 +99,7 @@ class VCSWorkspaceClient:
                 return cached_owners
 
             # Fetch from VCS API
-            owners = self._fetch_owners(path, ref)
+            owners = self._fetch_owners(owners_file, ref)
 
             # Update cache
             self._cache.set_obj(
@@ -110,15 +110,15 @@ class VCSWorkspaceClient:
 
             return owners
 
-    def _fetch_owners(self, path: str, ref: str) -> RepoOwners:
+    def _fetch_owners(self, owners_file: str, ref: str) -> RepoOwners:
         """Fetch OWNERS data from VCS API.
 
         Args:
-            path: Repository path ("/" for root, "/src" for specific path)
+            owners_file: Owners file path
             ref: Git reference (branch, tag, commit SHA)
 
         Returns:
             RepoOwners with approvers and reviewers
         """
         parser = OwnersParser(vcs_client=self._api_client, ref=ref)
-        return parser.get_owners(path)
+        return parser.get_owners(owners_file)

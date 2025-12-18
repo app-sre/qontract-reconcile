@@ -7,16 +7,12 @@ from qontract_api.config import Settings
 from qontract_api.external.vcs.provider_factory import VCSProviderFactory
 from qontract_api.external.vcs.vcs_workspace_client import VCSWorkspaceClient
 from qontract_api.logger import get_logger
-from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
 
 
 def create_vcs_workspace_client(
-    repo_url: str,
-    cache: CacheBackend,
-    secret_manager: SecretManager,
-    settings: Settings,
+    repo_url: str, token: str, cache: CacheBackend, settings: Settings
 ) -> VCSWorkspaceClient:
     """Create VCSWorkspaceClient with provider registry pattern.
 
@@ -31,6 +27,7 @@ def create_vcs_workspace_client(
 
     Args:
         repo_url: Repository URL (e.g., https://github.com/owner/repo)
+        token: VCS API token
         cache: Cache backend for distributed cache and rate limit state
         settings: Application settings with VCS configuration
 
@@ -50,9 +47,9 @@ def create_vcs_workspace_client(
 
     # Create provider factory with dependency injection
     provider_factory = VCSProviderFactory(
+        token=token,
         registry=registry,
         cache=cache,
-        secret_manager=secret_manager,
         settings=settings,
     )
 

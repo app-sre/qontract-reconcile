@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
+from qontract_utils.vcs.models import Provider
 from qontract_utils.vcs.provider_protocol import VCSApiProtocol
 from qontract_utils.vcs.providers.github_client import GitHubRepoApi
 
@@ -41,7 +42,7 @@ class GitHubProvider:
     Detects GitHub URLs by checking for "github" in hostname.
     """
 
-    name = "github"
+    type = Provider.GITHUB
 
     @staticmethod
     def detect(url: str) -> bool:

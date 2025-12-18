@@ -29,24 +29,6 @@ class Secret(BaseModel):
     )
 
 
-class SlackIntegrationsSettings(BaseModel):
-    """Slack integration-specific configuration."""
-
-    token: Secret = Field(
-        ...,
-        description="Slack token secret path",
-    )
-
-
-class SlackWorkspaceSettings(BaseModel):
-    """Slack workspace-specific configuration."""
-
-    integrations: dict[str, SlackIntegrationsSettings] = Field(
-        default_factory=dict,
-        description="Slack integrations by name",
-    )
-
-
 class SlackSettings(BaseModel):
     """Slack API and integration configuration."""
 
@@ -85,31 +67,15 @@ class SlackSettings(BaseModel):
         default=60 * 60 * 12,
         description="Slack channels list cache TTL in seconds (12 hours)",
     )
-    workspaces: dict[str, SlackWorkspaceSettings] = Field(
-        default_factory=dict,
-        description="Slack workspaces by name",
-    )
-
-
-class PagerDutyInstanceSettings(BaseModel):
-    """PagerDuty instance-specific configuration."""
-
-    token: Secret = Field(
-        ...,
-        description="PagerDuty instance token secret path",
-    )
 
 
 class PagerDutySettings(BaseModel):
-    """PagerDuty API and integration configuration."""
+    """PagerDuty API configuration."""
 
-    # PagerDuty API Client Configuration
     api_timeout: int = Field(
         default=30,
         description="PagerDuty API timeout in seconds",
     )
-
-    # Cache TTLs (seconds)
     schedule_cache_ttl: int = Field(
         default=60 * 5,
         description="PagerDuty schedule users cache TTL in seconds (5 minutes)",
@@ -117,20 +83,6 @@ class PagerDutySettings(BaseModel):
     escalation_policy_cache_ttl: int = Field(
         default=60 * 5,
         description="PagerDuty escalation policy users cache TTL in seconds (5 minutes)",
-    )
-
-    instances: dict[str, PagerDutyInstanceSettings] = Field(
-        default_factory=dict,
-        description="PagerDuty instances by name",
-    )
-
-
-class GitHubOrgSettings(BaseModel):
-    """GitHub organization-specific configuration."""
-
-    token: Secret = Field(
-        ...,
-        description="GitHub organization token secret path",
     )
 
 
@@ -160,20 +112,6 @@ class GitHubProviderSettings(BaseModel):
         description="Token bucket refill rate (tokens per second)",
     )
 
-    organizations: dict[str, GitHubOrgSettings] = Field(
-        default_factory=dict,
-        description="GitHub organization-specific settings by GitHub organization URL",
-    )
-
-
-class GitLabInstanceSettings(BaseModel):
-    """GitLab instance-specific configuration."""
-
-    token: Secret = Field(
-        ...,
-        description="GitLab instance token secret path",
-    )
-
 
 class GitLabProviderSettings(BaseModel):
     """GitLab provider configuration."""
@@ -195,10 +133,6 @@ class GitLabProviderSettings(BaseModel):
     rate_limit_refill_rate: float = Field(
         default=1.0,
         description="Token bucket refill rate (tokens per second)",
-    )
-    instances: dict[str, GitLabInstanceSettings] = Field(
-        default_factory=dict,
-        description="GitLab instance-specific settings by GitLab instance URL",
     )
 
 
@@ -233,46 +167,55 @@ class VCSSettings(BaseModel):
     )
 
 
+class VaultSettings(BaseModel):
+    # Vault-specific configuration
+    backend_type: str = Field(
+        default="vault",
+        description="Secret backend type (e.g., vault)",
+    )
+    url: str = Field(
+        ...,
+        description="Vault server URL",
+    )
+    role_id: str | None = Field(
+        None,
+        description="Vault AppRole role_id (for AppRole auth)",
+    )
+    secret_id: str | None = Field(
+        None,
+        description="Vault AppRole secret_id (for AppRole auth)",
+    )
+    kube_auth_role: str | None = Field(
+        None,
+        description="Vault Kubernetes auth role (for Kubernetes auth)",
+    )
+    kube_auth_mount: str = Field(
+        default="kubernetes",
+        description="Vault Kubernetes auth mount point",
+    )
+    kube_sa_token_path: str = Field(
+        default="/var/run/secrets/kubernetes.io/serviceaccount/token",
+        description="Kubernetes service account token path",
+    )
+    auto_refresh: bool = Field(
+        default=True,
+        description="Auto-refresh Vault token in background thread",
+    )
+
+
 class SecretSettings(BaseModel):
     """Secret backend configuration.
 
     Supports HashiCorp Vault, AWS KMS, and Google Secret Manager.
     """
 
-    # Backend type
-    backend_type: str = Field(
-        default="vault",
-        description="Secret backend type: vault, aws_kms, google",
+    providers: list[VaultSettings] = Field(
+        default_factory=list,
+        description="Secret providers configuration",
     )
-
-    # Vault-specific configuration
-    vault_server: str = Field(
-        default="",
-        description="Vault server URL (e.g., https://vault.example.com)",
-    )
-    vault_role_id: str = Field(
-        default="",
-        description="Vault AppRole role_id (for AppRole auth)",
-    )
-    vault_secret_id: str = Field(
-        default="",
-        description="Vault AppRole secret_id (for AppRole auth)",
-    )
-    vault_kube_auth_role: str = Field(
-        default="",
-        description="Vault Kubernetes auth role (for Kubernetes auth)",
-    )
-    vault_kube_auth_mount: str = Field(
-        default="kubernetes",
-        description="Vault Kubernetes auth mount point",
-    )
-    vault_kube_sa_token_path: str = Field(
-        default="/var/run/secrets/kubernetes.io/serviceaccount/token",
-        description="Kubernetes service account token path",
-    )
-    vault_auto_refresh: bool = Field(
-        default=True,
-        description="Auto-refresh Vault token in background thread",
+    default_provider_url: str = Field(
+        ...,
+        description="Default secret provider URL. Used when no provider/secret is specified in the API request.",
     )
 
 
@@ -285,9 +228,10 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         env_prefix="QAPI_",
         env_nested_delimiter="__",
-        json_file=".env.json",
+        # for k8s secrets mounted as files
+        json_file="/config/config.json",
         json_file_encoding="utf-8",
-        yaml_file=".env.yaml",
+        yaml_file="/config/config.yml",
         yaml_file_encoding="utf-8",
     )
 
@@ -307,7 +251,6 @@ class Settings(BaseSettings):
             dotenv_settings,
             JsonConfigSettingsSource(settings_cls),
             YamlConfigSettingsSource(settings_cls),
-            YamlConfigSettingsSource(settings_cls, yaml_file="/config/config.yml"),
         )
 
     # Application
@@ -399,7 +342,7 @@ class Settings(BaseSettings):
 
     # Secret Backend Configuration (nested)
     secrets: SecretSettings = Field(
-        default_factory=SecretSettings,
+        ...,
         description="Secret backend configuration (Vault, AWS KMS, Google)",
     )
 

@@ -9,6 +9,7 @@ from .liveness_response_liveness import LivenessResponseLiveness
 from .pager_duty_user import PagerDutyUser
 from .repo_owners_response import RepoOwnersResponse
 from .schedule_users_response import ScheduleUsersResponse
+from .secret import Secret
 from .slack_usergroup import SlackUsergroup
 from .slack_usergroup_action_create import SlackUsergroupActionCreate
 from .slack_usergroup_action_update_metadata import SlackUsergroupActionUpdateMetadata
@@ -32,6 +33,7 @@ __all__ = (
     "PagerDutyUser",
     "RepoOwnersResponse",
     "ScheduleUsersResponse",
+    "Secret",
     "SlackUsergroup",
     "SlackUsergroupActionCreate",
     "SlackUsergroupActionUpdateMetadata",

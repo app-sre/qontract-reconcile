@@ -1,0 +1,13 @@
+# qenerate: plugin=pydantic_v2
+
+query SlackUsergroupApiCluster {
+  clusters: clusters_v1 {
+    name
+    auth {
+      service
+    }
+    disable {
+      integrations
+    }
+  }
+}

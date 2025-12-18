@@ -54,9 +54,9 @@ class SlackUsergroupConfig:
         d = dict(src_dict)
         description = d.pop("description", UNSET)
 
-        users = cast("list[str]", d.pop("users", UNSET))
+        users = cast(list[str], d.pop("users", UNSET))
 
-        channels = cast("list[str]", d.pop("channels", UNSET))
+        channels = cast(list[str], d.pop("channels", UNSET))
 
         slack_usergroup_config = cls(
             description=description,

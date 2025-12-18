@@ -18,6 +18,7 @@ from qontract_api.external.pagerduty.pagerduty_factory import (
     create_pagerduty_workspace_client,
 )
 from qontract_api.logger import get_logger
+from qontract_api.models import Secret
 
 logger = get_logger(__name__)
 
@@ -33,12 +34,12 @@ router = APIRouter(
 )
 def get_schedule_users(
     schedule_id: str,
-    instance: Annotated[
-        str,
-        Query(description="PagerDuty instance name (e.g., 'app-sre')"),
-    ],
     cache: CacheDep,
     secret_manager: SecretManagerDep,
+    secret: Annotated[
+        Secret,
+        Query(description="PagerDuty secret reference"),
+    ],
 ) -> ScheduleUsersResponse:
     """Get users currently on-call in a PagerDuty schedule.
 
@@ -67,7 +68,7 @@ def get_schedule_users(
         }
     """
     client = create_pagerduty_workspace_client(
-        instance_name=instance,
+        secret=secret,
         cache=cache,
         secret_manager=secret_manager,
         settings=settings,
@@ -77,7 +78,6 @@ def get_schedule_users(
     logger.info(
         f"Found {len(users)} users in schedule {schedule_id}",
         schedule_id=schedule_id,
-        instance=instance,
         user_count=len(users),
     )
 
@@ -92,12 +92,12 @@ def get_schedule_users(
 )
 def get_escalation_policy_users(
     policy_id: str,
-    instance: Annotated[
-        str,
-        Query(description="PagerDuty instance name (e.g., 'app-sre')"),
-    ],
     cache: CacheDep,
     secret_manager: SecretManagerDep,
+    secret: Annotated[
+        Secret,
+        Query(description="PagerDuty secret reference"),
+    ],
 ) -> EscalationPolicyUsersResponse:
     """Get users in a PagerDuty escalation policy.
 
@@ -126,7 +126,7 @@ def get_escalation_policy_users(
         }
     """
     client = create_pagerduty_workspace_client(
-        instance_name=instance,
+        secret=secret,
         cache=cache,
         secret_manager=secret_manager,
         settings=settings,
@@ -136,7 +136,6 @@ def get_escalation_policy_users(
     logger.debug(
         f"Found {len(users)} users in escalation policy {policy_id}",
         policy_id=policy_id,
-        instance=instance,
         user_count=len(users),
     )
 

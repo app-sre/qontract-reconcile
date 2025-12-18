@@ -14,10 +14,20 @@ from qontract_utils.secret_reader.base import (
     SecretBackendError,
     SecretNotFoundError,
 )
+from qontract_utils.secret_reader.providers.vault import VaultSecretBackendSettings
 
 
 class TestSecretBackendSingleton:
     """Test singleton pattern for SecretBackend."""
+
+    @pytest.fixture
+    def vault_settings(self) -> VaultSecretBackendSettings:
+        """Create test vault settings."""
+        return VaultSecretBackendSettings(
+            server="https://vault.test",
+            role_id="test-role",
+            secret_id="test-secret",
+        )
 
     def setup_method(self) -> None:
         """Reset singleton state before each test."""
@@ -27,7 +37,9 @@ class TestSecretBackendSingleton:
         """Clean up singleton state after each test."""
         SecretBackend.reset_singleton()
 
-    def test_get_instance_creates_singleton(self) -> None:
+    def test_get_instance_creates_singleton(
+        self, vault_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that get_instance creates a singleton instance."""
         with patch(
             "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
@@ -37,19 +49,15 @@ class TestSecretBackendSingleton:
 
             instance1 = SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
 
             assert instance1 == mock_instance
-            mock_vault.assert_called_once_with(
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
-            )
+            mock_vault.assert_called_once_with(vault_settings)
 
-    def test_get_instance_returns_same_instance(self) -> None:
+    def test_get_instance_returns_same_instance(
+        self, vault_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that get_instance returns the same instance on subsequent calls."""
         with patch(
             "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
@@ -59,26 +67,28 @@ class TestSecretBackendSingleton:
 
             instance1 = SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
             instance2 = SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
 
             assert instance1 is instance2
             mock_vault.assert_called_once()  # Constructor called only once
 
-    def test_get_instance_unsupported_backend_raises_error(self) -> None:
+    def test_get_instance_unsupported_backend_raises_error(
+        self, vault_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that unsupported backend type raises ValueError."""
         with pytest.raises(ValueError, match="Unsupported secret backend: invalid"):
-            SecretBackend.get_instance(backend_type="invalid")
+            SecretBackend.get_instance(
+                backend_type="invalid", backend_settings=vault_settings
+            )
 
-    def test_reset_singleton_clears_specific_backend(self) -> None:
+    def test_reset_singleton_clears_specific_backend(
+        self, vault_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that reset_singleton clears specific backend instance."""
         with patch(
             "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
@@ -90,9 +100,7 @@ class TestSecretBackendSingleton:
 
             instance1 = SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
 
             assert instance1 is mock_instance1
@@ -101,16 +109,16 @@ class TestSecretBackendSingleton:
 
             instance2 = SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
 
             assert instance2 is mock_instance2
             assert instance1 is not instance2
             assert mock_vault.call_count == 2
 
-    def test_reset_singleton_without_args_clears_all_backends(self) -> None:
+    def test_reset_singleton_without_args_clears_all_backends(
+        self, vault_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that reset_singleton without args clears all backend instances."""
         with patch(
             "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
@@ -122,9 +130,7 @@ class TestSecretBackendSingleton:
 
             vault_instance1 = SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
 
             assert vault_instance1 is mock_vault_instance1
@@ -133,16 +139,16 @@ class TestSecretBackendSingleton:
 
             vault_instance2 = SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
 
             assert vault_instance2 is mock_vault_instance2
             assert vault_instance1 is not vault_instance2
             assert mock_vault.call_count == 2
 
-    def test_reset_singleton_calls_close_on_instance(self) -> None:
+    def test_reset_singleton_calls_close_on_instance(
+        self, vault_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that reset_singleton calls close() on backend instance."""
         with patch(
             "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
@@ -152,16 +158,16 @@ class TestSecretBackendSingleton:
 
             SecretBackend.get_instance(
                 backend_type="vault",
-                server="https://vault.test",
-                role_id="test-role",
-                secret_id="test-secret",
+                backend_settings=vault_settings,
             )
 
             SecretBackend.reset_singleton(backend_type="vault")
 
             mock_instance.close.assert_called_once()
 
-    def test_singleton_thread_safety(self) -> None:
+    def test_singleton_thread_safety(
+        self, vault_settings: VaultSecretBackendSettings
+    ) -> None:
         """Test that singleton creation is thread-safe."""
         with patch(
             "qontract_utils.secret_reader.providers.vault.VaultSecretBackend"
@@ -176,9 +182,7 @@ class TestSecretBackendSingleton:
                 barrier.wait()  # Sync threads to maximize race condition
                 instance = SecretBackend.get_instance(
                     backend_type="vault",
-                    server="https://vault.test",
-                    role_id="test-role",
-                    secret_id="test-secret",
+                    backend_settings=vault_settings,
                 )
                 instances.append(instance)
 

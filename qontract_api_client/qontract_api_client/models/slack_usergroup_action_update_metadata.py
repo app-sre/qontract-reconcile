@@ -68,10 +68,10 @@ class SlackUsergroupActionUpdateMetadata:
 
         description = d.pop("description")
 
-        channels = cast("list[str]", d.pop("channels"))
+        channels = cast(list[str], d.pop("channels"))
 
         action_type = cast(
-            "Literal['update_metadata'] | Unset", d.pop("action_type", UNSET)
+            Literal["update_metadata"] | Unset, d.pop("action_type", UNSET)
         )
         if action_type != "update_metadata" and not isinstance(action_type, Unset):
             raise ValueError(

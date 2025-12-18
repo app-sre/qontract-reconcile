@@ -66,11 +66,11 @@ class SlackUsergroupActionCreate:
 
         usergroup = d.pop("usergroup")
 
-        users = cast("list[str]", d.pop("users"))
+        users = cast(list[str], d.pop("users"))
 
         description = d.pop("description")
 
-        action_type = cast("Literal['create'] | Unset", d.pop("action_type", UNSET))
+        action_type = cast(Literal["create"] | Unset, d.pop("action_type", UNSET))
         if action_type != "create" and not isinstance(action_type, Unset):
             raise ValueError(
                 f"action_type must match const 'create', got '{action_type}'"

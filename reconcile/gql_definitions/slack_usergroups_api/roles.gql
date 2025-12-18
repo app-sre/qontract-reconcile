@@ -1,5 +1,5 @@
 # qenerate: plugin=pydantic_v2
-query SlackUsergroupsRoles {
+query SlackUsergroupsApiRoles {
   roles: roles_v1 {
     name
     access {

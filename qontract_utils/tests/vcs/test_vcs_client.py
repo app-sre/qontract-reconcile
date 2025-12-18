@@ -1,6 +1,7 @@
 """Tests for VCS provider URL parsing and detection."""
 
 import pytest
+from qontract_utils.vcs.models import Provider
 from qontract_utils.vcs.provider_registry import get_default_registry
 from qontract_utils.vcs.providers.github_provider import GitHubProvider
 from qontract_utils.vcs.providers.gitlab_provider import GitLabProvider
@@ -82,14 +83,14 @@ def test_provider_registry_detect_github() -> None:
     """Test provider registry detects GitHub URLs."""
     registry = get_default_registry()
     provider = registry.detect_provider("https://github.com/openshift/osdctl")
-    assert provider.name == "github"
+    assert provider.type == Provider.GITHUB
 
 
 def test_provider_registry_detect_gitlab() -> None:
     """Test provider registry detects GitLab URLs."""
     registry = get_default_registry()
     provider = registry.detect_provider("https://gitlab.com/group/project")
-    assert provider.name == "gitlab"
+    assert provider.type == Provider.GITLAB
 
 
 def test_provider_registry_unsupported_provider() -> None:
@@ -102,18 +103,24 @@ def test_provider_registry_unsupported_provider() -> None:
 def test_provider_registry_get_provider() -> None:
     """Test provider registry get provider by name."""
     registry = get_default_registry()
-    github_provider = registry.get_provider("github")
-    assert github_provider.name == "github"
+    github_provider = registry.get_provider(Provider.GITHUB)
+    assert github_provider.type == Provider.GITHUB
 
-    gitlab_provider = registry.get_provider("gitlab")
-    assert gitlab_provider.name == "gitlab"
+    gitlab_provider = registry.get_provider(Provider.GITLAB)
+    assert gitlab_provider.type == Provider.GITLAB
 
 
 def test_provider_registry_get_unknown_provider() -> None:
     """Test provider registry raises error for unknown provider."""
+    from enum import StrEnum
+
+    # Create a fake provider type to test error handling
+    class FakeProvider(StrEnum):
+        BITBUCKET = "bitbucket"
+
     registry = get_default_registry()
-    with pytest.raises(ValueError, match="Provider not found: bitbucket"):
-        registry.get_provider("bitbucket")
+    with pytest.raises(ValueError, match="Provider not found"):
+        registry.get_provider(FakeProvider.BITBUCKET)  # type: ignore[arg-type]
 
 
 def test_github_provider_parse_invalid_url_missing_repo() -> None:

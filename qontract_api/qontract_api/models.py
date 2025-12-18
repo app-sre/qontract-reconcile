@@ -40,3 +40,16 @@ class User(BaseModel):
     """Current authenticated user."""
 
     username: str = Field(..., description="Username from token")
+
+
+class Secret(BaseModel):
+    """Reference to a secret stored in a secret manager."""
+
+    secret_manager_url: str = Field(..., description="Secret Manager URL")
+    path: str = Field(..., description="Path to the secret")
+    field: str | None = Field(None, description="Specific field within the secret")
+    version: int | None = Field(None, description="Version of the secret")
+
+    @property
+    def url(self) -> str:
+        return self.secret_manager_url

@@ -1,6 +1,13 @@
 """Pydantic models for VCS data structures."""
 
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
+
+
+class Provider(StrEnum):
+    GITHUB = "github"
+    GITLAB = "gitlab"
 
 
 class RepoTreeItem(BaseModel, frozen=True):

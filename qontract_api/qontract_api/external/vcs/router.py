@@ -6,12 +6,14 @@ Provides cached access to repository OWNERS files from GitHub/GitLab.
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+from pydantic import Field
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep
 from qontract_api.external.vcs.models import RepoOwnersResponse, VCSProvider
 from qontract_api.external.vcs.vcs_factory import create_vcs_workspace_client
 from qontract_api.logger import get_logger
+from qontract_api.models import Secret
 
 logger = get_logger(__name__)
 
@@ -21,6 +23,20 @@ router = APIRouter(
 )
 
 
+class VCSQueryParams(Secret):
+    """Query parameters for VCS endpoints."""
+
+    repo_url: str = Field(
+        ..., description="Repository URL (e.g., https://github.com/owner/repo)"
+    )
+    owners_file: str = Field(
+        "/OWNERS",
+        description="Path to OWNERS file in the repository (e.g., /OWNERS or /path/to/OWNERS)",
+    )
+
+    ref: str = Field("master", description="Git reference (branch, tag, commit SHA)")
+
+
 @router.get(
     "/repos/owners",
     operation_id="vcs-repo-owners",
@@ -28,37 +44,18 @@ router = APIRouter(
 def get_repo_owners(
     cache: CacheDep,
     secret_manager: SecretManagerDep,
-    url: Annotated[
-        str,
-        Query(description="Repository URL (e.g., https://github.com/owner/repo)"),
+    params: Annotated[
+        VCSQueryParams,
+        Query(description="VCS repository query parameters"),
     ],
-    path: Annotated[
-        str,
-        Query(
-            description=(
-                "Path mode: '/' (root OWNERS), '/path' (specific path with inheritance)"
-            )
-        ),
-    ] = "/",
-    ref: Annotated[
-        str,
-        Query(description="Git reference (branch, tag, commit SHA)"),
-    ] = "master",
 ) -> RepoOwnersResponse:
     """Get OWNERS file data from a Git repository.
 
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
 
-    Path modes:
-    - "/" - Root OWNERS file only
-    - "/path" - Specific path with inherited owners from parent directories
-
     Args:
-        cache: Cache backend for VCS API responses
-        url: Repository URL (e.g., https://github.com/openshift/osdctl)
-        path: Path mode (/, /path, or ALL)
-        ref: Git reference (branch, tag, commit SHA)
+        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
 
     Returns:
         RepoOwnersResponse with provider type, approvers, and reviewers lists
@@ -76,24 +73,29 @@ def get_repo_owners(
             "reviewers": ["github_user3"]
         }
     """
-    logger.info(f"Fetching OWNERS for repository {url}", url=url, path=path, ref=ref)
+    logger.info(
+        f"Fetching OWNERS for repository {params.repo_url}",
+        url=params.repo_url,
+        path=params.owners_file,
+        ref=params.ref,
+    )
 
     # Create VCS workspace client (auto-detects GitHub/GitLab from URL)
     client = create_vcs_workspace_client(
-        repo_url=url,
+        repo_url=params.repo_url,
+        token=secret_manager.read(params),
         cache=cache,
-        secret_manager=secret_manager,
         settings=settings,
     )
 
     # Fetch OWNERS data (with caching)
-    owners = client.get_owners(path=path, ref=ref)
+    owners = client.get_owners(owners_file=params.owners_file, ref=params.ref)
 
     logger.info(
-        f"Found {len(owners.approvers)} approvers and {len(owners.reviewers)} reviewers for {url}",
-        url=url,
-        path=path,
-        ref=ref,
+        f"Found {len(owners.approvers)} approvers and {len(owners.reviewers)} reviewers for {params.repo_url}",
+        url=params.repo_url,
+        path=params.owners_file,
+        ref=params.ref,
         vcs_type=client.provider_name,
         approvers_count=len(owners.approvers),
         reviewers_count=len(owners.reviewers),

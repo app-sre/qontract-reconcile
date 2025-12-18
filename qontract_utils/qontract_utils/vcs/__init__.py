@@ -8,7 +8,7 @@ Following ADR-014: Three-Layer Architecture (Layer 1)
 Following ADR-017: VCS Provider Registry Pattern
 """
 
-from qontract_utils.vcs.models import OwnersFileData, RepoOwners, RepoTreeItem
+from qontract_utils.vcs.models import OwnersFileData, Provider, RepoOwners, RepoTreeItem
 from qontract_utils.vcs.owners_parser import OwnersParser
 from qontract_utils.vcs.provider_protocol import VCSApiProtocol, VCSProviderProtocol
 from qontract_utils.vcs.provider_registry import (
@@ -36,6 +36,7 @@ __all__ = [
     "GitLabRepoApi",
     "OwnersFileData",
     "OwnersParser",
+    "Provider",
     "RepoOwners",
     "RepoTreeItem",
     "VCSApiProtocol",

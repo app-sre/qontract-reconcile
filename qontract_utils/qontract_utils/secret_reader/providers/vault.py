@@ -44,6 +44,16 @@ class VaultSecret(BaseModel):
     read_path: str
 
 
+class VaultSecretBackendSettings(BaseModel):
+    server: str
+    role_id: str | None = None
+    secret_id: str | None = None
+    kube_auth_role: str | None = None
+    kube_auth_mount: str = "kubernetes"
+    kube_sa_token_path: str = DEFAULT_KUBE_SA_TOKEN_PATH
+    auto_refresh: bool = True
+
+
 class VaultSecretBackend(SecretBackend):
     """HashiCorp Vault secret backend using python-hvac.
 
@@ -91,33 +101,15 @@ class VaultSecretBackend(SecretBackend):
 
     def __init__(
         self,
-        server: str,
-        role_id: str | None = None,
-        secret_id: str | None = None,
-        kube_auth_role: str | None = None,
-        kube_auth_mount: str = "kubernetes",
-        kube_sa_token_path: str = DEFAULT_KUBE_SA_TOKEN_PATH,
-        *,
-        auto_refresh: bool = True,
+        settings: VaultSecretBackendSettings,
     ) -> None:
         """Initialize Vault secret backend.
 
         Args:
-            server: Vault server URL
-            role_id: AppRole role_id (for AppRole auth)
-            secret_id: AppRole secret_id (for AppRole auth)
-            kube_auth_role: Kubernetes auth role (for K8s auth)
-            kube_auth_mount: Kubernetes auth mount point
-            kube_sa_token_path: Path to K8s service account token
-            auto_refresh: Auto-refresh auth token in background
-            mount_point: KV mount point (default: "secret")
+            settings: Vault secret backend settings
         """
-        self._client = hvac.Client(url=server)
-        self._role_id = role_id
-        self._secret_id = secret_id
-        self._kube_auth_role = kube_auth_role
-        self._kube_auth_mount = kube_auth_mount
-        self._kube_sa_token_path = kube_sa_token_path
+        self._settings = settings
+        self._client = hvac.Client(url=settings.server)
         self._kv_version_cache: dict[str, int] = {}  # Cache KV version per mount point
         self._auth_lock = threading.Lock()  # Lock for authentication operations
         self._closed = False
@@ -127,11 +119,16 @@ class VaultSecretBackend(SecretBackend):
         self._authenticate()
 
         # Start auto-refresh thread
-        if auto_refresh:
+        if settings.auto_refresh:
             self._refresh_thread = threading.Thread(
                 target=self._auto_refresh_loop, daemon=True
             )
             self._refresh_thread.start()
+
+    @property
+    def url(self) -> str:
+        """Vault server URL."""
+        return self._settings.server
 
     def _authenticate(self) -> None:
         """Authenticate with Vault using AppRole or Kubernetes auth.
@@ -140,22 +137,24 @@ class VaultSecretBackend(SecretBackend):
             ValueError: If no auth credentials provided
             SecretBackendError: If authentication fails
         """
-        if self._role_id and self._secret_id:
+        if self._settings.role_id and self._settings.secret_id:
             # AppRole authentication
             logger.debug("Authenticating to Vault using AppRole")
             self._client.auth.approle.login(
-                role_id=self._role_id,
-                secret_id=self._secret_id,
+                role_id=self._settings.role_id,
+                secret_id=self._settings.secret_id,
             )
-        elif self._kube_auth_role:
+        elif self._settings.kube_auth_role:
             # Kubernetes authentication
             logger.debug("Authenticating to Vault using Kubernetes auth")
-            with pathlib.Path(self._kube_sa_token_path).open(encoding="utf-8") as f:
+            with pathlib.Path(self._settings.kube_sa_token_path).open(
+                encoding="utf-8"
+            ) as f:
                 jwt = f.read()
             self._client.auth.kubernetes.login(
-                role=self._kube_auth_role,
+                role=self._settings.kube_auth_role,
                 jwt=jwt,
-                mount_point=self._kube_auth_mount,
+                mount_point=self._settings.kube_auth_mount,
             )
         else:
             msg = (

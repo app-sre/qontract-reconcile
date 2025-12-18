@@ -7,6 +7,7 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
+    from ..models.secret import Secret
     from ..models.slack_usergroup import SlackUsergroup
 
 
@@ -22,11 +23,13 @@ class SlackWorkspace:
         usergroups (list[SlackUsergroup]): List of usergroups in this workspace
         managed_usergroups (list[str]): This list shows the usergroup handles/names managed by qontract-api. Any user
             group not included here will be abandoned during reconciliation.
+        token (Secret): Reference to a secret stored in a secret manager.
     """
 
     name: str
     usergroups: list[SlackUsergroup]
     managed_usergroups: list[str]
+    token: Secret
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -39,18 +42,22 @@ class SlackWorkspace:
 
         managed_usergroups = self.managed_usergroups
 
+        token = self.token.to_dict()
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
             "name": name,
             "usergroups": usergroups,
             "managed_usergroups": managed_usergroups,
+            "token": token,
         })
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.secret import Secret
         from ..models.slack_usergroup import SlackUsergroup
 
         d = dict(src_dict)
@@ -63,12 +70,15 @@ class SlackWorkspace:
 
             usergroups.append(usergroups_item)
 
-        managed_usergroups = cast("list[str]", d.pop("managed_usergroups"))
+        managed_usergroups = cast(list[str], d.pop("managed_usergroups"))
+
+        token = Secret.from_dict(d.pop("token"))
 
         slack_workspace = cls(
             name=name,
             usergroups=usergroups,
             managed_usergroups=managed_usergroups,
+            token=token,
         )
 
         slack_workspace.additional_properties = d

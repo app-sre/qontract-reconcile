@@ -55,7 +55,7 @@ def test_get_owners_with_path(mock_vcs_client: Mock) -> None:
     mock_vcs_client.get_file.side_effect = get_file_side_effect
 
     parser = OwnersParser(vcs_client=mock_vcs_client, ref="master")
-    owners = parser.get_owners(path="/src")
+    owners = parser.get_owners(owners_file="/src/OWNERS")
 
     assert owners.approvers == ["src-owner"]
     assert owners.reviewers == []
@@ -231,7 +231,7 @@ def test_get_owners_path_normalization_trailing_slash(mock_vcs_client: Mock) -> 
     mock_vcs_client.get_file.side_effect = get_file_side_effect
 
     parser = OwnersParser(vcs_client=mock_vcs_client, ref="master")
-    owners = parser.get_owners(path="/src/")
+    owners = parser.get_owners(owners_file="/src/OWNERS")
 
     assert owners.approvers == ["alice"]
 
@@ -249,7 +249,7 @@ def test_get_owners_path_normalization_no_slash(mock_vcs_client: Mock) -> None:
     mock_vcs_client.get_file.side_effect = get_file_side_effect
 
     parser = OwnersParser(vcs_client=mock_vcs_client, ref="master")
-    owners = parser.get_owners(path="src")
+    owners = parser.get_owners(owners_file="src/OWNERS")
 
     assert owners.approvers == ["alice"]
 
@@ -269,10 +269,8 @@ def test_get_owners_root_path_variations(mock_vcs_client: Mock) -> None:
     parser = OwnersParser(vcs_client=mock_vcs_client, ref="master")
 
     # All these should resolve to root OWNERS file
-    assert parser.get_owners(path="/").approvers == ["root-owner"]
-    assert parser.get_owners(path="").approvers == ["root-owner"]
-    # Note: "/." becomes "./OWNERS" due to path normalization
-    assert parser.get_owners(path="/.").approvers == ["root-owner"]
+    assert parser.get_owners(owners_file="/OWNERS").approvers == ["root-owner"]
+    assert parser.get_owners(owners_file="OWNERS").approvers == ["root-owner"]
 
 
 def test_get_owners_vcs_error(mock_vcs_client: Mock) -> None:

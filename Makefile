@@ -116,9 +116,7 @@ unittest: ## Run unit tests
 
 .PHONY: generate-client
 generate-client:
-	@rm -rf qontract_api_client/qontract_api_client/*
-	docker compose run --remove-orphans --rm generate-qontact-api-client
-	@touch qontract_api_client/qontract_api_client/py.typed
+	make -C qontract_api_client generate-client
 
 poc-tests:
 	make -C qontract_api test
