@@ -1,7 +1,6 @@
 import logging
 import sys
 from dataclasses import dataclass
-from typing import Any
 
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     QuayRobotV1,
@@ -10,6 +9,7 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
 from reconcile.quay_base import QuayApiStore, get_quay_api_store
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
+from reconcile.utils.quay_api import RobotAccountDetails
 
 QONTRACT_INTEGRATION = "quay-robot-accounts"
 
@@ -47,7 +47,7 @@ def get_robot_accounts_from_gql() -> list[QuayRobotV1]:
 
 def get_current_robot_accounts(
     quay_api_store: QuayApiStore,
-) -> dict[tuple[str, str], list[dict[str, Any]]]:
+) -> dict[tuple[str, str], list[RobotAccountDetails]]:
     """Fetch current robot accounts from Quay API for all organizations"""
     current_state = {}
 
@@ -100,7 +100,7 @@ def build_desired_state(
 
 
 def build_current_state(
-    current_robots: dict[tuple[str, str], list[dict[str, Any]]],
+    current_robots: dict[tuple[str, str], list[RobotAccountDetails]],
     quay_api_store: QuayApiStore,
 ) -> dict[tuple[str, str, str], RobotAccountState]:
     """Build current state from Quay API data"""
