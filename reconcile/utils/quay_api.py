@@ -1,5 +1,5 @@
 import contextlib
-from typing import Any
+from typing import Any, TypedDict
 
 import requests
 
@@ -8,6 +8,12 @@ from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 
 class QuayTeamNotFoundError(Exception):
     pass
+
+class RobotAccountDetails(TypedDict):
+    name: str
+    description: str | None
+    teams: list[dict[str, str]]
+    repositories: list[dict[str, str]]
 
 
 class QuayApi(ApiBase):
