@@ -72,6 +72,9 @@ def slack_notify(
     trigger_integration: str | None = None,
     trigger_reason: str | None = None,
     skip_successful_notifications: bool | None = False,
+    send_logs: bool | None = False,
+    io_dir: str | None = None,
+    actions: list | None = None,
 ) -> None:
     success = not ri.has_error_registered()
     # if the deployment doesn't want any notifications for successful
@@ -104,6 +107,15 @@ def slack_notify(
         message += f" triggered by _{trigger_integration}_"
     if in_progress and skip_successful_notifications:
         message += ". There will not be a notice for success."
+
+    # Attach log file if deployment failed and send_logs is enabled
+    if send_logs and not success and not in_progress and io_dir and actions:
+        for action in actions:
+            log_file = os.path.join(io_dir, action['name'])
+            if os.path.isfile(log_file):
+                slack.attach_filepath = log_file
+                break  # Attach only the first available log file
+
     slack.chat_post_message(message)
 
 
@@ -141,7 +153,11 @@ def run(
         saas_files[0].skip_successful_deploy_notifications if saas_files else False
     )
     slack = None
+    actions = []
     if notify:
+        send_logs = (
+            saas_files[0].slack.send_logs if saas_files and saas_files[0].slack else False
+        )
         saas_file = saas_files[0]
         if saas_file.slack:
             if not saas_file_name or not env_name:
@@ -172,6 +188,9 @@ def run(
                         trigger_integration=trigger_integration,
                         trigger_reason=trigger_reason,
                         skip_successful_notifications=skip_successful_deploy_notifications,
+                        send_logs=send_logs,
+                        io_dir=io_dir,
+                        actions=actions,
                     )
                 )
             # deployment start notification
@@ -307,6 +326,9 @@ def run(
                 f"[{action['cluster']}] "
                 + f"{action['kind']} {action['name']} {action['action']}"
             )
+            if send_logs and not success and os.path.isfile(os.path.join(io_dir, action['name'])):
+                slack.attach_filepath = os.path.join(io_dir, action['name']) 
+            
             slack.chat_post_message(message)
 
     # get upstream repo info for sast scan
