@@ -131,7 +131,7 @@ def build_status_message(
     # Check if changes are not admitted (security gate - takes priority)
     if not change_admitted:
         return f"""## ⏸️ Approval Required
-Your changes need `/good-to-test` approval from a listed approver before review can begin.
+Your changes need `/ok-to-test` approval from a listed approver before review can begin.
 
 {approver_section}"""
 
@@ -322,22 +322,22 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
 
 
 def is_coverage_admitted(
-    coverage: ChangeTypeContext, mr_author: str, good_to_test_approvers: set[str]
+    coverage: ChangeTypeContext, mr_author: str, ok_to_test_approvers: set[str]
 ) -> bool:
     return any(
-        a.org_username == mr_author or a.org_username in good_to_test_approvers
+        a.org_username == mr_author or a.org_username in ok_to_test_approvers
         for a in coverage.approvers
     )
 
 
 def is_change_admitted(
-    changes: list[BundleFileChange], mr_author: str, good_to_test_approvers: set[str]
+    changes: list[BundleFileChange], mr_author: str, ok_to_test_approvers: set[str]
 ) -> bool:
     # Checks if mr authors are allowed to do the changes in the merge request.
     # If a change type is restrictive and the author is not an approver,
     # this is not admitted.
     # A change might be admitted if a user that has the restrictive change
-    # type is an approver or an approver adds an /good-to-test comment.
+    # type is an approver or an approver adds an /ok-to-test comment.
 
     restrictive_coverages = [
         c
@@ -351,7 +351,7 @@ def is_change_admitted(
     change_types_approved = {
         c.origin
         for c in restrictive_coverages
-        if is_coverage_admitted(c, mr_author, good_to_test_approvers)
+        if is_coverage_admitted(c, mr_author, ok_to_test_approvers)
     }
     return change_types_to_approve == change_types_approved
 
@@ -442,14 +442,14 @@ def run(
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
 
             comments = gl.get_merge_request_comments(merge_request)
-            good_to_test_approvers = {
-                c.username for c in comments if c.body.strip() == "/good-to-test"
+            ok_to_test_approvers = {
+                c.username for c in comments if c.body.strip() == "/ok-to-test"
             }
 
             change_admitted = is_change_admitted(
                 changes,
                 gl.get_merge_request_author_username(merge_request),
-                good_to_test_approvers,
+                ok_to_test_approvers,
             )
             approver_decisions = get_approver_decisions_from_mr_comments(
                 gl.get_merge_request_comments(
