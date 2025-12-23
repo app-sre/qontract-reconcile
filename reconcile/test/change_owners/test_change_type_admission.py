@@ -129,13 +129,13 @@ def test_assert_restrictive_all_need_approval(
 
 
 @pytest.mark.parametrize(
-    ("good_to_test_approver", "expected"), [({"foo"}, True), ({"baz"}, False)]
+    ("ok_to_test_approver", "expected"), [({"foo"}, True), ({"baz"}, False)]
 )
-def test_assert_restrictive_good_to_test(
+def test_assert_restrictive_ok_to_test(
     restrictive_change: list[BundleFileChange],
-    good_to_test_approver: set[str],
+    ok_to_test_approver: set[str],
     expected: bool,
 ) -> None:
     assert (
-        is_change_admitted(restrictive_change, "baz", good_to_test_approver) == expected
+        is_change_admitted(restrictive_change, "baz", ok_to_test_approver) == expected
     )
