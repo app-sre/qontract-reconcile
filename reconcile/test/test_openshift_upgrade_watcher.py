@@ -130,6 +130,46 @@ def test_new_upgrade_notify(
     assert state.add.call_count == 1
 
 
+def test_new_upgrade_notify_multiple_channels(
+    mocker: MockerFixture,
+    state: MagicMock,
+    slack: MagicMock,
+    ouw_oc_map: MagicMock,
+    ouw_ocm_map: MagicMock,
+    upgrade_config: dict[str, Any],
+    mock_utc_now: MagicMock,
+) -> None:
+    """There is an UpgradeConfig on the cluster, its upgradeAt is in the past,
+    there are multiple channels, and we did not already notify"""
+    mock_utc_now.return_value = upgrade_at + timedelta(hours=1)
+    gso = mocker.patch(
+        "reconcile.openshift_upgrade_watcher._get_start_osd", autospec=True
+    )
+    gso.return_value = upgrade_at.strftime("%Y-%m-%dT%H:%M:%SZ"), upgrade_version
+    state.exists.return_value = False
+    cluster = load_cluster("cluster1.yml")
+
+    cluster.labels = {"notifications": "team-a-alert"}
+    ouw.notify_upgrades_start(
+        ocm_map=ouw_ocm_map,
+        oc_map=ouw_oc_map,
+        clusters=[cluster],
+        state=state,
+        slack=slack,
+    )
+    assert slack.chat_post_message.call_count == 2
+
+    cluster.labels = {"notifications": "team-a-alert,team-b-alert"}
+    ouw.notify_upgrades_start(
+        ocm_map=ouw_ocm_map,
+        oc_map=ouw_oc_map,
+        clusters=[cluster],
+        state=state,
+        slack=slack,
+    )
+    assert slack.chat_post_message.call_count == 3
+
+
 def test_new_upgrade_already_notified(
     mocker: MockerFixture,
     state: MagicMock,
