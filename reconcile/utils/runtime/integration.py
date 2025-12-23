@@ -10,12 +10,16 @@ from typing import (
     Optional,
     TypeVar,
 )
+from urllib.parse import urlparse
 
+from httpx import Response
 from pydantic import BaseModel
+from qontract_api_client.client import AuthenticatedClient
 
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
+from reconcile.utils.config import get_config
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,
@@ -238,7 +242,58 @@ class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
         )
 
 
+class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
+    """
+    The base class for all integrations using the Qontract API.
+    """
+
+    def __init__(self, params: RunParamsTypeVar) -> None:
+        self.params: RunParamsTypeVar = params
+
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
+
+    @staticmethod
+    async def _raise_on_4xx_5xx(response: Response) -> None:
+        response.raise_for_status()
+
+    @property
+    def qontract_api_client(self) -> AuthenticatedClient:
+        """
+        Returns the qontract-api client.
+        """
+        config = get_config()
+        return AuthenticatedClient(
+            base_url=urlparse(config["qontract-api"]["server"]).geturl(),
+            token=config["qontract-api"].get("token", ""),
+            httpx_args={
+                "event_hooks": {"response": [self._raise_on_4xx_5xx]},
+            },
+        )
+
+    @property
+    def secret_manager_url(self) -> str:
+        """
+        Returns the configured secret manager URL.
+        """
+        config = get_config()
+        return config["vault"]["server"]
+
+    @abstractmethod
+    async def async_run(self, dry_run: bool) -> None:
+        """
+        The `async_run` function of a QontractReconcileIntegration is the asynchronous
+        entry point to its actual functionality. It is obliged to honor the `dry_run`
+        argument and not perform any changes to the system if it is set to `True`.
+        At the same time the integration should progress as far as possible in the dry-run
+        mode to highlight any issues that would have prevented it from running in non-dry-run
+        mode.
+        """
+
+
 RUN_FUNCTION = "run"
+ASYNC_RUN_FUNCTION = "async_run"
 NAME_FIELD = "QONTRACT_INTEGRATION"
 EARLY_EXIT_DESIRED_STATE_FUNCTION = "early_exit_desired_state"
 DESIRED_STATE_SHARD_CONFIG_FUNCTION = "desired_state_shard_config"
@@ -308,3 +363,47 @@ class ModuleBasedQontractReconcileIntegration(
 
     def run(self, dry_run: bool) -> None:
         self.params.module.run(dry_run, *self.params.args, **self.params.kwargs)
+
+    async def async_run(self, dry_run: bool) -> None:
+        await self.params.module.async_run(
+            dry_run, *self.params.args, **self.params.kwargs
+        )
+
+
+class ModuleBasedQontractReconcileApiIntegration(
+    QontractReconcileApiIntegration[ModuleArgsKwargsRunParams]
+):
+    """
+    Since most integrations are implemented as modules, this class provides a
+    wrapper around a module that implements the `QontractReconcileIntegration`
+    interface. This way such module based integrations can be used as if they
+    were instances of the `QontractReconcileIntegration` class.
+    """
+
+    def __init__(self, params: ModuleArgsKwargsRunParams):
+        super().__init__(params)
+        # self.name  # run to check if the name can be extracted from the module
+        if not self._integration_supports(NAME_FIELD):
+            raise NotImplementedError(f"Integration has no {NAME_FIELD} field")
+        if not self._integration_supports(ASYNC_RUN_FUNCTION):
+            raise NotImplementedError(
+                f"Integration has no {ASYNC_RUN_FUNCTION}() function"
+            )
+
+    def _integration_supports(self, func_name: str) -> bool:
+        """
+        Verifies, that an integration supports a specific function.
+        todo: more thorough verification of the functions signature would be required.
+        """
+        return func_name in dir(self.params.module)
+
+    @property
+    def name(self) -> str:
+        if self._integration_supports(NAME_FIELD):
+            return self.params.module.QONTRACT_INTEGRATION.replace("_", "-")
+        raise NotImplementedError("Integration missing QONTRACT_INTEGRATION.")
+
+    async def async_run(self, dry_run: bool) -> None:
+        await self.params.module.async_run(
+            dry_run, *self.params.args, **self.params.kwargs
+        )
