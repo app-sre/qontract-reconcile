@@ -802,22 +802,39 @@ def openshift_clusterrolebindings(
 )
 @click.pass_context
 def openshift_rolebindings(
-    ctx: click.Context,
-    thread_pool_size: int,
-    internal: bool,
-    use_jump_host: bool,
-    support_role_ref: bool,
+    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool, support_role_ref: bool
 ) -> None:
-    import reconcile.openshift_rolebindings
+    from reconcile.openshift_bindings.integration import OpenShiftBindingsIntegration, OpenShiftBindingsIntegrationParams
 
-    run_integration(
-        reconcile.openshift_rolebindings,
-        ctx,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-        support_role_ref,
+    run_class_integration(
+        integration=OpenShiftBindingsIntegration(
+            OpenShiftBindingsIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                internal=internal,
+                use_jump_host=use_jump_host,
+                integration_name="openshift-rolebindings",
+                support_role_ref=support_role_ref,
+            )
+        ),
+        ctx=ctx,
     )
+# def openshift_rolebindings(
+#     ctx: click.Context,
+#     thread_pool_size: int,
+#     internal: bool,
+#     use_jump_host: bool,
+#     support_role_ref: bool,
+# ) -> None:
+#     import reconcile.openshift_rolebindings
+
+#     run_integration(
+#         reconcile.openshift_rolebindings,
+#         ctx,
+#         thread_pool_size,
+#         internal,
+#         use_jump_host,
+#         support_role_ref,
+#     )
 
 
 @integration.command(short_help="Manages OpenShift Groups.")

@@ -25,8 +25,20 @@ RESOURCE_KIND = "ClusterRoleBinding"
 class ClusterRoleBindingsIntegration(OpenShiftBindingsBase):
     """Manages ClusterRoleBindings across OpenShift clusters."""
 
-    
-    
+    def __init__(
+        self,
+        thread_pool_size: int,
+        internal: bool | None,
+        use_jump_host: bool,
+    ) -> None:
+        """Initialize the ClusterRoleBindings integration.
+
+        Args:
+            thread_pool_size: Number of threads for parallel operations.
+            internal: Filter for internal clusters.
+            use_jump_host: Whether to use jump host for connections.
+        """
+        super().__init__(thread_pool_size, internal, use_jump_host)
 
     @property
     def integration_name(self) -> str:

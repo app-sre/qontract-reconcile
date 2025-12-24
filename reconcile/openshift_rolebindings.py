@@ -268,6 +268,7 @@ def run(
         for namespace in get_namespaces()
         if is_valid_namespace(namespace)
     ]
+    print("clusters-service-diag-queries-stage" in namespaces)
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
         thread_pool_size=thread_pool_size,

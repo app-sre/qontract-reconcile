@@ -9,9 +9,15 @@ from reconcile.utils.openshift_resource import ResourceInventory
 
 
 class OpenShiftBindingsBase(ABC):
-    thread_pool_size: int
-    internal: bool | None
-    use_jump_host: bool
+    def __init__(
+        self,
+        thread_pool_size: int,
+        internal: bool | None,
+        use_jump_host: bool,
+    ) -> None:
+        self.thread_pool_size = thread_pool_size
+        self.internal = internal
+        self.use_jump_host = use_jump_host
 
     @property
     @abstractmethod
@@ -26,13 +32,6 @@ class OpenShiftBindingsBase(ABC):
     def resource_kind(self) -> str: ...
 
     @abstractmethod
-    def get_current_state(
-        self, thread_pool_size: int, internal: bool | None, use_jump_host: bool
-    ) -> tuple[ResourceInventory, OC_Map]:
-        """Get the current state of the integration."""
-        ...
-
-    @abstractmethod
     def reconcile(
         self,
         dry_run: bool,
@@ -44,9 +43,8 @@ class OpenShiftBindingsBase(ABC):
         """Reconcile the integration."""
         ...
 
-    @abstractmethod
     def get_openshift_resources(
-        self, binding_spec: BindingSpec, privileged: bool = False
+        self, binding_spec: BindingSpec, resource_kind: str,privileged: bool = False
     ) -> list[OCResource]:
         """Get the OpenShift resources for the binding specification."""
         oc_resources = [
@@ -60,7 +58,7 @@ class OpenShiftBindingsBase(ABC):
                 resource_name=oc_resource_data.name,
                 privileged=privileged,
             )
-            for oc_resource_data in binding_spec.get_oc_resources()
+            for oc_resource_data in binding_spec.get_oc_resources(resource_kind=resource_kind)
         ]
         return oc_resources
 

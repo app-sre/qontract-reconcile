@@ -23,6 +23,7 @@ class OpenShiftBindingsIntegrationParams(PydanticRunParams):
     integration_name: Literal["openshift-rolebindings", "openshift-clusterrolebindings"]
 
 
+
 class OpenShiftBindingsIntegration(
     QontractReconcileIntegration[OpenShiftBindingsIntegrationParams]
 ):

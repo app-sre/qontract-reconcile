@@ -6,16 +6,29 @@ from typing import Any, Self
 from pydantic import BaseModel
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.app_interface_clusterrole import (
+from reconcile.gql_definitions.common.app_interface_clusterrole import RoleV1 as ClusterRoleV1
+from reconcile.gql_definitions.common.app_interface_roles import (
     AccessV1,
     BotV1,
     ClusterV1,
+    NamespaceV1,
     RoleV1,
     UserV1,
 )
+from reconcile.gql_definitions.common.namespaces import NamespaceV1 as CommonNamespaceV1
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
+from reconcile.utils.sharding import is_in_shard
 
 
+
+def is_valid_namespace(
+    namespace: NamespaceV1 | CommonNamespaceV1,
+) -> bool:
+    return (
+        bool(namespace.managed_roles)
+        and is_in_shard(f"{namespace.cluster.name}/{namespace.name}")
+        and not ob.is_namespace_deleted(namespace.model_dump(by_alias=True))
+    )
 class OCResource(BaseModel, arbitrary_types_allowed=True):
     """Represents an OpenShift resource with metadata."""
 
@@ -78,12 +91,12 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
             if (name := getattr(user, user_key, None))
         }
 
-    def get_oc_resources(self) -> list[OCResourceData]:
+    def get_oc_resources(self, resource_kind: str) -> list[OCResourceData]:
         user_oc_resources = [
-            self.construct_user_oc_resource(username) for username in self.usernames
+            self.construct_user_oc_resource(username,resource_kind=resource_kind) for username in self.usernames
         ]
         sa_oc_resources = [
-            self.construct_sa_oc_resource(sa.sa_namespace_name, sa.sa_name)
+            self.construct_sa_oc_resource(sa.sa_namespace_name, sa.sa_name,resource_kind=resource_kind)
             for sa in self.openshift_service_accounts
         ]
         return user_oc_resources + sa_oc_resources
@@ -171,7 +184,6 @@ class RoleBindingSpec(BindingSpec):
         role: RoleV1,
         enforced_user_keys: list[str] | None = None,
         support_role_ref: bool = False,
-        namespace_validator: Any = None,
     ) -> list[Self]:
         """Create list of RoleBindingSpec from a role configuration."""
         rolebinding_spec_list = [
@@ -179,9 +191,7 @@ class RoleBindingSpec(BindingSpec):
             for access in role.access or []
             if (
                 access.namespace
-                and (
-                    namespace_validator is None or namespace_validator(access.namespace)
-                )
+                and is_valid_namespace(access.namespace)
                 and (
                     role_binding_spec := cls.create_role_binding_spec(
                         access,
@@ -198,16 +208,17 @@ class RoleBindingSpec(BindingSpec):
 
 class ClusterRoleBindingSpec(BindingSpec):
     """Cluster-scoped ClusterRoleBinding specification."""
+    
     @classmethod
-    def create_cluster_role_binding_specs(cls, cluster_role: RoleV1) -> list[Self]:
+    def create_cluster_role_binding_specs(cls, cluster_role: ClusterRoleV1) -> list[Self]:
         cluster_role_binding_spec = [
             cls(
                 cluster_role_name=access.cluster_role,
                 cluster=access.cluster,
-                usernames=ClusterRoleBindingSpec.get_usernames_from_users_and_cluster(
+                usernames=BindingSpec.get_usernames_from_users(
                     cluster_role.users, access.cluster
                 ),
-                openshift_service_accounts=ServiceAccountSpec.create_sa_spec(
+                openshift_service_accounts=ServiceAccountSpec.from_bots(
                     cluster_role.bots
                 ),
             )

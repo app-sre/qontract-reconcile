@@ -6,38 +6,21 @@ Manages namespace-scoped RoleBindings within OpenShift namespaces.
 import sys
 import reconcile.openshift_base as ob
 from reconcile.gql_definitions.common.app_interface_roles import NamespaceV1, RoleV1
-from reconcile.gql_definitions.common.namespaces import NamespaceV1 as CommonNamespaceV1
 from reconcile.openshift_bindings.base import OpenShiftBindingsBase
-from reconcile.openshift_bindings.models import RoleBindingSpec
+from reconcile.openshift_bindings.models import RoleBindingSpec, is_valid_namespace
 from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
 from reconcile.typed_queries.namespaces import get_namespaces
 from reconcile.utils import expiration
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
-from reconcile.utils.sharding import is_in_shard
 
 QONTRACT_INTEGRATION = "openshift-rolebindings"
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 QONTRACT_INTEGRATION_MANAGED_TYPE = "RoleBinding.rbac.authorization.k8s.io"
 
 
-def is_valid_namespace(
-    namespace: NamespaceV1 | CommonNamespaceV1,
-) -> bool:
-    """Check if namespace should be managed for role bindings.
 
-    Args:
-        namespace: The namespace to validate.
-
-    Returns:
-        True if the namespace should be managed.
-    """
-    return (
-        bool(namespace.managed_roles)
-        and is_in_shard(f"{namespace.cluster.name}/{namespace.name}")
-        and not ob.is_namespace_deleted(namespace.model_dump(by_alias=True))
-    )
 
 
 class RoleBindingsIntegration(OpenShiftBindingsBase):
@@ -45,17 +28,18 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
 
     def __init__(
         self,
-        support_role_ref: bool = False,
-        enforced_user_keys: list[str] | None = None,
+        thread_pool_size: int,
+        internal: bool | None,
+        use_jump_host: bool,
     ) -> None:
         """Initialize the RoleBindings integration.
 
         Args:
-            support_role_ref: Whether to support Role references (not just ClusterRole).
-            enforced_user_keys: List of user keys to enforce for access.
+            thread_pool_size: Number of threads for parallel operations.
+            internal: Filter for internal clusters.
+            use_jump_host: Whether to use jump host for connections.
         """
-        self.support_role_ref = support_role_ref
-        self.enforced_user_keys = enforced_user_keys
+        super().__init__(thread_pool_size, internal, use_jump_host)
 
     @property
     def integration_name(self) -> str:
@@ -76,6 +60,7 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
             for namespace in get_namespaces()
             if is_valid_namespace(namespace)
         ]
+        print("clusters-service-diag-queries-stage" in namespaces)
         return ob.fetch_current_state(
             namespaces=namespaces,
             thread_pool_size=self.thread_pool_size,
@@ -114,13 +99,24 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
                 if ri is None:
                     continue
                 for oc_resource in self.get_openshift_resources(
-                    rolebinding, rolebinding.privileged
+                    rolebinding, privileged=rolebinding.privileged, resource_kind="RoleBinding"
                 ):
-                    ri.add_desired_resource(
-                        cluster=rolebinding.cluster.name,
-                        namespace=rolebinding.namespace.name,
-                        resource=oc_resource.resource,
-                        privileged=oc_resource.privileged,
+                    print(oc_resource.resource_name)
+                    print(rolebinding.cluster.name)
+                    print(rolebinding.namespace.name)
+                    if not ri.get_desired(
+                        rolebinding.cluster.name,
+                        rolebinding.namespace.name,
+                        QONTRACT_INTEGRATION_MANAGED_TYPE,
+                        oc_resource.resource_name,
+                    ):
+                        ri.add_desired(
+                            cluster=rolebinding.cluster.name,
+                            namespace=rolebinding.namespace.name,
+                            resource_type=QONTRACT_INTEGRATION_MANAGED_TYPE,
+                            name=oc_resource.resource_name,
+                            value=oc_resource.resource,
+                            privileged=oc_resource.privileged,
                     )
         return users_desired_state
     
