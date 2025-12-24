@@ -44,6 +44,14 @@ spec:
       - name: pathInRepo
         value: pipelines/multi-arch-build-pipeline.yaml
     resolver: git
+  taskRunSpecs:
+    - pipelineTaskName: ecosystem-cert-preflight-checks
+      computeResources:
+        requests:
+          cpu: '1'
+          memory: 2Gi
+        limits:
+          memory: 2Gi
   taskRunTemplate:
     serviceAccountName: build-pipeline-qontract-reconcile-fips-master
   workspaces:
