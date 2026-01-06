@@ -85,6 +85,13 @@ objects:
               secretKeyRef:
                 key: slack.webhook_url
                 name: app-interface
+          {{- if eq $.Values.gov_slack "true" }}
+          - name: SLACK_TRIGGERS_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.triggers_url
+                name: app-interface
+          {{- end }}
           {{- if $.Values.enable_slack_error_filter }}
           - name: SLACK_ERRORS_ONLY_WEBHOOK_URL
             valueFrom:
@@ -202,11 +209,21 @@ objects:
               {{- if $logs.slack }}
               <store>
                 @type slack
+                {{- if eq $.Values.gov_slack "true" }}
+                {{- if $integration.trigger }}
+                webhook_url ${SLACK_TRIGGERS_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL_TRIGGER}
+                {{- else }}
+                webhook_url ${SLACK_WEBHOOK_URL}
+                channel ${SLACK_CHANNEL}
+                {{- end }}
+                {{- else }}
                 webhook_url ${SLACK_WEBHOOK_URL}
                 {{- if $integration.trigger }}
                 channel ${SLACK_CHANNEL_TRIGGER}
                 {{- else }}
                 channel ${SLACK_CHANNEL}
+                {{- end }}
                 {{- end }}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot

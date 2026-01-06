@@ -45,6 +45,11 @@ objects:
               secretKeyRef:
                 key: slack.webhook_url
                 name: app-interface
+          - name: SLACK_TRIGGERS_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.triggers_url
+                name: app-interface
           - name: SLACK_ERRORS_ONLY_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
