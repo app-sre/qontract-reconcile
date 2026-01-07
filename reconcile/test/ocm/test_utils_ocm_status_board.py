@@ -16,6 +16,7 @@ from reconcile.utils.ocm.status_board import (
     get_application_services,
     get_managed_products,
     get_product_applications,
+    update_application,
     update_service,
 )
 
@@ -157,6 +158,36 @@ def test_update_service(mocker: MockFixture) -> None:
                 "sli_type": "new type",
                 "window": "window",
                 "target": 0.99,
+            },
+        },
+    )
+
+
+def test_update_application(mocker: MockFixture) -> None:
+    ocm = mocker.patch("reconcile.utils.ocm_base_client.OCMBaseClient", autospec=True)
+    ocm.patch.return_value = {"id": "foo"}
+    object_id = "foo"
+
+    update_application(
+        ocm,
+        object_id,
+        {
+            "name": "foo",
+            "product": {"id": "1"},
+            "fullname": "foo",
+            "metadata": {"deployment_saas_files": {"foo"}},
+        },
+    )
+
+    ocm.patch.assert_called_once_with(
+        f"/api/status-board/v1/applications/{object_id}",
+        data={
+            "name": "foo",
+            "product": {"id": "1"},
+            "fullname": "foo",
+            "metadata": {
+                METADATA_MANAGED_BY_KEY: METADATA_MANAGED_BY_VALUE,
+                "deployment_saas_files": {"foo"},
             },
         },
     )
