@@ -521,6 +521,7 @@ query TerraformResourcesNamespaces {
     environment {
       name
       servicePhase
+      costCenter
     }
     app {
       name
@@ -1110,6 +1111,7 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     service_phase: str = Field(..., alias="servicePhase")
+    cost_center: Optional[str] = Field(..., alias="costCenter")
 
 
 class AppV1(ConfiguredBaseModel):

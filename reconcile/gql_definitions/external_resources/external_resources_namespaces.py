@@ -575,6 +575,7 @@ query ExternalResourcesNamespaces {
       name
       labels
       servicePhase
+      costCenter
     }
     app {
       path
@@ -1176,6 +1177,7 @@ class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     labels: str = Field(..., alias="labels")
     service_phase: str = Field(..., alias="servicePhase")
+    cost_center: Optional[str] = Field(..., alias="costCenter")
 
 
 class AppV1(ConfiguredBaseModel):

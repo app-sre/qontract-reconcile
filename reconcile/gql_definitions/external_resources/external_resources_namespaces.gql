@@ -493,6 +493,7 @@ query ExternalResourcesNamespaces {
       name
       labels
       servicePhase
+      costCenter
     }
     app {
       path
