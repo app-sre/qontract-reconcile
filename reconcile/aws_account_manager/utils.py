@@ -24,7 +24,7 @@ def validate(account: AWSAccountV1) -> bool:
         raise ExceptionGroup("Multiple quotas are referenced in the account", errors)
 
     if account.organization_accounts or account.account_requests:
-        # it's payer account
+        # it's a "payer account"
         if not account.premium_support:
             raise ValueError(
                 f"Premium support is required for payer account {account.name}"

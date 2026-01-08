@@ -128,12 +128,24 @@ class AwsAccountMgmtIntegration(
             for payer_account in payer_accounts
             for org_account in payer_account.organization_accounts or []
         }
-
         non_organization_accounts = [
             account
             for account in all_aws_accounts
             if account.name not in all_organization_account_names
         ]
+
+        # check account requests for invalid emails
+        used_emails: set[str] = {
+            owner.email
+            for account in all_aws_accounts
+            for owner in account.account_owners
+        }
+        for payer_account in payer_accounts:
+            for account_request in payer_account.account_requests or []:
+                if account_request.account_owner.email in used_emails:
+                    raise ValueError(
+                        f"Invalid email for account request {account_request.name} in payer account {payer_account.name}. Email {account_request.account_owner.email} is already used."
+                    )
         return payer_accounts, non_organization_accounts
 
     def save_access_key(self, account: str, access_key: AWSAccessKey) -> None:
