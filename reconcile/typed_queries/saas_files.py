@@ -83,7 +83,7 @@ class SaasResourceTemplateTarget(
         if used_for_security_is_enabled():
             # When USED_FOR_SECURITY is enabled, use blake2s without digest_size and truncate to 20 bytes
             # This is needed for FIPS compliance where digest_size parameter is not supported
-            return hashlib.blake2s(data).digest()[:20].hex()
+            return hashlib.sha256(data).digest()[:20].hex()
         else:
             # Default behavior: use blake2s with digest_size=20
             return hashlib.blake2s(data, digest_size=20).hexdigest()
