@@ -460,9 +460,6 @@ class AddonUpgradePolicy(AbstractUpgradePolicy, arbitrary_types_allowed=True):
     addon_id: str
     addon_service: AddonService
 
-    class Config:
-        arbitrary_types_allowed = True
-
     def create(
         self,
         ocm_api: OCMBaseClient,
