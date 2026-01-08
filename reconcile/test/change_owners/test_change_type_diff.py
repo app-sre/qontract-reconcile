@@ -423,10 +423,10 @@ def test_bundle_change_diff_item_replaced() -> None:
     expected = [
         DiffCoverage(
             diff=Diff(
-                path=jsonpath_ng.parse("roles.[1].'$ref'"),
+                path=jsonpath_ng.parse("roles.[1]"),
                 diff_type=DiffType.CHANGED,
-                old="old_item",
-                new="new_item",
+                old={"$ref": "old_item"},
+                new={"$ref": "new_item"},
             ),
             coverage=[],
         )
