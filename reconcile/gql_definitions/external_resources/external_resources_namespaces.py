@@ -604,6 +604,21 @@ query ExternalResourcesNamespaces {
                 value
               }
             }
+            rulesets {
+              identifier
+              name
+              kind
+              phase
+              description
+              rules {
+                action
+                expression
+                description
+                enabled
+                ref
+                action_parameters
+              }
+            }
             managed_by_erv2
             module_overrides {
               ...ExternalResourcesModuleOverrides
@@ -1245,6 +1260,24 @@ class CloudflareDnsRecordV1(ConfiguredBaseModel):
     data: Optional[CloudflareDnsRecordDataSettingsV1] = Field(..., alias="data")
 
 
+class CloudflareRuleV1(ConfiguredBaseModel):
+    action: str = Field(..., alias="action")
+    expression: str = Field(..., alias="expression")
+    description: Optional[str] = Field(..., alias="description")
+    enabled: Optional[bool] = Field(..., alias="enabled")
+    ref: Optional[str] = Field(..., alias="ref")
+    action_parameters: Optional[str] = Field(..., alias="action_parameters")
+
+
+class CloudflareRulesetV1(ConfiguredBaseModel):
+    identifier: str = Field(..., alias="identifier")
+    name: str = Field(..., alias="name")
+    kind: str = Field(..., alias="kind")
+    phase: str = Field(..., alias="phase")
+    description: Optional[str] = Field(..., alias="description")
+    rules: Optional[list[CloudflareRuleV1]] = Field(..., alias="rules")
+
+
 class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloudflareV1):
     provider: str = Field(..., alias="provider")
     identifier: str = Field(..., alias="identifier")
@@ -1253,6 +1286,7 @@ class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloud
     q_type: Optional[str] = Field(..., alias="type")
     delete: Optional[bool] = Field(..., alias="delete")
     dns_records: Optional[list[CloudflareDnsRecordV1]] = Field(..., alias="dns_records")
+    rulesets: Optional[list[CloudflareRulesetV1]] = Field(..., alias="rulesets")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 

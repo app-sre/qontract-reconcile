@@ -522,6 +522,21 @@ query ExternalResourcesNamespaces {
                 value
               }
             }
+            rulesets {
+              identifier
+              name
+              kind
+              phase
+              description
+              rules {
+                action
+                expression
+                description
+                enabled
+                ref
+                action_parameters
+              }
+            }
             managed_by_erv2
             module_overrides {
               ...ExternalResourcesModuleOverrides
