@@ -1,8 +1,12 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
-from unittest.mock import patch
+from unittest.mock import (
+    MagicMock,
+    patch,
+)
 
 from reconcile import quay_membership
+from reconcile.quay_base import OrgKey
 from reconcile.utils import (
     config,
     gql,
@@ -13,7 +17,7 @@ from reconcile.utils.quay_api import QuayApi
 from .fixtures import Fixtures
 
 if TYPE_CHECKING:
-    from reconcile.quay_base import OrgKey, QuayApiStore
+    from reconcile.quay_base import QuayApiStore
 
 fxt = Fixtures("quay_membership")
 
@@ -32,10 +36,39 @@ def get_items_by_params(
 
 class QuayApiMock(QuayApi):
     def __init__(self, list_team_members_response: dict[str, list[dict]]):
+        # Initialize ApiBase attributes manually with mocked session
+        self.host = "https://mock.quay.io"
+        self.max_retries = 3
+        self.read_timeout = 60
+        self.session = MagicMock()  # Mock session to prevent real HTTP requests
+
+        # Initialize QuayApi-specific attributes
+        self.organization = "mock-org"
+        self.team_members: dict[str, Any] = {}
         self.list_team_members_response = list_team_members_response
 
+    def __enter__(self) -> "QuayApiMock":
+        # Context manager support
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        # Context manager cleanup - do nothing since we're using a mock session
+        pass
+
     def list_team_members(self, team: str, **kwargs: Any) -> list[dict]:
-        return self.list_team_members_response[team]
+        # Return mock response directly, bypassing any parent implementation
+        return self.list_team_members_response.get(team, [])
+
+    def _get(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        # Override _get to prevent any accidental real HTTP requests
+        # This should never be called since we override list_team_members
+        raise AssertionError(
+            f"QuayApiMock._get() should not be called. URL: {url}, params: {params}"
+        )
+
+    def cleanup(self) -> None:
+        # Override cleanup to do nothing since we're using a mock session
+        pass
 
 
 class TestQuayMembership:
@@ -52,19 +85,71 @@ class TestQuayMembership:
         quay_org_teams = fixture["quay_org_teams"]
 
         store: QuayApiStore = {}
+        mock_apis: dict[OrgKey, QuayApiMock] = {}
+
         for org_data in quay_org_catalog:
-            name: OrgKey = org_data["name"]
+            name_str = org_data["name"]
+            name = OrgKey(instance="quay.io", org_name=name_str)
+
+            mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
+            mock_apis[name] = mock_api
+
+            # Store org metadata (no api field)
             store[name] = {
-                "api": QuayApiMock(quay_org_teams[name]),
                 "teams": org_data["managedTeams"],
                 "url": "",
                 "push_token": None,
                 "managedRepos": False,
                 "mirror": None,
                 "mirror_filters": {},
+                "token": "test-token",
+                "org_name": name.org_name,
+                "base_url": "mock.quay.io",
             }
 
-        current_state = quay_membership.fetch_current_state(store).dump()
+        def mock_get_quay_api_for_org(
+            org_key: OrgKey, org_info: dict[str, Any]
+        ) -> QuayApiMock:
+            if org_key not in mock_apis:
+                raise KeyError(
+                    f"OrgKey {org_key} not found in mock_apis. Available keys: {list(mock_apis.keys())}"
+                )
+            return mock_apis[org_key]
+
+        # Patch both the function and requests.Session to prevent any real HTTP connections
+        # Also patch QuayApi.__init__ as a safety net to prevent real instances
+        def mock_quay_api_init(
+            token: str,
+            organization: str,
+            base_url: str = "quay.io",
+            timeout: int = 60,
+        ) -> None:
+            # This should never be called if our patch works, but if it is, raise an error
+            raise AssertionError(
+                f"Real QuayApi.__init__ was called! This means get_quay_api_for_org patch failed. "
+                f"token={token}, organization={organization}, base_url={base_url}"
+            )
+
+        with (
+            patch(
+                "reconcile.quay_membership.get_quay_api_for_org",
+                side_effect=mock_get_quay_api_for_org,
+            ),
+            patch(
+                "reconcile.utils.rest_api_base.requests.Session",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "requests.Session",
+                return_value=MagicMock(),
+            ),
+            patch.object(
+                QuayApi,
+                "__init__",
+                mock_quay_api_init,
+            ),
+        ):
+            current_state = quay_membership.fetch_current_state(store).dump()
 
         expected_current_state = fixture["state"]
 
