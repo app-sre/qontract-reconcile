@@ -1,6 +1,7 @@
 import datetime
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from textwrap import dedent
+from typing import Any
 from unittest.mock import ANY, MagicMock
 
 import pytest
@@ -70,6 +71,80 @@ def test_aws_account_manager_utils_integration_get_aws_accounts(
     assert non_org_accounts[0].name == "q"
     # payer accounts are also non-org accounts and are managed like any other non-org account!
     assert non_org_accounts[1].name == "starfleet"
+
+
+def test_aws_account_manager_utils_integration_get_aws_accounts_bad_email_in_account_request(
+    intg: AwsAccountMgmtIntegration,
+    data_factory: Callable[[type[AWSAccountV1], Mapping[str, Any]], Mapping[str, Any]],
+) -> None:
+    with pytest.raises(ValueError, match="Invalid email"):
+        intg.get_aws_accounts(
+            lambda *args, **kwargs: {
+                "accounts": [
+                    data_factory(
+                        AWSAccountV1,
+                        {
+                            "name": "q",
+                            "uid": "222222222222",
+                            "premiumSupport": False,
+                            "quotaLimits": [],
+                            "resourcesDefaultRegion": "us-east-1",
+                            "supportedDeploymentRegions": ["ca-east-1", "ca-west-2"],
+                            "securityContact": {
+                                "name": "security contact name",
+                                "email": "security@example.com",
+                                "phoneNumber": "+1234567890",
+                            },
+                            "automationToken": {"path": "vault-path", "field": "all"},
+                            "accountOwners": [
+                                {"email": "already-in-use-email@example.com"}
+                            ],
+                        },
+                    ),
+                    # payer account
+                    data_factory(
+                        AWSAccountV1,
+                        {
+                            "name": "starfleet",
+                            "uid": "471112852898",
+                            "premiumSupport": True,
+                            "resourcesDefaultRegion": "us-east-1",
+                            "securityContact": {
+                                "name": "security contact name",
+                                "email": "security@example.com",
+                                "phoneNumber": "+1234567890",
+                            },
+                            "automationToken": {"path": "vault-path", "field": "all"},
+                            "accountOwners": [{"email": "starfleet@example.com"}],
+                            "automationRole": {
+                                "awsAccountManager": "AwsAccountManager"
+                            },
+                            "account_requests": [
+                                {
+                                    "path": "/aws/data/request.yml",
+                                    "name": "data",
+                                    "description": "Request for a new AWS account for the United Federation of Planets",
+                                    "accountOwner": {
+                                        "name": "AppSRE",
+                                        # duplicate email to trigger the error
+                                        "email": "already-in-use-email@example.com",
+                                    },
+                                    "organization": {
+                                        "ou": "/Root/alpha quadrant/uss enterprise/ncc-1701-d",
+                                        "tags": '{"ship": "USS Enterprise"}',
+                                        "payerAccount": {"path": "/aws/starfleet.yml"},
+                                    },
+                                    "quotaLimits": [
+                                        {"path": "/aws/whatever/quota-limits.yml"}
+                                    ],
+                                },
+                            ],
+                            "organization_accounts": [],
+                        },
+                    ),
+                ]
+            }
+        )
 
 
 def test_aws_account_manager_utils_integration_save_access_key(

@@ -28,6 +28,8 @@ accounts:
   automationToken:
     path: vault-path
     field: all
+  accountOwners:
+  - email: jeanluc@example.com
 
 # ordinary non-org account
 - name: q
@@ -54,6 +56,8 @@ accounts:
   automationToken:
     path: vault-path
     field: all
+  accountOwners:
+  - email: q@example.com
 
 # payer account
 - name: starfleet
@@ -67,6 +71,8 @@ accounts:
   automationToken:
     path: vault-path
     field: all
+  accountOwners:
+  - email: starfleet@example.com
   automationRole:
     awsAccountManager: AwsAccountManager
   account_requests:
@@ -75,7 +81,7 @@ accounts:
     description: 'Request for a new AWS account for the United Federation of Planets'
     accountOwner:
       name: AppSRE
-      email: email@example.com
+      email: data@example.com
     organization:
       ou: '/Root/alpha quadrant/uss enterprise/ncc-1701-d'
       tags: '{"ship": "USS Enterprise"}'
@@ -109,6 +115,8 @@ accounts:
   automationToken:
     path: vault-path
     field: all
+  accountOwners:
+  - email: borg-queen@example.com
   disable:
     integrations:
     - aws-account-manager
