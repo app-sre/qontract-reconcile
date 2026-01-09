@@ -170,62 +170,6 @@ class Erv2Cli:
             else:
                 rich_print("[b red]External Resource does not exist")
 
-    def build_cdktf(self, credentials: Path) -> None:
-        """Run the CDKTF container and return the generated CDKTF json."""
-        input_file = self.temp / "input.json"
-        input_file.write_text(self.input_data)
-
-        # delete previous ERv2 container
-        run(["docker", "rm", "-f", "erv2"], capture_output=True, check=True)
-
-        try:
-            cdktf_outdir = "/tmp/cdktf.out"
-
-            # run cdktf synth
-            with task(self.progress_spinner, "-- Running CDKTF synth"):
-                run(["docker", "pull", self.image], check=True, capture_output=True)
-                run(
-                    [
-                        "docker",
-                        "run",
-                        "--name",
-                        "erv2",
-                        "-v",
-                        f"{input_file!s}:/inputs/input.json:Z",
-                        "-v",
-                        f"{credentials!s}:/credentials:Z",
-                        "-e",
-                        "AWS_SHARED_CREDENTIALS_FILE=/credentials",
-                        "--entrypoint",
-                        "cdktf",
-                        self.image,
-                        "synth",
-                        "--output",
-                        cdktf_outdir,
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-
-            # # get the cdk.tf.json
-            with task(self.progress_spinner, "-- Copying the generated cdk.tf.json"):
-                run(
-                    [
-                        "docker",
-                        "cp",
-                        f"erv2:{cdktf_outdir}/stacks/CDKTF/cdk.tf.json",
-                        str(self.temp),
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-        except CalledProcessError as e:
-            if e.stderr:
-                print(e.stderr.decode("utf-8"))
-            if e.stdout:
-                print(e.stdout.decode("utf-8"))
-            raise
-
     def build_terraform(self, credentials: Path) -> None:
         input_file = self.temp / "input.json"
         input_file.write_text(self.input_data)
@@ -323,7 +267,7 @@ class Erv2Cli:
             raise
 
     def force_unlock(self, credentials: Path, lock_id: str) -> None:
-        """Run 'terraform force-unlock' in a CDKTF container."""
+        """Run 'terraform force-unlock' in a terraform container."""
         input_file = self.temp / "input.json"
         input_file.write_text(self.input_data)
 

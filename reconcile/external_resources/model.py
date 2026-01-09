@@ -406,7 +406,7 @@ class ModuleProvisionData(BaseModel):
 
 
 class TerraformModuleProvisionData(ModuleProvisionData):
-    """Specific Provision Options for modules based on Terraform or CDKTF"""
+    """Specific Provision Options for modules based on Terraform"""
 
     tf_state_bucket: str
     tf_state_region: str
