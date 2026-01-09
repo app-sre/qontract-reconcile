@@ -15,6 +15,8 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformProviderResourceCloudflareV1,
+    NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
@@ -90,7 +92,10 @@ class ExternalResourceKey(BaseModel, frozen=True):
         return f"{self.provision_provider}/{self.provisioner_name}/{self.provider}/{self.identifier}"
 
 
-SUPPORTED_RESOURCE_PROVIDERS = NamespaceTerraformProviderResourceAWSV1
+SUPPORTED_RESOURCE_PROVIDERS = (
+    NamespaceTerraformProviderResourceAWSV1
+    | NamespaceTerraformProviderResourceCloudflareV1
+)
 SUPPORTED_RESOURCE_TYPES = (
     NamespaceTerraformResourceRDSV1
     | NamespaceTerraformResourceMskV1
@@ -98,6 +103,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceKMSV1
     | NamespaceTerraformResourceCloudWatchV1
     | NamespaceTerraformResourceRDSProxyV1
+    | NamespaceTerraformResourceCloudflareZoneV1
 )
 
 
@@ -138,7 +144,8 @@ class ExternalResourcesInventory(MutableMapping):
                     FLAG_RESOURCE_MANAGED_BY_ERV2,
                     FLAG_DELETE_RESOURCE,
                     MODULE_OVERRIDES,
-                }
+                },
+                by_alias=True,
             ),
             namespace=namespace.model_dump(by_alias=True),
         )

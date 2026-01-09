@@ -11,6 +11,10 @@ from reconcile.external_resources.aws import (
     AWSRdsFactory,
     AWSResourceFactory,
 )
+from reconcile.external_resources.cloudflare import (
+    CloudflareDefaultResourceFactory,
+    CloudflareResourceFactory,
+)
 from reconcile.external_resources.meta import QONTRACT_INTEGRATION
 from reconcile.external_resources.model import (
     ExternalResource,
@@ -140,6 +144,70 @@ class AWSExternalResourceFactory(ExternalResourceFactory):
         else:
             region = spec.provisioner["resources_default_region"]
         data["region"] = region
+
+        module_type = self.module_inventory.get_from_spec(spec).module_type
+        provision_factory = self.provision_factories.get_factory(module_type)
+        module_provision_data = provision_factory.create_provision_data(spec)
+
+        provision = ExternalResourceProvision(
+            provision_provider=spec.provision_provider,
+            provisioner=spec.provisioner_name,
+            provider=spec.provider,
+            identifier=spec.identifier,
+            target_cluster=spec.cluster_name,
+            target_namespace=spec.namespace_name,
+            target_secret_name=spec.output_resource_name,
+            module_provision_data=module_provision_data,
+        )
+
+        return ExternalResource(data=data, provision=provision)
+
+    def validate_external_resource(
+        self,
+        resource: ExternalResource,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> None:
+        f = self.resource_factories.get_factory(resource.provision.provider)
+        f.validate(resource, module_conf)
+
+    def find_linked_resources(
+        self, spec: ExternalResourceSpec
+    ) -> set[ExternalResourceKey]:
+        f = self.resource_factories.get_factory(spec.provider)
+        return f.find_linked_resources(spec)
+
+
+def setup_cloudflare_resource_factories(
+    er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
+) -> ObjectFactory[CloudflareResourceFactory]:
+    return ObjectFactory[CloudflareResourceFactory](
+        factories={},
+        default_factory=CloudflareDefaultResourceFactory(er_inventory, secret_reader),
+    )
+
+
+class CloudflareExternalResourceFactory(ExternalResourceFactory):
+    def __init__(
+        self,
+        module_inventory: ModuleInventory,
+        er_inventory: ExternalResourcesInventory,
+        secret_reader: SecretReaderBase,
+        provision_factories: ObjectFactory[ModuleProvisionDataFactory],
+        resource_factories: ObjectFactory[CloudflareResourceFactory],
+    ):
+        self.provision_factories = provision_factories
+        self.resource_factories = resource_factories
+        self.module_inventory = module_inventory
+        self.er_inventory = er_inventory
+        self.secret_reader = secret_reader
+
+    def create_external_resource(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> ExternalResource:
+        f = self.resource_factories.get_factory(spec.provider)
+        data = f.resolve(spec, module_conf)
 
         module_type = self.module_inventory.get_from_spec(spec).module_type
         provision_factory = self.provision_factories.get_factory(module_type)
