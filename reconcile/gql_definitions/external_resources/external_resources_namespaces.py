@@ -1184,7 +1184,7 @@ class AppV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     app_code: str = Field(..., alias="appCode")
-    cost_center: str = Field(..., alias="costCenter")
+    cost_center: Optional[str] = Field(..., alias="costCenter")
 
 
 class ClusterSpecV1(ConfiguredBaseModel):
