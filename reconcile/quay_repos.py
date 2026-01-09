@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from reconcile.quay_base import (
     OrgKey,
+    get_quay_api_for_org,
     get_quay_api_store,
 )
 from reconcile.status import ExitCodes
@@ -50,18 +51,18 @@ def fetch_current_state(quay_api_store: QuayApiStore) -> list[RepoInfo]:
         if not org_info["managedRepos"] and not org_info["mirror"]:
             continue
 
-        quay_api = org_info["api"]
+        # Create QuayApi instance on-demand and close immediately after use
+        with get_quay_api_for_org(org_key, org_info) as quay_api:
+            for repo in quay_api.list_images():
+                name = repo["name"]
+                public = repo["is_public"]
+                description = repo["description"]
 
-        for repo in quay_api.list_images():
-            name = repo["name"]
-            public = repo["is_public"]
-            description = repo["description"]
+                if description is None:
+                    description = ""
 
-            if description is None:
-                description = ""
-
-            repo_info = RepoInfo(org_key, name, public, description)
-            state.append(repo_info)
+                repo_info = RepoInfo(org_key, name, public, description)
+                state.append(repo_info)
 
     return state
 
@@ -150,8 +151,9 @@ def act_delete(
         current_repo.name,
     ])
     if not dry_run:
-        api = quay_api_store[current_repo.org_key]["api"]
-        api.repo_delete(current_repo.name)
+        org_data = quay_api_store[current_repo.org_key]
+        with get_quay_api_for_org(current_repo.org_key, org_data) as api:
+            api.repo_delete(current_repo.name)
 
 
 def act_create(
@@ -164,10 +166,11 @@ def act_create(
         desired_repo.name,
     ])
     if not dry_run:
-        api = quay_api_store[desired_repo.org_key]["api"]
-        api.repo_create(
-            desired_repo.name, desired_repo.description, desired_repo.public
-        )
+        org_data = quay_api_store[desired_repo.org_key]
+        with get_quay_api_for_org(desired_repo.org_key, org_data) as api:
+            api.repo_create(
+                desired_repo.name, desired_repo.description, desired_repo.public
+            )
 
 
 def act_description(
@@ -180,8 +183,9 @@ def act_description(
         desired_repo.description,
     ])
     if not dry_run:
-        api = quay_api_store[desired_repo.org_key]["api"]
-        api.repo_update_description(desired_repo.name, desired_repo.description)
+        org_data = quay_api_store[desired_repo.org_key]
+        with get_quay_api_for_org(desired_repo.org_key, org_data) as api:
+            api.repo_update_description(desired_repo.name, desired_repo.description)
 
 
 def act_public(
@@ -194,11 +198,12 @@ def act_public(
         desired_repo.name,
     ])
     if not dry_run:
-        api = quay_api_store[desired_repo.org_key]["api"]
-        if desired_repo.public:
-            api.repo_make_public(desired_repo.name)
-        else:
-            api.repo_make_private(desired_repo.name)
+        org_data = quay_api_store[desired_repo.org_key]
+        with get_quay_api_for_org(desired_repo.org_key, org_data) as api:
+            if desired_repo.public:
+                api.repo_make_public(desired_repo.name)
+            else:
+                api.repo_make_private(desired_repo.name)
 
 
 def act(

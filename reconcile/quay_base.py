@@ -10,22 +10,38 @@ OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
 
 class OrgInfo(TypedDict):
     url: str
-    api: QuayApi
     push_token: dict[str, str] | None
     teams: list[str]
     managedRepos: bool
     mirror: OrgKey | None
     mirror_filters: dict[str, Any]
+    # Metadata for creating QuayApi instances on-demand
+    token: str
+    org_name: str
+    base_url: str
 
 
 QuayApiStore = dict[OrgKey, OrgInfo]
+
+
+def get_quay_api_for_org(org_key: OrgKey, org_info: OrgInfo) -> QuayApi:
+    """
+    Create a QuayApi instance for a specific org on-demand.
+    The instance should be used within a context manager to ensure cleanup.
+    """
+    return QuayApi(
+        token=org_info["token"],
+        organization=org_info["org_name"],
+        base_url=org_info["base_url"],
+    )
 
 
 def get_quay_api_store() -> QuayApiStore:
     """
     Returns a dictionary with a key for each Quay organization
     managed in app-interface.
-    Each key contains an initiated QuayApi instance.
+    Each key contains org metadata (no QuayApi instances are created).
+    Use get_quay_api_for_org() to create QuayApi instances on-demand.
     """
     quay_orgs = queries.get_quay_orgs()
     settings = queries.get_app_interface_settings()
@@ -63,12 +79,14 @@ def get_quay_api_store() -> QuayApiStore:
 
         org_info: OrgInfo = {
             "url": base_url,
-            "api": QuayApi(token, org_name, base_url=base_url),
             "push_token": push_token,
             "teams": org_data.get("managedTeams") or [],
             "managedRepos": bool(org_data.get("managedRepos")),
             "mirror": mirror,
             "mirror_filters": mirror_filters,
+            "token": token,
+            "org_name": org_name,
+            "base_url": base_url,
         }
 
         store[org_key] = org_info
