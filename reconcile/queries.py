@@ -1815,7 +1815,7 @@ def get_review_repos() -> list[dict[str, str]]:
     return [
         {"url": c["url"], "name": c["name"]}
         for c in code_components
-        if c["showInReviewQueue"] is not None
+        if c.get("showInReviewQueue", False)
     ]
 
 
