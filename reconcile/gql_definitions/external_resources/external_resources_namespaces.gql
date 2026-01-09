@@ -488,6 +488,47 @@ query ExternalResourcesNamespaces {
           }
         }
       }
+      ... on NamespaceTerraformProviderResourceCloudflare_v1 {
+        provisioner {
+          name
+          apiCredentials {
+          ...VaultSecret
+          }
+        }
+        resources {
+          ... on NamespaceTerraformResourceCloudflareZone_v1 {
+            provider
+            identifier
+            zone
+            plan
+            type
+            delete
+            dns_records {
+              identifier
+              name
+              type
+              ttl
+              value
+              proxied
+              data {
+                algorithm
+                key_tag
+                flags
+                protocol
+                public_key
+                digest_type
+                digest
+                tag
+                value
+              }
+            }
+            managed_by_erv2
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
+        }
+      }
     }
     environment {
       name
