@@ -17,7 +17,7 @@ from sretoolbox.container.image import (
 )
 from sretoolbox.container.skopeo import SkopeoCmdError
 
-from reconcile.quay_base import get_quay_api_for_org, get_quay_api_store
+from reconcile.quay_base import QuayApiStore
 from reconcile.quay_mirror import QuayMirror
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 
@@ -45,7 +45,7 @@ class QuayMirrorOrg:
     ) -> None:
         self.dry_run = dry_run
         self.skopeo_cli = Skopeo(dry_run)
-        self.quay_api_store = get_quay_api_store()
+        self.quay_api_store = QuayApiStore()
         self.compare_tags = compare_tags
         self.compare_tags_interval = compare_tags_interval
         self.orgs = orgs
@@ -71,6 +71,7 @@ class QuayMirrorOrg:
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.session.close()
+        self.quay_api_store.cleanup()
 
     def run(self) -> None:
         sync_tasks = self.process_sync_tasks()
@@ -112,34 +113,31 @@ class QuayMirrorOrg:
             username = push_token["user"]
             token = push_token["token"]
 
-            # Create QuayApi instances on-demand and close immediately after use
-            with get_quay_api_for_org(org_key, org_info) as quay_api:
-                org_repos = [item["name"] for item in quay_api.list_images()]
+            quay_api = org_info["api"]
+            org_repos = [item["name"] for item in quay_api.list_images()]
 
-            with get_quay_api_for_org(
-                upstream_org_key, upstream_org
-            ) as upstream_quay_api:
-                for repo in upstream_quay_api.list_images():
-                    if repo["name"] not in org_repos:
-                        continue
+            upstream_quay_api = upstream_org["api"]
+            for repo in upstream_quay_api.list_images():
+                if repo["name"] not in org_repos:
+                    continue
 
-                    if self.repositories and repo["name"] not in self.repositories:
-                        continue
+                if self.repositories and repo["name"] not in self.repositories:
+                    continue
 
-                    server_url = upstream_org["url"]
-                    url = f"{server_url}/{org_key.org_name}/{repo['name']}"
-                    data = {
-                        "name": repo["name"],
-                        "mirror": {
-                            "url": url,
-                            "username": username,
-                            "token": token,
-                        },
-                        "mirror_filters": org_info.get("mirror_filters", {}).get(
-                            repo["name"], {}
-                        ),
-                    }
-                    summary[org_key].append(data)
+                server_url = upstream_org["url"]
+                url = f"{server_url}/{org_key.org_name}/{repo['name']}"
+                data = {
+                    "name": repo["name"],
+                    "mirror": {
+                        "url": url,
+                        "username": username,
+                        "token": token,
+                    },
+                    "mirror_filters": org_info.get("mirror_filters", {}).get(
+                        repo["name"], {}
+                    ),
+                }
+                summary[org_key].append(data)
 
         return summary
 

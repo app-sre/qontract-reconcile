@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import UserDict, namedtuple
 from typing import Any, TypedDict
 
 from reconcile import queries
@@ -15,28 +15,26 @@ class OrgInfo(TypedDict):
     managedRepos: bool
     mirror: OrgKey | None
     mirror_filters: dict[str, Any]
-    # Metadata for creating QuayApi instances on-demand
-    token: str
-    org_name: str
-    base_url: str
+    api: QuayApi
 
 
-QuayApiStore = dict[OrgKey, OrgInfo]
+class QuayApiStore(UserDict[OrgKey, OrgInfo]):
+    def __init__(self) -> None:
+        super().__init__(get_quay_api_store())
+
+    def cleanup(self) -> None:
+        """Close all QuayApi sessions."""
+        for org_info in self.data.values():
+            org_info["api"].cleanup()
+
+    def __enter__(self) -> "QuayApiStore":
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.cleanup()
 
 
-def get_quay_api_for_org(org_key: OrgKey, org_info: OrgInfo) -> QuayApi:
-    """
-    Create a QuayApi instance for a specific org on-demand.
-    The instance should be used within a context manager to ensure cleanup.
-    """
-    return QuayApi(
-        token=org_info["token"],
-        organization=org_info["org_name"],
-        base_url=org_info["base_url"],
-    )
-
-
-def get_quay_api_store() -> QuayApiStore:
+def get_quay_api_store() -> dict[OrgKey, OrgInfo]:
     """
     Returns a dictionary with a key for each Quay organization
     managed in app-interface.
@@ -77,6 +75,13 @@ def get_quay_api_store() -> QuayApiStore:
         else:
             push_token = None
 
+        # Create QuayApi instance for this org
+        api = QuayApi(
+            token=token,
+            organization=org_name,
+            base_url=base_url,
+        )
+
         org_info: OrgInfo = {
             "url": base_url,
             "push_token": push_token,
@@ -84,9 +89,7 @@ def get_quay_api_store() -> QuayApiStore:
             "managedRepos": bool(org_data.get("managedRepos")),
             "mirror": mirror,
             "mirror_filters": mirror_filters,
-            "token": token,
-            "org_name": org_name,
-            "base_url": base_url,
+            "api": api,
         }
 
         store[org_key] = org_info

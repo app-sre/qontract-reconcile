@@ -3,18 +3,13 @@ from __future__ import annotations
 import logging
 import sys
 from collections import namedtuple
-from typing import TYPE_CHECKING
 
 from reconcile.quay_base import (
     OrgKey,
-    get_quay_api_for_org,
-    get_quay_api_store,
+    QuayApiStore,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
-
-if TYPE_CHECKING:
-    from reconcile.quay_base import QuayApiStore
 
 QUAY_REPOS_QUERY = """
 {
@@ -51,18 +46,17 @@ def fetch_current_state(quay_api_store: QuayApiStore) -> list[RepoInfo]:
         if not org_info["managedRepos"] and not org_info["mirror"]:
             continue
 
-        # Create QuayApi instance on-demand and close immediately after use
-        with get_quay_api_for_org(org_key, org_info) as quay_api:
-            for repo in quay_api.list_images():
-                name = repo["name"]
-                public = repo["is_public"]
-                description = repo["description"]
+        quay_api = org_info["api"]
+        for repo in quay_api.list_images():
+            name = repo["name"]
+            public = repo["is_public"]
+            description = repo["description"]
 
-                if description is None:
-                    description = ""
+            if description is None:
+                description = ""
 
-                repo_info = RepoInfo(org_key, name, public, description)
-                state.append(repo_info)
+            repo_info = RepoInfo(org_key, name, public, description)
+            state.append(repo_info)
 
     return state
 
@@ -152,8 +146,8 @@ def act_delete(
     ])
     if not dry_run:
         org_data = quay_api_store[current_repo.org_key]
-        with get_quay_api_for_org(current_repo.org_key, org_data) as api:
-            api.repo_delete(current_repo.name)
+        api = org_data["api"]
+        api.repo_delete(current_repo.name)
 
 
 def act_create(
@@ -167,10 +161,10 @@ def act_create(
     ])
     if not dry_run:
         org_data = quay_api_store[desired_repo.org_key]
-        with get_quay_api_for_org(desired_repo.org_key, org_data) as api:
-            api.repo_create(
-                desired_repo.name, desired_repo.description, desired_repo.public
-            )
+        api = org_data["api"]
+        api.repo_create(
+            desired_repo.name, desired_repo.description, desired_repo.public
+        )
 
 
 def act_description(
@@ -184,8 +178,8 @@ def act_description(
     ])
     if not dry_run:
         org_data = quay_api_store[desired_repo.org_key]
-        with get_quay_api_for_org(desired_repo.org_key, org_data) as api:
-            api.repo_update_description(desired_repo.name, desired_repo.description)
+        api = org_data["api"]
+        api.repo_update_description(desired_repo.name, desired_repo.description)
 
 
 def act_public(
@@ -199,11 +193,11 @@ def act_public(
     ])
     if not dry_run:
         org_data = quay_api_store[desired_repo.org_key]
-        with get_quay_api_for_org(desired_repo.org_key, org_data) as api:
-            if desired_repo.public:
-                api.repo_make_public(desired_repo.name)
-            else:
-                api.repo_make_private(desired_repo.name)
+        api = org_data["api"]
+        if desired_repo.public:
+            api.repo_make_public(desired_repo.name)
+        else:
+            api.repo_make_private(desired_repo.name)
 
 
 def act(
@@ -228,32 +222,31 @@ def act(
 
 
 def run(dry_run: bool) -> None:
-    quay_api_store = get_quay_api_store()
+    with QuayApiStore() as quay_api_store:
+        # consistency checks
+        for org_key, org_info in quay_api_store.items():
+            if org_info.get("mirror"):
+                # ensure there are no circular mirror dependencies
+                mirror_org_key = org_info["mirror"]
+                assert mirror_org_key is not None
+                mirror_org = quay_api_store[mirror_org_key]
+                if mirror_org.get("mirror"):
+                    logging.error(
+                        f"{mirror_org_key.instance}/"
+                        + f"{mirror_org_key.org_name} "
+                        + "can't have mirrors and be a mirror"
+                    )
+                    sys.exit(ExitCodes.ERROR)
 
-    # consistency checks
-    for org_key, org_info in quay_api_store.items():
-        if org_info.get("mirror"):
-            # ensure there are no circular mirror dependencies
-            mirror_org_key = org_info["mirror"]
-            assert mirror_org_key is not None
-            mirror_org = quay_api_store[mirror_org_key]
-            if mirror_org.get("mirror"):
-                logging.error(
-                    f"{mirror_org_key.instance}/"
-                    + f"{mirror_org_key.org_name} "
-                    + "can't have mirrors and be a mirror"
-                )
-                sys.exit(ExitCodes.ERROR)
+                # ensure no org defines `managedRepos` and `mirror` at the same
+                if org_info.get("managedRepos"):
+                    logging.error(
+                        f"{org_key.instance}/{org_key.org_name} "
+                        + "has defined mirror and managedRepos"
+                    )
+                    sys.exit(ExitCodes.ERROR)
 
-            # ensure no org defines `managedRepos` and `mirror` at the same
-            if org_info.get("managedRepos"):
-                logging.error(
-                    f"{org_key.instance}/{org_key.org_name} "
-                    + "has defined mirror and managedRepos"
-                )
-                sys.exit(ExitCodes.ERROR)
-
-    # run integration
-    current_state = fetch_current_state(quay_api_store)
-    desired_state = fetch_desired_state(quay_api_store)
-    act(dry_run, quay_api_store, current_state, desired_state)
+        # run integration
+        current_state = fetch_current_state(quay_api_store)
+        desired_state = fetch_desired_state(quay_api_store)
+        act(dry_run, quay_api_store, current_state, desired_state)

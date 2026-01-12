@@ -10,11 +10,7 @@ from reconcile.gql_definitions.quay_membership.quay_membership import (
     PermissionQuayOrgTeamV1,
     UserV1,
 )
-from reconcile.quay_base import (
-    QuayApiStore,
-    get_quay_api_for_org,
-    get_quay_api_store,
-)
+from reconcile.quay_base import QuayApiStore
 from reconcile.status import ExitCodes
 from reconcile.utils import (
     expiration,
@@ -66,30 +62,29 @@ def fetch_current_state(quay_api_store: QuayApiStore) -> AggregatedList:
         if not teams:
             continue
 
-        # Create QuayApi instance on-demand and close immediately after use
-        with get_quay_api_for_org(org_key, org_data) as quay_api:
-            for team in teams:
-                try:
-                    members = quay_api.list_team_members(team)
-                except QuayTeamNotFoundError:
-                    logging.warning(
-                        "Attempted to list members for team %s in "
-                        "org %s/%s, but it doesn't exist",
-                        team,
-                        org_key.instance,
-                        org_key.org_name,
-                    )
-                else:
-                    # Teams are only added to the state if they exist so that
-                    # there is a proper diff between the desired and current state.
-                    state.add(
-                        {
-                            "service": "quay-membership",
-                            "org": org_key.org_name,
-                            "team": team,
-                        },
-                        members,
-                    )
+        quay_api = org_data["api"]
+        for team in teams:
+            try:
+                members = quay_api.list_team_members(team)
+            except QuayTeamNotFoundError:
+                logging.warning(
+                    "Attempted to list members for team %s in "
+                    "org %s/%s, but it doesn't exist",
+                    team,
+                    org_key.instance,
+                    org_key.org_name,
+                )
+            else:
+                # Teams are only added to the state if they exist so that
+                # there is a proper diff between the desired and current state.
+                state.add(
+                    {
+                        "service": "quay-membership",
+                        "org": org_key.org_name,
+                        "team": team,
+                    },
+                    members,
+                )
     return state
 
 
@@ -128,19 +123,18 @@ class RunnerAction:
             org = params["org"]
             team = params["team"]
             org_data = self.quay_api_store[org]
+            quay_api = org_data["api"]
 
             missing_users = False
-            # Create QuayApi instance on-demand and close immediately after use
-            with get_quay_api_for_org(org, org_data) as quay_api:
-                for member in items:
-                    logging.info([label, member, org, team])
-                    user_exists = quay_api.user_exists(member)
-                    if user_exists:
-                        if not self.dry_run:
-                            quay_api.add_user_to_team(member, team)
-                    else:
-                        missing_users = True
-                        logging.error(f"quay user {member} does not exist.")
+            for member in items:
+                logging.info([label, member, org, team])
+                user_exists = quay_api.user_exists(member)
+                if user_exists:
+                    if not self.dry_run:
+                        quay_api.add_user_to_team(member, team)
+                else:
+                    missing_users = True
+                    logging.error(f"quay user {member} does not exist.")
 
             # This will be evaluated by AggregatedDiffRunner.run(). The happy
             # case is to return True: no missing users
@@ -172,9 +166,8 @@ class RunnerAction:
             logging.info([label, org, team])
 
             if not self.dry_run:
-                # Create QuayApi instance on-demand and close immediately after use
-                with get_quay_api_for_org(org, org_data) as quay_api:
-                    quay_api.create_or_update_team(team)
+                quay_api = org_data["api"]
+                quay_api.create_or_update_team(team)
 
             return True
 
@@ -188,15 +181,14 @@ class RunnerAction:
             team = params["team"]
             org_data = self.quay_api_store[org]
 
+            quay_api = org_data["api"]
             if self.dry_run:
                 for member in items:
                     logging.info([label, member, org, team])
             else:
-                # Create QuayApi instance on-demand and close immediately after use
-                with get_quay_api_for_org(org, org_data) as quay_api:
-                    for member in items:
-                        logging.info([label, member, org, team])
-                        quay_api.remove_user_from_team(member, team)
+                for member in items:
+                    logging.info([label, member, org, team])
+                    quay_api.remove_user_from_team(member, team)
 
             return True
 
@@ -204,23 +196,23 @@ class RunnerAction:
 
 
 def run(dry_run: bool) -> None:
-    quay_api_store = get_quay_api_store()
-    current_state = fetch_current_state(quay_api_store)
-    desired_state = fetch_desired_state()
+    with QuayApiStore() as quay_api_store:
+        current_state = fetch_current_state(quay_api_store)
+        desired_state = fetch_desired_state()
 
-    # calculate diff
-    diff = current_state.diff(desired_state)
-    logging.debug("State diff: %s", diff)
+        # calculate diff
+        diff = current_state.diff(desired_state)
+        logging.debug("State diff: %s", diff)
 
-    # Run actions
-    runner_action = RunnerAction(dry_run, quay_api_store)
-    runner = AggregatedDiffRunner(diff)
+        # Run actions
+        runner_action = RunnerAction(dry_run, quay_api_store)
+        runner = AggregatedDiffRunner(diff)
 
-    runner.register("insert", runner_action.create_team())
-    runner.register("update-insert", runner_action.add_to_team())
-    runner.register("update-delete", runner_action.del_from_team())
-    runner.register("delete", runner_action.del_from_team())
+        runner.register("insert", runner_action.create_team())
+        runner.register("update-insert", runner_action.add_to_team())
+        runner.register("update-delete", runner_action.del_from_team())
+        runner.register("delete", runner_action.del_from_team())
 
-    status = runner.run()
-    if not status:
-        sys.exit(ExitCodes.ERROR)
+        status = runner.run()
+        if not status:
+            sys.exit(ExitCodes.ERROR)

@@ -4,8 +4,7 @@ from typing import Any
 
 from reconcile.quay_base import (
     OrgKey,
-    get_quay_api_for_org,
-    get_quay_api_store,
+    QuayApiStore,
 )
 from reconcile.status import ExitCodes
 from reconcile.utils import gql
@@ -62,36 +61,35 @@ def run(dry_run: bool) -> None:
 
     apps: list[dict[str, Any]] = result.get("apps") or []
     error = False
-    quay_api_store = get_quay_api_store()
 
-    for app in apps:
-        quay_repo_configs = app.get("quayRepos")
-        if not quay_repo_configs:
-            continue
-        for quay_repo_config in quay_repo_configs:
-            instance_name = quay_repo_config["org"]["instance"]["name"]
-            org_name = quay_repo_config["org"]["name"]
-            org_key = OrgKey(instance_name, org_name)
-
-            if not quay_repo_config["org"]["managedRepos"]:
-                logging.error(
-                    f"[{app['name']}] Can not manage repo permissions in {org_name} "
-                    "since managedRepos is set to false."
-                )
-                error = True
+    with QuayApiStore() as quay_api_store:
+        for app in apps:
+            quay_repo_configs = app.get("quayRepos")
+            if not quay_repo_configs:
                 continue
+            for quay_repo_config in quay_repo_configs:
+                instance_name = quay_repo_config["org"]["instance"]["name"]
+                org_name = quay_repo_config["org"]["name"]
+                org_key = OrgKey(instance_name, org_name)
 
-            # processing quayRepos section
-            logging.debug(["app", app["name"], instance_name, org_name])
+                if not quay_repo_config["org"]["managedRepos"]:
+                    logging.error(
+                        f"[{app['name']}] Can not manage repo permissions in {org_name} "
+                        "since managedRepos is set to false."
+                    )
+                    error = True
+                    continue
 
-            org_data = quay_api_store[org_key]
-            teams = quay_repo_config.get("teams")
-            if not teams:
-                continue
-            repos = quay_repo_config["items"]
+                # processing quayRepos section
+                logging.debug(["app", app["name"], instance_name, org_name])
 
-            # Create QuayApi instance on-demand and close immediately after use
-            with get_quay_api_for_org(org_key, org_data) as quay_api:
+                org_data = quay_api_store[org_key]
+                teams = quay_repo_config.get("teams")
+                if not teams:
+                    continue
+                repos = quay_repo_config["items"]
+                quay_api = org_data["api"]
+
                 for repo in repos:
                     repo_name = repo["name"]
 
