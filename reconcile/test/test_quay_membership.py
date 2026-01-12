@@ -1,12 +1,12 @@
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import (
     MagicMock,
     patch,
 )
 
 from reconcile import quay_membership
-from reconcile.quay_base import OrgKey
+from reconcile.quay_base import OrgInfo, OrgKey, QuayApiStore
 from reconcile.utils import (
     config,
     gql,
@@ -15,9 +15,6 @@ from reconcile.utils.aggregated_list import AggregatedList
 from reconcile.utils.quay_api import QuayApi
 
 from .fixtures import Fixtures
-
-if TYPE_CHECKING:
-    from reconcile.quay_base import QuayApiStore
 
 fxt = Fixtures("quay_membership")
 
@@ -84,72 +81,33 @@ class TestQuayMembership:
         quay_org_catalog = fixture["quay_org_catalog"]
         quay_org_teams = fixture["quay_org_teams"]
 
-        store: QuayApiStore = {}
-        mock_apis: dict[OrgKey, QuayApiMock] = {}
+        # Patch get_quay_api_store to return empty dict, then create QuayApiStore
+        # This prevents GraphQL queries during initialization
+        with patch("reconcile.quay_base.get_quay_api_store", return_value={}):
+            store = QuayApiStore()
 
-        for org_data in quay_org_catalog:
-            name_str = org_data["name"]
-            name = OrgKey(instance="quay.io", org_name=name_str)
+            # Populate store with test data
+            for org_data in quay_org_catalog:
+                name_str = org_data["name"]
+                name = OrgKey(instance="quay.io", org_name=name_str)
 
-            mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
-            mock_apis[name] = mock_api
+                # Create mock API instance
+                mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
 
-            # Store org metadata (no api field)
-            store[name] = {
-                "teams": org_data["managedTeams"],
-                "url": "",
-                "push_token": None,
-                "managedRepos": False,
-                "mirror": None,
-                "mirror_filters": {},
-                "token": "test-token",
-                "org_name": name.org_name,
-                "base_url": "mock.quay.io",
-            }
-
-        def mock_get_quay_api_for_org(
-            org_key: OrgKey, org_info: dict[str, Any]
-        ) -> QuayApiMock:
-            if org_key not in mock_apis:
-                raise KeyError(
-                    f"OrgKey {org_key} not found in mock_apis. Available keys: {list(mock_apis.keys())}"
+                # Store org metadata with api field (matching OrgInfo structure)
+                store[name] = OrgInfo(
+                    url="",
+                    teams=org_data["managedTeams"],
+                    push_token=None,
+                    managedRepos=False,
+                    mirror=None,
+                    mirror_filters={},
+                    api=mock_api,
                 )
-            return mock_apis[org_key]
 
-        # Patch both the function and requests.Session to prevent any real HTTP connections
-        # Also patch QuayApi.__init__ as a safety net to prevent real instances
-        def mock_quay_api_init(
-            token: str,
-            organization: str,
-            base_url: str = "quay.io",
-            timeout: int = 60,
-        ) -> None:
-            # This should never be called if our patch works, but if it is, raise an error
-            raise AssertionError(
-                f"Real QuayApi.__init__ was called! This means get_quay_api_for_org patch failed. "
-                f"token={token}, organization={organization}, base_url={base_url}"
-            )
-
-        with (
-            patch(
-                "reconcile.quay_membership.get_quay_api_for_org",
-                side_effect=mock_get_quay_api_for_org,
-            ),
-            patch(
-                "reconcile.utils.rest_api_base.requests.Session",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "requests.Session",
-                return_value=MagicMock(),
-            ),
-            patch.object(
-                QuayApi,
-                "__init__",
-                mock_quay_api_init,
-            ),
-        ):
-            current_state = quay_membership.fetch_current_state(store).dump()
+            # Use the store in a context manager to ensure cleanup
+            with store:
+                current_state = quay_membership.fetch_current_state(store).dump()
 
         expected_current_state = fixture["state"]
 
