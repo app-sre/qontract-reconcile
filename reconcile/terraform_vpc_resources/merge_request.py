@@ -55,3 +55,6 @@ class Renderer:
 
     def render_title(self, account: str) -> str:
         return f"[auto] VPC data file creation to {account}"
+
+    def render_update_title(self, account: str) -> str:
+        return f"[auto] VPC data file update for {account}"
