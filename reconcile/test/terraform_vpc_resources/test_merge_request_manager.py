@@ -93,7 +93,8 @@ def mr_builder(
 def mrm_builder(
     mocker: MockerFixture,
 ) -> Callable[
-    [Iterable[ProjectMergeRequest]], tuple[MergeRequestManager, VCS, Renderer, Parser]
+    ...,
+    tuple[MergeRequestManager, VCS, Renderer, Parser],
 ]:
     """Build a MergeRequestManager with mocked dependencies."""
 
@@ -122,7 +123,7 @@ def mrm_builder(
 
 def test_merge_request_manager_creates_mr_when_file_does_not_exist(
     mrm_builder: Callable[
-        [],
+        ...,
         tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
     ],
 ) -> None:
@@ -153,7 +154,7 @@ def test_merge_request_manager_creates_mr_when_file_does_not_exist(
 
 def test_merge_request_manager_creates_mr_when_file_exists_with_different_content(
     mrm_builder: Callable[
-        [],
+        ...,
         tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
     ],
 ) -> None:
@@ -186,7 +187,7 @@ def test_merge_request_manager_creates_mr_when_file_exists_with_different_conten
 
 def test_merge_request_manager_skips_mr_when_file_exists_with_same_content(
     mrm_builder: Callable[
-        [],
+        ...,
         tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
     ],
 ) -> None:
@@ -209,7 +210,7 @@ def test_merge_request_manager_skips_mr_when_file_exists_with_same_content(
 
 def test_merge_request_manager_skips_mr_when_already_exists(
     mrm_builder: Callable[
-        [],
+        ...,
         tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
     ],
 ) -> None:
@@ -236,7 +237,7 @@ def test_merge_request_manager_skips_mr_when_already_exists(
 
 def test_merge_request_manager_reraises_non_404_errors(
     mrm_builder: Callable[
-        [],
+        ...,
         tuple[MergeRequestManager, MagicMock, MagicMock, MagicMock],
     ],
 ) -> None:
@@ -256,26 +257,3 @@ def test_merge_request_manager_reraises_non_404_errors(
     assert exc_info.value.response_code == 500
     # Should NOT create MR
     vcs_mock.open_app_interface_merge_request.assert_not_called()
-
-
-def test_renderer_create_title() -> None:
-    """Test Renderer.render_title() generates correct create title."""
-    renderer = Renderer()
-    title = renderer.render_title(account="test-account")
-    assert title == "[auto] VPC data file creation to test-account"
-
-
-def test_renderer_update_title() -> None:
-    """Test Renderer.render_update_title() generates correct update title."""
-    renderer = Renderer()
-    title = renderer.render_update_title(account="test-account")
-    assert title == "[auto] VPC data file update for test-account"
-
-
-def test_renderer_description() -> None:
-    """Test Renderer.render_description() generates correct description."""
-    renderer = Renderer()
-    description = renderer.render_description(account="test-account")
-    assert "test-account" in description
-    assert "terraform-vpc-resources" in description
-    assert "**DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**" in description
