@@ -61,9 +61,7 @@ class Renderer:
         return DESC.safe_substitute(account=account)
 
     def render_title(self, account: str, action: Action) -> str:
-        if action == Action.CREATE:
-            return f"[auto] VPC data file creation to {account}"
-        return f"[auto] VPC data file update for {account}"
+        return f"[auto] {action} VPC data file for {account}"
 
     def render_update_title(self, account: str) -> str:
         return f"[auto] VPC data file update for {account}"
