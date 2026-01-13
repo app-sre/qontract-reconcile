@@ -1,7 +1,9 @@
 """Abstract base class for OpenShift role binding integrations."""
 
+import sys
 from abc import ABC, abstractmethod
 
+import reconcile.openshift_base as ob
 from reconcile.openshift_bindings.models import BindingSpec, OCResource
 from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
@@ -31,7 +33,6 @@ class OpenShiftBindingsBase(ABC):
     @abstractmethod
     def resource_kind(self) -> str: ...
 
-    @abstractmethod
     def reconcile(
         self,
         dry_run: bool,
@@ -41,10 +42,19 @@ class OpenShiftBindingsBase(ABC):
         enforced_user_keys: list[str] | None = None,
     ) -> None:
         """Reconcile the integration."""
-        ...
+        self.fetch_desired_state(
+            ri,
+            support_role_ref,
+            enforced_user_keys,
+            allowed_clusters=set(oc_map.clusters()),
+        )
+        ob.publish_metrics(ri, self.integration_name)
+        ob.realize_data(dry_run, oc_map, ri, self.thread_pool_size)
+        if ri.has_error_registered():
+            sys.exit(1)
 
     def get_openshift_resources(
-        self, binding_spec: BindingSpec, resource_kind: str,privileged: bool = False
+        self, binding_spec: BindingSpec, privileged: bool = False
     ) -> list[OCResource]:
         """Get the OpenShift resources for the binding specification."""
         oc_resources = [
@@ -58,7 +68,7 @@ class OpenShiftBindingsBase(ABC):
                 resource_name=oc_resource_data.name,
                 privileged=privileged,
             )
-            for oc_resource_data in binding_spec.get_oc_resources(resource_kind=resource_kind)
+            for oc_resource_data in binding_spec.get_oc_resources()
         ]
         return oc_resources
 
@@ -69,7 +79,7 @@ class OpenShiftBindingsBase(ABC):
         support_role_ref: bool = False,
         enforced_user_keys: list[str] | None = None,
         allowed_clusters: set[str] | None = None,
-    ) -> list[dict[str, str]]:
+    ) -> None:
         """Fetch and populate the desired state.
 
         Args:
@@ -84,12 +94,6 @@ class OpenShiftBindingsBase(ABC):
     @abstractmethod
     def fetch_current_state(self) -> tuple[ResourceInventory, OC_Map]:
         """Fetch current state from OpenShift.
-
-        Args:
-            items: List of clusters or namespaces to fetch state from.
-            thread_pool_size: Number of threads for parallel operations.
-            internal: Filter for internal clusters.
-            use_jump_host: Whether to use jump host for connections.
 
         Returns:
             Tuple of ResourceInventory and ClusterMap.

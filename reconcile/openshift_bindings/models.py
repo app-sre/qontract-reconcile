@@ -1,24 +1,45 @@
-"""Shared data models for OpenShift role binding integrations."""
+"""Shared data models for openshift-rolebindings and openshift-clusterrolebindings integrations."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
 from pydantic import BaseModel
 
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.app_interface_clusterrole import RoleV1 as ClusterRoleV1
+from reconcile.gql_definitions.common.app_interface_clusterrole import (
+    BotV1 as ClusterBotV1,
+)
+from reconcile.gql_definitions.common.app_interface_clusterrole import (
+    ClusterV1 as ClusterRoleClusterV1,
+)
+from reconcile.gql_definitions.common.app_interface_clusterrole import (
+    RoleV1 as ClusterRoleV1,
+)
+from reconcile.gql_definitions.common.app_interface_clusterrole import (
+    UserV1 as ClusterUserV1,
+)
 from reconcile.gql_definitions.common.app_interface_roles import (
     AccessV1,
-    BotV1,
-    ClusterV1,
     NamespaceV1,
     RoleV1,
     UserV1,
 )
+from reconcile.gql_definitions.common.app_interface_roles import (
+    BotV1 as RoleBotV1,
+)
+from reconcile.gql_definitions.common.app_interface_roles import (
+    ClusterV1 as RoleClusterV1,
+)
 from reconcile.gql_definitions.common.namespaces import NamespaceV1 as CommonNamespaceV1
+from reconcile.openshift_bindings.constants import (
+    CLUSTER_ROLE_BINDING_RESOURCE_KIND,
+    CLUSTER_ROLE_KIND,
+    ROLE_BINDING_RESOURCE_KIND,
+    ROLE_KIND,
+)
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.sharding import is_in_shard
-
 
 
 def is_valid_namespace(
@@ -29,6 +50,8 @@ def is_valid_namespace(
         and is_in_shard(f"{namespace.cluster.name}/{namespace.name}")
         and not ob.is_namespace_deleted(namespace.model_dump(by_alias=True))
     )
+
+
 class OCResource(BaseModel, arbitrary_types_allowed=True):
     """Represents an OpenShift resource with metadata."""
 
@@ -40,7 +63,9 @@ class OCResource(BaseModel, arbitrary_types_allowed=True):
 @dataclass
 class OCResourceData:
     body: dict[str, Any]
-    name:str
+    name: str
+
+
 @dataclass
 class ServiceAccountSpec:
     """Service account specification with namespace and name."""
@@ -49,7 +74,7 @@ class ServiceAccountSpec:
     sa_name: str
 
     @classmethod
-    def from_bots(cls, bots: list[BotV1] | None) -> list[Self]:
+    def from_bots(cls, bots: Sequence[RoleBotV1 | ClusterBotV1] | None) -> list[Self]:
         """Create ServiceAccountSpec list from bot configurations."""
         return [
             cls(
@@ -68,7 +93,8 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
 
     role_name: str
     role_kind: str  # "Role" or "ClusterRole"
-    cluster: ClusterV1
+    cluster: RoleClusterV1 | ClusterRoleClusterV1
+    resource_kind: str
     usernames: set[str]
     openshift_service_accounts: list[ServiceAccountSpec]
 
@@ -81,9 +107,10 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
 
     @staticmethod
     def get_usernames_from_users(
-        users: list[UserV1] | None, user_keys: list[str] | None
+        users: Sequence[UserV1 | ClusterUserV1] | None,
+        user_keys: list[str] | None = None,
     ) -> set[str]:
-        """Extract usernames from user objects using specified keys."""
+        """Extract usernames from user objects using depending on the user keys."""
         return {
             name
             for user in users or []
@@ -91,23 +118,21 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
             if (name := getattr(user, user_key, None))
         }
 
-    def get_oc_resources(self, resource_kind: str) -> list[OCResourceData]:
+    def get_oc_resources(self) -> list[OCResourceData]:
         user_oc_resources = [
-            self.construct_user_oc_resource(username,resource_kind=resource_kind) for username in self.usernames
+            self.construct_user_oc_resource(username) for username in self.usernames
         ]
         sa_oc_resources = [
-            self.construct_sa_oc_resource(sa.sa_namespace_name, sa.sa_name,resource_kind=resource_kind)
+            self.construct_sa_oc_resource(sa.sa_namespace_name, sa.sa_name)
             for sa in self.openshift_service_accounts
         ]
         return user_oc_resources + sa_oc_resources
 
-    def construct_user_oc_resource(
-        self, username: str, resource_kind: str
-    ) -> OCResourceData:
+    def construct_user_oc_resource(self, username: str) -> OCResourceData:
         name = f"{self.role_name}-{username}"
         body: dict[str, Any] = {
             "apiVersion": "rbac.authorization.k8s.io/v1",
-            "kind": resource_kind,
+            "kind": self.resource_kind,
             "metadata": {"name": name},
             "roleRef": {"kind": self.role_kind, "name": self.role_name},
             "subjects": [{"kind": "User", "name": username}],
@@ -115,12 +140,12 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
         return OCResourceData(body=body, name=name)
 
     def construct_sa_oc_resource(
-        self, sa_namespace_name: str, sa_name: str, resource_kind: str
+        self, sa_namespace_name: str, sa_name: str
     ) -> OCResourceData:
         name = f"{self.role_name}-{sa_namespace_name}-{sa_name}"
         body: dict[str, Any] = {
             "apiVersion": "rbac.authorization.k8s.io/v1",
-            "kind": resource_kind,
+            "kind": self.resource_kind,
             "metadata": {"name": name},
             "roleRef": {"kind": self.role_kind, "name": self.role_name},
             "subjects": [
@@ -146,7 +171,7 @@ class RoleBindingSpec(BindingSpec):
         access: AccessV1,
         users: list[UserV1] | None = None,
         enforced_user_keys: list[str] | None = None,
-        bots: list[BotV1] | None = None,
+        bots: list[RoleBotV1] | None = None,
         support_role_ref: bool = False,
     ) -> Self | None:
         """Create a RoleBindingSpec from access configuration."""
@@ -167,7 +192,7 @@ class RoleBindingSpec(BindingSpec):
             ),
         )
         service_accounts = ServiceAccountSpec.from_bots(bots) if bots else []
-        role_kind = "Role" if access.role and support_role_ref else "ClusterRole"
+        role_kind = ROLE_KIND if access.role and support_role_ref else CLUSTER_ROLE_KIND
         return cls(
             role_name=access.role or access.cluster_role,
             role_kind=role_kind,
@@ -176,6 +201,7 @@ class RoleBindingSpec(BindingSpec):
             privileged=privileged,
             usernames=usernames,
             openshift_service_accounts=service_accounts,
+            resource_kind=ROLE_BINDING_RESOURCE_KIND,
         )
 
     @classmethod
@@ -208,22 +234,32 @@ class RoleBindingSpec(BindingSpec):
 
 class ClusterRoleBindingSpec(BindingSpec):
     """Cluster-scoped ClusterRoleBinding specification."""
-    
+
     @classmethod
-    def create_cluster_role_binding_specs(cls, cluster_role: ClusterRoleV1) -> list[Self]:
-        cluster_role_binding_spec = [
+    def create_cluster_role_binding_specs(
+        cls, cluster_role: ClusterRoleV1
+    ) -> list[Self]:
+        cluster_role_binding_specs = [
             cls(
-                cluster_role_name=access.cluster_role,
                 cluster=access.cluster,
                 usernames=BindingSpec.get_usernames_from_users(
-                    cluster_role.users, access.cluster
+                    users=cluster_role.users,
+                    user_keys=cls.get_user_keys(access.cluster),
                 ),
                 openshift_service_accounts=ServiceAccountSpec.from_bots(
                     cluster_role.bots
                 ),
+                role_name=access.cluster_role,
+                role_kind=CLUSTER_ROLE_KIND,
+                resource_kind=CLUSTER_ROLE_BINDING_RESOURCE_KIND,
             )
             for access in cluster_role.access or []
             if access.cluster and access.cluster_role
         ]
-        return cluster_role_binding_spec
+        return cluster_role_binding_specs
 
+    @classmethod
+    def get_user_keys(cls, cluster: ClusterRoleClusterV1) -> list[str] | None:
+        auth_dict = [auth.model_dump(by_alias=True) for auth in cluster.auth]
+        user_keys = ob.determine_user_keys_for_access(cluster.name, auth_dict)
+        return user_keys

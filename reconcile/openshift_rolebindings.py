@@ -215,6 +215,7 @@ def fetch_desired_state(
     if allowed_clusters is not None and not allowed_clusters:
         return []
     roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
+    no_of_bindings = 0
     users_desired_state: list[dict[str, str]] = []
     for role in roles:
         rolebindings: list[RoleBindingSpec] = RoleBindingSpec.create_rb_specs_from_role(
@@ -226,6 +227,7 @@ def fetch_desired_state(
                 for rolebinding in rolebindings
                 if rolebinding.cluster.name in allowed_clusters
             ]
+        no_of_bindings += len(rolebindings)
         for rolebinding in rolebindings:
             users_desired_state.extend(rolebinding.get_users_desired_state())
             if ri is None:
@@ -243,6 +245,7 @@ def fetch_desired_state(
                         resource=oc_resource.resource,
                         privileged=oc_resource.privileged,
                     )
+    print(f"No of rolebindings: {no_of_bindings}")
     return users_desired_state
 
 
@@ -268,7 +271,6 @@ def run(
         for namespace in get_namespaces()
         if is_valid_namespace(namespace)
     ]
-    print("clusters-service-diag-queries-stage" in namespaces)
     ri, oc_map = ob.fetch_current_state(
         namespaces=namespaces,
         thread_pool_size=thread_pool_size,

@@ -3,10 +3,14 @@
 Manages namespace-scoped RoleBindings within OpenShift namespaces.
 """
 
-import sys
+from typing import TYPE_CHECKING
+
 import reconcile.openshift_base as ob
-from reconcile.gql_definitions.common.app_interface_roles import NamespaceV1, RoleV1
 from reconcile.openshift_bindings.base import OpenShiftBindingsBase
+from reconcile.openshift_bindings.constants import (
+    OPENSHIFT_ROLEBINDINGS_INTEGRATION_NAME,
+    ROLE_BINDING_RESOURCE_KIND,
+)
 from reconcile.openshift_bindings.models import RoleBindingSpec, is_valid_namespace
 from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
 from reconcile.typed_queries.namespaces import get_namespaces
@@ -15,12 +19,11 @@ from reconcile.utils.oc import OC_Map
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.semver_helper import make_semver
 
-QONTRACT_INTEGRATION = "openshift-rolebindings"
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.common.app_interface_roles import RoleV1
+
 QONTRACT_INTEGRATION_VERSION = make_semver(0, 3, 0)
 QONTRACT_INTEGRATION_MANAGED_TYPE = "RoleBinding.rbac.authorization.k8s.io"
-
-
-
 
 
 class RoleBindingsIntegration(OpenShiftBindingsBase):
@@ -43,7 +46,7 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
 
     @property
     def integration_name(self) -> str:
-        return QONTRACT_INTEGRATION
+        return OPENSHIFT_ROLEBINDINGS_INTEGRATION_NAME
 
     @property
     def integration_version(self) -> str:
@@ -51,7 +54,7 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
 
     @property
     def resource_kind(self) -> str:
-        return "RoleBinding"
+        return ROLE_BINDING_RESOURCE_KIND
 
     def fetch_current_state(self) -> tuple[ResourceInventory, OC_Map]:
         """Fetch current RoleBindings state from namespaces."""
@@ -60,7 +63,6 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
             for namespace in get_namespaces()
             if is_valid_namespace(namespace)
         ]
-        print("clusters-service-diag-queries-stage" in namespaces)
         return ob.fetch_current_state(
             namespaces=namespaces,
             thread_pool_size=self.thread_pool_size,
@@ -77,11 +79,12 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
         support_role_ref: bool = False,
         enforced_user_keys: list[str] | None = None,
         allowed_clusters: set[str] | None = None,
-    ) -> list[dict[str, str]]:
+    ) -> None:
         if allowed_clusters is not None and not allowed_clusters:
-            return []
+            return
+        if ri is None:
+            return
         roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
-        users_desired_state: list[dict[str, str]] = []
         for role in roles:
             rolebindings: list[RoleBindingSpec] = (
                 RoleBindingSpec.create_rb_specs_from_role(
@@ -95,15 +98,10 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
                     if rolebinding.cluster.name in allowed_clusters
                 ]
             for rolebinding in rolebindings:
-                users_desired_state.extend(rolebinding.get_users_desired_state())
-                if ri is None:
-                    continue
                 for oc_resource in self.get_openshift_resources(
-                    rolebinding, privileged=rolebinding.privileged, resource_kind="RoleBinding"
+                    rolebinding,
+                    privileged=rolebinding.privileged,
                 ):
-                    print(oc_resource.resource_name)
-                    print(rolebinding.cluster.name)
-                    print(rolebinding.namespace.name)
                     if not ri.get_desired(
                         rolebinding.cluster.name,
                         rolebinding.namespace.name,
@@ -117,19 +115,4 @@ class RoleBindingsIntegration(OpenShiftBindingsBase):
                             name=oc_resource.resource_name,
                             value=oc_resource.resource,
                             privileged=oc_resource.privileged,
-                    )
-        return users_desired_state
-    
-    def reconcile(
-        self,
-        dry_run: bool,
-        ri: ResourceInventory,
-        oc_map: OC_Map,
-        support_role_ref: bool = False,
-        enforced_user_keys: list[str] | None = None,
-    ) -> None:
-        self.fetch_desired_state(ri, support_role_ref, enforced_user_keys, allowed_clusters=set(oc_map.clusters()))
-        ob.publish_metrics(ri, self.integration_name)
-        ob.realize_data(dry_run, oc_map, ri, self.thread_pool_size)
-        if ri.has_error_registered():
-            sys.exit(1)
+                        )

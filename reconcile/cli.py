@@ -776,16 +776,26 @@ def github_validator(ctx: click.Context) -> None:
 @use_jump_host()
 @click.pass_context
 def openshift_clusterrolebindings(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
 ) -> None:
-    import reconcile.openshift_clusterrolebindings
+    from reconcile.openshift_bindings.integration import (
+        OpenShiftBindingsIntegration,
+        OpenShiftBindingsIntegrationParams,
+    )
 
-    run_integration(
-        reconcile.openshift_clusterrolebindings,
-        ctx,
-        thread_pool_size,
-        internal,
-        use_jump_host,
+    run_class_integration(
+        integration=OpenShiftBindingsIntegration(
+            OpenShiftBindingsIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                internal=internal,
+                use_jump_host=use_jump_host,
+                integration_name="openshift-clusterrolebindings",
+            )
+        ),
+        ctx=ctx,
     )
 
 
@@ -802,9 +812,16 @@ def openshift_clusterrolebindings(
 )
 @click.pass_context
 def openshift_rolebindings(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool, support_role_ref: bool
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
+    support_role_ref: bool,
 ) -> None:
-    from reconcile.openshift_bindings.integration import OpenShiftBindingsIntegration, OpenShiftBindingsIntegrationParams
+    from reconcile.openshift_bindings.integration import (
+        OpenShiftBindingsIntegration,
+        OpenShiftBindingsIntegrationParams,
+    )
 
     run_class_integration(
         integration=OpenShiftBindingsIntegration(
@@ -818,23 +835,6 @@ def openshift_rolebindings(
         ),
         ctx=ctx,
     )
-# def openshift_rolebindings(
-#     ctx: click.Context,
-#     thread_pool_size: int,
-#     internal: bool,
-#     use_jump_host: bool,
-#     support_role_ref: bool,
-# ) -> None:
-#     import reconcile.openshift_rolebindings
-
-#     run_integration(
-#         reconcile.openshift_rolebindings,
-#         ctx,
-#         thread_pool_size,
-#         internal,
-#         use_jump_host,
-#         support_role_ref,
-#     )
 
 
 @integration.command(short_help="Manages OpenShift Groups.")

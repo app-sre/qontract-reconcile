@@ -5,23 +5,28 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sretoolbox.utils import threaded
 
 from reconcile import (
     openshift_groups,
-    openshift_rolebindings,
 )
+
+if TYPE_CHECKING:
+    from reconcile.gql_definitions.common.app_interface_roles import RoleV1
 from reconcile.gql_definitions.common.clusters_minimal import (
     ClusterAuthOIDCV1,
     ClusterAuthRHIDPV1,
     ClusterV1,
 )
+from reconcile.openshift_bindings.models import RoleBindingSpec
+from reconcile.typed_queries.app_interface_roles import get_app_interface_roles
 from reconcile.typed_queries.app_interface_vault_settings import (
     get_app_interface_vault_settings,
 )
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
+from reconcile.utils import expiration
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
 from reconcile.utils.oc_map import (
@@ -97,16 +102,48 @@ def fetch_current_state(
     return oc_map, current_state
 
 
+def fetch_rolebindings_desired_state(
+    allowed_clusters: set[str] | None = None,
+    enforced_user_keys: list[str] | None = None,
+) -> list[dict[str, str]]:
+    if allowed_clusters is not None and not allowed_clusters:
+        return []
+    roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
+
+    users_desired_state: list[dict[str, str]] = [
+        user
+        for role in roles
+        for rolebinding in filter_rolebindings(
+            RoleBindingSpec.create_rb_specs_from_role(role, enforced_user_keys),
+            allowed_clusters,
+        )
+        for user in rolebinding.get_users_desired_state()
+    ]
+    return users_desired_state
+
+
+def filter_rolebindings(
+    rolebindings: list[RoleBindingSpec], allowed_clusters: set[str] | None = None
+) -> list[RoleBindingSpec]:
+    if allowed_clusters is not None:
+        return [
+            rolebinding
+            for rolebinding in rolebindings
+            if rolebinding.cluster.name in allowed_clusters
+        ]
+    return rolebindings
+
+
 def fetch_desired_state(
     oc_map: OCMap | None, enforced_user_keys: Any = None
 ) -> list[Any]:
     desired_state = []
     filtered_clusters = oc_map.clusters() if oc_map else None
-    flat_rolebindings_desired_state = openshift_rolebindings.fetch_desired_state(
-        ri=None,
-        enforced_user_keys=enforced_user_keys,
+    flat_rolebindings_desired_state = fetch_rolebindings_desired_state(
         allowed_clusters=set(filtered_clusters) if filtered_clusters else None,
+        enforced_user_keys=enforced_user_keys,
     )
+    print(len(flat_rolebindings_desired_state))
     desired_state.extend(flat_rolebindings_desired_state)
 
     groups_desired_state = openshift_groups.fetch_desired_state(

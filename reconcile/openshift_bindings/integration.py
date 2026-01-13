@@ -2,6 +2,11 @@ from collections.abc import Callable
 from typing import Literal
 
 from reconcile.openshift_bindings.base import OpenShiftBindingsBase
+from reconcile.openshift_bindings.constants import (
+    OPENSHIFT_CLUSTERROLEBINDINGS_INTEGRATION_NAME,
+    OPENSHIFT_ROLEBINDINGS_INTEGRATION_NAME,
+    IntegrationNameType,
+)
 from reconcile.openshift_bindings.openshift_clusterrolebindings import (
     ClusterRoleBindingsIntegration,
 )
@@ -20,8 +25,7 @@ class OpenShiftBindingsIntegrationParams(PydanticRunParams):
     thread_pool_size: int = DEFAULT_THREAD_POOL_SIZE
     internal: bool | None = None
     use_jump_host: bool = True
-    integration_name: Literal["openshift-rolebindings", "openshift-clusterrolebindings"]
-
+    integration_name: IntegrationNameType
 
 
 class OpenShiftBindingsIntegration(
@@ -52,23 +56,21 @@ class OpenShiftBindingsIntegration(
 
 
 def get_rolebindings_integration(
-    integration_name: Literal[
-        "openshift-rolebindings", "openshift-clusterrolebindings"
-    ],
+    integration_name: IntegrationNameType,
     thread_pool_size: int,
     internal: bool | None,
     use_jump_host: bool,
 ) -> OpenShiftBindingsBase:
-    match integration_name:
-        case "openshift-rolebindings":
-            return RoleBindingsIntegration(
-                thread_pool_size=thread_pool_size,
-                internal=internal,
-                use_jump_host=use_jump_host,
-            )
-        case "openshift-clusterrolebindings":
-            return ClusterRoleBindingsIntegration(
-                thread_pool_size=thread_pool_size,
-                internal=internal,
-                use_jump_host=use_jump_host,
-            )
+    if integration_name == OPENSHIFT_ROLEBINDINGS_INTEGRATION_NAME:
+        return RoleBindingsIntegration(
+            thread_pool_size=thread_pool_size,
+            internal=internal,
+            use_jump_host=use_jump_host,
+        )
+    if integration_name == OPENSHIFT_CLUSTERROLEBINDINGS_INTEGRATION_NAME:
+        return ClusterRoleBindingsIntegration(
+            thread_pool_size=thread_pool_size,
+            internal=internal,
+            use_jump_host=use_jump_host,
+        )
+    raise ValueError(f"Invalid integration name: {integration_name}")
