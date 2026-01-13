@@ -124,7 +124,11 @@ class RunnerAction:
             org = params["org"]
             team = params["team"]
             # Convert org tuple (instance, org_name) to OrgKey for lookup
-            org_key = OrgKey(org[0], org[1]) if isinstance(org, tuple) else OrgKey("quay.io", org)
+            org_key = (
+                OrgKey(org[0], org[1])
+                if isinstance(org, tuple)
+                else OrgKey("quay.io", org)
+            )
             org_data = self.quay_api_store[org_key]
             quay_api = org_data["api"]
 
@@ -157,7 +161,11 @@ class RunnerAction:
             org = params["org"]
             team = params["team"]
             # Convert org tuple (instance, org_name) to OrgKey for lookup
-            org_key = OrgKey(org[0], org[1]) if isinstance(org, tuple) else OrgKey("quay.io", org)
+            org_key = (
+                OrgKey(org[0], org[1])
+                if isinstance(org, tuple)
+                else OrgKey("quay.io", org)
+            )
             org_data = self.quay_api_store[org_key]
 
             # Ensure all quay org/teams are declared as dependencies in a
@@ -185,7 +193,11 @@ class RunnerAction:
             org = params["org"]
             team = params["team"]
             # Convert org tuple (instance, org_name) to OrgKey for lookup
-            org_key = OrgKey(org[0], org[1]) if isinstance(org, tuple) else OrgKey("quay.io", org)
+            org_key = (
+                OrgKey(org[0], org[1])
+                if isinstance(org, tuple)
+                else OrgKey("quay.io", org)
+            )
             org_data = self.quay_api_store[org_key]
 
             quay_api = org_data["api"]
