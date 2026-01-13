@@ -215,8 +215,7 @@ class TestRoleBindingsIntegrationFetchDesiredState:
         )
 
         ri = ResourceInventory()
-        ri_add_desired_mock = mocker.MagicMock()
-        ri.add_desired = ri_add_desired_mock
+        ri_add_desired_mock = mocker.patch.object(ri, "add_desired")
 
         # allowed_clusters doesn't include "other-cluster"
         integration.fetch_desired_state(

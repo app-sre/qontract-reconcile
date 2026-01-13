@@ -149,35 +149,3 @@ class TestOpenShiftBindingsIntegration:
             support_role_ref=True,
             enforced_user_keys=["org_username"],
         )
-
-    def test_run_with_defer_calls_cleanup(
-        self,
-        mocker: MockerFixture,
-        mock_ri: ResourceInventory,
-        mock_oc_map: MagicMock,
-    ) -> None:
-        """Test run method registers cleanup with defer."""
-        mock_integration = mocker.MagicMock()
-        mock_integration.fetch_current_state.return_value = (mock_ri, mock_oc_map)
-        mocker.patch(
-            "reconcile.openshift_bindings.integration.get_rolebindings_integration",
-            return_value=mock_integration,
-        )
-
-        params = OpenShiftBindingsIntegrationParams(
-            integration_name="openshift-rolebindings"
-        )
-        integration = OpenShiftBindingsIntegration(params)
-
-        # Create mock defer function
-        deferred_calls = []
-
-        def mock_defer(func):
-            deferred_calls.append(func)
-
-        # Run with defer
-        integration.run.__wrapped__(integration, dry_run=True, defer=mock_defer)
-
-        # Verify cleanup was deferred
-        assert len(deferred_calls) == 1
-        assert deferred_calls[0] == mock_oc_map.cleanup

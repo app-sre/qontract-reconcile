@@ -7,6 +7,7 @@ from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.app_interface_roles import (
     AccessV1,
+    BotV1,
     ClusterV1,
     UserV1,
 )
@@ -136,7 +137,7 @@ class TestOpenShiftBindingsBase:
         mocker: MockerFixture,
         test_access_with_role: AccessV1,
         test_user: UserV1,
-        test_bot,
+        test_bot: BotV1,
     ) -> None:
         """Test get_openshift_resources includes service account resources."""
         mocker.patch(

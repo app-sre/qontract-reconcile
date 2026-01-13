@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from typing import Literal
 
 from reconcile.openshift_bindings.base import OpenShiftBindingsBase
 from reconcile.openshift_bindings.constants import (
