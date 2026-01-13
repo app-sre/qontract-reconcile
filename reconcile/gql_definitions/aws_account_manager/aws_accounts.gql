@@ -42,5 +42,9 @@ query AWSAccountManagerAccounts {
       ...AWSAccountManaged
     }
     organizationAccountTags
+    # for account request email address verification
+    accountOwners {
+      email
+    }
   }
 }

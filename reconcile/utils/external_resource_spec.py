@@ -157,6 +157,8 @@ class ExternalResourceSpec:
             tags["cost-center"] = cost_center
         if service_phase := self.namespace["environment"].get("servicePhase"):
             tags["service-phase"] = service_phase
+        if cost_center := self.namespace["environment"].get("costCenter"):
+            tags["cost-center"] = cost_center
 
         resource_tags_str = self.resource.get("tags")
         if resource_tags_str:

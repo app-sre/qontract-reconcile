@@ -651,9 +651,15 @@ class OCCli:
             raise e
         return True
 
+    def _use_oc_project(self, namespace: str) -> bool:
+        # Note, that openshift-* namespaces cannot be created via new-project
+        return self.is_kind_supported(PROJECT_KIND) and not namespace.startswith(
+            "openshift-"
+        )
+
     @OCDecorators.process_reconcile_time
     def new_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
-        if self.is_kind_supported(PROJECT_KIND):
+        if self._use_oc_project(namespace=namespace):
             cmd = ["new-project", namespace]
         else:
             cmd = ["create", "namespace", namespace]
@@ -669,7 +675,7 @@ class OCCli:
 
     @OCDecorators.process_reconcile_time
     def delete_project(self, namespace: str) -> OCProcessReconcileTimeDecoratorMsg:
-        if self.is_kind_supported(PROJECT_KIND):
+        if self._use_oc_project(namespace=namespace):
             cmd = ["delete", "project", namespace]
         else:
             cmd = ["delete", "namespace", namespace]

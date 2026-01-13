@@ -20,7 +20,7 @@ class DecisionCommand(Enum):
     CANCEL_APPROVED = "/lgtm cancel"
     HOLD = "/hold"
     CANCEL_HOLD = "/hold cancel"
-    GOOD_TO_TEST = "/good-to-test"
+    OK_TO_TEST = "/ok-to-test"
 
 
 @dataclass

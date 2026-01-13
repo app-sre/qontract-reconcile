@@ -20,6 +20,7 @@ def namespace_builder(gql_class_factory: Callable) -> Callable[..., NamespaceV1]
         cluster_name: str,
         delete: bool = False,
         managed_by_external: bool = False,
+        cluster_admin: bool = False,
     ) -> NamespaceV1:
         return gql_class_factory(
             NamespaceV1,
@@ -28,6 +29,7 @@ def namespace_builder(gql_class_factory: Callable) -> Callable[..., NamespaceV1]
                 "cluster": {"name": cluster_name},
                 "delete": delete,
                 "managedByExternal": managed_by_external,
+                "clusterAdmin": cluster_admin,
             },
         )
 
@@ -283,3 +285,61 @@ def test_error_handling(
     assert isinstance(exception, Exception)
     assert "Some error" in str(exception)
     assert exception.__notes__ == ["cluster: test-cluster, namespace: test-namespace"]
+
+
+def test_create_namespace_with_cluster_admin(
+    namespace_builder: Callable,
+    mocker: MockerFixture,
+) -> None:
+    namespace = namespace_builder(
+        name="test-namespace",
+        cluster_name="test-cluster",
+        cluster_admin=True,
+    )
+    mocks = setup_mocks(mocker, [namespace])
+    mocks["oc"].project_exists.return_value = False
+
+    openshift_namespaces.run(False, thread_pool_size=1)
+
+    mocks["oc_map"].get.assert_called_once_with("test-cluster", privileged=True)
+    mocks["oc"].project_exists.assert_called_once_with("test-namespace")
+    mocks["oc"].new_project.assert_called_once_with("test-namespace")
+
+
+def test_create_namespace_without_cluster_admin(
+    namespace_builder: Callable,
+    mocker: MockerFixture,
+) -> None:
+    namespace = namespace_builder(
+        name="test-namespace",
+        cluster_name="test-cluster",
+        cluster_admin=False,
+    )
+    mocks = setup_mocks(mocker, [namespace])
+    mocks["oc"].project_exists.return_value = False
+
+    openshift_namespaces.run(False, thread_pool_size=1)
+
+    mocks["oc_map"].get.assert_called_once_with("test-cluster", privileged=False)
+    mocks["oc"].project_exists.assert_called_once_with("test-namespace")
+    mocks["oc"].new_project.assert_called_once_with("test-namespace")
+
+
+def test_delete_namespace_with_cluster_admin(
+    namespace_builder: Callable,
+    mocker: MockerFixture,
+) -> None:
+    namespace = namespace_builder(
+        name="test-namespace",
+        cluster_name="test-cluster",
+        delete=True,
+        cluster_admin=True,
+    )
+    mocks = setup_mocks(mocker, [namespace])
+    mocks["oc"].project_exists.return_value = True
+
+    openshift_namespaces.run(False, thread_pool_size=1)
+
+    mocks["oc_map"].get.assert_called_once_with("test-cluster", privileged=True)
+    mocks["oc"].project_exists.assert_called_once_with("test-namespace")
+    mocks["oc"].delete_project.assert_called_once_with("test-namespace")

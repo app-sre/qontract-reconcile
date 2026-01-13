@@ -23,6 +23,7 @@ from reconcile.change_owners.changes import (
 )
 from reconcile.change_owners.decision import (
     ChangeDecision,
+    ChangeResponsibles,
     DecisionCommand,
     apply_decisions_to_changes,
     get_approver_decisions_from_mr_comments,
@@ -115,6 +116,77 @@ def manage_conditional_label(
     return set(new_labels)
 
 
+def build_status_message(
+    self_serviceable: bool,
+    authoritative: bool,
+    change_admitted: bool,
+    approver_reachability: set[str],
+    supported_commands: list[str],
+) -> str:
+    """
+    Build a user-friendly status message based on the MR state.
+    """
+    approver_section = _build_approver_contact_section(approver_reachability)
+
+    # Check if changes are not admitted (security gate - takes priority)
+    if not change_admitted:
+        return f"""## ⏸️ Approval Required
+Your changes need `/ok-to-test` approval from a listed approver before review can begin.
+
+{approver_section}"""
+
+    commands_text = (
+        f"**Available commands:** {' '.join(f'`{cmd}`' for cmd in supported_commands)}"
+    )
+
+    code_warning = ""
+    if not authoritative:
+        code_warning = "⚠️ **Code changes outside of data and resources detected** - please review carefully\n\n"
+
+    if self_serviceable:
+        return f"""## ✅ Ready for Review
+Get `/lgtm` approval from the listed approvers below.
+
+{code_warning}{approver_section}
+
+{commands_text}"""
+
+    return f"""## 🔍 AppSRE Review Required
+**What happens next:**
+* AppSRE will review via their [review queue](https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md)
+* Please don't ping directly unless this is **urgent**
+* See [etiquette guide](https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette) for more info
+
+{code_warning}{approver_section}
+
+{commands_text}"""
+
+
+def _build_approver_contact_section(approver_reachability: set[str]) -> str:
+    """Build the approver contact information section."""
+    if not approver_reachability:
+        return ""
+
+    return "**Reach out to approvers:**\n" + "\n".join([
+        f"* {ar}" for ar in approver_reachability
+    ])
+
+
+def _format_change_responsible(cr: ChangeResponsibles) -> str:
+    """
+    Format a ChangeResponsibles object.
+    """
+    usernames = [
+        f"@{a.org_username}"
+        if (a.tag_on_merge_requests or len(cr.approvers) == 1)
+        else a.org_username
+        for a in cr.approvers
+    ]
+
+    usernames_text = " ".join(usernames)
+    return f"<details><summary>{cr.context}</summary>{usernames_text}</details>"
+
+
 def write_coverage_report_to_mr(
     self_serviceable: bool,
     change_decisions: list[ChangeDecision],
@@ -135,14 +207,11 @@ def write_coverage_report_to_mr(
         startswith=change_coverage_report_header,
     )
 
-    # add new report comment
+    # Build change coverage table
     results = []
     approver_reachability = set()
     for d in change_decisions:
-        approvers = [
-            f"{cr.context} - {' '.join([f'@{a.org_username}' if (a.tag_on_merge_requests or len(cr.approvers) == 1) else a.org_username for a in cr.approvers])}"
-            for cr in d.change_responsibles
-        ]
+        approvers = [_format_change_responsible(cr) for cr in d.change_responsibles]
         if d.coverable_by_fragment_decisions:
             approvers.append(
                 "automatically approved if all sub-properties are approved"
@@ -164,40 +233,32 @@ def write_coverage_report_to_mr(
             item["status"] = "hold"
         elif d.is_approved():
             item["status"] = "approved"
-        item["approvers"] = approvers
+        item["approvers"] = "".join(approvers)
         results.append(item)
+
     coverage_report = format_table(
         results, ["file", "change", "status", "approvers"], table_format="github"
     )
 
-    self_serviceability_hint = "All changes require an `/lgtm` from a listed approver "
-    if not self_serviceable:
-        self_serviceability_hint += (
-            "but <b>not all changes are self-serviceable and require AppSRE approval</b>."
-            "The AppSRE Interrupt Catcher (IC) will review your Merge Request (MR) as it comes up in their "
-            "<a href='https://gitlab.cee.redhat.com/service/app-interface-output/-/blob/master/app-interface-review-queue.md'>queue</a>, "
-            "please do not ping them directly unless this is <b>urgent</b>."
-            "\nPlease see https://gitlab.cee.redhat.com/service/app-interface#app-interface-etiquette for more information. Thank you :)"
-        )
-    if not authoritative:
-        self_serviceability_hint += "\n\nchanges outside of data and resources detected - <b>PAY EXTRA ATTENTION WHILE REVIEWING</b>\n\n"
-
-    if not change_admitted:
-        self_serviceability_hint += "\n\nchanges are not admitted. Please request `/good-to-test` from one of the approvers.\n\n"
-
-    approver_reachability_hint = "Reach out to approvers for reviews"
-    if approver_reachability:
-        approver_reachability_hint += " on\n" + "\n".join([
-            f"* {ar}" for ar in approver_reachability or []
-        ])
-    gl.add_comment_to_merge_request(
-        merge_request,
-        f"{change_coverage_report_header}<br/>"
-        f"{self_serviceability_hint}\n"
-        f"{coverage_report}\n\n"
-        f"{approver_reachability_hint}\n\n"
-        + f"Supported commands: {' '.join([f'`{d.value}`' for d in DecisionCommand])} ",
+    # Build user-friendly status message
+    supported_commands = [d.value for d in DecisionCommand]
+    status_message = build_status_message(
+        self_serviceable=self_serviceable,
+        authoritative=authoritative,
+        change_admitted=change_admitted,
+        approver_reachability=approver_reachability,
+        supported_commands=supported_commands,
     )
+
+    # Create the full comment
+    full_comment = f"""{change_coverage_report_header}
+
+{status_message}
+
+## 📋 Change Summary
+{coverage_report}"""
+
+    gl.add_comment_to_merge_request(merge_request, full_comment)
 
 
 def write_coverage_report_to_stdout(change_decisions: list[ChangeDecision]) -> None:
@@ -261,22 +322,22 @@ def init_gitlab(gitlab_project_id: str) -> GitLabApi:
 
 
 def is_coverage_admitted(
-    coverage: ChangeTypeContext, mr_author: str, good_to_test_approvers: set[str]
+    coverage: ChangeTypeContext, mr_author: str, ok_to_test_approvers: set[str]
 ) -> bool:
     return any(
-        a.org_username == mr_author or a.org_username in good_to_test_approvers
+        a.org_username == mr_author or a.org_username in ok_to_test_approvers
         for a in coverage.approvers
     )
 
 
 def is_change_admitted(
-    changes: list[BundleFileChange], mr_author: str, good_to_test_approvers: set[str]
+    changes: list[BundleFileChange], mr_author: str, ok_to_test_approvers: set[str]
 ) -> bool:
     # Checks if mr authors are allowed to do the changes in the merge request.
     # If a change type is restrictive and the author is not an approver,
     # this is not admitted.
     # A change might be admitted if a user that has the restrictive change
-    # type is an approver or an approver adds an /good-to-test comment.
+    # type is an approver or an approver adds an /ok-to-test comment.
 
     restrictive_coverages = [
         c
@@ -290,7 +351,7 @@ def is_change_admitted(
     change_types_approved = {
         c.origin
         for c in restrictive_coverages
-        if is_coverage_admitted(c, mr_author, good_to_test_approvers)
+        if is_coverage_admitted(c, mr_author, ok_to_test_approvers)
     }
     return change_types_to_approve == change_types_approved
 
@@ -381,17 +442,22 @@ def run(
             merge_request = gl.get_merge_request(gitlab_merge_request_id)
 
             comments = gl.get_merge_request_comments(merge_request)
-            good_to_test_approvers = {
-                c.username for c in comments if c.body.strip() == "/good-to-test"
+            ok_to_test_approvers = {
+                c.username for c in comments if c.body.strip() == "/ok-to-test"
             }
 
             change_admitted = is_change_admitted(
                 changes,
                 gl.get_merge_request_author_username(merge_request),
-                good_to_test_approvers,
+                ok_to_test_approvers,
             )
             approver_decisions = get_approver_decisions_from_mr_comments(
-                gl.get_merge_request_comments(merge_request, include_description=True)
+                gl.get_merge_request_comments(
+                    merge_request,
+                    include_description=True,
+                    include_approvals=True,
+                    approval_body=DecisionCommand.APPROVED.value,
+                )
             )
             change_decisions = apply_decisions_to_changes(
                 changes,

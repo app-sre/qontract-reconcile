@@ -1319,3 +1319,77 @@ def test_oc_native_get_all(oc_native: OCNative) -> None:
     oc_native.client.resources.get.return_value.get.assert_called_once_with(
         _request_timeout=60,
     )
+
+
+@pytest.mark.parametrize(
+    ("namespace", "project_kind_supported", "expected_command"),
+    [
+        # OpenShift cluster with regular namespace - should use new-project
+        ("my-namespace", True, ["new-project", "my-namespace"]),
+        # OpenShift cluster with openshift-* namespace - should use create namespace
+        ("openshift-monitoring", True, ["create", "namespace", "openshift-monitoring"]),
+        ("openshift-config", True, ["create", "namespace", "openshift-config"]),
+        # Vanilla Kubernetes cluster - should use create namespace
+        ("my-namespace", False, ["create", "namespace", "my-namespace"]),
+        ("openshift-something", False, ["create", "namespace", "openshift-something"]),
+    ],
+)
+def test_new_project_command_selection(
+    oc_cli: OCCli,
+    mocker: MockerFixture,
+    namespace: str,
+    project_kind_supported: bool,
+    expected_command: list[str],
+) -> None:
+    """Test that new_project selects the correct command based on cluster type and namespace name."""
+    mock_is_kind_supported = mocker.patch.object(
+        oc_cli, "is_kind_supported", return_value=project_kind_supported
+    )
+    mock_run = mocker.patch.object(oc_cli, "_run", return_value=b"{}")
+
+    # Call the unwrapped function to bypass the decorator
+    oc_cli.new_project.__wrapped__(oc_cli, namespace)  # type: ignore[attr-defined]
+
+    mock_is_kind_supported.assert_called_once()
+    mock_run.assert_called_once()
+    actual_command = mock_run.call_args[0][0]
+    assert actual_command == expected_command
+
+
+@pytest.mark.parametrize(
+    ("namespace", "project_kind_supported", "expected_command"),
+    [
+        # OpenShift cluster with regular namespace - should use delete project
+        ("my-namespace", True, ["delete", "project", "my-namespace"]),
+        # OpenShift cluster with openshift-* namespace - should use delete namespace
+        ("openshift-monitoring", True, ["delete", "namespace", "openshift-monitoring"]),
+        ("openshift-config", True, ["delete", "namespace", "openshift-config"]),
+        # Vanilla Kubernetes cluster - should use delete namespace
+        ("my-namespace", False, ["delete", "namespace", "my-namespace"]),
+        ("openshift-something", False, ["delete", "namespace", "openshift-something"]),
+    ],
+)
+def test_delete_project_command_selection(
+    oc_cli: OCCli,
+    mocker: MockerFixture,
+    namespace: str,
+    project_kind_supported: bool,
+    expected_command: list[str],
+) -> None:
+    """Test that delete_project selects the correct command based on cluster type and namespace name."""
+    mock_is_kind_supported = mocker.patch.object(
+        oc_cli, "is_kind_supported", return_value=project_kind_supported
+    )
+    mock_run = mocker.patch.object(
+        oc_cli,
+        "_run",
+        return_value=b'project.project.openshift.io "my-namespace" deleted',
+    )
+
+    # Call the unwrapped function to bypass the decorator
+    oc_cli.delete_project.__wrapped__(oc_cli, namespace)  # type: ignore[attr-defined]
+
+    mock_is_kind_supported.assert_called_once()
+    mock_run.assert_called_once()
+    actual_command = mock_run.call_args[0][0]
+    assert actual_command == expected_command

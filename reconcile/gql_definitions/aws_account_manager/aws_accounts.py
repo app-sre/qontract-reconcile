@@ -97,6 +97,10 @@ query AWSAccountManagerAccounts {
       ...AWSAccountManaged
     }
     organizationAccountTags
+    # for account request email address verification
+    accountOwners {
+      email
+    }
   }
 }
 """
@@ -149,6 +153,10 @@ class AWSAccountRequestV1(ConfiguredBaseModel):
     account_file_target_path: Optional[str] = Field(..., alias="accountFileTargetPath")
 
 
+class AWSAccountV1_OwnerV1(ConfiguredBaseModel):
+    email: str = Field(..., alias="email")
+
+
 class AWSAccountV1(AWSAccountManaged):
     resources_default_region: str = Field(..., alias="resourcesDefaultRegion")
     automation_token: VaultSecret = Field(..., alias="automationToken")
@@ -157,6 +165,7 @@ class AWSAccountV1(AWSAccountManaged):
     account_requests: Optional[list[AWSAccountRequestV1]] = Field(..., alias="account_requests")
     organization_accounts: Optional[list[AWSAccountManaged]] = Field(..., alias="organization_accounts")
     organization_account_tags: Optional[Json] = Field(..., alias="organizationAccountTags")
+    account_owners: list[AWSAccountV1_OwnerV1] = Field(..., alias="accountOwners")
 
 
 class AWSAccountManagerAccountsQueryData(ConfiguredBaseModel):
