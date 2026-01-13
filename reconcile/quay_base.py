@@ -38,8 +38,6 @@ def get_quay_api_store() -> dict[OrgKey, OrgInfo]:
     """
     Returns a dictionary with a key for each Quay organization
     managed in app-interface.
-    Each key contains org metadata (no QuayApi instances are created).
-    Use get_quay_api_for_org() to create QuayApi instances on-demand.
     """
     quay_orgs = queries.get_quay_orgs()
     settings = queries.get_app_interface_settings()
