@@ -6,7 +6,12 @@ from gitlab.exceptions import GitlabGetError
 from gitlab.v4.objects import ProjectMergeRequest
 from pytest_mock import MockerFixture
 
-from reconcile.terraform_vpc_resources.merge_request import LABEL, Info, Renderer
+from reconcile.terraform_vpc_resources.merge_request import (
+    LABEL,
+    Action,
+    Info,
+    Renderer,
+)
 from reconcile.terraform_vpc_resources.merge_request_manager import (
     MergeRequestManager,
     MrData,
@@ -17,10 +22,10 @@ from reconcile.utils.merge_request_manager.parser import Parser
 from reconcile.utils.vcs import VCS
 
 
-def test_vpc_request_mr_creates_file_when_is_update_false(
+def test_vpc_request_mr_creates_file_when_action_is_create(
     mocker: MockerFixture,
 ) -> None:
-    """Test VPCRequestMR.process() creates file when is_update=False."""
+    """Test VPCRequestMR.process() creates file when action=CREATE."""
     gitlab_api_mock = mocker.MagicMock(spec=GitLabApi)
 
     mr = VPCRequestMR(
@@ -29,7 +34,7 @@ def test_vpc_request_mr_creates_file_when_is_update_false(
         vpc_tmpl_file_path="/path/to/file.yml",
         vpc_tmpl_file_content="new content",
         labels=["label"],
-        is_update=False,
+        action=Action.CREATE,
     )
 
     mr.process(gitlab_api_mock)
@@ -45,10 +50,10 @@ def test_vpc_request_mr_creates_file_when_is_update_false(
     gitlab_api_mock.update_file.assert_not_called()
 
 
-def test_vpc_request_mr_updates_file_when_is_update_true(
+def test_vpc_request_mr_updates_file_when_action_is_update(
     mocker: MockerFixture,
 ) -> None:
-    """Test VPCRequestMR.process() updates file when is_update=True."""
+    """Test VPCRequestMR.process() updates file when action=UPDATE."""
     gitlab_api_mock = mocker.MagicMock(spec=GitLabApi)
 
     mr = VPCRequestMR(
@@ -57,7 +62,7 @@ def test_vpc_request_mr_updates_file_when_is_update_true(
         vpc_tmpl_file_path="/path/to/file.yml",
         vpc_tmpl_file_content="new content",
         labels=["label"],
-        is_update=True,
+        action=Action.UPDATE,
     )
 
     mr.process(gitlab_api_mock)
@@ -139,17 +144,18 @@ def test_merge_request_manager_creates_mr_when_file_does_not_exist(
 
     mrm.create_merge_request(MrData(account="account", content="content", path="/path"))
 
-    # Should use create title, not update title
-    renderer_mock.render_title.assert_called_once_with(account="account")
-    renderer_mock.render_update_title.assert_not_called()
+    # Should call render_title with action parameter
+    renderer_mock.render_title.assert_called_once_with(
+        account="account", action=Action.CREATE
+    )
     renderer_mock.render_description.assert_called_once_with(account="account")
 
-    # Should open MR with is_update=False
+    # Should open MR with action=CREATE
     vcs_mock.open_app_interface_merge_request.assert_called_once()
     call_args = vcs_mock.open_app_interface_merge_request.call_args
     mr = call_args.kwargs["mr"]
     assert isinstance(mr, VPCRequestMR)
-    assert mr._is_update is False
+    assert mr._action == Action.CREATE
 
 
 def test_merge_request_manager_creates_mr_when_file_exists_with_different_content(
@@ -163,26 +169,25 @@ def test_merge_request_manager_creates_mr_when_file_exists_with_different_conten
     # File exists with different content
     vcs_mock.get_file_content_from_app_interface_ref.return_value = "old content"
 
-    renderer_mock.render_update_title.return_value = (
-        "[auto] VPC data file update for account"
-    )
+    renderer_mock.render_title.return_value = "[auto] VPC data file update for account"
     renderer_mock.render_description.return_value = "MR description"
 
     mrm.create_merge_request(
         MrData(account="account", content="new content", path="/path")
     )
 
-    # Should use update title, not create title
-    renderer_mock.render_update_title.assert_called_once_with(account="account")
-    renderer_mock.render_title.assert_not_called()
+    # Should call render_title with action parameter
+    renderer_mock.render_title.assert_called_once_with(
+        account="account", action=Action.UPDATE
+    )
     renderer_mock.render_description.assert_called_once_with(account="account")
 
-    # Should open MR with is_update=True
+    # Should open MR with action=UPDATE
     vcs_mock.open_app_interface_merge_request.assert_called_once()
     call_args = vcs_mock.open_app_interface_merge_request.call_args
     mr = call_args.kwargs["mr"]
     assert isinstance(mr, VPCRequestMR)
-    assert mr._is_update is True
+    assert mr._action == Action.UPDATE
 
 
 def test_merge_request_manager_skips_mr_when_file_exists_with_same_content(

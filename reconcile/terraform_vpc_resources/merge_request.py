@@ -1,5 +1,6 @@
 import re
 import string
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -8,6 +9,12 @@ from reconcile.utils.merge_request_manager.parser import Parser
 PROMOTION_DATA_SEPARATOR = "**DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
 VERSION = "0.1.0"
 LABEL = "terraform-vpc-resources"
+
+
+class Action(StrEnum):
+    CREATE = "create"
+    UPDATE = "update"
+
 
 VERSION_REF = "tf_vpc_resources_version"
 ACCOUNT_REF = "account"
@@ -53,8 +60,10 @@ class Renderer:
     def render_description(self, account: str) -> str:
         return DESC.safe_substitute(account=account)
 
-    def render_title(self, account: str) -> str:
-        return f"[auto] VPC data file creation to {account}"
+    def render_title(self, account: str, action: Action) -> str:
+        if action == Action.CREATE:
+            return f"[auto] VPC data file creation to {account}"
+        return f"[auto] VPC data file update for {account}"
 
     def render_update_title(self, account: str) -> str:
         return f"[auto] VPC data file update for {account}"
