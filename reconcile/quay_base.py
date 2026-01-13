@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import UserDict, namedtuple
 from typing import Any, TypedDict
 
 from reconcile import queries
@@ -10,22 +10,34 @@ OrgKey = namedtuple("OrgKey", ["instance", "org_name"])
 
 class OrgInfo(TypedDict):
     url: str
-    api: QuayApi
     push_token: dict[str, str] | None
     teams: list[str]
     managedRepos: bool
     mirror: OrgKey | None
     mirror_filters: dict[str, Any]
+    api: QuayApi
 
 
-QuayApiStore = dict[OrgKey, OrgInfo]
+class QuayApiStore(UserDict[OrgKey, OrgInfo]):
+    def __init__(self) -> None:
+        super().__init__(get_quay_api_store())
+
+    def cleanup(self) -> None:
+        """Close all QuayApi sessions."""
+        for org_info in self.data.values():
+            org_info["api"].cleanup()
+
+    def __enter__(self) -> "QuayApiStore":
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.cleanup()
 
 
-def get_quay_api_store() -> QuayApiStore:
+def get_quay_api_store() -> dict[OrgKey, OrgInfo]:
     """
     Returns a dictionary with a key for each Quay organization
     managed in app-interface.
-    Each key contains an initiated QuayApi instance.
     """
     quay_orgs = queries.get_quay_orgs()
     settings = queries.get_app_interface_settings()
@@ -61,14 +73,21 @@ def get_quay_api_store() -> QuayApiStore:
         else:
             push_token = None
 
+        # Create QuayApi instance for this org
+        api = QuayApi(
+            token=token,
+            organization=org_name,
+            base_url=base_url,
+        )
+
         org_info: OrgInfo = {
             "url": base_url,
-            "api": QuayApi(token, org_name, base_url=base_url),
             "push_token": push_token,
             "teams": org_data.get("managedTeams") or [],
             "managedRepos": bool(org_data.get("managedRepos")),
             "mirror": mirror,
             "mirror_filters": mirror_filters,
+            "api": api,
         }
 
         store[org_key] = org_info

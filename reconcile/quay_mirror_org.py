@@ -17,7 +17,7 @@ from sretoolbox.container.image import (
 )
 from sretoolbox.container.skopeo import SkopeoCmdError
 
-from reconcile.quay_base import get_quay_api_store
+from reconcile.quay_base import QuayApiStore
 from reconcile.quay_mirror import QuayMirror
 from reconcile.utils.quay_mirror import record_timestamp, sync_tag
 
@@ -45,7 +45,7 @@ class QuayMirrorOrg:
     ) -> None:
         self.dry_run = dry_run
         self.skopeo_cli = Skopeo(dry_run)
-        self.quay_api_store = get_quay_api_store()
+        self.quay_api_store = QuayApiStore()
         self.compare_tags = compare_tags
         self.compare_tags_interval = compare_tags_interval
         self.orgs = orgs
@@ -71,6 +71,7 @@ class QuayMirrorOrg:
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.session.close()
+        self.quay_api_store.cleanup()
 
     def run(self) -> None:
         sync_tasks = self.process_sync_tasks()
@@ -101,11 +102,9 @@ class QuayMirrorOrg:
             if self.orgs and org_key.org_name not in self.orgs:
                 continue
 
-            quay_api = org_info["api"]
             upstream_org_key = org_info["mirror"]
             assert upstream_org_key is not None
             upstream_org = self.quay_api_store[upstream_org_key]
-            upstream_quay_api = upstream_org["api"]
 
             push_token = upstream_org["push_token"]
 
@@ -114,7 +113,10 @@ class QuayMirrorOrg:
             username = push_token["user"]
             token = push_token["token"]
 
+            quay_api = org_info["api"]
             org_repos = [item["name"] for item in quay_api.list_images()]
+
+            upstream_quay_api = upstream_org["api"]
             for repo in upstream_quay_api.list_images():
                 if repo["name"] not in org_repos:
                     continue

@@ -1,20 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import (
+    MagicMock,
+    Mock,
+    patch,
+)
 
-from reconcile.quay_base import OrgKey
+from reconcile.quay_base import OrgInfo, OrgKey, QuayApiStore
 from reconcile.quay_repos import (
     RepoInfo,
     act,
 )
 
 from .fixtures import Fixtures
-
-if TYPE_CHECKING:
-    from unittest.mock import Mock
-
-    from reconcile.quay_base import QuayApiStore
 
 fxt = Fixtures("quay_repos")
 
@@ -55,7 +53,25 @@ class TestQuayRepos:
         current_state = build_state(fixture["current_state"])
         desired_state = build_state(fixture["desired_state"])
 
-        quay_api_store: QuayApiStore = {}
+        # Create a QuayApiStore instance with mock data for testing
+        org_key = OrgKey("instance", "org")
+        mock_api = MagicMock()
+        test_data: dict[OrgKey, OrgInfo] = {
+            org_key: {
+                "url": "",
+                "push_token": None,
+                "teams": [],
+                "managedRepos": True,
+                "mirror": None,
+                "mirror_filters": {},
+                "api": mock_api,
+            }
+        }
+
+        # Patch get_quay_api_store to return test data, then create QuayApiStore
+        with patch("reconcile.quay_base.get_quay_api_store", return_value=test_data):
+            quay_api_store = QuayApiStore()
+
         dry_run = True
         act(dry_run, quay_api_store, current_state, desired_state)
 
