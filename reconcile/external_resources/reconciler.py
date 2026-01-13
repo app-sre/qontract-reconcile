@@ -6,6 +6,7 @@ from typing import Any
 from kubernetes.client import (
     V1Container,
     V1EmptyDirVolumeSource,
+    V1EnvFromSource,
     V1EnvVar,
     V1EnvVarSource,
     V1JobSpec,
@@ -15,6 +16,7 @@ from kubernetes.client import (
     V1PodSpec,
     V1PodTemplateSpec,
     V1ResourceRequirements,
+    V1SecretEnvSource,
     V1SecretVolumeSource,
     V1Volume,
     V1VolumeMount,
@@ -116,6 +118,14 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                     value=self.reconciliation.action.value,
                 ),
             ],
+            env_from=[
+                V1EnvFromSource(
+                    secret_ref=V1SecretEnvSource(
+                        name=f"dotenv-{self.reconciliation.key.provision_provider}-{self.reconciliation.key.provisioner_name}",
+                        optional=True,
+                    )
+                ),
+            ],
             volume_mounts=[
                 V1VolumeMount(
                     name="credentials",
@@ -192,7 +202,7 @@ class ReconciliationK8sJob(K8sJob, BaseModel, frozen=True):
                         V1Volume(
                             name="credentials",
                             secret=V1SecretVolumeSource(
-                                secret_name=f"credentials-{self.reconciliation.key.provisioner_name}",
+                                secret_name=f"credentials-{self.reconciliation.key.provision_provider}-{self.reconciliation.key.provisioner_name}",
                             ),
                         ),
                         V1Volume(
