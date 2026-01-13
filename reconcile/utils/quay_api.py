@@ -1,16 +1,13 @@
-import contextlib
 from typing import Any
 
 import requests
-
-from reconcile.utils.rest_api_base import ApiBase, BearerTokenAuth
 
 
 class QuayTeamNotFoundError(Exception):
     pass
 
 
-class QuayApi(ApiBase):
+class QuayApi:
     LIMIT_FOLLOWS = 15
 
     def __init__(
@@ -20,18 +17,14 @@ class QuayApi(ApiBase):
         base_url: str = "quay.io",
         timeout: int = 60,
     ) -> None:
-        # Support both hostname (e.g., "quay.io") and full URLs (e.g., "http://localhost:12345")
-        if base_url.startswith(("http://", "https://")):
-            host = base_url
-        else:
-            host = f"https://{base_url}"
-        super().__init__(
-            host=host,
-            auth=BearerTokenAuth(token),
-            read_timeout=timeout,
-        )
+        self.token = token
         self.organization = organization
+        self.auth_header = {"Authorization": "Bearer %s" % (token,)}
         self.team_members: dict[str, Any] = {}
+        self.api_url = f"https://{base_url}/api/v1"
+
+        self._timeout = timeout
+        """Timeout to use for HTTP calls to Quay (seconds)."""
 
     def list_team_members(self, team: str, **kwargs: Any) -> list[dict]:
         """
@@ -45,20 +38,19 @@ class QuayApi(ApiBase):
             if cache_members:
                 return cache_members
 
-        url = f"/api/v1/organization/{self.organization}/team/{team}/members"
-        params = {"includePending": "true"}
+        url = f"{self.api_url}/organization/{self.organization}/team/{team}/members?includePending=true"
 
-        try:
-            body = self._get(url, params=params)
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                raise QuayTeamNotFoundError(
-                    f"team {team} is not found in "
-                    f"org {self.organization}. "
-                    f"contact org owner to create the "
-                    f"team manually."
-                ) from e
-            raise
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
+        if r.status_code == 404:
+            raise QuayTeamNotFoundError(
+                f"team {team} is not found in "
+                f"org {self.organization}. "
+                f"contact org owner to create the "
+                f"team manually."
+            )
+        r.raise_for_status()
+
+        body = r.json()
 
         # Using a set because members may be repeated
         members = {member["name"] for member in body["members"]}
@@ -69,37 +61,30 @@ class QuayApi(ApiBase):
         return members_list
 
     def user_exists(self, user: str) -> bool:
-        url = f"/api/v1/users/{user}"
-        try:
-            self._get(url)
-            return True
-        except requests.exceptions.HTTPError:
-            return False
+        url = f"{self.api_url}/users/{user}"
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
+        return r.ok
 
     def remove_user_from_team(self, user: str, team: str) -> bool:
         """Deletes an user from a team.
 
         :raises HTTPError if there are any problems with the request
         """
-        url_team = (
-            f"/api/v1/organization/{self.organization}/team/{team}/members/{user}"
-        )
+        url_team = f"{self.api_url}/organization/{self.organization}/team/{team}/members/{user}"
 
-        try:
-            self._delete(url_team)
-        except requests.exceptions.HTTPError as e:
-            message = ""
-            if e.response is not None:
-                with contextlib.suppress(ValueError, AttributeError):
-                    message = e.response.json().get("message", "")
+        r = requests.delete(url_team, headers=self.auth_header, timeout=self._timeout)
+        if not r.ok:
+            message = r.json().get("message", "")
 
             expected_message = f"User {user} does not belong to team {team}"
 
             if message != expected_message:
-                raise
+                r.raise_for_status()
 
-        url_org = f"/api/v1/organization/{self.organization}/members/{user}"
-        self._delete(url_org)
+        url_org = f"{self.api_url}/organization/{self.organization}/members/{user}"
+
+        r = requests.delete(url_org, headers=self.auth_header, timeout=self._timeout)
+        r.raise_for_status()
 
         return True
 
@@ -111,8 +96,9 @@ class QuayApi(ApiBase):
         if user in self.list_team_members(team, cache=True):
             return True
 
-        url = f"/api/v1/organization/{self.organization}/team/{team}/members/{user}"
-        self._put(url)
+        url = f"{self.api_url}/organization/{self.organization}/team/{team}/members/{user}"
+        r = requests.put(url, headers=self.auth_header, timeout=self._timeout)
+        r.raise_for_status()
         return True
 
     def create_or_update_team(
@@ -129,14 +115,17 @@ class QuayApi(ApiBase):
         :raises HTTPError: unsuccessful attempt to create the team
         """
 
-        url = f"/api/v1/organization/{self.organization}/team/{team}"
+        url = f"{self.api_url}/organization/{self.organization}/team/{team}"
 
         payload = {"role": role}
 
         if description:
             payload.update({"description": description})
 
-        self._put(url, data=payload)
+        r = requests.put(
+            url, headers=self.auth_header, json=payload, timeout=self._timeout
+        )
+        r.raise_for_status()
 
     def list_images(
         self, images: list | None = None, page: str | None = None, count: int = 0
@@ -151,7 +140,7 @@ class QuayApi(ApiBase):
         if count > self.LIMIT_FOLLOWS:
             raise ValueError("Too many page follows")
 
-        url = "/api/v1/repository"
+        url = f"{self.api_url}/repository"
 
         # params
         params = {"namespace": self.organization}
@@ -159,7 +148,13 @@ class QuayApi(ApiBase):
             params["next_page"] = page
 
         # perform request
-        body = self._get(url, params=params)
+        r = requests.get(
+            url, params=params, headers=self.auth_header, timeout=self._timeout
+        )
+        r.raise_for_status()
+
+        # read body
+        body = r.json()
         repositories = body.get("repositories", [])
         next_page = body.get("next_page")
 
@@ -181,7 +176,7 @@ class QuayApi(ApiBase):
         """
         visibility = "public" if public else "private"
 
-        url = "/repository"
+        url = f"{self.api_url}/repository"
 
         params = {
             "repo_kind": "image",
@@ -191,16 +186,29 @@ class QuayApi(ApiBase):
             "description": description,
         }
 
-        self._post(url, data=params)
+        # perform request
+        r = requests.post(
+            url, json=params, headers=self.auth_header, timeout=self._timeout
+        )
+        r.raise_for_status()
 
     def repo_delete(self, repo_name: str) -> None:
-        url = f"/api/v1/repository/{self.organization}/{repo_name}"
-        self._delete(url)
+        url = f"{self.api_url}/repository/{self.organization}/{repo_name}"
+
+        # perform request
+        r = requests.delete(url, headers=self.auth_header, timeout=self._timeout)
+        r.raise_for_status()
 
     def repo_update_description(self, repo_name: str, description: str) -> None:
-        url = f"/api/v1/repository/{self.organization}/{repo_name}"
+        url = f"{self.api_url}/repository/{self.organization}/{repo_name}"
+
         params = {"description": description}
-        self._put(url, data=params)
+
+        # perform request
+        r = requests.put(
+            url, json=params, headers=self.auth_header, timeout=self._timeout
+        )
+        r.raise_for_status()
 
     def repo_make_public(self, repo_name: str) -> None:
         self._repo_change_visibility(repo_name, "public")
@@ -209,34 +217,39 @@ class QuayApi(ApiBase):
         self._repo_change_visibility(repo_name, "private")
 
     def _repo_change_visibility(self, repo_name: str, visibility: str) -> None:
-        url = f"/api/v1/repository/{self.organization}/{repo_name}/changevisibility"
+        url = f"{self.api_url}/repository/{self.organization}/{repo_name}/changevisibility"
+
         params = {"visibility": visibility}
-        self._post(url, data=params)
+
+        # perform request
+        r = requests.post(
+            url, json=params, headers=self.auth_header, timeout=self._timeout
+        )
+        r.raise_for_status()
 
     def get_repo_team_permissions(self, repo_name: str, team: str) -> str | None:
         url = (
-            f"/api/v1/repository/{self.organization}/"
+            f"{self.api_url}/repository/{self.organization}/"
             + f"{repo_name}/permissions/team/{team}"
         )
-        try:
-            body = self._get(url)
-            return body.get("role") or None
-        except requests.exceptions.HTTPError as e:
-            message = ""
-            if e.response is not None:
-                with contextlib.suppress(ValueError, AttributeError):
-                    message = e.response.json().get("message", "")
-
+        r = requests.get(url, headers=self.auth_header, timeout=self._timeout)
+        if not r.ok:
+            message = r.json().get("message")
             expected_message = "Team does not have permission for repo."
             if message == expected_message:
                 return None
 
-            raise
+            r.raise_for_status()
+
+        return r.json().get("role") or None
 
     def set_repo_team_permissions(self, repo_name: str, team: str, role: str) -> None:
         url = (
-            f"/api/v1/repository/{self.organization}/"
+            f"{self.api_url}/repository/{self.organization}/"
             + f"{repo_name}/permissions/team/{team}"
         )
         body = {"role": role}
-        self._put(url, data=body)
+        r = requests.put(
+            url, json=body, headers=self.auth_header, timeout=self._timeout
+        )
+        r.raise_for_status()

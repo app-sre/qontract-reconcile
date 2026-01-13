@@ -91,12 +91,10 @@ class TestIsCompareTags:
 
 
 def test_quay_mirror_org_session(mocker: MockerFixture) -> None:
+    mocker.patch("reconcile.quay_mirror_org.get_quay_api_store")
     mocked_request = mocker.patch("reconcile.quay_mirror_org.requests")
 
-    with (
-        patch("reconcile.quay_base.get_quay_api_store", return_value={}),
-        QuayMirrorOrg() as quay_mirror_org,
-    ):
+    with QuayMirrorOrg() as quay_mirror_org:
         assert quay_mirror_org.session == mocked_request.Session.return_value
 
     mocked_request.Session.return_value.close.assert_called_once_with()

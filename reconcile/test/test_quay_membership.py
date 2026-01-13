@@ -1,12 +1,8 @@
 from collections.abc import Callable
-from typing import Any
-from unittest.mock import (
-    MagicMock,
-    patch,
-)
+from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 from reconcile import quay_membership
-from reconcile.quay_base import OrgInfo, OrgKey, QuayApiStore
 from reconcile.utils import (
     config,
     gql,
@@ -15,6 +11,9 @@ from reconcile.utils.aggregated_list import AggregatedList
 from reconcile.utils.quay_api import QuayApi
 
 from .fixtures import Fixtures
+
+if TYPE_CHECKING:
+    from reconcile.quay_base import OrgKey, QuayApiStore
 
 fxt = Fixtures("quay_membership")
 
@@ -33,39 +32,10 @@ def get_items_by_params(
 
 class QuayApiMock(QuayApi):
     def __init__(self, list_team_members_response: dict[str, list[dict]]):
-        # Initialize ApiBase attributes manually with mocked session
-        self.host = "https://mock.quay.io"
-        self.max_retries = 3
-        self.read_timeout = 60
-        self.session = MagicMock()  # Mock session to prevent real HTTP requests
-
-        # Initialize QuayApi-specific attributes
-        self.organization = "mock-org"
-        self.team_members: dict[str, Any] = {}
         self.list_team_members_response = list_team_members_response
 
-    def __enter__(self) -> "QuayApiMock":
-        # Context manager support
-        return self
-
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        # Context manager cleanup - do nothing since we're using a mock session
-        pass
-
     def list_team_members(self, team: str, **kwargs: Any) -> list[dict]:
-        # Return mock response directly, bypassing any parent implementation
-        return self.list_team_members_response.get(team, [])
-
-    def _get(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        # Override _get to prevent any accidental real HTTP requests
-        # This should never be called since we override list_team_members
-        raise AssertionError(
-            f"QuayApiMock._get() should not be called. URL: {url}, params: {params}"
-        )
-
-    def cleanup(self) -> None:
-        # Override cleanup to do nothing since we're using a mock session
-        pass
+        return self.list_team_members_response[team]
 
 
 class TestQuayMembership:
@@ -81,33 +51,20 @@ class TestQuayMembership:
         quay_org_catalog = fixture["quay_org_catalog"]
         quay_org_teams = fixture["quay_org_teams"]
 
-        # Patch get_quay_api_store to return empty dict, then create QuayApiStore
-        # This prevents GraphQL queries during initialization
-        with patch("reconcile.quay_base.get_quay_api_store", return_value={}):
-            store = QuayApiStore()
+        store: QuayApiStore = {}
+        for org_data in quay_org_catalog:
+            name: OrgKey = org_data["name"]
+            store[name] = {
+                "api": QuayApiMock(quay_org_teams[name]),
+                "teams": org_data["managedTeams"],
+                "url": "",
+                "push_token": None,
+                "managedRepos": False,
+                "mirror": None,
+                "mirror_filters": {},
+            }
 
-            # Populate store with test data
-            for org_data in quay_org_catalog:
-                name_str = org_data["name"]
-                name = OrgKey(instance="quay.io", org_name=name_str)
-
-                # Create mock API instance
-                mock_api = QuayApiMock(quay_org_teams.get(name_str, {}))
-
-                # Store org metadata with api field (matching OrgInfo structure)
-                store[name] = OrgInfo(
-                    url="",
-                    teams=org_data["managedTeams"],
-                    push_token=None,
-                    managedRepos=False,
-                    mirror=None,
-                    mirror_filters={},
-                    api=mock_api,
-                )
-
-            # Use the store in a context manager to ensure cleanup
-            with store:
-                current_state = quay_membership.fetch_current_state(store).dump()
+        current_state = quay_membership.fetch_current_state(store).dump()
 
         expected_current_state = fixture["state"]
 
