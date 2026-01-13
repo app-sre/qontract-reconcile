@@ -10,7 +10,7 @@ from reconcile.gql_definitions.quay_membership.quay_membership import (
     PermissionQuayOrgTeamV1,
     UserV1,
 )
-from reconcile.quay_base import QuayApiStore
+from reconcile.quay_base import OrgKey, QuayApiStore
 from reconcile.status import ExitCodes
 from reconcile.utils import (
     expiration,
@@ -77,10 +77,11 @@ def fetch_current_state(quay_api_store: QuayApiStore) -> AggregatedList:
             else:
                 # Teams are only added to the state if they exist so that
                 # there is a proper diff between the desired and current state.
+                # Use tuple format (instance, org_name) to match desired state format
                 state.add(
                     {
                         "service": "quay-membership",
-                        "org": org_key.org_name,
+                        "org": (org_key.instance, org_key.org_name),
                         "team": team,
                     },
                     members,
@@ -122,7 +123,9 @@ class RunnerAction:
         def action(params: dict, items: list) -> bool:
             org = params["org"]
             team = params["team"]
-            org_data = self.quay_api_store[org]
+            # Convert org tuple (instance, org_name) to OrgKey for lookup
+            org_key = OrgKey(org[0], org[1]) if isinstance(org, tuple) else OrgKey("quay.io", org)
+            org_data = self.quay_api_store[org_key]
             quay_api = org_data["api"]
 
             missing_users = False
@@ -153,14 +156,16 @@ class RunnerAction:
         def action(params: dict, items: list) -> bool:
             org = params["org"]
             team = params["team"]
-            org_data = self.quay_api_store[org]
+            # Convert org tuple (instance, org_name) to OrgKey for lookup
+            org_key = OrgKey(org[0], org[1]) if isinstance(org, tuple) else OrgKey("quay.io", org)
+            org_data = self.quay_api_store[org_key]
 
             # Ensure all quay org/teams are declared as dependencies in a
             # `/dependencies/quay-org-1.yml` datafile.
             if team not in org_data["teams"]:
                 raise RunnerError(
                     f"Quay team {team} is not defined as a "
-                    f"managedTeam in the {org} org."
+                    f"managedTeam in the {org_key.org_name} org."
                 )
 
             logging.info([label, org, team])
@@ -179,7 +184,9 @@ class RunnerAction:
         def action(params: dict, items: list) -> bool:
             org = params["org"]
             team = params["team"]
-            org_data = self.quay_api_store[org]
+            # Convert org tuple (instance, org_name) to OrgKey for lookup
+            org_key = OrgKey(org[0], org[1]) if isinstance(org, tuple) else OrgKey("quay.io", org)
+            org_data = self.quay_api_store[org_key]
 
             quay_api = org_data["api"]
             if self.dry_run:
