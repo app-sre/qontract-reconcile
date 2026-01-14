@@ -1,0 +1,23 @@
+# qenerate: plugin=pydantic_v2
+query AppInterfaceClusterRoles {
+    clusterRoles: roles_v1 {
+    name
+    users {
+      org_username
+      github_username
+    }
+    bots {
+      openshift_serviceaccount
+    }
+    access {
+      cluster {
+        name
+        auth {
+          service
+        }
+      }
+      clusterRole
+    }
+    expirationDate
+  }
+}
