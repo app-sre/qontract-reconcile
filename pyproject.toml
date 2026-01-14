@@ -25,7 +25,7 @@ dependencies = [
     "dt==1.1.73",
     "filetype~=1.2.0",
     "gql==3.1.0",
-    "hvac>=0.7.0,<0.8.0",
+    "hvac==2.4.0",
     "jenkins-job-builder==6.4.2",
     "Jinja2>=2.10.1,<3.2.0",
     "jira==3.10.5",
@@ -67,6 +67,9 @@ dependencies = [
     "urllib3~=2.2",
     "websocket-client<0.55.0,>=0.35",
     "yamllint==1.34.0",
+    # TODO
+    "qontract-api-client",
+    "qontract-utils",
 ]
 
 [dependency-groups]
@@ -77,15 +80,15 @@ dev = [
     "boto3-stubs[account,cloudformation,dynamodb,ec2,ecr,elb,iam,logs,organizations,rds,route53,s3,service-quotas,sqs,sts,support]==1.34.94",
     "MarkupSafe ~=2.1.1",
     "moto[ec2,iam,logs,s3,route53] ~=5.1",
-    "mypy ~=1.17.0",
+    "mypy==1.18.2",
     "pyfakefs ~=5.9",
-    "pytest ~=8.4",
-    "pytest-cov ~=6.2",
+    "pytest==9.0.1",
+    "pytest-cov==7.0.0",
     "pytest-httpserver ~=1.1",
     "pytest-mock ~=3.6",
     "qenerate==0.9.0",
     "responses ~=0.25.0",
-    "ruff==0.12.12",
+    "ruff==0.14.4",
     "smtpdfix ~=0.5.2",
     "snakeviz ~=2.2.2",
     "testslide ~=2.7.1",
@@ -123,6 +126,15 @@ template-validation = "tools.template_validation:main"
 homepage = "https://github.com/app-sre/qontract-reconcile"
 repository = "https://github.com/app-sre/qontract-reconcile"
 documentation = "https://github.com/app-sre/qontract-reconcile"
+
+[tool.uv.sources]
+qontract-api = { workspace = true }
+qontract-api-client = { workspace = true }
+qontract-utils = { workspace = true }
+
+
+[tool.uv.workspace]
+members = ["qontract_api", "qontract_api_client", "qontract_utils"]
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
