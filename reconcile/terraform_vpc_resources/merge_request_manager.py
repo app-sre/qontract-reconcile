@@ -101,7 +101,7 @@ class MergeRequestManager(MergeRequestManagerBase[Info]):
         if existing_content.strip() != data.content.strip():
             return Action.UPDATE
 
-        logging.info("VPC data file exists and is up-to-date for %s", data.account)
+        logging.debug("VPC data file exists and is up-to-date for %s", data.account)
         return None
 
     def create_merge_request(self, data: MrData) -> None:
