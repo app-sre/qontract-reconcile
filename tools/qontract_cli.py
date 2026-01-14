@@ -4489,7 +4489,7 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
                 if erv2cli.module_type == "terraform":
                     erv2cli.build_terraform(credentials_file)
                 else:
-                    raise ValueError(f"Unsupported module type: ${erv2cli.module_type}")
+                    raise ValueError(f"Unsupported module type: {erv2cli.module_type}")
             erv2_tf_cli = TerraformCli(
                 temp_erv2, dry_run=dry_run, progress_spinner=progress
             )
