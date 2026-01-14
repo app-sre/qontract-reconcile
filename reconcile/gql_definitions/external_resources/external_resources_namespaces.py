@@ -581,44 +581,8 @@ query ExternalResourcesNamespaces {
           ... on NamespaceTerraformResourceCloudflareZone_v1 {
             provider
             identifier
-            zone
-            plan
-            type
+            defaults
             delete
-            dns_records {
-              identifier
-              name
-              type
-              ttl
-              value
-              proxied
-              data {
-                algorithm
-                key_tag
-                flags
-                protocol
-                public_key
-                digest_type
-                digest
-                tag
-                value
-              }
-            }
-            rulesets {
-              identifier
-              name
-              kind
-              phase
-              description
-              rules {
-                action
-                expression
-                description
-                enabled
-                ref
-                action_parameters
-              }
-            }
             managed_by_erv2
             module_overrides {
               ...ExternalResourcesModuleOverrides
@@ -1238,55 +1202,11 @@ class NamespaceTerraformResourceCloudflareV1(ConfiguredBaseModel):
     ...
 
 
-class CloudflareDnsRecordDataSettingsV1(ConfiguredBaseModel):
-    algorithm: Optional[int] = Field(..., alias="algorithm")
-    key_tag: Optional[int] = Field(..., alias="key_tag")
-    flags: Optional[int] = Field(..., alias="flags")
-    protocol: Optional[int] = Field(..., alias="protocol")
-    public_key: Optional[str] = Field(..., alias="public_key")
-    digest_type: Optional[int] = Field(..., alias="digest_type")
-    digest: Optional[str] = Field(..., alias="digest")
-    tag: Optional[str] = Field(..., alias="tag")
-    value: Optional[str] = Field(..., alias="value")
-
-
-class CloudflareDnsRecordV1(ConfiguredBaseModel):
-    identifier: str = Field(..., alias="identifier")
-    name: str = Field(..., alias="name")
-    q_type: str = Field(..., alias="type")
-    ttl: int = Field(..., alias="ttl")
-    value: Optional[str] = Field(..., alias="value")
-    proxied: Optional[bool] = Field(..., alias="proxied")
-    data: Optional[CloudflareDnsRecordDataSettingsV1] = Field(..., alias="data")
-
-
-class CloudflareRuleV1(ConfiguredBaseModel):
-    action: str = Field(..., alias="action")
-    expression: str = Field(..., alias="expression")
-    description: Optional[str] = Field(..., alias="description")
-    enabled: Optional[bool] = Field(..., alias="enabled")
-    ref: Optional[str] = Field(..., alias="ref")
-    action_parameters: Optional[str] = Field(..., alias="action_parameters")
-
-
-class CloudflareRulesetV1(ConfiguredBaseModel):
-    identifier: str = Field(..., alias="identifier")
-    name: str = Field(..., alias="name")
-    kind: str = Field(..., alias="kind")
-    phase: str = Field(..., alias="phase")
-    description: Optional[str] = Field(..., alias="description")
-    rules: Optional[list[CloudflareRuleV1]] = Field(..., alias="rules")
-
-
 class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloudflareV1):
     provider: str = Field(..., alias="provider")
     identifier: str = Field(..., alias="identifier")
-    zone: str = Field(..., alias="zone")
-    plan: Optional[str] = Field(..., alias="plan")
-    q_type: Optional[str] = Field(..., alias="type")
+    defaults: str = Field(..., alias="defaults")
     delete: Optional[bool] = Field(..., alias="delete")
-    dns_records: Optional[list[CloudflareDnsRecordV1]] = Field(..., alias="dns_records")
-    rulesets: Optional[list[CloudflareRulesetV1]] = Field(..., alias="rulesets")
     managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 

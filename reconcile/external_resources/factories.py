@@ -14,7 +14,6 @@ from reconcile.external_resources.aws import (
 from reconcile.external_resources.cloudflare import (
     CloudflareDefaultResourceFactory,
     CloudflareResourceFactory,
-    CloudflareZoneFactory,
 )
 from reconcile.external_resources.meta import QONTRACT_INTEGRATION
 from reconcile.external_resources.model import (
@@ -182,9 +181,7 @@ def setup_cloudflare_resource_factories(
     er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
 ) -> ObjectFactory[CloudflareResourceFactory]:
     return ObjectFactory[CloudflareResourceFactory](
-        factories={
-            "zone": CloudflareZoneFactory(er_inventory, secret_reader),
-        },
+        factories={},
         default_factory=CloudflareDefaultResourceFactory(er_inventory, secret_reader),
     )
 

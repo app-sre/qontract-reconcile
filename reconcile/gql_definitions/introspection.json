@@ -42712,6 +42712,22 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "defaults",
+                            "description": null,
+                            "args": [],
+                            "type": {
+                                "kind": "NON_NULL",
+                                "name": null,
+                                "ofType": {
+                                    "kind": "SCALAR",
+                                    "name": "String",
+                                    "ofType": null
+                                }
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "zone",
                             "description": null,
                             "args": [],
@@ -42848,26 +42864,6 @@
                                     "ofType": {
                                         "kind": "OBJECT",
                                         "name": "CloudflareDnsRecord_v1",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "rulesets",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "CloudflareRuleset_v1",
                                         "ofType": null
                                     }
                                 }
@@ -43128,204 +43124,6 @@
                             "type": {
                                 "kind": "SCALAR",
                                 "name": "Boolean",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "CloudflareRuleset_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "identifier",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "name",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "kind",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "phase",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "description",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "rules",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "LIST",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "NON_NULL",
-                                    "name": null,
-                                    "ofType": {
-                                        "kind": "OBJECT",
-                                        "name": "CloudflareRule_v1",
-                                        "ofType": null
-                                    }
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        }
-                    ],
-                    "inputFields": null,
-                    "interfaces": [],
-                    "enumValues": null,
-                    "possibleTypes": null
-                },
-                {
-                    "kind": "OBJECT",
-                    "name": "CloudflareRule_v1",
-                    "description": null,
-                    "fields": [
-                        {
-                            "name": "action",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "expression",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "NON_NULL",
-                                "name": null,
-                                "ofType": {
-                                    "kind": "SCALAR",
-                                    "name": "String",
-                                    "ofType": null
-                                }
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "description",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "enabled",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "Boolean",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "ref",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
-                            "name": "action_parameters",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "JSON",
                                 "ofType": null
                             },
                             "isDeprecated": false,

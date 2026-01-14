@@ -499,44 +499,8 @@ query ExternalResourcesNamespaces {
           ... on NamespaceTerraformResourceCloudflareZone_v1 {
             provider
             identifier
-            zone
-            plan
-            type
+            defaults
             delete
-            dns_records {
-              identifier
-              name
-              type
-              ttl
-              value
-              proxied
-              data {
-                algorithm
-                key_tag
-                flags
-                protocol
-                public_key
-                digest_type
-                digest
-                tag
-                value
-              }
-            }
-            rulesets {
-              identifier
-              name
-              kind
-              phase
-              description
-              rules {
-                action
-                expression
-                description
-                enabled
-                ref
-                action_parameters
-              }
-            }
             managed_by_erv2
             module_overrides {
               ...ExternalResourcesModuleOverrides
