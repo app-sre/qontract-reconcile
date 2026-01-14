@@ -181,7 +181,7 @@ class QuayApi(ApiBase):
         """
         visibility = "public" if public else "private"
 
-        url = "/repository"
+        url = "/api/v1/repository"
 
         params = {
             "repo_kind": "image",
