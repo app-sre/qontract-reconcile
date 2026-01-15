@@ -1,6 +1,7 @@
 """
 Unit tests for imagePatternsBlock feature in SaasHerder._check_images
 """
+
 from unittest.mock import (
     MagicMock,
     patch,
@@ -8,6 +9,7 @@ from unittest.mock import (
 
 import pytest
 
+from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.saasherder.models import (
     ImageAuth,
     TargetSpec,
@@ -31,7 +33,6 @@ class TestImagePatternsBlock:
     @pytest.fixture
     def saas_file(self, gql_class_factory, request):
         """Create a saas file with specified environment labels"""
-        from reconcile.typed_queries.saas_files import SaasFile
 
         # Handle parametrized and non-parametrized tests
         if hasattr(request, "param") and request.param:
@@ -168,8 +169,16 @@ class TestImagePatternsBlock:
     @pytest.mark.parametrize(
         "saas_file,expected_error,mock_image_return",
         [
-            ({"env_name": "production", "env_labels": '{"type": "production"}'}, True, None),
-            ({"env_name": "stage", "env_labels": '{"type": "stage"}'}, False, MagicMock()),
+            (
+                {"env_name": "production", "env_labels": '{"type": "production"}'},
+                True,
+                None,
+            ),
+            (
+                {"env_name": "stage", "env_labels": '{"type": "stage"}'},
+                False,
+                MagicMock(),
+            ),
         ],
         indirect=["saas_file"],
     )
