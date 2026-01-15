@@ -34,6 +34,7 @@ from sretoolbox.utils import (
     threaded,
 )
 
+from reconcile import queries
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
 from reconcile.utils import helm
@@ -1199,6 +1200,55 @@ class SaasHerder:
         self.images.update(images_set)
         if not images_set:
             return False  # no errors
+        
+        # Check for blocked image patterns based on environment label selectors
+        # This uses app-interface settings to determine which image patterns
+        # should be blocked for which environments
+        settings = queries.get_app_interface_settings()
+        if settings and "imagePatternsBlock" in settings and settings["imagePatternsBlock"]:
+            # Parse environment labels
+            env_labels = None
+            if spec.target.namespace.environment.labels:
+                env_labels = spec.target.namespace.environment.labels
+                if isinstance(env_labels, str):
+                    env_labels = json.loads(env_labels)
+            
+            # Check each block rule
+            for block_rule in settings["imagePatternsBlock"]:
+                env_selector_raw = block_rule.get("environmentLabelSelector", {})
+                # Handle Json type - might be dict or string
+                if isinstance(env_selector_raw, str):
+                    env_selector = json.loads(env_selector_raw)
+                else:
+                    env_selector = env_selector_raw or {}
+                blocked_patterns = block_rule.get("imagePatterns", [])
+                
+                # Check if environment labels match the selector
+                if env_labels:
+                    selector_matches = all(
+                        env_labels.get(key) == value
+                        for key, value in env_selector.items()
+                    )
+                    
+                    if selector_matches:
+                        # Check if any images match blocked patterns
+                        blocked_images = []
+                        for img in images_set:
+                            for pattern in blocked_patterns:
+                                if img.startswith(pattern):
+                                    blocked_images.append(img)
+                                    break
+                        
+                        if blocked_images:
+                            logging.error(
+                                f"{spec.error_prefix} Target contains blocked image patterns "
+                                f"({', '.join(blocked_patterns)}) for environment matching "
+                                f"selector {env_selector}: {', '.join(blocked_images)}. "
+                                f"These images are not allowed in this environment."
+                            )
+                            return True  # error found
+        
+        # imagePatterns validation
         images = threaded.run(
             self._get_image,
             images_set,
