@@ -2,6 +2,7 @@
 Unit tests for imagePatternsBlock feature in SaasHerder._check_images
 """
 
+from typing import Any
 from unittest.mock import (
     MagicMock,
     patch,
@@ -21,17 +22,17 @@ class TestImagePatternsBlock:
     """Test cases for imagePatternsBlock feature"""
 
     @pytest.fixture
-    def mock_secret_reader(self):
+    def mock_secret_reader(self) -> MagicMock:
         """Mock secret reader"""
         return MagicMock()
 
     @pytest.fixture
-    def mock_github(self):
+    def mock_github(self) -> MagicMock:
         """Mock GitHub client"""
         return MagicMock()
 
     @pytest.fixture
-    def saas_file(self, gql_class_factory, request):
+    def saas_file(self, gql_class_factory: Any, request: Any) -> SaasFile:
         """Create a saas file with specified environment labels"""
 
         # Handle parametrized and non-parametrized tests
@@ -73,7 +74,9 @@ class TestImagePatternsBlock:
         return gql_class_factory(SaasFile, saas_file_data)
 
     @pytest.fixture
-    def target_spec(self, saas_file, mock_secret_reader, mock_github):
+    def target_spec(
+        self, saas_file: SaasFile, mock_secret_reader: MagicMock, mock_github: MagicMock
+    ) -> TargetSpec:
         """Create a TargetSpec from saas_file"""
         resource_template = saas_file.resource_templates[0]
         target = resource_template.targets[0]
@@ -89,7 +92,7 @@ class TestImagePatternsBlock:
         )
 
     @pytest.fixture
-    def resources_with_blocked_image(self):
+    def resources_with_blocked_image(self) -> list[dict[str, Any]]:
         """Create resources with blocked image pattern"""
         return [
             {
@@ -107,7 +110,7 @@ class TestImagePatternsBlock:
         ]
 
     @pytest.fixture
-    def resources_with_allowed_image(self):
+    def resources_with_allowed_image(self) -> list[dict[str, Any]]:
         """Create resources with allowed image"""
         return [
             {
@@ -125,12 +128,12 @@ class TestImagePatternsBlock:
         ]
 
     @pytest.fixture
-    def resources_with_no_images(self):
+    def resources_with_no_images(self) -> list[dict[str, Any]]:
         """Create resources with no images"""
         return [{"kind": "ConfigMap", "data": {"key": "value"}}]
 
     @pytest.fixture
-    def image_patterns_block_config(self):
+    def image_patterns_block_config(self) -> dict[str, Any]:
         """Configuration for imagePatternsBlock"""
         return {
             "imagePatternsBlock": [
@@ -142,7 +145,7 @@ class TestImagePatternsBlock:
         }
 
     @pytest.fixture
-    def image_patterns_block_config_multiple_patterns(self):
+    def image_patterns_block_config_multiple_patterns(self) -> dict[str, Any]:
         """Configuration with multiple blocked patterns"""
         return {
             "imagePatternsBlock": [
@@ -154,7 +157,9 @@ class TestImagePatternsBlock:
         }
 
     @pytest.fixture
-    def saasherder(self, saas_file, mock_secret_reader):
+    def saasherder(
+        self, saas_file: SaasFile, mock_secret_reader: MagicMock
+    ) -> SaasHerder:
         """Create a SaasHerder instance"""
         return SaasHerder(
             [saas_file],
@@ -185,14 +190,14 @@ class TestImagePatternsBlock:
     @patch("reconcile.utils.saasherder.saasherder.queries.get_app_interface_settings")
     def test_blocked_image_by_environment(
         self,
-        mock_get_settings,
-        target_spec,
-        resources_with_blocked_image,
-        image_patterns_block_config,
-        saasherder,
-        expected_error,
-        mock_image_return,
-    ):
+        mock_get_settings: MagicMock,
+        target_spec: TargetSpec,
+        resources_with_blocked_image: list[dict[str, Any]],
+        image_patterns_block_config: dict[str, Any],
+        saasherder: SaasHerder,
+        expected_error: bool,
+        mock_image_return: Any,
+    ) -> None:
         """Test that blocked images are caught in matching environments"""
         mock_get_settings.return_value = image_patterns_block_config
 
@@ -207,12 +212,12 @@ class TestImagePatternsBlock:
     @patch("reconcile.utils.saasherder.saasherder.queries.get_app_interface_settings")
     def test_allowed_image_no_error(
         self,
-        mock_get_settings,
-        target_spec,
-        resources_with_allowed_image,
-        image_patterns_block_config,
-        saasherder,
-    ):
+        mock_get_settings: MagicMock,
+        target_spec: TargetSpec,
+        resources_with_allowed_image: list[dict[str, Any]],
+        image_patterns_block_config: dict[str, Any],
+        saasherder: SaasHerder,
+    ) -> None:
         """Test that allowed images pass validation"""
         mock_get_settings.return_value = image_patterns_block_config
 
@@ -233,12 +238,12 @@ class TestImagePatternsBlock:
     @patch("reconcile.utils.saasherder.saasherder.queries.get_app_interface_settings")
     def test_no_images_no_error(
         self,
-        mock_get_settings,
-        target_spec,
-        resources_with_no_images,
-        image_patterns_block_config,
-        saasherder,
-    ):
+        mock_get_settings: MagicMock,
+        target_spec: TargetSpec,
+        resources_with_no_images: list[dict[str, Any]],
+        image_patterns_block_config: dict[str, Any],
+        saasherder: SaasHerder,
+    ) -> None:
         """Test that targets with no images pass validation"""
         mock_get_settings.return_value = image_patterns_block_config
 
@@ -257,11 +262,11 @@ class TestImagePatternsBlock:
     @patch("reconcile.utils.saasherder.saasherder.queries.get_app_interface_settings")
     def test_no_config_backward_compatible(
         self,
-        mock_get_settings,
-        target_spec,
-        resources_with_blocked_image,
-        saasherder,
-    ):
+        mock_get_settings: MagicMock,
+        target_spec: TargetSpec,
+        resources_with_blocked_image: list[dict[str, Any]],
+        saasherder: SaasHerder,
+    ) -> None:
         """Test that no imagePatternsBlock config is backward compatible"""
         mock_get_settings.return_value = {}  # No imagePatternsBlock
 
@@ -282,11 +287,11 @@ class TestImagePatternsBlock:
     @patch("reconcile.utils.saasherder.saasherder.queries.get_app_interface_settings")
     def test_multiple_blocked_images(
         self,
-        mock_get_settings,
-        target_spec,
-        image_patterns_block_config,
-        saasherder,
-    ):
+        mock_get_settings: MagicMock,
+        target_spec: TargetSpec,
+        image_patterns_block_config: dict[str, Any],
+        saasherder: SaasHerder,
+    ) -> None:
         """Test that multiple blocked images in same resource are all caught"""
         resources = [
             {
@@ -322,11 +327,11 @@ class TestImagePatternsBlock:
     @patch("reconcile.utils.saasherder.saasherder.queries.get_app_interface_settings")
     def test_multiple_blocked_patterns(
         self,
-        mock_get_settings,
-        target_spec,
-        image_patterns_block_config_multiple_patterns,
-        saasherder,
-    ):
+        mock_get_settings: MagicMock,
+        target_spec: TargetSpec,
+        image_patterns_block_config_multiple_patterns: dict[str, Any],
+        saasherder: SaasHerder,
+    ) -> None:
         """Test that multiple blocked patterns in same rule are checked"""
         resources = [
             {

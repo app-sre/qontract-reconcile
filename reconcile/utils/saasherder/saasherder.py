@@ -1212,8 +1212,10 @@ class SaasHerder:
         ):
             # Parse environment labels
             env_labels = None
-            if spec.target.namespace.environment.labels:
-                env_labels = spec.target.namespace.environment.labels
+            # EnvironmentV1 has labels, but SaasEnvironment Protocol doesn't
+            env_labels_raw = getattr(spec.target.namespace.environment, "labels", None)
+            if env_labels_raw:
+                env_labels = env_labels_raw
                 if isinstance(env_labels, str):
                     env_labels = json.loads(env_labels)
 
