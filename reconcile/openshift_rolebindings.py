@@ -206,42 +206,6 @@ class RoleBindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed
         )
 
 
-def construct_user_oc_resource(role: str, user: str) -> tuple[OR, str]:
-    name = f"{role}-{user}"
-    body = {
-        "apiVersion": "rbac.authorization.k8s.io/v1",
-        "kind": "RoleBinding",
-        "metadata": {"name": name},
-        "roleRef": {"kind": "ClusterRole", "name": role},
-        "subjects": [{"kind": "User", "name": user}],
-    }
-    return (
-        OR(
-            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
-        ),
-        name,
-    )
-
-
-def construct_sa_oc_resource(role: str, namespace: str, sa_name: str) -> tuple[OR, str]:
-    name = f"{role}-{namespace}-{sa_name}"
-    body = {
-        "apiVersion": "rbac.authorization.k8s.io/v1",
-        "kind": "RoleBinding",
-        "metadata": {"name": name},
-        "roleRef": {"kind": "ClusterRole", "name": role},
-        "subjects": [
-            {"kind": "ServiceAccount", "name": sa_name, "namespace": namespace}
-        ],
-    }
-    return (
-        OR(
-            body, QONTRACT_INTEGRATION, QONTRACT_INTEGRATION_VERSION, error_details=name
-        ),
-        name,
-    )
-
-
 def fetch_desired_state(
     ri: ResourceInventory | None,
     support_role_ref: bool = False,
@@ -251,6 +215,7 @@ def fetch_desired_state(
     if allowed_clusters is not None and not allowed_clusters:
         return []
     roles: list[RoleV1] = expiration.filter(get_app_interface_roles())
+    no_of_bindings = 0
     users_desired_state: list[dict[str, str]] = []
     for role in roles:
         rolebindings: list[RoleBindingSpec] = RoleBindingSpec.create_rb_specs_from_role(
@@ -262,6 +227,7 @@ def fetch_desired_state(
                 for rolebinding in rolebindings
                 if rolebinding.cluster.name in allowed_clusters
             ]
+        no_of_bindings += len(rolebindings)
         for rolebinding in rolebindings:
             users_desired_state.extend(rolebinding.get_users_desired_state())
             if ri is None:
@@ -279,6 +245,7 @@ def fetch_desired_state(
                         resource=oc_resource.resource,
                         privileged=oc_resource.privileged,
                     )
+    print(f"No of rolebindings: {no_of_bindings}")
     return users_desired_state
 
 
