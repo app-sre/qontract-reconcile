@@ -112,6 +112,10 @@ APP_INTERFACE_SETTINGS_QUERY = """
       }
       excludeAllProvisioners
     }
+    imagePatternsBlock {
+      environmentLabelSelector
+      imagePatterns
+    }
   }
 }
 """
