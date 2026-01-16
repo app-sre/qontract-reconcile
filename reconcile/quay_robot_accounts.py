@@ -363,7 +363,7 @@ def run(dry_run: bool = False) -> None:
     try:
         # Get GraphQL data
         robot_accounts = get_robot_accounts_from_gql()
-        logging.info(f"Found {len(robot_accounts)} robot account definitions")
+        logging.debug(f"Found {len(robot_accounts)} robot account definitions")
 
         # Get Quay API store
         quay_api_store = get_quay_api_store()
@@ -375,26 +375,26 @@ def run(dry_run: bool = False) -> None:
         desired_state = build_desired_state(robot_accounts)
         current_state = build_current_state(current_robots, quay_api_store)
 
-        logging.info(f"Desired robots: {len(desired_state)}")
-        logging.info(f"Current robots: {len(current_state)}")
+        logging.debug(f"Desired robots: {len(desired_state)}")
+        logging.debug(f"Current robots: {len(current_state)}")
 
         # Calculate diff
         actions = calculate_diff(desired_state, current_state)
 
         if not actions:
-            logging.info("No actions needed")
+            logging.debug("No actions needed")
             return
 
-        logging.info(f"Found {len(actions)} actions to perform")
+        logging.debug(f"Found {len(actions)} actions to perform")
 
         if dry_run:
-            logging.info("Running in dry-run mode - no changes will be made")
+            logging.debug("Running in dry-run mode - no changes will be made")
 
         # Apply actions
         for action in actions:
             apply_action(action, quay_api_store, dry_run)
 
-        logging.info("Integration completed successfully")
+        logging.debug("Integration completed successfully")
 
     except Exception as e:
         logging.error(f"Integration failed: {e}")
