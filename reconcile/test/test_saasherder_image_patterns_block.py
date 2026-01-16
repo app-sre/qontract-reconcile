@@ -101,9 +101,7 @@ def resources_with_blocked_image() -> list[dict[str, Any]]:
             "spec": {
                 "template": {
                     "spec": {
-                        "containers": [
-                            {"image": "quay.io/blocked/test-image:latest"}
-                        ]
+                        "containers": [{"image": "quay.io/blocked/test-image:latest"}]
                     }
                 }
             },
@@ -120,9 +118,7 @@ def resources_with_allowed_image() -> list[dict[str, Any]]:
             "spec": {
                 "template": {
                     "spec": {
-                        "containers": [
-                            {"image": "quay.io/allowed/test-image:latest"}
-                        ]
+                        "containers": [{"image": "quay.io/allowed/test-image:latest"}]
                     }
                 }
             },
@@ -164,7 +160,9 @@ def image_patterns_block_config_multiple_patterns() -> dict[str, Any]:
 
 @pytest.fixture
 def saasherder(
-    saas_file: SaasFile, mock_secret_reader: MagicMock, image_patterns_block_config: dict[str, Any]
+    saas_file: SaasFile,
+    mock_secret_reader: MagicMock,
+    image_patterns_block_config: dict[str, Any],
 ) -> SaasHerder:
     """Create a SaasHerder instance"""
     block_rules = image_patterns_block_config.get("imagePatternsBlockRules", [])
@@ -348,16 +346,16 @@ def test_multiple_blocked_patterns(
             "spec": {
                 "template": {
                     "spec": {
-                        "containers": [
-                            {"image": "registry.io/forbidden/test:latest"}
-                        ]
+                        "containers": [{"image": "registry.io/forbidden/test:latest"}]
                     }
                 }
             },
         }
     ]
 
-    block_rules = image_patterns_block_config_multiple_patterns.get("imagePatternsBlockRules", [])
+    block_rules = image_patterns_block_config_multiple_patterns.get(
+        "imagePatternsBlockRules", []
+    )
     saasherder = SaasHerder(
         [saas_file],
         secret_reader=mock_secret_reader,

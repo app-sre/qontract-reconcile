@@ -1236,9 +1236,7 @@ class SaasHerder:
         blocked_patterns = block_rule.get("imagePatterns", [])
 
         # Check if environment labels match the selector
-        if not all(
-            env_labels.get(key) == value for key, value in env_selector.items()
-        ):
+        if not all(env_labels.get(key) == value for key, value in env_selector.items()):
             return False
 
         # Check if any images match blocked patterns
