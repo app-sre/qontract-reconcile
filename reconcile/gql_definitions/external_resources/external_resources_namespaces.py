@@ -570,6 +570,26 @@ query ExternalResourcesNamespaces {
           }
         }
       }
+      ... on NamespaceTerraformProviderResourceCloudflare_v1 {
+        provisioner {
+          name
+          apiCredentials {
+          ...VaultSecret
+          }
+        }
+        resources {
+          ... on NamespaceTerraformResourceCloudflareZone_v1 {
+            provider
+            identifier
+            defaults
+            delete
+            managed_by_erv2
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
+        }
+      }
     }
     environment {
       name
@@ -1173,6 +1193,29 @@ class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
+class CloudflareAccountV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    api_credentials: VaultSecret = Field(..., alias="apiCredentials")
+
+
+class NamespaceTerraformResourceCloudflareV1(ConfiguredBaseModel):
+    ...
+
+
+class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloudflareV1):
+    provider: str = Field(..., alias="provider")
+    identifier: str = Field(..., alias="identifier")
+    defaults: str = Field(..., alias="defaults")
+    delete: Optional[bool] = Field(..., alias="delete")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
+
+
+class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1):
+    provisioner: CloudflareAccountV1 = Field(..., alias="provisioner")
+    resources: list[Union[NamespaceTerraformResourceCloudflareZoneV1, NamespaceTerraformResourceCloudflareV1]] = Field(..., alias="resources")
+
+
 class EnvironmentV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     labels: str = Field(..., alias="labels")
@@ -1213,7 +1256,7 @@ class NamespaceV1(ConfiguredBaseModel):
     delete: Optional[bool] = Field(..., alias="delete")
     cluster_admin: Optional[bool] = Field(..., alias="clusterAdmin")
     managed_external_resources: Optional[bool] = Field(..., alias="managedExternalResources")
-    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
+    external_resources: Optional[list[Union[NamespaceTerraformProviderResourceAWSV1, NamespaceTerraformProviderResourceCloudflareV1, NamespaceExternalResourceV1]]] = Field(..., alias="externalResources")
     environment: EnvironmentV1 = Field(..., alias="environment")
     app: AppV1 = Field(..., alias="app")
     cluster: NamespaceV1_ClusterV1 = Field(..., alias="cluster")

@@ -7,11 +7,13 @@ from sretoolbox.utils import threaded
 
 from reconcile.external_resources.factories import (
     AWSExternalResourceFactory,
+    CloudflareExternalResourceFactory,
     ExternalResourceFactory,
     ModuleProvisionDataFactory,
     ObjectFactory,
     TerraformModuleProvisionDataFactory,
     setup_aws_resource_factories,
+    setup_cloudflare_resource_factories,
 )
 from reconcile.external_resources.metrics import publish_metrics
 from reconcile.external_resources.model import (
@@ -55,6 +57,9 @@ def setup_factories(
     secret_reader: SecretReaderBase,
 ) -> ObjectFactory[ExternalResourceFactory]:
     tf_factory = TerraformModuleProvisionDataFactory(settings=settings)
+    provision_factories = ObjectFactory[ModuleProvisionDataFactory](
+        factories={"terraform": tf_factory}
+    )
 
     return ObjectFactory[ExternalResourceFactory](
         factories={
@@ -62,14 +67,21 @@ def setup_factories(
                 module_inventory=module_inventory,
                 er_inventory=er_inventory,
                 secret_reader=secret_reader,
-                provision_factories=ObjectFactory[ModuleProvisionDataFactory](
-                    factories={"terraform": tf_factory, "cdktf": tf_factory}
-                ),
+                provision_factories=provision_factories,
                 resource_factories=setup_aws_resource_factories(
                     er_inventory, secret_reader
                 ),
                 default_tags=cast("dict[str, str]", settings.default_tags),
-            )
+            ),
+            "cloudflare": CloudflareExternalResourceFactory(
+                module_inventory=module_inventory,
+                er_inventory=er_inventory,
+                secret_reader=secret_reader,
+                provision_factories=provision_factories,
+                resource_factories=setup_cloudflare_resource_factories(
+                    er_inventory, secret_reader
+                ),
+            ),
         }
     )
 
