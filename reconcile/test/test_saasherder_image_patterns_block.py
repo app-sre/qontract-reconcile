@@ -1,5 +1,5 @@
 """
-Unit tests for imagePatternsBlock feature in SaasHerder._check_images
+Unit tests for imagePatternsBlockRules feature in SaasHerder._check_images
 """
 
 from typing import Any
@@ -19,7 +19,7 @@ from reconcile.utils.saasherder.saasherder import SaasHerder
 
 
 class TestImagePatternsBlock:
-    """Test cases for imagePatternsBlock feature"""
+    """Test cases for imagePatternsBlockRules feature"""
 
     @pytest.fixture
     def mock_secret_reader(self) -> MagicMock:
@@ -134,9 +134,9 @@ class TestImagePatternsBlock:
 
     @pytest.fixture
     def image_patterns_block_config(self) -> dict[str, Any]:
-        """Configuration for imagePatternsBlock"""
+        """Configuration for imagePatternsBlockRules"""
         return {
-            "imagePatternsBlock": [
+            "imagePatternsBlockRules": [
                 {
                     "environmentLabelSelector": {"type": "production"},
                     "imagePatterns": ["quay.io/blocked"],
@@ -148,7 +148,7 @@ class TestImagePatternsBlock:
     def image_patterns_block_config_multiple_patterns(self) -> dict[str, Any]:
         """Configuration with multiple blocked patterns"""
         return {
-            "imagePatternsBlock": [
+            "imagePatternsBlockRules": [
                 {
                     "environmentLabelSelector": {"type": "production"},
                     "imagePatterns": ["quay.io/blocked", "registry.io/forbidden"],
@@ -267,8 +267,8 @@ class TestImagePatternsBlock:
         resources_with_blocked_image: list[dict[str, Any]],
         saasherder: SaasHerder,
     ) -> None:
-        """Test that no imagePatternsBlock config is backward compatible"""
-        mock_get_settings.return_value = {}  # No imagePatternsBlock
+        """Test that no imagePatternsBlockRules config is backward compatible"""
+        mock_get_settings.return_value = {}  # No imagePatternsBlockRules
 
         with patch.object(saasherder, "_get_image", return_value=None):
             result = saasherder._check_images(

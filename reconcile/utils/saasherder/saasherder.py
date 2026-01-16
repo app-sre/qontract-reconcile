@@ -1207,8 +1207,8 @@ class SaasHerder:
         settings = queries.get_app_interface_settings()
         if (
             settings
-            and "imagePatternsBlock" in settings
-            and settings["imagePatternsBlock"]
+            and "imagePatternsBlockRules" in settings
+            and settings["imagePatternsBlockRules"]
         ):
             # Parse environment labels
             env_labels = None
@@ -1220,7 +1220,7 @@ class SaasHerder:
                     env_labels = json.loads(env_labels)
 
             # Check each block rule
-            for block_rule in settings["imagePatternsBlock"]:
+            for block_rule in settings["imagePatternsBlockRules"]:
                 env_selector_raw = block_rule.get("environmentLabelSelector", {})
                 # Handle Json type - might be dict or string
                 if isinstance(env_selector_raw, str):
