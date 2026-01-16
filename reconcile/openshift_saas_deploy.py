@@ -199,6 +199,11 @@ def run(
         # as long as there are no access attempts.
         gl = None
 
+    # Extract image patterns block rules from settings
+    image_patterns_block_rules = None
+    if settings and "imagePatternsBlockRules" in settings:
+        image_patterns_block_rules = settings["imagePatternsBlockRules"]
+
     saasherder = SaasHerder(
         saas_files=saas_files,
         thread_pool_size=thread_pool_size,
@@ -211,6 +216,7 @@ def run(
         jenkins_map=jenkins_map,
         state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
         all_saas_files=saas_file_list.saas_files,
+        image_patterns_block_rules=image_patterns_block_rules,
     )
     if defer:
         defer(saasherder.cleanup)

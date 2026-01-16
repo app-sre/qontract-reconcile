@@ -2,6 +2,7 @@ import logging
 import sys
 from collections.abc import Callable
 
+from reconcile import queries
 from reconcile.jenkins_job_builder import init_jjb
 from reconcile.status import ExitCodes
 from reconcile.typed_queries.app_interface_vault_settings import (
@@ -32,6 +33,12 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         logging.error("no saas files found")
         raise RuntimeError("no saas files found")
 
+    # Fetch settings once for image patterns block rules
+    settings = queries.get_app_interface_settings()
+    image_patterns_block_rules = None
+    if settings and "imagePatternsBlockRules" in settings:
+        image_patterns_block_rules = settings["imagePatternsBlockRules"]
+
     saasherder = SaasHerder(
         saas_files=saas_files,
         thread_pool_size=1,
@@ -41,6 +48,7 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         hash_length=saasherder_settings.hash_length,
         repo_url=saasherder_settings.repo_url,
         validate=True,
+        image_patterns_block_rules=image_patterns_block_rules,
     )
     if defer:
         defer(saasherder.cleanup)
