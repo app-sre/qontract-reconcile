@@ -154,6 +154,11 @@ def setup(
     jenkins_map = jenkins_base.get_jenkins_map()
     tkn_provider_namespaces = [pp.namespace for pp in get_tekton_pipeline_providers()]
 
+    # Extract image patterns block rules from settings
+    image_patterns_block_rules = None
+    if settings and "imagePatternsBlockRules" in settings:
+        image_patterns_block_rules = settings["imagePatternsBlockRules"]
+
     oc_map = init_oc_map_from_namespaces(
         namespaces=tkn_provider_namespaces,
         integration=integration,
@@ -175,6 +180,7 @@ def setup(
         jenkins_map=jenkins_map,
         state=init_state(integration=integration, secret_reader=secret_reader),
         include_trigger_trace=include_trigger_trace,
+        image_patterns_block_rules=image_patterns_block_rules,
     )
 
     return saasherder, oc_map

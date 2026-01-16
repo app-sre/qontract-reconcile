@@ -34,7 +34,6 @@ from sretoolbox.utils import (
     threaded,
 )
 
-from reconcile import queries
 from reconcile.github_org import get_default_config
 from reconcile.status import RunningState
 from reconcile.utils import helm
@@ -131,6 +130,7 @@ class SaasHerder:
         validate: bool = False,
         include_trigger_trace: bool = False,
         all_saas_files: Iterable[SaasFile] | None = None,
+        image_patterns_block_rules: list[dict[str, Any]] | None = None,
     ):
         self.error_registered = False
         self.saas_files = saas_files
@@ -157,6 +157,7 @@ class SaasHerder:
         self.images: set[str] = set()
         self.blocked_versions = self._collect_blocked_versions()
         self.hotfix_versions = self._collect_hotfix_versions()
+        self.image_patterns_block_rules = image_patterns_block_rules or []
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1188,6 +1189,76 @@ class SaasHerder:
             )
         return None
 
+    def _parse_environment_labels(
+        self, labels_raw: dict[str, str] | str | None
+    ) -> dict[str, str] | None:
+        """Parse environment labels from raw format (dict or JSON string).
+
+        Args:
+            labels_raw: Environment labels as dict, JSON string, or None
+
+        Returns:
+            Parsed labels as dict, or None if not present
+        """
+        if not labels_raw:
+            return None
+        if isinstance(labels_raw, str):
+            return json.loads(labels_raw)
+        return labels_raw
+
+    def _is_block_rule_violated(
+        self,
+        block_rule: dict[str, Any],
+        env_labels: dict[str, str] | None,
+        images: set[str],
+        spec: TargetSpec,
+    ) -> bool:
+        """Check if a block rule is violated for the given environment and images.
+
+        Args:
+            block_rule: Block rule dictionary with environmentLabelSelector and imagePatterns
+            env_labels: Environment labels dictionary
+            images: Set of image URLs to check
+            spec: TargetSpec for error reporting
+
+        Returns:
+            True if rule is violated, False otherwise
+        """
+        if not env_labels:
+            return False
+
+        env_selector_raw = block_rule.get("environmentLabelSelector", {})
+        # Handle Json type - might be dict or string
+        if isinstance(env_selector_raw, str):
+            env_selector = json.loads(env_selector_raw)
+        else:
+            env_selector = env_selector_raw or {}
+        blocked_patterns = block_rule.get("imagePatterns", [])
+
+        # Check if environment labels match the selector
+        if not all(
+            env_labels.get(key) == value for key, value in env_selector.items()
+        ):
+            return False
+
+        # Check if any images match blocked patterns
+        blocked_images = [
+            image
+            for image in images
+            if any(image.startswith(pattern) for pattern in blocked_patterns)
+        ]
+
+        if blocked_images:
+            logging.error(
+                f"{spec.error_prefix} Target contains blocked image patterns "
+                f"({', '.join(blocked_patterns)}) for environment matching "
+                f"selector {env_selector}: {', '.join(blocked_images)}. "
+                f"These images are not allowed in this environment."
+            )
+            return True
+
+        return False
+
     def _check_images(
         self,
         spec: TargetSpec,
@@ -1202,57 +1273,15 @@ class SaasHerder:
             return False  # no errors
 
         # Check for blocked image patterns based on environment label selectors
-        # This uses app-interface settings to determine which image patterns
-        # should be blocked for which environments
-        settings = queries.get_app_interface_settings()
-        if (
-            settings
-            and "imagePatternsBlockRules" in settings
-            and settings["imagePatternsBlockRules"]
-        ):
-            # Parse environment labels
-            env_labels = None
-            # EnvironmentV1 has labels, but SaasEnvironment Protocol doesn't
-            env_labels_raw = getattr(spec.target.namespace.environment, "labels", None)
-            if env_labels_raw:
-                env_labels = env_labels_raw
-                if isinstance(env_labels, str):
-                    env_labels = json.loads(env_labels)
-
-            # Check each block rule
-            for block_rule in settings["imagePatternsBlockRules"]:
-                env_selector_raw = block_rule.get("environmentLabelSelector", {})
-                # Handle Json type - might be dict or string
-                if isinstance(env_selector_raw, str):
-                    env_selector = json.loads(env_selector_raw)
-                else:
-                    env_selector = env_selector_raw or {}
-                blocked_patterns = block_rule.get("imagePatterns", [])
-
-                # Check if environment labels match the selector
-                if env_labels:
-                    selector_matches = all(
-                        env_labels.get(key) == value
-                        for key, value in env_selector.items()
-                    )
-
-                    if selector_matches:
-                        # Check if any images match blocked patterns
-                        blocked_images = []
-                        for img in images_set:
-                            for pattern in blocked_patterns:
-                                if img.startswith(pattern):
-                                    blocked_images.append(img)
-                                    break
-
-                        if blocked_images:
-                            logging.error(
-                                f"{spec.error_prefix} Target contains blocked image patterns "
-                                f"({', '.join(blocked_patterns)}) for environment matching "
-                                f"selector {env_selector}: {', '.join(blocked_images)}. "
-                                f"These images are not allowed in this environment."
-                            )
-                            return True  # error found
+        if self.image_patterns_block_rules:
+            env_labels = self._parse_environment_labels(
+                spec.target.namespace.environment.labels
+            )
+            if any(
+                self._is_block_rule_violated(block_rule, env_labels, images_set, spec)
+                for block_rule in self.image_patterns_block_rules
+            ):
+                return True  # error found
 
         # imagePatterns validation
         images = threaded.run(
