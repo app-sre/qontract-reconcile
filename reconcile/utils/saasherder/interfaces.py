@@ -195,6 +195,9 @@ class SaasEnvironment_SaasSecretParameters(Protocol):
 class SaasEnvironment(HasParameters, HasSecretParameters, Protocol):
     name: str
 
+    @property
+    def labels(self) -> dict[str, str] | str | None: ...
+
 
 class SaasResourceTemplateTargetNamespace(Protocol):
     name: str
