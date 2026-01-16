@@ -9,7 +9,7 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     QuayRobotV1,
     VaultSecretV1,
 )
-from reconcile.quay_base import OrgKey, QuayApiStore
+from reconcile.quay_base import OrgInfo, OrgKey, QuayApiStore
 from reconcile.quay_robot_accounts import (
     RobotAccountAction,
     RobotAccountState,
@@ -53,22 +53,18 @@ def mock_current_robot() -> RobotAccountDetails:
 
 
 @pytest.fixture
-def mock_quay_api_store() -> QuayApiStore:
+def mock_quay_api_store() -> dict[OrgKey, OrgInfo]:
     """Mock QuayApiStore"""
-    mock_api = create_autospec(QuayApi)
-    mock_api.list_robot_accounts_detailed.return_value = []
-
-    org_key = OrgKey("quay-instance", "test-org")
     return {
-        org_key: {
-            "api": mock_api,
-            "push_token": None,
-            "teams": [],
-            "managedRepos": False,
-            "mirror": None,
-            "mirror_filters": {},
-            "url": "quay.io",
-        }
+        OrgKey("quay-instance", "test-org"): OrgInfo(
+            url="quay.io",
+            push_token=None,
+            teams=[],
+            managedRepos=False,
+            mirror=None,
+            mirror_filters={},
+            api=create_autospec(QuayApi),
+        )
     }
 
 
@@ -154,13 +150,12 @@ def test_build_current_state_single_robot(
 
 
 def test_build_current_state_no_org_key(
-    mock_current_robot: RobotAccountDetails,
+    mock_current_robot: RobotAccountDetails, mock_quay_api_store: QuayApiStore
 ) -> None:
     """Test building current state with no matching org key"""
     current_robots = {("unknown-instance", "unknown-org"): [mock_current_robot]}
-    quay_api_store: QuayApiStore = {}
 
-    current_state = build_current_state(current_robots, quay_api_store)
+    current_state = build_current_state(current_robots, mock_quay_api_store)
     assert len(current_state) == 0
 
 
@@ -337,7 +332,7 @@ def test_get_current_robot_accounts_success(mock_quay_api_store: QuayApiStore) -
         ),
     ]
     mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.list_robot_accounts_detailed.return_value = mock_robots  # type: ignore
+    mock_api.list_robot_accounts.return_value = mock_robots  # type: ignore
 
     result = get_current_robot_accounts(mock_quay_api_store)
 
@@ -351,7 +346,7 @@ def test_get_current_robot_accounts_exception(
 ) -> None:
     """Test handling of exceptions when fetching robot accounts"""
     mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.list_robot_accounts_detailed.side_effect = Exception("API Error")  # type: ignore
+    mock_api.list_robot_accounts.side_effect = Exception("API Error")  # type: ignore
 
     result = get_current_robot_accounts(mock_quay_api_store)
 
@@ -435,7 +430,7 @@ def test_apply_action_set_repo_permission(mock_quay_api_store: QuayApiStore) -> 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
     mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.set_repo_robot_permissions.assert_called_once_with(  # type: ignore[attr-defined]
+    mock_api.set_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
         "repo1", "robot", "write"
     )
 
@@ -453,7 +448,9 @@ def test_apply_action_remove_repo_permission(mock_quay_api_store: QuayApiStore) 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
     mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.delete_repo_robot_permissions.assert_called_once_with("repo1", "robot")  # type: ignore
+    mock_api.delete_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
+        "repo1", "robot"
+    )
 
 
 def test_apply_action_dry_run(mock_quay_api_store: QuayApiStore) -> None:
