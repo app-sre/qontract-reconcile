@@ -1,5 +1,4 @@
 import logging
-import sys
 from dataclasses import dataclass
 
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
@@ -7,7 +6,6 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     query,
 )
 from reconcile.quay_base import QuayApiStore, get_quay_api_store
-from reconcile.status import ExitCodes
 from reconcile.utils import gql
 from reconcile.utils.quay_api import RobotAccountDetails
 
@@ -360,42 +358,37 @@ def apply_action(
 
 def run(dry_run: bool = False) -> None:
     """Main function to run the integration"""
-    try:
-        # Get GraphQL data
-        robot_accounts = get_robot_accounts_from_gql()
-        logging.debug(f"Found {len(robot_accounts)} robot account definitions")
+    # Get GraphQL data
+    robot_accounts = get_robot_accounts_from_gql()
+    logging.debug(f"Found {len(robot_accounts)} robot account definitions")
 
-        # Get Quay API store
-        quay_api_store = get_quay_api_store()
+    # Get Quay API store
+    quay_api_store = get_quay_api_store()
 
-        # Get current state from Quay
-        current_robots = get_current_robot_accounts(quay_api_store)
+    # Get current state from Quay
+    current_robots = get_current_robot_accounts(quay_api_store)
 
-        # Build states
-        desired_state = build_desired_state(robot_accounts)
-        current_state = build_current_state(current_robots, quay_api_store)
+    # Build states
+    desired_state = build_desired_state(robot_accounts)
+    current_state = build_current_state(current_robots, quay_api_store)
 
-        logging.debug(f"Desired robots: {len(desired_state)}")
-        logging.debug(f"Current robots: {len(current_state)}")
+    logging.debug(f"Desired robots: {len(desired_state)}")
+    logging.debug(f"Current robots: {len(current_state)}")
 
-        # Calculate diff
-        actions = calculate_diff(desired_state, current_state)
+    # Calculate diff
+    actions = calculate_diff(desired_state, current_state)
 
-        if not actions:
-            logging.debug("No actions needed")
-            return
+    if not actions:
+        logging.debug("No actions needed")
+        return
 
-        logging.debug(f"Found {len(actions)} actions to perform")
+    logging.debug(f"Found {len(actions)} actions to perform")
 
-        if dry_run:
-            logging.debug("Running in dry-run mode - no changes will be made")
+    if dry_run:
+        logging.debug("Running in dry-run mode - no changes will be made")
 
-        # Apply actions
-        for action in actions:
-            apply_action(action, quay_api_store, dry_run)
+    # Apply actions
+    for action in actions:
+        apply_action(action, quay_api_store, dry_run)
 
-        logging.debug("Integration completed successfully")
-
-    except Exception as e:
-        logging.error(f"Integration failed: {e}")
-        sys.exit(ExitCodes.ERROR)
+    logging.debug("Integration completed successfully")
