@@ -53,7 +53,7 @@ def get_current_robot_accounts(
 
     for org_key, org_info in quay_api_store.items():
         try:
-            robots = org_info["api"].list_robot_accounts_detailed()
+            robots = org_info["api"].list_robot_accounts()
             current_state[org_key.instance, org_key.org_name] = robots or []
         except Exception as e:
             logging.error(
@@ -268,7 +268,9 @@ def calculate_diff(
 
 
 def apply_action(
-    action: RobotAccountAction, quay_api_store: QuayApiStore, dry_run: bool = False
+    action: RobotAccountAction,
+    quay_api_store: QuayApiStore,
+    dry_run: bool = False,
 ) -> None:
     """Apply a single action to Quay"""
     org_key = next(
@@ -335,7 +337,7 @@ def apply_action(
                 raise ValueError(
                     f"Permission is required for set_repo_permission action: {action}"
                 )
-            quay_api.set_repo_robot_permissions(
+            quay_api.set_repo_robot_account_permissions(
                 action.repo, action.robot_name, action.permission
             )
 
@@ -347,7 +349,9 @@ def apply_action(
                 raise ValueError(
                     f"Repo is required for set_repo_permissions action: {action}"
                 )
-            quay_api.delete_repo_robot_permissions(action.repo, action.robot_name)
+            quay_api.delete_repo_robot_account_permissions(
+                action.repo, action.robot_name
+            )
 
     except Exception as e:
         logging.error(f"Failed to apply action {action}: {e}")
