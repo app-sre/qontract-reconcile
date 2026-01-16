@@ -34,7 +34,7 @@ class QuayApiStore(UserDict[OrgKey, OrgInfo]):
         self.cleanup()
 
 
-def get_quay_api_store() -> dict[OrgKey, OrgInfo]:
+def get_quay_api_store() -> QuayApiStore:
     """
     Returns a dictionary with a key for each Quay organization
     managed in app-interface.
@@ -42,7 +42,7 @@ def get_quay_api_store() -> dict[OrgKey, OrgInfo]:
     quay_orgs = queries.get_quay_orgs()
     settings = queries.get_app_interface_settings()
     secret_reader = SecretReader(settings=settings)
-    store = {}
+    store = QuayApiStore()
     for org_data in quay_orgs:
         instance_name = org_data["instance"]["name"]
         org_name = org_data["name"]
