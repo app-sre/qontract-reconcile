@@ -35,6 +35,9 @@ from sretoolbox.utils import (
 )
 
 from reconcile.github_org import get_default_config
+from reconcile.gql_definitions.common.saasherder_settings import (
+    ImagePatternsBlockV1,
+)
 from reconcile.status import RunningState
 from reconcile.utils import helm
 from reconcile.utils.datetime_util import utc_now
@@ -130,8 +133,8 @@ class SaasHerder:
         validate: bool = False,
         include_trigger_trace: bool = False,
         all_saas_files: Iterable[SaasFile] | None = None,
-        image_patterns_block_rules: list[dict[str, Any]] | None = None,
-    ):
+        image_patterns_block_rules: list[ImagePatternsBlockV1] | None = None,
+    ) -> None:
         self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
@@ -157,7 +160,9 @@ class SaasHerder:
         self.images: set[str] = set()
         self.blocked_versions = self._collect_blocked_versions()
         self.hotfix_versions = self._collect_hotfix_versions()
-        self.image_patterns_block_rules = image_patterns_block_rules or []
+        self.image_patterns_block_rules: list[ImagePatternsBlockV1] = (
+            image_patterns_block_rules or []
+        )
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1208,7 +1213,7 @@ class SaasHerder:
 
     def _is_block_rule_violated(
         self,
-        block_rule: dict[str, Any],
+        block_rule: ImagePatternsBlockV1,
         env_labels: dict[str, str] | None,
         images: set[str],
         spec: TargetSpec,
@@ -1216,7 +1221,7 @@ class SaasHerder:
         """Check if a block rule is violated for the given environment and images.
 
         Args:
-            block_rule: Block rule dictionary with environmentLabelSelector and imagePatterns
+            block_rule: Block rule with environmentLabelSelector (Json type) and imagePatterns
             env_labels: Environment labels dictionary
             images: Set of image URLs to check
             spec: TargetSpec for error reporting
@@ -1227,13 +1232,12 @@ class SaasHerder:
         if not env_labels:
             return False
 
-        env_selector_raw = block_rule.get("environmentLabelSelector", {})
-        # Handle Json type - might be dict or string
+        # Handle Json type (can be str or dict) - same pattern as parameters
+        env_selector_raw = block_rule.environment_label_selector
         if isinstance(env_selector_raw, str):
             env_selector = json.loads(env_selector_raw)
         else:
             env_selector = env_selector_raw or {}
-        blocked_patterns = block_rule.get("imagePatterns", [])
 
         # Check if environment labels match the selector
         if not all(env_labels.get(key) == value for key, value in env_selector.items()):
@@ -1243,13 +1247,13 @@ class SaasHerder:
         blocked_images = [
             image
             for image in images
-            if any(image.startswith(pattern) for pattern in blocked_patterns)
+            if any(image.startswith(pattern) for pattern in block_rule.image_patterns)
         ]
 
         if blocked_images:
             logging.error(
                 f"{spec.error_prefix} Target contains blocked image patterns "
-                f"({', '.join(blocked_patterns)}) for environment matching "
+                f"({', '.join(block_rule.image_patterns)}) for environment matching "
                 f"selector {env_selector}: {', '.join(blocked_images)}. "
                 f"These images are not allowed in this environment."
             )
