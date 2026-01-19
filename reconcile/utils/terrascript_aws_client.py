@@ -7275,7 +7275,8 @@ class TerrascriptClient:
 
         # resource - cloudwatch
         if (
-            values.get("logging_info", {})
+            values
+            .get("logging_info", {})
             .get("broker_logs", {})
             .get("cloudwatch_logs", {})
             .get("enabled", False)

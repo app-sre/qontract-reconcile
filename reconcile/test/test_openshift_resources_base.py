@@ -317,8 +317,8 @@ def oc_map_api_resources(
 ) -> oc.OC_Map:
     ocmap = mocker.patch("reconcile.utils.oc.OC_Map", autospec=True).return_value
     ocmap.get_cluster.return_value = oc_api_resources
-    ocmap.clusters.side_effect = (
-        lambda include_errors=False, privileged=False: ["cs1"] if not privileged else []
+    ocmap.clusters.side_effect = lambda include_errors=False, privileged=False: (
+        ["cs1"] if not privileged else []
     )
     return ocmap
 
