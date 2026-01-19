@@ -12,6 +12,7 @@ from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
 from reconcile.quay_base import OrgInfo, OrgKey, QuayApiStore
 from reconcile.quay_robot_accounts import (
     RobotAccountAction,
+    RobotAccountActionType,
     RobotAccountState,
     apply_action,
     build_current_state,
@@ -179,14 +180,20 @@ def test_calculate_diff_create_robot() -> None:
 
     assert len(actions) == 3  # create, add_team, set_repo_permission
 
-    create_action = next(a for a in actions if a.action == "create")
+    create_action = next(
+        a for a in actions if a.action == RobotAccountActionType.CREATE
+    )
     assert create_action.robot_name == "new-robot"
     assert create_action.org_name == "org"
 
-    team_action = next(a for a in actions if a.action == "add_team")
+    team_action = next(
+        a for a in actions if a.action == RobotAccountActionType.ADD_TEAM
+    )
     assert team_action.team == "team1"
 
-    repo_action = next(a for a in actions if a.action == "set_repo_permission")
+    repo_action = next(
+        a for a in actions if a.action == RobotAccountActionType.SET_REPO_PERMISSION
+    )
     assert repo_action.repo == "repo1"
     assert repo_action.permission == "read"
 
@@ -208,7 +215,7 @@ def test_calculate_diff_delete_robot() -> None:
     actions = calculate_diff(desired_state, current_state)
 
     assert len(actions) == 1
-    assert actions[0].action == "delete"
+    assert actions[0].action == RobotAccountActionType.DELETE
     assert actions[0].robot_name == "old-robot"
 
 
@@ -238,13 +245,15 @@ def test_calculate_diff_team_changes() -> None:
     actions = calculate_diff(desired_state, current_state)
 
     action_types = [a.action for a in actions]
-    assert "add_team" in action_types
-    assert "remove_team" in action_types
+    assert RobotAccountActionType.ADD_TEAM in action_types
+    assert RobotAccountActionType.REMOVE_TEAM in action_types
 
-    add_action = next(a for a in actions if a.action == "add_team")
+    add_action = next(a for a in actions if a.action == RobotAccountActionType.ADD_TEAM)
     assert add_action.team == "team3"
 
-    remove_action = next(a for a in actions if a.action == "remove_team")
+    remove_action = next(
+        a for a in actions if a.action == RobotAccountActionType.REMOVE_TEAM
+    )
     assert remove_action.team == "team2"
 
 
@@ -280,13 +289,17 @@ def test_calculate_diff_repository_changes() -> None:
     actions = calculate_diff(desired_state, current_state)
 
     action_types = [a.action for a in actions]
-    assert "set_repo_permission" in action_types
-    assert "remove_repo_permission" in action_types
+    assert RobotAccountActionType.SET_REPO_PERMISSION in action_types
+    assert RobotAccountActionType.REMOVE_REPO_PERMISSION in action_types
 
-    set_actions = [a for a in actions if a.action == "set_repo_permission"]
+    set_actions = [
+        a for a in actions if a.action == RobotAccountActionType.SET_REPO_PERMISSION
+    ]
     assert len(set_actions) == 2  # repo1 permission change, repo3 new
 
-    remove_action = next(a for a in actions if a.action == "remove_repo_permission")
+    remove_action = next(
+        a for a in actions if a.action == RobotAccountActionType.REMOVE_REPO_PERMISSION
+    )
     assert remove_action.repo == "repo2"
 
 
@@ -349,7 +362,7 @@ def test_get_current_robot_accounts_exception(
 def test_apply_action_create_robot(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying create robot action"""
     action = RobotAccountAction(
-        action="create",
+        action=RobotAccountActionType.CREATE,
         robot_name="new-robot",
         org_name="test-org",
         instance_name="quay-instance",
@@ -364,7 +377,7 @@ def test_apply_action_create_robot(mock_quay_api_store: QuayApiStore) -> None:
 def test_apply_action_delete_robot(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying delete robot action"""
     action = RobotAccountAction(
-        action="delete",
+        action=RobotAccountActionType.DELETE,
         robot_name="old-robot",
         org_name="test-org",
         instance_name="quay-instance",
@@ -379,7 +392,7 @@ def test_apply_action_delete_robot(mock_quay_api_store: QuayApiStore) -> None:
 def test_apply_action_add_team(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying add team action"""
     action = RobotAccountAction(
-        action="add_team",
+        action=RobotAccountActionType.ADD_TEAM,
         robot_name="robot",
         org_name="test-org",
         instance_name="quay-instance",
@@ -395,7 +408,7 @@ def test_apply_action_add_team(mock_quay_api_store: QuayApiStore) -> None:
 def test_apply_action_remove_team(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying remove team action"""
     action = RobotAccountAction(
-        action="remove_team",
+        action=RobotAccountActionType.REMOVE_TEAM,
         robot_name="robot",
         org_name="test-org",
         instance_name="quay-instance",
@@ -411,7 +424,7 @@ def test_apply_action_remove_team(mock_quay_api_store: QuayApiStore) -> None:
 def test_apply_action_set_repo_permission(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying set repository permission action"""
     action = RobotAccountAction(
-        action="set_repo_permission",
+        action=RobotAccountActionType.SET_REPO_PERMISSION,
         robot_name="robot",
         org_name="test-org",
         instance_name="quay-instance",
@@ -430,7 +443,7 @@ def test_apply_action_set_repo_permission(mock_quay_api_store: QuayApiStore) -> 
 def test_apply_action_remove_repo_permission(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying remove repository permission action"""
     action = RobotAccountAction(
-        action="remove_repo_permission",
+        action=RobotAccountActionType.REMOVE_REPO_PERMISSION,
         robot_name="robot",
         org_name="test-org",
         instance_name="quay-instance",
@@ -448,7 +461,7 @@ def test_apply_action_remove_repo_permission(mock_quay_api_store: QuayApiStore) 
 def test_apply_action_dry_run(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying action in dry run mode"""
     action = RobotAccountAction(
-        action="create",
+        action=RobotAccountActionType.CREATE,
         robot_name="new-robot",
         org_name="test-org",
         instance_name="quay-instance",
@@ -463,7 +476,7 @@ def test_apply_action_dry_run(mock_quay_api_store: QuayApiStore) -> None:
 def test_apply_action_no_org_key(mock_quay_api_store: QuayApiStore) -> None:
     """Test applying action when org key is not found"""
     action = RobotAccountAction(
-        action="create",
+        action=RobotAccountActionType.CREATE,
         robot_name="new-robot",
         org_name="unknown-org",
         instance_name="unknown-instance",
@@ -481,7 +494,7 @@ def test_apply_action_exception_handling(mock_quay_api_store: QuayApiStore) -> N
     mock_api.create_robot_account.side_effect = Exception("API Error")  # type: ignore
 
     action = RobotAccountAction(
-        action="create",
+        action=RobotAccountActionType.CREATE,
         robot_name="new-robot",
         org_name="test-org",
         instance_name="quay-instance",
