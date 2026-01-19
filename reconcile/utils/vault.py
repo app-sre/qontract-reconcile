@@ -179,7 +179,7 @@ class VaultClient:
             # must read each time to account for sa token refresh
             with open(self.kube_sa_token_path, encoding="locale") as f:
                 try:
-                    self._client.auth_kubernetes(
+                    self._client.auth.kubernetes.login(
                         role=self.kube_auth_role,
                         jwt=f.read(),
                         mount_point=self.kube_auth_mount,
@@ -190,7 +190,9 @@ class VaultClient:
                         f"using role '{self.kube_auth_role}' on mount '{self.kube_auth_mount}': {e}"
                     )
         else:
-            self._client.auth_approle(self.role_id, self.secret_id)
+            self._client.auth.approle.login(
+                role_id=self.role_id, secret_id=self.secret_id
+            )
 
     @retry()
     def read_all_with_version(self, secret: Mapping) -> tuple[dict, int | None]:
