@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from enum import Enum
 
 from reconcile.gql_definitions.quay_robot_accounts.quay_robot_accounts import (
     QuayRobotV1,
@@ -10,6 +11,15 @@ from reconcile.utils import gql
 from reconcile.utils.quay_api import RobotAccountDetails
 
 QONTRACT_INTEGRATION = "quay-robot-accounts"
+
+
+class RobotAccountActionType(Enum):
+    CREATE = "create"
+    DELETE = "delete"
+    ADD_TEAM = "add_team"
+    REMOVE_TEAM = "remove_team"
+    SET_REPO_PERMISSION = "set_repo_permission"
+    REMOVE_REPO_PERMISSION = "remove_repo_permission"
 
 
 @dataclass
@@ -28,7 +38,7 @@ class RobotAccountState:
 class RobotAccountAction:
     """Represents an action to be performed on a robot account"""
 
-    action: str  # 'create', 'delete', 'add_team', 'remove_team', 'set_repo_permission', 'remove_repo_permission'
+    action: RobotAccountActionType
     robot_name: str
     org_name: str
     instance_name: str
@@ -157,7 +167,7 @@ def calculate_diff(
         if key not in current_state:
             actions.append(
                 RobotAccountAction(
-                    action="create",
+                    action=RobotAccountActionType.CREATE,
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
@@ -167,7 +177,7 @@ def calculate_diff(
             # Add team assignments for new robot
             actions.extend([
                 RobotAccountAction(
-                    action="add_team",
+                    action=RobotAccountActionType.ADD_TEAM,
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
@@ -179,7 +189,7 @@ def calculate_diff(
             # Add repository permissions for new robot
             actions.extend([
                 RobotAccountAction(
-                    action="set_repo_permission",
+                    action=RobotAccountActionType.SET_REPO_PERMISSION,
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
@@ -197,7 +207,7 @@ def calculate_diff(
 
             actions.extend([
                 RobotAccountAction(
-                    action="add_team",
+                    action=RobotAccountActionType.ADD_TEAM,
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
@@ -208,7 +218,7 @@ def calculate_diff(
 
             actions.extend([
                 RobotAccountAction(
-                    action="remove_team",
+                    action=RobotAccountActionType.REMOVE_TEAM,
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
@@ -224,7 +234,7 @@ def calculate_diff(
             # Repositories to add or update permissions
             actions.extend(
                 RobotAccountAction(
-                    action="set_repo_permission",
+                    action=RobotAccountActionType.SET_REPO_PERMISSION,
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
@@ -240,7 +250,7 @@ def calculate_diff(
             repos_to_remove = current_repos - desired_repos
             actions.extend([
                 RobotAccountAction(
-                    action="remove_repo_permission",
+                    action=RobotAccountActionType.REMOVE_REPO_PERMISSION,
                     robot_name=desired.name,
                     org_name=desired.org_name,
                     instance_name=desired.instance_name,
@@ -254,7 +264,7 @@ def calculate_diff(
         if key not in desired_state:
             actions.append(
                 RobotAccountAction(
-                    action="delete",
+                    action=RobotAccountActionType.DELETE,
                     robot_name=current.name,
                     org_name=current.org_name,
                     instance_name=current.instance_name,
@@ -289,20 +299,20 @@ def apply_action(
         logging.info(f"[DRY RUN] Would perform: {action}")
         return
 
-    try:
-        if action.action == "create":
+    match action.action:
+        case RobotAccountActionType.CREATE:
             logging.info(
                 f"Creating robot account {action.robot_name} in {action.org_name}"
             )
             quay_api.create_robot_account(action.robot_name, "")
 
-        elif action.action == "delete":
+        case RobotAccountActionType.DELETE:
             logging.info(
                 f"Deleting robot account {action.robot_name} from {action.org_name}"
             )
             quay_api.delete_robot_account(action.robot_name)
 
-        elif action.action == "add_team":
+        case RobotAccountActionType.ADD_TEAM:
             logging.info(
                 f"Adding robot {action.robot_name} to team {action.team} in {action.org_name}"
             )
@@ -312,7 +322,7 @@ def apply_action(
                 f"{action.org_name}+{action.robot_name}", action.team
             )
 
-        elif action.action == "remove_team":
+        case RobotAccountActionType.REMOVE_TEAM:
             logging.info(
                 f"Removing robot {action.robot_name} from team {action.team} in {action.org_name}"
             )
@@ -322,7 +332,7 @@ def apply_action(
                 f"{action.org_name}+{action.robot_name}", action.team
             )
 
-        elif action.action == "set_repo_permission":
+        case RobotAccountActionType.SET_REPO_PERMISSION:
             logging.info(
                 f"Setting {action.permission} permission for robot {action.robot_name} on repo {action.repo}"
             )
@@ -338,7 +348,7 @@ def apply_action(
                 action.repo, action.robot_name, action.permission
             )
 
-        elif action.action == "remove_repo_permission":
+        case RobotAccountActionType.REMOVE_REPO_PERMISSION:
             logging.info(
                 f"Removing permissions for robot {action.robot_name} from repo {action.repo}"
             )
@@ -349,10 +359,6 @@ def apply_action(
             quay_api.delete_repo_robot_account_permissions(
                 action.repo, action.robot_name
             )
-
-    except Exception as e:
-        logging.error(f"Failed to apply action {action}: {e}")
-        raise
 
 
 def run(dry_run: bool = False) -> None:
