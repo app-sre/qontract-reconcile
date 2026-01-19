@@ -4,5 +4,9 @@ query SaasherderSettings {
   settings: app_interface_settings_v1 {
     repoUrl
     hashLength
+    imagePatternsBlockRules {
+      environmentLabelSelector
+      imagePatterns
+    }
   }
 }
