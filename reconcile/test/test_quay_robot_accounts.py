@@ -71,9 +71,7 @@ def mock_quay_api_store() -> dict[OrgKey, OrgInfo]:
 def test_build_desired_state_single_robot(mock_robot_gql: QuayRobotV1) -> None:
     """Test building desired state with a single robot"""
     robots = [mock_robot_gql]
-    desired_state: dict[tuple[str, str, str], RobotAccountState] = build_desired_state(
-        robots
-    )
+    desired_state = build_desired_state(robots)
 
     assert len(desired_state) == 1
     key = ("quay-instance", "test-org", "test-robot")
@@ -98,9 +96,7 @@ def test_build_desired_state_no_quay_org(mock_robot_gql: QuayRobotV1) -> None:
         repositories=[],
     )
 
-    desired_state: dict[tuple[str, str, str], RobotAccountState] = build_desired_state([
-        robot
-    ])
+    desired_state = build_desired_state([robot])
     assert len(desired_state) == 0
 
 
@@ -118,9 +114,7 @@ def test_build_desired_state_empty_teams_repos(mock_robot_gql: QuayRobotV1) -> N
         repositories=None,
     )
 
-    desired_state: dict[tuple[str, str, str], RobotAccountState] = build_desired_state([
-        robot
-    ])
+    desired_state = build_desired_state([robot])
     key = ("quay-instance", "test-org", "test-robot")
     state = desired_state[key]
 
@@ -134,9 +128,7 @@ def test_build_current_state_single_robot(
     """Test building current state with a single robot"""
     current_robots = {("quay-instance", "test-org"): [mock_current_robot]}
 
-    current_state: dict[tuple[str, str, str], RobotAccountState] = build_current_state(
-        current_robots, mock_quay_api_store
-    )
+    current_state = build_current_state(current_robots, mock_quay_api_store)
 
     assert len(current_state) == 1
     key = ("quay-instance", "test-org", "existing-robot")
@@ -171,7 +163,7 @@ def test_build_current_state_empty_robots(mock_quay_api_store: QuayApiStore) -> 
 
 def test_calculate_diff_create_robot() -> None:
     """Test calculating diff when robot needs to be created"""
-    desired_state: dict[tuple[str, str, str], RobotAccountState] = {
+    desired_state = {
         ("instance", "org", "new-robot"): RobotAccountState(
             name="new-robot",
             description="New robot",
@@ -222,7 +214,7 @@ def test_calculate_diff_delete_robot() -> None:
 
 def test_calculate_diff_team_changes() -> None:
     """Test calculating diff for team membership changes"""
-    desired_state: dict[tuple[str, str, str], RobotAccountState] = {
+    desired_state = {
         ("instance", "org", "robot"): RobotAccountState(
             name="robot",
             description="Robot",
@@ -232,7 +224,7 @@ def test_calculate_diff_team_changes() -> None:
             repositories={},
         )
     }
-    current_state: dict[tuple[str, str, str], RobotAccountState] = {
+    current_state = {
         ("instance", "org", "robot"): RobotAccountState(
             name="robot",
             description="Robot",
@@ -258,7 +250,7 @@ def test_calculate_diff_team_changes() -> None:
 
 def test_calculate_diff_repository_changes() -> None:
     """Test calculating diff for repository permission changes"""
-    desired_state: dict[tuple[str, str, str], RobotAccountState] = {
+    desired_state = {
         ("instance", "org", "robot"): RobotAccountState(
             name="robot",
             description="Robot",
@@ -271,7 +263,7 @@ def test_calculate_diff_repository_changes() -> None:
             },  # change repo1, add repo3, remove repo2
         )
     }
-    current_state: dict[tuple[str, str, str], RobotAccountState] = {
+    current_state = {
         ("instance", "org", "robot"): RobotAccountState(
             name="robot",
             description="Robot",
