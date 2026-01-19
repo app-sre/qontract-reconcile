@@ -1194,23 +1194,6 @@ class SaasHerder:
             )
         return None
 
-    def _parse_environment_labels(
-        self, labels_raw: dict[str, str] | str | None
-    ) -> dict[str, str] | None:
-        """Parse environment labels from raw format (dict or JSON string).
-
-        Args:
-            labels_raw: Environment labels as dict, JSON string, or None
-
-        Returns:
-            Parsed labels as dict, or None if not present
-        """
-        if not labels_raw:
-            return None
-        if isinstance(labels_raw, str):
-            return json.loads(labels_raw)
-        return labels_raw
-
     def _is_block_rule_violated(
         self,
         block_rule: ImagePatternsBlockV1,
@@ -1276,9 +1259,7 @@ class SaasHerder:
 
         # Check for blocked image patterns based on environment label selectors
         if self.image_patterns_block_rules:
-            env_labels = self._parse_environment_labels(
-                spec.target.namespace.environment.labels
-            )
+            env_labels = spec.target.namespace.environment.labels
             if any(
                 self._is_block_rule_violated(block_rule, env_labels, images_set, spec)
                 for block_rule in self.image_patterns_block_rules
