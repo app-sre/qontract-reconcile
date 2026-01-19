@@ -4543,8 +4543,8 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
 def debug_shell(ctx: click.Context) -> None:
     """Enter an ERv2 debug shell to manually migrate resources."""
     # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
-    with tempfile.TemporaryDirectory(dir=Path.home(), prefix="erv2-debug.") as _tempdir:
-        tempdir = Path(_tempdir)
+    with tempfile.TemporaryDirectory(dir=Path.home(), prefix="erv2-debug.") as tempdir_:
+        tempdir = Path(tempdir_)
         with progress_spinner() as progress:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"
@@ -4582,8 +4582,8 @@ def force_unlock(ctx: click.Context, lock_id: str) -> None:
     # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
     with tempfile.TemporaryDirectory(
         dir=Path.home(), prefix="erv2-unlock."
-    ) as _tempdir:
-        tempdir = Path(_tempdir)
+    ) as tempdir_:
+        tempdir = Path(tempdir_)
         with progress_spinner() as progress:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"

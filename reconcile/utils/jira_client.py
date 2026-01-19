@@ -233,9 +233,9 @@ class JiraClient:
 
     def get_issue_type(self, issue_type: str) -> IssueType | None:
         """Return a issue type (e.g. Task) for the project if it exists."""
-        for _issue_type in self.project_issue_types(self.project):
-            if _issue_type.name == issue_type:
-                return _issue_type
+        for issue_type_ in self.project_issue_types(self.project):
+            if issue_type_.name == issue_type:
+                return issue_type_
         return None
 
     @staticmethod
@@ -305,11 +305,11 @@ class JiraClient:
 
         This API endpoint needs createIssue project permissions.
         """
-        for _field in self.project_issue_fields(
+        for field_ in self.project_issue_fields(
             project=self.project, issue_type_id=issue_type_id
         ):
-            if _field.name == field:
-                return _field
+            if field_.name == field:
+                return field_
         return None
 
     def _priorities(self) -> list[Priority]:

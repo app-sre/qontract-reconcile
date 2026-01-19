@@ -52,8 +52,8 @@ def test_imap_client_init_and_getting_imap_config(imap_client: ImapClient) -> No
 
 
 def test_imap_client_context_manager(imap_client: ImapClient) -> None:
-    with imap_client as _client:
-        assert _client._server
+    with imap_client as client:
+        assert client._server
 
 
 def test_imap_client_enforce_context_manager_usage(imap_client: ImapClient) -> None:
@@ -61,8 +61,8 @@ def test_imap_client_enforce_context_manager_usage(imap_client: ImapClient) -> N
 
 
 def test_imap_client_get_mails(imap_client: ImapClient) -> None:
-    with imap_client as _client:
-        assert _client.get_mails() == [
+    with imap_client as client:
+        assert client.get_mails() == [
             {"msg": "mail message", "uid": b"1"},
             {"msg": "mail message", "uid": b"2"},
         ]

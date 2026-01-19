@@ -216,6 +216,7 @@ ignore = [
     "B017",    #`pytest.raises(Exception)` should be considered evil
     "RUF005",  # Consider "...."instead of concatenation
     "RUF012",  # Mutable class attributes should be annotated with "typing.ClassVar"
+    "RUF067",  # `__init__` module should only contain docstrings and re-exports
     # Review later
     "FURB101", # Replace `open` with `pathlib.Path`
     "FURB103", # Replace `open` with `pathlib.Path`

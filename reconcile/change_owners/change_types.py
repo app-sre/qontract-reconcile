@@ -90,8 +90,8 @@ class DiffCoverage:
         Returns a list of change-owner labels of all involved change-type contexts.
         """
         labels = {label for c in self.coverage for label in c.change_owner_labels or {}}
-        for _split in self._split_into:
-            labels.update(_split.change_owner_labels)
+        for split in self._split_into:
+            labels.update(split.change_owner_labels)
         return labels
 
     def relative_path(self) -> jsonpath_ng.JSONPath:

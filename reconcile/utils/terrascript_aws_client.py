@@ -3054,9 +3054,9 @@ class TerrascriptClient:
         assert specs is not None  # make mypy happy
         all_queues_per_spec = []
         kms_keys = set()
-        for _spec in specs:
-            defaults = self.get_values(_spec["defaults"])
-            queues = _spec.pop("queues", [])
+        for spec_ in specs:
+            defaults = self.get_values(spec_["defaults"])
+            queues = spec_.pop("queues", [])
             all_queues = []
             for queue_kv in queues:
                 queue_key = queue_kv["key"]
@@ -3249,10 +3249,10 @@ class TerrascriptClient:
         specs = common_values.get("specs")
         assert specs is not None  # make mypy happy
         all_tables = []
-        for _spec in specs:
-            defaults = self.get_values(_spec["defaults"])
+        for spec_ in specs:
+            defaults = self.get_values(spec_["defaults"])
             attributes = defaults.pop("attributes")
-            tables = _spec["tables"]
+            tables = spec_["tables"]
             for table_kv in tables:
                 table_key = table_kv["key"]
                 table = table_kv["value"]

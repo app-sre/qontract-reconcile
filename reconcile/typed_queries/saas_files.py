@@ -342,6 +342,6 @@ def get_saasherder_settings(
 ) -> AppInterfaceSettingsV1:
     if not query_func:
         query_func = gql.get_api().query
-    if _settings := saasherder_settings_query(query_func).settings:
-        return _settings[0]
+    if settings := saasherder_settings_query(query_func).settings:
+        return settings[0]
     raise AppInterfaceSettingsError("settings missing")

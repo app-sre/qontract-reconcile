@@ -10,8 +10,8 @@ from reconcile.utils.exceptions import (
 
 
 def settings() -> SmtpSettingsV1:
-    if _settings := query(query_func=gql.get_api().query).settings:
-        if not _settings[0].smtp:
+    if settings_ := query(query_func=gql.get_api().query).settings:
+        if not settings_[0].smtp:
             raise AppInterfaceSmtpSettingsError("settings.smtp missing")
-        return _settings[0].smtp
+        return settings_[0].smtp
     raise AppInterfaceSettingsError("settings missing")
