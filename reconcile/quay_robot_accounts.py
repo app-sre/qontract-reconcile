@@ -122,9 +122,8 @@ def build_current_state(
             description = robot_data.get("description")
 
             # Get team memberships
-            teams: set[str] = set()
             team_permissions = robot_data.get("teams", [])
-            teams.update(team_perm["name"] for team_perm in team_permissions)
+            teams = {team_perm["name"] for team_perm in team_permissions}
 
             # Get repository permissions
             repositories = {}
