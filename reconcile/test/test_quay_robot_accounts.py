@@ -54,7 +54,13 @@ def mock_current_robot() -> RobotAccountDetails:
 
 
 @pytest.fixture
-def mock_quay_api_store() -> dict[OrgKey, OrgInfo]:
+def mock_quay_api() -> QuayApi:
+    """Mock QuayApi"""
+    return create_autospec(QuayApi)
+
+
+@pytest.fixture
+def mock_quay_api_store(mock_quay_api: QuayApi) -> dict[OrgKey, OrgInfo]:
     """Mock QuayApiStore"""
     return {
         OrgKey("quay-instance", "test-org"): OrgInfo(
@@ -64,7 +70,7 @@ def mock_quay_api_store() -> dict[OrgKey, OrgInfo]:
             managedRepos=False,
             mirror=None,
             mirror_filters={},
-            api=create_autospec(QuayApi),
+            api=mock_quay_api,
         )
     }
 
@@ -320,7 +326,9 @@ def test_calculate_diff_no_changes() -> None:
     assert len(actions) == 0
 
 
-def test_get_current_robot_accounts_success(mock_quay_api_store: QuayApiStore) -> None:
+def test_get_current_robot_accounts_success(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test successful fetching of current robot accounts"""
     mock_robots = [
         RobotAccountDetails(
@@ -336,8 +344,8 @@ def test_get_current_robot_accounts_success(mock_quay_api_store: QuayApiStore) -
             repositories=[{"name": "repo2", "role": "write"}],
         ),
     ]
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.list_robot_accounts.return_value = mock_robots  # type: ignore
+
+    mock_quay_api.list_robot_accounts.return_value = mock_robots  # type: ignore
 
     result = get_current_robot_accounts(mock_quay_api_store)
 
@@ -347,11 +355,11 @@ def test_get_current_robot_accounts_success(mock_quay_api_store: QuayApiStore) -
 
 
 def test_get_current_robot_accounts_exception(
+    mock_quay_api: QuayApi,
     mock_quay_api_store: QuayApiStore,
 ) -> None:
     """Test handling of exceptions when fetching robot accounts"""
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.list_robot_accounts.side_effect = Exception("API Error")  # type: ignore
+    mock_quay_api.list_robot_accounts.side_effect = Exception("API Error")  # type: ignore
 
     result = get_current_robot_accounts(mock_quay_api_store)
 
@@ -359,7 +367,9 @@ def test_get_current_robot_accounts_exception(
     assert result["quay-instance", "test-org"] == []
 
 
-def test_apply_action_create_robot(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_create_robot(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying create robot action"""
     action = RobotAccountAction(
         action=RobotAccountActionType.CREATE,
@@ -370,11 +380,12 @@ def test_apply_action_create_robot(mock_quay_api_store: QuayApiStore) -> None:
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.create_robot_account.assert_called_once_with("new-robot", "")  # type: ignore
+    mock_quay_api.create_robot_account.assert_called_once_with("new-robot", "")  # type: ignore
 
 
-def test_apply_action_delete_robot(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_delete_robot(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying delete robot action"""
     action = RobotAccountAction(
         action=RobotAccountActionType.DELETE,
@@ -385,11 +396,12 @@ def test_apply_action_delete_robot(mock_quay_api_store: QuayApiStore) -> None:
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.delete_robot_account.assert_called_once_with("old-robot")  # type: ignore
+    mock_quay_api.delete_robot_account.assert_called_once_with("old-robot")  # type: ignore
 
 
-def test_apply_action_add_team(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_add_team(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying add team action"""
     action = RobotAccountAction(
         action=RobotAccountActionType.ADD_TEAM,
@@ -401,11 +413,12 @@ def test_apply_action_add_team(mock_quay_api_store: QuayApiStore) -> None:
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.add_user_to_team.assert_called_once_with("test-org+robot", "new-team")  # type: ignore
+    mock_quay_api.add_user_to_team.assert_called_once_with("test-org+robot", "new-team")  # type: ignore
 
 
-def test_apply_action_remove_team(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_remove_team(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying remove team action"""
     action = RobotAccountAction(
         action=RobotAccountActionType.REMOVE_TEAM,
@@ -417,11 +430,14 @@ def test_apply_action_remove_team(mock_quay_api_store: QuayApiStore) -> None:
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.remove_user_from_team.assert_called_once_with("test-org+robot", "old-team")  # type: ignore
+    mock_quay_api.remove_user_from_team.assert_called_once_with(  # type: ignore
+        "test-org+robot", "old-team"
+    )
 
 
-def test_apply_action_set_repo_permission(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_set_repo_permission(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying set repository permission action"""
     action = RobotAccountAction(
         action=RobotAccountActionType.SET_REPO_PERMISSION,
@@ -434,13 +450,14 @@ def test_apply_action_set_repo_permission(mock_quay_api_store: QuayApiStore) -> 
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.set_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
+    mock_quay_api.set_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
         "repo1", "robot", "write"
     )
 
 
-def test_apply_action_remove_repo_permission(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_remove_repo_permission(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying remove repository permission action"""
     action = RobotAccountAction(
         action=RobotAccountActionType.REMOVE_REPO_PERMISSION,
@@ -452,13 +469,14 @@ def test_apply_action_remove_repo_permission(mock_quay_api_store: QuayApiStore) 
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.delete_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
+    mock_quay_api.delete_repo_robot_account_permissions.assert_called_once_with(  # type: ignore
         "repo1", "robot"
     )
 
 
-def test_apply_action_dry_run(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_dry_run(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying action in dry run mode"""
     action = RobotAccountAction(
         action=RobotAccountActionType.CREATE,
@@ -469,11 +487,12 @@ def test_apply_action_dry_run(mock_quay_api_store: QuayApiStore) -> None:
 
     apply_action(action, mock_quay_api_store, dry_run=True)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.create_robot_account.assert_not_called()  # type: ignore
+    mock_quay_api.create_robot_account.assert_not_called()  # type: ignore
 
 
-def test_apply_action_no_org_key(mock_quay_api_store: QuayApiStore) -> None:
+def test_apply_action_no_org_key(
+    mock_quay_api: QuayApi, mock_quay_api_store: QuayApiStore
+) -> None:
     """Test applying action when org key is not found"""
     action = RobotAccountAction(
         action=RobotAccountActionType.CREATE,
@@ -484,8 +503,7 @@ def test_apply_action_no_org_key(mock_quay_api_store: QuayApiStore) -> None:
 
     apply_action(action, mock_quay_api_store, dry_run=False)
 
-    mock_api = mock_quay_api_store[next(iter(mock_quay_api_store.keys()))]["api"]
-    mock_api.create_robot_account.assert_not_called()  # type: ignore
+    mock_quay_api.create_robot_account.assert_not_called()  # type: ignore
 
 
 def test_apply_action_exception_handling(mock_quay_api_store: QuayApiStore) -> None:
