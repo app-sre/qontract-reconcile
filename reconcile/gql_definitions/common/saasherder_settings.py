@@ -23,6 +23,10 @@ query SaasherderSettings {
   settings: app_interface_settings_v1 {
     repoUrl
     hashLength
+    imagePatternsBlockRules {
+      environmentLabelSelector
+      imagePatterns
+    }
   }
 }
 """
@@ -34,9 +38,15 @@ class ConfiguredBaseModel(BaseModel):
     )
 
 
+class ImagePatternsBlockV1(ConfiguredBaseModel):
+    environment_label_selector: Json = Field(..., alias="environmentLabelSelector")
+    image_patterns: list[str] = Field(..., alias="imagePatterns")
+
+
 class AppInterfaceSettingsV1(ConfiguredBaseModel):
     repo_url: str = Field(..., alias="repoUrl")
     hash_length: int = Field(..., alias="hashLength")
+    image_patterns_block_rules: Optional[list[ImagePatternsBlockV1]] = Field(..., alias="imagePatternsBlockRules")
 
 
 class SaasherderSettingsQueryData(ConfiguredBaseModel):
