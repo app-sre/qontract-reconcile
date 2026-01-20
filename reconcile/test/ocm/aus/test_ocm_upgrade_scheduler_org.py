@@ -201,7 +201,8 @@ def test_addons_upgrade_scheduler_process_upgrade_policies_in_org(
     assert expose_remaining_soak_day_metrics.call_count == 2
     assert (
         len(
-            expose_remaining_soak_day_metrics.call_args_list[0]
+            expose_remaining_soak_day_metrics
+            .call_args_list[0]
             .kwargs["org_upgrade_spec"]
             .specs
         )
@@ -209,7 +210,8 @@ def test_addons_upgrade_scheduler_process_upgrade_policies_in_org(
     )
     assert (
         len(
-            expose_remaining_soak_day_metrics.call_args_list[1]
+            expose_remaining_soak_day_metrics
+            .call_args_list[1]
             .kwargs["org_upgrade_spec"]
             .specs
         )

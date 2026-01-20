@@ -18,11 +18,11 @@ state:
   - user2
   params:
     service: quay-membership
-    org: org1
+    org: ["quay.io", "org1"]
     team: org1team1
 - items:
   - user2
   params:
     service: quay-membership
-    org: org1
+    org: ["quay.io", "org1"]
     team: org1team2

@@ -38,7 +38,7 @@ def test_create_external_resource(
         er_inventory=er_inventory,
         secret_reader=secret_reader,
         provision_factories=ObjectFactory[ModuleProvisionDataFactory](
-            factories={"terraform": tf_factory, "cdktf": tf_factory}
+            factories={"terraform": tf_factory}
         ),
         resource_factories=ObjectFactory[AWSResourceFactory](
             factories={

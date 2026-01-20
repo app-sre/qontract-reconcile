@@ -860,7 +860,8 @@ def patch_desired_resource_for_recycle_annotations(
         return desired
 
     current_annotations = (
-        current.body.get("spec", {})
+        current.body
+        .get("spec", {})
         .get("template", {})
         .get("metadata", {})
         .get("annotations")
@@ -873,7 +874,8 @@ def patch_desired_resource_for_recycle_annotations(
     }
     if patch_annotations:
         desired_annotations = (
-            desired.body.setdefault("spec", {})
+            desired.body
+            .setdefault("spec", {})
             .setdefault("template", {})
             .setdefault("metadata", {})
             .setdefault("annotations", {})

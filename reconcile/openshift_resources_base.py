@@ -1238,13 +1238,9 @@ def early_exit_monkey_patch() -> Generator:
     ) as mocks:
         # mock lookup_secret
         mocks["lookup_secret"].side_effect = (
-            lambda path,
-            key,
-            version=None,
-            tvars=None,
-            allow_not_found=False,
-            settings=None,
-            secret_reader=None: f"vault({path}, {key}, {version}"
+            lambda path, key, version=None, tvars=None, allow_not_found=False, settings=None, secret_reader=None: (
+                f"vault({path}, {key}, {version}"
+            )
         )
         # needed for jinja2 `is_safe_callable`
         mocks["lookup_secret"].unsafe_callable = False
@@ -1252,12 +1248,9 @@ def early_exit_monkey_patch() -> Generator:
 
         # mock lookup_github_file_content
         mocks["lookup_github_file_content"].side_effect = (
-            lambda repo,
-            path,
-            ref,
-            tvars=None,
-            settings=None,
-            secret_reader=None: f"github({repo}, {path}, {ref})"
+            lambda repo, path, ref, tvars=None, settings=None, secret_reader=None: (
+                f"github({repo}, {path}, {ref})"
+            )
         )
         # needed for jinja2 `is_safe_callable`
         mocks["lookup_github_file_content"].unsafe_callable = False
@@ -1271,10 +1264,9 @@ def early_exit_monkey_patch() -> Generator:
 
         # mock lookup_s3_object
         mocks["lookup_s3_object"].side_effect = (
-            lambda account_name,
-            bucket_name,
-            path,
-            region_name=None: f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})"
+            lambda account_name, bucket_name, path, region_name=None: (
+                f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})"
+            )
         )
         # needed for jinja2 `is_safe_callable`
         mocks["lookup_s3_object"].unsafe_callable = False
@@ -1282,10 +1274,9 @@ def early_exit_monkey_patch() -> Generator:
 
         # mock list_s3_objects
         mocks["list_s3_objects"].side_effect = (
-            lambda account_name,
-            bucket_name,
-            path,
-            region_name=None: f"list_s3_objects({account_name}, {bucket_name}, {path}, {region_name})"
+            lambda account_name, bucket_name, path, region_name=None: (
+                f"list_s3_objects({account_name}, {bucket_name}, {path}, {region_name})"
+            )
         )
         # needed for jinja2 `is_safe_callable`
         mocks["list_s3_objects"].unsafe_callable = False

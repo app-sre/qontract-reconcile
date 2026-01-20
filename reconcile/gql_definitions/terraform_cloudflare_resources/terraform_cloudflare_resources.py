@@ -104,7 +104,7 @@ query TerraformCloudflareResources {
             cache_reserve {
               enabled
             }
-            records {
+            records: dns_records {
               identifier
               name
               type

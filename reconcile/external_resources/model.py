@@ -15,6 +15,8 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 )
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
+    NamespaceTerraformProviderResourceCloudflareV1,
+    NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
@@ -90,7 +92,10 @@ class ExternalResourceKey(BaseModel, frozen=True):
         return f"{self.provision_provider}/{self.provisioner_name}/{self.provider}/{self.identifier}"
 
 
-SUPPORTED_RESOURCE_PROVIDERS = NamespaceTerraformProviderResourceAWSV1
+SUPPORTED_RESOURCE_PROVIDERS = (
+    NamespaceTerraformProviderResourceAWSV1
+    | NamespaceTerraformProviderResourceCloudflareV1
+)
 SUPPORTED_RESOURCE_TYPES = (
     NamespaceTerraformResourceRDSV1
     | NamespaceTerraformResourceMskV1
@@ -98,6 +103,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceKMSV1
     | NamespaceTerraformResourceCloudWatchV1
     | NamespaceTerraformResourceRDSProxyV1
+    | NamespaceTerraformResourceCloudflareZoneV1
 )
 
 
@@ -138,7 +144,8 @@ class ExternalResourcesInventory(MutableMapping):
                     FLAG_RESOURCE_MANAGED_BY_ERV2,
                     FLAG_DELETE_RESOURCE,
                     MODULE_OVERRIDES,
-                }
+                },
+                by_alias=True,
             ),
             namespace=namespace.model_dump(by_alias=True),
         )
@@ -262,6 +269,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     version: str = ""
     reconcile_drift_interval_minutes: int = 1440
     reconcile_timeout_minutes: int = 1440  # same as https://developer.hashicorp.com/terraform/enterprise/application-administration/general#terraform-run-timeout-settings
+    outputs_secret_sync: bool = False
     outputs_secret_image: str = ""
     outputs_secret_version: str = ""
     resources: Resources = Resources()
@@ -328,6 +336,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
             reconcile_drift_interval_minutes=module.reconcile_drift_interval_minutes,
             reconcile_timeout_minutes=module_overrides.reconcile_timeout_minutes
             or module.reconcile_timeout_minutes,
+            outputs_secret_sync=module.outputs_secret_sync,
             outputs_secret_image=module_overrides.outputs_secret_image
             or module.outputs_secret_image
             or settings.outputs_secret_image,
@@ -406,7 +415,7 @@ class ModuleProvisionData(BaseModel):
 
 
 class TerraformModuleProvisionData(ModuleProvisionData):
-    """Specific Provision Options for modules based on Terraform or CDKTF"""
+    """Specific Provision Options for modules based on Terraform"""
 
     tf_state_bucket: str
     tf_state_region: str

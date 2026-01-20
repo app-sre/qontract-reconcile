@@ -59,10 +59,10 @@ class AWSReconciler:
         email: str,
     ) -> str | None:
         """Create the organization account and return the creation status ID."""
-        with self.state.transaction(state_key(name, TASK_CREATE_ACCOUNT)) as _state:
-            if _state.exists:
+        with self.state.transaction(state_key(name, TASK_CREATE_ACCOUNT)) as state:
+            if state.exists:
                 # account already exists, nothing to do
-                return _state.value
+                return state.value
 
             logging.info(f"{name}: Creating account")
             if self.dry_run:
@@ -70,7 +70,7 @@ class AWSReconciler:
 
             status = aws_api.organizations.create_account(email=email, name=name)
             # store the status id for future reference
-            _state.value = status.id
+            state.value = status.id
             return status.id
 
     def _org_account_exists(
@@ -80,10 +80,10 @@ class AWSReconciler:
         create_account_request_id: str,
     ) -> str | None:
         """Check if the organization account exists and return its ID."""
-        with self.state.transaction(state_key(name, TASK_DESCRIBE_ACCOUNT)) as _state:
-            if _state.exists:
+        with self.state.transaction(state_key(name, TASK_DESCRIBE_ACCOUNT)) as state:
+            if state.exists:
                 # account checked and exists, nothing to do
-                return _state.value
+                return state.value
 
             logging.info(f"{name}: Checking account creation status")
             status = aws_api.organizations.describe_create_account_status(
@@ -91,7 +91,7 @@ class AWSReconciler:
             )
             match status.state:
                 case "SUCCEEDED":
-                    _state.value = status.uid
+                    state.value = status.uid
                     return status.uid
                 case "FAILED":
                     raise RuntimeError(
@@ -109,19 +109,19 @@ class AWSReconciler:
     def _tag_account(
         self, aws_api: AWSApi, name: str, uid: str, tags: dict[str, str]
     ) -> None:
-        with self.state.transaction(state_key(name, TASK_TAG_ACCOUNT)) as _state:
-            if _state.exists and _state.value == tags:
+        with self.state.transaction(state_key(name, TASK_TAG_ACCOUNT)) as state:
+            if state.exists and state.value == tags:
                 # account already tagged, nothing to do
                 return
 
             logging.info(f"{name}: Setting tags {tags}")
-            _state.value = tags
+            state.value = tags
             if self.dry_run:
                 raise AbortStateTransactionError("Dry run")
 
-            if _state.exists:
+            if state.exists:
                 aws_api.organizations.untag_resource(
-                    resource_id=uid, tag_keys=_state.value.keys()
+                    resource_id=uid, tag_keys=state.value.keys()
                 )
             aws_api.organizations.tag_resource(resource_id=uid, tags=tags)
 
@@ -132,8 +132,8 @@ class AWSReconciler:
         return org_tree_root.find(destination_path)
 
     def _move_account(self, aws_api: AWSApi, name: str, uid: str, ou: str) -> None:
-        with self.state.transaction(state_key(name, TASK_MOVE_ACCOUNT)) as _state:
-            if _state.exists and _state.value == ou:
+        with self.state.transaction(state_key(name, TASK_MOVE_ACCOUNT)) as state:
+            if state.exists and state.value == ou:
                 # account already moved, nothing to do
                 return
 
@@ -146,15 +146,15 @@ class AWSReconciler:
                 uid=uid,
                 destination_parent_id=destination.id,
             )
-            _state.value = ou
+            state.value = ou
 
     def _set_account_alias(self, aws_api: AWSApi, name: str, alias: str | None) -> None:
         """Create an account alias."""
         new_alias = alias or name
         with self.state.transaction(
             state_key(name, TASK_ACCOUNT_ALIAS), new_alias
-        ) as _state:
-            if _state.exists and _state.value == new_alias:
+        ) as state:
+            if state.exists and state.value == new_alias:
                 return
 
             logging.info(f"{name}: Set account alias '{new_alias}'")
@@ -170,9 +170,9 @@ class AWSReconciler:
         quotas_dict = [q.model_dump() for q in quotas]
         with self.state.transaction(
             state_key(name, TASK_REQUEST_SERVICE_QUOTA)
-        ) as _state:
-            if _state.exists and _state.value["last_applied_quotas"] == quotas_dict:
-                return _state.value["ids"]
+        ) as state:
+            if state.exists and state.value["last_applied_quotas"] == quotas_dict:
+                return state.value["ids"]
 
             # ATTENTION: reverting previously applied quotas or lowering them is not supported
             new_quotas = []
@@ -211,7 +211,7 @@ class AWSReconciler:
                     ) from None
                 ids.append(req.id)
 
-            _state.value = {"last_applied_quotas": quotas_dict, "ids": ids}
+            state.value = {"last_applied_quotas": quotas_dict, "ids": ids}
             return ids
 
     def _check_quota_change_requests(
@@ -223,22 +223,22 @@ class AWSReconciler:
         """Check the status of the quota change requests."""
         with self.state.transaction(
             state_key(name, TASK_CHECK_SERVICE_QUOTA_STATUS)
-        ) as _state:
-            if _state.exists and _state.value == request_ids:
+        ) as state:
+            if state.exists and state.value == request_ids:
                 return
 
             logging.info(f"{name}: Checking quota change requests")
             if self.dry_run:
                 raise AbortStateTransactionError("Dry run")
 
-            _state.value = []
+            state.value = []
             for request_id in request_ids:
                 req = aws_api.service_quotas.get_requested_service_quota_change(
                     request_id=request_id
                 )
                 match req.status:
                     case "CASE_CLOSED" | "APPROVED":
-                        _state.value.append(request_id)
+                        state.value.append(request_id)
                     case "DENIED" | "INVALID_REQUEST" | "NOT_APPROVED":
                         raise RuntimeError(
                             f"Quota change request {request_id} failed: {req.status}"
@@ -253,9 +253,9 @@ class AWSReconciler:
         """Enable enterprise support for the account."""
         with self.state.transaction(
             state_key(name, TASK_ENABLE_ENTERPRISE_SUPPORT), ""
-        ) as _state:
-            if _state.exists:
-                return _state.value
+        ) as state:
+            if state.exists:
+                return state.value
 
             if aws_api.support.get_support_level() == SupportPlan.ENTERPRISE:
                 if self.dry_run:
@@ -278,7 +278,7 @@ class AWSReconciler:
                     [rh-internal-account-name: {name}]
                 """),
             )
-            _state.value = case_id
+            state.value = case_id
             return case_id
 
     def _check_enterprise_support_status(
@@ -287,8 +287,8 @@ class AWSReconciler:
         """Check the status of the enterprise support case."""
         with self.state.transaction(
             state_key(case_id, TASK_CHECK_ENTERPRISE_SUPPORT_STATUS), True
-        ) as _state:
-            if _state.exists:
+        ) as state:
+            if state.exists:
                 return
 
             logging.info(f"{name}: Checking enterprise support case {case_id}")
@@ -318,8 +318,8 @@ class AWSReconciler:
         security_contact = f"{name} {title} {email} {phone_number}"
         with self.state.transaction(
             state_key(account, TASK_SET_SECURITY_CONTACT)
-        ) as _state:
-            if _state.exists and _state.value == security_contact:
+        ) as state:
+            if state.exists and state.value == security_contact:
                 return
 
             logging.info(f"{account}: Setting security contact")
@@ -329,7 +329,7 @@ class AWSReconciler:
             aws_api.account.set_security_contact(
                 name=name, title=title, email=email, phone_number=phone_number
             )
-            _state.value = security_contact
+            state.value = security_contact
 
     def _set_supported_regions(
         self,
@@ -340,8 +340,8 @@ class AWSReconciler:
         """Set the supported regions for the account."""
         with self.state.transaction(
             state_key(name, TASK_SET_SUPPORTED_REGIONS)
-        ) as _state:
-            if _state.exists and _state.value == regions:
+        ) as state:
+            if state.exists and state.value == regions:
                 return
 
             aws_regions = aws_api.account.list_regions()
@@ -378,7 +378,7 @@ class AWSReconciler:
             for aws_region in to_disable_regions:
                 aws_api.account.disable_region(aws_region)
 
-            _state.value = regions
+            state.value = regions
 
     #
     # Public methods
@@ -404,8 +404,8 @@ class AWSReconciler:
         """Create an IAM user and return its access key."""
         with self.state.transaction(
             state_key(name, TASK_CREATE_IAM_USER), user_name
-        ) as _state:
-            if _state.exists and _state.value == user_name:
+        ) as state:
+            if state.exists and state.value == user_name:
                 return None
 
             logging.info(f"{name}: Creating IAM user '{user_name}'")

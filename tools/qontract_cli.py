@@ -4430,7 +4430,7 @@ def request_reconciliation(ctx: click.Context) -> None:
 )
 @click.option(
     "--skip-build/--no-skip-build",
-    help="Skip/Do not skip the terraform and CDKTF builds. Default: build everything!",
+    help="Skip/Do not skip the terraform builds. Default: build everything!",
     default=False,
 )
 @click.pass_context
@@ -4463,8 +4463,8 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
     temp_tfr.mkdir(exist_ok=True)
 
     with progress_spinner() as progress:
-        with task(progress, "Preparing AWS credentials for CDKTF and local terraform"):
-            # prepare AWS credentials for CDKTF and local terraform
+        with task(progress, "Preparing AWS credentials for local terraform"):
+            # prepare AWS credentials for local terraform
             credentials_file = tempdir / "credentials"
             credentials_file.write_text(
                 _get_external_resources_credentials(
@@ -4486,10 +4486,10 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
 
         with task(progress, "(erv2) Building the terraform configuration"):
             if not skip_build:
-                if erv2cli.module_type == "cdktf":
-                    erv2cli.build_cdktf(credentials_file)
-                else:
+                if erv2cli.module_type == "terraform":
                     erv2cli.build_terraform(credentials_file)
+                else:
+                    raise ValueError(f"Unsupported module type: {erv2cli.module_type}")
             erv2_tf_cli = TerraformCli(
                 temp_erv2, dry_run=dry_run, progress_spinner=progress
             )
@@ -4543,8 +4543,8 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
 def debug_shell(ctx: click.Context) -> None:
     """Enter an ERv2 debug shell to manually migrate resources."""
     # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
-    with tempfile.TemporaryDirectory(dir=Path.home(), prefix="erv2-debug.") as _tempdir:
-        tempdir = Path(_tempdir)
+    with tempfile.TemporaryDirectory(dir=Path.home(), prefix="erv2-debug.") as tempdir_:
+        tempdir = Path(tempdir_)
         with progress_spinner() as progress:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"
@@ -4582,8 +4582,8 @@ def force_unlock(ctx: click.Context, lock_id: str) -> None:
     # use a temporary directory in $HOME. The MacOS colima default configuration allows docker mounts from $HOME.
     with tempfile.TemporaryDirectory(
         dir=Path.home(), prefix="erv2-unlock."
-    ) as _tempdir:
-        tempdir = Path(_tempdir)
+    ) as tempdir_:
+        tempdir = Path(tempdir_)
         with progress_spinner() as progress:
             with task(progress, "Preparing environment ..."):
                 credentials_file = tempdir / "credentials"
