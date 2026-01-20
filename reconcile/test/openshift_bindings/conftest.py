@@ -259,5 +259,92 @@ def test_vault_secret() -> VaultSecret:
         path="secret/path",
         field="token",
         version=None,
-        q_format=None,
+        format=None,
+    )
+
+
+# ============================================================================
+# Mock OC_Map Fixtures
+# ============================================================================
+
+
+class MockOCMap:
+    """Mock OC_Map for testing."""
+
+    def __init__(self, cluster_names: list[str] | None = None) -> None:
+        self._clusters = cluster_names or ["test-cluster"]
+        self._cleanup_called = False
+
+    def clusters(self) -> list[str]:
+        """Return list of cluster names."""
+        return self._clusters
+
+    def cleanup(self) -> None:
+        """Mark cleanup as called."""
+        self._cleanup_called = True
+
+
+@pytest.fixture
+def mock_oc_map() -> MockOCMap:
+    """MockOCMap instance for testing."""
+    return MockOCMap()
+
+
+# ============================================================================
+# Mock Query Cluster Fixtures
+# ============================================================================
+
+
+class MockQueryCluster:
+    """Mock cluster for get_clusters query results."""
+
+    def __init__(
+        self,
+        name: str = "test-cluster",
+        managed_cluster_roles: bool = True,
+        automation_token: VaultSecret | None = None,
+    ) -> None:
+        self.name = name
+        self.managed_cluster_roles = managed_cluster_roles
+        self.automation_token = automation_token
+
+    def model_dump(self, by_alias: bool = False) -> dict:
+        """Return dict representation."""
+        return {
+            "name": self.name,
+            "managedClusterRoles": self.managed_cluster_roles,
+        }
+
+
+@pytest.fixture
+def query_cluster_with_managed_roles(
+    test_vault_secret: VaultSecret,
+) -> MockQueryCluster:
+    """Query cluster with managed_cluster_roles=True and automation_token."""
+    return MockQueryCluster(
+        name="test-cluster",
+        managed_cluster_roles=True,
+        automation_token=test_vault_secret,
+    )
+
+
+@pytest.fixture
+def query_cluster_without_managed_roles(
+    test_vault_secret: VaultSecret,
+) -> MockQueryCluster:
+    """Query cluster with managed_cluster_roles=False."""
+    return MockQueryCluster(
+        name="test-cluster-no-managed",
+        managed_cluster_roles=False,
+        automation_token=test_vault_secret,
+    )
+
+
+@pytest.fixture
+def query_cluster_without_token() -> MockQueryCluster:
+    """Query cluster without automation_token."""
+    return MockQueryCluster(
+        name="test-cluster-no-token",
+        managed_cluster_roles=True,
+        automation_token=None,
     )

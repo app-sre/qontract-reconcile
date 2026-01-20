@@ -1,6 +1,5 @@
 """Tests for reconcile.openshift_bindings.openshift_clusterrolebindings module."""
 
-import pytest
 from pytest_mock import MockerFixture
 
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
@@ -21,15 +20,14 @@ from reconcile.gql_definitions.common.app_interface_clusterrole import (
 from reconcile.gql_definitions.common.app_interface_clusterrole import (
     UserV1 as ClusterUserV1,
 )
-from reconcile.gql_definitions.common.clusters import ClusterV1 as QueryClusterV1
 from reconcile.openshift_bindings.models import ClusterRoleBindingSpec, OCResource
 from reconcile.openshift_bindings.openshift_clusterrolebindings import (
     NAMESPACE_CLUSTER_SCOPE,
     QONTRACT_INTEGRATION_MANAGED_TYPE,
     QONTRACT_INTEGRATION_VERSION,
     OpenShiftClusterRoleBindingsIntegration,
-    OpenShiftClusterRoleBindingsIntegrationParams,
 )
+from reconcile.test.openshift_bindings.conftest import MockOCMap, MockQueryCluster
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.openshift_resource import ResourceInventory
 
@@ -183,20 +181,14 @@ class TestGetOcResources:
 class TestOpenShiftClusterRoleBindingsIntegrationFetchCurrentState:
     """Tests for OpenShiftClusterRoleBindingsIntegration.fetch_current_state."""
 
-    @pytest.fixture
-    def integration(self) -> OpenShiftClusterRoleBindingsIntegration:
-        """Create integration instance."""
-        params = OpenShiftClusterRoleBindingsIntegrationParams()
-        return OpenShiftClusterRoleBindingsIntegration(params)
-
     def test_fetch_current_state(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test fetch_current_state calls ob.fetch_current_state correctly."""
-        mock_ri = ResourceInventory()
-        mock_oc_map = mocker.MagicMock()
+        ri = ResourceInventory()
+        oc_map = MockOCMap()
 
         mock_get_clusters = mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.get_clusters",
@@ -204,45 +196,37 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchCurrentState:
         )
         mock_fetch = mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.fetch_current_state",
-            return_value=(mock_ri, mock_oc_map),
+            return_value=(ri, oc_map),
         )
 
-        ri, oc_map = integration.fetch_current_state()
+        result_ri, result_oc_map = clusterrolebindings_integration.fetch_current_state()
 
-        assert ri == mock_ri
-        assert oc_map == mock_oc_map
+        assert result_ri == ri
+        assert result_oc_map == oc_map
         mock_get_clusters.assert_called_once()
         mock_fetch.assert_called_once()
 
     def test_fetch_current_state_filters_clusters(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
+        query_cluster_with_managed_roles: MockQueryCluster,
+        query_cluster_without_managed_roles: MockQueryCluster,
         mocker: MockerFixture,
     ) -> None:
         """Test fetch_current_state filters clusters without managed_cluster_roles."""
-        # Create mock clusters - one with managed_cluster_roles, one without
-        mock_cluster_with_managed = mocker.MagicMock(spec=QueryClusterV1)
-        mock_cluster_with_managed.managed_cluster_roles = True
-        mock_cluster_with_managed.automation_token = mocker.MagicMock()
-        mock_cluster_with_managed.model_dump.return_value = {
-            "name": "test-cluster",
-            "managedClusterRoles": True,
-        }
-
-        mock_cluster_without_managed = mocker.MagicMock(spec=QueryClusterV1)
-        mock_cluster_without_managed.managed_cluster_roles = False
-        mock_cluster_without_managed.automation_token = mocker.MagicMock()
-
         mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.get_clusters",
-            return_value=[mock_cluster_with_managed, mock_cluster_without_managed],
+            return_value=[
+                query_cluster_with_managed_roles,
+                query_cluster_without_managed_roles,
+            ],
         )
         mock_fetch = mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.fetch_current_state",
-            return_value=(ResourceInventory(), mocker.MagicMock()),
+            return_value=(ResourceInventory(), MockOCMap()),
         )
 
-        integration.fetch_current_state()
+        clusterrolebindings_integration.fetch_current_state()
 
         call_kwargs = mock_fetch.call_args.kwargs
         assert "clusters" in call_kwargs
@@ -251,29 +235,25 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchCurrentState:
 
     def test_fetch_current_state_filters_clusters_without_automation_token(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
+        query_cluster_with_managed_roles: MockQueryCluster,
+        query_cluster_without_token: MockQueryCluster,
         mocker: MockerFixture,
     ) -> None:
         """Test fetch_current_state filters clusters without automation_token."""
-        mock_cluster_with_token = mocker.MagicMock(spec=QueryClusterV1)
-        mock_cluster_with_token.managed_cluster_roles = True
-        mock_cluster_with_token.automation_token = mocker.MagicMock()
-        mock_cluster_with_token.model_dump.return_value = {"name": "test-cluster"}
-
-        mock_cluster_without_token = mocker.MagicMock(spec=QueryClusterV1)
-        mock_cluster_without_token.managed_cluster_roles = True
-        mock_cluster_without_token.automation_token = None
-
         mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.get_clusters",
-            return_value=[mock_cluster_with_token, mock_cluster_without_token],
+            return_value=[
+                query_cluster_with_managed_roles,
+                query_cluster_without_token,
+            ],
         )
         mock_fetch = mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.fetch_current_state",
-            return_value=(ResourceInventory(), mocker.MagicMock()),
+            return_value=(ResourceInventory(), MockOCMap()),
         )
 
-        integration.fetch_current_state()
+        clusterrolebindings_integration.fetch_current_state()
 
         call_kwargs = mock_fetch.call_args.kwargs
         assert "clusters" in call_kwargs
@@ -283,15 +263,9 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchCurrentState:
 class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
     """Tests for OpenShiftClusterRoleBindingsIntegration.fetch_desired_state."""
 
-    @pytest.fixture
-    def integration(self) -> OpenShiftClusterRoleBindingsIntegration:
-        """Create integration instance."""
-        params = OpenShiftClusterRoleBindingsIntegrationParams()
-        return OpenShiftClusterRoleBindingsIntegration(params)
-
     def test_fetch_desired_state_empty_allowed_clusters(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test fetch_desired_state returns early when allowed_clusters is empty."""
@@ -303,7 +277,7 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
             "reconcile.openshift_bindings.openshift_clusterrolebindings.get_app_interface_clusterroles"
         ).return_value = get_app_interface_test_cluster_roles()
 
-        integration.fetch_desired_state(ri, allowed_clusters=set())
+        clusterrolebindings_integration.fetch_desired_state(ri, allowed_clusters=set())
 
         assert not ri.get_desired(
             "test-cluster",
@@ -314,16 +288,17 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
 
     def test_fetch_desired_state_none_ri(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
-        mocker: MockerFixture,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
     ) -> None:
         """Test fetch_desired_state returns early when ri is None."""
         # Should not raise any exception
-        integration.fetch_desired_state(None, allowed_clusters={"test-cluster"})
+        clusterrolebindings_integration.fetch_desired_state(
+            None, allowed_clusters={"test-cluster"}
+        )
 
     def test_fetch_desired_state_contents_with_filtered_clusters(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test fetch_desired_state populates ResourceInventory with filtered clusters."""
@@ -347,7 +322,9 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
             return_value=["org_username"],
         )
 
-        integration.fetch_desired_state(ri, allowed_clusters={"test-cluster"})
+        clusterrolebindings_integration.fetch_desired_state(
+            ri, allowed_clusters={"test-cluster"}
+        )
 
         assert ri.get_desired(
             "test-cluster",
@@ -364,7 +341,7 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
 
     def test_fetch_desired_state_contents_without_filtered_clusters(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test fetch_desired_state populates ResourceInventory without cluster filter."""
@@ -388,7 +365,7 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
             return_value=["org_username"],
         )
 
-        integration.fetch_desired_state(
+        clusterrolebindings_integration.fetch_desired_state(
             ri, allowed_clusters={"test-cluster", "test-cluster-2"}
         )
 
@@ -407,7 +384,7 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
 
     def test_fetch_desired_state_filters_expired_roles(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test fetch_desired_state filters expired cluster roles."""
@@ -428,7 +405,9 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
             return_value=["org_username"],
         )
 
-        integration.fetch_desired_state(ri, allowed_clusters={"test-cluster-3"})
+        clusterrolebindings_integration.fetch_desired_state(
+            ri, allowed_clusters={"test-cluster-3"}
+        )
 
         # Expired role should not be in desired state
         assert not ri.get_desired(
@@ -442,28 +421,22 @@ class TestOpenShiftClusterRoleBindingsIntegrationFetchDesiredState:
 class TestOpenShiftClusterRoleBindingsIntegrationRun:
     """Tests for OpenShiftClusterRoleBindingsIntegration.run."""
 
-    @pytest.fixture
-    def integration(self) -> OpenShiftClusterRoleBindingsIntegration:
-        """Create integration instance."""
-        params = OpenShiftClusterRoleBindingsIntegrationParams()
-        return OpenShiftClusterRoleBindingsIntegration(params)
-
     def test_run_calls_expected_methods(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test run calls fetch_current_state, fetch_desired_state, and realize_data."""
-        mock_ri = mocker.MagicMock(spec=ResourceInventory)
-        mock_ri.has_error_registered.return_value = False
-        mock_oc_map = mocker.MagicMock()
-        mock_oc_map.clusters.return_value = ["test-cluster"]
+        ri = ResourceInventory()
+        oc_map = MockOCMap()
 
         mocker.patch.object(
-            integration, "fetch_current_state", return_value=(mock_ri, mock_oc_map)
+            clusterrolebindings_integration,
+            "fetch_current_state",
+            return_value=(ri, oc_map),
         )
         mock_fetch_desired = mocker.patch.object(
-            integration, "fetch_desired_state", return_value=None
+            clusterrolebindings_integration, "fetch_desired_state", return_value=None
         )
         mock_publish = mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.publish_metrics"
@@ -472,7 +445,7 @@ class TestOpenShiftClusterRoleBindingsIntegrationRun:
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.realize_data"
         )
 
-        integration.run(dry_run=True)
+        clusterrolebindings_integration.run(dry_run=True)
 
         mock_fetch_desired.assert_called_once()
         mock_publish.assert_called_once()
@@ -480,19 +453,22 @@ class TestOpenShiftClusterRoleBindingsIntegrationRun:
 
     def test_run_exits_on_error(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test run exits with code 1 when errors registered."""
-        mock_ri = mocker.MagicMock(spec=ResourceInventory)
-        mock_ri.has_error_registered.return_value = True
-        mock_oc_map = mocker.MagicMock()
-        mock_oc_map.clusters.return_value = ["test-cluster"]
+        ri = ResourceInventory()
+        ri.register_error()
+        oc_map = MockOCMap()
 
         mocker.patch.object(
-            integration, "fetch_current_state", return_value=(mock_ri, mock_oc_map)
+            clusterrolebindings_integration,
+            "fetch_current_state",
+            return_value=(ri, oc_map),
         )
-        mocker.patch.object(integration, "fetch_desired_state", return_value=None)
+        mocker.patch.object(
+            clusterrolebindings_integration, "fetch_desired_state", return_value=None
+        )
         mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.publish_metrics"
         )
@@ -503,25 +479,27 @@ class TestOpenShiftClusterRoleBindingsIntegrationRun:
             "reconcile.openshift_bindings.openshift_clusterrolebindings.sys.exit"
         )
 
-        integration.run(dry_run=True)
+        clusterrolebindings_integration.run(dry_run=True)
 
         mock_exit.assert_called_once_with(1)
 
     def test_run_calls_oc_map_cleanup(
         self,
-        integration: OpenShiftClusterRoleBindingsIntegration,
+        clusterrolebindings_integration: OpenShiftClusterRoleBindingsIntegration,
         mocker: MockerFixture,
     ) -> None:
         """Test run defers oc_map cleanup."""
-        mock_ri = mocker.MagicMock(spec=ResourceInventory)
-        mock_ri.has_error_registered.return_value = False
-        mock_oc_map = mocker.MagicMock()
-        mock_oc_map.clusters.return_value = ["test-cluster"]
+        ri = ResourceInventory()
+        oc_map = MockOCMap()
 
         mocker.patch.object(
-            integration, "fetch_current_state", return_value=(mock_ri, mock_oc_map)
+            clusterrolebindings_integration,
+            "fetch_current_state",
+            return_value=(ri, oc_map),
         )
-        mocker.patch.object(integration, "fetch_desired_state", return_value=None)
+        mocker.patch.object(
+            clusterrolebindings_integration, "fetch_desired_state", return_value=None
+        )
         mocker.patch(
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.publish_metrics"
         )
@@ -529,7 +507,7 @@ class TestOpenShiftClusterRoleBindingsIntegrationRun:
             "reconcile.openshift_bindings.openshift_clusterrolebindings.ob.realize_data"
         )
 
-        integration.run(dry_run=True)
+        clusterrolebindings_integration.run(dry_run=True)
 
         # The cleanup should be called due to @defer decorator
-        mock_oc_map.cleanup.assert_called_once()
+        assert oc_map._cleanup_called
