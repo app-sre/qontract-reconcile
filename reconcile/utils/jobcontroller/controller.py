@@ -120,7 +120,8 @@ class K8sJobController:
         if job_resource is None:
             return None
         return (
-            job_resource.body.get("metadata", {})
+            job_resource.body
+            .get("metadata", {})
             .get("annotations", {})
             .get(JOB_GENERATION_ANNOTATION)
         )

@@ -98,8 +98,9 @@ class GroupPermissionHandler:
         diff_data = diff_mappings(
             current=current_state,
             desired=desired_state,
-            equal=lambda current, desired: current.group_access_level
-            == desired.group_access_level,
+            equal=lambda current, desired: (
+                current.group_access_level == desired.group_access_level
+            ),
         )
         errors: list[Exception] = []
         for repo in diff_data.add:

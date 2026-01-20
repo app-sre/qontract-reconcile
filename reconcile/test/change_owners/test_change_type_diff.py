@@ -1,5 +1,4 @@
 import jsonpath_ng
-import jsonpath_ng.ext
 import pytest
 
 from reconcile.change_owners.change_types import DiffCoverage

@@ -14,7 +14,7 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import SlackResponse
 
-import reconcile
+import reconcile.utils
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.slack_api import (
     MAX_RETRIES,

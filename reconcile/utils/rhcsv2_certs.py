@@ -143,7 +143,8 @@ def generate_cert(
 ) -> RhcsV2CertPem | RhcsV2CertPkcs12:
     private_key = rsa.generate_private_key(65537, 4096)
     csr = (
-        x509.CertificateSigningRequestBuilder()
+        x509
+        .CertificateSigningRequestBuilder()
         .subject_name(
             x509.Name([
                 x509.NameAttribute(NameOID.USER_ID, uid),

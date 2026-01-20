@@ -66,7 +66,7 @@ def main(
                         ),
                     )
                     if org.name not in [
-                        _org.name for _org in report_user.organizations
+                        org_.name for org_ in report_user.organizations
                     ]:
                         report_user.organizations.append(
                             GlitchtipAccessReportOrg(
