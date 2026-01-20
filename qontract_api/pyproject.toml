@@ -26,11 +26,11 @@ dependencies = [
 dev = [
     # development and testing tools
     "httpx==0.28.1",
-    "mypy==1.18.2",
+    "mypy==1.19.1",
     "pytest-asyncio==1.3.0",
     "pytest-cov==7.0.0",
-    "pytest==9.0.1",
-    "ruff==0.14.4",
+    "pytest==9.0.2",
+    "ruff==0.14.13",
     "types-cachetools==6.2.0.20251022",
     "types-hvac==2.4.0.20251115",
 ]

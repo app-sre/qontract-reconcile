@@ -10,10 +10,10 @@ dependencies = ["httpx", "attrs", "python-dateutil"]
 [dependency-groups]
 dev = [
     # development and testing tools
-    "mypy==1.18.2",
-    "pytest==9.0.1",
+    "mypy==1.19.1",
+    "pytest==9.0.2",
     "pytest-cov==7.0.0",
-    "ruff==0.14.4",
+    "ruff==0.14.13",
 ]
 
 [build-system]
