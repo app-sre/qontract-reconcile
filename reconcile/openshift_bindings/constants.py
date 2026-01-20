@@ -1,7 +1,3 @@
-from typing import Literal
-
-IntegrationNameType = Literal["openshift-rolebindings", "openshift-clusterrolebindings"]
-
 OPENSHIFT_ROLEBINDINGS_INTEGRATION_NAME = "openshift-rolebindings"
 OPENSHIFT_CLUSTERROLEBINDINGS_INTEGRATION_NAME = "openshift-clusterrolebindings"
 

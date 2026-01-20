@@ -31,25 +31,14 @@ from reconcile.gql_definitions.common.app_interface_roles import (
 from reconcile.gql_definitions.common.app_interface_roles import (
     ClusterV1 as RoleClusterV1,
 )
-from reconcile.gql_definitions.common.namespaces import NamespaceV1 as CommonNamespaceV1
 from reconcile.openshift_bindings.constants import (
     CLUSTER_ROLE_BINDING_RESOURCE_KIND,
     CLUSTER_ROLE_KIND,
     ROLE_BINDING_RESOURCE_KIND,
     ROLE_KIND,
 )
+from reconcile.openshift_bindings.utils import is_valid_namespace
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
-from reconcile.utils.sharding import is_in_shard
-
-
-def is_valid_namespace(
-    namespace: NamespaceV1 | CommonNamespaceV1,
-) -> bool:
-    return (
-        bool(namespace.managed_roles)
-        and is_in_shard(f"{namespace.cluster.name}/{namespace.name}")
-        and not ob.is_namespace_deleted(namespace.model_dump(by_alias=True))
-    )
 
 
 class OCResource(BaseModel, arbitrary_types_allowed=True):
@@ -97,13 +86,6 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
     resource_kind: str
     usernames: set[str]
     openshift_service_accounts: list[ServiceAccountSpec]
-
-    def get_users_desired_state(self) -> list[dict[str, str]]:
-        """Return list of cluster/user mappings for desired state."""
-        return [
-            {"cluster": self.cluster.name, "user": username}
-            for username in self.usernames
-        ]
 
     @staticmethod
     def get_usernames_from_users(
@@ -157,6 +139,27 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
             ],
         }
         return OCResourceData(body=body, name=name)
+
+    def get_openshift_resources(
+        self,
+        integration_name: str,
+        integration_version: str,
+        privileged: bool = False,
+    ) -> list[OCResource]:
+        oc_resources = [
+            OCResource(
+                resource=OR(
+                    oc_resource_data.body,
+                    integration_name,
+                    integration_version,
+                    error_details=oc_resource_data.name,
+                ),
+                resource_name=oc_resource_data.name,
+                privileged=privileged,
+            )
+            for oc_resource_data in self.get_oc_resources()
+        ]
+        return oc_resources
 
 
 class RoleBindingSpec(BindingSpec):

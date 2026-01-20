@@ -29,6 +29,15 @@ from reconcile.gql_definitions.common.app_interface_roles import (
     RoleV1,
     UserV1,
 )
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+from reconcile.openshift_bindings.openshift_clusterrolebindings import (
+    OpenShiftClusterRoleBindingsIntegration,
+    OpenShiftClusterRoleBindingsIntegrationParams,
+)
+from reconcile.openshift_bindings.openshift_rolebindings import (
+    OpenShiftRoleBindingsIntegration,
+    OpenShiftRoleBindingsIntegrationParams,
+)
 
 # ============================================================================
 # Cluster Auth Fixtures
@@ -216,4 +225,39 @@ def test_cluster_role(
         bots=[test_cluster_bot],
         access=[test_cluster_access],
         expirationDate=None,
+    )
+
+
+# ============================================================================
+# Integration Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def rolebindings_integration() -> OpenShiftRoleBindingsIntegration:
+    """OpenShiftRoleBindingsIntegration instance."""
+    params = OpenShiftRoleBindingsIntegrationParams()
+    return OpenShiftRoleBindingsIntegration(params)
+
+
+@pytest.fixture
+def clusterrolebindings_integration() -> OpenShiftClusterRoleBindingsIntegration:
+    """OpenShiftClusterRoleBindingsIntegration instance."""
+    params = OpenShiftClusterRoleBindingsIntegrationParams()
+    return OpenShiftClusterRoleBindingsIntegration(params)
+
+
+# ============================================================================
+# Vault Secret Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def test_vault_secret() -> VaultSecret:
+    """Standard vault secret for automation token."""
+    return VaultSecret(
+        path="secret/path",
+        field="token",
+        version=None,
+        q_format=None,
     )

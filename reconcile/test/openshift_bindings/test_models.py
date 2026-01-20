@@ -27,11 +27,10 @@ from reconcile.gql_definitions.common.app_interface_roles import (
 from reconcile.openshift_bindings.models import (
     BindingSpec,
     ClusterRoleBindingSpec,
-    OCResourceData,
     RoleBindingSpec,
     ServiceAccountSpec,
-    is_valid_namespace,
 )
+from reconcile.openshift_bindings.utils import is_valid_namespace
 
 
 class TestIsValidNamespace:
@@ -42,10 +41,10 @@ class TestIsValidNamespace:
     ) -> None:
         """Namespace with managed_roles=True, in shard, not deleted is valid."""
         mocker.patch(
-            "reconcile.openshift_bindings.models.is_in_shard", return_value=True
+            "reconcile.openshift_bindings.utils.is_in_shard", return_value=True
         )
         mocker.patch(
-            "reconcile.openshift_bindings.models.ob.is_namespace_deleted",
+            "reconcile.openshift_bindings.utils.ob.is_namespace_deleted",
             return_value=False,
         )
         assert is_valid_namespace(test_namespace) is True
@@ -55,10 +54,10 @@ class TestIsValidNamespace:
     ) -> None:
         """Namespace without managed_roles is invalid."""
         mocker.patch(
-            "reconcile.openshift_bindings.models.is_in_shard", return_value=True
+            "reconcile.openshift_bindings.utils.is_in_shard", return_value=True
         )
         mocker.patch(
-            "reconcile.openshift_bindings.models.ob.is_namespace_deleted",
+            "reconcile.openshift_bindings.utils.ob.is_namespace_deleted",
             return_value=False,
         )
         assert is_valid_namespace(test_namespace_no_managed_roles) is False
@@ -68,10 +67,10 @@ class TestIsValidNamespace:
     ) -> None:
         """Namespace not in shard is invalid."""
         mocker.patch(
-            "reconcile.openshift_bindings.models.is_in_shard", return_value=False
+            "reconcile.openshift_bindings.utils.is_in_shard", return_value=False
         )
         mocker.patch(
-            "reconcile.openshift_bindings.models.ob.is_namespace_deleted",
+            "reconcile.openshift_bindings.utils.ob.is_namespace_deleted",
             return_value=False,
         )
         assert is_valid_namespace(test_namespace) is False
@@ -81,10 +80,10 @@ class TestIsValidNamespace:
     ) -> None:
         """Deleted namespace is invalid."""
         mocker.patch(
-            "reconcile.openshift_bindings.models.is_in_shard", return_value=True
+            "reconcile.openshift_bindings.utils.is_in_shard", return_value=True
         )
         mocker.patch(
-            "reconcile.openshift_bindings.models.ob.is_namespace_deleted",
+            "reconcile.openshift_bindings.utils.ob.is_namespace_deleted",
             return_value=True,
         )
         assert is_valid_namespace(test_namespace) is False
@@ -187,16 +186,6 @@ class TestBindingSpec:
             [test_cluster_user], user_keys=["org_username"]
         )
         assert usernames == {"test-cluster-user"}
-
-
-class TestOCResourceData:
-    """Tests for OCResourceData dataclass."""
-
-    def test_creation(self) -> None:
-        """OCResourceData can be created with body and name."""
-        data = OCResourceData(body={"key": "value"}, name="test-resource")
-        assert data.body == {"key": "value"}
-        assert data.name == "test-resource"
 
 
 class TestRoleBindingSpec:
@@ -305,25 +294,6 @@ class TestRoleBindingSpec:
         specs = RoleBindingSpec.create_rb_specs_from_role(test_role)
 
         assert specs == []
-
-    def test_get_users_desired_state(
-        self, mocker: MockerFixture, test_access_with_role: AccessV1, test_user: UserV1
-    ) -> None:
-        """Get users desired state returns cluster/user mappings."""
-        mocker.patch(
-            "reconcile.openshift_bindings.models.ob.determine_user_keys_for_access",
-            return_value=["org_username"],
-        )
-
-        spec = RoleBindingSpec.create_role_binding_spec(
-            access=test_access_with_role,
-            users=[test_user],
-        )
-
-        assert spec is not None
-        desired_state = spec.get_users_desired_state()
-        assert len(desired_state) == 1
-        assert desired_state[0] == {"cluster": "test-cluster", "user": "test-org-user"}
 
     def test_construct_user_oc_resource(
         self, mocker: MockerFixture, test_access_with_role: AccessV1, test_user: UserV1

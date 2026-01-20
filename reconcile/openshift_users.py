@@ -117,9 +117,16 @@ def fetch_rolebindings_desired_state(
             RoleBindingSpec.create_rb_specs_from_role(role, enforced_user_keys),
             allowed_clusters,
         )
-        for user in rolebinding.get_users_desired_state()
+        for user in get_users_desired_state(rolebinding)
     ]
     return users_desired_state
+
+
+def get_users_desired_state(role_binding: RoleBindingSpec) -> list[str]:
+    return [
+        {"cluster": role_binding.cluster.name, "user": user}
+        for user in role_binding.usernames
+    ]
 
 
 def filter_rolebindings(

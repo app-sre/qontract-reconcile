@@ -781,18 +781,17 @@ def openshift_clusterrolebindings(
     internal: bool,
     use_jump_host: bool,
 ) -> None:
-    from reconcile.openshift_bindings.integration import (
-        OpenShiftBindingsIntegration,
-        OpenShiftBindingsIntegrationParams,
+    from reconcile.openshift_bindings.openshift_clusterrolebindings import (
+        OpenShiftClusterRoleBindingsIntegration,
+        OpenShiftClusterRoleBindingsIntegrationParams,
     )
 
     run_class_integration(
-        integration=OpenShiftBindingsIntegration(
-            OpenShiftBindingsIntegrationParams(
+        integration=OpenShiftClusterRoleBindingsIntegration(
+            OpenShiftClusterRoleBindingsIntegrationParams(
                 thread_pool_size=thread_pool_size,
                 internal=internal,
                 use_jump_host=use_jump_host,
-                integration_name="openshift-clusterrolebindings",
             )
         ),
         ctx=ctx,
@@ -818,18 +817,17 @@ def openshift_rolebindings(
     use_jump_host: bool,
     support_role_ref: bool,
 ) -> None:
-    from reconcile.openshift_bindings.integration import (
-        OpenShiftBindingsIntegration,
-        OpenShiftBindingsIntegrationParams,
+    from reconcile.openshift_bindings.openshift_rolebindings import (
+        OpenShiftRoleBindingsIntegration,
+        OpenShiftRoleBindingsIntegrationParams,
     )
 
     run_class_integration(
-        integration=OpenShiftBindingsIntegration(
-            OpenShiftBindingsIntegrationParams(
+        integration=OpenShiftRoleBindingsIntegration(
+            OpenShiftRoleBindingsIntegrationParams(
                 thread_pool_size=thread_pool_size,
                 internal=internal,
                 use_jump_host=use_jump_host,
-                integration_name="openshift-rolebindings",
                 support_role_ref=support_role_ref,
             )
         ),
