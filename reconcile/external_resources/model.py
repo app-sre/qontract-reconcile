@@ -269,6 +269,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
     version: str = ""
     reconcile_drift_interval_minutes: int = 1440
     reconcile_timeout_minutes: int = 1440  # same as https://developer.hashicorp.com/terraform/enterprise/application-administration/general#terraform-run-timeout-settings
+    outputs_secret_sync: bool = False
     outputs_secret_image: str = ""
     outputs_secret_version: str = ""
     resources: Resources = Resources()
@@ -335,6 +336,7 @@ class ExternalResourceModuleConfiguration(BaseModel, frozen=True):
             reconcile_drift_interval_minutes=module.reconcile_drift_interval_minutes,
             reconcile_timeout_minutes=module_overrides.reconcile_timeout_minutes
             or module.reconcile_timeout_minutes,
+            outputs_secret_sync=module.outputs_secret_sync,
             outputs_secret_image=module_overrides.outputs_secret_image
             or module.outputs_secret_image
             or settings.outputs_secret_image,

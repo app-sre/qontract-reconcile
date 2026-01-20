@@ -39,7 +39,7 @@ def cloudflare_module() -> ExternalResourcesModuleV1:
         provider="zone",
         reconcile_drift_interval_minutes=60,
         reconcile_timeout_minutes=60,
-        outputs_secret_sync=True,
+        outputs_secret_sync=False,
         outputs_secret_image=None,
         outputs_secret_version=None,
         resources=None,

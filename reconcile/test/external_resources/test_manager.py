@@ -110,40 +110,59 @@ def test_resource_needs_reconciliation_drift(
 
 
 @pytest.mark.parametrize(
-    ("resource_status", "action", "reconcile_status", "expected_status"),
+    (
+        "resource_status",
+        "output_secrets_sync",
+        "action",
+        "reconcile_status",
+        "expected_status",
+    ),
     [
         (
             ResourceStatus.IN_PROGRESS,
+            True,
             Action.APPLY,
             ReconcileStatus.SUCCESS,
             ResourceStatus.PENDING_SECRET_SYNC,
         ),
         (
             ResourceStatus.IN_PROGRESS,
+            False,
+            Action.APPLY,
+            ReconcileStatus.SUCCESS,
+            ResourceStatus.CREATED,
+        ),
+        (
+            ResourceStatus.IN_PROGRESS,
+            True,
             Action.APPLY,
             ReconcileStatus.ERROR,
             ResourceStatus.ERROR,
         ),
         (
             ResourceStatus.IN_PROGRESS,
+            True,
             Action.APPLY,
             ReconcileStatus.NOT_EXISTS,
             ResourceStatus.ERROR,
         ),
         (
             ResourceStatus.DELETE_IN_PROGRESS,
+            True,
             Action.DESTROY,
             ReconcileStatus.SUCCESS,
             ResourceStatus.DELETED,
         ),
         (
             ResourceStatus.DELETE_IN_PROGRESS,
+            True,
             Action.DESTROY,
             ReconcileStatus.NOT_EXISTS,
             ResourceStatus.ERROR,
         ),
         (
             ResourceStatus.DELETE_IN_PROGRESS,
+            True,
             Action.DESTROY,
             ReconcileStatus.ERROR,
             ResourceStatus.ERROR,
@@ -155,6 +174,7 @@ def test_get_reconciliation_status(
     reconciliation: Reconciliation,
     state: ExternalResourceState,
     resource_status: ResourceStatus,
+    output_secrets_sync: bool,
     action: Action,
     reconcile_status: ReconcileStatus,
     expected_status: ResourceStatus,
@@ -162,6 +182,7 @@ def test_get_reconciliation_status(
     state.resource_status = resource_status
     r_dict = reconciliation.model_dump()
     r_dict["action"] = action
+    r_dict["module_configuration"]["outputs_secret_sync"] = output_secrets_sync
     r = Reconciliation.model_validate(r_dict)
     manager.reconciler.get_resource_reconcile_status.return_value = reconcile_status  # type:ignore
     status = manager._get_reconciliation_status(r, state)

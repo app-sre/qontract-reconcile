@@ -28,6 +28,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
             ExternalResourceModuleConfiguration(
                 image="stable-image",
                 version="1.0.0",
+                outputs_secret_sync=True,
                 outputs_secret_image="path/to/er-output-secret-image",
                 outputs_secret_version="er-output-secret-version",
                 reconcile_timeout_minutes=60,
@@ -49,6 +50,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
             ExternalResourceModuleConfiguration(
                 image="candidate-image",
                 version="2.0.0",
+                outputs_secret_sync=True,
                 outputs_secret_image="path/to/er-output-secret-image",
                 outputs_secret_version="er-output-secret-version",
                 reconcile_timeout_minutes=60,
@@ -82,6 +84,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
             ExternalResourceModuleConfiguration(
                 image="overridden-image",
                 version="overridden-version",
+                outputs_secret_sync=True,
                 outputs_secret_image="overridden-secrets-image",
                 outputs_secret_version="overridden-secrets-version",
                 reconcile_timeout_minutes=60,
@@ -116,6 +119,7 @@ from reconcile.utils.external_resource_spec import ExternalResourceSpec
             ExternalResourceModuleConfiguration(
                 image="experiment-2-image",
                 version="4.0.0",
+                outputs_secret_sync=True,
                 outputs_secret_image="path/to/er-output-secret-image",
                 outputs_secret_version="er-output-secret-version",
                 reconcile_timeout_minutes=60,

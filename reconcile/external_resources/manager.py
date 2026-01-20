@@ -318,6 +318,8 @@ class ExternalResourcesManager:
                 if r.action == Action.APPLY:
                     reconciliation_status.resource_status = (
                         ResourceStatus.PENDING_SECRET_SYNC
+                        if r.module_configuration.outputs_secret_sync
+                        else ResourceStatus.CREATED
                     )
                 elif r.action == Action.DESTROY:
                     reconciliation_status.resource_status = ResourceStatus.DELETED
@@ -376,13 +378,6 @@ class ExternalResourcesManager:
             state.resource_status = ResourceStatus.DELETE_IN_PROGRESS
         state.reconciliation = r
         self.state_mgr.set_external_resource_state(state)
-
-    def _need_secret_sync(
-        self, r: Reconciliation, state: ExternalResourceState
-    ) -> bool:
-        return (
-            r.action == Action.APPLY and state.resource_status == ResourceStatus.CREATED
-        )
 
     def _sync_secrets(
         self,
