@@ -1215,14 +1215,8 @@ class SaasHerder:
         if not env_labels:
             return False
 
-        # Handle Json type (can be str or dict) - same pattern as parameters
-        env_selector_raw = block_rule.environment_label_selector
-        if isinstance(env_selector_raw, str):
-            env_selector = json.loads(env_selector_raw)
-        else:
-            env_selector = env_selector_raw or {}
-
         # Check if environment labels match the selector
+        env_selector = block_rule.environment_label_selector or {}
         if not all(env_labels.get(key) == value for key, value in env_selector.items()):
             return False
 
