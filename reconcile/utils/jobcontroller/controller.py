@@ -326,6 +326,7 @@ class K8sJobController:
                 self.integration,
                 self.integration_version,
             ).annotate(),
+            server_side=True,
         )
 
         # if the job defines secret data, we need to create the secret
@@ -339,6 +340,7 @@ class K8sJobController:
                     self.integration,
                     self.integration_version,
                 ).annotate(),
+                server_side=True,
             )
 
     def validate_job(self, job: V1Job) -> None:

@@ -573,8 +573,17 @@ class OCCli:
         return json.loads(result)["items"]
 
     @OCDecorators.process_reconcile_time
-    def apply(self, namespace: str, resource: OR) -> OCProcessReconcileTimeDecoratorMsg:
-        cmd = ["apply", "-n", namespace, "-f", "-"]
+    def apply(
+        self,
+        namespace: str,
+        resource: OR,
+        server_side: bool = False,
+    ) -> OCProcessReconcileTimeDecoratorMsg:
+        cmd = (
+            ["apply"]
+            + (["--server-side"] if server_side else [])
+            + ["-n", namespace, "-f", "-"]
+        )
         self._run(cmd, stdin=resource.to_json(), apply=True)
         return self._msg_to_process_reconcile_time(namespace, resource)
 
