@@ -1,0 +1,383 @@
+---
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  template: qontract-api
+metadata:
+  name: qontract-api
+  annotations:
+    description: qontract-api
+objects:
+  # -------- COMMON CONFIG MAP ----------
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      annotations:
+        qontract.recycle: "true"
+      labels:
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-config
+    data:
+      QAPI_DEBUG: "${QAPI_DEBUG}"
+      QAPI_ROOT_PATH: "${QAPI_ROOT_PATH}"
+      QAPI_LOG_LEVEL: "${QAPI_LOG_LEVEL}"
+      QAPI_CELERY_OPTS: "${QAPI_CELERY_OPTS}"
+      QAPI_UVICORN_OPTS: "${QAPI_UVICORN_OPTS}"
+
+
+  # ------- API DEPLOYMENT --------------------
+  - apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: qontract-api
+    spec:
+      minAvailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: api
+
+  - apiVersion: v1
+    kind: ServiceAccount
+    imagePullSecrets: "${{IMAGE_PULL_SECRETS}}"
+    metadata:
+      name: qontract-api
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: qontract-api
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api
+    spec:
+      replicas: ${{QAPI_API_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: api
+          app.kubernetes.io/name: qontract-api
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: api
+            app.kubernetes.io/name: qontract-api
+        spec:
+          restartPolicy: Always
+          serviceAccountName: qontract-api
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/component
+                        operator: In
+                        values:
+                          - api
+                  topologyKey: "kubernetes.io/hostname"
+          containers:
+            - env:
+                - name: QAPI_START_MODE
+                  value: api
+                - name: QAPI_APP_PORT
+                  value: "${QAPI_APP_PORT}"
+              envFrom:
+                - secretRef:
+                    name: qontract-api-secret
+                    optional: true
+                - configMapRef:
+                    name: qontract-api-config
+                    optional: true
+              image: "${IMAGE}:${IMAGE_TAG}"
+              name: api
+              ports:
+                - containerPort: ${{QAPI_APP_PORT}}
+              lifecycle:
+                preStop:
+                  exec:
+                    command:
+                      - sh
+                      - "-c"
+                      - sleep 5
+              readinessProbe:
+                httpGet:
+                  path: /healthz
+                  port: ${{QAPI_APP_PORT}}
+                periodSeconds: 15
+                timeoutSeconds: 5
+              startupProbe:
+                tcpSocket:
+                  port: ${{QAPI_APP_PORT}}
+                initialDelaySeconds: 5
+                periodSeconds: 5
+                timeoutSeconds: 5
+              livenessProbe:
+                tcpSocket:
+                  port: ${{QAPI_APP_PORT}}
+                periodSeconds: 30
+                timeoutSeconds: 5
+              resources:
+                requests:
+                  cpu: ${{QAPI_API_CPU_REQUESTS}}
+                  memory: ${{QAPI_API_MEMORY_REQUESTS}}
+                limits:
+                  memory: ${{QAPI_API_MEMORY_LIMITS}}
+
+  # ---------- API SERVICE -----------
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api
+    spec:
+      ports:
+        - name: "http"
+          port: ${{QAPI_APP_PORT}}
+          targetPort: ${{QAPI_APP_PORT}}
+      selector:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/name: qontract-api
+
+  # --------- WORKER DEPLOYMENT --------------
+  - apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: qontract-api-worker
+    spec:
+      minAvailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: worker
+
+  - apiVersion: v1
+    kind: ServiceAccount
+    imagePullSecrets: "${{IMAGE_PULL_SECRETS}}"
+    metadata:
+      name: qontract-api-worker
+      labels:
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/name: qontract-api
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
+      labels:
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-worker
+    spec:
+      replicas: ${{QAPI_WORKER_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: worker
+          app.kubernetes.io/name: qontract-api
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: worker
+            app.kubernetes.io/name: qontract-api
+        spec:
+          restartPolicy: Always
+          serviceAccountName: qontract-api-worker
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/component
+                        operator: In
+                        values:
+                          - worker
+                  topologyKey: "kubernetes.io/hostname"
+          containers:
+            - env:
+                - name: QAPI_START_MODE
+                  value: worker
+                - name: QAPI_WORKER_METRICS_PORT
+                  value: "${QAPI_WORKER_METRICS_PORT}"
+                - name: QAPI_WORKER_TEMP_DIR
+                  value: /worker-temp-dir
+              envFrom:
+                - secretRef:
+                    name: qontract-api-secret
+                    optional: true
+                - configMapRef:
+                    name: qontract-api-config
+                    optional: true
+              image: "${IMAGE}:${IMAGE_TAG}"
+              name: worker
+              ports:
+                - containerPort: ${{QAPI_WORKER_METRICS_PORT}}
+              readinessProbe:
+                httpGet:
+                  path: /metrics
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                periodSeconds: 15
+                timeoutSeconds: 5
+              startupProbe:
+                tcpSocket:
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                initialDelaySeconds: 5
+                periodSeconds: 5
+                timeoutSeconds: 5
+              livenessProbe:
+                tcpSocket:
+                  port: ${{QAPI_WORKER_METRICS_PORT}}
+                periodSeconds: 30
+                timeoutSeconds: 5
+              resources:
+                requests:
+                  cpu: ${{QAPI_WORKER_CPU_REQUESTS}}
+                  memory: ${{QAPI_WORKER_MEMORY_REQUESTS}}
+                limits:
+                  memory: ${{QAPI_WORKER_MEMORY_LIMITS}}
+              volumeMounts:
+                - mountPath: /worker-temp-dir
+                  name: worker-temp-dir
+          volumes:
+            - name: worker-temp-dir
+              emptyDir:
+                sizeLimit: 50Mi
+
+  # ---------- WORKER SERVICE (PROMETHEUS) -----------
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-worker
+    spec:
+      ports:
+        - name: "http"
+          port: ${{QAPI_WORKER_METRICS_PORT}}
+          targetPort: ${{QAPI_WORKER_METRICS_PORT}}
+      selector:
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/name: qontract-api
+
+parameters:
+  # Global config
+  - name: IMAGE
+    description: Image to use for qontract-api
+    # yamllint disable-line rule:line-length
+    value: "quay.io/redhat-user-workloads/app-sre-tenant/qontract-reconcile-master/qontract-api-master"
+    required: true
+
+  - name: IMAGE_PULL_SECRETS
+    description: Pull secrets to use for qontract-api images
+    value: '[]'
+    required: false
+
+  - name: IMAGE_TAG
+    description: qontract-api version
+    value: "latest"
+    required: true
+
+  # Api config
+  - name: QAPI_APP_PORT
+    description: Port to expose the API app on
+    value: "8080"
+    required: true
+
+  - name: QAPI_CELERY_OPTS
+    description: Celery options
+
+  - name: QAPI_UVICORN_OPTS
+    description: Uvicorn options
+
+  - name: QAPI_DEBUG
+    description: Debug mode
+    value: "0"
+    required: true
+
+  - name: QAPI_ROOT_PATH
+    description: Root path for the API
+
+  - name: QAPI_LOG_LEVEL
+    description: Logging level
+    value: "INFO"
+    required: true
+
+
+  ## Api Pod limits
+  - name: QAPI_API_REPLICAS
+    description: Web replicas
+    value: "3"
+    required: true
+
+  - name: QAPI_API_MEMORY_REQUESTS
+    description: Web memory requests
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_API_MEMORY_LIMITS
+    description: Web memory limits
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_API_CPU_REQUESTS
+    description: Web cpu requests
+    value: "100m"
+    required: true
+
+  # Worker config
+  - name: QAPI_WORKER_METRICS_PORT
+    description: Port to expose the web app on
+    value: "8000"
+    required: true
+
+  ## Worker Pod limits
+  - name: QAPI_WORKER_REPLICAS
+    description: Worker replicas
+    value: "3"
+    required: true
+
+  - name: QAPI_WORKER_MEMORY_REQUESTS
+    description: Worker memory requests
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_WORKER_MEMORY_LIMITS
+    description: Worker memory limits
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_WORKER_CPU_REQUESTS
+    description: Worker cpu requests
+    value: "100m"
+    required: true
+
+  # OPA config
+  - name: QAPI_OPA_PORT
+    description: Port to expose the OPA app on
+    value: "8181"
+    required: true
+
+  ## OPA Pod limits
+  - name: QAPI_OPA_REPLICAS
+    description: OPA replicas
+    value: "3"
+    required: true
+
+  - name: QAPI_OPA_MEMORY_REQUESTS
+    description: OPA memory requests
+    value: "50Mi"
+    required: true
+
+  - name: QAPI_OPA_MEMORY_LIMITS
+    description: OPA memory limits
+    value: "100Mi"
+    required: true
+
+  - name: QAPI_OPA_CPU_REQUESTS
+    description: OPA cpu requests
+    value: "100m"
+    required: true

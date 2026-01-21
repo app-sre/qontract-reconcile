@@ -147,10 +147,9 @@ class VaultSecretBackend(SecretBackend):
         elif self._settings.kube_auth_role:
             # Kubernetes authentication
             logger.debug("Authenticating to Vault using Kubernetes auth")
-            with pathlib.Path(self._settings.kube_sa_token_path).open(
+            jwt = pathlib.Path(self._settings.kube_sa_token_path).read_text(
                 encoding="utf-8"
-            ) as f:
-                jwt = f.read()
+            )
             self._client.auth.kubernetes.login(
                 role=self._settings.kube_auth_role,
                 jwt=jwt,

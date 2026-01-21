@@ -8,10 +8,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_env() -> None:
-    """Setup test environment variables."""
-    # Set up minimal required settings for tests
+def pytest_configure() -> None:
+    """Configure pytest environment before test collection.
+
+    This hook runs before pytest starts collecting tests, ensuring
+    environment variables are set before Settings() is instantiated
+    at module import time.
+    """
+    # Set minimal required settings for tests
     os.environ.setdefault(
         "QAPI_SECRETS__DEFAULT_PROVIDER_URL", "https://vault.example.org"
     )

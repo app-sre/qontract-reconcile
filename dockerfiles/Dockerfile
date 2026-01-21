@@ -103,6 +103,7 @@ RUN uv sync --frozen --no-cache --group dev
 
 # Run tests
 COPY Makefile .
+COPY --chown=1001:root openshift openshift
 RUN make all-tests
 RUN echo "true" > /is_tested
 

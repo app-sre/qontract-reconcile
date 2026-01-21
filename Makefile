@@ -112,7 +112,7 @@ helm-test: generate
 	git diff --exit-code helm openshift
 
 unittest: ## Run unit tests
-	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml
+	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml reconcile tools
 
 .PHONY: generate-client
 generate-client:
