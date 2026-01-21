@@ -367,6 +367,11 @@ def test_create_job(
         for call in controller.oc.apply.call_args_list  # type: ignore ## parts of OC are mocked
     ]
     assert applied_kinds == expected_applied_kinds
+    server_side_apply_count = sum(
+        call.kwargs.get("server_side") is True
+        for call in controller.oc.apply.call_args_list  # type: ignore ## parts of OC
+    )
+    assert server_side_apply_count == len(expected_applied_kinds)
 
 
 #
