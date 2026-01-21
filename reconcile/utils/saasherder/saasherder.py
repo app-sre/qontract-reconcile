@@ -1238,6 +1238,74 @@ class SaasHerder:
 
         return False
 
+    def _check_blocked_image_patterns(
+        self,
+        spec: TargetSpec,
+        images_set: set[str],
+    ) -> bool:
+        """Check if images violate any block rules for the given spec.
+
+        Args:
+            spec: TargetSpec with target and environment information
+            images_set: Set of image URLs to check
+
+        Returns:
+            True if any violations are found, False otherwise
+        """
+        if not self.image_patterns_block_rules or not images_set:
+            return False  # no rules configured or no images, no violations
+
+        env_labels = spec.target.namespace.environment.labels
+        return any(
+            self._is_block_rule_violated(block_rule, env_labels, images_set, spec)
+            for block_rule in self.image_patterns_block_rules
+        )
+
+    def validate_image_patterns_block_rules(self) -> bool:
+        """Validate that all images in saas files comply with image pattern block rules.
+
+        This method processes all saas files and their targets, collects images from
+        the resources, and checks them against configured block rules based on
+        environment label selectors.
+
+        Reuses specs from populate_desired_state if available, otherwise creates them.
+
+        Returns:
+            True if any violations are found, False otherwise
+        """
+        if not self.image_patterns_block_rules:
+            return False  # no rules configured, no violations
+
+        # Reuse specs if already created by populate_desired_state, otherwise create them
+        if hasattr(self, "desired_state_specs") and self.desired_state_specs:
+            specs_list = self.desired_state_specs
+        else:
+            specs_list = []
+            for saas_file in self.saas_files:
+                specs_list.extend(self._init_populate_desired_state_specs(saas_file))
+
+        violations_found = False
+        for spec in specs_list:
+            try:
+                resources, _ = self._process_template(spec)
+            except Exception as e:
+                # Skip targets that fail to process (errors logged in _process_template)
+                logging.debug(
+                    f"Skipping image pattern validation for {spec.error_prefix}: {e}"
+                )
+                continue
+
+            # Collect images from resources
+            images_list = threaded.run(
+                self._collect_images, resources, self.available_thread_pool_size
+            )
+            images_set = set(itertools.chain.from_iterable(images_list))
+
+            if self._check_blocked_image_patterns(spec, images_set):
+                violations_found = True
+
+        return violations_found
+
     def _check_images(
         self,
         spec: TargetSpec,
@@ -1250,15 +1318,6 @@ class SaasHerder:
         self.images.update(images_set)
         if not images_set:
             return False  # no errors
-
-        # Check for blocked image patterns based on environment label selectors
-        if self.image_patterns_block_rules:
-            env_labels = spec.target.namespace.environment.labels
-            if any(
-                self._is_block_rule_violated(block_rule, env_labels, images_set, spec)
-                for block_rule in self.image_patterns_block_rules
-            ):
-                return True  # error found
 
         # imagePatterns validation
         images = threaded.run(
@@ -1331,6 +1390,7 @@ class SaasHerder:
         desired_state_specs: list[TargetSpec] = list(
             itertools.chain.from_iterable(results)
         )
+        self.desired_state_specs = desired_state_specs
         promotions = threaded.run(
             self.populate_desired_state_saas_file,
             desired_state_specs,
