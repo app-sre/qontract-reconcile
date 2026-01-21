@@ -25,10 +25,10 @@ from reconcile.gql_definitions.common.app_interface_roles import (
     UserV1,
 )
 from reconcile.openshift_bindings.models import (
-    BindingSpec,
     ClusterRoleBindingSpec,
     RoleBindingSpec,
     ServiceAccountSpec,
+    get_usernames_from_users,
 )
 from reconcile.openshift_bindings.utils import is_valid_namespace
 
@@ -133,19 +133,17 @@ class TestServiceAccountSpec:
         assert specs[0].sa_name == "cluster-sa"
 
 
-class TestBindingSpec:
-    """Tests for BindingSpec base class."""
+class TestGetUsernamesFromUsers:
+    """Tests for get_usernames_from_users function."""
 
     def test_get_usernames_from_users_single_key(self, test_user: UserV1) -> None:
         """Extract usernames with single key."""
-        usernames = BindingSpec.get_usernames_from_users(
-            [test_user], user_keys=["org_username"]
-        )
+        usernames = get_usernames_from_users([test_user], user_keys=["org_username"])
         assert usernames == {"test-org-user"}
 
     def test_get_usernames_from_users_multiple_keys(self, test_user: UserV1) -> None:
         """Extract usernames with multiple keys returns all matches."""
-        usernames = BindingSpec.get_usernames_from_users(
+        usernames = get_usernames_from_users(
             [test_user], user_keys=["org_username", "github_username"]
         )
         assert usernames == {"test-org-user", "test-github-user"}
@@ -154,35 +152,31 @@ class TestBindingSpec:
         self, test_user: UserV1, test_user_2: UserV1
     ) -> None:
         """Extract usernames from multiple users."""
-        usernames = BindingSpec.get_usernames_from_users(
+        usernames = get_usernames_from_users(
             [test_user, test_user_2], user_keys=["org_username"]
         )
         assert usernames == {"test-org-user", "test-org-user-2"}
 
     def test_get_usernames_from_users_none_users(self) -> None:
         """None users returns empty set."""
-        usernames = BindingSpec.get_usernames_from_users(
-            None, user_keys=["org_username"]
-        )
+        usernames = get_usernames_from_users(None, user_keys=["org_username"])
         assert usernames == set()
 
     def test_get_usernames_from_users_none_keys(self, test_user: UserV1) -> None:
         """None user_keys returns empty set."""
-        usernames = BindingSpec.get_usernames_from_users([test_user], user_keys=None)
+        usernames = get_usernames_from_users([test_user], user_keys=None)
         assert usernames == set()
 
     def test_get_usernames_from_users_invalid_key(self, test_user: UserV1) -> None:
         """Invalid key is skipped."""
-        usernames = BindingSpec.get_usernames_from_users(
-            [test_user], user_keys=["invalid_key"]
-        )
+        usernames = get_usernames_from_users([test_user], user_keys=["invalid_key"])
         assert usernames == set()
 
     def test_get_usernames_from_users_cluster_users(
         self, test_cluster_user: ClusterUserV1
     ) -> None:
         """ClusterUserV1 type also works."""
-        usernames = BindingSpec.get_usernames_from_users(
+        usernames = get_usernames_from_users(
             [test_cluster_user], user_keys=["org_username"]
         )
         assert usernames == {"test-cluster-user"}

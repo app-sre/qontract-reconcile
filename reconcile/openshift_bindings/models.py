@@ -1,7 +1,6 @@
 """Shared data models for openshift-rolebindings and openshift-clusterrolebindings integrations."""
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any, Self
 
 from pydantic import BaseModel
@@ -41,6 +40,18 @@ from reconcile.openshift_bindings.utils import is_valid_namespace
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 
 
+def get_usernames_from_users(
+    users: Sequence[UserV1 | ClusterUserV1] | None,
+    user_keys: list[str] | None = None,
+) -> set[str]:
+    return {
+        name
+        for user in users or []
+        for user_key in user_keys or []
+        if (name := getattr(user, user_key, None))
+    }
+
+
 class OCResource(BaseModel, arbitrary_types_allowed=True):
     """Represents an OpenShift resource with metadata."""
 
@@ -49,14 +60,12 @@ class OCResource(BaseModel, arbitrary_types_allowed=True):
     privileged: bool = False
 
 
-@dataclass
-class OCResourceData:
+class OCResourceData(BaseModel):
     body: dict[str, Any]
     name: str
 
 
-@dataclass
-class ServiceAccountSpec:
+class ServiceAccountSpec(BaseModel):
     """Service account specification with namespace and name."""
 
     sa_namespace_name: str
@@ -86,19 +95,6 @@ class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=Tru
     resource_kind: str
     usernames: set[str]
     openshift_service_accounts: list[ServiceAccountSpec]
-
-    @staticmethod
-    def get_usernames_from_users(
-        users: Sequence[UserV1 | ClusterUserV1] | None,
-        user_keys: list[str] | None = None,
-    ) -> set[str]:
-        """Extract usernames from user objects using depending on the user keys."""
-        return {
-            name
-            for user in users or []
-            for user_key in user_keys or []
-            if (name := getattr(user, user_key, None))
-        }
 
     def get_oc_resources(self) -> list[OCResourceData]:
         user_oc_resources = [
@@ -186,7 +182,7 @@ class RoleBindingSpec(BindingSpec):
         auth_dict = [
             auth.model_dump(by_alias=True) for auth in access.namespace.cluster.auth
         ]
-        usernames = cls.get_usernames_from_users(
+        usernames = get_usernames_from_users(
             users,
             ob.determine_user_keys_for_access(
                 access.namespace.cluster.name,
@@ -245,7 +241,7 @@ class ClusterRoleBindingSpec(BindingSpec):
         cluster_role_binding_specs = [
             cls(
                 cluster=access.cluster,
-                usernames=BindingSpec.get_usernames_from_users(
+                usernames=get_usernames_from_users(
                     users=cluster_role.users,
                     user_keys=cls.get_user_keys(access.cluster),
                 ),
