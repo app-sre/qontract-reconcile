@@ -1393,3 +1393,65 @@ def test_delete_project_command_selection(
     mock_run.assert_called_once()
     actual_command = mock_run.call_args[0][0]
     assert actual_command == expected_command
+
+
+@pytest.mark.parametrize(
+    ("server_side", "expected_command"),
+    [
+        (
+            True,
+            [
+                "apply",
+                "--server-side",
+                "-n",
+                "test-namespace",
+                "-f",
+                "-",
+            ],
+        ),
+        (
+            False,
+            [
+                "apply",
+                "-n",
+                "test-namespace",
+                "-f",
+                "-",
+            ],
+        ),
+    ],
+)
+def test_oc_apply(
+    oc_cli: OCCli,
+    mocker: MockerFixture,
+    server_side: bool,
+    expected_command: list[str],
+) -> None:
+    mock_run = mocker.patch.object(
+        oc_cli,
+        "_run",
+        return_value=b"{}",
+    )
+    resource = OR(
+        body={
+            "apiVersion": "v1",
+            "kind": "ConfigMap",
+            "metadata": {"name": "test-configmap"},
+            "data": {"key": "value"},
+        },
+        integration="test-integration",
+        integration_version="0.0.1",
+    )
+
+    oc_cli.apply.__wrapped__(  # type: ignore[attr-defined]
+        oc_cli,
+        namespace="test-namespace",
+        resource=resource,
+        server_side=server_side,
+    )
+
+    mock_run.assert_called_once_with(
+        expected_command,
+        stdin=resource.to_json(),
+        apply=True,
+    )
