@@ -109,7 +109,7 @@ Key variables:
 
 - `JWT_SECRET_KEY` - Secret key for JWT token signing (MUST be changed for production!)
 - `JWT_ALGORITHM` - JWT algorithm (default: HS256)
-- `JWT_EXPIRE_MINUTES` - Default token expiration (default: 30 minutes)
+- `JWT_EXPIRE_DAYS` - Default token expiration (default: 180 days)
 
 **For production:**
 

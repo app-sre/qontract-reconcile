@@ -20,7 +20,7 @@ from qontract_api.config import Settings
         ("celery_result_backend", "redis://localhost:6379/2"),
         ("jwt_secret_key", "my-secret"),
         ("jwt_algorithm", "HS512"),
-        ("jwt_expire_minutes", 120),
+        ("jwt_expire_days", 42),
     ],
 )
 def test_settings_custom_values(field: str, value: str | bool | int) -> None:

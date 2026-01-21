@@ -72,6 +72,7 @@ app = FastAPI(
     version=settings.version,
     debug=settings.debug,
     lifespan=lifespan,
+    root_path=settings.root_path,
     openapi_url="/docs/openapi.json",
     # don't use add_exception_handler because of https://github.com/Kludex/starlette/discussions/2391
     exception_handlers={

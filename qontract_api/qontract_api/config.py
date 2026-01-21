@@ -257,6 +257,7 @@ class Settings(BaseSettings):
     app_name: str = "qontract-api"
     version: str = "0.1.0"
     debug: bool = Field(default=False, description="Enable debug mode")
+    root_path: str = ""
 
     # Logging
     log_level: str = Field(default="INFO", description="Logging level")
@@ -308,8 +309,8 @@ class Settings(BaseSettings):
         description="Secret key for JWT token signing",
     )
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
-    jwt_expire_minutes: int = Field(
-        default=60, description="JWT token expiration in minutes"
+    jwt_expire_days: int = Field(
+        default=180, description="JWT token expiration in days"
     )
 
     # API Task Execution
