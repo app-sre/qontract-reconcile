@@ -86,7 +86,7 @@ class ServiceAccountSpec(BaseModel):
         ]
 
 
-class BindingSpec(BaseModel, validate_by_alias=True, arbitrary_types_allowed=True):
+class BindingSpec(BaseModel, arbitrary_types_allowed=True):
     """Base specification for role bindings (cluster or namespace scoped)."""
 
     role_name: str
