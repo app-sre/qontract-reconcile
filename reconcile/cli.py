@@ -776,16 +776,25 @@ def github_validator(ctx: click.Context) -> None:
 @use_jump_host()
 @click.pass_context
 def openshift_clusterrolebindings(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
+    ctx: click.Context,
+    thread_pool_size: int,
+    internal: bool,
+    use_jump_host: bool,
 ) -> None:
-    import reconcile.openshift_clusterrolebindings
+    from reconcile.openshift_bindings.openshift_clusterrolebindings import (
+        OpenShiftClusterRoleBindingsIntegration,
+        OpenShiftClusterRoleBindingsIntegrationParams,
+    )
 
-    run_integration(
-        reconcile.openshift_clusterrolebindings,
-        ctx,
-        thread_pool_size,
-        internal,
-        use_jump_host,
+    run_class_integration(
+        integration=OpenShiftClusterRoleBindingsIntegration(
+            OpenShiftClusterRoleBindingsIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                internal=internal,
+                use_jump_host=use_jump_host,
+            )
+        ),
+        ctx=ctx,
     )
 
 
@@ -808,15 +817,21 @@ def openshift_rolebindings(
     use_jump_host: bool,
     support_role_ref: bool,
 ) -> None:
-    import reconcile.openshift_rolebindings
+    from reconcile.openshift_bindings.openshift_rolebindings import (
+        OpenShiftRoleBindingsIntegration,
+        OpenShiftRoleBindingsIntegrationParams,
+    )
 
-    run_integration(
-        reconcile.openshift_rolebindings,
-        ctx,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-        support_role_ref,
+    run_class_integration(
+        integration=OpenShiftRoleBindingsIntegration(
+            OpenShiftRoleBindingsIntegrationParams(
+                thread_pool_size=thread_pool_size,
+                internal=internal,
+                use_jump_host=use_jump_host,
+                support_role_ref=support_role_ref,
+            )
+        ),
+        ctx=ctx,
     )
 
 
