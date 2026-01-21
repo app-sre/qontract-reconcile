@@ -1863,7 +1863,7 @@ def get_repos_gitlab_housekeeping(server: str = "") -> list[dict[str, Any]]:
     """
     code_components = get_code_components()
     return [
-        {"url": c["url"], "housekeeping": c["gitlabHousekeeping"]}
+        {"name": c["name"], "url": c["url"], "housekeeping": c["gitlabHousekeeping"]}
         for c in code_components
         if c["url"].startswith(server)
         and c["gitlabHousekeeping"]
