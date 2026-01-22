@@ -70,14 +70,25 @@ objects:
           serviceAccountName: qontract-api
           affinity:
             podAntiAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                - labelSelector:
-                    matchExpressions:
-                      - key: app.kubernetes.io/component
-                        operator: In
-                        values:
-                          - api
-                  topologyKey: "kubernetes.io/hostname"
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - api
+                    topologyKey: topology.kubernetes.io/zone
+                  weight: 100
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - api
+                    topologyKey: kubernetes.io/hostname
+                  weight: 1
           containers:
             - env:
                 - name: QAPI_START_MODE
@@ -188,14 +199,25 @@ objects:
           serviceAccountName: qontract-api-worker
           affinity:
             podAntiAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                - labelSelector:
-                    matchExpressions:
-                      - key: app.kubernetes.io/component
-                        operator: In
-                        values:
-                          - worker
-                  topologyKey: "kubernetes.io/hostname"
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - worker
+                    topologyKey: topology.kubernetes.io/zone
+                  weight: 100
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - worker
+                    topologyKey: kubernetes.io/hostname
+                  weight: 1
           containers:
             - env:
                 - name: QAPI_START_MODE
