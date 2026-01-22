@@ -448,6 +448,7 @@ class SlackWorkspaceClient:
         Returns:
             Updated SlackUsergroupAPI object
         """
+        # TODO: https://github.com/app-sre/qontract-reconcile/pull/5304#discussion_r2715066336
         # Get usergroup by handle
         ug = self._get_usergroup_by_handle(handle)
         if not ug:

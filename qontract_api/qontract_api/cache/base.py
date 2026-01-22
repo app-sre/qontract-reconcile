@@ -253,6 +253,7 @@ class CacheBackend(ABC):
             Deserialized Pydantic model instance or None if key doesn't exist
         """
         # Tier 1: Memory cache (99% hit rate expected - FAST!)
+        # TODO: https://github.com/app-sre/qontract-reconcile/pull/5332#discussion_r2608966256
         if self._memory_cache is not None and key in self._memory_cache:
             return self._memory_cache[key]
 
