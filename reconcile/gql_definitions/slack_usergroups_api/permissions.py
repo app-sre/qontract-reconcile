@@ -72,6 +72,7 @@ query SlackUsergroupApiPermission {
         }
       }
       workspace {
+        path
         name
         integrations {
           name
@@ -130,6 +131,7 @@ class SlackWorkspaceIntegrationV1(ConfiguredBaseModel):
 
 
 class SlackWorkspaceV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
     integrations: Optional[list[SlackWorkspaceIntegrationV1]] = Field(..., alias="integrations")
     managed_usergroups: list[str] = Field(..., alias="managedUsergroups")

@@ -375,13 +375,12 @@ class SlackUsergroupsIntegration(
         desired_usergroup_name: str | None,
     ) -> tuple[str, SlackUsergroup] | None:
         """Process a single permission and return (workspace_name, usergroup)."""
-        if permission.skip or not permission.workspace.managed_usergroups:
+        workspace = permission.workspace
+        if permission.skip or not workspace.managed_usergroups:
             return None
 
-        workspace_name = permission.workspace.name
-
         # Filter by workspace if specified
-        if desired_workspace_name and workspace_name != desired_workspace_name:
+        if desired_workspace_name and workspace.name != desired_workspace_name:
             return None
 
         # Get usergroup handle
@@ -392,10 +391,9 @@ class SlackUsergroupsIntegration(
             return None
 
         # Validate usergroup is in managed_usergroups (SECURITY)
-        if usergroup_handle not in permission.workspace.managed_usergroups:
+        if usergroup_handle not in workspace.managed_usergroups:
             raise KeyError(
-                f"[{permission.workspace.name}] usergroup {usergroup_handle} \
-                    not in managed usergroups {permission.workspace.managed_usergroups}"
+                f"[{workspace.name}] usergroup '{usergroup_handle}' not in 'managedUsergroups' of the Slack workspace '{workspace.path}'"
             )
 
         # Add users from the permission roles
@@ -425,7 +423,7 @@ class SlackUsergroupsIntegration(
         )
         usergroup = SlackUsergroup(handle=usergroup_handle, config=config)
 
-        return (workspace_name, usergroup)
+        return (workspace.name, usergroup)
 
     async def compile_desired_state_from_permissions(
         self,

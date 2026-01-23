@@ -35,6 +35,7 @@ query SlackUsergroupApiPermission {
         }
       }
       workspace {
+        path
         name
         integrations {
           name
