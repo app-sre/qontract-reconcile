@@ -16,6 +16,7 @@ from reconcile.gql_definitions.external_resources.external_resources_modules imp
 from reconcile.gql_definitions.external_resources.external_resources_namespaces import (
     NamespaceTerraformProviderResourceAWSV1,
     NamespaceTerraformProviderResourceCloudflareV1,
+    NamespaceTerraformResourceCloudflareAccountV1,
     NamespaceTerraformResourceCloudflareZoneV1,
     NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
@@ -104,6 +105,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceCloudWatchV1
     | NamespaceTerraformResourceRDSProxyV1
     | NamespaceTerraformResourceCloudflareZoneV1
+    | NamespaceTerraformResourceCloudflareAccountV1
 )
 
 
