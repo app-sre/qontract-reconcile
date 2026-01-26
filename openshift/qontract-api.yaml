@@ -115,7 +115,13 @@ objects:
                       - sleep 5
               readinessProbe:
                 httpGet:
-                  path: /healthz
+                  path: /health/ready
+                  port: ${{QAPI_APP_PORT}}
+                periodSeconds: 60
+                timeoutSeconds: 5
+              livenessProbe:
+                httpGet:
+                  path: /health/live
                   port: ${{QAPI_APP_PORT}}
                 periodSeconds: 15
                 timeoutSeconds: 5
@@ -124,11 +130,6 @@ objects:
                   port: ${{QAPI_APP_PORT}}
                 initialDelaySeconds: 5
                 periodSeconds: 5
-                timeoutSeconds: 5
-              livenessProbe:
-                tcpSocket:
-                  port: ${{QAPI_APP_PORT}}
-                periodSeconds: 30
                 timeoutSeconds: 5
               resources:
                 requests:
