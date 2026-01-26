@@ -92,13 +92,6 @@ objects:
                 key: slack.triggers_url
                 name: app-interface
           {{- end }}
-          {{- if $.Values.enable_slack_error_filter }}
-          - name: SLACK_ERRORS_ONLY_WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                key: slack.errors_only_webhook_url
-                name: app-interface
-          {{- end }}
           {{- if $integration.trigger }}
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL_TRIGGER}
@@ -108,10 +101,15 @@ objects:
           {{- end }}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
+          {{- end }}
           {{- if $.Values.enable_slack_error_filter }}
+          - name: SLACK_ERRORS_ONLY_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.errors_only_webhook_url
+                name: app-interface
           - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
             value: ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
-          {{- end }}
           {{- end }}
           {{- if $logs.googleChat }}
 
