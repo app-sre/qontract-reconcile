@@ -1747,15 +1747,15 @@ wheels = [
 
 [[package]]
 name = "python-gitlab"
-version = "6.0.0"
+version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "requests-toolbelt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3b/ba/3ee473d71e32d60c8d6ef7b914f5f3df64a067b816499aa8a6083a397d4f/python_gitlab-6.0.0.tar.gz", hash = "sha256:704bf548c258f1cfe2f09b8ece9af1cc8fa6ae828ac6fe6a1cbe957c98431414", size = 397108, upload-time = "2025-06-04T02:38:33.497Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/98/0b5d0a0367b90aec818298390b60ae65e6a08989cf5140271d0ee0206882/python_gitlab-7.1.0.tar.gz", hash = "sha256:1c34da3de40ad21675d788136f73d20a60649513e692f52c5a9720434db97c46", size = 401058, upload-time = "2025-12-28T01:27:01.369Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/33/42788d9860c15fffc617d90a7f1ccda596b11f1abedf5a315f3b66da0d73/python_gitlab-6.0.0-py3-none-any.whl", hash = "sha256:d63bb56b5f7781a7eb0a9846a3aed9b783c8036f67107d9d48653e17242a7130", size = 144035, upload-time = "2025-06-04T02:38:31.011Z" },
+    { url = "https://files.pythonhosted.org/packages/14/44/70fa1e395731b6a4b1f249d5f7326f3bb6281e2cf94d6535f679239f4b93/python_gitlab-7.1.0-py3-none-any.whl", hash = "sha256:8e42030cf27674e7ec9ea1f6d2fedcaaef0a6210f5fa22c80721abaa3a4fec90", size = 144441, upload-time = "2025-12-28T01:26:59.726Z" },
 ]
 
 [[package]]
@@ -2068,7 +2068,7 @@ requires-dist = [
     { name = "pyjwt", specifier = "~=2.7" },
     { name = "pyopenssl", specifier = "~=23.0" },
     { name = "pypd", specifier = ">=1.1.0,<1.2.0" },
-    { name = "python-gitlab", specifier = "==6.0.0" },
+    { name = "python-gitlab", specifier = "==7.1.0" },
     { name = "qontract-api-client", editable = "qontract_api_client" },
     { name = "qontract-utils", editable = "qontract_utils" },
     { name = "requests", specifier = "~=2.32" },
@@ -2159,7 +2159,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = "==0.23.1" },
     { name = "pydantic", specifier = "==2.12.4" },
     { name = "pygithub", specifier = "==1.58.2" },
-    { name = "python-gitlab", specifier = "==6.0.0" },
+    { name = "python-gitlab", specifier = "==7.1.0" },
     { name = "requests", specifier = "==2.32.5" },
     { name = "ruamel-yaml", specifier = "==0.17.40" },
     { name = "slack-sdk", specifier = "==3.38" },
