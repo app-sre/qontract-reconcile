@@ -656,7 +656,6 @@ class SlackUsergroupsIntegration(
             sys.exit(1)
 
         if task_result.actions:
-            logging.info(f"Actions performed: {len(task_result.actions)}")
             for action in task_result.actions or []:
                 if isinstance(action, SlackUsergroupActionUpdateUsers):
                     logging.info(
