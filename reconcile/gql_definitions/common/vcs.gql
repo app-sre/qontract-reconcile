@@ -1,0 +1,19 @@
+# qenerate: plugin=pydantic_v2
+
+query Vcs {
+  gh_orgs: githuborg_v1 {
+    name
+    url
+    default
+    token {
+      ...VaultSecret
+    }
+  }
+  gl_instances: gitlabinstance_v1 {
+    name
+    url
+    token {
+      ...VaultSecret
+    }
+  }
+}

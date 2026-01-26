@@ -10,6 +10,8 @@ COPY pyproject.toml uv.lock README.md ./
 COPY helm helm
 COPY tools tools
 COPY reconcile reconcile
+COPY qontract_utils qontract_utils
+COPY qontract_api_client qontract_api_client
 
 ENV \
     # use venv from ubi image
@@ -101,6 +103,7 @@ RUN uv sync --frozen --no-cache --group dev
 
 # Run tests
 COPY Makefile .
+COPY --chown=1001:root openshift openshift
 RUN make all-tests
 RUN echo "true" > /is_tested
 

@@ -74,7 +74,7 @@ pypi-konflux:
 	uv publish
 
 dev-venv: clean # Create/Update a local venv for your IDE and remote debugging
-	uv sync -U
+	uv sync -U --all-packages
 
 print-files-modified-in-last-30-days:
 	@git log --since '$(shell date --date='-30 day' +"%m/%d/%y")' --until '$(shell date +"%m/%d/%y")' --oneline --name-only --pretty=format: | sort | uniq | grep -E '.py$$'
@@ -112,4 +112,13 @@ helm-test: generate
 	git diff --exit-code helm openshift
 
 unittest: ## Run unit tests
-	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml
+	uv run pytest --cov=reconcile --cov-report=term-missing --cov-report xml reconcile tools
+
+.PHONY: generate-client
+generate-client:
+	make -C qontract_api_client generate-client
+
+poc-tests:
+	make -C qontract_api test
+# 	cd qontract_api_client && make test
+	make -C qontract_utils test
