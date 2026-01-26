@@ -147,6 +147,96 @@ def test_aws_account_manager_utils_integration_get_aws_accounts_bad_email_in_acc
         )
 
 
+def test_aws_account_manager_utils_integration_get_aws_accounts_duplicate_email_across_payer_accounts(
+    intg: AwsAccountMgmtIntegration,
+    data_factory: Callable[[type[AWSAccountV1], Mapping[str, Any]], Mapping[str, Any]],
+) -> None:
+    with pytest.raises(ValueError, match="Invalid email"):
+        intg.get_aws_accounts(
+            lambda *args, **kwargs: {
+                "accounts": [
+                    # first payer account
+                    data_factory(
+                        AWSAccountV1,
+                        {
+                            "name": "starfleet",
+                            "uid": "111111111111",
+                            "premiumSupport": True,
+                            "resourcesDefaultRegion": "us-east-1",
+                            "securityContact": {
+                                "name": "security contact name",
+                                "email": "security@example.com",
+                                "phoneNumber": "+1234567890",
+                            },
+                            "automationToken": {"path": "vault-path", "field": "all"},
+                            "accountOwners": [{"email": "starfleet@example.com"}],
+                            "automationRole": {
+                                "awsAccountManager": "AwsAccountManager"
+                            },
+                            "account_requests": [
+                                {
+                                    "path": "/aws/data/request1.yml",
+                                    "name": "data1",
+                                    "description": "Request for a new AWS account",
+                                    "accountOwner": {
+                                        "name": "AppSRE",
+                                        "email": "duplicate@example.com",
+                                    },
+                                    "organization": {
+                                        "ou": "/Root/alpha quadrant/uss enterprise/ncc-1701-d",
+                                        "tags": '{"ship": "USS Enterprise"}',
+                                        "payerAccount": {"path": "/aws/starfleet.yml"},
+                                    },
+                                    "quotaLimits": [],
+                                },
+                            ],
+                            "organization_accounts": [],
+                        },
+                    ),
+                    # second payer account with duplicate email
+                    data_factory(
+                        AWSAccountV1,
+                        {
+                            "name": "klingon",
+                            "uid": "222222222222",
+                            "premiumSupport": True,
+                            "resourcesDefaultRegion": "us-east-1",
+                            "securityContact": {
+                                "name": "security contact name",
+                                "email": "security@example.com",
+                                "phoneNumber": "+1234567890",
+                            },
+                            "automationToken": {"path": "vault-path", "field": "all"},
+                            "accountOwners": [{"email": "klingon@example.com"}],
+                            "automationRole": {
+                                "awsAccountManager": "AwsAccountManager"
+                            },
+                            "account_requests": [
+                                {
+                                    "path": "/aws/data/request2.yml",
+                                    "name": "data2",
+                                    "description": "Request for another AWS account",
+                                    "accountOwner": {
+                                        "name": "AppSRE",
+                                        # duplicate email - should trigger error
+                                        "email": "duplicate@example.com",
+                                    },
+                                    "organization": {
+                                        "ou": "/Root/beta quadrant/klingon/qo-nos",
+                                        "tags": '{"empire": "Klingon"}',
+                                        "payerAccount": {"path": "/aws/klingon.yml"},
+                                    },
+                                    "quotaLimits": [],
+                                },
+                            ],
+                            "organization_accounts": [],
+                        },
+                    ),
+                ]
+            }
+        )
+
+
 def test_aws_account_manager_utils_integration_save_access_key(
     intg: AwsAccountMgmtIntegration,
 ) -> None:

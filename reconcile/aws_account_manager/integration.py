@@ -146,6 +146,7 @@ class AwsAccountMgmtIntegration(
                     raise ValueError(
                         f"Invalid email for account request {account_request.name} in payer account {payer_account.name}. Email {account_request.account_owner.email} is already used."
                     )
+                used_emails.add(account_request.account_owner.email)
         return payer_accounts, non_organization_accounts
 
     def save_access_key(self, account: str, access_key: AWSAccessKey) -> None:
