@@ -115,7 +115,13 @@ objects:
                       - sleep 5
               readinessProbe:
                 httpGet:
-                  path: /healthz
+                  path: /health/ready
+                  port: ${{QAPI_APP_PORT}}
+                periodSeconds: 60
+                timeoutSeconds: 5
+              livenessProbe:
+                httpGet:
+                  path: /health/live
                   port: ${{QAPI_APP_PORT}}
                 periodSeconds: 15
                 timeoutSeconds: 5
@@ -124,11 +130,6 @@ objects:
                   port: ${{QAPI_APP_PORT}}
                 initialDelaySeconds: 5
                 periodSeconds: 5
-                timeoutSeconds: 5
-              livenessProbe:
-                tcpSocket:
-                  port: ${{QAPI_APP_PORT}}
-                periodSeconds: 30
                 timeoutSeconds: 5
               resources:
                 requests:
@@ -290,7 +291,7 @@ parameters:
   - name: IMAGE
     description: Image to use for qontract-api
     # yamllint disable-line rule:line-length
-    value: "quay.io/redhat-user-workloads/app-sre-tenant/qontract-reconcile-master/qontract-api-master"
+    value: "quay.io/redhat-services-prod/app-sre-tenant/qontract-reconcile-master/qontract-api-master"
     required: true
 
   - name: IMAGE_PULL_SECRETS
@@ -327,7 +328,6 @@ parameters:
     description: Logging level
     value: "INFO"
     required: true
-
 
   ## Api Pod limits
   - name: QAPI_API_REPLICAS
@@ -374,32 +374,5 @@ parameters:
 
   - name: QAPI_WORKER_CPU_REQUESTS
     description: Worker cpu requests
-    value: "100m"
-    required: true
-
-  # OPA config
-  - name: QAPI_OPA_PORT
-    description: Port to expose the OPA app on
-    value: "8181"
-    required: true
-
-  ## OPA Pod limits
-  - name: QAPI_OPA_REPLICAS
-    description: OPA replicas
-    value: "3"
-    required: true
-
-  - name: QAPI_OPA_MEMORY_REQUESTS
-    description: OPA memory requests
-    value: "50Mi"
-    required: true
-
-  - name: QAPI_OPA_MEMORY_LIMITS
-    description: OPA memory limits
-    value: "100Mi"
-    required: true
-
-  - name: QAPI_OPA_CPU_REQUESTS
-    description: OPA cpu requests
     value: "100m"
     required: true
