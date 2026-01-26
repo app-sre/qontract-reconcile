@@ -646,27 +646,26 @@ class SlackUsergroupsIntegration(
             return
 
         task = await self.reconcile(workspaces=workspaces, dry_run=dry_run)
-        if dry_run:
-            # wait for task completion and get the action list
-            task_result = await slack_usergroups_task_status(
-                client=self.qontract_api_client, task_id=task.id, timeout=300
-            )
-            if task_result.status == TaskStatus.PENDING:
-                logging.error("Task did not complete within the timeout period")
-                sys.exit(1)
 
-            if task_result.actions:
-                logging.info("Proposed actions:")
-                for action in task_result.actions or []:
-                    if isinstance(action, SlackUsergroupActionUpdateUsers):
-                        logging.info(
-                            f"{action.usergroup=} {action.users_to_add=} {action.users_to_remove=}"
-                        )
-                    else:
-                        logging.info(action)
+        # wait for task completion and get the action list
+        task_result = await slack_usergroups_task_status(
+            client=self.qontract_api_client, task_id=task.id, timeout=300
+        )
+        if task_result.status == TaskStatus.PENDING:
+            logging.error("Task did not complete within the timeout period")
+            sys.exit(1)
 
-            if task_result.errors:
-                logging.error(f"Errors encountered: {len(task_result.errors)}")
-                for error in task_result.errors:
-                    logging.error(f"  - {error}")
-                sys.exit(1)
+        if task_result.actions:
+            for action in task_result.actions or []:
+                if isinstance(action, SlackUsergroupActionUpdateUsers):
+                    logging.info(
+                        f"{action.usergroup=} {action.users_to_add=} {action.users_to_remove=}"
+                    )
+                else:
+                    logging.info(action)
+
+        if task_result.errors:
+            logging.error(f"Errors encountered: {len(task_result.errors)}")
+            for error in task_result.errors:
+                logging.error(f"  - {error}")
+            sys.exit(1)
