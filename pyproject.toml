@@ -42,7 +42,7 @@ dependencies = [
     "pydantic~=2.12.3",
     "PyGithub>=1.58,<1.59",
     "pyjwt~=2.7",
-    "pyOpenSSL~=23.0",
+    "pyOpenSSL~=25.3",
     "pypd>=1.1.0,<1.2.0",
     "python-gitlab==6.0.0",
     "requests-oauthlib~=1.3",
