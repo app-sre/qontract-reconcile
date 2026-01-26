@@ -92,7 +92,7 @@ objects:
                 key: slack.triggers_url
                 name: app-interface
           {{- end }}
-          {{- if $.Values.enable_slack_error_filter }}
+          {{- if $logs.slackErrorFilter }}
           - name: SLACK_ERRORS_ONLY_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -108,7 +108,7 @@ objects:
           {{- end }}
           - name: SLACK_ICON_EMOJI
             value: ${SLACK_ICON_EMOJI}
-          {{- if $.Values.enable_slack_error_filter }}
+          {{- if $logs.slackErrorFilter }}
           - name: SLACK_RECONCILE_ERR_CHANNEL_NAME
             value: ${SLACK_RECONCILE_ERR_CHANNEL_NAME}
           {{- end }}
@@ -256,7 +256,7 @@ objects:
                 </rule>
               </store>
               {{- end}}
-              {{- if $.Values.enable_slack_error_filter }}
+              {{- if $logs.slackErrorFilter }}
               # ship errors to separate slack channel
               <store>
                 @type rewrite_tag_filter
@@ -313,7 +313,7 @@ objects:
             </match>
             {{- end }}
 
-            {{- if $.Values.enable_slack_error_filter }}
+            {{- if $logs.slackErrorFilter }}
             <match slack_errors>
               @type slack
               webhook_url ${SLACK_ERRORS_ONLY_WEBHOOK_URL}
@@ -898,11 +898,6 @@ parameters:
   value: push-gateway-auth-url
 - name: USED_FOR_SECURITY
   value: ''
-{{- if .Values.enable_slack_error_filter }}
-- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
-  value: "sd-app-sre-reconcile-errors-stage"
-  required: false
-{{- end }}
 {{- range $i, $integration := .Values.integrations }}
 {{- if $integration.sleepDurationSecs }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_SLEEP_DURATION_SECS
@@ -927,6 +922,11 @@ parameters:
 {{- if $integration.resources.requests.memory }}
 - name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST
   value: {{ $integration.resources.requests.memory }}
+{{- end }}
+{{- if $integration.logs.slackErrorFilter }}
+- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+  value: "sd-app-sre-reconcile-errors-stage"
+  required: false
 {{- end }}
 {{- end }}
 {{- end }}
