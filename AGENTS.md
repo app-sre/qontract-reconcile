@@ -57,8 +57,12 @@ make dev-reconcile-loop  # Start containerized development environment
 
 - `reconcile/` - 158 integration modules + core utilities
 - `reconcile/gql_definitions/` - Auto-generated GraphQL dataclasses (do not edit manually)
+- `qontract-api/` - REST API server for our integrations
+- `qontract-api-client/` - Auto-generated Python client for qontract-api
+- `qontract-utils/` - Utilities shared across qontract-api and reconcile
 - `tools/` - CLI utilities and standalone tools
 - `docs/patterns/` - Architectural documentation and best practices
+- `docs/ADR/` - Architectural decision records
 
 ### GraphQL Data Binding
 
@@ -112,6 +116,13 @@ def run(dry_run: bool, thread_pool_size: int = 10) -> None:
 - Many integrations support horizontal scaling via sharding
 - Use `reconcile.utils.sharding` utilities
 - Test both sharded and non-sharded execution paths
+
+### Archtitectural Decisions
+
+- Documented in `docs/ADR/` directory
+- Follow the decisions for consistency across integrations
+- Always choose the "Selected" in the Alternatives Considered section
+- Treat the examples as examples, don't follow them blindly. You're allowed to adapt them to the current context and needs.
 
 ## Integration Development
 
