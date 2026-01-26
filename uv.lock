@@ -446,14 +446,15 @@ wheels = [
 
 [[package]]
 name = "croniter"
-version = "1.0.15"
+version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-dateutil" },
+    { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/1d/1c7cf4506c44bca0322f71a5460571446abd8396046b4badaec2d4ba4d82/croniter-1.0.15.tar.gz", hash = "sha256:a70dfc9d52de9fc1a886128b9148c89dd9e76b67d55f46516ca94d2d73d58219", size = 39164, upload-time = "2021-06-25T08:17:44.138Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/2f/44d1ae153a0e27be56be43465e5cb39b9650c781e001e7864389deb25090/croniter-6.0.0.tar.gz", hash = "sha256:37c504b313956114a983ece2c2b07790b1f1094fe9d81cc94739214748255577", size = 64481, upload-time = "2024-12-17T17:17:47.32Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/f1/1e0d14c0a0f9ff4bdfb0652e79780f4a1b77de5617cc1d4919ccd528fbc0/croniter-1.0.15-py2.py3-none-any.whl", hash = "sha256:0f97b361fe343301a8f66f852e7d84e4fb7f21379948f71e1bbfe10f5d015fbd", size = 16985, upload-time = "2021-06-25T08:17:42.294Z" },
+    { url = "https://files.pythonhosted.org/packages/07/4b/290b4c3efd6417a8b0c284896de19b1d5855e6dbdb97d2a35e68fa42de85/croniter-6.0.0-py2.py3-none-any.whl", hash = "sha256:2f878c3856f17896979b2a4379ba1f09c83e374931ea15cc835c5dd2eee9b368", size = 25468, upload-time = "2024-12-17T17:17:45.359Z" },
 ]
 
 [[package]]
@@ -2042,7 +2043,7 @@ requires-dist = [
     { name = "boto3", specifier = "==1.34.94" },
     { name = "botocore", specifier = "==1.34.94" },
     { name = "click", specifier = ">=7.0,<9.0" },
-    { name = "croniter", specifier = ">=1.0.15,<1.1.0" },
+    { name = "croniter", specifier = ">=6.0.0,<6.1.0" },
     { name = "dateparser", specifier = "~=1.1.7" },
     { name = "deepdiff", specifier = "==8.6.1" },
     { name = "dnspython", specifier = "~=2.1" },
