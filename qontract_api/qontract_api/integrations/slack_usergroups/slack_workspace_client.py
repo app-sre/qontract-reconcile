@@ -455,24 +455,33 @@ class SlackWorkspaceClient:
             raise SlackUsergroupNotFoundError(f"Usergroup {handle} not found!")
 
         all_users = self.get_users()
-        # Map user names to IDs
-        user_id_by_org_name = {
-            user.org_username: user.id
-            for user in all_users.values()
-            if not user.deleted
-        }
-        user_ids = [user_id_by_org_name[name] for name in users]
-
-        if user_ids:
-            if not ug.is_active():
-                # Reactivate usergroup if it was disabled
-                updated_ug = self.slack_api.usergroup_enable(usergroup_id=ug.id)
-            updated_ug = self.slack_api.usergroup_users_update(
-                usergroup_id=ug.id, user_ids=user_ids
-            )
+        if users:
+            # Map user names to IDs
+            user_id_by_org_name = {
+                user.org_username: user.id
+                for user in all_users.values()
+                if not user.deleted
+            }
+            user_ids = [user_id_by_org_name[name] for name in users]
         else:
-            # Slack API does not allow empty user lists, so we just disable the usergroup
-            updated_ug = self.slack_api.usergroup_disable(usergroup_id=ug.id)
+            # Slack API does not allow empty user lists and we don't want to disable
+            # the usergroup to keep the handle alive. The trick is passing a random deleted user.
+            try:
+                user_ids = [
+                    next(user.id for user in all_users.values() if user.deleted)
+                ]
+            except StopIteration:
+                raise RuntimeError(
+                    "No deleted users found to assign to empty usergroup"
+                ) from None
+
+        if not ug.is_active():
+            # Reactivate usergroup if it was disabled
+            updated_ug = self.slack_api.usergroup_enable(usergroup_id=ug.id)
+
+        updated_ug = self.slack_api.usergroup_users_update(
+            usergroup_id=ug.id, user_ids=user_ids
+        )
 
         # Update cache (not invalidation)
         self._update_cached_usergroup(
