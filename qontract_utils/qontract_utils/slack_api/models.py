@@ -55,10 +55,10 @@ class SlackUsergroup(BaseModel, frozen=True):
     description: str = ""
     users: list[str] = Field(default_factory=list, description="List of user IDs")
     prefs: SlackUsergroupPrefs = Field(default_factory=SlackUsergroupPrefs)
-    date_delete: int | None = None
+    date_delete: int = 0
 
     def is_active(self) -> bool:
-        return self.date_delete is None
+        return self.date_delete == 0
 
 
 class SlackChannel(BaseModel, frozen=True):
