@@ -923,11 +923,6 @@ parameters:
 - name: {{ $integration.name | upper | replace "-" "_" }}_MEMORY_REQUEST
   value: {{ $integration.resources.requests.memory }}
 {{- end }}
-{{- if $integration.logs.slackErrorFilter }}
-- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
-  value: "sd-app-sre-reconcile-errors-stage"
-  required: false
-{{- end }}
 {{- end }}
 {{- end }}
 
@@ -951,6 +946,13 @@ parameters:
 - name: {{ $integration.name | upper | replace "-" "_" }}_FLUENTD_MEMORY_REQUEST
   value: {{ $integration.fluentdResources.requests.memory }}
 {{- end }}
+{{- end }}
+{{- end }}
+{{- if $integration.logs }}
+{{- if $integration.logs.slackErrorFilter }}
+- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+  value: "sd-app-sre-reconcile-errors-stage"
+  required: false
 {{- end }}
 {{- end }}
 {{- end }}

@@ -446,12 +446,12 @@ parameters:
   value: 200m
 - name: INTEGRATIONS_MANAGER_MEMORY_REQUEST
   value: 300Mi
-- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
-  value: "sd-app-sre-reconcile-errors-stage"
-  required: false
 - name: INTEGRATIONS_MANAGER_FLUENTD_MEMORY_LIMIT
   value: 240Mi
 - name: INTEGRATIONS_MANAGER_FLUENTD_CPU_REQUEST
   value: 15m
 - name: INTEGRATIONS_MANAGER_FLUENTD_MEMORY_REQUEST
   value: 60Mi
+- name: SLACK_RECONCILE_ERR_CHANNEL_NAME
+  value: "sd-app-sre-reconcile-errors-stage"
+  required: false
