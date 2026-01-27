@@ -477,7 +477,7 @@ class SlackWorkspaceClient:
 
         if not ug.is_active():
             # Reactivate usergroup if it was disabled
-            updated_ug = self.slack_api.usergroup_enable(usergroup_id=ug.id)
+            self.slack_api.usergroup_enable(usergroup_id=ug.id)
 
         updated_ug = self.slack_api.usergroup_users_update(
             usergroup_id=ug.id, user_ids=user_ids
