@@ -35,9 +35,6 @@ from sretoolbox.utils import (
 )
 
 from reconcile.github_org import get_default_config
-from reconcile.gql_definitions.common.saasherder_settings import (
-    ImagePatternsBlockV1,
-)
 from reconcile.status import RunningState
 from reconcile.utils import helm
 from reconcile.utils.datetime_util import utc_now
@@ -73,6 +70,7 @@ from reconcile.utils.saasherder.interfaces import (
 from reconcile.utils.saasherder.models import (
     Channel,
     ImageAuth,
+    ImagePatternsBlockRule,
     Namespace,
     Promotion,
     SLOKey,
@@ -133,7 +131,7 @@ class SaasHerder:
         validate: bool = False,
         include_trigger_trace: bool = False,
         all_saas_files: Iterable[SaasFile] | None = None,
-        image_patterns_block_rules: list[ImagePatternsBlockV1] | None = None,
+        image_patterns_block_rules: list[ImagePatternsBlockRule] | None = None,
     ) -> None:
         self.error_registered = False
         self.saas_files = saas_files
@@ -160,7 +158,7 @@ class SaasHerder:
         self.images: set[str] = set()
         self.blocked_versions = self._collect_blocked_versions()
         self.hotfix_versions = self._collect_hotfix_versions()
-        self.image_patterns_block_rules: list[ImagePatternsBlockV1] = (
+        self.image_patterns_block_rules: list[ImagePatternsBlockRule] = (
             image_patterns_block_rules or []
         )
 
@@ -1196,7 +1194,7 @@ class SaasHerder:
 
     def _is_block_rule_violated(
         self,
-        block_rule: ImagePatternsBlockV1,
+        block_rule: ImagePatternsBlockRule,
         env_labels: dict[str, str] | None,
         images: set[str],
         spec: TargetSpec,
@@ -1204,7 +1202,7 @@ class SaasHerder:
         """Check if a block rule is violated for the given environment and images.
 
         Args:
-            block_rule: Block rule with environmentLabelSelector (Json type) and imagePatterns
+            block_rule: Block rule with environmentLabelSelector and imagePatterns
             env_labels: Environment labels dictionary
             images: Set of image URLs to check
             spec: TargetSpec for error reporting

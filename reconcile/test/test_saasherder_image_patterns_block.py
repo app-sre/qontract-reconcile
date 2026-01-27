@@ -2,7 +2,6 @@
 Unit tests for imagePatternsBlockRules feature in SaasHerder._check_images
 """
 
-import json
 from typing import Any
 from unittest.mock import (
     MagicMock,
@@ -11,12 +10,10 @@ from unittest.mock import (
 
 import pytest
 
-from reconcile.gql_definitions.common.saasherder_settings import (
-    ImagePatternsBlockV1,
-)
 from reconcile.typed_queries.saas_files import SaasFile
 from reconcile.utils.saasherder.models import (
     ImageAuth,
+    ImagePatternsBlockRule,
     TargetSpec,
 )
 from reconcile.utils.saasherder.saasherder import SaasHerder
@@ -163,23 +160,23 @@ def image_patterns_block_config_multiple_patterns() -> dict[str, Any]:
 
 
 @pytest.fixture
-def image_patterns_block_rules() -> list[ImagePatternsBlockV1]:
+def image_patterns_block_rules() -> list[ImagePatternsBlockRule]:
     """Image pattern block rules for direct testing"""
     return [
-        ImagePatternsBlockV1(
-            environmentLabelSelector=json.dumps({"type": "production"}),
-            imagePatterns=["quay.io/blocked"],
+        ImagePatternsBlockRule(
+            environment_label_selector={"type": "production"},
+            image_patterns=["quay.io/blocked"],
         )
     ]
 
 
 @pytest.fixture
-def image_patterns_block_rules_multiple_patterns() -> list[ImagePatternsBlockV1]:
+def image_patterns_block_rules_multiple_patterns() -> list[ImagePatternsBlockRule]:
     """Image pattern block rules with multiple patterns"""
     return [
-        ImagePatternsBlockV1(
-            environmentLabelSelector=json.dumps({"type": "production"}),
-            imagePatterns=["quay.io/blocked", "registry.io/forbidden"],
+        ImagePatternsBlockRule(
+            environment_label_selector={"type": "production"},
+            image_patterns=["quay.io/blocked", "registry.io/forbidden"],
         )
     ]
 
@@ -188,9 +185,9 @@ def image_patterns_block_rules_multiple_patterns() -> list[ImagePatternsBlockV1]
 def saasherder(
     saas_file: SaasFile,
     mock_secret_reader: MagicMock,
-    image_patterns_block_rules: list[ImagePatternsBlockV1],
+    image_patterns_block_rules: list[ImagePatternsBlockRule],
 ) -> SaasHerder:
-    """Create a SaasHerder instance with ImagePatternsBlockV1 objects"""
+    """Create a SaasHerder instance with ImagePatternsBlockRule objects"""
     return SaasHerder(
         [saas_file],
         secret_reader=mock_secret_reader,
@@ -334,9 +331,9 @@ def test_multiple_blocked_images(
 
     block_rules_raw = image_patterns_block_config.get("imagePatternsBlockRules", [])
     block_rules = [
-        ImagePatternsBlockV1(
-            environmentLabelSelector=json.dumps(rule["environmentLabelSelector"]),
-            imagePatterns=rule["imagePatterns"],
+        ImagePatternsBlockRule(
+            environment_label_selector=rule["environmentLabelSelector"],
+            image_patterns=rule["imagePatterns"],
         )
         for rule in block_rules_raw
     ]
@@ -389,9 +386,9 @@ def test_multiple_blocked_patterns(
         "imagePatternsBlockRules", []
     )
     block_rules = [
-        ImagePatternsBlockV1(
-            environmentLabelSelector=json.dumps(rule["environmentLabelSelector"]),
-            imagePatterns=rule["imagePatterns"],
+        ImagePatternsBlockRule(
+            environment_label_selector=rule["environmentLabelSelector"],
+            image_patterns=rule["imagePatterns"],
         )
         for rule in block_rules_raw
     ]

@@ -290,6 +290,14 @@ class ImageAuth:
             }
 
 
+@dataclass(frozen=True)
+class ImagePatternsBlockRule:
+    """Block rule for image patterns based on environment label selectors."""
+
+    environment_label_selector: dict[str, str]
+    image_patterns: list[str]
+
+
 @dataclass
 class TargetSpec:
     saas_file: SaasFile

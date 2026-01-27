@@ -175,7 +175,6 @@ def setup(
         jenkins_map=jenkins_map,
         state=init_state(integration=integration, secret_reader=secret_reader),
         include_trigger_trace=include_trigger_trace,
-        image_patterns_block_rules=saasherder_settings.image_patterns_block_rules,
     )
 
     return saasherder, oc_map
