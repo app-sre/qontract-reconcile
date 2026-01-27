@@ -194,9 +194,7 @@ class SaasEnvironment_SaasSecretParameters(Protocol):
 @runtime_checkable
 class SaasEnvironment(HasParameters, HasSecretParameters, Protocol):
     name: str
-
-    @property
-    def labels(self) -> dict[str, str] | None: ...
+    labels: dict[str, str] | None
 
 
 class SaasResourceTemplateTargetNamespace(Protocol):
