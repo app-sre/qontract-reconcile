@@ -473,3 +473,180 @@ def test_get_usergroups_cache_miss(
     assert "UG1" in usergroups
     mock_slack_api.usergroups_list.assert_called_once()
     mock_cache.set_obj.assert_called_once()
+
+
+def test_update_usergroup_users_with_empty_list_uses_deleted_user(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test update_usergroup_users with empty list uses a deleted user.
+
+    When users list is empty, Slack API requires at least one user.
+    The workaround is to use a deleted user to keep the handle alive.
+    """
+    # Setup cache with existing usergroup
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_usergroups = CachedUsergroups(items=[ug])
+
+    # Setup cache with users (including one deleted user)
+    user1 = SlackUser(
+        id="U1",
+        name="Active User",
+        deleted=False,
+        profile=SlackUserProfile(email="active@example.com"),
+    )
+    deleted_user = SlackUser(
+        id="U_DELETED",
+        name="Deleted User",
+        deleted=True,
+        profile=SlackUserProfile(email="deleted@example.com"),
+    )
+    cached_users = CachedUsers(items=[user1, deleted_user])
+
+    # Mock get_obj
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedUsergroups | CachedUsers | None:
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return cached_users
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+
+    updated_ug = SlackUsergroup(
+        id="UG1",
+        handle="oncall",
+        users=["U_DELETED"],
+    )
+    mock_slack_api.usergroup_users_update.return_value = updated_ug
+    mock_cache.lock.return_value.__enter__ = MagicMock()
+    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
+
+    # Call with empty users list
+    result = client.update_usergroup_users(
+        handle="oncall",
+        users=[],
+    )
+
+    assert len(result.users) == 1
+    # Verify deleted user was used
+    mock_slack_api.usergroup_users_update.assert_called_once_with(
+        usergroup_id="UG1",
+        user_ids=["U_DELETED"],
+    )
+
+
+def test_update_usergroup_users_with_empty_list_no_deleted_users_raises_error(
+    client: SlackWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """Test update_usergroup_users with empty list raises error when no deleted users exist."""
+    # Setup cache with existing usergroup
+    ug = SlackUsergroup(id="UG1", handle="oncall", name="On-Call")
+    cached_usergroups = CachedUsergroups(items=[ug])
+
+    # Setup cache with only active users (no deleted users)
+    user1 = SlackUser(
+        id="U1",
+        name="Active User 1",
+        deleted=False,
+        profile=SlackUserProfile(email="user1@example.com"),
+    )
+    user2 = SlackUser(
+        id="U2",
+        name="Active User 2",
+        deleted=False,
+        profile=SlackUserProfile(email="user2@example.com"),
+    )
+    cached_users = CachedUsers(items=[user1, user2])
+
+    # Mock get_obj
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedUsergroups | CachedUsers | None:
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return cached_users
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+
+    # Should raise error when no deleted users available
+    with pytest.raises(
+        RuntimeError, match="No deleted users found to assign to empty usergroup"
+    ):
+        client.update_usergroup_users(
+            handle="oncall",
+            users=[],
+        )
+
+
+def test_update_usergroup_users_with_empty_list_reactivates_disabled_usergroup(
+    client: SlackWorkspaceClient,
+    mock_slack_api: MagicMock,
+    mock_cache: MagicMock,
+) -> None:
+    """Test update_usergroup_users reactivates disabled usergroup when updating with empty list."""
+    # Setup cache with existing DISABLED usergroup
+    ug = SlackUsergroup(
+        id="UG1",
+        handle="oncall",
+        name="On-Call",
+        date_delete=1234567890,  # disabled usergroups have date_delete set
+    )
+    cached_usergroups = CachedUsergroups(items=[ug])
+
+    # Setup cache with users (including deleted user)
+    deleted_user = SlackUser(
+        id="U_DELETED",
+        name="Deleted User",
+        deleted=True,
+        profile=SlackUserProfile(email="deleted@example.com"),
+    )
+    cached_users = CachedUsers(items=[deleted_user])
+
+    # Mock get_obj
+    def get_obj_side_effect(
+        cache_key: str, *_args: Any, **_kwargs: Any
+    ) -> CachedUsergroups | CachedUsers | None:
+        if "usergroups" in cache_key:
+            return cached_usergroups
+        if "users" in cache_key:
+            return cached_users
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+
+    enabled_ug = SlackUsergroup(
+        id="UG1",
+        handle="oncall",
+        name="On-Call",
+    )
+    updated_ug = SlackUsergroup(
+        id="UG1",
+        handle="oncall",
+        users=["U_DELETED"],
+    )
+    mock_slack_api.usergroup_enable.return_value = enabled_ug
+    mock_slack_api.usergroup_users_update.return_value = updated_ug
+    mock_cache.lock.return_value.__enter__ = MagicMock()
+    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
+
+    # Call with empty users list
+    result = client.update_usergroup_users(
+        handle="oncall",
+        users=[],
+    )
+
+    # Verify usergroup was enabled first
+    mock_slack_api.usergroup_enable.assert_called_once_with(usergroup_id="UG1")
+    # Then users updated
+    mock_slack_api.usergroup_users_update.assert_called_once_with(
+        usergroup_id="UG1",
+        user_ids=["U_DELETED"],
+    )
+    assert len(result.users) == 1
