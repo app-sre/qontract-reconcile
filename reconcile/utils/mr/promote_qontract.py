@@ -204,6 +204,15 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             replace_text=self.commit_sha,
         )
 
+        # data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml
+        self._process_by(
+            "json_path",
+            gitlab_cli=gitlab_cli,
+            path="data/services/app-interface/cicd/ci-int/saas-qontract-api.yaml",
+            search_text="$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'qontract-api-production')].ref",
+            replace_text=self.commit_sha,
+        )
+
         # data/services/app-interface/terraform-repo/cicd/ci-int/saas-terraform-repo.yaml
         self._process_by(
             "json_path",
