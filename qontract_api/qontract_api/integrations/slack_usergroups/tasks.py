@@ -101,6 +101,7 @@ def reconcile_slack_usergroups_task(
             applied_count=result.applied_count,
             actions=[action.model_dump() for action in result.actions],
             errors=result.errors,
+            dry_run=dry_run,
         )
 
         return result
