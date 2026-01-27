@@ -238,12 +238,6 @@ def run(
         defer(oc_map.cleanup)
     saasherder.populate_desired_state(ri)
 
-    # validate that images comply with image pattern block rules
-    if saasherder.validate_image_patterns_block_rules():
-        logging.error("Image pattern block rule violations detected")
-        ri.register_error()
-        sys.exit(ExitCodes.ERROR)
-
     # validate that this deployment is valid
     # based on promotion information in targets
     if not saasherder.validate_promotions():

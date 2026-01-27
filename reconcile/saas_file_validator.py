@@ -41,7 +41,6 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         hash_length=saasherder_settings.hash_length,
         repo_url=saasherder_settings.repo_url,
         validate=True,
-        image_patterns_block_rules=saasherder_settings.image_patterns_block_rules,
     )
     if defer:
         defer(saasherder.cleanup)
@@ -63,16 +62,5 @@ def run(dry_run: bool, defer: Callable | None = None) -> None:
         logging.error(f"image pattern is missing from quayOrgs: {p}")
     jjb = init_jjb(secret_reader)
     saasherder.validate_upstream_jobs(jjb)
-
-    # validate image pattern block rules
-    image_pattern_violations = saasherder.validate_image_patterns_block_rules()
-    if image_pattern_violations:
-        logging.error("Image pattern block rule violations detected")
-
-    if (
-        not saasherder.valid
-        or missing_repos
-        or missing_image_patterns
-        or image_pattern_violations
-    ):
+    if not saasherder.valid or missing_repos or missing_image_patterns:
         sys.exit(ExitCodes.ERROR)
