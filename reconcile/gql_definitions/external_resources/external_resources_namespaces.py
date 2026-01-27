@@ -588,6 +588,16 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceCloudflareAccount_v1 {
+            provider
+            identifier
+            defaults
+            delete
+            managed_by_erv2
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
         }
       }
     }
@@ -1211,9 +1221,18 @@ class NamespaceTerraformResourceCloudflareZoneV1(NamespaceTerraformResourceCloud
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
+class NamespaceTerraformResourceCloudflareAccountV1(NamespaceTerraformResourceCloudflareV1):
+    provider: str = Field(..., alias="provider")
+    identifier: str = Field(..., alias="identifier")
+    defaults: str = Field(..., alias="defaults")
+    delete: Optional[bool] = Field(..., alias="delete")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
+
+
 class NamespaceTerraformProviderResourceCloudflareV1(NamespaceExternalResourceV1):
     provisioner: CloudflareAccountV1 = Field(..., alias="provisioner")
-    resources: list[Union[NamespaceTerraformResourceCloudflareZoneV1, NamespaceTerraformResourceCloudflareV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceCloudflareZoneV1, NamespaceTerraformResourceCloudflareAccountV1, NamespaceTerraformResourceCloudflareV1]] = Field(..., alias="resources")
 
 
 class EnvironmentV1(ConfiguredBaseModel):

@@ -506,6 +506,16 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceCloudflareAccount_v1 {
+            provider
+            identifier
+            defaults
+            delete
+            managed_by_erv2
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
         }
       }
     }
