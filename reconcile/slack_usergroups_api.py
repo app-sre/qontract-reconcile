@@ -614,6 +614,8 @@ class SlackUsergroupsIntegration(
         response = await reconcile_slack_usergroups(
             client=self.qontract_api_client, body=request_data
         )
+        # Always log the request id! It won't be forwarded to #reconcile channel via fluentd filter!
+        logging.info(f"request_id: {response.id}")
         return response
 
     async def async_run(self, dry_run: bool) -> None:
