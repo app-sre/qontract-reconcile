@@ -14,8 +14,6 @@ from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardingV1,
     AWSAccountShardSpecOverrideV1,
-    CloudflareDNSZoneShardingV1,
-    CloudflareDNSZoneShardSpecOverrideV1,
     IntegrationManagedV1,
     IntegrationShardingV1,
     IntegrationSpecV1,
@@ -31,12 +29,6 @@ from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_acco
 from reconcile.gql_definitions.sharding import (
     ocm_organization as sharding_ocm_organization,
 )
-from reconcile.gql_definitions.terraform_cloudflare_dns import (
-    terraform_cloudflare_zones,
-)
-from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
-    CloudflareDnsZoneV1,
-)
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils import gql
 from reconcile.utils.runtime.meta import IntegrationMeta
@@ -49,7 +41,6 @@ class ShardSpec(BaseModel):
     shard_spec_overrides: (
         AWSAccountShardSpecOverrideV1
         | OpenshiftClusterShardSpecOverrideV1
-        | CloudflareDNSZoneShardSpecOverrideV1
         | OCMOrganizationShardSpecOverrideV1
         | None
     ) = None
@@ -360,77 +351,6 @@ class OpenshiftClusterShardingStrategy:
                 shards.extend(sub_shards)
             else:
                 shards.append(base_shard)
-        return shards
-
-
-class CloudflareDnsZoneShardingStrategy:
-    """
-    This provides a new sharding strategy that each shard is targeting a Cloudflare zone.
-    It uses the combination of the Cloudflare account name and the zone's identifier as the unique sharding key.
-    """
-
-    IDENTIFIER = "per-cloudflare-dns-zone"
-
-    def __init__(self, cloudflare_zones: Iterable[CloudflareDnsZoneV1] | None = None):
-        if not cloudflare_zones:
-            self.cloudflare_zones = (
-                terraform_cloudflare_zones.query(query_func=gql.get_api().query).zones
-                or []
-            )
-        else:
-            self.cloudflare_zones = list(cloudflare_zones)
-
-    def _get_shard_key(self, dns_zone: CloudflareDnsZoneV1) -> str:
-        return f"{dns_zone.account.name}-{dns_zone.identifier}"
-
-    def get_shard_spec_overrides(
-        self, sharding: IntegrationShardingV1 | None
-    ) -> dict[str, CloudflareDNSZoneShardSpecOverrideV1]:
-        spos: dict[str, CloudflareDNSZoneShardSpecOverrideV1] = {}
-
-        if (
-            isinstance(sharding, CloudflareDNSZoneShardingV1)
-            and sharding.shard_spec_overrides
-        ):
-            for override in sharding.shard_spec_overrides:
-                key = f"{override.shard.zone}-{override.shard.identifier}"
-                spos[key] = override
-        return spos
-
-    def check_integration_sharding_params(self, meta: IntegrationMeta) -> None:
-        if "--zone-name" not in meta.args:
-            raise ValueError(
-                f"integration {meta.name} does not support the provided argument. "
-                f"--zone-name is required by the '{self.IDENTIFIER}' sharding "
-                "strategy."
-            )
-
-    def build_shard_spec(
-        self,
-        dns_zone: CloudflareDnsZoneV1,
-        integration_spec: IntegrationSpecV1,
-        spo: CloudflareDNSZoneShardSpecOverrideV1 | None,
-    ) -> ShardSpec:
-        return ShardSpec(
-            shard_key=self._get_shard_key(dns_zone),
-            shard_name_suffix=f"-{self._get_shard_key(dns_zone)}",
-            extra_args=(integration_spec.extra_args or "")
-            + f" --zone-name {dns_zone.identifier}",
-            shard_spec_overrides=spo,
-        )
-
-    def build_integration_shards(
-        self,
-        integration_meta: IntegrationMeta,
-        integration_managed: IntegrationManagedV1,
-    ) -> list[ShardSpec]:
-        self.check_integration_sharding_params(integration_meta)
-        spos = self.get_shard_spec_overrides(integration_managed.sharding)
-        shards = []
-        for zone in self.cloudflare_zones or []:
-            spo = spos.get(self._get_shard_key(zone))
-            base_shard = self.build_shard_spec(zone, integration_managed.spec, spo)
-            shards.append(base_shard)
         return shards
 
 

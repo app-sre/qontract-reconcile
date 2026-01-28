@@ -16,7 +16,6 @@ from reconcile.gql_definitions.fragments.deploy_resources import DeployResources
 from reconcile.gql_definitions.fragments.minimal_ocm_organization import (
     MinimalOCMOrganization,
 )
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.integrations.integrations import (
     AWSAccountShardSpecOverrideV1,
     EnvironmentV1,
@@ -29,14 +28,6 @@ from reconcile.gql_definitions.integrations.integrations import (
     StaticSubShardingV1,
 )
 from reconcile.gql_definitions.sharding import aws_accounts as sharding_aws_accounts
-from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
-    AWSAccountV1 as AWSAccountV1_CloudFlare,
-)
-from reconcile.gql_definitions.terraform_cloudflare_dns.terraform_cloudflare_zones import (
-    CloudflareAccountV1,
-    CloudflareDnsRecordV1,
-    CloudflareDnsZoneV1,
-)
 from reconcile.integrations_manager import (
     INTEGRATION_UPSTREAM_REPOS_PARAM,
     HelmIntegrationSpec,
@@ -46,8 +37,6 @@ from reconcile.utils.runtime.meta import IntegrationMeta
 from reconcile.utils.runtime.sharding import (
     AWSAccountShardingStrategy,
     AWSAccountShardingV1,
-    CloudflareDnsZoneShardingStrategy,
-    CloudflareDNSZoneShardingV1,
     IntegrationShardManager,
     OCMOrganizationShardingStrategy,
     OpenshiftClusterShardingStrategy,
@@ -58,7 +47,6 @@ from reconcile.utils.runtime.sharding import (
 )
 
 AWS_INTEGRATION = "aws_integration"
-CLOUDFLARE_INTEGRATION = "cloudflare_integration"
 OPENSHIFT_INTEGRATION = "openshift_integration"
 OCM_INTEGRATION = "ocm_integration"
 
@@ -328,87 +316,6 @@ def aws_account_sharding_strategy(
 
 
 @pytest.fixture
-def cloudflare_records() -> list[CloudflareDnsRecordV1]:
-    return [
-        CloudflareDnsRecordV1(
-            identifier="id",
-            name="subdomain",
-            type="CNAME",
-            ttl=10,
-            value="foo.com",
-            priority=None,
-            data=None,
-            proxied=None,
-        )
-    ]
-
-
-@pytest.fixture
-def aws_account_for_cloudflare() -> AWSAccountV1_CloudFlare:
-    return AWSAccountV1_CloudFlare(
-        name="foo",
-        consoleUrl="url",
-        terraformUsername="bar",
-        automationToken=VaultSecret(path="foo", field="bar", format=None, version=None),
-        terraformState=None,
-    )
-
-
-@pytest.fixture
-def cloudflare_account(
-    aws_account_for_cloudflare: AWSAccountV1_CloudFlare,
-) -> CloudflareAccountV1:
-    return CloudflareAccountV1(
-        name="fakeaccount",
-        type="free",
-        description="description",
-        providerVersion="0.0",
-        enforceTwofactor=False,
-        apiCredentials=VaultSecret(
-            path="foo/bar", field="foo", format="bar", version=2
-        ),
-        terraformStateAccount=aws_account_for_cloudflare,
-        deletionApprovals=None,
-    )
-
-
-@pytest.fixture
-def cloudflare_dns_zones(
-    cloudflare_account: CloudflareAccountV1,
-    cloudflare_records: list[CloudflareDnsRecordV1],
-) -> list[CloudflareDnsZoneV1]:
-    return [
-        CloudflareDnsZoneV1(
-            identifier="zone1",
-            zone="fakezone1.com",
-            account=cloudflare_account,
-            records=cloudflare_records,
-            type="full",
-            plan="free",
-            delete=False,
-            max_records=None,
-        ),
-        CloudflareDnsZoneV1(
-            identifier="zone2",
-            zone="fakezone2.com",
-            account=cloudflare_account,
-            records=cloudflare_records,
-            type="full",
-            plan="free",
-            delete=False,
-            max_records=None,
-        ),
-    ]
-
-
-@pytest.fixture
-def cloudflare_zone_sharding_strategy(
-    cloudflare_dns_zones: list[CloudflareDnsZoneV1],
-) -> CloudflareDnsZoneShardingStrategy:
-    return CloudflareDnsZoneShardingStrategy(cloudflare_dns_zones)
-
-
-@pytest.fixture
 def openshift_clusters(gql_class_factory: Callable[..., ClusterV1]) -> list[ClusterV1]:
     return [
         gql_class_factory(
@@ -456,7 +363,6 @@ def ocm_organization_sharding_strategy(
 @pytest.fixture
 def shard_manager(
     aws_account_sharding_strategy: AWSAccountShardingStrategy,
-    cloudflare_zone_sharding_strategy: CloudflareDnsZoneShardingStrategy,
     openshift_cluster_sharding_strategy: OpenshiftClusterShardingStrategy,
     ocm_organization_sharding_strategy: OCMOrganizationShardingStrategy,
 ) -> IntegrationShardManager:
@@ -465,7 +371,6 @@ def shard_manager(
             StaticShardingStrategy.IDENTIFIER: StaticShardingStrategy(),
             aws_account_sharding_strategy.IDENTIFIER: aws_account_sharding_strategy,
             openshift_cluster_sharding_strategy.IDENTIFIER: openshift_cluster_sharding_strategy,
-            cloudflare_zone_sharding_strategy.IDENTIFIER: cloudflare_zone_sharding_strategy,
             ocm_organization_sharding_strategy.IDENTIFIER: ocm_organization_sharding_strategy,
         },
         integration_runtime_meta={
@@ -476,9 +381,6 @@ def shard_manager(
             ),
             AWS_INTEGRATION: IntegrationMeta(
                 name=AWS_INTEGRATION, short_help="", args=["--account-name"]
-            ),
-            CLOUDFLARE_INTEGRATION: IntegrationMeta(
-                name=CLOUDFLARE_INTEGRATION, short_help="", args=["--zone-name"]
             ),
             OPENSHIFT_INTEGRATION: IntegrationMeta(
                 name=OPENSHIFT_INTEGRATION,
@@ -899,73 +801,6 @@ def test_initialize_shard_specs_ocm_organizations_shards_extra_args_aggregation(
 
     shards = wr[0].integration_specs[0].shard_specs or []
     assert expected == shards
-
-
-#
-# Per-Cloudflare-Zone Tests
-#
-
-
-@pytest.fixture
-def cloudflarednszone_sharding() -> CloudflareDNSZoneShardingV1:
-    return CloudflareDNSZoneShardingV1(
-        strategy="per-cloudflare-dns-zone", shardSpecOverrides=None
-    )
-
-
-def test_initialize_shard_specs_cloudflare_zone_shards(
-    basic_integration: IntegrationV1,
-    cloudflarednszone_sharding: CloudflareDNSZoneShardingV1,
-    shard_manager: intop.IntegrationShardManager,
-) -> None:
-    """
-    The per-cloudflare-zone strategy would result in two shards when there is two zones.
-    """
-    if basic_integration.managed:
-        basic_integration.name = CLOUDFLARE_INTEGRATION
-        basic_integration.managed[0].sharding = cloudflarednszone_sharding
-
-    wr = intop.collect_integrations_environment(
-        [basic_integration], "test", shard_manager
-    )
-
-    expected = [
-        ShardSpec(
-            shard_key="fakeaccount-zone1",
-            shard_name_suffix="-fakeaccount-zone1",
-            extra_args="integ-extra-arg --zone-name zone1",
-        ),
-        ShardSpec(
-            shard_key="fakeaccount-zone2",
-            shard_name_suffix="-fakeaccount-zone2",
-            extra_args="integ-extra-arg --zone-name zone2",
-        ),
-    ]
-
-    shards = wr[0].integration_specs[0].shard_specs or []
-    assert shards == expected
-
-
-def test_initialize_shard_specs_cloudflare_zone_shards_raise_exception(
-    basic_integration: IntegrationV1,
-    cloudflarednszone_sharding: CloudflareDNSZoneShardingV1,
-    shard_manager: intop.IntegrationShardManager,
-) -> None:
-    """
-    The per-cloudflare-zone strategy will raise an exception when --zone-name is not set.
-    """
-    if basic_integration.managed:
-        basic_integration.managed[0].sharding = cloudflarednszone_sharding
-
-    with pytest.raises(ValueError) as e:
-        intop.collect_integrations_environment(
-            [basic_integration], "test", shard_manager
-        )
-
-    assert (
-        e.value.args[0]
-        == f"integration basic-integration does not support the provided argument. --zone-name is required by the '{CloudflareDnsZoneShardingStrategy.IDENTIFIER}' sharding strategy."
-    )
 
 
 #

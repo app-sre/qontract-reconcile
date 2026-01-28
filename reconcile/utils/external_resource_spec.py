@@ -125,8 +125,7 @@ class ExternalResourceSpec:
     def output_prefix(self) -> str:
         # Adhere to DNS-1123 subdomain names spec. It's reasonable to have provider
         # names that have underscores, but without replacing them with hyphens we run
-        # into issues. Alternatively, we could change Cloudflare worker_script to
-        # worker-script and prevent the use of underscores going forward.
+        # into issues.
         #
         # More info can be found at:
         # https://kubernetes.io/docs/concepts/overview/working-with-objects/names/.

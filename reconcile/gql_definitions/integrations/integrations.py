@@ -174,20 +174,6 @@ query Integrations {
             }
           }
         }
-
-        ... on CloudflareDNSZoneSharding_v1 {
-          shardSpecOverrides {
-            shard {
-              zone
-              identifier
-            }
-            imageRef
-            disabled
-            resources {
-              ...DeployResourcesFields
-            }
-          }
-        }
       }
     }
   }
@@ -323,26 +309,10 @@ class AWSAccountShardingV1(IntegrationShardingV1):
     shard_spec_overrides: Optional[list[AWSAccountShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
 
 
-class CloudflareDnsZoneV1(ConfiguredBaseModel):
-    zone: str = Field(..., alias="zone")
-    identifier: str = Field(..., alias="identifier")
-
-
-class CloudflareDNSZoneShardSpecOverrideV1(ConfiguredBaseModel):
-    shard: CloudflareDnsZoneV1 = Field(..., alias="shard")
-    image_ref: Optional[str] = Field(..., alias="imageRef")
-    disabled: Optional[bool] = Field(..., alias="disabled")
-    resources: Optional[DeployResourcesFields] = Field(..., alias="resources")
-
-
-class CloudflareDNSZoneShardingV1(IntegrationShardingV1):
-    shard_spec_overrides: Optional[list[CloudflareDNSZoneShardSpecOverrideV1]] = Field(..., alias="shardSpecOverrides")
-
-
 class IntegrationManagedV1(ConfiguredBaseModel):
     namespace: NamespaceV1 = Field(..., alias="namespace")
     spec: IntegrationSpecV1 = Field(..., alias="spec")
-    sharding: Optional[Union[StaticShardingV1, OpenshiftClusterShardingV1, OCMOrganizationShardingV1, AWSAccountShardingV1, CloudflareDNSZoneShardingV1, IntegrationShardingV1]] = Field(..., alias="sharding")
+    sharding: Optional[Union[StaticShardingV1, OpenshiftClusterShardingV1, OCMOrganizationShardingV1, AWSAccountShardingV1, IntegrationShardingV1]] = Field(..., alias="sharding")
 
 
 class IntegrationV1(ConfiguredBaseModel):

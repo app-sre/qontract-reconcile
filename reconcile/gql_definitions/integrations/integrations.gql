@@ -116,20 +116,6 @@ query Integrations {
             }
           }
         }
-
-        ... on CloudflareDNSZoneSharding_v1 {
-          shardSpecOverrides {
-            shard {
-              zone
-              identifier
-            }
-            imageRef
-            disabled
-            resources {
-              ...DeployResourcesFields
-            }
-          }
-        }
       }
     }
   }

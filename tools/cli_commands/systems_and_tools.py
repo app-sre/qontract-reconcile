@@ -85,12 +85,6 @@ from reconcile.gql_definitions.statuspage.statuspages import (
 from reconcile.gql_definitions.statuspage.statuspages import (
     StatusPageV1,
 )
-from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
-    DEFINITION as CLOUDFLARE_ACCOUNTS_DEFINITION,
-)
-from reconcile.gql_definitions.terraform_cloudflare_resources.terraform_cloudflare_accounts import (
-    CloudflareAccountV1,
-)
 from reconcile.gql_definitions.terraform_tgw_attachments.aws_accounts import (
     DEFINITION as AWS_ACCOUNTS_DEFINITION,
 )
@@ -110,7 +104,6 @@ from reconcile.gql_definitions.vault_instances.vault_instances import (
     VaultInstanceV1,
 )
 from reconcile.statuspage.integration import get_status_pages
-from reconcile.typed_queries.cloudflare import get_cloudflare_accounts
 from reconcile.typed_queries.clusters import get_clusters
 from reconcile.typed_queries.dynatrace import get_dynatrace_environments
 from reconcile.typed_queries.gitlab_instances import (
@@ -180,8 +173,6 @@ class SystemTool(BaseModel):
                 return cls.init_from_unleash_instance(model, enumeration)
             case VaultInstanceV1():
                 return cls.init_from_vault_instance(model, enumeration)
-            case CloudflareAccountV1():
-                return cls.init_from_cloudflare_account(model, enumeration)
             case AppCodeComponentsV1():
                 return cls.init_from_code_component(model, enumeration)
             case _:
@@ -369,19 +360,6 @@ class SystemTool(BaseModel):
         )
 
     @classmethod
-    def init_from_cloudflare_account(
-        cls, a: CloudflareAccountV1, enumeration: Any
-    ) -> Self:
-        return cls(
-            system_type="cloudflare",
-            system_id=a.name,
-            name=a.name,
-            url="https://dash.cloudflare.com/",
-            description=a.description,
-            enumeration=enumeration,
-        )
-
-    @classmethod
     def init_from_code_component(cls, c: AppCodeComponentsV1, enumeration: Any) -> Self:
         return cls(
             system_type=c.resource,
@@ -469,7 +447,6 @@ def get_systems_and_tools_inventory() -> SystemToolInventory:
     inventory.update(get_status_pages(), STATUS_PAGES_DEFINITION)
     inventory.update(get_unleash_instances(), UNLEASH_INSTANCES_DEFINITION)
     inventory.update(get_vault_instances(), VAULT_INSTANCES_DEFINITION)
-    inventory.update(get_cloudflare_accounts(), CLOUDFLARE_ACCOUNTS_DEFINITION)
     inventory.update(
         [
             c
