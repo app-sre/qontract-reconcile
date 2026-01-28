@@ -31,6 +31,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         # you may need to use request.state.request_id explicitly in log calls, see RequestLoggingMiddleware below
         structlog.contextvars.bind_contextvars(request_id=request_id)
 
+        # use all submitted headers starting with X- as additional context
+        for header, value in request.headers.items():
+            if header.startswith("x-"):
+                structlog.contextvars.bind_contextvars(**{header.lower(): value})
+
         # Process request
         response = await call_next(request)
 
