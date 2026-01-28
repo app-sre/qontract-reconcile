@@ -30,6 +30,7 @@ from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.json import json_dumps
 from reconcile.utils.openshift_resource import ResourceInventory
 from reconcile.utils.saasherder import SaasHerder
+from reconcile.utils.saasherder.models import ImagePatternsBlockRule
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.semver_helper import make_semver
 from reconcile.utils.slack_api import SlackApi
@@ -211,6 +212,13 @@ def run(
         jenkins_map=jenkins_map,
         state=init_state(integration=QONTRACT_INTEGRATION, secret_reader=secret_reader),
         all_saas_files=saas_file_list.saas_files,
+        image_patterns_block_rules=[
+            ImagePatternsBlockRule(
+                environment_label_selector=rule.environment_label_selector or {},
+                image_patterns=rule.image_patterns,
+            )
+            for rule in (saasherder_settings.image_patterns_block_rules or [])
+        ],
     )
     if defer:
         defer(saasherder.cleanup)

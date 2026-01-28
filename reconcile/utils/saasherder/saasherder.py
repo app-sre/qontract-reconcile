@@ -70,6 +70,7 @@ from reconcile.utils.saasherder.interfaces import (
 from reconcile.utils.saasherder.models import (
     Channel,
     ImageAuth,
+    ImagePatternsBlockRule,
     Namespace,
     Promotion,
     SLOKey,
@@ -130,7 +131,8 @@ class SaasHerder:
         validate: bool = False,
         include_trigger_trace: bool = False,
         all_saas_files: Iterable[SaasFile] | None = None,
-    ):
+        image_patterns_block_rules: list[ImagePatternsBlockRule] | None = None,
+    ) -> None:
         self.error_registered = False
         self.saas_files = saas_files
         self.repo_urls = self._collect_repo_urls()
@@ -156,6 +158,9 @@ class SaasHerder:
         self.images: set[str] = set()
         self.blocked_versions = self._collect_blocked_versions()
         self.hotfix_versions = self._collect_hotfix_versions()
+        self.image_patterns_block_rules: list[ImagePatternsBlockRule] = (
+            image_patterns_block_rules or []
+        )
 
         # each namespace is in fact a target,
         # so we can use it to calculate.
@@ -1187,6 +1192,73 @@ class SaasHerder:
             )
         return None
 
+    def _is_block_rule_violated(
+        self,
+        block_rule: ImagePatternsBlockRule,
+        env_labels: dict[str, str] | None,
+        images: set[str],
+        spec: TargetSpec,
+    ) -> bool:
+        """Check if a block rule is violated for the given environment and images.
+
+        Args:
+            block_rule: Block rule with environmentLabelSelector and imagePatterns
+            env_labels: Environment labels dictionary
+            images: Set of image URLs to check
+            spec: TargetSpec for error reporting
+
+        Returns:
+            True if rule is violated, False otherwise
+        """
+        if not env_labels:
+            return False
+
+        # Check if environment labels match the selector
+        env_selector = block_rule.environment_label_selector or {}
+        if not all(env_labels.get(key) == value for key, value in env_selector.items()):
+            return False
+
+        # Check if any images match blocked patterns
+        blocked_images = [
+            image
+            for image in images
+            if any(image.startswith(pattern) for pattern in block_rule.image_patterns)
+        ]
+
+        if blocked_images:
+            logging.error(
+                f"{spec.error_prefix} Target contains blocked image patterns "
+                f"({', '.join(block_rule.image_patterns)}) for environment matching "
+                f"selector {env_selector}: {', '.join(blocked_images)}. "
+                f"These images are not allowed in this environment."
+            )
+            return True
+
+        return False
+
+    def _check_blocked_image_patterns(
+        self,
+        spec: TargetSpec,
+        images_set: set[str],
+    ) -> bool:
+        """Check if images violate any block rules for the given spec.
+
+        Args:
+            spec: TargetSpec with target and environment information
+            images_set: Set of image URLs to check
+
+        Returns:
+            True if any violations are found, False otherwise
+        """
+        if not self.image_patterns_block_rules or not images_set:
+            return False  # no rules configured or no images, no violations
+
+        env_labels = spec.target.namespace.environment.labels
+        return any(
+            self._is_block_rule_violated(block_rule, env_labels, images_set, spec)
+            for block_rule in self.image_patterns_block_rules
+        )
+
     def _check_images(
         self,
         spec: TargetSpec,
@@ -1199,6 +1271,12 @@ class SaasHerder:
         self.images.update(images_set)
         if not images_set:
             return False  # no errors
+
+        # Check blocked image patterns
+        if self._check_blocked_image_patterns(spec, images_set):
+            return True  # violations found
+
+        # imagePatterns validation
         images = threaded.run(
             self._get_image,
             images_set,
