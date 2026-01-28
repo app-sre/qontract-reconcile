@@ -1,6 +1,5 @@
 excludeService: true
 gov_slack: "true"
-enable_slack_error_filter: true
 integrations:
 - name: integrations-manager
   resources:
@@ -19,6 +18,7 @@ integrations:
   logs:
     slack: true
     googleChat: true
+    slackErrorFilter: true
   disableUnleash: true
   unleashConnectionPool: true
   shard_specs:
