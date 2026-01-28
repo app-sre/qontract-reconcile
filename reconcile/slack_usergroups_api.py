@@ -49,6 +49,8 @@ from qontract_api_client.api.integrations.slack_usergroups_task_status import (
     asyncio as slack_usergroups_task_status,
 )
 from qontract_api_client.models import (
+    SlackUsergroupActionCreate,
+    SlackUsergroupActionUpdateMetadata,
     SlackUsergroupActionUpdateUsers,
 )
 from qontract_api_client.models.secret import Secret
@@ -614,6 +616,8 @@ class SlackUsergroupsIntegration(
         response = await reconcile_slack_usergroups(
             client=self.qontract_api_client, body=request_data
         )
+        # Always log the request id! It won't be forwarded to #reconcile channel via fluentd filter!
+        logging.info(f"request_id: {response.id}")
         return response
 
     async def async_run(self, dry_run: bool) -> None:
@@ -647,6 +651,10 @@ class SlackUsergroupsIntegration(
 
         task = await self.reconcile(workspaces=workspaces, dry_run=dry_run)
 
+        # TODO: APPSRE-13196
+        # as soon as qontract-api can send event to the #reconcile channel, we don't need to log and wait here
+        # for a non-dry-run reconciliation!
+
         # wait for task completion and get the action list
         task_result = await slack_usergroups_task_status(
             client=self.qontract_api_client, task_id=task.id, timeout=300
@@ -657,12 +665,21 @@ class SlackUsergroupsIntegration(
 
         if task_result.actions:
             for action in task_result.actions or []:
-                if isinstance(action, SlackUsergroupActionUpdateUsers):
-                    logging.info(
-                        f"{action.usergroup=} {action.users_to_add=} {action.users_to_remove=}"
-                    )
-                else:
-                    logging.info(action)
+                match action:
+                    case SlackUsergroupActionUpdateUsers():
+                        logging.info(
+                            f"{action.action_type=} {action.usergroup=} {action.users_to_add=} {action.users_to_remove=} total_users={len(action.users)}"
+                        )
+                    case SlackUsergroupActionCreate():
+                        logging.info(
+                            f"{action.action_type=} {action.usergroup=} {action.users=} {action.description=}"
+                        )
+                    case SlackUsergroupActionUpdateMetadata():
+                        logging.info(
+                            f"{action.action_type=} {action.usergroup=} {action.channels=} {action.description=}"
+                        )
+                    case _:
+                        logging.info(action)
 
         if task_result.errors:
             logging.error(f"Errors encountered: {len(task_result.errors)}")

@@ -1,3 +1,4 @@
+import os
 from abc import (
     ABC,
     abstractmethod,
@@ -264,12 +265,23 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
         Returns the qontract-api client.
         """
         config = get_config()
+
+        # send some envirionment specific information via headers
+        environment_headers = {}
+        if "BUILD_URL" in os.environ:
+            # e.g. https://ci.int.devshift.net/job/service-app-interface-gl-pr-check/643806/
+            environment_headers["X-Build-Url"] = os.environ["BUILD_URL"]
+        if "gitlabMergeRequestIid" in os.environ:
+            # e.g. "643806"
+            environment_headers["X-GitLab-MR-ID"] = os.environ["gitlabMergeRequestIid"]  # noqa: SIM112
+
         return AuthenticatedClient(
             base_url=urlparse(config["qontract-api"]["server"]).geturl(),
             token=config["qontract-api"].get("token", ""),
             httpx_args={
                 "event_hooks": {"response": [self._raise_on_4xx_5xx]},
             },
+            headers=environment_headers,
         )
 
     @property

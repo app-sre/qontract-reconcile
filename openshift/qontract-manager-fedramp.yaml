@@ -108,6 +108,14 @@ objects:
               @type grep
               <exclude>
                 key message
+                pattern /request_id: /
+              </exclude>
+            </filter>
+
+            <filter integration>
+              @type grep
+              <exclude>
+                key message
                 pattern /Certificate did not match expected hostname/
               </exclude>
             </filter>
