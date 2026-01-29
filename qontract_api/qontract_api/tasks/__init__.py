@@ -25,10 +25,10 @@ def setup_loggers(*_: Any, **__: Any) -> None:
 
 
 @celery.signals.task_prerun.connect
-def on_task_prerun(task_id: str, task: celery.Task, *_: tuple, **kwargs: dict) -> None:
-    structlog.contextvars.bind_contextvars(request_id=task_id, task_name=task.name)
-    if "dry_run" in kwargs:
-        structlog.contextvars.bind_contextvars(dry_run=kwargs["dry_run"])
+def on_task_prerun(task: celery.Task, *_: tuple, **__: dict) -> None:
+    # clear previous contextvars
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(task_name=task.name)
     metadata = getattr(task.request, "__structlog_context__", {})
     structlog.contextvars.bind_contextvars(**metadata)
 

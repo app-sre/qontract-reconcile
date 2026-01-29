@@ -2,7 +2,6 @@
 
 from typing import Annotated
 
-import structlog
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -21,7 +20,6 @@ def get_current_user(
     try:
         token = credentials.credentials
         payload = decode_token(token)
-        structlog.contextvars.bind_contextvars(username=payload.sub)
         return User(username=payload.sub)
     except ValueError as e:
         raise HTTPException(
