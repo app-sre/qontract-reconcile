@@ -51,7 +51,7 @@ def get_schedule_users(
         instance: PagerDuty instance name
 
     Returns:
-        ScheduleUsersResponse with list of users (username is org_username)
+        ScheduleUsersResponse with list of users
 
     Raises:
         HTTPException:
@@ -82,7 +82,7 @@ def get_schedule_users(
     )
 
     return ScheduleUsersResponse(
-        users=[PagerDutyUser(username=user.org_username) for user in users]
+        users=[PagerDutyUser(username=user.username) for user in users]
     )
 
 
@@ -109,7 +109,7 @@ def get_escalation_policy_users(
         instance: PagerDuty instance name
 
     Returns:
-        EscalationPolicyUsersResponse with list of users (username is org_username)
+        EscalationPolicyUsersResponse with list of users
 
     Raises:
         HTTPException:
@@ -140,5 +140,5 @@ def get_escalation_policy_users(
     )
 
     return EscalationPolicyUsersResponse(
-        users=[PagerDutyUser(username=user.org_username) for user in users]
+        users=[PagerDutyUser(username=user.username) for user in users]
     )

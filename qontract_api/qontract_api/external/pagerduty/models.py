@@ -7,17 +7,16 @@ class PagerDutyUser(BaseModel):
     """PagerDuty user representation.
 
     Immutable model representing a user from PagerDuty API.
-    Username is the organization username (not PagerDuty email).
 
     Attributes:
-        username: Organization username (mapped from org_username in internal models)
+        username: PagerDuty username (computed from email)
     """
 
     model_config = ConfigDict(frozen=True)
 
     username: str = Field(
         ...,
-        description="Organization username (org_username)",
+        description="PagerDuty username (computed from email)",
     )
 
 
