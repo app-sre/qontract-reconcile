@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel, Field
-from qontract_utils.slack_api import SlackApi
+from qontract_utils.slack_api import SlackApi, SlackApiError
 from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
 from qontract_utils.slack_api import SlackUser as SlackUserAPI
 from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
@@ -479,9 +479,21 @@ class SlackWorkspaceClient:
             # Reactivate usergroup if it was disabled
             self.slack_api.usergroup_enable(usergroup_id=ug.id)
 
-        updated_ug = self.slack_api.usergroup_users_update(
-            usergroup_id=ug.id, user_ids=user_ids
-        )
+        try:
+            updated_ug = self.slack_api.usergroup_users_update(
+                usergroup_id=ug.id, user_ids=user_ids
+            )
+        except SlackApiError as e:
+            # Slack can throw an invalid_users error when emptying groups, but
+            # it will still empty the group (so this can be ignored).
+            if e.response["error"] != "invalid_users":
+                raise
+            # fetch updated usergroup from API to reflect changes
+            updated_ug = next(
+                ug_not_cached
+                for ug_not_cached in self.slack_api.usergroups_list()
+                if ug_not_cached.id == ug.id
+            )
 
         # Update cache (not invalidation)
         self._update_cached_usergroup(
