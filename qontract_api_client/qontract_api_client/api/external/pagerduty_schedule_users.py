@@ -95,7 +95,7 @@ def sync_detailed(
         instance: PagerDuty instance name
 
     Returns:
-        ScheduleUsersResponse with list of users (username is org_username)
+        ScheduleUsersResponse with list of users
 
     Raises:
         HTTPException:
@@ -162,7 +162,7 @@ def sync(
         instance: PagerDuty instance name
 
     Returns:
-        ScheduleUsersResponse with list of users (username is org_username)
+        ScheduleUsersResponse with list of users
 
     Raises:
         HTTPException:
@@ -227,7 +227,7 @@ async def asyncio_detailed(
         instance: PagerDuty instance name
 
     Returns:
-        ScheduleUsersResponse with list of users (username is org_username)
+        ScheduleUsersResponse with list of users
 
     Raises:
         HTTPException:
@@ -292,7 +292,7 @@ async def asyncio(
         instance: PagerDuty instance name
 
     Returns:
-        ScheduleUsersResponse with list of users (username is org_username)
+        ScheduleUsersResponse with list of users
 
     Raises:
         HTTPException:

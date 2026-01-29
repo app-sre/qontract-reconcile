@@ -14,13 +14,12 @@ class PagerDutyUser:
     """PagerDuty user representation.
 
     Immutable model representing a user from PagerDuty API.
-    Username is the organization username (not PagerDuty email).
 
     Attributes:
-        username: Organization username (mapped from org_username in internal models)
+        username: PagerDuty username (computed from email)
 
         Attributes:
-            username (str): Organization username (org_username)
+            username (str): PagerDuty username (computed from email)
     """
 
     username: str
