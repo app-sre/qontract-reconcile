@@ -116,7 +116,7 @@ def test_reconcile_empty_workspaces_dry_run(service: SlackUsergroupsService) -> 
     assert result.status == TaskStatus.SUCCESS
     assert result.actions == []
     assert result.applied_count == 0
-    assert result.errors is None
+    assert result.errors == []
 
 
 def test_reconcile_no_usergroups_dry_run(
@@ -139,7 +139,7 @@ def test_reconcile_no_usergroups_dry_run(
     assert result.status == TaskStatus.SUCCESS
     assert result.actions == []
     assert result.applied_count == 0
-    assert result.errors is None
+    assert result.errors == []
 
 
 # Create action
@@ -180,7 +180,7 @@ def test_reconcile_create_usergroup_dry_run(
     assert result.actions[0].users == ["alice", "bob"]
     assert result.actions[0].description == "On-call team"
     assert result.applied_count == 0  # dry-run
-    assert result.errors is None
+    assert result.errors == []
 
 
 def test_reconcile_create_usergroup_apply(
@@ -215,7 +215,7 @@ def test_reconcile_create_usergroup_apply(
     assert isinstance(result.actions[0], SlackUsergroupActionCreate)
     assert result.applied_count == 1  # applied!
     mock_slack_client.create_usergroup.assert_called_once_with(handle="oncall")
-    assert result.errors is None
+    assert result.errors == []
 
 
 # Update users action
@@ -265,7 +265,7 @@ def test_reconcile_update_users_dry_run(
     assert "charlie" in result.actions[0].users_to_add
     assert result.actions[0].users_to_remove == []
     assert result.applied_count == 0  # dry-run
-    assert result.errors is None
+    assert result.errors == []
 
 
 def test_reconcile_update_users_apply(
@@ -309,7 +309,7 @@ def test_reconcile_update_users_apply(
     mock_slack_client.update_usergroup_users.assert_called_once_with(
         handle="oncall", users=["alice"]
     )
-    assert result.errors is None
+    assert result.errors == []
 
 
 # Update metadata action
@@ -358,7 +358,7 @@ def test_reconcile_update_metadata_dry_run(
     assert sorted(result.actions[0].channels) == ["alerts", "general"]
     assert result.actions[0].description == "Updated description"
     assert result.applied_count == 0  # dry-run
-    assert result.errors is None
+    assert result.errors == []
 
 
 # Multiple actions
@@ -406,7 +406,7 @@ def test_reconcile_multiple_actions_dry_run(
         isinstance(a, SlackUsergroupActionUpdateMetadata) for a in result.actions
     )
     assert result.applied_count == 0  # dry-run
-    assert result.errors is None
+    assert result.errors == []
 
 
 # Error handling

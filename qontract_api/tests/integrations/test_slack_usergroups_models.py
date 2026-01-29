@@ -152,16 +152,8 @@ def test_slack_usergroup_action_update_metadata() -> None:
 
 def test_task_result_with_status_pending() -> None:
     """Test SlackUsergroupsTaskResult with pending status."""
-    result = SlackUsergroupsTaskResult(
-        status=TaskStatus.PENDING,
-        actions=[],
-        applied_count=0,
-        errors=None,
-    )
+    result = SlackUsergroupsTaskResult(status=TaskStatus.PENDING)
     assert result.status == TaskStatus.PENDING
-    assert result.actions == []
-    assert result.applied_count == 0
-    assert result.errors is None
 
 
 def test_task_result_with_status_success() -> None:
@@ -176,12 +168,11 @@ def test_task_result_with_status_success() -> None:
         status=TaskStatus.SUCCESS,
         actions=[action],
         applied_count=1,
-        errors=None,
     )
     assert result.status == TaskStatus.SUCCESS
     assert len(result.actions) == 1
     assert result.applied_count == 1
-    assert result.errors is None
+    assert result.errors == []
 
 
 def test_task_result_with_status_failed() -> None:
@@ -195,8 +186,7 @@ def test_task_result_with_status_failed() -> None:
     assert result.status == TaskStatus.FAILED
     assert len(result.actions) == 0
     assert result.applied_count == 0
-    assert result.errors is not None
-    assert len(result.errors) == 2
+    assert result.errors == ["Error 1", "Error 2"]
 
 
 def test_task_response() -> None:

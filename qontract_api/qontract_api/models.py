@@ -16,6 +16,27 @@ class TaskStatus(StrEnum):
     FAILED = "failed"  # Task failed with errors
 
 
+class TaskResult(BaseModel, frozen=True):
+    """Result model for completed reconciliation task.
+
+    Returned by GET /reconcile/{task_id}.
+    Contains the reconciliation results and execution status.
+    """
+
+    status: TaskStatus = Field(
+        ...,
+        description="Task execution status (pending/success/failed)",
+    )
+    applied_count: int = Field(
+        default=0,
+        description="Number of actions actually applied (0 if dry_run=True)",
+    )
+    errors: list[str] = Field(
+        default=[],
+        description="List of errors encountered during reconciliation",
+    )
+
+
 class TokenData(BaseModel):
     """Data to be encoded in JWT token."""
 

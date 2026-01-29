@@ -2,19 +2,16 @@
 
 import pytest
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import Field
 
-from qontract_api.models import TaskStatus
+from qontract_api.models import TaskResult, TaskStatus
 from qontract_api.tasks import wait_for_task_completion
 
 
-class MockTaskResult(BaseModel):
+class MockTaskResult(TaskResult):
     """Mock task result for testing."""
 
-    status: TaskStatus
-    actions: list = []
-    applied_count: int = 0
-    errors: list[str] | None = None
+    actions: list = Field(default=[])
 
 
 @pytest.mark.asyncio
@@ -29,7 +26,7 @@ async def test_wait_for_task_non_blocking() -> None:
 
     assert result.status == TaskStatus.PENDING
     assert result.applied_count == 0
-    assert result.errors is None
+    assert result.errors == []
 
 
 @pytest.mark.asyncio
@@ -87,7 +84,6 @@ async def test_wait_for_task_eventually_completes() -> None:
         return MockTaskResult(
             status=TaskStatus.SUCCESS,
             applied_count=5,
-            errors=None,
             actions=["completed"],
         )
 
@@ -99,6 +95,6 @@ async def test_wait_for_task_eventually_completes() -> None:
 
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 5
-    assert result.errors is None
+    assert result.errors == []
     assert result.actions == ["completed"]
     assert call_count >= 3

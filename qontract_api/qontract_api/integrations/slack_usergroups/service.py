@@ -248,5 +248,5 @@ class SlackUsergroupsService:
             status=TaskStatus.FAILED if errors else TaskStatus.SUCCESS,
             actions=all_actions,
             applied_count=applied_count,
-            errors=errors or None,
+            errors=errors,
         )
