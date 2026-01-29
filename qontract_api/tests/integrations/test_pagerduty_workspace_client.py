@@ -95,7 +95,7 @@ def test_get_schedule_users_cache_hit(
     users = client.get_schedule_users("SCHED123")
 
     assert len(users) == 1
-    assert users[0].org_username == "jdoe"
+    assert users[0].username == "jdoe"
     mock_cache.get_obj.assert_called_once_with(
         "pagerduty:test-instance:schedule:SCHED123:users",
         CachedScheduleUsers,
@@ -116,7 +116,7 @@ def test_get_schedule_users_cache_miss(
     users = client.get_schedule_users("SCHED123")
 
     assert len(users) == 1
-    assert users[0].org_username == "jsmith"
+    assert users[0].username == "jsmith"
     mock_pagerduty_api.get_schedule_users.assert_called_once_with("SCHED123")
     mock_cache.set_obj.assert_called_once()
     # Verify TTL from settings
@@ -154,7 +154,7 @@ def test_get_escalation_policy_users_cache_hit(
     users = client.get_escalation_policy_users("POL456")
 
     assert len(users) == 1
-    assert users[0].org_username == "bwilson"
+    assert users[0].username == "bwilson"
     mock_cache.get_obj.assert_called_once_with(
         "pagerduty:test-instance:escalation_policy:POL456:users",
         CachedEscalationPolicyUsers,
@@ -179,7 +179,7 @@ def test_get_escalation_policy_users_cache_miss(
     users = client.get_escalation_policy_users("POL456")
 
     assert len(users) == 1
-    assert users[0].org_username == "ajohnson"
+    assert users[0].username == "ajohnson"
     mock_pagerduty_api.get_escalation_policy_users.assert_called_once_with("POL456")
     mock_cache.set_obj.assert_called_once()
     # Verify TTL from settings
@@ -221,7 +221,7 @@ def test_get_schedule_users_double_check_after_lock(
 
     # Should return cached data without calling API
     assert len(users) == 1
-    assert users[0].org_username == "cached"
+    assert users[0].username == "cached"
     mock_pagerduty_api.get_schedule_users.assert_not_called()
     mock_cache.set_obj.assert_not_called()
 
@@ -241,6 +241,6 @@ def test_get_escalation_policy_users_double_check_after_lock(
 
     # Should return cached data without calling API
     assert len(users) == 1
-    assert users[0].org_username == "cached"
+    assert users[0].username == "cached"
     mock_pagerduty_api.get_escalation_policy_users.assert_not_called()
     mock_cache.set_obj.assert_not_called()

@@ -13,7 +13,7 @@ class PagerDutyUser(BaseModel, frozen=True):
     """PagerDuty user data.
 
     This model represents a PagerDuty user with full API response data.
-    The org_username property extracts the username from the email address.
+    The username property extracts the username from the email address.
 
     Attributes:
         id: PagerDuty user ID
@@ -27,8 +27,8 @@ class PagerDutyUser(BaseModel, frozen=True):
     name: str = Field(..., description="User full name")
 
     @property
-    def org_username(self) -> str:
-        """Extract organization username from email.
+    def username(self) -> str:
+        """Extract username from email.
 
         Returns:
             Username part of email (e.g., "jsmith" from "jsmith@example.com")
