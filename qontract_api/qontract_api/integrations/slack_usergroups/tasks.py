@@ -69,9 +69,6 @@ def reconcile_slack_usergroups_task(
         This prevents concurrent reconciliations for the same workspaces.
     """
     request_id = self.request.id
-    logger.info(
-        f"Starting reconciliation task {request_id}", workspace_count=len(workspaces)
-    )
 
     try:
         # Get shared dependencies
