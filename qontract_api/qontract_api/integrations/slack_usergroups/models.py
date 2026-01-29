@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from qontract_api.models import Secret, TaskStatus
+from qontract_api.models import Secret, TaskResult, TaskStatus
 
 
 class SlackUsergroupConfig(BaseModel, frozen=True):
@@ -120,28 +120,16 @@ SlackUsergroupAction = (
 )
 
 
-class SlackUsergroupsTaskResult(BaseModel, frozen=True):
+class SlackUsergroupsTaskResult(TaskResult, frozen=True):
     """Result model for completed reconciliation task.
 
     Returned by GET /reconcile/{task_id}.
     Contains the reconciliation results and execution status.
     """
 
-    status: TaskStatus = Field(
-        ...,
-        description="Task execution status (pending/success/failed)",
-    )
     actions: list[SlackUsergroupAction] = Field(
-        [],
+        default=[],
         description="List of actions calculated/performed",
-    )
-    applied_count: int = Field(
-        default=0,
-        description="Number of actions actually applied (0 if dry_run=True)",
-    )
-    errors: list[str] | None = Field(
-        default=None,
-        description="List of errors encountered during reconciliation",
     )
 
 

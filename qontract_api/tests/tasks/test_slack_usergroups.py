@@ -121,7 +121,7 @@ def test_reconcile_task_dry_run_success(
     assert isinstance(result, SlackUsergroupsTaskResult)
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 0  # dry-run
-    assert result.errors is None
+    assert result.errors == []
 
     # Verify secret was read
     assert mock_secret_backend.read.called

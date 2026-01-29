@@ -163,12 +163,7 @@ def test_get_task_status_non_blocking_pending(
     auth_headers: dict[str, str],
 ) -> None:
     """Test GET /reconcile/{task_id} non-blocking mode returns pending status."""
-    mock_get_result.return_value = SlackUsergroupsTaskResult(
-        status=TaskStatus.PENDING,
-        actions=[],
-        applied_count=0,
-        errors=None,
-    )
+    mock_get_result.return_value = SlackUsergroupsTaskResult(status=TaskStatus.PENDING)
 
     response = client.get(
         "/api/v1/integrations/slack-usergroups/reconcile/task-123",
@@ -178,8 +173,6 @@ def test_get_task_status_non_blocking_pending(
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data["status"] == TaskStatus.PENDING.value
-    assert data["actions"] == []
-    assert data["applied_count"] == 0
 
 
 @patch("qontract_api.integrations.slack_usergroups.router.get_celery_task_result")
@@ -200,7 +193,6 @@ def test_get_task_status_non_blocking_success(
             )
         ],
         applied_count=1,
-        errors=None,
     )
 
     response = client.get(
@@ -249,12 +241,8 @@ def test_get_task_status_blocking_success(
 ) -> None:
     """Test GET /reconcile/{task_id} blocking mode waits for completion."""
     mock_get_result.side_effect = [
-        SlackUsergroupsTaskResult(
-            status=TaskStatus.PENDING, actions=[], applied_count=0, errors=None
-        ),
-        SlackUsergroupsTaskResult(
-            status=TaskStatus.SUCCESS, actions=[], applied_count=0, errors=None
-        ),
+        SlackUsergroupsTaskResult(status=TaskStatus.PENDING),
+        SlackUsergroupsTaskResult(status=TaskStatus.SUCCESS),
     ]
 
     response = client.get(
@@ -276,9 +264,7 @@ def test_get_task_status_blocking_timeout(
     auth_headers: dict[str, str],
 ) -> None:
     """Test GET /reconcile/{task_id} blocking mode returns 408 on timeout."""
-    mock_get_result.return_value = SlackUsergroupsTaskResult(
-        status=TaskStatus.PENDING, actions=[], applied_count=0, errors=None
-    )
+    mock_get_result.return_value = SlackUsergroupsTaskResult(status=TaskStatus.PENDING)
 
     response = client.get(
         "/api/v1/integrations/slack-usergroups/reconcile/task-123",

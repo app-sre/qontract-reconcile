@@ -23,8 +23,10 @@ def setup_loggers(*_: Any, **__: Any) -> None:
 
 
 @celery.signals.task_prerun.connect
-def on_task_prerun(task_id: str, task: celery.Task, *_: Any, **__: Any) -> None:
+def on_task_prerun(task_id: str, task: celery.Task, *_: tuple, **kwargs: dict) -> None:
     structlog.contextvars.bind_contextvars(request_id=task_id, task_name=task.name)
+    if "dry_run" in kwargs:
+        structlog.contextvars.bind_contextvars(dry_run=kwargs["dry_run"])
 
 
 # Create Celery app

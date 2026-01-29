@@ -70,9 +70,7 @@ def reconcile_slack_usergroups_task(
     """
     request_id = self.request.id
     logger.info(
-        f"Starting reconciliation task {request_id}",
-        workspace_count=len(workspaces),
-        dry_run=dry_run,
+        f"Starting reconciliation task {request_id}", workspace_count=len(workspaces)
     )
 
     try:
