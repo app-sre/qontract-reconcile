@@ -35,7 +35,7 @@ router = APIRouter(
 )
 def slack_usergroups(
     reconcile_request: SlackUsergroupsReconcileRequest,
-    current_user: UserDep,
+    current_user: UserDep,  # noqa: ARG001
     request: Request,
 ) -> SlackUsergroupsTaskResponse:
     """Queue Slack usergroups reconciliation task.
@@ -51,38 +51,24 @@ def slack_usergroups(
     Returns:
         SlackUsergroupsTaskResponse with task_id and status_url
     """
-    logger.info(
-        f"Queuing reconciliation task for user {current_user.username}",
-        username=current_user.username,
-        dry_run=reconcile_request.dry_run,
-        workspace_count=len(reconcile_request.workspaces),
-    )
-    request_id = request.state.request_id
-
     # Queue Celery task (async execution in background worker)
     reconcile_slack_usergroups_task.apply_async(
-        task_id=request_id,
+        task_id=request.state.request_id,
         kwargs={
             "workspaces": reconcile_request.workspaces,
             "dry_run": reconcile_request.dry_run,
         },
     )
 
-    # Note: url_for() uses the function name, not operation_id
-    status_url = str(
-        request.url_for("slack_usergroups_task_status", task_id=request_id)
-    )
-
-    logger.info(
-        f"Task queued: {request_id}",
-        username=current_user.username,
-        status_url=status_url,
-    )
-
     return SlackUsergroupsTaskResponse(
-        id=request_id,
+        id=request.state.request_id,
         status=TaskStatus.PENDING,
-        status_url=status_url,
+        # Note: url_for() uses the function name, not operation_id
+        status_url=str(
+            request.url_for(
+                "slack_usergroups_task_status", task_id=request.state.request_id
+            )
+        ),
     )
 
 
@@ -92,7 +78,7 @@ def slack_usergroups(
 )
 async def slack_usergroups_task_status(
     task_id: str,
-    current_user: UserDep,
+    current_user: UserDep,  # noqa: ARG001
     timeout: Annotated[
         int | None,
         Query(
@@ -120,14 +106,6 @@ async def slack_usergroups_task_status(
             - 404 Not Found: Task ID not found
             - 408 Request Timeout: Task still pending after timeout (blocking mode only)
     """
-    logger.info(
-        f"Retrieving result for task {task_id}",
-        username=current_user.username,
-        task_id=task_id,
-        timeout=timeout,
-        blocking=timeout is not None,
-    )
-
     return await wait_for_task_completion(
         get_task_status=lambda: get_celery_task_result(
             task_id, SlackUsergroupsTaskResult
