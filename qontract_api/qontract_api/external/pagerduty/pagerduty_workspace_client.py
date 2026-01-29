@@ -103,7 +103,7 @@ class PagerDutyWorkspaceClient:
             schedule_id: PagerDuty schedule ID
 
         Returns:
-            List of PagerDutyUser objects with org_username
+            List of PagerDutyUser objects with username
         """
         cache_key = self._cache_key_schedule_users(schedule_id)
 
@@ -133,7 +133,7 @@ class PagerDutyWorkspaceClient:
             policy_id: PagerDuty escalation policy ID
 
         Returns:
-            List of PagerDutyUser objects with org_username
+            List of PagerDutyUser objects with username
         """
         cache_key = self._cache_key_escalation_policy_users(policy_id)
 
