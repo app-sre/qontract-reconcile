@@ -21,7 +21,7 @@ from qontract_api.integrations.slack_usergroups.slack_client_factory import (
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
-from qontract_api.tasks import BackgroundTask, celery_app, deduplicated_task
+from qontract_api.tasks import celery_app, deduplicated_task
 
 logger = get_logger(__name__)
 
@@ -42,7 +42,7 @@ def generate_lock_key(_self: Task, workspaces: list[SlackWorkspace], **_: Any) -
     return ",".join(workspace_names)
 
 
-@celery_app.task(base=BackgroundTask, bind=True)
+@celery_app.task(bind=True)
 @deduplicated_task(lock_key_fn=generate_lock_key, timeout=600)
 def reconcile_slack_usergroups_task(
     self: Any,  # Celery Task instance (bind=True)

@@ -35,7 +35,7 @@ router = APIRouter(
 )
 def slack_usergroups(
     reconcile_request: SlackUsergroupsReconcileRequest,
-    current_user: UserDep,
+    current_user: UserDep,  # noqa: ARG001
     request: Request,
 ) -> SlackUsergroupsTaskResponse:
     """Queue Slack usergroups reconciliation task.
@@ -52,9 +52,7 @@ def slack_usergroups(
         SlackUsergroupsTaskResponse with task_id and status_url
     """
     logger.info(
-        f"Queuing reconciliation task for user {current_user.username}",
-        username=current_user.username,
-        dry_run=reconcile_request.dry_run,
+        "Queuing Slack usergroups reconciliation task",
         workspace_count=len(reconcile_request.workspaces),
     )
     request_id = request.state.request_id
@@ -73,11 +71,7 @@ def slack_usergroups(
         request.url_for("slack_usergroups_task_status", task_id=request_id)
     )
 
-    logger.info(
-        f"Task queued: {request_id}",
-        username=current_user.username,
-        status_url=status_url,
-    )
+    logger.info(f"Task queued: {request_id}", status_url=status_url)
 
     return SlackUsergroupsTaskResponse(
         id=request_id,
@@ -92,7 +86,7 @@ def slack_usergroups(
 )
 async def slack_usergroups_task_status(
     task_id: str,
-    current_user: UserDep,
+    current_user: UserDep,  # noqa: ARG001
     timeout: Annotated[
         int | None,
         Query(
@@ -122,7 +116,6 @@ async def slack_usergroups_task_status(
     """
     logger.info(
         f"Retrieving result for task {task_id}",
-        username=current_user.username,
         task_id=task_id,
         timeout=timeout,
         blocking=timeout is not None,

@@ -1,5 +1,6 @@
 """Middleware for qontract-api."""
 
+import contextlib
 import gzip
 import time
 import uuid
@@ -35,6 +36,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         for header, value in request.headers.items():
             if header.startswith("x-"):
                 structlog.contextvars.bind_contextvars(**{header.lower(): value})
+
+        with contextlib.suppress(Exception):
+            json_body = await request.json()
+            if isinstance(json_body, dict) and "dry_run" in json_body:
+                structlog.contextvars.bind_contextvars(dry_run=json_body["dry_run"])
 
         # Process request
         response = await call_next(request)

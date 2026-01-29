@@ -15,6 +15,8 @@ from qontract_api.tasks._utils import (
     wait_for_task_completion,
 )
 
+logger = structlog.getLogger(__name__)
+
 
 @celery.signals.setup_logging.connect
 def setup_loggers(*_: Any, **__: Any) -> None:
@@ -27,6 +29,14 @@ def on_task_prerun(task_id: str, task: celery.Task, *_: tuple, **kwargs: dict) -
     structlog.contextvars.bind_contextvars(request_id=task_id, task_name=task.name)
     if "dry_run" in kwargs:
         structlog.contextvars.bind_contextvars(dry_run=kwargs["dry_run"])
+    metadata = getattr(task.request, "__structlog_context__", {})
+    structlog.contextvars.bind_contextvars(**metadata)
+
+
+@celery.signals.before_task_publish.connect
+def on_before_task_publish(headers: dict, *_: tuple, **__: dict) -> None:
+    context = structlog.contextvars.get_merged_contextvars(logger)
+    headers["__structlog_context__"] = context
 
 
 # Create Celery app
@@ -37,6 +47,7 @@ celery_app = Celery(
     broker_connection_retry_on_startup=True,
     worker_enable_remote_control=False,
     worker_hijack_root_logger=False,
+    task_cls=BackgroundTask,
     timezone="UTC",
     # support pydantic models
     task_serializer="pickle",
@@ -49,7 +60,6 @@ celery_app = Celery(
         "qontract_api.integrations.slack_usergroups.tasks",
     ],
 )
-
 
 __all__ = [
     "BackgroundTask",
