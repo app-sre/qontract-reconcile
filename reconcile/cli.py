@@ -364,12 +364,6 @@ def account_name(function: Callable) -> Callable:
     return function
 
 
-def cloudflare_zone_name(function: Callable) -> Callable:
-    function = click.option("--zone-name", default=None)(function)
-
-    return function
-
-
 def account_name_multiple(function: Callable) -> Callable:
     """This option can be used when more than one account needs to be passed as argument"""
     function = click.option(
@@ -2334,108 +2328,6 @@ def terraform_resources(
         enable_extended_early_exit=enable_extended_early_exit,
         extended_early_exit_cache_ttl_seconds=extended_early_exit_cache_ttl_seconds,
         log_cached_log_output=log_cached_log_output,
-    )
-
-
-@integration.command(short_help="Manage Cloudflare Resources using Terraform.")
-@print_to_file
-@enable_deletion(default=False)
-@threaded()
-@binary(["terraform"])
-@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@account_name
-@vault_output_path
-@use_jump_host()
-@internal()
-@click.pass_context
-def terraform_cloudflare_resources(
-    ctx: click.Context,
-    print_to_file: str | None,
-    enable_deletion: bool,
-    thread_pool_size: int,
-    account_name: str | None,
-    vault_output_path: str,
-    internal: bool,
-    use_jump_host: bool,
-) -> None:
-    import reconcile.terraform_cloudflare_resources
-
-    run_integration(
-        reconcile.terraform_cloudflare_resources,
-        ctx,
-        print_to_file,
-        enable_deletion,
-        thread_pool_size,
-        account_name,
-        vault_output_path,
-        internal,
-        use_jump_host,
-    )
-
-
-@integration.command(short_help="Manage Cloudflare DNS using Terraform.")
-@print_to_file
-@enable_deletion(default=False)
-@threaded()
-@binary(["terraform"])
-@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@account_name
-@cloudflare_zone_name
-@click.pass_context
-def terraform_cloudflare_dns(
-    ctx: click.Context,
-    print_to_file: str | None,
-    enable_deletion: bool,
-    thread_pool_size: int,
-    account_name: str | None,
-    zone_name: str | None,
-) -> None:
-    from reconcile import terraform_cloudflare_dns
-
-    run_class_integration(
-        integration=terraform_cloudflare_dns.TerraformCloudflareDNSIntegration(
-            terraform_cloudflare_dns.TerraformCloudflareDNSIntegrationParams(
-                print_to_file=print_to_file,
-                enable_deletion=enable_deletion,
-                thread_pool_size=thread_pool_size,
-                selected_account=account_name,
-                selected_zone=zone_name,
-            )
-        ),
-        ctx=ctx,
-    )
-
-
-@integration.command(short_help="Manage Cloudflare Users using Terraform.")
-@print_to_file
-@binary(["terraform"])
-@threaded()
-@binary_version("terraform", ["version"], TERRAFORM_VERSION_REGEX, TERRAFORM_VERSION)
-@account_name
-@enable_deletion(default=True)
-@click.pass_context
-def terraform_cloudflare_users(
-    ctx: click.Context,
-    print_to_file: str | None,
-    account_name: str | None,
-    thread_pool_size: int,
-    enable_deletion: bool,
-) -> None:
-    from reconcile.terraform_cloudflare_users import (
-        TerraformCloudflareUsers,
-        TerraformCloudflareUsersParams,
-    )
-
-    run_class_integration(
-        TerraformCloudflareUsers(
-            TerraformCloudflareUsersParams(
-                print_to_file=print_to_file,
-                account_name=account_name,
-                thread_pool_size=thread_pool_size,
-                enable_deletion=enable_deletion,
-            )
-        ),
-        ctx,
     )
 
 

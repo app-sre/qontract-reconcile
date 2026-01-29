@@ -235,9 +235,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   template-validator              Test app-interface templates.
   terraform-aws-route53           Manage AWS Route53 resources using
                                   Terraform.
-  terraform-cloudflare-dns        Manage Cloudflare DNS using Terraform.
-  terraform-cloudflare-resources  Manage Cloudflare Resources using Terraform.
-  terraform-cloudflare-users      Manage Cloudflare Users using Terraform.
   terraform-init                  Initialize AWS accounts for Terraform usage.
   terraform-repo                  Manages raw HCL Terraform from a separate
                                   repository.
