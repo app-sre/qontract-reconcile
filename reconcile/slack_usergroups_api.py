@@ -324,6 +324,7 @@ class SlackUsergroupsIntegration(
     async def compile_users_from_pagerduty_schedules(
         self,
         pagerduties: Iterable[PagerDutyTargetV1] | None,
+        app_interface_users: list[UserV1],
     ) -> list[str]:
         """Extract usernames from PagerDuty schedules and escalation policies.
 
@@ -364,9 +365,18 @@ class SlackUsergroupsIntegration(
                 )
 
         responses = await asyncio.gather(*tasks)
+        users_map: dict[str, str] = {
+            user.pagerduty_username: user.org_username
+            for user in app_interface_users
+            if user.pagerduty_username
+        }
 
-        # Extract usernames
-        return [user.username for resp in responses for user in resp.users or []]
+        # Extract and translate pagerduty usernames to org_usernames
+        return [
+            users_map.get(user.username, user.username)
+            for resp in responses
+            for user in resp.users or []
+        ]
 
     async def _process_permission(
         self,
@@ -413,7 +423,8 @@ class SlackUsergroupsIntegration(
         # Add users from PagerDuty schedules
         users.update(
             await self.compile_users_from_pagerduty_schedules(
-                pagerduties=permission.pagerduty
+                pagerduties=permission.pagerduty,
+                app_interface_users=app_interface_users,
             )
         )
 
