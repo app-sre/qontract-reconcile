@@ -38,7 +38,7 @@ class TaskResult(Protocol):
         ...
 
     @property
-    def errors(self) -> list[str] | None:
+    def errors(self) -> list[str]:
         """List of error messages, if any."""
         ...
 
@@ -48,7 +48,7 @@ class TaskResult(Protocol):
         status: TaskStatus,
         actions: list,
         applied_count: int,
-        errors: list[str] | None,
+        errors: list[str],
     ) -> None:
         """Construct a task result instance."""
         ...
@@ -187,7 +187,7 @@ def get_celery_task_result[T: TaskResult](
                 status=TaskStatus.PENDING,
                 actions=[],
                 applied_count=0,
-                errors=None,
+                errors=[],
             )
 
 
