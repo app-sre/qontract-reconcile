@@ -45,22 +45,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """Process request and log details."""
         start_time = time.time()
 
-        # clear previous contextvars
-        structlog.contextvars.clear_contextvars()
-
-        # Bind request ID and other contextvars
-        structlog.contextvars.bind_contextvars(request_id=request.state.request_id)
-
-        # use all submitted headers starting with X- as additional context
-        for header, value in request.headers.items():
-            if header.startswith("x-"):
-                structlog.contextvars.bind_contextvars(**{header.lower(): value})
+        context_vars = {
+            "request_id": request.state.request_id,
+        } | {
+            header.lower(): value
+            for header, value in request.headers.items()
+            if header.startswith("x-")
+        }
 
         # dry_run from body if present
         with contextlib.suppress(Exception):
             json_body = await request.json()
             if isinstance(json_body, dict) and "dry_run" in json_body:
-                structlog.contextvars.bind_contextvars(dry_run=json_body["dry_run"])
+                context_vars["dry_run"] = json_body["dry_run"]
 
         # get username from authentication header if present
         if "authorization" in request.headers:
@@ -72,32 +69,31 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     from qontract_api.auth import decode_token  # noqa: PLC0415
 
                     payload = decode_token(token)
-                    structlog.contextvars.bind_contextvars(username=payload.sub)
+                    context_vars["username"] = payload.sub
 
-        # Log request with structured fields
-        logger.info(
-            f"Start {request.method} {request.url.path}",
-            http_method=request.method,
-            http_path=str(request.url.path),
-            client_host=request.client.host if request.client else None,
-            request_id=request.state.request_id,
-        )
-        # Process request
-        response = await call_next(request)
+        with structlog.contextvars.bound_contextvars(**context_vars):
+            # Log request with structured fields
+            logger.info(
+                f"Start {request.method} {request.url.path}",
+                http_method=request.method,
+                http_path=str(request.url.path),
+                client_host=request.client.host if request.client else None,
+            )
+            # Process request
+            response = await call_next(request)
 
-        # Calculate duration
-        duration = time.time() - start_time
+            # Calculate duration
+            duration = time.time() - start_time
 
-        # Log request with structured fields
-        logger.info(
-            f"Done {request.method} {request.url.path}",
-            http_method=request.method,
-            http_path=str(request.url.path),
-            http_status=response.status_code,
-            duration_seconds=round(duration, 3),
-            client_host=request.client.host if request.client else None,
-            request_id=request.state.request_id,
-        )
+            # Log request with structured fields
+            logger.info(
+                f"Done {request.method} {request.url.path}",
+                http_method=request.method,
+                http_path=str(request.url.path),
+                http_status=response.status_code,
+                duration_seconds=round(duration, 3),
+                client_host=request.client.host if request.client else None,
+            )
 
         return response
 
