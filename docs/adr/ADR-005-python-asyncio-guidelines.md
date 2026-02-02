@@ -93,30 +93,36 @@ async def wait_for_task_completion[T: TaskResult](
 - Uses `await asyncio.sleep()` for non-blocking polling
 - Clear benefit over `time.sleep()` which blocks the thread
 
-### ✅ Good: Async FastAPI Endpoint
+### ✅ Good: Async FastAPI Middleware
 
 ```python
-# qontract_api/integrations/slack_usergroups/router.py
-@router.get("/reconcile/{task_id}")
-async def get_reconcile_result(
-    task_id: str,
-    timeout_seconds: int | None = None,
-) -> SlackUsergroupsTaskResult:
-    """Async endpoint uses async helper."""
-    def get_status() -> SlackUsergroupsTaskResult:
-        # Sync status retrieval (calls sync cache)
-        return cache.get_obj(f"task:{task_id}:result")
+# qontract_api/middleware.py
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Add unique request ID to each request."""
 
-    # Async polling with non-blocking sleep
-    return await wait_for_task_completion(get_status, timeout_seconds)
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Process request and add request ID."""
+        # Generate server-side request ID
+        request_id = str(uuid.uuid4())
+        request.state.request_id = request_id
+
+        # Process request (async operation)
+        response = await call_next(request)
+
+        # Add request ID to response headers
+        response.headers[REQUEST_ID_HEADER] = request_id
+
+        return response
 ```
 
-**Why this works:**
+**Why async is appropriate here:**
 
-- Endpoint is `async def` (runs in event loop)
-- Calls async helper with `await`
-- Inner `get_status()` is sync (calls sync cache)
-- No event loop detection needed
+- Middleware only runs in FastAPI event loop (never in Celery)
+- Must `await call_next()` to process request asynchronously
+- No sync-only API calls (pure HTTP request/response handling)
+- Clear benefit: non-blocking request processing
 
 ### ✅ Good: Sync Service with 3rd Party API
 
