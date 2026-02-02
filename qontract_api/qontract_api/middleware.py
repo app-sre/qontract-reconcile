@@ -27,21 +27,6 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 
-        # add request_id to all log entries
-        # unfortunately, structlog's contextvars doesn't work well with FastAPI (async vs sync)
-        # you may need to use request.state.request_id explicitly in log calls, see RequestLoggingMiddleware below
-        structlog.contextvars.bind_contextvars(request_id=request_id)
-
-        # use all submitted headers starting with X- as additional context
-        for header, value in request.headers.items():
-            if header.startswith("x-"):
-                structlog.contextvars.bind_contextvars(**{header.lower(): value})
-
-        with contextlib.suppress(Exception):
-            json_body = await request.json()
-            if isinstance(json_body, dict) and "dry_run" in json_body:
-                structlog.contextvars.bind_contextvars(dry_run=json_body["dry_run"])
-
         # Process request
         response = await call_next(request)
 
@@ -59,30 +44,56 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """Process request and log details."""
         start_time = time.time()
-        # Log request with structured fields
-        logger.info(
-            f"Start {request.method} {request.url.path}",
-            http_method=request.method,
-            http_path=str(request.url.path),
-            client_host=request.client.host if request.client else None,
-            request_id=request.state.request_id,
-        )
-        # Process request
-        response = await call_next(request)
 
-        # Calculate duration
-        duration = time.time() - start_time
+        context_vars = {
+            "request_id": request.state.request_id,
+        } | {
+            header.lower(): value
+            for header, value in request.headers.items()
+            if header.startswith("x-")
+        }
 
-        # Log request with structured fields
-        logger.info(
-            f"Done {request.method} {request.url.path}",
-            http_method=request.method,
-            http_path=str(request.url.path),
-            http_status=response.status_code,
-            duration_seconds=round(duration, 3),
-            client_host=request.client.host if request.client else None,
-            request_id=request.state.request_id,
-        )
+        # dry_run from body if present
+        with contextlib.suppress(Exception):
+            json_body = await request.json()
+            if isinstance(json_body, dict) and "dry_run" in json_body:
+                context_vars["dry_run"] = json_body["dry_run"]
+
+        # get username from authentication header if present
+        if "authorization" in request.headers:
+            with contextlib.suppress(Exception):
+                auth_header = request.headers["authorization"]
+                token_type, token = auth_header.split(" ")
+                if token_type.lower() == "bearer":
+                    # decode token to get username
+                    from qontract_api.auth import decode_token  # noqa: PLC0415
+
+                    payload = decode_token(token)
+                    context_vars["username"] = payload.sub
+
+        with structlog.contextvars.bound_contextvars(**context_vars):
+            # Log request with structured fields
+            logger.info(
+                f"Start {request.method} {request.url.path}",
+                http_method=request.method,
+                http_path=str(request.url.path),
+                client_host=request.client.host if request.client else None,
+            )
+            # Process request
+            response = await call_next(request)
+
+            # Calculate duration
+            duration = time.time() - start_time
+
+            # Log request with structured fields
+            logger.info(
+                f"Done {request.method} {request.url.path}",
+                http_method=request.method,
+                http_path=str(request.url.path),
+                http_status=response.status_code,
+                duration_seconds=round(duration, 3),
+                client_host=request.client.host if request.client else None,
+            )
 
         return response
 
