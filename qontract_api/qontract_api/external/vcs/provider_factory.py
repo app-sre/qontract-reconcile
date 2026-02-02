@@ -92,7 +92,9 @@ class VCSProviderFactory:
             url=url,
             token=self._token,
             timeout=provider_config.api_timeout,
-            hooks=[],
+            pre_hooks=[],
+            post_hooks=[],
+            error_hooks=[],
             provider_settings=self._build_provider_settings(provider_config),
         )
 

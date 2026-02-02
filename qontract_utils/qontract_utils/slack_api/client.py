@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import http
-import logging
+import threading
+import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import structlog
+from prometheus_client import Counter, Histogram
 from slack_sdk import WebClient
 from slack_sdk.http_retry import (
     ConnectionErrorRetryHandler,
@@ -18,13 +22,29 @@ from slack_sdk.http_retry import (
 )
 
 from qontract_utils.hooks import invoke_with_hooks
-from qontract_utils.metrics import slack_request
 from qontract_utils.slack_api.models import SlackChannel, SlackUser, SlackUsergroup
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
+
+# Following naming convention ((qontract_reconcile_external_api_<component>_requests_total)) to
+# automatically include this metric in dashboards
+slack_request = Counter(
+    name="qontract_reconcile_external_api_slack_requests_total",
+    documentation="Number of calls made to Slack API",
+    labelnames=["resource", "verb"],
+)
+
+slack_request_duration = Histogram(
+    "qontract_reconcile_external_api_slack_request_duration_seconds",
+    "Slack API request duration in seconds",
+    ["resource", "verb"],
+)
+
+# Thread-local storage for latency tracking
+_latency_tracker = threading.local()
 
 
 @dataclass(frozen=True)
@@ -48,8 +68,34 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
     Automatically increments the slack_request counter with method and verb labels.
     """
     slack_request.labels(context.method, context.verb).inc()
+
+
+def _latency_start_hook(_context: SlackApiCallContext) -> None:
+    """Built-in hook to start latency measurement.
+
+    Stores the start time in thread-local storage.
+    """
+    _latency_tracker.start_time = time.perf_counter()
+
+
+def _latency_end_hook(context: SlackApiCallContext) -> None:
+    """Built-in hook to record latency measurement.
+
+    Calculates duration from start time and records to Prometheus histogram.
+    """
+    if hasattr(_latency_tracker, "start_time"):
+        duration = time.perf_counter() - _latency_tracker.start_time
+        slack_request_duration.labels(context.method, context.verb).observe(duration)
+        del _latency_tracker.start_time
+
+
+def _request_log_hook(context: SlackApiCallContext) -> None:
+    """Built-in hook for logging API requests."""
     logger.debug(
-        f"Slack API call: method={context.method}, verb={context.verb}, workspace={context.workspace}"
+        "API request",
+        workspace=context.workspace,
+        method=context.method,
+        verb=context.verb,
     )
 
 
@@ -105,7 +151,9 @@ class SlackApi:
         timeout: int,
         max_retries: int,
         method_configs: dict[str, dict[str, Any]] | None = None,
-        pre_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
+        pre_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
+        post_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
+        error_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
     ) -> None:
         """Initialize SlackApi wrapper.
 
@@ -122,10 +170,22 @@ class SlackApi:
         self.workspace_name = workspace_name
         self._method_configs = method_configs or {}
 
-        # Build hooks list: always include metrics hook, then user hooks
-        self._pre_hooks: list[Callable[[SlackApiCallContext], None]] = [_metrics_hook]
+        # Build hooks list: always include built-in hooks
+        self._pre_hooks: list[Callable[[SlackApiCallContext], None]] = [
+            _metrics_hook,
+            _latency_start_hook,
+            _request_log_hook,
+        ]
         if pre_hooks:
             self._pre_hooks.extend(pre_hooks)
+        self._post_hooks: list[Callable[[SlackApiCallContext], None]] = [
+            _latency_end_hook
+        ]
+        if post_hooks:
+            self._post_hooks.extend(post_hooks)
+        self._error_hooks: list[Callable[[SlackApiCallContext], None]] = []
+        if error_hooks:
+            self._error_hooks.extend(error_hooks)
 
         self._sc = WebClient(
             token=token,
@@ -160,6 +220,8 @@ class SlackApi:
                     workspace=self.workspace_name,
                 ),
                 pre_hooks=self._pre_hooks,
+                post_hooks=self._post_hooks,
+                error_hooks=self._error_hooks,
             ):
                 result = self._sc.api_call("users.list", params=additional_kwargs)
 
@@ -189,6 +251,8 @@ class SlackApi:
                 workspace=self.workspace_name,
             ),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             result = self._sc.usergroups_list(
                 include_users=include_users, include_disabled=True
@@ -214,6 +278,8 @@ class SlackApi:
                 workspace=self.workspace_name,
             ),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             response = self._sc.usergroups_create(name=name or handle, handle=handle)
         return SlackUsergroup(**response["usergroup"])
@@ -234,6 +300,8 @@ class SlackApi:
                 workspace=self.workspace_name,
             ),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             response = self._sc.usergroups_enable(usergroup=usergroup_id)
         return SlackUsergroup(**response["usergroup"])
@@ -254,6 +322,8 @@ class SlackApi:
                 workspace=self.workspace_name,
             ),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             response = self._sc.usergroups_disable(usergroup=usergroup_id)
         return SlackUsergroup(**response["usergroup"])
@@ -284,6 +354,8 @@ class SlackApi:
                 workspace=self.workspace_name,
             ),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             response = self._sc.usergroups_update(
                 usergroup=usergroup_id,
@@ -315,6 +387,8 @@ class SlackApi:
                 workspace=self.workspace_name,
             ),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             response = self._sc.usergroups_users_update(
                 usergroup=usergroup_id, users=user_ids
@@ -343,6 +417,8 @@ class SlackApi:
                     workspace=self.workspace_name,
                 ),
                 pre_hooks=self._pre_hooks,
+                post_hooks=self._post_hooks,
+                error_hooks=self._error_hooks,
             ):
                 result = self._sc.api_call(
                     "conversations.list", params=additional_kwargs
