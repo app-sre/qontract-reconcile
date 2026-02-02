@@ -77,8 +77,8 @@ Body:
 
 **Characteristics:**
 
-- Always returns `202 Accepted`
-- Always queues background task
+- Returns `202 Accepted`, if task queued successfully or `200` if it's hit the HTTP cache
+- May queue background tasks
 - Returns immediately (no waiting)
 - Works for both dry-run and apply modes
 
