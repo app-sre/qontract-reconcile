@@ -17,6 +17,7 @@ dependencies = [
     "python-jose[cryptography]==3.5.0",
     "qontract-utils",
     "redis==7.1.0",
+    "sentry-sdk==2.51.0",
     "structlog==25.5.0",
     "uvicorn[standard]==0.38.0",
 ]

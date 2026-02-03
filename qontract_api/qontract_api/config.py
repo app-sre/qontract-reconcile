@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import (
     BaseSettings,
     JsonConfigSettingsSource,
@@ -269,6 +269,15 @@ class Settings(BaseSettings):
         default="slack_sdk,httpcore,github.Requester",
         description="Comma-separated list of logger names to exclude from logging",
     )
+    # Sentry/Glitchtip
+    sentry_dsn: str = Field(
+        default="",
+        description="Sentry DSN for error tracking (Glitchtip compatible)",
+    )
+    sentry_event_level: str = Field(
+        default="ERROR",
+        description="Minimum log level to send events to Sentry",
+    )
 
     # Cache Backend
     cache_backend: str = Field(
@@ -346,6 +355,18 @@ class Settings(BaseSettings):
         ...,
         description="Secret backend configuration (Vault, AWS KMS, Google)",
     )
+
+    @field_validator("sentry_event_level", mode="after")
+    @classmethod
+    def validate_sentry_event_level(cls, value: str) -> str:
+        """Validate sentry_event_level is a valid logging level."""
+        valid_levels = {"ERROR", "CRITICAL"}
+        value = value.upper()
+        if value not in valid_levels:
+            raise ValueError(
+                f"sentry_event_level must be one of {valid_levels}, got {value}"
+            )
+        return value
 
     def get_celery_broker_url(self) -> str:
         """Get Celery broker URL, defaulting to cache_broker_url."""

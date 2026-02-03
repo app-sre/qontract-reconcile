@@ -9,7 +9,9 @@ Configure via LOG_FORMAT_JSON environment variable (default: True).
 
 import logging
 
+import sentry_sdk
 import structlog
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 from qontract_api.config import settings
 
@@ -92,6 +94,32 @@ def setup_logging() -> structlog.typing.WrappedLogger:
     for logger_name in excluded_loggers:
         excluded_logger = logging.getLogger(logger_name)
         excluded_logger.setLevel(logging.WARNING)
+
+    # initialize Sentry/Glitchtip integration if DSN is provided
+    if settings.sentry_dsn:
+        match settings.sentry_event_level:
+            case "CRITICAL":
+                sentry_event_level = logging.CRITICAL
+            case "ERROR":
+                sentry_event_level = logging.ERROR
+            case _:
+                raise NotImplementedError(
+                    f"Unsupported sentry_event_level: {settings.sentry_event_level}"
+                )
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            # Add data like request headers and IP for users, if applicable;
+            # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+            # Sensitive headers are automatically filtered by Sentry.
+            send_default_pii=True,
+            # Enable logs to be sent to Sentry
+            enable_logs=True,
+            ignore_errors=[ConnectionError],
+            integrations=[
+                LoggingIntegration(event_level=sentry_event_level),
+            ],
+        )
 
     return structlog.get_logger("qontract_api")
 
