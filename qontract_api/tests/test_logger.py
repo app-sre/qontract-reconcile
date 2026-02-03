@@ -5,6 +5,7 @@ import logging
 from io import StringIO
 from unittest.mock import patch
 
+import pytest
 import structlog
 from structlog.typing import Processor
 
@@ -26,6 +27,7 @@ def test_setup_logging_returns_qontract_api_logger() -> None:
         mock_settings.log_level = "INFO"
         mock_settings.log_format_json = True
         mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
 
         logger = setup_logging()
 
@@ -41,6 +43,7 @@ def test_setup_logging_with_json_format() -> None:
         mock_settings.log_level = "INFO"
         mock_settings.log_format_json = True
         mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
 
         # Clear existing handlers
         root_logger = logging.getLogger()
@@ -61,6 +64,7 @@ def test_setup_logging_with_standard_format() -> None:
         mock_settings.log_level = "INFO"
         mock_settings.log_format_json = False
         mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
 
         # Clear existing handlers
         root_logger = logging.getLogger()
@@ -81,6 +85,7 @@ def test_logger_with_json_output() -> None:
         mock_settings.log_level = "INFO"
         mock_settings.log_format_json = True
         mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
 
         # Setup logging with JSON format
         root_logger = logging.getLogger()
@@ -141,6 +146,7 @@ def test_logger_with_context_vars() -> None:
         mock_settings.log_level = "INFO"
         mock_settings.log_format_json = True
         mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
 
         # Setup logging with JSON format
         root_logger = logging.getLogger()
@@ -200,6 +206,7 @@ def test_logger_with_extra_fields() -> None:
         mock_settings.log_level = "INFO"
         mock_settings.log_format_json = True
         mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
 
         # Setup logging
         root_logger = logging.getLogger()
@@ -267,6 +274,7 @@ def test_logger_with_exception() -> None:
         mock_settings.log_level = "INFO"
         mock_settings.log_format_json = True
         mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
 
         # Setup logging
         root_logger = logging.getLogger()
@@ -322,5 +330,125 @@ def test_logger_with_exception() -> None:
         exc_info = log_dict["exception"][0]
         assert exc_info["exc_type"] == "ValueError"
         assert exc_info["exc_value"] == "Test error"
+
+        root_logger.handlers.clear()
+
+
+def test_sentry_init_called_when_dsn_provided() -> None:
+    """Test that sentry_sdk.init is called when SENTRY_DSN is provided."""
+    with (
+        patch("qontract_api.logger.settings") as mock_settings,
+        patch("qontract_api.logger.sentry_sdk.init") as mock_sentry_init,
+    ):
+        mock_settings.log_level = "INFO"
+        mock_settings.log_format_json = True
+        mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = "https://example@sentry.io/123"
+        mock_settings.sentry_event_level = "ERROR"
+
+        root_logger = logging.getLogger()
+        root_logger.handlers.clear()
+
+        setup_logging()
+
+        mock_sentry_init.assert_called_once()
+        call_args = mock_sentry_init.call_args
+
+        assert call_args.kwargs["dsn"] == "https://example@sentry.io/123"
+        assert call_args.kwargs["send_default_pii"] is True
+        assert call_args.kwargs["enable_logs"] is True
+        assert call_args.kwargs["ignore_errors"] == [ConnectionError]
+
+        root_logger.handlers.clear()
+
+
+def test_sentry_init_not_called_when_dsn_empty() -> None:
+    """Test that sentry_sdk.init is not called when SENTRY_DSN is empty."""
+    with (
+        patch("qontract_api.logger.settings") as mock_settings,
+        patch("qontract_api.logger.sentry_sdk.init") as mock_sentry_init,
+    ):
+        mock_settings.log_level = "INFO"
+        mock_settings.log_format_json = True
+        mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = ""
+
+        root_logger = logging.getLogger()
+        root_logger.handlers.clear()
+
+        setup_logging()
+
+        mock_sentry_init.assert_not_called()
+
+        root_logger.handlers.clear()
+
+
+def test_sentry_init_with_error_level() -> None:
+    """Test sentry_sdk.init uses ERROR event level correctly."""
+    with (
+        patch("qontract_api.logger.settings") as mock_settings,
+        patch("qontract_api.logger.sentry_sdk.init") as mock_sentry_init,
+        patch("qontract_api.logger.LoggingIntegration") as mock_logging_integration,
+    ):
+        mock_settings.log_level = "INFO"
+        mock_settings.log_format_json = True
+        mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = "https://example@sentry.io/123"
+        mock_settings.sentry_event_level = "ERROR"
+
+        root_logger = logging.getLogger()
+        root_logger.handlers.clear()
+
+        setup_logging()
+
+        mock_sentry_init.assert_called_once()
+        mock_logging_integration.assert_called_once_with(event_level=logging.ERROR)
+
+        root_logger.handlers.clear()
+
+
+def test_sentry_init_with_critical_level() -> None:
+    """Test sentry_sdk.init uses CRITICAL event level correctly."""
+    with (
+        patch("qontract_api.logger.settings") as mock_settings,
+        patch("qontract_api.logger.sentry_sdk.init") as mock_sentry_init,
+        patch("qontract_api.logger.LoggingIntegration") as mock_logging_integration,
+    ):
+        mock_settings.log_level = "INFO"
+        mock_settings.log_format_json = True
+        mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = "https://example@sentry.io/123"
+        mock_settings.sentry_event_level = "CRITICAL"
+
+        root_logger = logging.getLogger()
+        root_logger.handlers.clear()
+
+        setup_logging()
+
+        mock_sentry_init.assert_called_once()
+        mock_logging_integration.assert_called_once_with(event_level=logging.CRITICAL)
+
+        root_logger.handlers.clear()
+
+
+def test_sentry_init_with_invalid_level_raises_error() -> None:
+    """Test that invalid SENTRY_EVENT_LEVEL raises NotImplementedError."""
+    with (
+        patch("qontract_api.logger.settings") as mock_settings,
+        patch("qontract_api.logger.sentry_sdk.init"),
+    ):
+        mock_settings.log_level = "INFO"
+        mock_settings.log_format_json = True
+        mock_settings.log_exclude_loggers = ""
+        mock_settings.sentry_dsn = "https://example@sentry.io/123"
+        mock_settings.sentry_event_level = "WARNING"
+
+        root_logger = logging.getLogger()
+        root_logger.handlers.clear()
+
+        with pytest.raises(
+            NotImplementedError, match="Unsupported sentry_event_level: WARNING"
+        ):
+            setup_logging()
 
         root_logger.handlers.clear()
