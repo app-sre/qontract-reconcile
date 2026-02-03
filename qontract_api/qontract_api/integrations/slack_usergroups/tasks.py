@@ -42,7 +42,9 @@ def generate_lock_key(_self: Task, workspaces: list[SlackWorkspace], **_: Any) -
     return ",".join(workspace_names)
 
 
-@celery_app.task(bind=True)
+# Use <integration-name>.<task-name> format for task names
+# This helps to relate tasks to integrations in the dahsboards and monitoring
+@celery_app.task(bind=True, name="slack.usergroups.reconcile", acks_late=True)
 @deduplicated_task(lock_key_fn=generate_lock_key, timeout=600)
 def reconcile_slack_usergroups_task(
     self: Any,  # Celery Task instance (bind=True)
