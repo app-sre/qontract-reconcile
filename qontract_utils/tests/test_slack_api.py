@@ -124,9 +124,57 @@ def test_slack_api_pre_hooks_custom(mock_webclient: MagicMock) -> None:
         pre_hooks=[custom_hook],
     )
 
-    # Should have metrics hook + custom hook
-    assert len(api._pre_hooks) == 2
-    assert api._pre_hooks[1] == custom_hook
+    # Should have metrics + latency_start + request_log + custom hook
+    assert len(api._pre_hooks) == 4
+    assert api._pre_hooks[-1] == custom_hook
+
+
+def test_slack_api_post_hooks_includes_latency(mock_webclient: MagicMock) -> None:
+    """Test that latency hook is always included in post_hooks."""
+    api = SlackApi(
+        slack_api_url=DEFAULT_SLACK_API_URL,
+        workspace_name="workspace",
+        token="token",
+        timeout=DEFAULT_TIMEOUT,
+        max_retries=DEFAULT_MAX_RETRIES,
+    )
+
+    # Should have at least the latency_end hook
+    assert len(api._post_hooks) >= 1
+
+
+def test_slack_api_post_hooks_custom(mock_webclient: MagicMock) -> None:
+    """Test custom post_hooks are added after latency hook."""
+    custom_hook = MagicMock()
+    api = SlackApi(
+        slack_api_url=DEFAULT_SLACK_API_URL,
+        workspace_name="workspace",
+        token="token",
+        timeout=DEFAULT_TIMEOUT,
+        max_retries=DEFAULT_MAX_RETRIES,
+        post_hooks=[custom_hook],
+    )
+
+    # Should have latency_end hook + custom hook
+    assert len(api._post_hooks) == 2
+    assert api._post_hooks[-1] == custom_hook
+
+
+def test_slack_api_error_hooks_custom(mock_webclient: MagicMock) -> None:
+    """Test custom error_hooks are added."""
+    custom_hook = MagicMock()
+    api = SlackApi(
+        slack_api_url=DEFAULT_SLACK_API_URL,
+        workspace_name="workspace",
+        token="token",
+        timeout=DEFAULT_TIMEOUT,
+        max_retries=DEFAULT_MAX_RETRIES,
+        error_hooks=[custom_hook],
+    )
+
+    # Should have custom error hook
+    assert len(api._error_hooks) == 1
+    assert api._error_hooks[0] == custom_hook
 
 
 # Typed methods tests

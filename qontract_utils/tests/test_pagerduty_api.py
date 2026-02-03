@@ -78,12 +78,47 @@ def test_pagerduty_api_pre_hooks_custom(mock_pagerduty_client: MagicMock) -> Non
         pre_hooks=[custom_hook],
     )
 
-    # Should have metrics hook + custom hook
-    assert len(api._pre_hooks) == 2
-    assert api._pre_hooks[1] == custom_hook
+    # Should have metrics hook + latency_start + request_log + custom hook
+    assert len(api._pre_hooks) == 4
+    assert api._pre_hooks[-1] == custom_hook
 
 
-# NOTE: _extract_org_username method removed - org_username is now a property on PagerDutyUser
+def test_pagerduty_api_post_hooks_includes_latency(
+    mock_pagerduty_client: MagicMock,
+) -> None:
+    """Test that latency hook is always included in post_hooks."""
+    api = PagerDutyApi("instance", "token")
+
+    # Should have at least the latency_end hook
+    assert len(api._post_hooks) >= 1
+
+
+def test_pagerduty_api_post_hooks_custom(mock_pagerduty_client: MagicMock) -> None:
+    """Test custom post_hooks are added after latency hook."""
+    custom_hook = MagicMock()
+    api = PagerDutyApi(
+        "instance",
+        "token",
+        post_hooks=[custom_hook],
+    )
+
+    # Should have latency_end hook + custom hook
+    assert len(api._post_hooks) == 2
+    assert api._post_hooks[-1] == custom_hook
+
+
+def test_pagerduty_api_error_hooks_custom(mock_pagerduty_client: MagicMock) -> None:
+    """Test custom error_hooks are added."""
+    custom_hook = MagicMock()
+    api = PagerDutyApi(
+        "instance",
+        "token",
+        error_hooks=[custom_hook],
+    )
+
+    # Should have custom error hook
+    assert len(api._error_hooks) == 1
+    assert api._error_hooks[0] == custom_hook
 
 
 def test_get_schedule_users_returns_pagerduty_user_objects(
@@ -124,7 +159,7 @@ def test_get_schedule_users_returns_pagerduty_user_objects(
 
     assert len(users) == 2
     assert all(isinstance(user, PagerDutyUser) for user in users)
-    assert {u.org_username for u in users} == {"alice", "bob"}
+    assert {u.username for u in users} == {"alice", "bob"}
 
 
 def test_get_schedule_users_deduplicates_users(
@@ -154,8 +189,8 @@ def test_get_schedule_users_deduplicates_users(
 
     # Should return 2 users (deduplication is not implemented in API layer)
     assert len(users) == 2
-    assert users[0].org_username == "alice"
-    assert users[1].org_username == "alice"
+    assert users[0].username == "alice"
+    assert users[1].username == "alice"
 
 
 def test_get_schedule_users_handles_empty_schedule(
@@ -190,11 +225,11 @@ def test_get_schedule_users_calls_api_with_time_window(
     assert "until" in call_args.kwargs["params"]
 
 
-def test_get_schedule_users_calls_hooks(
+def test_get_schedule_users_calls_pre_hooks(
     pagerduty_api: PagerDutyApi,
     mock_pagerduty_client: MagicMock,
 ) -> None:
-    """Test get_schedule_users calls hooks before API call."""
+    """Test get_schedule_users calls pre_hooks before API call."""
     hook = MagicMock()
     pagerduty_api._pre_hooks = [hook]
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
@@ -204,6 +239,24 @@ def test_get_schedule_users_calls_hooks(
 
     hook.assert_called_once()
     context = hook.call_args[0][0]
+    assert context.method == "schedules.get"
+    assert context.verb == "GET"
+
+
+def test_get_schedule_users_calls_post_hooks(
+    pagerduty_api: PagerDutyApi,
+    mock_pagerduty_client: MagicMock,
+) -> None:
+    """Test get_schedule_users calls post_hooks after API call."""
+    post_hook = MagicMock()
+    pagerduty_api._post_hooks = [post_hook]
+    mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
+    pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
+
+    pagerduty_api.get_schedule_users("SCHEDULE123")
+
+    post_hook.assert_called_once()
+    context = post_hook.call_args[0][0]
     assert context.method == "schedules.get"
     assert context.verb == "GET"
 
@@ -241,7 +294,7 @@ def test_get_escalation_policy_users_returns_pagerduty_user_objects(
 
     assert len(users) == 2
     assert all(isinstance(user, PagerDutyUser) for user in users)
-    assert {u.org_username for u in users} == {"alice", "bob"}
+    assert {u.username for u in users} == {"alice", "bob"}
 
 
 def test_get_escalation_policy_users_handles_user_reference_type(
@@ -270,7 +323,7 @@ def test_get_escalation_policy_users_handles_user_reference_type(
     users = pagerduty_api.get_escalation_policy_users("POLICY123")
 
     assert len(users) == 1
-    assert users[0].org_username == "charlie"
+    assert users[0].username == "charlie"
 
 
 def test_get_escalation_policy_users_deduplicates_users(
@@ -304,7 +357,7 @@ def test_get_escalation_policy_users_deduplicates_users(
 
     # Only processes first rule if delay != 0, so returns 1 user
     assert len(users) == 1
-    assert users[0].org_username == "alice"
+    assert users[0].username == "alice"
 
 
 def test_get_escalation_policy_users_handles_schedule_reference(
@@ -345,7 +398,7 @@ def test_get_escalation_policy_users_handles_schedule_reference(
 
     # Should return both user and schedule users
     assert len(users) == 2
-    assert {u.org_username for u in users} == {"alice", "bob"}
+    assert {u.username for u in users} == {"alice", "bob"}
 
 
 def test_get_escalation_policy_users_handles_empty_policy(
@@ -361,11 +414,11 @@ def test_get_escalation_policy_users_handles_empty_policy(
     assert len(users) == 0
 
 
-def test_get_escalation_policy_users_calls_hooks(
+def test_get_escalation_policy_users_calls_pre_hooks(
     pagerduty_api: PagerDutyApi,
     mock_pagerduty_client: MagicMock,
 ) -> None:
-    """Test get_escalation_policy_users calls hooks before API call."""
+    """Test get_escalation_policy_users calls pre_hooks before API call."""
     hook = MagicMock()
     pagerduty_api._pre_hooks = [hook]
     mock_policy: dict = {"escalation_rules": []}
@@ -379,6 +432,24 @@ def test_get_escalation_policy_users_calls_hooks(
     assert context.verb == "GET"
 
 
+def test_get_escalation_policy_users_calls_post_hooks(
+    pagerduty_api: PagerDutyApi,
+    mock_pagerduty_client: MagicMock,
+) -> None:
+    """Test get_escalation_policy_users calls post_hooks after API call."""
+    post_hook = MagicMock()
+    pagerduty_api._post_hooks = [post_hook]
+    mock_policy: dict = {"escalation_rules": []}
+    pagerduty_api._client.rget = MagicMock(return_value=mock_policy)
+
+    pagerduty_api.get_escalation_policy_users("POLICY123")
+
+    post_hook.assert_called_once()
+    context = post_hook.call_args[0][0]
+    assert context.method == "escalation_policies.get"
+    assert context.verb == "GET"
+
+
 def test_pagerduty_user_immutable() -> None:
     """Test PagerDutyUser is immutable (frozen=True)."""
     user = PagerDutyUser(id="USER1", email="jsmith@example.com", name="John Smith")
@@ -387,17 +458,17 @@ def test_pagerduty_user_immutable() -> None:
         user.email = "different"  # type: ignore[misc]
 
 
-def test_pagerduty_user_org_username_property() -> None:
-    """Test org_username property extracts username from email."""
+def test_pagerduty_user_username_property() -> None:
+    """Test username property extracts username from email."""
     user = PagerDutyUser(id="USER1", email="jsmith@example.com", name="John Smith")
-    assert user.org_username == "jsmith"
+    assert user.username == "jsmith"
 
     user2 = PagerDutyUser(id="USER2", email="alice.doe@corp.com", name="Alice Doe")
-    assert user2.org_username == "alice.doe"
+    assert user2.username == "alice.doe"
 
     # Test email without @ sign
     user3 = PagerDutyUser(id="USER3", email="username", name="Test User")
-    assert user3.org_username == "username"
+    assert user3.username == "username"
 
 
 def test_pagerduty_api_call_context_immutable() -> None:

@@ -5,22 +5,38 @@ This module provides a stateless API client with support for metrics and
 rate limiting via hooks (ADR-006).
 """
 
-from collections.abc import Callable, Sequence
+import contextvars
+import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+import structlog
 from pagerduty import RestApiV2Client
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import invoke_with_hooks
 from qontract_utils.pagerduty_api.models import PagerDutyUser
 
+logger = structlog.get_logger(__name__)
+
 # Prometheus metrics
 pagerduty_request = Counter(
-    "qontract_pagerduty_api_requests_total",
+    # Following naming convention (qontract_reconcile_external_api_<component>_requests_total) to
+    # automatically include this metric in dashboards
+    "qontract_reconcile_external_api_pagerduty_requests_total",
     "Total number of PagerDuty API requests",
     ["method", "verb"],
 )
+
+pagerduty_request_duration = Histogram(
+    "qontract_reconcile_external_api_pagerduty_request_duration_seconds",
+    "PagerDuty API request duration in seconds",
+    ["method", "verb"],
+)
+
+# Local storage for latency tracking
+_latency_tracker = contextvars.ContextVar("latency_tracker", default=0.0)
 
 TIMEOUT = 30
 TIME_WINDOW_SECONDS = 60
@@ -28,7 +44,7 @@ TIME_WINDOW_SECONDS = 60
 
 @dataclass(frozen=True)
 class PagerDutyApiCallContext:
-    """Context passed to before_api_call hooks.
+    """Context information passed to API call hooks.
 
     Attributes:
         method: API method name (e.g., "schedules.get")
@@ -47,6 +63,29 @@ def _metrics_hook(context: PagerDutyApiCallContext) -> None:
     Records all API calls with method and verb labels.
     """
     pagerduty_request.labels(context.method, context.verb).inc()
+
+
+def _latency_start_hook(_context: PagerDutyApiCallContext) -> None:
+    """Built-in hook to start latency measurement.
+
+    Stores the start time in local storage.
+    """
+    _latency_tracker.set(time.perf_counter())
+
+
+def _latency_end_hook(context: PagerDutyApiCallContext) -> None:
+    """Built-in hook to record latency measurement.
+
+    Calculates duration from start time and records to Prometheus histogram.
+    """
+    duration = time.perf_counter() - _latency_tracker.get()
+    pagerduty_request_duration.labels(context.method, context.verb).observe(duration)
+    _latency_tracker.set(0.0)
+
+
+def _request_log_hook(context: PagerDutyApiCallContext) -> None:
+    """Built-in hook for logging API requests."""
+    logger.debug("API request", method=context.method, verb=context.verb, id=context.id)
 
 
 class PagerDutyApi:
@@ -79,7 +118,9 @@ class PagerDutyApi:
         id: str,  # noqa: A002
         token: str,
         timeout: int = TIMEOUT,
-        pre_hooks: Sequence[Callable[[PagerDutyApiCallContext], None]] | None = None,
+        pre_hooks: Iterable[Callable[[PagerDutyApiCallContext], None]] | None = None,
+        post_hooks: Iterable[Callable[[PagerDutyApiCallContext], None]] | None = None,
+        error_hooks: Iterable[Callable[[PagerDutyApiCallContext], None]] | None = None,
     ) -> None:
         """Initialize PagerDuty API client.
 
@@ -92,12 +133,22 @@ class PagerDutyApi:
         self.id = id
         self._timeout = timeout
 
-        # Setup hook system - always include metrics hook
+        # Setup hook system - always include built-in hooks
         self._pre_hooks: list[Callable[[PagerDutyApiCallContext], None]] = [
-            _metrics_hook
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
         ]
         if pre_hooks:
             self._pre_hooks.extend(pre_hooks)
+        self._post_hooks: list[Callable[[PagerDutyApiCallContext], None]] = [
+            _latency_end_hook
+        ]
+        if post_hooks:
+            self._post_hooks.extend(post_hooks)
+        self._error_hooks: list[Callable[[PagerDutyApiCallContext], None]] = []
+        if error_hooks:
+            self._error_hooks.extend(error_hooks)
 
         # Initialize PagerDuty client
         self._client = RestApiV2Client(api_key=token)
@@ -120,6 +171,8 @@ class PagerDutyApi:
         with invoke_with_hooks(
             PagerDutyApiCallContext(method="users.get", verb="GET", id=self.id),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             user_data = self._client.rget(f"/users/{user_id}")  # type: ignore[misc]
         return PagerDutyUser(
@@ -149,6 +202,8 @@ class PagerDutyApi:
         with invoke_with_hooks(
             PagerDutyApiCallContext(method="schedules.get", verb="GET", id=self.id),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             # Calculate time window: now to now + 60s
             now = datetime.now(UTC)
@@ -193,6 +248,8 @@ class PagerDutyApi:
                 method="escalation_policies.get", verb="GET", id=self.id
             ),
             pre_hooks=self._pre_hooks,
+            post_hooks=self._post_hooks,
+            error_hooks=self._error_hooks,
         ):
             # Calculate time window: now to now + 60s
             now = datetime.now(UTC)
