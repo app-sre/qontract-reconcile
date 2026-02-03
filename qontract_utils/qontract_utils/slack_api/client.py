@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import contextvars
 import http
-import threading
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -43,8 +43,8 @@ slack_request_duration = Histogram(
     ["resource", "verb"],
 )
 
-# Thread-local storage for latency tracking
-_latency_tracker = threading.local()
+# Local storage for latency tracking
+_latency_tracker = contextvars.ContextVar("latency_tracker", default=0.0)
 
 
 @dataclass(frozen=True)
@@ -73,9 +73,9 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
 def _latency_start_hook(_context: SlackApiCallContext) -> None:
     """Built-in hook to start latency measurement.
 
-    Stores the start time in thread-local storage.
+    Stores the start time in local storage.
     """
-    _latency_tracker.start_time = time.perf_counter()
+    _latency_tracker.set(time.perf_counter())
 
 
 def _latency_end_hook(context: SlackApiCallContext) -> None:
@@ -83,10 +83,9 @@ def _latency_end_hook(context: SlackApiCallContext) -> None:
 
     Calculates duration from start time and records to Prometheus histogram.
     """
-    if hasattr(_latency_tracker, "start_time"):
-        duration = time.perf_counter() - _latency_tracker.start_time
-        slack_request_duration.labels(context.method, context.verb).observe(duration)
-        del _latency_tracker.start_time
+    duration = time.perf_counter() - _latency_tracker.get()
+    slack_request_duration.labels(context.method, context.verb).observe(duration)
+    _latency_tracker.set(0.0)
 
 
 def _request_log_hook(context: SlackApiCallContext) -> None:

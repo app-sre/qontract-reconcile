@@ -10,6 +10,7 @@ Features:
 - Thread-safe operations
 """
 
+import contextvars
 import pathlib
 import threading
 import time
@@ -86,8 +87,8 @@ vault_request_duration = Histogram(
     ["method", "server"],
 )
 
-# Thread-local storage for latency tracking
-_latency_tracker = threading.local()
+# Local storage for latency tracking
+_latency_tracker = contextvars.ContextVar("latency_tracker", default=0.0)
 
 
 def _metrics_hook(context: VaultApiCallContext) -> None:
@@ -101,9 +102,9 @@ def _metrics_hook(context: VaultApiCallContext) -> None:
 def _latency_start_hook(_context: VaultApiCallContext) -> None:
     """Built-in hook to start latency measurement.
 
-    Stores the start time in thread-local storage.
+    Stores the start time in local storage.
     """
-    _latency_tracker.start_time = time.perf_counter()
+    _latency_tracker.set(time.perf_counter())
 
 
 def _latency_end_hook(context: VaultApiCallContext) -> None:
@@ -111,10 +112,9 @@ def _latency_end_hook(context: VaultApiCallContext) -> None:
 
     Calculates duration from start time and records to Prometheus histogram.
     """
-    if hasattr(_latency_tracker, "start_time"):
-        duration = time.perf_counter() - _latency_tracker.start_time
-        vault_request_duration.labels(context.method, context.id).observe(duration)
-        del _latency_tracker.start_time
+    duration = time.perf_counter() - _latency_tracker.get()
+    vault_request_duration.labels(context.method, context.id).observe(duration)
+    _latency_tracker.set(0.0)
 
 
 def _request_log_hook(context: VaultApiCallContext) -> None:
