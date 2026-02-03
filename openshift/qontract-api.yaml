@@ -95,6 +95,11 @@ objects:
                   value: api
                 - name: QAPI_APP_PORT
                   value: "${QAPI_APP_PORT}"
+                - name: QAPI_SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${QAPI_SENTRY_SECRET_NAME}
+                      key: dsn
               envFrom:
                 - secretRef:
                     name: qontract-api-secret
@@ -227,6 +232,11 @@ objects:
                   value: "${QAPI_WORKER_METRICS_PORT}"
                 - name: QAPI_WORKER_TEMP_DIR
                   value: /worker-temp-dir
+                - name: QAPI_SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${QAPI_SENTRY_SECRET_NAME}
+                      key: dsn
               envFrom:
                 - secretRef:
                     name: qontract-api-secret
@@ -327,6 +337,11 @@ parameters:
   - name: QAPI_LOG_LEVEL
     description: Logging level
     value: "INFO"
+    required: true
+
+  - name: QAPI_SENTRY_SECRET_NAME
+    description: Name of the secret containing the Sentry DSN
+    value: "app-interface-prod-dsn"
     required: true
 
   ## Api Pod limits
