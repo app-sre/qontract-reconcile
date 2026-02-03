@@ -96,7 +96,9 @@ def test_template_disable_unleash(
 def test_template_enable_google_chat(
     helm_integration_specs: Sequence[HelmIntegrationSpec],
 ) -> None:
-    helm_integration_specs[0].logs = IntegrationSpecLogsV1(slack=None, googleChat=True, slackErrorFilter=None)
+    helm_integration_specs[0].logs = IntegrationSpecLogsV1(
+        slack=None, googleChat=True, slackErrorFilter=None
+    )
     template = helm.template(build_helm_values(helm_integration_specs))
     expected = yaml.safe_load(fxt.get("enable_google_chat.yml"))
     assert template == expected
@@ -142,7 +144,9 @@ def test_template_internal_certificates(
 def test_template_logs_slack(
     helm_integration_specs: Sequence[HelmIntegrationSpec],
 ) -> None:
-    helm_integration_specs[0].logs = IntegrationSpecLogsV1(slack=True, googleChat=None, slackErrorFilter=None)
+    helm_integration_specs[0].logs = IntegrationSpecLogsV1(
+        slack=True, googleChat=None, slackErrorFilter=None
+    )
     template = helm.template(build_helm_values(helm_integration_specs))
     expected = yaml.safe_load(fxt.get("logs_slack.yml"))
     assert template == expected
