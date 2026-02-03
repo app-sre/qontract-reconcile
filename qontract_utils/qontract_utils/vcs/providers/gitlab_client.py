@@ -1,15 +1,39 @@
 """GitLab Repository API client with hook system for metrics and rate limiting."""
 
-from collections.abc import Callable
+import contextvars
+import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import gitlab
+import structlog
 from gitlab.v4.objects import Project
+from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import invoke_with_hooks
 
+logger = structlog.get_logger(__name__)
 
-@dataclass
+# Prometheus metrics
+gitlab_request = Counter(
+    # Following naming convention (qontract_reconcile_external_api_<component>_requests_total) to
+    # automatically include this metric in dashboards
+    "qontract_reconcile_external_api_gitlab_requests_total",
+    "Total number of GitLab API requests",
+    ["method", "repo_url"],
+)
+
+gitlab_request_duration = Histogram(
+    "qontract_reconcile_external_api_gitlab_request_duration_seconds",
+    "GitLab API request duration in seconds",
+    ["method", "repo_url"],
+)
+
+# Local storage for latency tracking
+_latency_tracker = contextvars.ContextVar("latency_tracker", default=0.0)
+
+
+@dataclass(frozen=True)
 class GitLabApiCallContext:
     """Context for GitLab API call hooks.
 
@@ -18,7 +42,37 @@ class GitLabApiCallContext:
 
     method: str  # e.g., "get_file", "get_tree"
     repo_url: str
-    project_id: str
+
+
+def _metrics_hook(context: GitLabApiCallContext) -> None:
+    """Built-in Prometheus metrics hook.
+
+    Records all API calls with method and verb labels.
+    """
+    gitlab_request.labels(context.method, context.repo_url).inc()
+
+
+def _latency_start_hook(_context: GitLabApiCallContext) -> None:
+    """Built-in hook to start latency measurement.
+
+    Stores the start time in local storage.
+    """
+    _latency_tracker.set(time.perf_counter())
+
+
+def _latency_end_hook(context: GitLabApiCallContext) -> None:
+    """Built-in hook to record latency measurement.
+
+    Calculates duration from start time and records to Prometheus histogram.
+    """
+    duration = time.perf_counter() - _latency_tracker.get()
+    gitlab_request_duration.labels(context.method, context.repo_url).observe(duration)
+    _latency_tracker.set(0.0)
+
+
+def _request_log_hook(context: GitLabApiCallContext) -> None:
+    """Built-in hook for logging API requests."""
+    logger.debug("API request", method=context.method, repo_url=context.repo_url)
 
 
 class GitLabRepoApi:
@@ -38,12 +92,29 @@ class GitLabRepoApi:
         token: str,
         gitlab_url: str,
         timeout: int = 30,
-        pre_hooks: list[Callable[[GitLabApiCallContext], None]] | None = None,
+        pre_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
+        post_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
+        error_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
         self._timeout = timeout
-        self._pre_hooks = pre_hooks or []
+        # Setup hook system - always include built-in hooks
+        self._pre_hooks: list[Callable[[GitLabApiCallContext], None]] = [
+            _metrics_hook,
+            _latency_start_hook,
+            _request_log_hook,
+        ]
+        if pre_hooks:
+            self._pre_hooks.extend(pre_hooks)
+        self._post_hooks: list[Callable[[GitLabApiCallContext], None]] = [
+            _latency_end_hook
+        ]
+        if post_hooks:
+            self._post_hooks.extend(post_hooks)
+        self._error_hooks: list[Callable[[GitLabApiCallContext], None]] = []
+        if error_hooks:
+            self._error_hooks.extend(error_hooks)
 
         # Create GitLab client
         self._gitlab = gitlab.Gitlab(
@@ -65,12 +136,10 @@ class GitLabRepoApi:
         """
         try:
             with invoke_with_hooks(
-                GitLabApiCallContext(
-                    method="get_file",
-                    repo_url=self.repo_url,
-                    project_id=self.project_id,
-                ),
+                GitLabApiCallContext(method="get_file", repo_url=self.repo_url),
                 pre_hooks=self._pre_hooks,
+                post_hooks=self._post_hooks,
+                error_hooks=self._error_hooks,
             ):
                 file = self._project.files.get(file_path=path, ref=ref)
             return file.decode().decode("utf-8")

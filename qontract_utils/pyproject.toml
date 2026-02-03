@@ -4,15 +4,16 @@ version = "0.1.0"
 description = "Shared utilities for qontract-reconcile and qontract-api"
 requires-python = ">=3.12"
 dependencies = [
-    "pydantic==2.12.4",
-    "prometheus-client==0.23.1",
-    "requests==2.32.5",
-    "slack_sdk==3.38",
+    "hvac==2.4.0",
     "pagerduty==6.1.0",
+    "prometheus-client==0.23.1",
+    "pydantic==2.12.4",
     "pygithub==1.58.2",
     "python-gitlab==6.0.0",
+    "requests==2.32.5",
     "ruamel-yaml==0.17.40",
-    "hvac==2.4.0",
+    "slack_sdk==3.38",
+    "structlog==25.5.0",
 ]
 
 [dependency-groups]

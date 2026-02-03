@@ -1,14 +1,14 @@
 import contextlib
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Iterable
 from typing import Any
 
 
 @contextlib.contextmanager
 def invoke_with_hooks[T](
     context: T,
-    pre_hooks: list[Callable[[T], None]] | None = None,
-    post_hooks: list[Callable[[T], None]] | None = None,
-    error_hooks: list[Callable[[T], None]] | None = None,
+    pre_hooks: Iterable[Callable[[T], None]] | None = None,
+    post_hooks: Iterable[Callable[[T], None]] | None = None,
+    error_hooks: Iterable[Callable[[T], None]] | None = None,
 ) -> Generator[None, Any, None]:
     for hook in pre_hooks or []:
         hook(context)

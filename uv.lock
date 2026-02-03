@@ -2139,6 +2139,7 @@ dependencies = [
     { name = "requests" },
     { name = "ruamel-yaml" },
     { name = "slack-sdk" },
+    { name = "structlog" },
 ]
 
 [package.dev-dependencies]
@@ -2163,6 +2164,7 @@ requires-dist = [
     { name = "requests", specifier = "==2.32.5" },
     { name = "ruamel-yaml", specifier = "==0.17.40" },
     { name = "slack-sdk", specifier = "==3.38" },
+    { name = "structlog", specifier = "==25.5.0" },
 ]
 
 [package.metadata.requires-dev]
