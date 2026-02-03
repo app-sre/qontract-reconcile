@@ -41,6 +41,7 @@ query Integrations {
         logs {
           slack
           googleChat
+          slackErrorFilter
         }
         resources {
           ...DeployResourcesFields
