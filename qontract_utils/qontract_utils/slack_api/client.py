@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-# Following naming convention ((qontract_reconcile_external_api_<component>_requests_total)) to
+# Following naming convention (qontract_reconcile_external_api_<component>_requests_total) to
 # automatically include this metric in dashboards
 slack_request = Counter(
     name="qontract_reconcile_external_api_slack_requests_total",

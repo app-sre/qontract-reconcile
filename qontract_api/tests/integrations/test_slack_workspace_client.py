@@ -201,12 +201,12 @@ def test_get_usergroup_by_handle_not_found(
     assert usergroup is None
 
 
-def test_update_usergroup_calls_api_and_updates_cache(
+def test_update_usergroup_calls_api_and_clears_cache(
     client: SlackWorkspaceClient,
     mock_slack_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    """Test update_usergroup calls API and updates cache.
+    """Test update_usergroup calls API and clears cache.
 
     WorkspaceClient accepts handle and converts to ID internally.
     SlackApi only accepts IDs.
@@ -216,24 +216,13 @@ def test_update_usergroup_calls_api_and_updates_cache(
     cached_dict = CachedUsergroups(items=[ug])
     mock_cache.get_obj.return_value = cached_dict
 
-    updated_ug = SlackUsergroup(
-        id="UG1",
-        handle="oncall",
-        name="Updated Name",
-        description="Updated desc",
-    )
-    mock_slack_api.usergroup_update.return_value = updated_ug
-    mock_cache.lock.return_value.__enter__ = MagicMock()
-    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
-
     # WorkspaceClient takes handle, converts to ID
-    result = client.update_usergroup(
+    client.update_usergroup(
         handle="oncall",
         name="Updated Name",
         description="Updated desc",
     )
 
-    assert result.name == "Updated Name"
     # SlackApi receives ID (not handle) and channel_ids parameter
     mock_slack_api.usergroup_update.assert_called_once_with(
         usergroup_id="UG1",
@@ -241,16 +230,16 @@ def test_update_usergroup_calls_api_and_updates_cache(
         description="Updated desc",
         channel_ids=None,
     )
-    # Verify cache update was attempted
-    mock_cache.lock.assert_called_once_with("slack:test-workspace:usergroups")
+    # Verify cache was cleared
+    mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
 
 
-def test_update_usergroup_users_calls_api_and_updates_cache(
+def test_update_usergroup_users_calls_api_and_clears_cache(
     client: SlackWorkspaceClient,
     mock_slack_api: MagicMock,
     mock_cache: MagicMock,
 ) -> None:
-    """Test update_usergroup_users calls API and updates cache.
+    """Test update_usergroup_users calls API and clears cache.
 
     WorkspaceClient accepts handle and org usernames, converts to usergroup ID
     and Slack user IDs internally. SlackApi only accepts IDs.
@@ -287,28 +276,19 @@ def test_update_usergroup_users_calls_api_and_updates_cache(
 
     mock_cache.get_obj.side_effect = get_obj_side_effect
 
-    updated_ug = SlackUsergroup(
-        id="UG1",
-        handle="oncall",
-        users=["U1", "U2"],
-    )
-    mock_slack_api.usergroup_users_update.return_value = updated_ug
-    mock_cache.lock.return_value.__enter__ = MagicMock()
-    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
-
     # WorkspaceClient takes handle and org usernames, converts to IDs
-    result = client.update_usergroup_users(
+    client.update_usergroup_users(
         handle="oncall",
         users=["jsmith", "mdoe"],  # org usernames, not IDs!
     )
 
-    assert len(result.users) == 2
     # SlackApi receives usergroup ID and user IDs (mapped from org usernames)
     mock_slack_api.usergroup_users_update.assert_called_once_with(
         usergroup_id="UG1",
         user_ids=["U1", "U2"],
     )
-    mock_cache.lock.assert_called_once()
+    # Verify cache was cleared
+    mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
 
 
 def test_update_usergroup_with_channels(
@@ -339,24 +319,13 @@ def test_update_usergroup_with_channels(
 
     mock_cache.get_obj.side_effect = mock_get_obj
 
-    updated_ug = SlackUsergroup(
-        id="UG1",
-        handle="oncall",
-        name="Updated Name",
-        channels=["C1", "C2"],
-    )
-    mock_slack_api.usergroup_update.return_value = updated_ug
-    mock_cache.lock.return_value.__enter__ = MagicMock()
-    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
-
     # WorkspaceClient takes channel NAMES, converts to IDs
-    result = client.update_usergroup(
+    client.update_usergroup(
         handle="oncall",
         name="Updated Name",
         channels=["general", "random"],
     )
 
-    assert result.name == "Updated Name"
     # Verify SlackApi received channel IDs (not names)
     mock_slack_api.usergroup_update.assert_called_once_with(
         usergroup_id="UG1",
@@ -364,6 +333,8 @@ def test_update_usergroup_with_channels(
         description=None,
         channel_ids=["C1", "C2"],
     )
+    # Verify cache was cleared
+    mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
 
 
 def test_create_usergroup_with_handle_only(
@@ -516,27 +487,19 @@ def test_update_usergroup_users_with_empty_list_uses_deleted_user(
 
     mock_cache.get_obj.side_effect = get_obj_side_effect
 
-    updated_ug = SlackUsergroup(
-        id="UG1",
-        handle="oncall",
-        users=["U_DELETED"],
-    )
-    mock_slack_api.usergroup_users_update.return_value = updated_ug
-    mock_cache.lock.return_value.__enter__ = MagicMock()
-    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
-
     # Call with empty users list
-    result = client.update_usergroup_users(
+    client.update_usergroup_users(
         handle="oncall",
         users=[],
     )
 
-    assert len(result.users) == 1
     # Verify deleted user was used
     mock_slack_api.usergroup_users_update.assert_called_once_with(
         usergroup_id="UG1",
         user_ids=["U_DELETED"],
     )
+    # Verify cache was cleared
+    mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
 
 
 def test_update_usergroup_users_with_empty_list_no_deleted_users_raises_error(
@@ -621,23 +584,8 @@ def test_update_usergroup_users_with_empty_list_reactivates_disabled_usergroup(
 
     mock_cache.get_obj.side_effect = get_obj_side_effect
 
-    enabled_ug = SlackUsergroup(
-        id="UG1",
-        handle="oncall",
-        name="On-Call",
-    )
-    updated_ug = SlackUsergroup(
-        id="UG1",
-        handle="oncall",
-        users=["U_DELETED"],
-    )
-    mock_slack_api.usergroup_enable.return_value = enabled_ug
-    mock_slack_api.usergroup_users_update.return_value = updated_ug
-    mock_cache.lock.return_value.__enter__ = MagicMock()
-    mock_cache.lock.return_value.__exit__ = MagicMock(return_value=False)
-
     # Call with empty users list
-    result = client.update_usergroup_users(
+    client.update_usergroup_users(
         handle="oncall",
         users=[],
     )
@@ -649,4 +597,5 @@ def test_update_usergroup_users_with_empty_list_reactivates_disabled_usergroup(
         usergroup_id="UG1",
         user_ids=["U_DELETED"],
     )
-    assert len(result.users) == 1
+    # Verify cache was cleared
+    mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
