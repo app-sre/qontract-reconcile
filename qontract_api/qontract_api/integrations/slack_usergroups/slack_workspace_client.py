@@ -156,19 +156,6 @@ class SlackWorkspaceClient:
         cached = CachedUsergroups.from_dict(usergroups)
         self.cache.set_obj(cache_key, cached, ttl)
 
-    def _update_cached_usergroup(
-        self, cache_key: str, usergroup_id: str, usergroup: SlackUsergroupAPI, ttl: int
-    ) -> None:
-        """Update single usergroup in cached dict with distributed lock."""
-        try:
-            with self.cache.lock(cache_key):
-                cached = self._get_cached_usergroups(cache_key)
-                if cached:
-                    cached[usergroup_id] = usergroup
-                    self._set_cached_usergroups(cache_key, cached, ttl)
-        except RuntimeError as e:
-            logger.warning(f"Could not acquire lock for {cache_key}: {e}")
-
     def _get_cached_channels(self, cache_key: str) -> dict[str, SlackChannelAPI] | None:
         """Get cached channels"""
         cached = self.cache.get_obj(cache_key, CachedChannels)
@@ -180,6 +167,14 @@ class SlackWorkspaceClient:
         """Set cached channels"""
         cached = CachedChannels.from_dict(channels)
         self.cache.set_obj(cache_key, cached, ttl)
+
+    def _clear_cache(self, cache_key: str) -> None:
+        """Clear cache for given key."""
+        try:
+            with self.cache.lock(cache_key):
+                self.cache.delete(cache_key)
+        except RuntimeError as e:
+            logger.warning(f"Could not acquire lock for {cache_key}: {e}")
 
     # CACHED DATA ACCESS
     def get_users(self) -> dict[str, SlackUserAPI]:
@@ -394,7 +389,7 @@ class SlackWorkspaceClient:
         name: str | None = None,
         description: str | None = None,
         channels: Iterable[str] | None = None,
-    ) -> SlackUsergroupAPI:
+    ) -> None:
         """Update usergroup and cache (O(1) update, not invalidation).
 
         Args:
@@ -402,9 +397,6 @@ class SlackWorkspaceClient:
             name: Usergroup display name
             description: Short description of the usergroup
             channel_names: List of channel names associate with the usergroup
-
-        Returns:
-            Updated SlackUsergroupAPI object
         """
         # Get usergroup by handle
         ug = self._get_usergroup_by_handle(handle)
@@ -414,7 +406,10 @@ class SlackWorkspaceClient:
         channel_id_by_name = {
             channel.name: pk for pk, channel in self.get_channels().items()
         }
-        updated_ug = self.slack_api.usergroup_update(
+        # Always clear the usergroup cache (will be repopulated on next read)
+        self._clear_cache(self._cache_key_usergroups())
+
+        self.slack_api.usergroup_update(
             usergroup_id=ug.id,
             name=name,
             description=description,
@@ -423,30 +418,17 @@ class SlackWorkspaceClient:
             else None,
         )
 
-        # Update cache (not invalidation)
-        self._update_cached_usergroup(
-            self._cache_key_usergroups(),
-            ug.id,
-            updated_ug,
-            self.settings.slack.usergroup_cache_ttl,
-        )
-
-        return updated_ug
-
     def update_usergroup_users(
         self,
         *,
         handle: str,
         users: Iterable[str],
-    ) -> SlackUsergroupAPI:
-        """Update usergroup users and cache (O(1) update, not invalidation).
+    ) -> None:
+        """Update usergroup users.
 
         Args:
             handle: Usergroup handle (e.g., "oncall-team")
             users: List of org usernames (will be mapped to Slack user IDs)
-
-        Returns:
-            Updated SlackUsergroupAPI object
         """
         # TODO: https://github.com/app-sre/qontract-reconcile/pull/5304#discussion_r2715066336
         # Get usergroup by handle
@@ -479,28 +461,13 @@ class SlackWorkspaceClient:
             # Reactivate usergroup if it was disabled
             self.slack_api.usergroup_enable(usergroup_id=ug.id)
 
+        # Always clear the usergroup cache (will be repopulated on next read)
+        self._clear_cache(self._cache_key_usergroups())
+
         try:
-            updated_ug = self.slack_api.usergroup_users_update(
-                usergroup_id=ug.id, user_ids=user_ids
-            )
+            self.slack_api.usergroup_users_update(usergroup_id=ug.id, user_ids=user_ids)
         except SlackApiError as e:
             # Slack can throw an invalid_users error when emptying groups, but
             # it will still empty the group (so this can be ignored).
             if e.response["error"] != "invalid_users":
                 raise
-            # fetch updated usergroup from API to reflect changes
-            updated_ug = next(
-                ug_not_cached
-                for ug_not_cached in self.slack_api.usergroups_list()
-                if ug_not_cached.id == ug.id
-            )
-
-        # Update cache (not invalidation)
-        self._update_cached_usergroup(
-            self._cache_key_usergroups(),
-            ug.id,
-            updated_ug,
-            self.settings.slack.usergroup_cache_ttl,
-        )
-
-        return updated_ug
