@@ -118,9 +118,10 @@ app.add_middleware(RequestIDMiddleware)
 # Include API version routers
 app.include_router(api_v1_router)
 
-Instrumentator(excluded_handlers=["/metrics", "/healthz"]).instrument(app).expose(
-    app, include_in_schema=False
-)
+Instrumentator(excluded_handlers=["/metrics", "/healthz"]).instrument(
+    app,
+    latency_lowr_buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
+).expose(app, include_in_schema=False)
 
 
 @app.get("/", include_in_schema=False, tags=["General"])
