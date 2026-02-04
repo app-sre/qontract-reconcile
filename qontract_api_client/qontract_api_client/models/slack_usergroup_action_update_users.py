@@ -21,25 +21,23 @@ class SlackUsergroupActionUpdateUsers:
     """Action: Update usergroup users.
 
     Attributes:
-        workspace (str): Workspace name
         usergroup (str): Usergroup handle/name
         users (list[str]): List of users after update
         users_to_add (list[str]): List of users to add
         users_to_remove (list[str]): List of users to remove
+        workspace (str): Workspace name
         action_type (Literal['update_users'] | Unset):  Default: 'update_users'.
     """
 
-    workspace: str
     usergroup: str
     users: list[str]
     users_to_add: list[str]
     users_to_remove: list[str]
+    workspace: str
     action_type: Literal["update_users"] | Unset = "update_users"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        workspace = self.workspace
-
         usergroup = self.usergroup
 
         users = self.users
@@ -48,16 +46,18 @@ class SlackUsergroupActionUpdateUsers:
 
         users_to_remove = self.users_to_remove
 
+        workspace = self.workspace
+
         action_type = self.action_type
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "workspace": workspace,
             "usergroup": usergroup,
             "users": users,
             "users_to_add": users_to_add,
             "users_to_remove": users_to_remove,
+            "workspace": workspace,
         })
         if action_type is not UNSET:
             field_dict["action_type"] = action_type
@@ -67,8 +67,6 @@ class SlackUsergroupActionUpdateUsers:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        workspace = d.pop("workspace")
-
         usergroup = d.pop("usergroup")
 
         users = cast(list[str], d.pop("users"))
@@ -77,6 +75,8 @@ class SlackUsergroupActionUpdateUsers:
 
         users_to_remove = cast(list[str], d.pop("users_to_remove"))
 
+        workspace = d.pop("workspace")
+
         action_type = cast(Literal["update_users"] | Unset, d.pop("action_type", UNSET))
         if action_type != "update_users" and not isinstance(action_type, Unset):
             raise ValueError(
@@ -84,11 +84,11 @@ class SlackUsergroupActionUpdateUsers:
             )
 
         slack_usergroup_action_update_users = cls(
-            workspace=workspace,
             usergroup=usergroup,
             users=users,
             users_to_add=users_to_add,
             users_to_remove=users_to_remove,
+            workspace=workspace,
             action_type=action_type,
         )
 

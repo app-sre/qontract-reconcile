@@ -33,15 +33,13 @@ class SlackUsergroupsTaskResult:
             status (TaskStatus): Status for background tasks.
 
                 Used across all async API endpoints to indicate task execution state.
-            applied_count (int | Unset): Number of actions actually applied (0 if dry_run=True) Default: 0.
-            errors (list[str] | Unset): List of errors encountered during reconciliation
             actions (list[SlackUsergroupActionCreate | SlackUsergroupActionUpdateMetadata | SlackUsergroupActionUpdateUsers]
                 | Unset): List of actions calculated/performed
+            applied_count (int | Unset): Number of actions actually applied (0 if dry_run=True) Default: 0.
+            errors (list[str] | Unset): List of errors encountered during reconciliation
     """
 
     status: TaskStatus
-    applied_count: int | Unset = 0
-    errors: list[str] | Unset = UNSET
     actions: (
         list[
             SlackUsergroupActionCreate
@@ -50,6 +48,8 @@ class SlackUsergroupsTaskResult:
         ]
         | Unset
     ) = UNSET
+    applied_count: int | Unset = 0
+    errors: list[str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -59,12 +59,6 @@ class SlackUsergroupsTaskResult:
         )
 
         status = self.status.value
-
-        applied_count = self.applied_count
-
-        errors: list[str] | Unset = UNSET
-        if not isinstance(self.errors, Unset):
-            errors = self.errors
 
         actions: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.actions, Unset):
@@ -80,17 +74,23 @@ class SlackUsergroupsTaskResult:
 
                 actions.append(actions_item)
 
+        applied_count = self.applied_count
+
+        errors: list[str] | Unset = UNSET
+        if not isinstance(self.errors, Unset):
+            errors = self.errors
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
             "status": status,
         })
+        if actions is not UNSET:
+            field_dict["actions"] = actions
         if applied_count is not UNSET:
             field_dict["applied_count"] = applied_count
         if errors is not UNSET:
             field_dict["errors"] = errors
-        if actions is not UNSET:
-            field_dict["actions"] = actions
 
         return field_dict
 
@@ -106,10 +106,6 @@ class SlackUsergroupsTaskResult:
 
         d = dict(src_dict)
         status = TaskStatus(d.pop("status"))
-
-        applied_count = d.pop("applied_count", UNSET)
-
-        errors = cast(list[str], d.pop("errors", UNSET))
 
         _actions = d.pop("actions", UNSET)
         actions: (
@@ -161,11 +157,15 @@ class SlackUsergroupsTaskResult:
 
                 actions.append(actions_item)
 
+        applied_count = d.pop("applied_count", UNSET)
+
+        errors = cast(list[str], d.pop("errors", UNSET))
+
         slack_usergroups_task_result = cls(
             status=status,
+            actions=actions,
             applied_count=applied_count,
             errors=errors,
-            actions=actions,
         )
 
         slack_usergroups_task_result.additional_properties = d

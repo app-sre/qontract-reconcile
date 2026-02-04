@@ -21,38 +21,38 @@ class SlackUsergroupActionUpdateMetadata:
     """Action: Update usergroup channels.
 
     Attributes:
-        workspace (str): Workspace name
-        usergroup (str): Usergroup handle/name
-        description (str): Usergroup description
         channels (list[str]): Usergroup channels
+        description (str): Usergroup description
+        usergroup (str): Usergroup handle/name
+        workspace (str): Workspace name
         action_type (Literal['update_metadata'] | Unset):  Default: 'update_metadata'.
     """
 
-    workspace: str
-    usergroup: str
-    description: str
     channels: list[str]
+    description: str
+    usergroup: str
+    workspace: str
     action_type: Literal["update_metadata"] | Unset = "update_metadata"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        workspace = self.workspace
-
-        usergroup = self.usergroup
+        channels = self.channels
 
         description = self.description
 
-        channels = self.channels
+        usergroup = self.usergroup
+
+        workspace = self.workspace
 
         action_type = self.action_type
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "workspace": workspace,
-            "usergroup": usergroup,
-            "description": description,
             "channels": channels,
+            "description": description,
+            "usergroup": usergroup,
+            "workspace": workspace,
         })
         if action_type is not UNSET:
             field_dict["action_type"] = action_type
@@ -62,13 +62,13 @@ class SlackUsergroupActionUpdateMetadata:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        workspace = d.pop("workspace")
-
-        usergroup = d.pop("usergroup")
+        channels = cast(list[str], d.pop("channels"))
 
         description = d.pop("description")
 
-        channels = cast(list[str], d.pop("channels"))
+        usergroup = d.pop("usergroup")
+
+        workspace = d.pop("workspace")
 
         action_type = cast(
             Literal["update_metadata"] | Unset, d.pop("action_type", UNSET)
@@ -79,10 +79,10 @@ class SlackUsergroupActionUpdateMetadata:
             )
 
         slack_usergroup_action_update_metadata = cls(
-            workspace=workspace,
-            usergroup=usergroup,
-            description=description,
             channels=channels,
+            description=description,
+            usergroup=usergroup,
+            workspace=workspace,
             action_type=action_type,
         )
 

@@ -21,38 +21,38 @@ class SlackUsergroupActionCreate:
     """Action: Create a new usergroup.
 
     Attributes:
-        workspace (str): Workspace name
+        description (str): Usergroup description
         usergroup (str): Usergroup handle/name
         users (list[str]): List of users to add
-        description (str): Usergroup description
+        workspace (str): Workspace name
         action_type (Literal['create'] | Unset):  Default: 'create'.
     """
 
-    workspace: str
+    description: str
     usergroup: str
     users: list[str]
-    description: str
+    workspace: str
     action_type: Literal["create"] | Unset = "create"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        workspace = self.workspace
+        description = self.description
 
         usergroup = self.usergroup
 
         users = self.users
 
-        description = self.description
+        workspace = self.workspace
 
         action_type = self.action_type
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "workspace": workspace,
+            "description": description,
             "usergroup": usergroup,
             "users": users,
-            "description": description,
+            "workspace": workspace,
         })
         if action_type is not UNSET:
             field_dict["action_type"] = action_type
@@ -62,13 +62,13 @@ class SlackUsergroupActionCreate:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        workspace = d.pop("workspace")
+        description = d.pop("description")
 
         usergroup = d.pop("usergroup")
 
         users = cast(list[str], d.pop("users"))
 
-        description = d.pop("description")
+        workspace = d.pop("workspace")
 
         action_type = cast(Literal["create"] | Unset, d.pop("action_type", UNSET))
         if action_type != "create" and not isinstance(action_type, Unset):
@@ -77,10 +77,10 @@ class SlackUsergroupActionCreate:
             )
 
         slack_usergroup_action_create = cls(
-            workspace=workspace,
+            description=description,
             usergroup=usergroup,
             users=users,
-            description=description,
+            workspace=workspace,
             action_type=action_type,
         )
 

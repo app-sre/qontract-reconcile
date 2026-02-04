@@ -16,22 +16,22 @@ class Secret:
     """Reference to a secret stored in a secret manager.
 
     Attributes:
-        secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
+        secret_manager_url (str): Secret Manager URL
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
     """
 
-    secret_manager_url: str
     path: str
+    secret_manager_url: str
     field: None | str | Unset = UNSET
     version: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        secret_manager_url = self.secret_manager_url
-
         path = self.path
+
+        secret_manager_url = self.secret_manager_url
 
         field: None | str | Unset
         if isinstance(self.field, Unset):
@@ -48,8 +48,8 @@ class Secret:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "secret_manager_url": secret_manager_url,
             "path": path,
+            "secret_manager_url": secret_manager_url,
         })
         if field is not UNSET:
             field_dict["field"] = field
@@ -61,9 +61,9 @@ class Secret:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        secret_manager_url = d.pop("secret_manager_url")
-
         path = d.pop("path")
+
+        secret_manager_url = d.pop("secret_manager_url")
 
         def _parse_field(data: object) -> None | str | Unset:
             if data is None:
@@ -84,8 +84,8 @@ class Secret:
         version = _parse_version(d.pop("version", UNSET))
 
         secret = cls(
-            secret_manager_url=secret_manager_url,
             path=path,
+            secret_manager_url=secret_manager_url,
             field=field,
             version=version,
         )

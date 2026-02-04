@@ -19,38 +19,38 @@ class SlackWorkspace:
     """A Slack workspace with its token and usergroups.
 
     Attributes:
-        name (str): Workspace name (unique identifier)
-        usergroups (list[SlackUsergroup]): List of usergroups in this workspace
         managed_usergroups (list[str]): This list shows the usergroup handles/names managed by qontract-api. Any user
             group not included here will be abandoned during reconciliation.
+        name (str): Workspace name (unique identifier)
         token (Secret): Reference to a secret stored in a secret manager.
+        usergroups (list[SlackUsergroup]): List of usergroups in this workspace
     """
 
-    name: str
-    usergroups: list[SlackUsergroup]
     managed_usergroups: list[str]
+    name: str
     token: Secret
+    usergroups: list[SlackUsergroup]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        managed_usergroups = self.managed_usergroups
+
         name = self.name
+
+        token = self.token.to_dict()
 
         usergroups = []
         for usergroups_item_data in self.usergroups:
             usergroups_item = usergroups_item_data.to_dict()
             usergroups.append(usergroups_item)
 
-        managed_usergroups = self.managed_usergroups
-
-        token = self.token.to_dict()
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "name": name,
-            "usergroups": usergroups,
             "managed_usergroups": managed_usergroups,
+            "name": name,
             "token": token,
+            "usergroups": usergroups,
         })
 
         return field_dict
@@ -61,7 +61,11 @@ class SlackWorkspace:
         from ..models.slack_usergroup import SlackUsergroup
 
         d = dict(src_dict)
+        managed_usergroups = cast(list[str], d.pop("managed_usergroups"))
+
         name = d.pop("name")
+
+        token = Secret.from_dict(d.pop("token"))
 
         usergroups = []
         _usergroups = d.pop("usergroups")
@@ -70,15 +74,11 @@ class SlackWorkspace:
 
             usergroups.append(usergroups_item)
 
-        managed_usergroups = cast(list[str], d.pop("managed_usergroups"))
-
-        token = Secret.from_dict(d.pop("token"))
-
         slack_workspace = cls(
-            name=name,
-            usergroups=usergroups,
             managed_usergroups=managed_usergroups,
+            name=name,
             token=token,
+            usergroups=usergroups,
         )
 
         slack_workspace.additional_properties = d
