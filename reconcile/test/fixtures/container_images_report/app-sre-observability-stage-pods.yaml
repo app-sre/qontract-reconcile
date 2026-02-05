@@ -25,8 +25,8 @@
     containers:
     - image: quay.io/redhat-services-prod/app-sre-tenant/gitlab-project-exporter-main/gitlab-project-exporter-main:4175d51
       name: gitlab-project-exporter
-    - image: quay.io/app-sre/internal-redhat-ca:0.2.0
+    - image: quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master:0.2.0
       name: certificates
     initContainers:
-    - image: quay.io/app-sre/internal-redhat-ca:0.2.0
+    - image: quay.io/redhat-services-prod/app-sre-tenant/container-images-int-master/internal-redhat-ca-master:0.2.0
       name: certificates
