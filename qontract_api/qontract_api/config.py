@@ -214,7 +214,7 @@ class SecretSettings(BaseModel):
         description="Secret providers configuration",
     )
     default_provider_url: str = Field(
-        ...,
+        "please-set-in-environment",
         description="Default secret provider URL. Used when no provider/secret is specified in the API request.",
     )
 
@@ -352,7 +352,7 @@ class Settings(BaseSettings):
 
     # Secret Backend Configuration (nested)
     secrets: SecretSettings = Field(
-        ...,
+        default_factory=SecretSettings,
         description="Secret backend configuration (Vault, AWS KMS, Google)",
     )
 

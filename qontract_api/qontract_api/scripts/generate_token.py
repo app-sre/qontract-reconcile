@@ -16,10 +16,6 @@ from rich.table import Table
 
 def setup() -> None:
     """Setup environment for qontract-api."""
-    os.environ.setdefault(
-        "QAPI_SECRETS__DEFAULT_PROVIDER_URL", "http://not-used-in-this-script"
-    )
-    os.environ.setdefault("QAPI_SECRETS__PROVIDERS", "[]")
     if "QAPI_JWT_SECRET_KEY" not in os.environ:
         rich_print(
             Panel(
