@@ -28,6 +28,8 @@ spec:
     value: .
   - name: target-stage
     value: pypi
+  - name: additional_secret
+    value: app-sre-pypi-credentials
   pipelineRef:
     params:
     - name: url
