@@ -41,8 +41,17 @@ generate-openapi-spec:
 	@uv run python -m qontract_api.scripts.generate_openapi_spec > $(OPENAPI)
 
 .PHONY: test
-test: generate-openapi-spec
-	git diff --exit-code $(OPENAPI)
+test:
+	@TEMP_DIR=$$(mktemp -d); \
+	trap "rm -rf $$TEMP_DIR" EXIT; \
+	$(MAKE) generate-openapi-spec OPENAPI=$$TEMP_DIR/openapi.json; \
+	if ! diff -q $(OPENAPI) $$TEMP_DIR/openapi.json > /dev/null 2>&1; then \
+		echo "  ✗ openapi.json differs from generated version"; \
+		echo ""; \
+		echo "Run 'make generate-openapi-spec' to update."; \
+		echo ""; \
+		exit 1; \
+	fi
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy .

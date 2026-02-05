@@ -66,6 +66,11 @@ RUN cd qontract_api && uv sync --frozen --no-group dev
 FROM base AS test
 COPY --from=ghcr.io/astral-sh/uv:0.9.26@sha256:9a23023be68b2ed09750ae636228e903a54a05ea56ed03a934d00fe9fbeded4b /uv /bin/uv
 
+USER root
+# install dependencies
+RUN microdnf install -y diffutils && microdnf clean all
+USER 1001
+
 COPY --from=builder /opt/app-root /opt/app-root
 RUN cd qontract_api && uv sync --frozen
 RUN make -C qontract_api test
