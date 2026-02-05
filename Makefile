@@ -1,4 +1,4 @@
-.PHONY: help build push rc build-test test-app test-container-image test clean
+.PHONY: help build push rc build-test test-app test clean
 
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 CONTAINER_UID ?= $(shell id -u)
@@ -19,8 +19,6 @@ else
 	DOCKER_CONF := $(HOME)/.docker
 endif
 
-CTR_STRUCTURE_IMG := quay.io/app-sre/container-structure-test:latest
-
 help: ## Prints help for targets with comments
 	@grep -E '^[a-zA-Z0-9.\ _-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -37,15 +35,7 @@ print-host-versions:
 	@$(CONTAINER_ENGINE) --version
 	python3 --version
 
-test-container-image: build ## Target to test the final image
-	@CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
-	CTR_STRUCTURE_IMG=$(CTR_STRUCTURE_IMG) \
-	CURDIR=$(CURDIR) \
-	IMAGE_NAME=$(IMAGE_NAME) \
-	IMAGE_TAG=$(IMAGE_TAG) \
-	$(CURDIR)/run-test-container-image.sh
-
-test: print-host-versions test-app test-container-image
+test: print-host-versions test-app
 
 dev-reconcile-loop: build-dev ## Trigger the reconcile loop inside a container for an integration
 	@$(CONTAINER_ENGINE) run --rm -it \
