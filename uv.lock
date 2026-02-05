@@ -2153,6 +2153,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "types-hvac" },
+    { name = "tzdata" },
 ]
 
 [package.metadata]
@@ -2178,6 +2179,7 @@ dev = [
     { name = "pytest-cov", specifier = "==7.0.0" },
     { name = "ruff", specifier = "==0.14.13" },
     { name = "types-hvac", specifier = ">=2.4.0.20251115" },
+    { name = "tzdata", specifier = "==2025.2" },
 ]
 
 [[package]]

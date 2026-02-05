@@ -117,8 +117,3 @@ unittest: ## Run unit tests
 .PHONY: generate-client
 generate-client:
 	make -C qontract_api_client generate-client
-
-poc-tests:
-	make -C qontract_api test
-# 	cd qontract_api_client && make test
-	make -C qontract_utils test

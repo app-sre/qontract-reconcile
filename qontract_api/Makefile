@@ -1,22 +1,18 @@
+OPENAPI := openapi.json
+
 .PHONY: help
 help:
 	@echo "qontract-api Makefile"
 	@echo ""
 	@echo "Development:"
-	@echo "  make run-api       Run FastAPI server locally"
-	@echo "  make run-worker    Run Celery worker locally"
-	@echo "  make generate-token SUBJECT=<subject> DAYS=<days>"
-	@echo "                     Generate JWT token (default: DAYS=30)"
-	@echo ""
-	@echo "Docker:"
-	@echo "  make docker-up     Start all services"
-	@echo "  make docker-down   Stop all services"
-	@echo "  make docker-build  Rebuild images"
-	@echo "  make docker-logs   View logs"
+	@echo "  make run-api                                                Run FastAPI server locally"
+	@echo "  make run-worker                                             Run Celery worker locally"
+	@echo "  make generate-token SUBJECT=<subject> EXPIRES_DAYS=<days>   Generate JWT token"
+	@echo "  make generate-openapi-spec                                  Generate OpenAPI spec file"
 	@echo ""
 	@echo "Quality:"
-	@echo "  make test          Run all checks (pytest, mypy, ruff)"
-	@echo "  make format        Format and fix code with ruff"
+	@echo "  make test                                                   Run all checks (pytest, mypy, ruff)"
+	@echo "  make format                                                 Format and fix code with ruff"
 
 .PHONY: run-api
 run-api:
@@ -30,29 +26,32 @@ run-worker:
 generate-token:
 	@if [ -z "$(SUBJECT)" ]; then \
 		echo "Error: SUBJECT is required"; \
-		echo "Usage: make generate-token SUBJECT=admin DAYS=30"; \
+		echo "Usage: make generate-token SUBJECT=admin EXPIRES_DAYS=365"; \
 		exit 1; \
 	fi
-	@uv run python -m qontract_api.scripts.generate_token --subject "$(SUBJECT)" --expires-days $(or $(DAYS),30)
+	@if [ -z "$(EXPIRES_DAYS)" ]; then \
+		echo "Error: SUBJECT is required"; \
+		echo "Usage: make generate-token SUBJECT=admin EXPIRES_DAYS=365"; \
+		exit 1; \
+	fi
+	@uv run python -m qontract_api.scripts.generate_token --subject "$(SUBJECT)" --expires-days "$(EXPIRES_DAYS)"
 
-.PHONY: docker-up
-docker-up:
-	cd .. && docker compose up
-
-.PHONY: docker-down
-docker-down:
-	cd .. && docker compose down
-
-.PHONY: docker-build
-docker-build:
-	cd .. && docker compose build
-
-.PHONY: docker-logs
-docker-logs:
-	cd .. && docker compose logs -f
+.PHONY: generate-openapi-spec
+generate-openapi-spec:
+	@uv run python -m qontract_api.scripts.generate_openapi_spec > $(OPENAPI)
 
 .PHONY: test
 test:
+	@TEMP_DIR=$$(mktemp -d); \
+	trap "rm -rf $$TEMP_DIR" EXIT; \
+	$(MAKE) generate-openapi-spec OPENAPI=$$TEMP_DIR/openapi.json; \
+	if ! diff -q $(OPENAPI) $$TEMP_DIR/openapi.json > /dev/null 2>&1; then \
+		echo "  ✗ openapi.json differs from generated version"; \
+		echo ""; \
+		echo "Run 'make generate-openapi-spec' to update."; \
+		echo ""; \
+		exit 1; \
+	fi
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy .

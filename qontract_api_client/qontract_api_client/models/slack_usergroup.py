@@ -18,24 +18,24 @@ class SlackUsergroup:
     """A single Slack usergroup with its handle and configuration.
 
     Attributes:
-        handle (str): Usergroup handle/name (unique identifier)
         config (SlackUsergroupConfig): Desired state configuration for a single Slack usergroup.
+        handle (str): Usergroup handle/name (unique identifier)
     """
 
-    handle: str
     config: SlackUsergroupConfig
+    handle: str
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        handle = self.handle
-
         config = self.config.to_dict()
+
+        handle = self.handle
 
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "handle": handle,
             "config": config,
+            "handle": handle,
         })
 
         return field_dict
@@ -45,13 +45,13 @@ class SlackUsergroup:
         from ..models.slack_usergroup_config import SlackUsergroupConfig
 
         d = dict(src_dict)
-        handle = d.pop("handle")
-
         config = SlackUsergroupConfig.from_dict(d.pop("config"))
 
+        handle = d.pop("handle")
+
         slack_usergroup = cls(
-            handle=handle,
             config=config,
+            handle=handle,
         )
 
         slack_usergroup.additional_properties = d

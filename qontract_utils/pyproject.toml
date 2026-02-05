@@ -26,6 +26,7 @@ dev = [
     "pytest==9.0.2",
     "ruff==0.14.13",
     "types-hvac>=2.4.0.20251115",
+    "tzdata==2025.2",
 ]
 
 [build-system]

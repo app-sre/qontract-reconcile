@@ -20,22 +20,22 @@ class HealthResponse:
     """Overall health check response.
 
     Attributes:
-        status (str): Overall status: healthy, unhealthy, degraded
         service (str): Service name
+        status (str): Overall status: healthy, unhealthy, degraded
         version (str): Service version
         components (HealthResponseComponents | Unset): Component health statuses
     """
 
-    status: str
     service: str
+    status: str
     version: str
     components: HealthResponseComponents | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        status = self.status
-
         service = self.service
+
+        status = self.status
 
         version = self.version
 
@@ -46,8 +46,8 @@ class HealthResponse:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "status": status,
             "service": service,
+            "status": status,
             "version": version,
         })
         if components is not UNSET:
@@ -60,9 +60,9 @@ class HealthResponse:
         from ..models.health_response_components import HealthResponseComponents
 
         d = dict(src_dict)
-        status = d.pop("status")
-
         service = d.pop("service")
+
+        status = d.pop("status")
 
         version = d.pop("version")
 
@@ -74,8 +74,8 @@ class HealthResponse:
             components = HealthResponseComponents.from_dict(_components)
 
         health_response = cls(
-            status=status,
             service=service,
+            status=status,
             version=version,
             components=components,
         )

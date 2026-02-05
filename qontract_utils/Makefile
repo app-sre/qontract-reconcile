@@ -18,3 +18,8 @@ test:
 format:
 	uv run ruff check --fix .
 	uv run ruff format .
+
+.PHONY: pypi
+pypi:
+	uv build --sdist --wheel --out-dir dist
+	uv publish || true

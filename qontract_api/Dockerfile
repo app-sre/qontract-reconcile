@@ -1,6 +1,6 @@
 #
 # Base image with defaults for all stages
-FROM registry.access.redhat.com/ubi9-minimal@sha256:90bd85dcd061d1ad6dbda70a867c41958c04a86462d05c631f8205e8870f28f8 AS base
+FROM registry.access.redhat.com/ubi9-minimal@sha256:ecd4751c45e076b4e1e8d37ac0b1b9c7271930c094d1bcc5e6a4d6954c6b2289 AS base
 
 COPY LICENSE /licenses/
 
@@ -12,6 +12,7 @@ ENV \
     UV_COMPILE_BYTECODE="true" \
     # disable uv cache. it doesn't make sense in a container
     UV_NO_CACHE=true \
+    RUFF_CACHE_DIR=/tmp/.ruff_cache \
     # bypass dynamic versioning (git not available)
     UV_DYNAMIC_VERSIONING_BYPASS="0.1.0" \
     PYTHONUNBUFFERED=1 \
@@ -35,7 +36,7 @@ WORKDIR ${APP_ROOT}/src
 #
 # Builder image
 #
-FROM registry.access.redhat.com/ubi9/python-312-minimal@sha256:64a3083a25d9f7573bb9b1a167e10be0464859a8e81421853d09947e873fe500 AS builder
+FROM registry.access.redhat.com/ubi9/python-312-minimal@sha256:ecacdd63283ed3083ddd33c02ab5112d4dbf1fbf2508317bf4d4f6d7d913d2f1 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.9.26@sha256:9a23023be68b2ed09750ae636228e903a54a05ea56ed03a934d00fe9fbeded4b /uv /bin/uv
 
 ENV APP_ROOT=/opt/app-root
@@ -64,6 +65,11 @@ RUN cd qontract_api && uv sync --frozen --no-group dev
 #
 FROM base AS test
 COPY --from=ghcr.io/astral-sh/uv:0.9.26@sha256:9a23023be68b2ed09750ae636228e903a54a05ea56ed03a934d00fe9fbeded4b /uv /bin/uv
+
+USER root
+# install dependencies
+RUN microdnf install -y diffutils && microdnf clean all
+USER 1001
 
 COPY --from=builder /opt/app-root /opt/app-root
 RUN cd qontract_api && uv sync --frozen

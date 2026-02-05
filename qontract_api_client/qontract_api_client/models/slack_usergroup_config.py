@@ -16,52 +16,52 @@ class SlackUsergroupConfig:
     """Desired state configuration for a single Slack usergroup.
 
     Attributes:
+        channels (list[str] | Unset): List of channel names (e.g., #general, team-channel)
         description (str | Unset): Usergroup description Default: ''.
         users (list[str] | Unset): List of user emails (e.g., user@example.com)
-        channels (list[str] | Unset): List of channel names (e.g., #general, team-channel)
     """
 
+    channels: list[str] | Unset = UNSET
     description: str | Unset = ""
     users: list[str] | Unset = UNSET
-    channels: list[str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        channels: list[str] | Unset = UNSET
+        if not isinstance(self.channels, Unset):
+            channels = self.channels
+
         description = self.description
 
         users: list[str] | Unset = UNSET
         if not isinstance(self.users, Unset):
             users = self.users
 
-        channels: list[str] | Unset = UNSET
-        if not isinstance(self.channels, Unset):
-            channels = self.channels
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({})
+        if channels is not UNSET:
+            field_dict["channels"] = channels
         if description is not UNSET:
             field_dict["description"] = description
         if users is not UNSET:
             field_dict["users"] = users
-        if channels is not UNSET:
-            field_dict["channels"] = channels
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        channels = cast(list[str], d.pop("channels", UNSET))
+
         description = d.pop("description", UNSET)
 
         users = cast(list[str], d.pop("users", UNSET))
 
-        channels = cast(list[str], d.pop("channels", UNSET))
-
         slack_usergroup_config = cls(
+            channels=channels,
             description=description,
             users=users,
-            channels=channels,
         )
 
         slack_usergroup_config.additional_properties = d

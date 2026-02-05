@@ -1,0 +1,1035 @@
+{
+  "components": {
+    "schemas": {
+      "EscalationPolicyUsersResponse": {
+        "description": "Response model for escalation policy users endpoint.\n\nImmutable response containing list of users in an escalation policy.\n\nAttributes:\n    users: List of users in escalation policy",
+        "properties": {
+          "users": {
+            "description": "List of users in the escalation policy",
+            "items": {
+              "$ref": "#/components/schemas/PagerDutyUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "title": "EscalationPolicyUsersResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "description": "Overall health check response.",
+        "properties": {
+          "components": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/HealthStatus"
+            },
+            "description": "Component health statuses",
+            "title": "Components",
+            "type": "object"
+          },
+          "service": {
+            "description": "Service name",
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "description": "Overall status: healthy, unhealthy, degraded",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "description": "Service version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "HealthStatus": {
+        "description": "Health status for a component.",
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional status message",
+            "title": "Message"
+          },
+          "status": {
+            "description": "Health status: healthy, unhealthy, degraded",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HealthStatus",
+        "type": "object"
+      },
+      "PagerDutyUser": {
+        "description": "PagerDuty user representation.\n\nImmutable model representing a user from PagerDuty API.\n\nAttributes:\n    username: PagerDuty username (computed from email)",
+        "properties": {
+          "username": {
+            "description": "PagerDuty username (computed from email)",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "PagerDutyUser",
+        "type": "object"
+      },
+      "RepoOwnersResponse": {
+        "description": "Response model for repository OWNERS file data.\n\nAttention: usernames are provider-specific (e.g., GitHub usernames).",
+        "properties": {
+          "approvers": {
+            "description": "List of usernames who can approve changes",
+            "items": {
+              "type": "string"
+            },
+            "title": "Approvers",
+            "type": "array"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/VCSProvider",
+            "description": "VCS provider type"
+          },
+          "reviewers": {
+            "description": "List of usernames who can review changes",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reviewers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "title": "RepoOwnersResponse",
+        "type": "object"
+      },
+      "ScheduleUsersResponse": {
+        "description": "Response model for schedule users endpoint.\n\nImmutable response containing list of users currently on-call in a schedule.\n\nAttributes:\n    users: List of users currently on-call",
+        "properties": {
+          "users": {
+            "description": "List of users currently on-call in the schedule",
+            "items": {
+              "$ref": "#/components/schemas/PagerDutyUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "title": "ScheduleUsersResponse",
+        "type": "object"
+      },
+      "Secret": {
+        "description": "Reference to a secret stored in a secret manager.",
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Specific field within the secret",
+            "title": "Field"
+          },
+          "path": {
+            "description": "Path to the secret",
+            "title": "Path",
+            "type": "string"
+          },
+          "secret_manager_url": {
+            "description": "Secret Manager URL",
+            "title": "Secret Manager Url",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version of the secret",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "secret_manager_url",
+          "path"
+        ],
+        "title": "Secret",
+        "type": "object"
+      },
+      "SlackUsergroup": {
+        "description": "A single Slack usergroup with its handle and configuration.",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/SlackUsergroupConfig",
+            "description": "Usergroup configuration"
+          },
+          "handle": {
+            "description": "Usergroup handle/name (unique identifier)",
+            "title": "Handle",
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "config"
+        ],
+        "title": "SlackUsergroup",
+        "type": "object"
+      },
+      "SlackUsergroupActionCreate": {
+        "description": "Action: Create a new usergroup.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "description": {
+            "description": "Usergroup description",
+            "title": "Description",
+            "type": "string"
+          },
+          "usergroup": {
+            "description": "Usergroup handle/name",
+            "title": "Usergroup",
+            "type": "string"
+          },
+          "users": {
+            "description": "List of users to add",
+            "items": {
+              "type": "string"
+            },
+            "title": "Users",
+            "type": "array"
+          },
+          "workspace": {
+            "description": "Workspace name",
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace",
+          "usergroup",
+          "users",
+          "description"
+        ],
+        "title": "SlackUsergroupActionCreate",
+        "type": "object"
+      },
+      "SlackUsergroupActionUpdateMetadata": {
+        "description": "Action: Update usergroup channels.",
+        "properties": {
+          "action_type": {
+            "const": "update_metadata",
+            "default": "update_metadata",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "channels": {
+            "description": "Usergroup channels",
+            "items": {
+              "type": "string"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "description": {
+            "description": "Usergroup description",
+            "title": "Description",
+            "type": "string"
+          },
+          "usergroup": {
+            "description": "Usergroup handle/name",
+            "title": "Usergroup",
+            "type": "string"
+          },
+          "workspace": {
+            "description": "Workspace name",
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace",
+          "usergroup",
+          "description",
+          "channels"
+        ],
+        "title": "SlackUsergroupActionUpdateMetadata",
+        "type": "object"
+      },
+      "SlackUsergroupActionUpdateUsers": {
+        "description": "Action: Update usergroup users.",
+        "properties": {
+          "action_type": {
+            "const": "update_users",
+            "default": "update_users",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "usergroup": {
+            "description": "Usergroup handle/name",
+            "title": "Usergroup",
+            "type": "string"
+          },
+          "users": {
+            "description": "List of users after update",
+            "items": {
+              "type": "string"
+            },
+            "title": "Users",
+            "type": "array"
+          },
+          "users_to_add": {
+            "description": "List of users to add",
+            "items": {
+              "type": "string"
+            },
+            "title": "Users To Add",
+            "type": "array"
+          },
+          "users_to_remove": {
+            "description": "List of users to remove",
+            "items": {
+              "type": "string"
+            },
+            "title": "Users To Remove",
+            "type": "array"
+          },
+          "workspace": {
+            "description": "Workspace name",
+            "title": "Workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace",
+          "usergroup",
+          "users",
+          "users_to_add",
+          "users_to_remove"
+        ],
+        "title": "SlackUsergroupActionUpdateUsers",
+        "type": "object"
+      },
+      "SlackUsergroupConfig": {
+        "description": "Desired state configuration for a single Slack usergroup.",
+        "properties": {
+          "channels": {
+            "default": [],
+            "description": "List of channel names (e.g., #general, team-channel)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "description": "Usergroup description",
+            "title": "Description",
+            "type": "string"
+          },
+          "users": {
+            "default": [],
+            "description": "List of user emails (e.g., user@example.com)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "title": "SlackUsergroupConfig",
+        "type": "object"
+      },
+      "SlackUsergroupsReconcileRequest": {
+        "description": "Request model for Slack usergroups reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "workspaces": {
+            "description": "List of Slack workspaces with their usergroups",
+            "items": {
+              "$ref": "#/components/schemas/SlackWorkspace"
+            },
+            "title": "Workspaces",
+            "type": "array"
+          }
+        },
+        "required": [
+          "workspaces"
+        ],
+        "title": "SlackUsergroupsReconcileRequest",
+        "type": "object"
+      },
+      "SlackUsergroupsTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.\n\nReturned immediately when task is queued. Contains task_id and status_url\nfor retrieving the result via GET request.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "SlackUsergroupsTaskResponse",
+        "type": "object"
+      },
+      "SlackUsergroupsTaskResult": {
+        "description": "Result model for completed reconciliation task.\n\nReturned by GET /reconcile/{task_id}.\nContains the reconciliation results and execution status.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "List of actions calculated/performed",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SlackUsergroupActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/SlackUsergroupActionUpdateUsers"
+                },
+                {
+                  "$ref": "#/components/schemas/SlackUsergroupActionUpdateMetadata"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SlackUsergroupsTaskResult",
+        "type": "object"
+      },
+      "SlackWorkspace": {
+        "description": "A Slack workspace with its token and usergroups.",
+        "properties": {
+          "managed_usergroups": {
+            "description": "This list shows the usergroup handles/names managed by qontract-api. Any user group not included here will be abandoned during reconciliation.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Managed Usergroups",
+            "type": "array"
+          },
+          "name": {
+            "description": "Workspace name (unique identifier)",
+            "title": "Name",
+            "type": "string"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for the Slack workspace token"
+          },
+          "usergroups": {
+            "description": "List of usergroups in this workspace",
+            "items": {
+              "$ref": "#/components/schemas/SlackUsergroup"
+            },
+            "title": "Usergroups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "usergroups",
+          "managed_usergroups",
+          "token"
+        ],
+        "title": "SlackWorkspace",
+        "type": "object"
+      },
+      "TaskStatus": {
+        "description": "Status for background tasks.\n\nUsed across all async API endpoints to indicate task execution state.",
+        "enum": [
+          "pending",
+          "success",
+          "failed"
+        ],
+        "title": "TaskStatus",
+        "type": "string"
+      },
+      "VCSProvider": {
+        "description": "VCS provider types.\n\nExtensible enum for supported VCS providers.",
+        "enum": [
+          "github",
+          "gitlab"
+        ],
+        "title": "VCSProvider",
+        "type": "string"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "REST API for qontract-reconcile api integrations",
+    "summary": "Qontract API OpenAPI schema",
+    "title": "Qontract API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/external/pagerduty/escalation-policies/{policy_id}/users": {
+      "get": {
+        "description": "Get users in a PagerDuty escalation policy.\n\nFetches all users across all escalation rules in the policy.\nResults are cached for performance (TTL configured in settings).\n\nArgs:\n    policy_id: PagerDuty escalation policy ID\n    instance: PagerDuty instance name\n\nReturns:\n    EscalationPolicyUsersResponse with list of users\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If PagerDuty API call fails\n\nExample:\n    GET /api/v1/external/pagerduty/escalation-policies/XYZ789/users?instance=app-sre\n    Response:\n    {\n        \"users\": [\n            {\"username\": \"jsmith\"},\n            {\"username\": \"mdoe\"}\n        ]\n    }",
+        "operationId": "pagerduty-escalation-policy-users",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationPolicyUsersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Escalation Policy Users",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/pagerduty/schedules/{schedule_id}/users": {
+      "get": {
+        "description": "Get users currently on-call in a PagerDuty schedule.\n\nFetches users from the specified schedule using a time window of now + 60 seconds.\nResults are cached for performance (TTL configured in settings).\n\nArgs:\n    schedule_id: PagerDuty schedule ID\n    instance: PagerDuty instance name\n\nReturns:\n    ScheduleUsersResponse with list of users\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If PagerDuty API call fails\n\nExample:\n    GET /api/v1/external/pagerduty/schedules/ABC123/users?instance=app-sre\n    Response:\n    {\n        \"users\": [\n            {\"username\": \"jsmith\"},\n            {\"username\": \"mdoe\"}\n        ]\n    }",
+        "operationId": "pagerduty-schedule-users",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "schedule_id",
+            "required": true,
+            "schema": {
+              "title": "Schedule Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleUsersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Schedule Users",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/vcs/repos/owners": {
+      "get": {
+        "description": "Get OWNERS file data from a Git repository.\n\nFetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.\nResults are cached for performance (TTL configured in settings).\n\nArgs:\n    params: VCSQueryParams with repo_url, owners_file, ref, and secret reference\n\nReturns:\n    RepoOwnersResponse with provider type, approvers, and reviewers lists\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If VCS API call fails or tokens not found\n\nExample:\n    GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master\n    Response:\n    {\n        \"provider\": \"github\",\n        \"approvers\": [\"github_user1\", \"github_user2\"],\n        \"reviewers\": [\"github_user3\"]\n    }",
+        "operationId": "vcs-repo-owners",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Repository URL (e.g., https://github.com/owner/repo)",
+            "in": "query",
+            "name": "repo_url",
+            "required": true,
+            "schema": {
+              "description": "Repository URL (e.g., https://github.com/owner/repo)",
+              "title": "Repo Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to OWNERS file in the repository (e.g., /OWNERS or /path/to/OWNERS)",
+            "in": "query",
+            "name": "owners_file",
+            "required": false,
+            "schema": {
+              "default": "/OWNERS",
+              "description": "Path to OWNERS file in the repository (e.g., /OWNERS or /path/to/OWNERS)",
+              "title": "Owners File",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Git reference (branch, tag, commit SHA)",
+            "in": "query",
+            "name": "ref",
+            "required": false,
+            "schema": {
+              "default": "master",
+              "description": "Git reference (branch, tag, commit SHA)",
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoOwnersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Repo Owners",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/integrations/slack-usergroups/reconcile": {
+      "post": {
+        "description": "Queue Slack usergroups reconciliation task.\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /reconcile/{task_id} to retrieve the result.\n\nArgs:\n    reconcile_request: Reconciliation request with desired state\n    current_user: Authenticated user (from JWT token)\n    request: FastAPI Request object (used to generate status_url)\n\nReturns:\n    SlackUsergroupsTaskResponse with task_id and status_url",
+        "operationId": "slack-usergroups",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlackUsergroupsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackUsergroupsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Slack Usergroups",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/slack-usergroups/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\n**Non-blocking mode (default):** Returns immediate status (pending/success/failed)\n**Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    current_user: Authenticated user (from JWT token)\n    timeout: Maximum seconds to wait (default: None = non-blocking)\n\nReturns:\n    SlackUsergroupsTaskResult with status, actions, applied_count, and errors\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Task ID not found\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
+        "operationId": "slack-usergroups-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackUsergroupsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Slack Usergroups Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/health/live": {
+      "get": {
+        "description": "Liveness probe - returns 200 if service is running.",
+        "operationId": "liveness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Liveness",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "Readiness probe - returns 200 if service is ready to accept requests.",
+        "operationId": "readiness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness",
+        "tags": [
+          "Health"
+        ]
+      }
+    }
+  }
+}
