@@ -10,7 +10,7 @@ from github import Github
 from github.Repository import Repository
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig, invoke_with_hooks
 
 logger = structlog.get_logger(__name__)
 
@@ -97,6 +97,9 @@ class GitHubRepoApi:
         pre_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
         post_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
         error_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
+        retry_hooks: Iterable[Callable[[GitHubApiCallContext, int], None]]
+        | None = None,
+        retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG,
     ) -> None:
         self.owner = owner
         self.repo = repo
@@ -118,6 +121,10 @@ class GitHubRepoApi:
         self._error_hooks: list[Callable[[GitHubApiCallContext], None]] = []
         if error_hooks:
             self._error_hooks.extend(error_hooks)
+        self._retry_hooks: list[Callable[[GitHubApiCallContext, int], None]] = []
+        if retry_hooks:
+            self._retry_hooks.extend(retry_hooks)
+        self._retry_config = retry_config
 
         # PyGithub expects base_url without /api/v3
         self._github = Github(
@@ -125,6 +132,9 @@ class GitHubRepoApi:
         )
         self._repository: Repository = self._github.get_repo(f"{owner}/{repo}")
 
+    @invoke_with_hooks(
+        lambda self: GitHubApiCallContext(method="get_file", repo_url=self.repo_url)
+    )
     def get_file(self, path: str, ref: str = "master") -> str | None:
         """Fetch file content from repository.
 
@@ -136,13 +146,7 @@ class GitHubRepoApi:
             File content as string, or None if file not found
         """
         try:
-            with invoke_with_hooks(
-                GitHubApiCallContext(method="get_file", repo_url=self.repo_url),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                content_file = self._repository.get_contents(path, ref=ref)
+            content_file = self._repository.get_contents(path, ref=ref)
             if isinstance(content_file, list):
                 # Path is a directory, not a file
                 return None

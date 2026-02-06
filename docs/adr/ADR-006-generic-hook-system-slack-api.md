@@ -1,7 +1,7 @@
 # ADR-006: Generic Hook System for API Wrappers
 
 **Status:** Accepted
-**Date:** 2025-11-14
+**Date:** 2026-02-06
 **Authors:** cassing
 **Supersedes:** N/A
 **Superseded by:** N/A
@@ -71,15 +71,18 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
     slack_request.labels(context.method, context.verb).inc()
 ```
 
-**5. Hook Execution**:
+**5. Hook Execution (Method Decorator)**:
 
 ```python
-with invoke_with_hooks(
-    context=SlackApiCallContext(method="chat.postMessage", verb="POST", workspace=self.workspace_name),
-    pre_hooks=self.pre_hooks,
-):
+@invoke_with_hooks(
+    lambda self: SlackApiCallContext(
+        method="chat.postMessage",
+        verb="POST",
+        workspace=self.workspace_name
+    )
+)
+def chat_post_message(self, text: str) -> None:
     self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
-
 ```
 
 ## Implementation Example: SlackApi
@@ -89,7 +92,7 @@ with invoke_with_hooks(
 ```python
 from dataclasses import dataclass
 from collections.abc import Callable, Sequence
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig, invoke_with_hooks
 
 @dataclass(frozen=True)
 class SlackApiCallContext:
@@ -108,6 +111,10 @@ class SlackApi:
         workspace_name: str,
         token: str,
         pre_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
+        post_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
+        error_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
+        retry_hooks: Sequence[Callable[[SlackApiCallContext, int], None]] | None = None,
+        retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG,
         *,
         init_usergroups: bool = True,
         channel: str | None = None,
@@ -117,13 +124,26 @@ class SlackApi:
         self._pre_hooks = [_metrics_hook]
         if pre_hooks:
             self._pre_hooks.extend(pre_hooks)
+        self._post_hooks: list[Callable[[SlackApiCallContext], None]] = []
+        if post_hooks:
+            self._post_hooks.extend(post_hooks)
+        self._error_hooks: list[Callable[[SlackApiCallContext], None]] = []
+        if error_hooks:
+            self._error_hooks.extend(error_hooks)
+        self._retry_hooks: list[Callable[[SlackApiCallContext, int], None]] = []
+        if retry_hooks:
+            self._retry_hooks.extend(retry_hooks)
+        self._retry_config = retry_config
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="chat.postMessage",
+            verb="POST",
+            workspace=self.workspace_name
+        )
+    )
     def chat_post_message(self, text: str) -> None:
-        with invoke_with_hooks(
-            context=SlackApiCallContext(method="chat.postMessage", verb="POST", workspace=self.workspace_name),
-            pre_hooks=self.pre_hooks,
-        ):
-            self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
+        self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
 
 ```
 
@@ -226,50 +246,193 @@ def create_slack_api_with_full_observability(
 - Built-in metrics hook always runs first
 - User hooks run in list order (composable and predictable)
 
-## Future Enhancements
+## Retry System
 
-The current implementation focuses on `pre_hooks`. Future versions could support additional hook types for comprehensive API lifecycle management.
+The hook system supports automatic retries with exponential backoff using the stamina library.
 
-### Other Possible Hook Types
+### RetryConfig
 
-#### 1. `retry_hooks`
+Configuration for retry behavior with stamina-compatible parameters:
 
-Execute hooks before each retry attempt.
+```python
+from qontract_utils.hooks import NO_RETRY_CONFIG, RetryConfig
+from slack_sdk.errors import SlackApiError
+
+# Retry on HTTP errors up to 5 times with 30s timeout
+retry_config = RetryConfig(
+    on=(SlackApiError, TimeoutError),  # Exception types to retry
+    attempts=5,                         # Max 5 attempts
+    timeout=30.0,                       # Max 30 seconds total
+    wait_initial=0.5,                   # Start with 0.5s wait
+    wait_max=10.0,                      # Max 10s between retries
+    wait_jitter=2.0,                    # Add up to 2s jitter
+    wait_exp_base=2,                    # Exponential backoff base
+)
+```
+
+**Parameters** (matching `stamina.retry()`):
+
+- `on`: Exception type(s) to retry on, or Callable for custom backoff (**required**)
+  - `type[Exception] | tuple[type[Exception], ...]` - Retry on these exception types
+  - `Callable[[Exception], bool | float | timedelta]` - Custom decision function
+- `attempts`: Max retry attempts (default: 10)
+- `timeout`: Max total time in seconds (default: 45.0)
+- `wait_initial`: Initial wait in seconds (default: 0.1)
+- `wait_max`: Max wait between retries (default: 5.0)
+- `wait_jitter`: Jitter in seconds (default: 1.0)
+- `wait_exp_base`: Exponential backoff base (default: 2)
+
+### Retry Hooks
+
+Retry hooks are called **before each retry attempt** (attempts 2..N, not the first attempt).
 
 **Signature:**
 
 ```python
-Callable[[<Service>ApiCallContext, int], None]  # retry_attempt number
+Callable[[<Service>ApiCallContext, int], None]  # context, retry_attempt_number
 ```
 
 **Use Cases:**
 
-- **Retry metrics**: Track retry attempts and backoff behavior
-- **Retry logging**: Log retry attempts with context
-- **Dynamic backoff**: Adjust backoff strategy based on error patterns
-- **Circuit breaker**: Open circuit after N consecutive retries
+- Circuit Breaker Pattern
+- Custom Alerting for excessive retries
+- Context-specific cleanup before retry
+- Adaptive request throttling
 
-**Example:**
+**Example - Circuit Breaker:**
 
 ```python
-def retry_metrics_hook(context: SlackApiCallContext, retry_attempt: int) -> None:
-    """Track retry attempts."""
-    slack_retries.labels(context.method, context.workspace).inc()
-    logger.warning(
-        "Retrying Slack API call",
-        method=context.method,
-        workspace=context.workspace,
-        retry_attempt=retry_attempt,
-    )
+class CircuitBreaker:
+    def __init__(self, failure_threshold: int = 5):
+        self.failure_count = 0
+        self.threshold = failure_threshold
+        self.is_open = False
 
-SlackApi(
-    workspace_name,
-    token,
-    retry_hooks=[retry_metrics_hook],
+    def retry_hook(self, context: SlackApiCallContext, retry_attempt: int) -> None:
+        """Open circuit breaker after threshold retries."""
+        self.failure_count += 1
+        if self.failure_count >= self.threshold:
+            self.is_open = True
+            logger.error(
+                "Circuit breaker opened",
+                method=context.method,
+                workspace=context.workspace,
+                failures=self.failure_count,
+            )
+            raise CircuitBreakerOpenError("Too many failures")
+
+breaker = CircuitBreaker()
+api = SlackApi(
+    workspace_name="app-sre",
+    token=token,
+    retry_config=RetryConfig(on=SlackApiError, attempts=5),
+    retry_hooks=[breaker.retry_hook],
 )
 ```
 
-#### 2. `timeout_hooks`
+### Hook Execution Order with Retry
+
+**Overall flow:**
+
+```
+1. Pre-hooks (BEFORE retry_context, once)
+   ↓
+2. TRY: stamina.retry_context
+   ├─ Attempt 1: API Call
+   ├─ Attempt 2: retry_hooks(2) → API Call
+   ├─ Attempt N: retry_hooks(N) → API Call
+   ↓
+3a. SUCCESS: finally → Post-hooks
+3b. FAILURE (all retries exhausted):
+    except → Error hooks → finally → Post-hooks → Exception re-raise
+```
+
+**Detailed hook execution:**
+
+1. **Pre-hooks** (once, before retry_context)
+   - Metrics counter increment
+   - Rate limiting check
+   - Initial request logging
+
+2. **Retry Context** (stamina)
+   - Attempt 1: Direct API call
+   - Attempt 2..N: **Retry hooks** (with attempt number) → API call
+
+3. **Error hooks** (only on final failure, after retry_context)
+   - Called ONLY when all retries are exhausted
+   - In except-block after retry_context
+
+4. **Post-hooks** (always, after retry_context)
+   - In finally-block (runs on success AND failure)
+   - Latency recording
+   - Cleanup operations
+
+**Important:**
+
+- Pre-hooks: Once BEFORE retry_context
+- Retry hooks: Before each retry (attempt 2..N) WITHIN retry_context
+- Error hooks: AFTER retry_context only on final failure (except)
+- Post-hooks: AFTER retry_context always (finally)
+- Exponential backoff with jitter (stamina library)
+- stamina tracks retries automatically (structlog + prometheus_client)
+
+### Default Behavior
+
+**Option 1: retry_config=DEFAULT_RETRY_CONFIG (Default stamina behavior)**
+
+- Import: `from qontract_utils.hooks import DEFAULT_RETRY_CONFIG`
+- Uses stamina.retry defaults: attempts=10, timeout=45.0, etc.
+- API call retried up to 10 times
+
+**Option 2: retry_config=None (Explicit no retry)**
+
+- API call runs exactly once (attempts=1)
+- For critical operations that should not be retried
+
+### SlackApi with Retry Support
+
+```python
+from qontract_utils.slack_api import SlackApi
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig
+from slack_sdk.errors import SlackApiError
+
+# Example 1: With retry (custom config)
+retry_config = RetryConfig(
+    on=SlackApiError,
+    attempts=5,
+    timeout=30.0,
+    wait_initial=0.5,
+    wait_max=10.0,
+)
+
+api_with_retry = SlackApi(
+    workspace_name="app-sre",
+    token=token,
+    retry_config=retry_config,
+)
+
+# Example 2: Without retry (explicit)
+api_no_retry = SlackApi(
+    workspace_name="app-sre",
+    token=token,
+    retry_config=None,  # Explicit: no retries
+)
+
+# Example 3: Default behavior (stamina defaults: attempts=10, timeout=45s)
+api_default = SlackApi(
+    workspace_name="app-sre",
+    token=token,
+    retry_config=DEFAULT_RETRY_CONFIG,  # Uses stamina defaults
+)
+```
+
+## Future Enhancements
+
+Future versions could support additional hook types for comprehensive API lifecycle management.
+
+### Other Possible Hook Types
+
+#### 1. `timeout_hooks`
 
 Execute hooks when API calls timeout.
 
@@ -379,8 +542,7 @@ Service-specific context dataclasses with multiple hook support.
 2. **Create built-in metrics hook** (track API calls with service-specific labels)
 3. **Accept hook list in `__init__`**: `pre_hooks: Sequence[Callable[[...], None]] | None`
 4. **Always include metrics hook first**, then extend with user hooks
-5. **Implement `_call_hooks` method** (create context, execute all hooks)
-6. **Call hooks before API calls**: `self._call_hooks(method, verb)` in every API method
+5. **Use `invoke_with_hooks` decorator** Decorate every API method
 
 ### Hook Development Guidelines
 
