@@ -481,3 +481,48 @@ def test_pagerduty_api_call_context_immutable() -> None:
 
     with pytest.raises(AttributeError):  # dataclass frozen=True raises AttributeError
         context.method = "different"  # type: ignore[misc]
+
+
+def test_pagerduty_api_retries_on_transient_errors(
+    mock_pagerduty_client: MagicMock, enable_retry: None
+) -> None:
+    """Test that PagerDutyApi retries on transient errors."""
+    api = PagerDutyApi(id="test", token="test-token")
+
+    # Mock: first 2 calls fail, 3rd succeeds
+    call_count = {"count": 0}
+
+    def side_effect(path: str, **kwargs: dict) -> dict:
+        call_count["count"] += 1
+        if call_count["count"] < 3:
+            raise Exception("API error")  # noqa: TRY002
+        return {"email": "alice@example.com", "name": "Alice Smith"}
+
+    api._client.rget = MagicMock(side_effect=side_effect)
+
+    user = api.get_user("USER1")
+
+    assert user.username == "alice"
+    assert call_count["count"] == 3
+
+
+def test_pagerduty_api_gives_up_after_max_attempts(
+    mock_pagerduty_client: MagicMock, enable_retry: None
+) -> None:
+    """Test that PagerDutyApi gives up after max retry attempts."""
+    api = PagerDutyApi(id="test", token="test-token")
+
+    # Mock: always fails
+    call_count = {"count": 0}
+
+    def side_effect(path: str, **kwargs: dict) -> dict:
+        call_count["count"] += 1
+        raise Exception("always fails")  # noqa: TRY002
+
+    api._client.rget = MagicMock(side_effect=side_effect)
+
+    with pytest.raises(Exception, match="always fails"):
+        api.get_user("USER1")
+
+    # Should have tried 3 times (attempts=3)
+    assert call_count["count"] == 3

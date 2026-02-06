@@ -480,3 +480,75 @@ def test_conversations_list_handles_pagination(
 
     assert len(channels) == 2
     assert slack_api._sc.api_call.call_count == 2
+
+
+def test_slack_api_retries_on_transient_errors(
+    mock_webclient: MagicMock, enable_retry: None
+) -> None:
+    """Test that SlackApi retries on transient errors."""
+    from slack_sdk.errors import SlackApiError
+
+    api = SlackApi(
+        slack_api_url="https://slack.com/api/",
+        workspace_name="test",
+        token="xoxb-test",
+        timeout=30,
+        max_retries=0,
+    )
+
+    # Mock: first 2 calls fail, 3rd succeeds
+    call_count = {"count": 0}
+
+    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # noqa: ANN002, ANN003, ANN202
+        call_count["count"] += 1
+        if call_count["count"] < 3:
+            raise SlackApiError("rate_limited", response=MagicMock())
+        return {
+            "usergroups": [
+                {
+                    "id": "UG1",
+                    "handle": "oncall",
+                    "name": "On-Call",
+                    "description": "",
+                    "users": [],
+                    "prefs": {"channels": []},
+                }
+            ]
+        }
+
+    api._sc.usergroups_list = MagicMock(side_effect=side_effect)  # type: ignore[method-assign]
+
+    result = api.usergroups_list()
+
+    assert len(result) == 1
+    assert call_count["count"] == 3
+
+
+def test_slack_api_gives_up_after_max_attempts(
+    mock_webclient: MagicMock, enable_retry: None
+) -> None:
+    """Test that SlackApi gives up after max retry attempts."""
+    from slack_sdk.errors import SlackApiError
+
+    api = SlackApi(
+        slack_api_url="https://slack.com/api/",
+        workspace_name="test",
+        token="xoxb-test",
+        timeout=30,
+        max_retries=0,
+    )
+
+    # Mock: always fails
+    call_count = {"count": 0}
+
+    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # noqa: ANN002, ANN003, ANN202
+        call_count["count"] += 1
+        raise SlackApiError("always fails", response=MagicMock())
+
+    api._sc.usergroups_list = MagicMock(side_effect=side_effect)  # type: ignore[method-assign]
+
+    with pytest.raises(SlackApiError):
+        api.usergroups_list()
+
+    # Should have tried 3 times (attempts=3)
+    assert call_count["count"] == 3

@@ -3,6 +3,9 @@
 Tests the VaultSecretBackend implementation with python-hvac.
 """
 
+# ruff: noqa: ARG001
+
+from typing import Any, NoReturn
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -577,3 +580,70 @@ class TestVaultSecretBackendHooks:
 
             # Post-hook should have been called
             assert post_hook.call_count > 0
+
+
+def test_vault_retries_on_transient_errors(enable_retry: None) -> None:
+    """Test that VaultSecretBackend retries on transient errors."""
+    with patch("hvac.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client.is_authenticated.return_value = True
+        mock_client_class.return_value = mock_client
+
+        settings = VaultSecretBackendSettings(
+            server="https://vault.test",
+            role_id="test-role-id",
+            secret_id="test-secret-id",
+            auto_refresh=False,
+        )
+        backend = VaultSecretBackend(settings)
+
+        # Mock: first 2 calls fail, 3rd succeeds
+        call_count = {"count": 0}
+
+        def side_effect(*args: Any, **kwargs: Any) -> dict:
+            call_count["count"] += 1
+            if call_count["count"] < 3:
+                raise Exception("Vault error")  # noqa: TRY002
+            return {"data": {"data": {"token": "xoxb-test-token"}}}
+
+        mock_client.secrets.kv.v2.read_secret_version = MagicMock(
+            side_effect=side_effect
+        )
+
+        result = backend.read(Secret(path="secret/workspace-1/token"))
+
+        assert result == "xoxb-test-token"
+        assert call_count["count"] == 3
+
+
+def test_vault_gives_up_after_max_attempts(enable_retry: None) -> None:
+    """Test that VaultSecretBackend gives up after max retry attempts."""
+    with patch("hvac.Client") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client.is_authenticated.return_value = True
+        mock_client_class.return_value = mock_client
+
+        settings = VaultSecretBackendSettings(
+            server="https://vault.test",
+            role_id="test-role-id",
+            secret_id="test-secret-id",
+            auto_refresh=False,
+        )
+        backend = VaultSecretBackend(settings)
+
+        # Mock: always fails
+        call_count = {"count": 0}
+
+        def side_effect(*args: Any, **kwargs: Any) -> NoReturn:
+            call_count["count"] += 1
+            raise Exception("always fails")  # noqa: TRY002
+
+        mock_client.secrets.kv.v2.read_secret_version = MagicMock(
+            side_effect=side_effect
+        )
+
+        with pytest.raises(Exception, match="always fails"):
+            backend.read(Secret(path="secret/workspace-1/token"))
+
+        # Should have tried 3 times (attempts=3)
+        assert call_count["count"] == 3

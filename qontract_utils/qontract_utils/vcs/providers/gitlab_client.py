@@ -10,7 +10,7 @@ import structlog
 from gitlab.v4.objects import Project
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig, invoke_with_hooks
 
 logger = structlog.get_logger(__name__)
 
@@ -95,6 +95,9 @@ class GitLabRepoApi:
         pre_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
         post_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
         error_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
+        retry_hooks: Iterable[Callable[[GitLabApiCallContext, int], None]]
+        | None = None,
+        retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG,
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
@@ -115,6 +118,10 @@ class GitLabRepoApi:
         self._error_hooks: list[Callable[[GitLabApiCallContext], None]] = []
         if error_hooks:
             self._error_hooks.extend(error_hooks)
+        self._retry_hooks: list[Callable[[GitLabApiCallContext, int], None]] = []
+        if retry_hooks:
+            self._retry_hooks.extend(retry_hooks)
+        self._retry_config = retry_config
 
         # Create GitLab client
         self._gitlab = gitlab.Gitlab(
@@ -124,6 +131,9 @@ class GitLabRepoApi:
         )
         self._project: Project = self._gitlab.projects.get(project_id)
 
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(method="get_file", repo_url=self.repo_url)
+    )
     def get_file(self, path: str, ref: str = "master") -> str | None:
         """Fetch file content from repository.
 
@@ -135,13 +145,7 @@ class GitLabRepoApi:
             File content as string, or None if file not found
         """
         try:
-            with invoke_with_hooks(
-                GitLabApiCallContext(method="get_file", repo_url=self.repo_url),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                file = self._project.files.get(file_path=path, ref=ref)
+            file = self._project.files.get(file_path=path, ref=ref)
             return file.decode().decode("utf-8")
         except Exception:  # noqa: BLE001
             # File not found or other error - python-gitlab can raise various exceptions
