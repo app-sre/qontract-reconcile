@@ -6,13 +6,13 @@ requires-python = ">=3.12"
 dependencies = [
     "hvac==2.4.0",
     "pagerduty==6.1.0",
-    "prometheus-client==0.23.1",
-    "pydantic==2.12.4",
-    "pygithub==1.58.2",
-    "python-gitlab==6.0.0",
+    "prometheus-client==0.24.1",
+    "pydantic==2.12.5",
+    "pygithub==1.59.1",
+    "python-gitlab==6.5.0",
     "requests==2.32.5",
-    "ruamel-yaml==0.17.40",
-    "slack_sdk==3.38",
+    "ruamel-yaml==0.19.1",
+    "slack_sdk==3.39.0",
     "structlog==25.5.0",
 ]
 
@@ -24,9 +24,9 @@ dev = [
     "pytest-asyncio==1.3.0",
     "pytest-cov==7.0.0",
     "pytest==9.0.2",
-    "ruff==0.14.13",
+    "ruff==0.15.0",
     "types-hvac>=2.4.0.20251115",
-    "tzdata==2025.2",
+    "tzdata==2025.3",
 ]
 
 [build-system]
