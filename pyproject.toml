@@ -55,7 +55,7 @@ dependencies = [
     # jenkins-job-builder uses pkg_resources from setuptools. pkg_resources is being deprecated and will be removed
     # in setuptools 81.
     # setuptools 80.9.0 set a deadline for the removal and started showing warnings when pkg_resources is used.
-    "setuptools==80.8.0",
+    "setuptools==81.0.0",
     "slack_sdk>=3.10,<4.0",
     "sretoolbox==3.2.0",
     "sshtunnel>=0.4.0",
