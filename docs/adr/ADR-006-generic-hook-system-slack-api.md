@@ -8,13 +8,14 @@
 
 ## Context
 
-API wrappers (Slack, GitHub, GitLab, AWS, etc.) need to support multiple cross-cutting concerns:
+API wrappers (Slack, GitHub, GitLab, AWS, etc.) and standalone utility functions need to support multiple cross-cutting concerns:
 
 - **Prometheus metrics**: Track all API calls with method/verb/service labels
 - **Rate limiting**: Enforce rate limits before API calls
 - **Logging**: Debug/trace API calls with context
 - **Tracing**: Distributed tracing with OpenTelemetry (future)
 - **Authentication**: Token refresh, credential rotation (future)
+- **Retry logic**: Automatic retries with exponential backoff
 
 ### Problem Without Hook System
 
@@ -86,6 +87,8 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
 
 **5. Hook Execution (Method Decorator)**:
 
+Instance methods (retrieves hooks from `self._hooks`):
+
 ```python
 @invoke_with_hooks(
     lambda self: SlackApiCallContext(
@@ -97,6 +100,133 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
 def chat_post_message(self, text: str) -> None:
     self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
 ```
+
+Standalone functions and static methods (hooks passed directly in decorator):
+
+```python
+@invoke_with_hooks(
+    context_factory=lambda: MyContext(method="process", verb="POST"),
+    hooks=Hooks(
+        pre_hooks=[logging_hook],
+        retry_config=RetryConfig(on=Exception, attempts=3),
+    )
+)
+def process_data(data: dict) -> dict:
+    # Process data with automatic hooks and retry support
+    return transform(data)
+```
+
+Class static methods:
+
+```python
+class DataProcessor:
+    @staticmethod
+    @invoke_with_hooks(
+        context_factory=lambda: ProcessContext(operation="validate"),
+        hooks=Hooks(pre_hooks=[metrics_hook], retry_config=NO_RETRY_CONFIG)
+    )
+    def validate(data: dict) -> bool:
+        return schema.validate(data)
+```
+
+## Usage Patterns
+
+The hook system supports three distinct usage patterns depending on your needs:
+
+### Pattern 1: Instance Methods (Recommended for API Clients)
+
+Use `@invoke_with_hooks(context_factory)` decorator on instance methods. Hooks are retrieved from `self._hooks`.
+
+```python
+class SlackApi:
+    def __init__(self, hooks: Hooks | None = None):
+        _hooks = hooks or Hooks()
+        self._hooks = Hooks(
+            pre_hooks=[_metrics_hook, *_hooks.pre_hooks],
+            retry_config=_hooks.retry_config,
+        )
+
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="chat.postMessage",
+            verb="POST",
+            workspace=self.workspace_name
+        )
+    )
+    def chat_post_message(self, text: str) -> None:
+        self._sc.chat_postMessage(channel=self.channel, text=text)
+```
+
+**When to use:** API wrapper classes, service clients
+
+### Pattern 2: Standalone Functions
+
+Use `@invoke_with_hooks(context_factory, hooks=...)` decorator on standalone functions. Hooks are passed directly in the decorator.
+
+```python
+from qontract_utils.hooks import Hooks, invoke_with_hooks
+
+@invoke_with_hooks(
+    context_factory=lambda: {"operation": "transform"},
+    hooks=Hooks(
+        pre_hooks=[logging_hook],
+        retry_config=RetryConfig(on=TransformError, attempts=3),
+    )
+)
+def transform_data(data: dict) -> dict:
+    return process(data)
+
+# Direct call - hooks execute automatically
+result = transform_data({"key": "value"})
+```
+
+**When to use:** Utility functions, data transformers, standalone operations
+
+### Pattern 3: Class Static Methods
+
+Use `@staticmethod` combined with `@invoke_with_hooks(context_factory, hooks=...)` decorator.
+
+```python
+class DataValidator:
+    @staticmethod
+    @invoke_with_hooks(
+        context_factory=lambda: {"operation": "validate"},
+        hooks=Hooks(
+            pre_hooks=[metrics_hook],
+            retry_config=NO_RETRY_CONFIG,
+        )
+    )
+    def validate_schema(data: dict) -> bool:
+        return schema.validate(data)
+
+# Call via class or instance
+DataValidator.validate_schema(data)
+```
+
+**When to use:** Stateless operations in classes, validators, pure functions grouped in classes
+
+### Pattern 4: Direct Invocation (Hooks.invoke)
+
+Use `hooks.invoke()` or `hooks.with_context().invoke()` for one-off function calls without decorators.
+
+```python
+def fetch_data(url: str) -> dict:
+    return requests.get(url).json()
+
+hooks = Hooks(
+    pre_hooks=[rate_limit_hook],
+    retry_config=RetryConfig(on=RequestError, attempts=3),
+)
+
+# Without context
+result = hooks.invoke(fetch_data, "https://api.example.com/data")
+
+# With context
+context = {"endpoint": "/data", "method": "GET"}
+result = hooks.with_context(context).invoke(fetch_data, "https://api.example.com/data")
+```
+
+**When to use:** One-off operations, testing, wrapping third-party functions
 
 ## Implementation Example: SlackApi
 

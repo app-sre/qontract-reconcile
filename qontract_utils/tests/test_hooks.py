@@ -1,8 +1,9 @@
 from typing import Any
 
-# ruff: noqa: ARG001
 import pytest
 import structlog
+
+# ruff: noqa: ARG001
 from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, RetryConfig, invoke_with_hooks
 from structlog.typing import EventDict
 
@@ -28,14 +29,14 @@ def test_pre_hook_execution() -> None:
     """Test pre-hooks are executed before the method."""
     execution_order: list[str] = []
 
-    def pre_hook(_ctx: Any) -> None:
+    def pre_hook() -> None:
         execution_order.append("pre")
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -48,10 +49,10 @@ def test_multiple_pre_hooks() -> None:
     """Test multiple pre-hooks are executed in order."""
     execution_order: list[str] = []
 
-    def pre_hook_1(_ctx: Any) -> None:
+    def pre_hook_1() -> None:
         execution_order.append("pre1")
 
-    def pre_hook_2(_ctx: Any) -> None:
+    def pre_hook_2() -> None:
         execution_order.append("pre2")
 
     class TestApi:
@@ -60,7 +61,7 @@ def test_multiple_pre_hooks() -> None:
                 pre_hooks=[pre_hook_1, pre_hook_2], retry_config=NO_RETRY_CONFIG
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -73,14 +74,14 @@ def test_post_hook_execution() -> None:
     """Test post-hooks are executed after the method."""
     execution_order: list[str] = []
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         execution_order.append("post")
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -93,10 +94,10 @@ def test_multiple_post_hooks() -> None:
     """Test multiple post-hooks are executed in order."""
     execution_order: list[str] = []
 
-    def post_hook_1(_ctx: Any) -> None:
+    def post_hook_1() -> None:
         execution_order.append("post1")
 
-    def post_hook_2(_ctx: Any) -> None:
+    def post_hook_2() -> None:
         execution_order.append("post2")
 
     class TestApi:
@@ -105,7 +106,7 @@ def test_multiple_post_hooks() -> None:
                 post_hooks=[post_hook_1, post_hook_2], retry_config=NO_RETRY_CONFIG
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -118,14 +119,14 @@ def test_error_hook_on_exception() -> None:
     """Test error-hooks are executed when an exception occurs."""
     execution_order: list[str] = []
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         execution_order.append("error")
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
             raise ValueError("test error")
@@ -141,10 +142,10 @@ def test_multiple_error_hooks() -> None:
     """Test multiple error-hooks are executed in order."""
     execution_order: list[str] = []
 
-    def error_hook_1(_ctx: Any) -> None:
+    def error_hook_1() -> None:
         execution_order.append("error1")
 
-    def error_hook_2(_ctx: Any) -> None:
+    def error_hook_2() -> None:
         execution_order.append("error2")
 
     class TestApi:
@@ -153,7 +154,7 @@ def test_multiple_error_hooks() -> None:
                 error_hooks=[error_hook_1, error_hook_2], retry_config=NO_RETRY_CONFIG
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
             raise ValueError("test error")
@@ -169,14 +170,14 @@ def test_error_hooks_not_called_on_success() -> None:
     """Test error-hooks are NOT executed when no exception occurs."""
     execution_order: list[str] = []
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         execution_order.append("error")
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -189,10 +190,10 @@ def test_post_hooks_called_after_error_hooks() -> None:
     """Test post-hooks are executed after error-hooks."""
     execution_order: list[str] = []
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         execution_order.append("error")
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         execution_order.append("post")
 
     class TestApi:
@@ -203,7 +204,7 @@ def test_post_hooks_called_after_error_hooks() -> None:
                 retry_config=NO_RETRY_CONFIG,
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
             raise ValueError("test error")
@@ -219,13 +220,13 @@ def test_full_lifecycle_no_error() -> None:
     """Test all hooks execute in correct order without errors."""
     execution_order: list[str] = []
 
-    def pre_hook(_ctx: Any) -> None:
+    def pre_hook() -> None:
         execution_order.append("pre")
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         execution_order.append("post")
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         execution_order.append("error")
 
     class TestApi:
@@ -237,7 +238,7 @@ def test_full_lifecycle_no_error() -> None:
                 retry_config=NO_RETRY_CONFIG,
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -250,13 +251,13 @@ def test_full_lifecycle_with_error() -> None:
     """Test all hooks execute in correct order with errors."""
     execution_order: list[str] = []
 
-    def pre_hook(_ctx: Any) -> None:
+    def pre_hook() -> None:
         execution_order.append("pre")
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         execution_order.append("post")
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         execution_order.append("error")
 
     class TestApi:
@@ -268,7 +269,7 @@ def test_full_lifecycle_with_error() -> None:
                 retry_config=NO_RETRY_CONFIG,
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_order.append("main")
             raise ValueError("test error")
@@ -286,14 +287,12 @@ def test_context_modification_in_pre_hook() -> None:
 
     def pre_hook(ctx: dict[str, Any]) -> None:
         ctx["modified"] = True
-        # Store context for verification
-        context_data.update(ctx)
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks(lambda *_: context_data)
         def do_work(self) -> None:
             pass
 
@@ -337,7 +336,7 @@ def test_context_modification_in_error_hook() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks(lambda *_: context_data)
         def do_work(self) -> None:
             raise ValueError("test error")
 
@@ -355,7 +354,7 @@ def test_exception_propagation() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             raise RuntimeError("custom error")
 
@@ -367,14 +366,14 @@ def test_exception_propagation() -> None:
 def test_exception_in_pre_hook() -> None:
     """Test exceptions in pre-hooks are propagated."""
 
-    def pre_hook(_ctx: Any) -> None:
+    def pre_hook() -> None:
         raise ValueError("pre-hook error")
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             pass
 
@@ -386,14 +385,14 @@ def test_exception_in_pre_hook() -> None:
 def test_exception_in_post_hook() -> None:
     """Test exceptions in post-hooks are propagated."""
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         raise ValueError("post-hook error")
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             pass
 
@@ -405,14 +404,14 @@ def test_exception_in_post_hook() -> None:
 def test_exception_in_error_hook() -> None:
     """Test exceptions in error-hooks are propagated (last one wins)."""
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         raise ValueError("error-hook error")
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             raise RuntimeError("original error")
 
@@ -473,14 +472,14 @@ def test_post_hook_executes_even_after_main_error() -> None:
     """Test post-hooks are called even when main block raises."""
     post_hook_called: list[bool] = []
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         post_hook_called.append(True)
 
     class TestApi:
         def __init__(self) -> None:
             self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             raise ValueError("error in main")
 
@@ -494,7 +493,7 @@ def test_post_hook_executes_even_after_main_error() -> None:
 def test_exception_in_first_error_hook_stops_processing() -> None:
     """Test when first error hook raises, it stops processing other error hooks."""
 
-    def error_hook_1(_ctx: Any) -> None:
+    def error_hook_1() -> None:
         raise ValueError("error1")
 
     context_data: dict[str, Any] = {}
@@ -509,7 +508,7 @@ def test_exception_in_first_error_hook_stops_processing() -> None:
                 error_hooks=[error_hook_1, error_hook_2], retry_config=NO_RETRY_CONFIG
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             raise RuntimeError("original")
 
@@ -640,7 +639,7 @@ def test_retry_with_success_on_first_attempt(enable_retry: None) -> None:
                 )
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
 
@@ -661,7 +660,7 @@ def test_retry_on_exception(enable_retry: None) -> None:
                 )
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             if execution_count["count"] < 3:
@@ -677,7 +676,7 @@ def test_retry_hooks_called_on_retry_only(enable_retry: None) -> None:
     retry_hook_calls: list[int] = []
     execution_count = {"count": 0}
 
-    def retry_hook(_ctx: Any, attempt_num: int) -> None:
+    def retry_hook(attempt_num: int) -> None:
         retry_hook_calls.append(attempt_num)
 
     class TestApi:
@@ -689,7 +688,7 @@ def test_retry_hooks_called_on_retry_only(enable_retry: None) -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             if execution_count["count"] < 3:
@@ -706,7 +705,7 @@ def test_pre_hooks_only_on_first_attempt(enable_retry: None) -> None:
     pre_hook_calls = {"count": 0}
     execution_count = {"count": 0}
 
-    def pre_hook(_ctx: Any) -> None:
+    def pre_hook() -> None:
         pre_hook_calls["count"] += 1
 
     class TestApi:
@@ -718,7 +717,7 @@ def test_pre_hooks_only_on_first_attempt(enable_retry: None) -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             if execution_count["count"] < 3:
@@ -734,7 +733,7 @@ def test_post_hooks_always_called(enable_retry: None) -> None:
     post_hook_calls = {"count": 0}
     execution_count = {"count": 0}
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         post_hook_calls["count"] += 1
 
     class TestApi:
@@ -746,7 +745,7 @@ def test_post_hooks_always_called(enable_retry: None) -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             if execution_count["count"] < 3:
@@ -762,7 +761,7 @@ def test_post_hooks_on_failure(enable_retry: None) -> None:
     """Test post-hooks run even after final failure (finally)."""
     post_hook_calls = {"count": 0}
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         post_hook_calls["count"] += 1
 
     class TestApi:
@@ -774,7 +773,7 @@ def test_post_hooks_on_failure(enable_retry: None) -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             raise ValueError("always fails")
 
@@ -791,7 +790,7 @@ def test_error_hooks_only_on_final_failure(enable_retry: None) -> None:
     error_hook_calls = {"count": 0}
     execution_count = {"count": 0}
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         error_hook_calls["count"] += 1
 
     class TestApi:
@@ -803,7 +802,7 @@ def test_error_hooks_only_on_final_failure(enable_retry: None) -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             if execution_count["count"] < 3:
@@ -819,7 +818,7 @@ def test_error_hooks_on_exhausted_retries(enable_retry: None) -> None:
     """Test error-hooks called when all retries exhausted."""
     error_hook_calls = {"count": 0}
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         error_hook_calls["count"] += 1
 
     class TestApi:
@@ -831,7 +830,7 @@ def test_error_hooks_on_exhausted_retries(enable_retry: None) -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             raise ValueError("always fails")
 
@@ -855,7 +854,7 @@ def test_retry_max_attempts_exceeded(enable_retry: None) -> None:
                 )
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             raise ValueError("always fails")
@@ -880,7 +879,7 @@ def test_retry_with_different_exception(enable_retry: None) -> None:
                 )
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             raise RuntimeError("different exception")
@@ -898,16 +897,16 @@ def test_retry_with_full_hook_lifecycle(enable_retry: None) -> None:
     execution_log: list[str] = []
     execution_count = {"count": 0}
 
-    def pre_hook(_ctx: Any) -> None:
+    def pre_hook() -> None:
         execution_log.append("pre")
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         execution_log.append("post")
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         execution_log.append("error")
 
-    def retry_hook(_ctx: Any, attempt: int) -> None:
+    def retry_hook(attempt: int) -> None:
         execution_log.append(f"retry-{attempt}")
 
     class TestApi:
@@ -922,7 +921,7 @@ def test_retry_with_full_hook_lifecycle(enable_retry: None) -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             execution_log.append(f"main-{execution_count['count']}")
@@ -972,7 +971,7 @@ def test_stamina_logging_shows_callable_name(enable_retry: None) -> None:
                 )
             )
 
-        @invoke_with_hooks(lambda _self: {})
+        @invoke_with_hooks()
         def do_work(self) -> None:
             execution_count["count"] += 1
             if execution_count["count"] < 3:
@@ -1014,7 +1013,7 @@ def test_retry_config_override_in_decorator() -> None:
             )
 
         # Override: disable retry for this specific method
-        @invoke_with_hooks(lambda _self: {}, retry_config=NO_RETRY_CONFIG)
+        @invoke_with_hooks(retry_config=NO_RETRY_CONFIG)
         def no_retry_method(self) -> None:
             execution_count["count"] += 1
             raise ValueError("should not retry")
@@ -1031,13 +1030,13 @@ def test_retry_config_override_still_calls_hooks() -> None:
     """Test that overriding retry_config still executes other hooks."""
     execution_log: list[str] = []
 
-    def pre_hook(_ctx: Any) -> None:
+    def pre_hook() -> None:
         execution_log.append("pre")
 
-    def post_hook(_ctx: Any) -> None:
+    def post_hook() -> None:
         execution_log.append("post")
 
-    def error_hook(_ctx: Any) -> None:
+    def error_hook() -> None:
         execution_log.append("error")
 
     class TestApi:
@@ -1052,7 +1051,7 @@ def test_retry_config_override_still_calls_hooks() -> None:
                 ),
             )
 
-        @invoke_with_hooks(lambda _self: {}, retry_config=NO_RETRY_CONFIG)
+        @invoke_with_hooks(retry_config=NO_RETRY_CONFIG)
         def test_method(self) -> None:
             execution_log.append("main")
             raise ValueError("error")
@@ -1063,3 +1062,360 @@ def test_retry_config_override_still_calls_hooks() -> None:
 
     # All hooks should run even with NO_RETRY_CONFIG
     assert execution_log == ["pre", "main", "error", "post"]
+
+
+def test_method_call_execution() -> None:
+    """Test execute via method call instead of decorator."""
+    execution_order: list[str] = []
+
+    def pre_hook() -> None:
+        execution_order.append("pre")
+
+    def do_work(*args: Any, **kwargs: Any) -> str:
+        assert args == ("arg1", "arg2")
+        assert kwargs == {"kwarg1": "value1", "kwarg2": "value2"}
+        execution_order.append("main")
+        return "result"
+
+    hooks = Hooks(pre_hooks=[pre_hook])
+    r = hooks.invoke(do_work, "arg1", "arg2", kwarg1="value1", kwarg2="value2")
+    assert r == "result"
+    assert execution_order == ["pre", "main"]
+
+
+def test_method_call_with_context_execution() -> None:
+    """Test execute via method call with context."""
+    context_data: dict[str, Any] = {"access": True}
+
+    def pre_hook(ctx: dict[str, Any]) -> None:
+        assert ctx["access"]
+        ctx["modified"] = True
+
+    def do_work(*args: Any, **kwargs: Any) -> None: ...
+
+    hooks = Hooks(pre_hooks=[pre_hook])
+    hooks.with_context(context_data).invoke(
+        do_work, "arg1", "arg2", kwarg1="value1", kwarg2="value2"
+    )
+    assert context_data["modified"] is True
+
+
+def test_method_call_with_post_hooks() -> None:
+    """Test invoke with post hooks."""
+    execution_order: list[str] = []
+
+    def pre_hook() -> None:
+        execution_order.append("pre")
+
+    def post_hook() -> None:
+        execution_order.append("post")
+
+    def do_work() -> str:
+        execution_order.append("main")
+        return "result"
+
+    hooks = Hooks(
+        pre_hooks=[pre_hook], post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG
+    )
+    result = hooks.invoke(do_work)
+    assert result == "result"
+    assert execution_order == ["pre", "main", "post"]
+
+
+def test_method_call_with_error_hooks() -> None:
+    """Test invoke with error hooks on exception."""
+    execution_order: list[str] = []
+
+    def pre_hook() -> None:
+        execution_order.append("pre")
+
+    def error_hook() -> None:
+        execution_order.append("error")
+
+    def post_hook() -> None:
+        execution_order.append("post")
+
+    def do_work() -> None:
+        execution_order.append("main")
+        raise ValueError("test error")
+
+    hooks = Hooks(
+        pre_hooks=[pre_hook],
+        post_hooks=[post_hook],
+        error_hooks=[error_hook],
+        retry_config=NO_RETRY_CONFIG,
+    )
+
+    with pytest.raises(ValueError, match="test error"):
+        hooks.invoke(do_work)
+
+    # Post hooks run in finally, error hooks run in except
+    assert execution_order == ["pre", "main", "error", "post"]
+
+
+def test_method_call_with_retry_hooks(enable_retry: None) -> None:
+    """Test invoke with retry hooks."""
+    execution_order: list[str] = []
+    attempt_count = 0
+
+    def pre_hook() -> None:
+        execution_order.append("pre")
+
+    def retry_hook(attempt: int) -> None:
+        execution_order.append(f"retry-{attempt}")
+
+    def do_work() -> str:
+        nonlocal attempt_count
+        attempt_count += 1
+        execution_order.append(f"main-{attempt_count}")
+        if attempt_count < 3:
+            raise ValueError("retry me")
+        return "success"
+
+    hooks = Hooks(
+        pre_hooks=[pre_hook],
+        retry_hooks=[retry_hook],
+        retry_config=RetryConfig(on=ValueError, attempts=5),
+    )
+    result = hooks.invoke(do_work)
+    assert result == "success"
+    assert attempt_count == 3
+    # Pre runs once, then attempt 1, retry hook before attempt 2, retry hook before attempt 3
+    assert execution_order == [
+        "pre",
+        "main-1",
+        "retry-2",
+        "main-2",
+        "retry-3",
+        "main-3",
+    ]
+
+
+def test_method_call_with_dataclass_context() -> None:
+    """Test invoke with dataclass context instead of dict."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class ApiContext:
+        method: str
+        endpoint: str
+        workspace: str
+
+    captured_context: ApiContext | None = None
+
+    def pre_hook(ctx: ApiContext) -> None:
+        nonlocal captured_context
+        captured_context = ctx
+
+    def do_work(user_id: int) -> dict:
+        return {"user_id": user_id, "name": "test"}
+
+    context = ApiContext(method="GET", endpoint="/users", workspace="prod")
+    hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
+    result = hooks.with_context(context).invoke(do_work, 123)
+
+    assert result == {"user_id": 123, "name": "test"}
+    assert captured_context is not None
+    assert captured_context.method == "GET"
+    assert captured_context.endpoint == "/users"
+    assert captured_context.workspace == "prod"
+
+
+def test_method_call_multiple_hooks_composition() -> None:
+    """Test invoke with multiple hooks of each type."""
+    execution_order: list[str] = []
+
+    def pre_hook1() -> None:
+        execution_order.append("pre1")
+
+    def pre_hook2() -> None:
+        execution_order.append("pre2")
+
+    def post_hook1() -> None:
+        execution_order.append("post1")
+
+    def post_hook2() -> None:
+        execution_order.append("post2")
+
+    def do_work() -> str:
+        execution_order.append("main")
+        return "result"
+
+    hooks = Hooks(
+        pre_hooks=[pre_hook1, pre_hook2],
+        post_hooks=[post_hook1, post_hook2],
+        retry_config=NO_RETRY_CONFIG,
+    )
+    result = hooks.invoke(do_work)
+
+    assert result == "result"
+    # Hooks execute in order
+    assert execution_order == ["pre1", "pre2", "main", "post1", "post2"]
+
+
+def test_decorator_on_static_method_execution() -> None:
+    """Test execution of static method decorated with invoke_with_hooks."""
+    execution_order: list[str] = []
+
+    def pre_hook() -> None:
+        execution_order.append("pre")
+
+    @invoke_with_hooks(hooks=Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG))
+    def do_work(*args: Any, **kwargs: Any) -> str:
+        assert args == ("arg1", "arg2")
+        assert kwargs == {"kwarg1": "value1", "kwarg2": "value2"}
+        execution_order.append("main")
+        return "result"
+
+    r = do_work("arg1", "arg2", kwarg1="value1", kwarg2="value2")
+    assert r == "result"
+    assert execution_order == ["pre", "main"]
+
+
+def test_decorator_on_static_method_with_all_hooks() -> None:
+    """Test static method with all hook types."""
+    execution_order: list[str] = []
+
+    def pre_hook() -> None:
+        execution_order.append("pre")
+
+    def post_hook() -> None:
+        execution_order.append("post")
+
+    def error_hook() -> None:
+        execution_order.append("error")
+
+    @invoke_with_hooks(
+        hooks=Hooks(
+            pre_hooks=[pre_hook],
+            post_hooks=[post_hook],
+            error_hooks=[error_hook],
+            retry_config=NO_RETRY_CONFIG,
+        )
+    )
+    def do_work_success() -> str:
+        execution_order.append("main")
+        return "success"
+
+    result = do_work_success()
+    assert result == "success"
+    assert execution_order == ["pre", "main", "post"]
+
+    # Reset and test error case
+    execution_order.clear()
+
+    @invoke_with_hooks(
+        hooks=Hooks(
+            pre_hooks=[pre_hook],
+            post_hooks=[post_hook],
+            error_hooks=[error_hook],
+            retry_config=NO_RETRY_CONFIG,
+        )
+    )
+    def do_work_error() -> None:
+        execution_order.append("main")
+        raise ValueError("test error")
+
+    with pytest.raises(ValueError, match="test error"):
+        do_work_error()
+
+    assert execution_order == ["pre", "main", "error", "post"]
+
+
+def test_decorator_on_static_method_with_context() -> None:
+    """Test static method with context factory."""
+    from dataclasses import dataclass
+
+    @dataclass
+    class MyContext:
+        value: int
+
+    captured_context: MyContext | None = None
+
+    def pre_hook(ctx: MyContext) -> None:
+        nonlocal captured_context
+        captured_context = ctx
+
+    @invoke_with_hooks(
+        context_factory=lambda: MyContext(value=42),
+        hooks=Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG),
+    )
+    def do_work(x: int) -> int:
+        return x * 2
+
+    result = do_work(10)
+    assert result == 20
+    assert captured_context is not None
+    assert captured_context.value == 42
+
+
+def test_decorator_on_static_method_with_retry(enable_retry: None) -> None:
+    """Test static method with retry support."""
+    execution_order: list[str] = []
+    attempt_count = 0
+
+    def retry_hook(attempt: int) -> None:
+        execution_order.append(f"retry-{attempt}")
+
+    @invoke_with_hooks(
+        hooks=Hooks(
+            retry_hooks=[retry_hook],
+            retry_config=RetryConfig(
+                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            ),
+        )
+    )
+    def do_work_with_retry() -> str:
+        nonlocal attempt_count
+        attempt_count += 1
+        execution_order.append(f"main-{attempt_count}")
+        if attempt_count < 3:
+            raise ValueError("retry me")
+        return "success"
+
+    result = do_work_with_retry()
+    assert result == "success"
+    assert attempt_count == 3
+    assert execution_order == ["main-1", "retry-2", "main-2", "retry-3", "main-3"]
+
+
+def test_decorator_on_static_method_without_hooks_fails() -> None:
+    """Test that calling decorated static method without hooks parameter fails."""
+
+    @invoke_with_hooks()
+    def do_work() -> str:
+        return "result"
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot call decorated function directly without hooks parameter",
+    ):
+        do_work()
+
+
+def test_decorator_on_class_static_method() -> None:
+    """Test decorator on actual @staticmethod in a class."""
+    execution_order: list[str] = []
+
+    def pre_hook() -> None:
+        execution_order.append("pre")
+
+    class MyClass:
+        @staticmethod
+        @invoke_with_hooks(
+            hooks=Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
+        )
+        def static_work(x: int) -> int:
+            execution_order.append("main")
+            return x * 2
+
+    result = MyClass.static_work(21)
+    assert result == 42
+    assert execution_order == ["pre", "main"]
+
+    # Also test calling via instance
+    execution_order.clear()
+    instance = MyClass()
+    result = instance.static_work(21)
+    assert result == 42
+    assert execution_order == ["pre", "main"]
