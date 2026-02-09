@@ -63,16 +63,21 @@ DEFAULT_RETRY_CONFIG = RetryConfig(on=Exception)
 class Hooks(BaseModel, frozen=True):
     """Hook configuration for API clients.
 
-    Supports two usage patterns:
+    Supports multiple usage patterns:
 
-    1. **Decorator Pattern** (recommended for API client methods):
-       Use @invoke_with_hooks decorator on methods (class instance or static).
+    1. **Decorator on Instance Methods** (recommended for API client methods):
+       Use @invoke_with_hooks(context_factory) on instance methods.
+       Hooks retrieved from self._hooks.
 
-    2. **Direct Invocation** (for standalone functions or one-off calls):
-       Use hooks.invoke() or hooks.with_context().invoke() for direct execution.
+    2. **Decorator on Standalone Functions/Static Methods**:
+       Use @invoke_with_hooks(context_factory, hooks=Hooks(...)).
+       Hooks passed directly in decorator.
+
+    3. **Direct Invocation** (for one-off calls):
+       Use hooks.invoke() or hooks.with_context().invoke().
 
     Examples:
-        Decorator pattern (recommended for API clients):
+        Instance method pattern (API clients):
         >>> class MyApi:
         ...     def __init__(self, hooks: Hooks | None = None):
         ...         _hooks = hooks or Hooks()
@@ -87,6 +92,24 @@ class Hooks(BaseModel, frozen=True):
         ...     @invoke_with_hooks(lambda self: MyContext(method="test"))
         ...     def test(self) -> str:
         ...         return "result"
+
+        Standalone function pattern:
+        >>> @invoke_with_hooks(
+        ...     context_factory=lambda: {"operation": "transform"},
+        ...     hooks=Hooks(pre_hooks=[logging_hook], retry_config=NO_RETRY_CONFIG)
+        ... )
+        ... def transform_data(data: dict) -> dict:
+        ...     return process(data)
+
+        Static method pattern:
+        >>> class Validator:
+        ...     @staticmethod
+        ...     @invoke_with_hooks(
+        ...         context_factory=lambda: {"operation": "validate"},
+        ...         hooks=Hooks(pre_hooks=[metrics_hook])
+        ...     )
+        ...     def validate(data: dict) -> bool:
+        ...         return schema.validate(data)
 
         Direct invocation without context:
         >>> def my_function(x: int) -> int:
