@@ -2,7 +2,6 @@
 
 import contextvars
 import time
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import structlog
@@ -10,7 +9,7 @@ from github import Github
 from github.Repository import Repository
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig, invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks
 
 logger = structlog.get_logger(__name__)
 
@@ -94,37 +93,27 @@ class GitHubRepoApi:
         token: str,
         github_api_url: str = "https://api.github.com",
         timeout: int = 30,
-        pre_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
-        retry_hooks: Iterable[Callable[[GitHubApiCallContext, int], None]]
-        | None = None,
-        retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG,
+        hooks: Hooks | None = None,
     ) -> None:
         self.owner = owner
         self.repo = repo
         self.repo_url = f"https://github.com/{owner}/{repo}"
         self._timeout = timeout
+
         # Setup hook system - always include built-in hooks
-        self._pre_hooks: list[Callable[[GitHubApiCallContext], None]] = [
-            _metrics_hook,
-            _latency_start_hook,
-            _request_log_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[GitHubApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[GitHubApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
-        self._retry_hooks: list[Callable[[GitHubApiCallContext, int], None]] = []
-        if retry_hooks:
-            self._retry_hooks.extend(retry_hooks)
-        self._retry_config = retry_config
+        hooks = hooks or Hooks()
+        self._hooks = Hooks(
+            pre_hooks=[
+                _metrics_hook,
+                _request_log_hook,
+                *hooks.pre_hooks,
+                _latency_start_hook,
+            ],
+            post_hooks=[_latency_end_hook, *hooks.post_hooks],
+            error_hooks=hooks.error_hooks,
+            retry_hooks=hooks.retry_hooks,
+            retry_config=hooks.retry_config,
+        )
 
         # PyGithub expects base_url without /api/v3
         self._github = Github(

@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from qontract_utils.hooks import Hooks
 from qontract_utils.slack_api import SlackApi, SlackChannel, SlackUser, SlackUsergroup
 
 # Default values for tests (matching typical settings)
@@ -109,7 +110,7 @@ def test_slack_api_pre_hooks_includes_metrics(mock_webclient: MagicMock) -> None
     )
 
     # Should have at least the metrics hook
-    assert len(api._pre_hooks) >= 1
+    assert len(api._hooks.pre_hooks) >= 1
 
 
 def test_slack_api_pre_hooks_custom(mock_webclient: MagicMock) -> None:
@@ -121,12 +122,12 @@ def test_slack_api_pre_hooks_custom(mock_webclient: MagicMock) -> None:
         token="token",
         timeout=DEFAULT_TIMEOUT,
         max_retries=DEFAULT_MAX_RETRIES,
-        pre_hooks=[custom_hook],
+        hooks=Hooks(pre_hooks=[custom_hook]),
     )
 
-    # Should have metrics + latency_start + request_log + custom hook
-    assert len(api._pre_hooks) == 4
-    assert api._pre_hooks[-1] == custom_hook
+    # Should have metrics + request_log + custom hook + latency_start
+    assert len(api._hooks.pre_hooks) == 4
+    assert custom_hook in api._hooks.pre_hooks
 
 
 def test_slack_api_post_hooks_includes_latency(mock_webclient: MagicMock) -> None:
@@ -140,7 +141,7 @@ def test_slack_api_post_hooks_includes_latency(mock_webclient: MagicMock) -> Non
     )
 
     # Should have at least the latency_end hook
-    assert len(api._post_hooks) >= 1
+    assert len(api._hooks.post_hooks) >= 1
 
 
 def test_slack_api_post_hooks_custom(mock_webclient: MagicMock) -> None:
@@ -152,12 +153,12 @@ def test_slack_api_post_hooks_custom(mock_webclient: MagicMock) -> None:
         token="token",
         timeout=DEFAULT_TIMEOUT,
         max_retries=DEFAULT_MAX_RETRIES,
-        post_hooks=[custom_hook],
+        hooks=Hooks(post_hooks=[custom_hook]),
     )
 
     # Should have latency_end hook + custom hook
-    assert len(api._post_hooks) == 2
-    assert api._post_hooks[-1] == custom_hook
+    assert len(api._hooks.post_hooks) == 2
+    assert custom_hook in api._hooks.post_hooks
 
 
 def test_slack_api_error_hooks_custom(mock_webclient: MagicMock) -> None:
@@ -169,12 +170,12 @@ def test_slack_api_error_hooks_custom(mock_webclient: MagicMock) -> None:
         token="token",
         timeout=DEFAULT_TIMEOUT,
         max_retries=DEFAULT_MAX_RETRIES,
-        error_hooks=[custom_hook],
+        hooks=Hooks(error_hooks=[custom_hook]),
     )
 
     # Should have custom error hook
-    assert len(api._error_hooks) == 1
-    assert api._error_hooks[0] == custom_hook
+    assert len(api._hooks.error_hooks) == 1
+    assert api._hooks.error_hooks[0] == custom_hook
 
 
 # Typed methods tests

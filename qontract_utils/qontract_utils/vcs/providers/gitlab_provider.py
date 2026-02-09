@@ -4,17 +4,14 @@ Following ADR-011: Dependency Injection Pattern
 Following ADR-017: VCS Provider Registry Pattern
 """
 
-from collections.abc import Callable, Iterable
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
+from qontract_utils.pagerduty_api.client import Hooks
 from qontract_utils.vcs.models import Provider
 from qontract_utils.vcs.provider_protocol import VCSApiProtocol
-from qontract_utils.vcs.providers.gitlab_client import (
-    GitLabApiCallContext,
-    GitLabRepoApi,
-)
+from qontract_utils.vcs.providers.gitlab_client import GitLabRepoApi
 
 
 class Repo(BaseModel):
@@ -95,9 +92,7 @@ class GitLabProvider:
         url: str,
         token: str,
         timeout: int,
-        pre_hooks: Iterable[Callable[[GitLabApiCallContext], None]],
-        post_hooks: Iterable[Callable[[GitLabApiCallContext], None]],
-        error_hooks: Iterable[Callable[[GitLabApiCallContext], None]],
+        hooks: Hooks,
         provider_settings: GitLabProviderSettings,  # noqa: ARG002
     ) -> VCSApiProtocol:
         """Create GitLabRepoApi instance.
@@ -122,7 +117,5 @@ class GitLabProvider:
             token=token,
             gitlab_url=parsed_url.gitlab_url,
             timeout=timeout,
-            pre_hooks=pre_hooks,
-            post_hooks=post_hooks,
-            error_hooks=error_hooks,
+            hooks=hooks,
         )

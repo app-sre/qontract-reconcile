@@ -1,5 +1,6 @@
 """Factory for creating VCS API clients with rate limiting and provider management."""
 
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
 from qontract_utils.vcs import (
     GitHubProviderSettings,
     GitLabProviderSettings,
@@ -92,9 +93,7 @@ class VCSProviderFactory:
             url=url,
             token=self._token,
             timeout=provider_config.api_timeout,
-            pre_hooks=[],
-            post_hooks=[],
-            error_hooks=[],
+            hooks=Hooks(retry_config=DEFAULT_RETRY_CONFIG),
             provider_settings=self._build_provider_settings(provider_config),
         )
 

@@ -3,9 +3,8 @@ from __future__ import annotations
 import contextvars
 import http
 import time
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
 from prometheus_client import Counter, Histogram
@@ -21,11 +20,8 @@ from slack_sdk.http_retry import (
     RateLimitErrorRetryHandler as SlackSDKRateLimitErrorRetryHandler,
 )
 
-from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig, invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks
 from qontract_utils.slack_api.models import SlackChannel, SlackUser, SlackUsergroup
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 logger = structlog.get_logger(__name__)
 
@@ -150,11 +146,7 @@ class SlackApi:
         timeout: int,
         max_retries: int,
         method_configs: dict[str, dict[str, Any]] | None = None,
-        pre_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
-        retry_hooks: Iterable[Callable[[SlackApiCallContext, int], None]] | None = None,
-        retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG,
+        hooks: Hooks | None = None,
     ) -> None:
         """Initialize SlackApi wrapper.
 
@@ -172,26 +164,19 @@ class SlackApi:
         self._method_configs = method_configs or {}
 
         # Build hooks list: always include built-in hooks
-        self._pre_hooks: list[Callable[[SlackApiCallContext], None]] = [
-            _metrics_hook,
-            _latency_start_hook,
-            _request_log_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[SlackApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[SlackApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
-        self._retry_hooks: list[Callable[[SlackApiCallContext, int], None]] = []
-        if retry_hooks:
-            self._retry_hooks.extend(retry_hooks)
-        self._retry_config = retry_config
-
+        hooks = hooks or Hooks()
+        self._hooks = Hooks(
+            pre_hooks=[
+                _metrics_hook,
+                _request_log_hook,
+                *hooks.pre_hooks,
+                _latency_start_hook,
+            ],
+            post_hooks=[_latency_end_hook, *hooks.post_hooks],
+            error_hooks=hooks.error_hooks,
+            retry_hooks=hooks.retry_hooks,
+            retry_config=hooks.retry_config,
+        )
         self._sc = WebClient(
             token=token,
             timeout=timeout,

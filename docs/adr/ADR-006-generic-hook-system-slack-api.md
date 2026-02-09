@@ -55,13 +55,26 @@ class SlackApiCallContext:
 
 **2. Hook Signature**: `Callable[[<Service>ApiCallContext], None]`
 
-**3. Multiple Hooks Support**:
+**3. Hooks Dataclass** (aggregates all hook parameters):
 
 ```python
-pre_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None
-post_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None
-error_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None
+from qontract_utils.hooks import Hooks
+
+class Hooks(BaseModel, frozen=True):
+    """Hook configuration for API clients."""
+
+    pre_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    post_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    error_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    retry_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG
 ```
+
+**Why Hooks Dataclass:**
+
+- Simplifies constructor signatures (1 parameter instead of 5)
+- Groups related configuration together
+- Makes hook management cleaner and more maintainable
 
 **4. Built-in Hooks** (always included):
 
@@ -91,8 +104,7 @@ def chat_post_message(self, text: str) -> None:
 
 ```python
 from dataclasses import dataclass
-from collections.abc import Callable, Sequence
-from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig, invoke_with_hooks
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks, invoke_with_hooks
 
 @dataclass(frozen=True)
 class SlackApiCallContext:
@@ -105,35 +117,37 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
     """Built-in Prometheus metrics hook."""
     slack_request.labels(context.method, context.verb).inc()
 
+def _latency_start_hook(context: SlackApiCallContext) -> None:
+    """Built-in latency tracking hook."""
+    # Start latency measurement
+
+def _latency_end_hook(context: SlackApiCallContext) -> None:
+    """Built-in latency tracking hook."""
+    # End latency measurement
+
 class SlackApi:
     def __init__(
         self,
         workspace_name: str,
         token: str,
-        pre_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
-        post_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
-        error_hooks: Sequence[Callable[[SlackApiCallContext], None]] | None = None,
-        retry_hooks: Sequence[Callable[[SlackApiCallContext, int], None]] | None = None,
-        retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG,
+        hooks: Hooks | None = None,
         *,
         init_usergroups: bool = True,
         channel: str | None = None,
         **chat_kwargs: Any,
     ) -> None:
-        # Always include metrics hook first, then user hooks
-        self._pre_hooks = [_metrics_hook]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[SlackApiCallContext], None]] = []
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[SlackApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
-        self._retry_hooks: list[Callable[[SlackApiCallContext, int], None]] = []
-        if retry_hooks:
-            self._retry_hooks.extend(retry_hooks)
-        self._retry_config = retry_config
+        # Merge built-in hooks with user-provided hooks
+        _hooks = hooks or Hooks()
+        self._hooks = Hooks(
+            pre_hooks=[_metrics_hook, _latency_start_hook, *_hooks.pre_hooks],
+            post_hooks=[_latency_end_hook, *_hooks.post_hooks],
+            error_hooks=_hooks.error_hooks,
+            retry_hooks=_hooks.retry_hooks,
+            retry_config=_hooks.retry_config,
+        )
+        self.workspace_name = workspace_name
+        self._sc = SlackClient(token=token)
+        # ... other initialization
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
@@ -150,6 +164,8 @@ class SlackApi:
 ### Factory Pattern with Rate Limiting Hook
 
 ```python
+from qontract_utils.hooks import Hooks
+
 def create_slack_api(workspace_name: str, token: str, cache: CacheBackend, settings: Settings) -> SlackApi:
     token_bucket = TokenBucket(cache=cache, bucket_name=f"slack:{workspace_name}", ...)
 
@@ -160,7 +176,7 @@ def create_slack_api(workspace_name: str, token: str, cache: CacheBackend, setti
     return SlackApi(
         workspace_name,
         token,
-        pre_hooks=[rate_limit_hook],
+        hooks=Hooks(pre_hooks=[rate_limit_hook]),
         init_usergroups=True,
     )
 ```
@@ -220,13 +236,15 @@ def create_slack_api_with_full_observability(
     return SlackApi(
         workspace_name,
         token,
-        pre_hooks=[
-            rate_limit_hook,    # Executed 2nd (after built-in metrics)
-            logging_hook,       # Executed 3rd
-            tracing_hook,       # Executed 4th
-        ],
-        post_hooks=[post_api_call_hook], # Executed after successful API calls
-        error_hooks=[error_handling_hook], # Executed on API call errors
+        hooks=Hooks(
+            pre_hooks=[
+                rate_limit_hook,    # Executed 2nd (after built-in metrics)
+                logging_hook,       # Executed 3rd
+                tracing_hook,       # Executed 4th
+            ],
+            post_hooks=[post_api_call_hook], # Executed after successful API calls
+            error_hooks=[error_handling_hook], # Executed on API call errors
+        ),
         init_usergroups=True,
     )
 ```
@@ -325,8 +343,10 @@ breaker = CircuitBreaker()
 api = SlackApi(
     workspace_name="app-sre",
     token=token,
-    retry_config=RetryConfig(on=SlackApiError, attempts=5),
-    retry_hooks=[breaker.retry_hook],
+    hooks=Hooks(
+        retry_config=RetryConfig(on=SlackApiError, attempts=5),
+        retry_hooks=[breaker.retry_hook],
+    ),
 )
 ```
 
@@ -334,7 +354,7 @@ api = SlackApi(
 
 **Overall flow:**
 
-```
+```text
 1. Pre-hooks (BEFORE retry_context, once)
    ↓
 2. TRY: stamina.retry_context
@@ -393,7 +413,7 @@ api = SlackApi(
 
 ```python
 from qontract_utils.slack_api import SlackApi
-from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, RetryConfig
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks, RetryConfig
 from slack_sdk.errors import SlackApiError
 
 # Example 1: With retry (custom config)
@@ -408,21 +428,21 @@ retry_config = RetryConfig(
 api_with_retry = SlackApi(
     workspace_name="app-sre",
     token=token,
-    retry_config=retry_config,
+    hooks=Hooks(retry_config=retry_config),
 )
 
 # Example 2: Without retry (explicit)
 api_no_retry = SlackApi(
     workspace_name="app-sre",
     token=token,
-    retry_config=None,  # Explicit: no retries
+    hooks=Hooks(retry_config=None),  # Explicit: no retries
 )
 
 # Example 3: Default behavior (stamina defaults: attempts=10, timeout=45s)
 api_default = SlackApi(
     workspace_name="app-sre",
     token=token,
-    retry_config=DEFAULT_RETRY_CONFIG,  # Uses stamina defaults
+    hooks=Hooks(retry_config=DEFAULT_RETRY_CONFIG),  # Uses stamina defaults
 )
 ```
 
@@ -465,7 +485,7 @@ def timeout_metrics_hook(context: SlackApiCallContext, timeout_duration: float) 
 SlackApi(
     workspace_name,
     token,
-    timeout_hooks=[timeout_metrics_hook],
+    hooks=Hooks(timeout_hooks=[timeout_metrics_hook]),
 )
 ```
 
@@ -540,9 +560,23 @@ Service-specific context dataclasses with multiple hook support.
 
 1. **Define service-specific context** (frozen dataclass with `method`, `verb`, + service fields)
 2. **Create built-in metrics hook** (track API calls with service-specific labels)
-3. **Accept hook list in `__init__`**: `pre_hooks: Sequence[Callable[[...], None]] | None`
-4. **Always include metrics hook first**, then extend with user hooks
+3. **Accept Hooks dataclass in `__init__`**: `hooks: Hooks | None = None`
+4. **Always include built-in hooks first**, then merge with user-provided hooks
 5. **Use `invoke_with_hooks` decorator** Decorate every API method
+
+**Constructor Pattern:**
+
+```python
+def __init__(self, ..., hooks: Hooks | None = None) -> None:
+    _hooks = hooks or Hooks()
+    self._hooks = Hooks(
+        pre_hooks=[_metrics_hook, _latency_start_hook, *_hooks.pre_hooks],
+        post_hooks=[_latency_end_hook, *_hooks.post_hooks],
+        error_hooks=_hooks.error_hooks,
+        retry_hooks=_hooks.retry_hooks,
+        retry_config=_hooks.retry_config,
+    )
+```
 
 ### Hook Development Guidelines
 

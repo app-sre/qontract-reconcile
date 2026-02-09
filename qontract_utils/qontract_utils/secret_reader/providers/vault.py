@@ -14,7 +14,6 @@ import contextvars
 import pathlib
 import threading
 import time
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -24,12 +23,7 @@ from hvac.exceptions import Forbidden, InvalidPath
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
 
-from qontract_utils.hooks import (
-    DEFAULT_RETRY_CONFIG,
-    NO_RETRY_CONFIG,
-    RetryConfig,
-    invoke_with_hooks,
-)
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks
 from qontract_utils.secret_reader.base import (
     Secret,
     SecretAccessForbiddenError,
@@ -175,11 +169,7 @@ class VaultSecretBackend(SecretBackend):
     def __init__(
         self,
         settings: VaultSecretBackendSettings,
-        pre_hooks: Iterable[Callable[[VaultApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[VaultApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[VaultApiCallContext], None]] | None = None,
-        retry_hooks: Iterable[Callable[[VaultApiCallContext, int], None]] | None = None,
-        retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG,
+        hooks: Hooks | None = None,
     ) -> None:
         """Initialize Vault secret backend.
 
@@ -194,25 +184,19 @@ class VaultSecretBackend(SecretBackend):
         self._refresh_interval = 300  # 5 minutes
 
         # Setup hook system - always include built-in hooks
-        self._pre_hooks: list[Callable[[VaultApiCallContext], None]] = [
-            _metrics_hook,
-            _latency_start_hook,
-            _request_log_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[VaultApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[VaultApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
-        self._retry_hooks: list[Callable[[VaultApiCallContext, int], None]] = []
-        if retry_hooks:
-            self._retry_hooks.extend(retry_hooks)
-        self._retry_config = retry_config
+        hooks = hooks or Hooks()
+        self._hooks = Hooks(
+            pre_hooks=[
+                _metrics_hook,
+                _request_log_hook,
+                *hooks.pre_hooks,
+                _latency_start_hook,
+            ],
+            post_hooks=[_latency_end_hook, *hooks.post_hooks],
+            error_hooks=hooks.error_hooks,
+            retry_hooks=hooks.retry_hooks,
+            retry_config=hooks.retry_config,
+        )
 
         # Initial authentication
         self._authenticate()

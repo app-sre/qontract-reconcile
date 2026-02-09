@@ -1,16 +1,13 @@
 """GitHub provider implementation for VCS provider registry."""
 
-from collections.abc import Callable, Iterable
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
+from qontract_utils.hooks import Hooks
 from qontract_utils.vcs.models import Provider
 from qontract_utils.vcs.provider_protocol import VCSApiProtocol
-from qontract_utils.vcs.providers.github_client import (
-    GitHubApiCallContext,
-    GitHubRepoApi,
-)
+from qontract_utils.vcs.providers.github_client import GitHubRepoApi
 
 
 class Repo(BaseModel):
@@ -100,9 +97,7 @@ class GitHubProvider:
         url: str,
         token: str,
         timeout: int,
-        pre_hooks: Iterable[Callable[[GitHubApiCallContext], None]],
-        post_hooks: Iterable[Callable[[GitHubApiCallContext], None]],
-        error_hooks: Iterable[Callable[[GitHubApiCallContext], None]],
+        hooks: Hooks,
         provider_settings: GitHubProviderSettings,
     ) -> VCSApiProtocol:
         """Create GitHubRepoApi instance.
@@ -129,7 +124,5 @@ class GitHubProvider:
             token=token,
             github_api_url=provider_settings.github_api_url,
             timeout=timeout,
-            pre_hooks=pre_hooks,
-            post_hooks=post_hooks,
-            error_hooks=error_hooks,
+            hooks=hooks,
         )

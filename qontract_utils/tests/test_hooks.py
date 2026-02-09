@@ -3,7 +3,7 @@ from typing import Any
 # ruff: noqa: ARG001
 import pytest
 import structlog
-from qontract_utils.hooks import NO_RETRY_CONFIG, RetryConfig, invoke_with_hooks
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, RetryConfig, invoke_with_hooks
 from structlog.typing import EventDict
 
 
@@ -13,11 +13,7 @@ def test_no_hooks() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {"value": 0})
         def do_work(self) -> None:
@@ -37,11 +33,7 @@ def test_pre_hook_execution() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -64,11 +56,9 @@ def test_multiple_pre_hooks() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook_1, pre_hook_2]
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook_1, pre_hook_2], retry_config=NO_RETRY_CONFIG
+            )
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -88,11 +78,7 @@ def test_post_hook_execution() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -115,11 +101,9 @@ def test_multiple_post_hooks() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook_1, post_hook_2]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                post_hooks=[post_hook_1, post_hook_2], retry_config=NO_RETRY_CONFIG
+            )
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -139,11 +123,7 @@ def test_error_hook_on_exception() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -169,11 +149,9 @@ def test_multiple_error_hooks() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook_1, error_hook_2]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                error_hooks=[error_hook_1, error_hook_2], retry_config=NO_RETRY_CONFIG
+            )
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -196,11 +174,7 @@ def test_error_hooks_not_called_on_success() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -223,11 +197,11 @@ def test_post_hooks_called_after_error_hooks() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook]
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                post_hooks=[post_hook],
+                error_hooks=[error_hook],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -256,11 +230,12 @@ def test_full_lifecycle_no_error() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                error_hooks=[error_hook],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -286,11 +261,12 @@ def test_full_lifecycle_with_error() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                error_hooks=[error_hook],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -315,11 +291,7 @@ def test_context_modification_in_pre_hook() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -341,11 +313,7 @@ def test_context_modification_in_post_hook() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {"value": 21})
         def do_work(self) -> None:
@@ -367,11 +335,7 @@ def test_context_modification_in_error_hook() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -389,11 +353,7 @@ def test_exception_propagation() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -412,11 +372,7 @@ def test_exception_in_pre_hook() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -435,11 +391,7 @@ def test_exception_in_post_hook() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -458,11 +410,7 @@ def test_exception_in_error_hook() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -490,11 +438,11 @@ def test_typed_context() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks(lambda _self: shared_context)
         def do_work(self) -> None:
@@ -510,11 +458,7 @@ def test_empty_hook_lists() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {"value": 42})
         def do_work(self) -> int:
@@ -534,11 +478,7 @@ def test_post_hook_executes_even_after_main_error() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -565,11 +505,9 @@ def test_exception_in_first_error_hook_stops_processing() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook_1, error_hook_2]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                error_hooks=[error_hook_1, error_hook_2], retry_config=NO_RETRY_CONFIG
+            )
 
         @invoke_with_hooks(lambda _self: {})
         def do_work(self) -> None:
@@ -599,11 +537,11 @@ def test_context_state_preserved_across_hooks() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks(lambda _self: shared_context)
         def do_work(self) -> None:
@@ -637,11 +575,11 @@ def test_complex_context_type() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks(lambda _self: context)
         def do_work(self) -> None:
@@ -655,11 +593,12 @@ def test_complex_context_type() -> None:
 
     class TestApi2:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = NO_RETRY_CONFIG
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                error_hooks=[error_hook],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks(lambda _self: context2)
         def do_work(self) -> None:
@@ -695,12 +634,10 @@ def test_retry_with_success_on_first_attempt(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                )
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -718,12 +655,10 @@ def test_retry_on_exception(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                )
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -747,12 +682,11 @@ def test_retry_hooks_called_on_retry_only(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks = [retry_hook]
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                retry_hooks=[retry_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -777,12 +711,11 @@ def test_pre_hooks_only_on_first_attempt(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -806,12 +739,11 @@ def test_post_hooks_always_called(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                post_hooks=[post_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -835,12 +767,11 @@ def test_post_hooks_on_failure(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks = [post_hook]
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=3, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                post_hooks=[post_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=3, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -865,12 +796,11 @@ def test_error_hooks_only_on_final_failure(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                error_hooks=[error_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -894,12 +824,11 @@ def test_error_hooks_on_exhausted_retries(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=3, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                error_hooks=[error_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=3, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -920,12 +849,10 @@ def test_retry_max_attempts_exceeded(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=3, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=3, wait_initial=0.001, wait_max=0.001
+                )
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -947,12 +874,10 @@ def test_retry_with_different_exception(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                )
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -987,12 +912,14 @@ def test_retry_with_full_hook_lifecycle(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks = [error_hook]
-            self._retry_hooks = [retry_hook]
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=4, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                error_hooks=[error_hook],
+                retry_hooks=[retry_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=4, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -1039,12 +966,10 @@ def test_stamina_logging_shows_callable_name(enable_retry: None) -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                )
             )
 
         @invoke_with_hooks(lambda _self: {})
@@ -1076,18 +1001,16 @@ def test_stamina_logging_shows_callable_name(enable_retry: None) -> None:
 
 
 def test_retry_config_override_in_decorator() -> None:
-    """Test decorator retry_config parameter overrides instance._retry_config."""
+    """Test decorator retry_config parameter overrides instance._hooks.retry_config."""
     execution_count = {"count": 0}
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks: list[Any] = []
-            self._post_hooks: list[Any] = []
-            self._error_hooks: list[Any] = []
-            self._retry_hooks: list[Any] = []
             # Instance has retry enabled
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                )
             )
 
         # Override: disable retry for this specific method
@@ -1119,13 +1042,14 @@ def test_retry_config_override_still_calls_hooks() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._pre_hooks = [pre_hook]
-            self._post_hooks = [post_hook]
-            self._error_hooks = [error_hook]
-            self._retry_hooks: list[Any] = []
             # Instance has retry enabled (but will be overridden)
-            self._retry_config = RetryConfig(
-                on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+            self._hooks = Hooks(
+                pre_hooks=[pre_hook],
+                post_hooks=[post_hook],
+                error_hooks=[error_hook],
+                retry_config=RetryConfig(
+                    on=ValueError, attempts=5, wait_initial=0.001, wait_max=0.001
+                ),
             )
 
         @invoke_with_hooks(lambda _self: {}, retry_config=NO_RETRY_CONFIG)

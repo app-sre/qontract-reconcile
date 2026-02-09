@@ -4,9 +4,9 @@ Defines interfaces for VCS API clients and providers to enable
 extensible provider registry pattern.
 """
 
-from collections.abc import Callable, Iterable
 from typing import Any, Protocol
 
+from qontract_utils.hooks import Hooks
 from qontract_utils.vcs.models import Provider
 
 
@@ -73,9 +73,7 @@ class VCSProviderProtocol(Protocol):
         url: str,
         token: str,
         timeout: int,
-        pre_hooks: Iterable[Callable[[Any], None]],
-        post_hooks: Iterable[Callable[[Any], None]],
-        error_hooks: Iterable[Callable[[Any], None]],
+        hooks: Hooks,
         provider_settings: Any,
     ) -> VCSApiProtocol:
         """Create VCS API client instance for this provider.

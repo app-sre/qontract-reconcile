@@ -5,6 +5,7 @@ from datetime import timedelta
 from typing import Any
 
 import stamina
+from pydantic import BaseModel, Field
 
 # Type matching stamina.retry() signature exactly
 type OnType = (
@@ -59,6 +60,16 @@ NO_RETRY_CONFIG = RetryConfig(on=Exception, attempts=1)
 DEFAULT_RETRY_CONFIG = RetryConfig(on=Exception)
 
 
+class Hooks(BaseModel, frozen=True):
+    """Hook configuration for API clients."""
+
+    pre_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    post_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    error_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    retry_hooks: list[Callable[..., None]] = Field(default_factory=list)
+    retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG
+
+
 class invoke_with_hooks:  # noqa: N801 - lowercase for decorator API aesthetics
     """Method decorator for API calls with hook and retry support.
 
@@ -70,6 +81,9 @@ class invoke_with_hooks:  # noqa: N801 - lowercase for decorator API aesthetics
 
     Examples:
         >>> class MyApi:
+        ...     def __init__(self, ..., hooks: Hooks | None = None):
+        ...         self._hooks = hooks
+
         ...     @invoke_with_hooks(
         ...         lambda self: MyApiCallContext(
         ...             method="users.list",
@@ -133,21 +147,15 @@ class InvokeWithHooksMethod:
         @functools.wraps(self.func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Get hook config from instance (or use override from decorator)
+            hooks: Hooks = getattr(instance, "_hooks", Hooks()) or Hooks()
             retry_config = (
-                self.retry_config_override
-                or getattr(instance, "_retry_config", None)
-                or NO_RETRY_CONFIG
+                self.retry_config_override or hooks.retry_config or NO_RETRY_CONFIG
             )
-            pre_hooks = getattr(instance, "_pre_hooks", [])
-            post_hooks = getattr(instance, "_post_hooks", [])
-            error_hooks = getattr(instance, "_error_hooks", [])
-            retry_hooks = getattr(instance, "_retry_hooks", [])
-
             # Create context (only pass instance to context_factory)
             context = self.context_factory(instance)
 
             # Pre-hooks (once before retry)
-            for hook in pre_hooks:
+            for hook in hooks.pre_hooks:
                 hook(context)
 
             try:
@@ -169,19 +177,19 @@ class InvokeWithHooksMethod:
                     with attempt:
                         # Retry hooks (not on first attempt)
                         if attempt.num > 1:
-                            for retry_hook in retry_hooks:
+                            for retry_hook in hooks.retry_hooks:
                                 retry_hook(context, attempt.num)
 
                         # Execute method - no yield, just return!
                         return self.func(instance, *args, **kwargs)
             except:
                 # Error hooks
-                for hook in error_hooks:
+                for hook in hooks.error_hooks:
                     hook(context)
                 raise
             finally:
                 # Post hooks
-                for hook in post_hooks:
+                for hook in hooks.post_hooks:
                     hook(context)
 
         return wrapper
