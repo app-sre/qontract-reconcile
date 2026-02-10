@@ -31,6 +31,7 @@ spec:
     value: .
   - name: target-stage
     value: test
+  pipelineName: qontract-api-client-pull-request
   pipelineRef:
     params:
     - name: url
@@ -40,6 +41,14 @@ spec:
     - name: pathInRepo
       value: pipelines/multi-arch-build-pipeline.yaml
     resolver: git
+  taskRunSpecs:
+  - pipelineTaskName: "*"
+    computeResources:
+      requests:
+        cpu: "500m"
+        memory: "2Gi"
+      limits:
+        memory: "2Gi"
   taskRunTemplate:
     serviceAccountName: build-pipeline-qontract-api-client-master
   workspaces:
