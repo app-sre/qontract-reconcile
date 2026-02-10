@@ -13,6 +13,8 @@ import threading
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
+from qontract_utils.hooks import Hooks
+
 if TYPE_CHECKING:
     from qontract_utils.secret_reader.providers.vault import VaultSecretBackendSettings
 
@@ -88,7 +90,10 @@ class SecretBackend(ABC):
 
     @classmethod
     def get_instance(
-        cls, backend_type: str, backend_settings: "VaultSecretBackendSettings"
+        cls,
+        backend_type: str,
+        backend_settings: "VaultSecretBackendSettings",
+        hooks: Hooks | None = None,
     ) -> "SecretBackend":
         """Get singleton secret backend instance (thread-safe factory).
 
@@ -143,7 +148,7 @@ class SecretBackend(ABC):
                             backend_settings, VaultSecretBackendSettings
                         )  # for mypy
                         cls._instances[backend_type] = VaultSecretBackend(
-                            backend_settings
+                            backend_settings, hooks=hooks
                         )
                     case _:
                         msg = f"Unsupported secret backend: {backend_type}"

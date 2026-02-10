@@ -5,6 +5,7 @@ Service layer should use PagerDutyWorkspaceClient, not PagerDutyApi directly.
 
 import hashlib
 
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
 from qontract_utils.pagerduty_api import PagerDutyApi
 from qontract_utils.secret_reader import Secret
 
@@ -27,7 +28,9 @@ def create_pagerduty_api(id: str, token: str, timeout: int) -> PagerDutyApi:  # 
     Returns:
         PagerDutyApi instance with rate limiting hook and config from settings
     """
-    return PagerDutyApi(id, token, timeout=timeout)
+    return PagerDutyApi(
+        id, token, timeout=timeout, hooks=Hooks(retry_config=DEFAULT_RETRY_CONFIG)
+    )
 
 
 def create_pagerduty_workspace_client(

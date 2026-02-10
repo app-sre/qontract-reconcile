@@ -1,5 +1,6 @@
 """Factory for creating SlackWorkspaceClient instances."""
 
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
 from qontract_utils.slack_api import SlackApi
 
 from qontract_api.cache import CacheBackend
@@ -46,6 +47,7 @@ class SlackClientFactory:
             timeout=self.settings.slack.api_timeout,
             max_retries=self.settings.slack.api_max_retries,
             method_configs=self.settings.slack.api_method_configs,
+            hooks=Hooks(retry_config=DEFAULT_RETRY_CONFIG),
         )
 
     def create_workspace_client(

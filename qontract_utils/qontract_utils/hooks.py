@@ -135,7 +135,7 @@ class Hooks(BaseModel, frozen=True):
     post_hooks: list[Callable[..., None]] = Field(default_factory=list)
     error_hooks: list[Callable[..., None]] = Field(default_factory=list)
     retry_hooks: list[Callable[..., None]] = Field(default_factory=list)
-    retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG
+    retry_config: RetryConfig | None = NO_RETRY_CONFIG
 
     def with_context(self, context: Any) -> Self:
         """Set context for hook execution.
