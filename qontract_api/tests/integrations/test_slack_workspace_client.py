@@ -98,7 +98,7 @@ def test_get_users_cache_hit(
     assert "U1" in users
     assert users["U1"].name == "user1"
     mock_cache.get_obj.assert_called_once()
-    client.slack_api.users_list.assert_not_called()
+    client.slack_api.users_list.assert_not_called()  # type: ignore[attr-defined]
 
 
 def test_get_users_cache_miss(
@@ -152,7 +152,7 @@ def test_get_usergroups_cache_hit(
     assert len(usergroups) == 1
     assert "UG1" in usergroups
     assert usergroups["UG1"].handle == "team"
-    client.slack_api.usergroups_list.assert_not_called()
+    client.slack_api.usergroups_list.assert_not_called()  # type: ignore[attr-defined]
 
 
 def test_get_channels_cache_miss(
