@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from reconcile.utils.aws_api_typed.support import AWSApiSupport, SupportPlan
+from qontract_utils.aws_api_typed.support import AWSApiSupport, SupportPlan
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock

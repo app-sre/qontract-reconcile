@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
+from qontract_utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient

@@ -4,7 +4,7 @@ import pytest
 from botocore.exceptions import ClientError
 from mypy_boto3_logs import CloudWatchLogsClient, DescribeLogGroupsPaginator
 
-from reconcile.utils.aws_api_typed.logs import AWSApiLogs
+from qontract_utils.aws_api_typed.logs import AWSApiLogs
 
 
 @pytest.fixture

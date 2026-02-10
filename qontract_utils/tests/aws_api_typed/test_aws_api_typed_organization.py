@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from reconcile.utils.aws_api_typed.organization import (
+from qontract_utils.aws_api_typed.organization import (
     AWSAccountCreationError,
     AWSAccountNotFoundError,
     AWSApiOrganizations,

@@ -15,7 +15,7 @@ from reconcile.terraform_init.integration import (
 )
 from reconcile.terraform_init.merge_request_manager import MergeRequestManager
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.aws_api_typed.api import AWSApi
+from qontract_utils.aws_api_typed.api import AWSApi
 
 
 @pytest.fixture

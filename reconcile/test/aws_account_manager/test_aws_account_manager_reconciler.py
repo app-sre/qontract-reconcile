@@ -33,19 +33,19 @@ from reconcile.gql_definitions.fragments.aws_account_managed import (
     AWSContactV1,
     AWSQuotaV1,
 )
-from reconcile.utils.aws_api_typed.iam import (
+from qontract_utils.aws_api_typed.iam import (
     AWSAccessKey,
     AWSEntityAlreadyExistsError,
 )
-from reconcile.utils.aws_api_typed.organization import (
+from qontract_utils.aws_api_typed.organization import (
     AWSAccountStatus,
     AwsOrganizationOU,
 )
-from reconcile.utils.aws_api_typed.service_quotas import (
+from qontract_utils.aws_api_typed.service_quotas import (
     AWSQuota,
     AWSRequestedServiceQuotaChange,
 )
-from reconcile.utils.aws_api_typed.support import AWSCase, SupportPlan
+from qontract_utils.aws_api_typed.support import AWSCase, SupportPlan
 from reconcile.utils.state import State
 
 

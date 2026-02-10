@@ -2,22 +2,22 @@ import pytest
 from boto3 import Session
 from pytest_mock import MockerFixture
 
-from reconcile.utils.aws_api_typed.account import AWSApiAccount
-from reconcile.utils.aws_api_typed.api import (
+from qontract_utils.aws_api_typed.account import AWSApiAccount
+from qontract_utils.aws_api_typed.api import (
     DEFAULT_CONFIG,
     AWSApi,
     AWSStaticCredentials,
     SubApi,
 )
-from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
-from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
-from reconcile.utils.aws_api_typed.iam import AWSApiIam
-from reconcile.utils.aws_api_typed.logs import AWSApiLogs
-from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
-from reconcile.utils.aws_api_typed.s3 import AWSApiS3
-from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
-from reconcile.utils.aws_api_typed.sts import AWSApiSts, AWSCredentials
-from reconcile.utils.aws_api_typed.support import AWSApiSupport
+from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
+from qontract_utils.aws_api_typed.dynamodb import AWSApiDynamoDB
+from qontract_utils.aws_api_typed.iam import AWSApiIam
+from qontract_utils.aws_api_typed.logs import AWSApiLogs
+from qontract_utils.aws_api_typed.organization import AWSApiOrganizations
+from qontract_utils.aws_api_typed.s3 import AWSApiS3
+from qontract_utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
+from qontract_utils.aws_api_typed.sts import AWSApiSts, AWSCredentials
+from qontract_utils.aws_api_typed.support import AWSApiSupport
 
 
 @pytest.fixture

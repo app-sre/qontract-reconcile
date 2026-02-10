@@ -20,7 +20,7 @@ from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import 
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
     ExternalResourcesSettingsV1,
 )
-from reconcile.utils.aws_api_typed.api import AWSStaticCredentials
+from qontract_utils.aws_api_typed.api import AWSStaticCredentials
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State

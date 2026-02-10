@@ -9,25 +9,25 @@ from boto3 import Session
 from botocore.config import Config
 from pydantic import BaseModel
 
-import reconcile.utils.aws_api_typed.account
-import reconcile.utils.aws_api_typed.cloudformation
-import reconcile.utils.aws_api_typed.dynamodb
-import reconcile.utils.aws_api_typed.iam
-import reconcile.utils.aws_api_typed.organization
-import reconcile.utils.aws_api_typed.s3
-import reconcile.utils.aws_api_typed.service_quotas
-import reconcile.utils.aws_api_typed.sts
-import reconcile.utils.aws_api_typed.support
-from reconcile.utils.aws_api_typed.account import AWSApiAccount
-from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
-from reconcile.utils.aws_api_typed.dynamodb import AWSApiDynamoDB
-from reconcile.utils.aws_api_typed.iam import AWSApiIam
-from reconcile.utils.aws_api_typed.logs import AWSApiLogs
-from reconcile.utils.aws_api_typed.organization import AWSApiOrganizations
-from reconcile.utils.aws_api_typed.s3 import AWSApiS3
-from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
-from reconcile.utils.aws_api_typed.sts import AWSApiSts
-from reconcile.utils.aws_api_typed.support import AWSApiSupport
+import qontract_utils.aws_api_typed.account
+import qontract_utils.aws_api_typed.cloudformation
+import qontract_utils.aws_api_typed.dynamodb
+import qontract_utils.aws_api_typed.iam
+import qontract_utils.aws_api_typed.organization
+import qontract_utils.aws_api_typed.s3
+import qontract_utils.aws_api_typed.service_quotas
+import qontract_utils.aws_api_typed.sts
+import qontract_utils.aws_api_typed.support
+from qontract_utils.aws_api_typed.account import AWSApiAccount
+from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
+from qontract_utils.aws_api_typed.dynamodb import AWSApiDynamoDB
+from qontract_utils.aws_api_typed.iam import AWSApiIam
+from qontract_utils.aws_api_typed.logs import AWSApiLogs
+from qontract_utils.aws_api_typed.organization import AWSApiOrganizations
+from qontract_utils.aws_api_typed.s3 import AWSApiS3
+from qontract_utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
+from qontract_utils.aws_api_typed.sts import AWSApiSts
+from qontract_utils.aws_api_typed.support import AWSApiSupport
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -186,34 +186,34 @@ class AWSApi:
     def _init_sub_api(self, api_cls: type[SubApi]) -> SubApi:
         """Return a new or cached sub api client."""
         match api_cls:
-            case reconcile.utils.aws_api_typed.account.AWSApiAccount:
+            case qontract_utils.aws_api_typed.account.AWSApiAccount:
                 client = self.session.client("account", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.cloudformation.AWSApiCloudFormation:
+            case qontract_utils.aws_api_typed.cloudformation.AWSApiCloudFormation:
                 client = self.session.client("cloudformation", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
+            case qontract_utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
                 client = self.session.client("dynamodb", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.iam.AWSApiIam:
+            case qontract_utils.aws_api_typed.iam.AWSApiIam:
                 client = self.session.client("iam", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.logs.AWSApiLogs:
+            case qontract_utils.aws_api_typed.logs.AWSApiLogs:
                 client = self.session.client("logs", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.organization.AWSApiOrganizations:
+            case qontract_utils.aws_api_typed.organization.AWSApiOrganizations:
                 client = self.session.client("organizations", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.s3.AWSApiS3:
+            case qontract_utils.aws_api_typed.s3.AWSApiS3:
                 client = self.session.client("s3", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.service_quotas.AWSApiServiceQuotas:
+            case qontract_utils.aws_api_typed.service_quotas.AWSApiServiceQuotas:
                 client = self.session.client("service-quotas", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.sts.AWSApiSts:
+            case qontract_utils.aws_api_typed.sts.AWSApiSts:
                 client = self.session.client("sts", config=DEFAULT_CONFIG)
                 api = api_cls(client)
-            case reconcile.utils.aws_api_typed.support.AWSApiSupport:
+            case qontract_utils.aws_api_typed.support.AWSApiSupport:
                 client = self.session.client("support", config=DEFAULT_CONFIG)
                 api = api_cls(client)
             case _:

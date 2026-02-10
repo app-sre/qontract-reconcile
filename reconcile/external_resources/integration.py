@@ -30,7 +30,7 @@ from reconcile.typed_queries.external_resources import (
     get_settings,
 )
 from reconcile.utils import gql
-from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
+from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.external_resources import publish_metrics
 from reconcile.utils.jobcontroller.controller import (
     build_job_controller,

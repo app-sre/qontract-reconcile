@@ -17,7 +17,7 @@ from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
 )
 from reconcile.gql_definitions.fragments.aws_account_managed import AWSAccountManaged
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.aws_api_typed.api import AWSApi
+from qontract_utils.aws_api_typed.api import AWSApi
 from reconcile.utils.state import State
 
 

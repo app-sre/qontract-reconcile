@@ -9,7 +9,7 @@ from mypy_boto3_cloudformation import (
 )
 from mypy_boto3_cloudformation.waiter import ChangeSetCreateCompleteWaiter
 
-from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
+from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 
 
 @pytest.fixture

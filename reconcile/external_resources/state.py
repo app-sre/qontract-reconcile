@@ -17,7 +17,7 @@ from reconcile.external_resources.model import (
     ResourcesSpec,
     ResourceStatus,
 )
-from reconcile.utils.aws_api_typed.api import AWSApi
+from qontract_utils.aws_api_typed.api import AWSApi
 from reconcile.utils.datetime_util import to_utc_microseconds_iso_format, utc_now
 from reconcile.utils.json import json_dumps
 

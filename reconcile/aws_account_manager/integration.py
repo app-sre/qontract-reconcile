@@ -23,8 +23,8 @@ from reconcile.typed_queries.app_interface_repo_url import get_app_interface_rep
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql, metrics
-from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
-from reconcile.utils.aws_api_typed.iam import AWSAccessKey
+from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
+from qontract_utils.aws_api_typed.iam import AWSAccessKey
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled

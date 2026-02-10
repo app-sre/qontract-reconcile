@@ -18,7 +18,7 @@ from reconcile.gql_definitions.fragments.aws_account_managed import (
     AWSContactV1,
     AWSQuotaV1,
 )
-from reconcile.utils.aws_api_typed.iam import AWSAccessKey
+from qontract_utils.aws_api_typed.iam import AWSAccessKey
 
 
 def test_aws_account_manager_utils_integration_early_exit(

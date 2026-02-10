@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from reconcile.utils.json import json_dumps
+from qontract_utils.json_utils import json_dumps
 
 if TYPE_CHECKING:
     from mypy_boto3_cloudformation import CloudFormationClient
