@@ -25,7 +25,7 @@ class SecretManager:
 
             value = self.secret_backends[secret.url].read(secret)
             # TODO : TTL from config
-            self.cache.set(cache_key, value, 5)
+            self.cache.set(cache_key, value, 300)
         return value
 
     def close(self) -> None:
