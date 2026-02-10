@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-
 from qontract_utils.aws_api_typed.organization import (
     AWSAccountCreationError,
     AWSAccountNotFoundError,
@@ -74,7 +73,7 @@ def test_aws_api_typed_organizations_move_account(
     mocker: MockerFixture,
 ) -> None:
     mocker.patch.object(AWSApiOrganizations, "get_ou")
-    aws_api_organizations.get_ou.return_value = "source_parent_id"  # type: ignore
+    aws_api_organizations.get_ou.return_value = "source_parent_id"  # type: ignore[attr-defined]
     aws_api_organizations.move_account("account_id", "destination_parent_id")
     organization_client.move_account.assert_called_once_with(
         AccountId="account_id",
@@ -112,7 +111,7 @@ def test_aws_api_typed_organizations_move_account_already_moved(
     mocker: MockerFixture,
 ) -> None:
     mocker.patch.object(AWSApiOrganizations, "get_ou")
-    aws_api_organizations.get_ou.return_value = "destination_parent_id"  # type: ignore
+    aws_api_organizations.get_ou.return_value = "destination_parent_id"  # type: ignore[attr-defined]
     aws_api_organizations.move_account("account_id", "destination_parent_id")
     organization_client.move_account.assert_not_called()
 
@@ -153,7 +152,9 @@ def test_aws_api_typed_organizations_create_account(
             "AccountId": "account_id",
         }
     }
-    status = aws_api_organizations.create_account("email", "account_name", True)
+    status = aws_api_organizations.create_account(
+        "email", "account_name", access_to_billing=True
+    )
     assert status.id == "id"
     assert status.name == "account_name"
     assert status.uid == "account_id"
@@ -179,7 +180,9 @@ def test_aws_api_typed_organizations_create_account_error(
         }
     }
     with pytest.raises(AWSAccountCreationError):
-        aws_api_organizations.create_account("email", "account_name", True)
+        aws_api_organizations.create_account(
+            "email", "account_name", access_to_billing=True
+        )
     organization_client.create_account.assert_called_once_with(
         Email="email",
         AccountName="account_name",

@@ -55,25 +55,22 @@ class AWSApiSupport:
 
     def get_support_level(self) -> SupportPlan:
         """Return the support level of the account."""
-
         try:
             response = self.client.describe_severity_levels(language="en")
         except self.client.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "SubscriptionRequiredException":
                 return SupportPlan.BASIC
-            raise err
+            raise
 
         severity_levels = {
             level["code"].lower() for level in response["severityLevels"]
         }
-        if "critical" in severity_levels:
-            return SupportPlan.ENTERPRISE
-        if "urgent" in severity_levels:
-            return SupportPlan.BUSINESS
-        if "high" in severity_levels:
-            return SupportPlan.BUSINESS
-        if "normal" in severity_levels:
-            return SupportPlan.DEVELOPER
-        if "low" in severity_levels:
-            return SupportPlan.DEVELOPER
-        return SupportPlan.BASIC
+        match severity_levels:
+            case s if "critical" in s:
+                return SupportPlan.ENTERPRISE
+            case s if s & {"urgent", "high"}:
+                return SupportPlan.BUSINESS
+            case s if s & {"normal", "low"}:
+                return SupportPlan.DEVELOPER
+            case _:
+                return SupportPlan.BASIC

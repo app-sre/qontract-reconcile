@@ -25,8 +25,8 @@ class AWSApiCloudFormation:
         parameters: dict[str, str] | None = None,
         tags: dict[str, str] | None = None,
     ) -> str:
-        """
-        Create a CloudFormation stack using a change set with import existing resources.
+        """Create a CloudFormation stack using a change set with import existing resources.
+
         This method creates a change set of type "CREATE" with the provided template and parameters,
         waits for the change set to be created, executes it, and then waits for the stack creation to complete.
         It returns the StackId of the created stack.
@@ -67,8 +67,8 @@ class AWSApiCloudFormation:
         parameters: dict[str, str] | None = None,
         tags: dict[str, str] | None = None,
     ) -> str:
-        """
-        Update a CloudFormation stack with the provided template and parameters.
+        """Update a CloudFormation stack with the provided template and parameters.
+
         This method updates the specified stack, waits for the update to complete,
         and returns the StackId of the updated stack.
 
@@ -93,8 +93,8 @@ class AWSApiCloudFormation:
         return response["StackId"]
 
     def get_stack(self, stack_name: str) -> StackTypeDef | None:
-        """
-        Retrieve information about a CloudFormation stack by its name.
+        """Retrieve information about a CloudFormation stack by its name.
+
         If the stack exists, it returns the stack details as a dictionary.
         If the stack does not exist, it returns None.
 

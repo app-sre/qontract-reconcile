@@ -4,7 +4,6 @@ import botocore
 import pytest
 from mypy_boto3_account import AccountClient
 from pytest_mock import MockerFixture
-
 from qontract_utils.aws_api_typed.account import AWSApiAccount, OptStatus, Region
 
 

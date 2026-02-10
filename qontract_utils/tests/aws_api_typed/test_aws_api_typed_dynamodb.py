@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
 from qontract_utils.aws_api_typed.dynamodb import AWSApiDynamoDB
 
 if TYPE_CHECKING:

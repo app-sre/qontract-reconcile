@@ -1,7 +1,6 @@
 import pytest
 from boto3 import Session
 from pytest_mock import MockerFixture
-
 from qontract_utils.aws_api_typed.account import AWSApiAccount
 from qontract_utils.aws_api_typed.api import (
     DEFAULT_CONFIG,
@@ -56,7 +55,7 @@ def test_aws_api_typed_api_close(aws_api: AWSApi, mocker: MockerFixture) -> None
 
 
 @pytest.mark.parametrize(
-    "api_cls, client_name",
+    ("api_cls", "client_name"),
     [
         (AWSApiAccount, "account"),
         (AWSApiCloudFormation, "cloudformation"),
@@ -140,7 +139,7 @@ def test_aws_api_typed_api_support(aws_api: AWSApi) -> None:
 
 def test_aws_api_typed_api_assume_role(aws_api: AWSApi, mocker: MockerFixture) -> None:
     mocker.patch.object(AWSApi, "sts")
-    aws_api.sts.assume_role.return_value = AWSCredentials(  # type: ignore
+    aws_api.sts.assume_role.return_value = AWSCredentials(  # type: ignore[attr-defined]
         AccessKeyId="access_key",
         SecretAccessKey="secret_key",
         SessionToken="session_token",
@@ -148,7 +147,7 @@ def test_aws_api_typed_api_assume_role(aws_api: AWSApi, mocker: MockerFixture) -
     )
     new_aws_api = aws_api.assume_role("account_id", "role")
     assert isinstance(new_aws_api, AWSApi)
-    aws_api.sts.assume_role.assert_called_once_with(  # type: ignore
+    aws_api.sts.assume_role.assert_called_once_with(  # type: ignore[attr-defined]
         account_id="account_id", role="role"
     )
 
@@ -157,7 +156,7 @@ def test_aws_api_typed_api_get_temporary_credentials(
     aws_api: AWSApi, mocker: MockerFixture
 ) -> None:
     mocker.patch.object(AWSApi, "sts")
-    aws_api.sts.get_session_token.return_value = AWSCredentials(  # type: ignore
+    aws_api.sts.get_session_token.return_value = AWSCredentials(  # type: ignore[attr-defined]
         AccessKeyId="access_key",
         SecretAccessKey="secret_key",
         SessionToken="session_token",
@@ -165,6 +164,6 @@ def test_aws_api_typed_api_get_temporary_credentials(
     )
     new_aws_api = aws_api.temporary_session(duration_seconds=1)
     assert isinstance(new_aws_api, AWSApi)
-    aws_api.sts.get_session_token.assert_called_once_with(  # type: ignore
+    aws_api.sts.get_session_token.assert_called_once_with(  # type: ignore[attr-defined]
         duration_seconds=1
     )

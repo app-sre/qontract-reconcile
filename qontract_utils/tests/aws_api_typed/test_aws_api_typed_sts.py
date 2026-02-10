@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
-
 from qontract_utils.aws_api_typed.sts import AWSApiSts
 
 if TYPE_CHECKING:

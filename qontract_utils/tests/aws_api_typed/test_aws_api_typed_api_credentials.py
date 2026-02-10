@@ -1,5 +1,4 @@
 import pytest
-
 from qontract_utils.aws_api_typed.api import (
     AWSStaticCredentials,
     AWSTemporaryCredentials,

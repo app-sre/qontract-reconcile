@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Self, TypeVar
 
 from boto3 import Session
 from botocore.config import Config
@@ -57,30 +57,22 @@ DEFAULT_CONFIG = Config(
 class AWSCredentials(ABC):
     @abstractmethod
     def as_env_vars(self) -> dict[str, str]:
-        """
-        Returns a dictionary of environment variables that can be used to authenticate with AWS.
-        """
+        """Returns a dictionary of environment variables that can be used to authenticate with AWS."""
         ...
 
     @abstractmethod
     def as_credentials_file(self, profile_name: str = "default") -> str:
-        """
-        Returns a string that can be used to write an AWS credentials file.
-        """
+        """Returns a string that can be used to write an AWS credentials file."""
         ...
 
     @abstractmethod
     def build_session(self) -> Session:
-        """
-        Builds an AWS session using these credentials.
-        """
+        """Builds an AWS session using these credentials."""
         ...
 
 
 class AWSStaticCredentials(BaseModel, AWSCredentials):
-    """
-    A model representing AWS credentials.
-    """
+    """A model representing AWS credentials."""
 
     access_key_id: str
     secret_access_key: str
@@ -112,9 +104,7 @@ class AWSStaticCredentials(BaseModel, AWSCredentials):
 
 
 class AWSTemporaryCredentials(AWSStaticCredentials):
-    """
-    A model representing temporary AWS credentials.
-    """
+    """A model representing temporary AWS credentials."""
 
     session_token: str
 
@@ -171,10 +161,10 @@ class AWSApi:
         self.session = aws_credentials.build_session()
         self._session_clients: list[BaseClient] = []
 
-    def __enter__(self) -> AWSApi:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exec: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         self.close()
 
     def close(self) -> None:
@@ -183,7 +173,7 @@ class AWSApi:
             client.close()
         self._session_clients = []
 
-    def _init_sub_api(self, api_cls: type[SubApi]) -> SubApi:
+    def _init_sub_api(self, api_cls: type[SubApi]) -> SubApi:  # noqa: C901
         """Return a new or cached sub api client."""
         match api_cls:
             case qontract_utils.aws_api_typed.account.AWSApiAccount:

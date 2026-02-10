@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
+from qontract_utils.aws_api_typed.api import AWSApi
 
 from reconcile.aws_account_manager.integration import (
     AwsAccountMgmtIntegration,
@@ -17,7 +18,6 @@ from reconcile.gql_definitions.aws_account_manager.aws_accounts import (
 )
 from reconcile.gql_definitions.fragments.aws_account_managed import AWSAccountManaged
 from reconcile.test.fixtures import Fixtures
-from qontract_utils.aws_api_typed.api import AWSApi
 from reconcile.utils.state import State
 
 

@@ -22,7 +22,7 @@ class AwsOrganizationOU(BaseModel):
     children: list[AwsOrganizationOU] = []
 
     def locate(
-        self, path: list[str], ignore_case: bool = True
+        self, path: list[str], *, ignore_case: bool = True
     ) -> AwsOrganizationOU | None:
         name, *sub = path
         match = self.name.lower() == name.lower() if ignore_case else self.name == name
@@ -39,7 +39,7 @@ class AwsOrganizationOU(BaseModel):
             None,
         )
 
-    def find(self, path: str, ignore_case: bool = True) -> AwsOrganizationOU:
+    def find(self, path: str, *, ignore_case: bool = True) -> AwsOrganizationOU:
         node = self.locate(path.strip("/").split("/"), ignore_case=ignore_case)
         if not node:
             raise KeyError(f"OU not found: {path}")
@@ -97,7 +97,7 @@ class AWSApiOrganizations:
         return root
 
     def create_account(
-        self, email: str, name: str, access_to_billing: bool = True
+        self, email: str, name: str, *, access_to_billing: bool = True
     ) -> AWSAccountStatus:
         """Create a new account in the organization."""
         resp = self.client.create_account(
