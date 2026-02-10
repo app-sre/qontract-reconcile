@@ -313,7 +313,7 @@ class invoke_with_hooks:  # noqa: N801 - lowercase for decorator API aesthetics
         self.retry_config = retry_config
         self.hooks = hooks
 
-    def __call__(self, func: Callable[..., Any]) -> Any:
+    def __call__[**P, R](self, func: Callable[P, R]) -> Callable[P, R]:
         """Wrap function with InvokeWithHooksMethod descriptor."""
         return InvokeWithHooksMethod(
             func, self.context_factory, self.retry_config, self.hooks

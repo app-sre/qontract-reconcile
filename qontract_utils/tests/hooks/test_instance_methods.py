@@ -4,6 +4,9 @@ Covers the primary usage pattern: instance methods on classes with self._hooks.
 Tests hook execution order, context handling, and error propagation.
 """
 
+import subprocess
+import textwrap
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -610,3 +613,60 @@ def test_complex_context_type() -> None:
         api2.do_work()
 
     assert context2.status == "completed"  # post_hook runs after error_hook
+
+
+def _run_mypy(code: str, tmp_path: Path) -> subprocess.CompletedProcess[str]:
+    """Run mypy --strict on a code snippet via temp file."""
+    test_file = tmp_path / "test_snippet.py"
+    test_file.write_text(textwrap.dedent(code))
+    return subprocess.run(  # noqa: S603
+        ["uv", "run", "mypy", "--strict", str(test_file)],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_mypy_return_type_preserved(tmp_path: Path) -> None:
+    """Test that mypy correctly infers return types through @invoke_with_hooks."""
+    result = _run_mypy(
+        """\
+        from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks
+
+        class Api:
+            def __init__(self) -> None:
+                self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
+
+            @invoke_with_hooks(lambda _: {})
+            def get_name(self) -> str:
+                return "alice"
+
+        api = Api()
+        name: str = api.get_name()
+    """,
+        tmp_path,
+    )
+    assert result.returncode == 0, result.stdout
+
+
+def test_mypy_return_type_mismatch_detected(tmp_path: Path) -> None:
+    """Test that mypy catches return type mismatches through @invoke_with_hooks."""
+    result = _run_mypy(
+        """\
+        from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks
+
+        class Api:
+            def __init__(self) -> None:
+                self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
+
+            @invoke_with_hooks(lambda _: {})
+            def get_name(self) -> str:
+                return "alice"
+
+        api = Api()
+        name: int = api.get_name()
+    """,
+        tmp_path,
+    )
+    assert result.returncode != 0
+    assert "incompatible type" in result.stdout.lower()
