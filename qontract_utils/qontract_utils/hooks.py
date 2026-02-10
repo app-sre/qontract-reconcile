@@ -178,8 +178,7 @@ class Hooks(BaseModel, frozen=True):
             >>> result = hooks.with_context(ctx).invoke(create_user, user_data)
         """
         context = getattr(self, "_context", None)
-        wrapper = _ExecutionWrapper()
-        wrapper._hooks = self  # noqa: SLF001
+        wrapper = _ExecutionWrapper(hooks=self)
         return InvokeWithHooksMethod(func, lambda _: context).__get__(wrapper)(
             *args, **kwargs
         )
@@ -265,7 +264,8 @@ def with_hooks(*, hooks: Hooks | None = None) -> Callable[[type], type]:
 class _ExecutionWrapper:
     """Internal wrapper class to bind InvokeWithHooksMethod descriptor."""
 
-    _hooks: Hooks
+    def __init__(self, hooks: Hooks | None = None) -> None:
+        self._hooks = hooks or Hooks()
 
 
 class invoke_with_hooks:  # noqa: N801 - lowercase for decorator API aesthetics
