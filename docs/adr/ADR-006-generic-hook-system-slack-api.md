@@ -85,7 +85,29 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
     slack_request.labels(context.method, context.verb).inc()
 ```
 
-**5. Hook Execution (Method Decorator)**:
+**5. Class Decorator (`@with_hooks`)** for automatic hook initialization:
+
+```python
+from qontract_utils.hooks import Hooks, with_hooks
+
+@with_hooks(hooks=Hooks(
+    pre_hooks=[_metrics_hook, _latency_start_hook],
+    post_hooks=[_latency_end_hook],
+))
+class SlackApi:
+    def __init__(self, ..., hooks: Hooks | None = None):
+        # self._hooks automatically set by decorator (built-in + user hooks merged)
+        pass
+```
+
+The `@with_hooks` decorator:
+
+- Intercepts the `hooks` parameter from `__init__`
+- Merges built-in hooks (from decorator) with user hooks (from parameter)
+- Sets `self._hooks` automatically before `__init__` runs
+- Built-in hooks are prepended BEFORE user hooks
+
+**6. Method Decorator (`@invoke_with_hooks`)** for hook execution:
 
 Instance methods (retrieves hooks from `self._hooks`):
 
@@ -135,16 +157,20 @@ The hook system supports three distinct usage patterns depending on your needs:
 
 ### Pattern 1: Instance Methods (Recommended for API Clients)
 
-Use `@invoke_with_hooks(context_factory)` decorator on instance methods. Hooks are retrieved from `self._hooks`.
+Use `@with_hooks` class decorator to define built-in hooks and `@invoke_with_hooks(context_factory)` method decorator on instance methods. The class decorator automatically merges built-in hooks with user-provided hooks and sets `self._hooks`. The method decorator retrieves hooks from `self._hooks`.
 
 ```python
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
+@with_hooks(hooks=Hooks(
+    pre_hooks=[_metrics_hook, _latency_start_hook],
+    post_hooks=[_latency_end_hook],
+))
 class SlackApi:
-    def __init__(self, hooks: Hooks | None = None):
-        _hooks = hooks or Hooks()
-        self._hooks = Hooks(
-            pre_hooks=[_metrics_hook, *_hooks.pre_hooks],
-            retry_config=_hooks.retry_config,
-        )
+    def __init__(self, workspace_name: str, token: str, hooks: Hooks | None = None):
+        # self._hooks automatically set by @with_hooks decorator (built-in + user hooks merged)
+        self.workspace_name = workspace_name
+        self._sc = SlackClient(token=token)
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
@@ -234,7 +260,7 @@ result = hooks.with_context(context).invoke(fetch_data, "https://api.example.com
 
 ```python
 from dataclasses import dataclass
-from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks, invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 
 @dataclass(frozen=True)
 class SlackApiCallContext:
@@ -249,35 +275,28 @@ def _metrics_hook(context: SlackApiCallContext) -> None:
 
 def _latency_start_hook(context: SlackApiCallContext) -> None:
     """Built-in latency tracking hook."""
-    # Start latency measurement
+    _latency_tracker.set(time.perf_counter())
 
 def _latency_end_hook(context: SlackApiCallContext) -> None:
     """Built-in latency tracking hook."""
-    # End latency measurement
+    duration = time.perf_counter() - _latency_tracker.get()
+    slack_request_duration.labels(context.method, context.verb).observe(duration)
 
+@with_hooks(hooks=Hooks(
+    pre_hooks=[_metrics_hook, _request_log_hook, _latency_start_hook],
+    post_hooks=[_latency_end_hook],
+))
 class SlackApi:
     def __init__(
         self,
         workspace_name: str,
         token: str,
-        hooks: Hooks | None = None,
-        *,
-        init_usergroups: bool = True,
-        channel: str | None = None,
-        **chat_kwargs: Any,
+        hooks: Hooks | None = None,  # User-provided hooks (merged by @with_hooks)
     ) -> None:
-        # Merge built-in hooks with user-provided hooks
-        _hooks = hooks or Hooks()
-        self._hooks = Hooks(
-            pre_hooks=[_metrics_hook, _latency_start_hook, *_hooks.pre_hooks],
-            post_hooks=[_latency_end_hook, *_hooks.post_hooks],
-            error_hooks=_hooks.error_hooks,
-            retry_hooks=_hooks.retry_hooks,
-            retry_config=_hooks.retry_config,
-        )
+        # self._hooks automatically set by @with_hooks decorator
+        # Built-in hooks (metrics, logging, latency) + user hooks are merged
         self.workspace_name = workspace_name
         self._sc = SlackClient(token=token)
-        # ... other initialization
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
@@ -288,7 +307,6 @@ class SlackApi:
     )
     def chat_post_message(self, text: str) -> None:
         self._sc.chat_postMessage(channel=self.channel, text=text, **self.chat_kwargs)
-
 ```
 
 ### Factory Pattern with Rate Limiting Hook
@@ -302,12 +320,12 @@ def create_slack_api(workspace_name: str, token: str, cache: CacheBackend, setti
     def rate_limit_hook(_context: SlackApiCallContext) -> None:
         token_bucket.acquire(tokens=1, timeout=30)
 
-    # Metrics hook automatically included
+    # Built-in hooks (metrics, logging, latency) automatically included via @with_hooks
+    # User hooks (rate_limit_hook) are appended after built-in hooks
     return SlackApi(
         workspace_name,
         token,
         hooks=Hooks(pre_hooks=[rate_limit_hook]),
-        init_usergroups=True,
     )
 ```
 
@@ -362,37 +380,42 @@ def create_slack_api_with_full_observability(
         # Future: tracer.start_span(f"slack.{context.method}")
         pass
 
-    # Metrics hook automatically included first, then user hooks in order
+    # Built-in hooks (metrics, logging, latency) automatically included via @with_hooks
+    # User hooks are appended after built-in hooks
     return SlackApi(
         workspace_name,
         token,
         hooks=Hooks(
             pre_hooks=[
-                rate_limit_hook,    # Executed 2nd (after built-in metrics)
-                logging_hook,       # Executed 3rd
-                tracing_hook,       # Executed 4th
+                rate_limit_hook,    # Executed after built-in pre_hooks
+                logging_hook,       # Executed next
+                tracing_hook,       # Executed next
             ],
-            post_hooks=[post_api_call_hook], # Executed after successful API calls
+            post_hooks=[post_api_call_hook], # Executed after built-in post_hooks
             error_hooks=[error_handling_hook], # Executed on API call errors
         ),
-        init_usergroups=True,
     )
 ```
 
-**Hook Execution Order:**
+**Hook Execution Order (with `@with_hooks` merging):**
 
-1. **Built-in `_metrics_hook`** (always first) - Prometheus metrics
-2. **`rate_limit_hook`** - Blocks if rate limit exceeded
-3. **`logging_hook`** - Logs API call details
-4. **`tracing_hook`** - Creates tracing span (future)
-5. **Actual API call** - `slack_client.chat_postMessage(...)`
+1. **Built-in `_metrics_hook`** (from `@with_hooks`) - Prometheus metrics
+2. **Built-in `_request_log_hook`** (from `@with_hooks`) - Request logging
+3. **Built-in `_latency_start_hook`** (from `@with_hooks`) - Latency tracking
+4. **User `rate_limit_hook`** (from `hooks=Hooks(...)`) - Blocks if rate limit exceeded
+5. **User `logging_hook`** (from `hooks=Hooks(...)`) - Logs API call details
+6. **User `tracing_hook`** (from `hooks=Hooks(...)`) - Creates tracing span (future)
+7. **Actual API call** - `slack_client.chat_postMessage(...)`
+8. **Built-in `_latency_end_hook`** (from `@with_hooks`) - Record latency
+9. **User `post_api_call_hook`** (from `hooks=Hooks(...)`) - Post-call processing
 
 **Key Points:**
 
+- Built-in hooks (from `@with_hooks` decorator) are prepended BEFORE user hooks
+- User hooks (from `hooks=Hooks(...)` parameter) are appended after built-in hooks
 - Hooks execute sequentially in order
 - If any hook raises exception, API call is aborted
-- Built-in metrics hook always runs first
-- User hooks run in list order (composable and predictable)
+- Hook merging is automatic and transparent to the caller
 
 ## Retry System
 
@@ -500,9 +523,8 @@ api = SlackApi(
 **Detailed hook execution:**
 
 1. **Pre-hooks** (once, before retry_context)
-   - Metrics counter increment
-   - Rate limiting check
-   - Initial request logging
+   - Built-in hooks first (from `@with_hooks`): metrics, logging, latency start
+   - User hooks next (from `hooks=Hooks(...)`): rate limiting, custom logging, etc.
 
 2. **Retry Context** (stamina)
    - Attempt 1: Direct API call
@@ -511,11 +533,12 @@ api = SlackApi(
 3. **Error hooks** (only on final failure, after retry_context)
    - Called ONLY when all retries are exhausted
    - In except-block after retry_context
+   - Only user-provided error hooks (not merged with built-in)
 
 4. **Post-hooks** (always, after retry_context)
    - In finally-block (runs on success AND failure)
-   - Latency recording
-   - Cleanup operations
+   - Built-in hooks first (from `@with_hooks`): latency recording
+   - User hooks next (from `hooks=Hooks(...)`): cleanup operations
 
 **Important:**
 
@@ -689,23 +712,29 @@ Service-specific context dataclasses with multiple hook support.
 ### For New API Wrappers
 
 1. **Define service-specific context** (frozen dataclass with `method`, `verb`, + service fields)
-2. **Create built-in metrics hook** (track API calls with service-specific labels)
-3. **Accept Hooks dataclass in `__init__`**: `hooks: Hooks | None = None`
-4. **Always include built-in hooks first**, then merge with user-provided hooks
-5. **Use `invoke_with_hooks` decorator** Decorate every API method
+2. **Create built-in hooks** (metrics, logging, latency tracking)
+3. **Apply `@with_hooks` class decorator** with built-in hooks
+4. **Accept `hooks: Hooks | None = None` in `__init__`** for user-provided hooks
+5. **Decorate every API method** with `@invoke_with_hooks(context_factory)`
 
-**Constructor Pattern:**
+**Class Pattern:**
 
 ```python
-def __init__(self, ..., hooks: Hooks | None = None) -> None:
-    _hooks = hooks or Hooks()
-    self._hooks = Hooks(
-        pre_hooks=[_metrics_hook, _latency_start_hook, *_hooks.pre_hooks],
-        post_hooks=[_latency_end_hook, *_hooks.post_hooks],
-        error_hooks=_hooks.error_hooks,
-        retry_hooks=_hooks.retry_hooks,
-        retry_config=_hooks.retry_config,
-    )
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
+@with_hooks(hooks=Hooks(
+    pre_hooks=[_metrics_hook, _latency_start_hook],
+    post_hooks=[_latency_end_hook],
+))
+class MyApi:
+    def __init__(self, ..., hooks: Hooks | None = None) -> None:
+        # self._hooks automatically set by @with_hooks decorator
+        # Built-in hooks merged with user hooks (built-in first)
+        ...
+
+    @invoke_with_hooks(lambda self: MyApiCallContext(method="do_thing", verb="POST"))
+    def do_thing(self) -> None:
+        self._client.do_thing()
 ```
 
 ### Hook Development Guidelines

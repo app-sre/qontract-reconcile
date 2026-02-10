@@ -20,7 +20,7 @@ from slack_sdk.http_retry import (
     RateLimitErrorRetryHandler as SlackSDKRateLimitErrorRetryHandler,
 )
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.slack_api.models import SlackChannel, SlackUser, SlackUsergroup
 
 logger = structlog.get_logger(__name__)
@@ -135,8 +135,21 @@ class RateLimitErrorRetryHandler(SlackSDKRateLimitErrorRetryHandler):
         )
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class SlackApi:
     """Wrapper around Slack API calls"""
+
+    # Set by @with_hooks decorator
+    _hooks: Hooks
 
     def __init__(
         self,
@@ -146,7 +159,7 @@ class SlackApi:
         timeout: int,
         max_retries: int,
         method_configs: dict[str, dict[str, Any]] | None = None,
-        hooks: Hooks | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         """Initialize SlackApi wrapper.
 
@@ -156,27 +169,11 @@ class SlackApi:
             timeout: API timeout in seconds
             max_retries: Max retries for failed requests
             method_configs: Method-specific configs, e.g., {"users.list": {"limit": 1000}}
-            pre_hooks: List of hooks called before every API call.
-                Hooks receive SlackApiCallContext with method, verb, and workspace info.
-                Metrics hook (_metrics_hook) is automatically included.
+            hooks: Optional custom hooks to merge with built-in hooks.
+                Built-in hooks (metrics, logging, latency) are automatically included.
         """
         self.workspace_name = workspace_name
         self._method_configs = method_configs or {}
-
-        # Build hooks list: always include built-in hooks
-        hooks = hooks or Hooks()
-        self._hooks = Hooks(
-            pre_hooks=[
-                _metrics_hook,
-                _request_log_hook,
-                *hooks.pre_hooks,
-                _latency_start_hook,
-            ],
-            post_hooks=[_latency_end_hook, *hooks.post_hooks],
-            error_hooks=hooks.error_hooks,
-            retry_hooks=hooks.retry_hooks,
-            retry_config=hooks.retry_config,
-        )
         self._sc = WebClient(
             token=token,
             timeout=timeout,

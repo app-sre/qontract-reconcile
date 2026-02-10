@@ -53,7 +53,7 @@ class TestSecretBackendSingleton:
             )
 
             assert instance1 == mock_instance
-            mock_vault.assert_called_once_with(vault_settings)
+            mock_vault.assert_called_once_with(vault_settings, hooks=None)
 
     def test_get_instance_returns_same_instance(
         self, vault_settings: VaultSecretBackendSettings

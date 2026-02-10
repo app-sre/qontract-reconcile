@@ -14,7 +14,7 @@ import structlog
 from pagerduty import RestApiV2Client
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.pagerduty_api.models import PagerDutyUser
 
 logger = structlog.get_logger(__name__)
@@ -87,6 +87,16 @@ def _request_log_hook(context: PagerDutyApiCallContext) -> None:
     logger.debug("API request", method=context.method, verb=context.verb, id=context.id)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class PagerDutyApi:
     """Stateless PagerDuty API client with hook system.
 
@@ -94,8 +104,8 @@ class PagerDutyApi:
     to fetch users from PagerDuty schedules and escalation policies.
 
     Hook System (ADR-006):
-    - Always includes metrics hook for Prometheus
-    - Supports additional hooks via pre_hooks parameter
+    - Always includes built-in hooks (metrics, logging, latency)
+    - Supports additional custom hooks via hooks parameter
     - Hooks receive PagerDutyApiCallContext with method, verb, instance
 
     Example:
@@ -105,19 +115,22 @@ class PagerDutyApi:
         >>> api = PagerDutyApi(
         ...     id="app-sre",
         ...     token="...",
-        ...     pre_hooks=[rate_limit_hook]
+        ...     hooks=Hooks(pre_hooks=[rate_limit_hook])
         ... )
         >>> users = api.get_schedule_users("ABC123")
         >>> for user in users:
         ...     print(user.org_username)
     """
 
+    # Set by @with_hooks decorator
+    _hooks: Hooks
+
     def __init__(
         self,
         id: str,  # noqa: A002
         token: str,
         timeout: int = TIMEOUT,
-        hooks: Hooks | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         """Initialize PagerDuty API client.
 
@@ -125,25 +138,11 @@ class PagerDutyApi:
             id: PagerDuty ID (for logging, metrics and cache keys)
             token: PagerDuty API token
             timeout: API request timeout in seconds (default: 30)
-            pre_hooks: Optional hooks called before API requests
+            hooks: Optional custom hooks to merge with built-in hooks.
+                Built-in hooks (metrics, logging, latency) are automatically included.
         """
         self.id = id
         self._timeout = timeout
-
-        # Setup hook system - always include built-in hooks
-        hooks = hooks or Hooks()
-        self._hooks = Hooks(
-            pre_hooks=[
-                _metrics_hook,
-                _request_log_hook,
-                *hooks.pre_hooks,
-                _latency_start_hook,
-            ],
-            post_hooks=[_latency_end_hook, *hooks.post_hooks],
-            error_hooks=hooks.error_hooks,
-            retry_hooks=hooks.retry_hooks,
-            retry_config=hooks.retry_config,
-        )
 
         # Initialize PagerDuty client
         self._client = RestApiV2Client(api_key=token)

@@ -9,7 +9,7 @@ from github import Github
 from github.Repository import Repository
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 
 logger = structlog.get_logger(__name__)
 
@@ -74,6 +74,16 @@ def _request_log_hook(context: GitHubApiCallContext) -> None:
     logger.debug("API request", method=context.method, repo_url=context.repo_url)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class GitHubRepoApi:
     """GitHub Repository API client with hook system.
 
@@ -83,8 +93,12 @@ class GitHubRepoApi:
         token: GitHub personal access token
         github_api_url: GitHub API base URL (default: https://api.github.com)
         timeout: Request timeout in seconds
-        pre_hooks: List of hooks called before each API call
+        hooks: Optional custom hooks to merge with built-in hooks.
+            Built-in hooks (metrics, logging, latency) are automatically included.
     """
+
+    # Set by @with_hooks decorator
+    _hooks: Hooks
 
     def __init__(
         self,
@@ -93,27 +107,12 @@ class GitHubRepoApi:
         token: str,
         github_api_url: str = "https://api.github.com",
         timeout: int = 30,
-        hooks: Hooks | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         self.owner = owner
         self.repo = repo
         self.repo_url = f"https://github.com/{owner}/{repo}"
         self._timeout = timeout
-
-        # Setup hook system - always include built-in hooks
-        hooks = hooks or Hooks()
-        self._hooks = Hooks(
-            pre_hooks=[
-                _metrics_hook,
-                _request_log_hook,
-                *hooks.pre_hooks,
-                _latency_start_hook,
-            ],
-            post_hooks=[_latency_end_hook, *hooks.post_hooks],
-            error_hooks=hooks.error_hooks,
-            retry_hooks=hooks.retry_hooks,
-            retry_config=hooks.retry_config,
-        )
 
         # PyGithub expects base_url without /api/v3
         self._github = Github(

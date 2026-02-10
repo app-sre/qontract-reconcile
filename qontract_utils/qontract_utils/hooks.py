@@ -1,4 +1,5 @@
 import functools
+import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -184,6 +185,83 @@ class Hooks(BaseModel, frozen=True):
         )
 
 
+def with_hooks(*, hooks: Hooks | None = None) -> Callable[[type], type]:
+    """Class decorator to automatically merge built-in hooks with user hooks.
+
+    The decorator intercepts the ``hooks`` parameter in ``__init__``, merges
+    built-in hooks (from decorator) with user hooks (from ``__init__``
+    parameter), and sets ``self._hooks``.
+
+    Args:
+        hooks: Built-in hooks configuration (metrics, logging, latency).
+            Defaults to ``Hooks()`` if not provided.
+
+    Examples:
+        With built-in hooks (recommended for API clients)::
+
+            @with_hooks(hooks=Hooks(
+                pre_hooks=[_metrics_hook, _latency_hook],
+                post_hooks=[_end_hook],
+            ))
+            class MyApi:
+                def __init__(self, ..., hooks: Hooks | None = None):
+                    # self._hooks automatically set (merged hooks)
+                    pass
+
+        Without built-in hooks (just user hooks passthrough)::
+
+            @with_hooks()
+            class SimpleApi:
+                def __init__(self, ..., hooks: Hooks | None = None):
+                    # self._hooks = user hooks or Hooks()
+                    pass
+    """
+    decorator_hooks = hooks or Hooks()
+
+    def decorator(cls: type) -> type:
+        original_init = cls.__init__  # type: ignore[misc]
+
+        @functools.wraps(original_init)
+        def wrapped_init(self: Any, *args: Any, **kwargs: Any) -> None:
+            # Extract hooks parameter using inspect
+            sig = inspect.signature(original_init)
+            bound_args = sig.bind(self, *args, **kwargs)
+            bound_args.apply_defaults()
+
+            # Get hooks parameter (or None)
+            if "hooks" not in bound_args.arguments:
+                msg = (
+                    f"Class {cls.__name__} must have a 'hooks' parameter in __init__ "
+                    "to use @with_hooks decorator"
+                )
+                raise ValueError(msg)
+
+            user_hooks = bound_args.arguments["hooks"] or Hooks()
+
+            # Merge hooks: decorator hooks BEFORE user hooks
+            merged_hooks = Hooks(
+                pre_hooks=[*decorator_hooks.pre_hooks, *user_hooks.pre_hooks],
+                post_hooks=[*decorator_hooks.post_hooks, *user_hooks.post_hooks],
+                error_hooks=user_hooks.error_hooks,
+                retry_hooks=user_hooks.retry_hooks,
+                retry_config=user_hooks.retry_config,
+            )
+
+            # Set _hooks on instance
+            self._hooks = merged_hooks
+
+            # Remove hooks parameter from call to original __init__
+            del bound_args.arguments["hooks"]
+
+            # Call original __init__ without hooks parameter
+            original_init(self, *bound_args.args[1:], **bound_args.kwargs)
+
+        cls.__init__ = wrapped_init  # type: ignore[misc]
+        return cls
+
+    return decorator
+
+
 class _ExecutionWrapper:
     """Internal wrapper class to bind InvokeWithHooksMethod descriptor."""
 
@@ -351,13 +429,18 @@ class InvokeWithHooksMethod:
         )
         return wrapper(*args, **kwargs)
 
-    def __get__(self, instance: Any, _owner: type | None = None) -> Any:
-        """Descriptor protocol - binds method to instance."""
+    def __get__(self, instance: Any | None, _owner: type | None = None) -> Any:
+        """Descriptor protocol - binds method to instance.
+
+        Args:
+            instance: Instance of a class with _hooks attribute, or None when accessed on the class itself.
+        """
         if instance is None:
             return self
 
         # Get hook config from instance (or use override from decorator)
-        hooks: Hooks = self.hooks or getattr(instance, "_hooks", Hooks()) or Hooks()
+        # If decorator has explicit hooks, use those; otherwise use instance._hooks
+        hooks: Hooks = self.hooks or instance._hooks  # noqa: SLF001
 
         # Create context (only pass instance to context_factory)
         context = self.context_factory(instance) if self.context_factory else None

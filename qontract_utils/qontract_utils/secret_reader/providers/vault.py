@@ -23,7 +23,7 @@ from hvac.exceptions import Forbidden, InvalidPath
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
 
-from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.secret_reader.base import (
     Secret,
     SecretAccessForbiddenError,
@@ -121,6 +121,16 @@ def _request_log_hook(context: VaultApiCallContext) -> None:
     logger.debug("API request", method=context.method)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class VaultSecretBackend(SecretBackend):
     """HashiCorp Vault secret backend using python-hvac.
 
@@ -130,13 +140,9 @@ class VaultSecretBackend(SecretBackend):
     Reads from Vault KV v2 secrets engine with version support.
 
     Args:
-        server: Vault server URL (e.g., "https://vault.example.com")
-        role_id: AppRole role_id (required for AppRole auth)
-        secret_id: AppRole secret_id (required for AppRole auth)
-        kube_auth_role: Kubernetes auth role (required for K8s auth)
-        kube_auth_mount: Kubernetes auth mount point (default: "kubernetes")
-        kube_sa_token_path: Path to K8s service account token
-        auto_refresh: Enable auto-refresh of auth token (default: True)
+        settings: Vault secret backend settings
+        hooks: Optional custom hooks to merge with built-in hooks.
+            Built-in hooks (metrics, logging, latency) are automatically included.
 
     Raises:
         ValueError: If neither AppRole nor K8s auth credentials provided
@@ -145,15 +151,19 @@ class VaultSecretBackend(SecretBackend):
     Example:
         # AppRole auth
         backend = VaultSecretBackend(
-            server="https://vault.example.com",
-            role_id="my-role-id",
-            secret_id="my-secret-id",
+            settings=VaultSecretBackendSettings(
+                server="https://vault.example.com",
+                role_id="my-role-id",
+                secret_id="my-secret-id",
+            )
         )
 
         # Kubernetes auth
         backend = VaultSecretBackend(
-            server="https://vault.example.com",
-            kube_auth_role="qontract-api",
+            settings=VaultSecretBackendSettings(
+                server="https://vault.example.com",
+                kube_auth_role="qontract-api",
+            )
         )
 
         # Read secret
@@ -166,15 +176,19 @@ class VaultSecretBackend(SecretBackend):
         access_key = backend.read("aws/account1/creds", field="access_key_id")
     """
 
+    # Set by @with_hooks decorator
+    _hooks: Hooks
+
     def __init__(
         self,
         settings: VaultSecretBackendSettings,
-        hooks: Hooks | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         """Initialize Vault secret backend.
 
         Args:
             settings: Vault secret backend settings
+            hooks: Optional custom hooks to merge with built-in hooks
         """
         self._settings = settings
         self._client = hvac.Client(url=settings.server)
@@ -182,21 +196,6 @@ class VaultSecretBackend(SecretBackend):
         self._auth_lock = threading.Lock()  # Lock for authentication operations
         self._closed = False
         self._refresh_interval = 300  # 5 minutes
-
-        # Setup hook system - always include built-in hooks
-        hooks = hooks or Hooks()
-        self._hooks = Hooks(
-            pre_hooks=[
-                _metrics_hook,
-                _request_log_hook,
-                *hooks.pre_hooks,
-                _latency_start_hook,
-            ],
-            post_hooks=[_latency_end_hook, *hooks.post_hooks],
-            error_hooks=hooks.error_hooks,
-            retry_hooks=hooks.retry_hooks,
-            retry_config=hooks.retry_config,
-        )
 
         # Initial authentication
         self._authenticate()

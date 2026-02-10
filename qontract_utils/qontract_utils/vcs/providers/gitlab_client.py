@@ -9,7 +9,7 @@ import structlog
 from gitlab.v4.objects import Project
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 
 logger = structlog.get_logger(__name__)
 
@@ -74,6 +74,16 @@ def _request_log_hook(context: GitLabApiCallContext) -> None:
     logger.debug("API request", method=context.method, repo_url=context.repo_url)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class GitLabRepoApi:
     """GitLab Repository API client with hook system.
 
@@ -82,8 +92,12 @@ class GitLabRepoApi:
         token: GitLab personal access token
         gitlab_url: GitLab instance URL (default: https://gitlab.com)
         timeout: Request timeout in seconds
-        pre_hooks: List of hooks called before each API call
+        hooks: Optional custom hooks to merge with built-in hooks.
+            Built-in hooks (metrics, logging, latency) are automatically included.
     """
+
+    # Set by @with_hooks decorator
+    _hooks: Hooks
 
     def __init__(
         self,
@@ -91,26 +105,11 @@ class GitLabRepoApi:
         token: str,
         gitlab_url: str,
         timeout: int = 30,
-        hooks: Hooks | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
         self._timeout = timeout
-
-        # Setup hook system - always include built-in hooks
-        hooks = hooks or Hooks()
-        self._hooks = Hooks(
-            pre_hooks=[
-                _metrics_hook,
-                _request_log_hook,
-                *hooks.pre_hooks,
-                _latency_start_hook,
-            ],
-            post_hooks=[_latency_end_hook, *hooks.post_hooks],
-            error_hooks=hooks.error_hooks,
-            retry_hooks=hooks.retry_hooks,
-            retry_config=hooks.retry_config,
-        )
 
         # Create GitLab client
         self._gitlab = gitlab.Gitlab(
