@@ -175,7 +175,8 @@ data:
                     "value": 80
                   }
                 ]
-              }
+              },
+              "unit": "reqps"
             },
             "overrides": []
           },
@@ -208,12 +209,12 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum by (code) (rate(haproxy_backend_http_responses_total{exported_namespace=\"$namespace\"}[$__interval]))",
+              "expr": "sum by (status) (rate(http_requests_total{namespace=\"$namespace\", handler!~\"/health.*\"}[$__interval]))",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Requests",
+          "title": "Requests/sec",
           "type": "timeseries"
         },
         {
@@ -1929,7 +1930,6 @@ data:
             }
           },
           "pluginVersion": "11.6.3",
-          "repeatDirection": "h",
           "targets": [
             {
               "datasource": {
@@ -2270,5 +2270,5 @@ data:
       "timezone": "",
       "title": "Qontract API Dashboard",
       "uid": "CAQAV30Vk",
-      "version": 3
+      "version": 5
     }
