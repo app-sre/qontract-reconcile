@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from qontract_utils.hooks import Hooks
 from qontract_utils.slack_api import SlackApi, SlackChannel, SlackUser, SlackUsergroup
 
 # Default values for tests (matching typical settings)
@@ -109,7 +110,7 @@ def test_slack_api_pre_hooks_includes_metrics(mock_webclient: MagicMock) -> None
     )
 
     # Should have at least the metrics hook
-    assert len(api._pre_hooks) >= 1
+    assert len(api._hooks.pre_hooks) >= 1
 
 
 def test_slack_api_pre_hooks_custom(mock_webclient: MagicMock) -> None:
@@ -121,12 +122,12 @@ def test_slack_api_pre_hooks_custom(mock_webclient: MagicMock) -> None:
         token="token",
         timeout=DEFAULT_TIMEOUT,
         max_retries=DEFAULT_MAX_RETRIES,
-        pre_hooks=[custom_hook],
+        hooks=Hooks(pre_hooks=[custom_hook]),
     )
 
-    # Should have metrics + latency_start + request_log + custom hook
-    assert len(api._pre_hooks) == 4
-    assert api._pre_hooks[-1] == custom_hook
+    # Should have metrics + request_log + custom hook + latency_start
+    assert len(api._hooks.pre_hooks) == 4
+    assert custom_hook in api._hooks.pre_hooks
 
 
 def test_slack_api_post_hooks_includes_latency(mock_webclient: MagicMock) -> None:
@@ -140,7 +141,7 @@ def test_slack_api_post_hooks_includes_latency(mock_webclient: MagicMock) -> Non
     )
 
     # Should have at least the latency_end hook
-    assert len(api._post_hooks) >= 1
+    assert len(api._hooks.post_hooks) >= 1
 
 
 def test_slack_api_post_hooks_custom(mock_webclient: MagicMock) -> None:
@@ -152,12 +153,12 @@ def test_slack_api_post_hooks_custom(mock_webclient: MagicMock) -> None:
         token="token",
         timeout=DEFAULT_TIMEOUT,
         max_retries=DEFAULT_MAX_RETRIES,
-        post_hooks=[custom_hook],
+        hooks=Hooks(post_hooks=[custom_hook]),
     )
 
     # Should have latency_end hook + custom hook
-    assert len(api._post_hooks) == 2
-    assert api._post_hooks[-1] == custom_hook
+    assert len(api._hooks.post_hooks) == 2
+    assert custom_hook in api._hooks.post_hooks
 
 
 def test_slack_api_error_hooks_custom(mock_webclient: MagicMock) -> None:
@@ -169,12 +170,12 @@ def test_slack_api_error_hooks_custom(mock_webclient: MagicMock) -> None:
         token="token",
         timeout=DEFAULT_TIMEOUT,
         max_retries=DEFAULT_MAX_RETRIES,
-        error_hooks=[custom_hook],
+        hooks=Hooks(error_hooks=[custom_hook]),
     )
 
     # Should have custom error hook
-    assert len(api._error_hooks) == 1
-    assert api._error_hooks[0] == custom_hook
+    assert len(api._hooks.error_hooks) == 1
+    assert api._hooks.error_hooks[0] == custom_hook
 
 
 # Typed methods tests
@@ -480,3 +481,75 @@ def test_conversations_list_handles_pagination(
 
     assert len(channels) == 2
     assert slack_api._sc.api_call.call_count == 2
+
+
+def test_slack_api_retries_on_transient_errors(
+    mock_webclient: MagicMock, enable_retry: None
+) -> None:
+    """Test that SlackApi retries on transient errors."""
+    from slack_sdk.errors import SlackApiError
+
+    api = SlackApi(
+        slack_api_url="https://slack.com/api/",
+        workspace_name="test",
+        token="xoxb-test",
+        timeout=30,
+        max_retries=0,
+    )
+
+    # Mock: first 2 calls fail, 3rd succeeds
+    call_count = {"count": 0}
+
+    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # noqa: ANN002, ANN003, ANN202
+        call_count["count"] += 1
+        if call_count["count"] < 3:
+            raise SlackApiError("rate_limited", response=MagicMock())
+        return {
+            "usergroups": [
+                {
+                    "id": "UG1",
+                    "handle": "oncall",
+                    "name": "On-Call",
+                    "description": "",
+                    "users": [],
+                    "prefs": {"channels": []},
+                }
+            ]
+        }
+
+    api._sc.usergroups_list = MagicMock(side_effect=side_effect)  # type: ignore[method-assign]
+
+    result = api.usergroups_list()
+
+    assert len(result) == 1
+    assert call_count["count"] == 3
+
+
+def test_slack_api_gives_up_after_max_attempts(
+    mock_webclient: MagicMock, enable_retry: None
+) -> None:
+    """Test that SlackApi gives up after max retry attempts."""
+    from slack_sdk.errors import SlackApiError
+
+    api = SlackApi(
+        slack_api_url="https://slack.com/api/",
+        workspace_name="test",
+        token="xoxb-test",
+        timeout=30,
+        max_retries=0,
+    )
+
+    # Mock: always fails
+    call_count = {"count": 0}
+
+    def side_effect(*args, **kwargs):  # type: ignore[no-untyped-def]  # noqa: ANN002, ANN003, ANN202
+        call_count["count"] += 1
+        raise SlackApiError("always fails", response=MagicMock())
+
+    api._sc.usergroups_list = MagicMock(side_effect=side_effect)  # type: ignore[method-assign]
+
+    with pytest.raises(SlackApiError):
+        api.usergroups_list()
+
+    # Should have tried 3 times (attempts=3)
+    assert call_count["count"] == 3

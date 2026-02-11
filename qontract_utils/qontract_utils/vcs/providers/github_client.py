@@ -2,7 +2,6 @@
 
 import contextvars
 import time
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import structlog
@@ -10,7 +9,7 @@ from github import Github
 from github.Repository import Repository
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 
 logger = structlog.get_logger(__name__)
 
@@ -75,6 +74,16 @@ def _request_log_hook(context: GitHubApiCallContext) -> None:
     logger.debug("API request", method=context.method, repo_url=context.repo_url)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class GitHubRepoApi:
     """GitHub Repository API client with hook system.
 
@@ -84,8 +93,12 @@ class GitHubRepoApi:
         token: GitHub personal access token
         github_api_url: GitHub API base URL (default: https://api.github.com)
         timeout: Request timeout in seconds
-        pre_hooks: List of hooks called before each API call
+        hooks: Optional custom hooks to merge with built-in hooks.
+            Built-in hooks (metrics, logging, latency) are automatically included.
     """
+
+    # Set by @with_hooks decorator
+    _hooks: Hooks
 
     def __init__(
         self,
@@ -94,30 +107,12 @@ class GitHubRepoApi:
         token: str,
         github_api_url: str = "https://api.github.com",
         timeout: int = 30,
-        pre_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[GitHubApiCallContext], None]] | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         self.owner = owner
         self.repo = repo
         self.repo_url = f"https://github.com/{owner}/{repo}"
         self._timeout = timeout
-        # Setup hook system - always include built-in hooks
-        self._pre_hooks: list[Callable[[GitHubApiCallContext], None]] = [
-            _metrics_hook,
-            _latency_start_hook,
-            _request_log_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[GitHubApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[GitHubApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
 
         # PyGithub expects base_url without /api/v3
         self._github = Github(
@@ -125,6 +120,9 @@ class GitHubRepoApi:
         )
         self._repository: Repository = self._github.get_repo(f"{owner}/{repo}")
 
+    @invoke_with_hooks(
+        lambda self: GitHubApiCallContext(method="get_file", repo_url=self.repo_url)
+    )
     def get_file(self, path: str, ref: str = "master") -> str | None:
         """Fetch file content from repository.
 
@@ -136,13 +134,7 @@ class GitHubRepoApi:
             File content as string, or None if file not found
         """
         try:
-            with invoke_with_hooks(
-                GitHubApiCallContext(method="get_file", repo_url=self.repo_url),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                content_file = self._repository.get_contents(path, ref=ref)
+            content_file = self._repository.get_contents(path, ref=ref)
             if isinstance(content_file, list):
                 # Path is a directory, not a file
                 return None

@@ -1,5 +1,6 @@
 """Secret Manager factory."""
 
+from qontract_utils.hooks import DEFAULT_RETRY_CONFIG, Hooks
 from qontract_utils.secret_reader.base import SecretBackend
 
 from qontract_api.cache import CacheBackend
@@ -29,6 +30,7 @@ def get_secret_manager(cache: CacheBackend) -> SecretManager:
                             kube_sa_token_path=provider.kube_sa_token_path,
                             auto_refresh=provider.auto_refresh,
                         ),
+                        hooks=Hooks(retry_config=DEFAULT_RETRY_CONFIG),
                     )
                 )
             case _:

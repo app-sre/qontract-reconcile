@@ -7,7 +7,6 @@ rate limiting via hooks (ADR-006).
 
 import contextvars
 import time
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -15,7 +14,7 @@ import structlog
 from pagerduty import RestApiV2Client
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.pagerduty_api.models import PagerDutyUser
 
 logger = structlog.get_logger(__name__)
@@ -88,6 +87,16 @@ def _request_log_hook(context: PagerDutyApiCallContext) -> None:
     logger.debug("API request", method=context.method, verb=context.verb, id=context.id)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class PagerDutyApi:
     """Stateless PagerDuty API client with hook system.
 
@@ -95,8 +104,8 @@ class PagerDutyApi:
     to fetch users from PagerDuty schedules and escalation policies.
 
     Hook System (ADR-006):
-    - Always includes metrics hook for Prometheus
-    - Supports additional hooks via pre_hooks parameter
+    - Always includes built-in hooks (metrics, logging, latency)
+    - Supports additional custom hooks via hooks parameter
     - Hooks receive PagerDutyApiCallContext with method, verb, instance
 
     Example:
@@ -106,21 +115,22 @@ class PagerDutyApi:
         >>> api = PagerDutyApi(
         ...     id="app-sre",
         ...     token="...",
-        ...     pre_hooks=[rate_limit_hook]
+        ...     hooks=Hooks(pre_hooks=[rate_limit_hook])
         ... )
         >>> users = api.get_schedule_users("ABC123")
         >>> for user in users:
         ...     print(user.org_username)
     """
 
+    # Set by @with_hooks decorator
+    _hooks: Hooks
+
     def __init__(
         self,
         id: str,  # noqa: A002
         token: str,
         timeout: int = TIMEOUT,
-        pre_hooks: Iterable[Callable[[PagerDutyApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[PagerDutyApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[PagerDutyApiCallContext], None]] | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         """Initialize PagerDuty API client.
 
@@ -128,31 +138,18 @@ class PagerDutyApi:
             id: PagerDuty ID (for logging, metrics and cache keys)
             token: PagerDuty API token
             timeout: API request timeout in seconds (default: 30)
-            pre_hooks: Optional hooks called before API requests
+            hooks: Optional custom hooks to merge with built-in hooks.
+                Built-in hooks (metrics, logging, latency) are automatically included.
         """
         self.id = id
         self._timeout = timeout
 
-        # Setup hook system - always include built-in hooks
-        self._pre_hooks: list[Callable[[PagerDutyApiCallContext], None]] = [
-            _metrics_hook,
-            _request_log_hook,
-            _latency_start_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[PagerDutyApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[PagerDutyApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
-
         # Initialize PagerDuty client
         self._client = RestApiV2Client(api_key=token)
 
+    @invoke_with_hooks(
+        lambda self: PagerDutyApiCallContext(method="users.get", verb="GET", id=self.id)
+    )
     def get_user(self, user_id: str) -> PagerDutyUser:
         """Get PagerDuty user by ID.
 
@@ -168,19 +165,18 @@ class PagerDutyApi:
             >>> print(user.org_username)
             jsmith
         """
-        with invoke_with_hooks(
-            PagerDutyApiCallContext(method="users.get", verb="GET", id=self.id),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            user_data = self._client.rget(f"/users/{user_id}")  # type: ignore[misc]
+        user_data = self._client.rget(f"/users/{user_id}")  # type: ignore[misc]
         return PagerDutyUser(
             id=user_id,
             email=user_data["email"],
             name=user_data["name"],
         )
 
+    @invoke_with_hooks(
+        lambda self: PagerDutyApiCallContext(
+            method="schedules.get", verb="GET", id=self.id
+        )
+    )
     def get_schedule_users(self, schedule_id: str) -> list[PagerDutyUser]:
         """Get users currently on-call in a schedule.
 
@@ -199,25 +195,19 @@ class PagerDutyApi:
             >>> print([u.org_username for u in users])
             ['jsmith', 'mdoe']
         """
-        with invoke_with_hooks(
-            PagerDutyApiCallContext(method="schedules.get", verb="GET", id=self.id),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            # Calculate time window: now to now + 60s
-            now = datetime.now(UTC)
-            until = now + timedelta(seconds=TIME_WINDOW_SECONDS)
+        # Calculate time window: now to now + 60s
+        now = datetime.now(UTC)
+        until = now + timedelta(seconds=TIME_WINDOW_SECONDS)
 
-            # Fetch schedule with on-call users in time window
-            schedule = self._client.rget(  # type: ignore[misc]
-                f"/schedules/{schedule_id}",
-                params={
-                    "since": now.isoformat(),
-                    "until": until.isoformat(),
-                    "timezone_zone": "UTC",
-                },
-            )
+        # Fetch schedule with on-call users in time window
+        schedule = self._client.rget(  # type: ignore[misc]
+            f"/schedules/{schedule_id}",
+            params={
+                "since": now.isoformat(),
+                "until": until.isoformat(),
+                "timezone_zone": "UTC",
+            },
+        )
 
         return [
             self.get_user(entry["user"]["id"])
@@ -225,6 +215,11 @@ class PagerDutyApi:
             if not entry["user"].get("deleted_at")
         ]
 
+    @invoke_with_hooks(
+        lambda self: PagerDutyApiCallContext(
+            method="escalation_policies.get", verb="GET", id=self.id
+        )
+    )
     def get_escalation_policy_users(self, policy_id: str) -> list[PagerDutyUser]:
         """Get users in an escalation policy.
 
@@ -243,27 +238,19 @@ class PagerDutyApi:
             >>> print([u.org_username for u in users])
             ['jsmith', 'mdoe', 'asmith']
         """
-        with invoke_with_hooks(
-            PagerDutyApiCallContext(
-                method="escalation_policies.get", verb="GET", id=self.id
-            ),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            # Calculate time window: now to now + 60s
-            now = datetime.now(UTC)
-            until = now + timedelta(seconds=TIME_WINDOW_SECONDS)
+        # Calculate time window: now to now + 60s
+        now = datetime.now(UTC)
+        until = now + timedelta(seconds=TIME_WINDOW_SECONDS)
 
-            # Fetch escalation policy
-            policy = self._client.rget(
-                f"/escalation_policies/{policy_id}",
-                params={
-                    "since": now.isoformat(),
-                    "until": until.isoformat(),
-                    "timezone_zone": "UTC",
-                },
-            )  # type: ignore[misc]
+        # Fetch escalation policy
+        policy = self._client.rget(
+            f"/escalation_policies/{policy_id}",
+            params={
+                "since": now.isoformat(),
+                "until": until.isoformat(),
+                "timezone_zone": "UTC",
+            },
+        )  # type: ignore[misc]
 
         users = []
         for rule in policy["escalation_rules"]:

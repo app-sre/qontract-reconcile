@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks
 from qontract_utils.pagerduty_api import (
     TIMEOUT,
     PagerDutyApi,
@@ -66,7 +67,7 @@ def test_pagerduty_api_pre_hooks_includes_metrics(
     api = PagerDutyApi("instance", "token")
 
     # Should have at least the metrics hook
-    assert len(api._pre_hooks) >= 1
+    assert len(api._hooks.pre_hooks) >= 1
 
 
 def test_pagerduty_api_pre_hooks_custom(mock_pagerduty_client: MagicMock) -> None:
@@ -75,12 +76,12 @@ def test_pagerduty_api_pre_hooks_custom(mock_pagerduty_client: MagicMock) -> Non
     api = PagerDutyApi(
         "instance",
         "token",
-        pre_hooks=[custom_hook],
+        hooks=Hooks(pre_hooks=[custom_hook]),
     )
 
-    # Should have metrics hook + latency_start + request_log + custom hook
-    assert len(api._pre_hooks) == 4
-    assert api._pre_hooks[-1] == custom_hook
+    # Should have metrics hook + request_log + custom hook + latency_start
+    assert len(api._hooks.pre_hooks) == 4
+    assert custom_hook in api._hooks.pre_hooks
 
 
 def test_pagerduty_api_post_hooks_includes_latency(
@@ -90,7 +91,7 @@ def test_pagerduty_api_post_hooks_includes_latency(
     api = PagerDutyApi("instance", "token")
 
     # Should have at least the latency_end hook
-    assert len(api._post_hooks) >= 1
+    assert len(api._hooks.post_hooks) >= 1
 
 
 def test_pagerduty_api_post_hooks_custom(mock_pagerduty_client: MagicMock) -> None:
@@ -99,12 +100,12 @@ def test_pagerduty_api_post_hooks_custom(mock_pagerduty_client: MagicMock) -> No
     api = PagerDutyApi(
         "instance",
         "token",
-        post_hooks=[custom_hook],
+        hooks=Hooks(post_hooks=[custom_hook]),
     )
 
     # Should have latency_end hook + custom hook
-    assert len(api._post_hooks) == 2
-    assert api._post_hooks[-1] == custom_hook
+    assert len(api._hooks.post_hooks) == 2
+    assert custom_hook in api._hooks.post_hooks
 
 
 def test_pagerduty_api_error_hooks_custom(mock_pagerduty_client: MagicMock) -> None:
@@ -113,12 +114,12 @@ def test_pagerduty_api_error_hooks_custom(mock_pagerduty_client: MagicMock) -> N
     api = PagerDutyApi(
         "instance",
         "token",
-        error_hooks=[custom_hook],
+        hooks=Hooks(error_hooks=[custom_hook]),
     )
 
     # Should have custom error hook
-    assert len(api._error_hooks) == 1
-    assert api._error_hooks[0] == custom_hook
+    assert len(api._hooks.error_hooks) == 1
+    assert api._hooks.error_hooks[0] == custom_hook
 
 
 def test_get_schedule_users_returns_pagerduty_user_objects(
@@ -231,7 +232,7 @@ def test_get_schedule_users_calls_pre_hooks(
 ) -> None:
     """Test get_schedule_users calls pre_hooks before API call."""
     hook = MagicMock()
-    pagerduty_api._pre_hooks = [hook]
+    pagerduty_api._hooks = Hooks(pre_hooks=[hook], retry_config=NO_RETRY_CONFIG)
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
     pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
 
@@ -249,7 +250,7 @@ def test_get_schedule_users_calls_post_hooks(
 ) -> None:
     """Test get_schedule_users calls post_hooks after API call."""
     post_hook = MagicMock()
-    pagerduty_api._post_hooks = [post_hook]
+    pagerduty_api._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
     mock_schedule: dict = {"final_schedule": {"rendered_schedule_entries": []}}
     pagerduty_api._client.rget = MagicMock(return_value=mock_schedule)
 
@@ -420,7 +421,7 @@ def test_get_escalation_policy_users_calls_pre_hooks(
 ) -> None:
     """Test get_escalation_policy_users calls pre_hooks before API call."""
     hook = MagicMock()
-    pagerduty_api._pre_hooks = [hook]
+    pagerduty_api._hooks = Hooks(pre_hooks=[hook], retry_config=NO_RETRY_CONFIG)
     mock_policy: dict = {"escalation_rules": []}
     pagerduty_api._client.rget = MagicMock(return_value=mock_policy)
 
@@ -438,7 +439,7 @@ def test_get_escalation_policy_users_calls_post_hooks(
 ) -> None:
     """Test get_escalation_policy_users calls post_hooks after API call."""
     post_hook = MagicMock()
-    pagerduty_api._post_hooks = [post_hook]
+    pagerduty_api._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
     mock_policy: dict = {"escalation_rules": []}
     pagerduty_api._client.rget = MagicMock(return_value=mock_policy)
 
@@ -481,3 +482,48 @@ def test_pagerduty_api_call_context_immutable() -> None:
 
     with pytest.raises(AttributeError):  # dataclass frozen=True raises AttributeError
         context.method = "different"  # type: ignore[misc]
+
+
+def test_pagerduty_api_retries_on_transient_errors(
+    mock_pagerduty_client: MagicMock, enable_retry: None
+) -> None:
+    """Test that PagerDutyApi retries on transient errors."""
+    api = PagerDutyApi(id="test", token="test-token")
+
+    # Mock: first 2 calls fail, 3rd succeeds
+    call_count = {"count": 0}
+
+    def side_effect(path: str, **kwargs: dict) -> dict:
+        call_count["count"] += 1
+        if call_count["count"] < 3:
+            raise Exception("API error")  # noqa: TRY002
+        return {"email": "alice@example.com", "name": "Alice Smith"}
+
+    api._client.rget = MagicMock(side_effect=side_effect)
+
+    user = api.get_user("USER1")
+
+    assert user.username == "alice"
+    assert call_count["count"] == 3
+
+
+def test_pagerduty_api_gives_up_after_max_attempts(
+    mock_pagerduty_client: MagicMock, enable_retry: None
+) -> None:
+    """Test that PagerDutyApi gives up after max retry attempts."""
+    api = PagerDutyApi(id="test", token="test-token")
+
+    # Mock: always fails
+    call_count = {"count": 0}
+
+    def side_effect(path: str, **kwargs: dict) -> dict:
+        call_count["count"] += 1
+        raise Exception("always fails")  # noqa: TRY002
+
+    api._client.rget = MagicMock(side_effect=side_effect)
+
+    with pytest.raises(Exception, match="always fails"):
+        api.get_user("USER1")
+
+    # Should have tried 3 times (attempts=3)
+    assert call_count["count"] == 3

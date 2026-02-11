@@ -3,9 +3,8 @@ from __future__ import annotations
 import contextvars
 import http
 import time
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
 from prometheus_client import Counter, Histogram
@@ -21,11 +20,8 @@ from slack_sdk.http_retry import (
     RateLimitErrorRetryHandler as SlackSDKRateLimitErrorRetryHandler,
 )
 
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.slack_api.models import SlackChannel, SlackUser, SlackUsergroup
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 logger = structlog.get_logger(__name__)
 
@@ -139,8 +135,21 @@ class RateLimitErrorRetryHandler(SlackSDKRateLimitErrorRetryHandler):
         )
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class SlackApi:
     """Wrapper around Slack API calls"""
+
+    # Set by @with_hooks decorator
+    _hooks: Hooks
 
     def __init__(
         self,
@@ -150,9 +159,7 @@ class SlackApi:
         timeout: int,
         max_retries: int,
         method_configs: dict[str, dict[str, Any]] | None = None,
-        pre_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[SlackApiCallContext], None]] | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         """Initialize SlackApi wrapper.
 
@@ -162,30 +169,11 @@ class SlackApi:
             timeout: API timeout in seconds
             max_retries: Max retries for failed requests
             method_configs: Method-specific configs, e.g., {"users.list": {"limit": 1000}}
-            pre_hooks: List of hooks called before every API call.
-                Hooks receive SlackApiCallContext with method, verb, and workspace info.
-                Metrics hook (_metrics_hook) is automatically included.
+            hooks: Optional custom hooks to merge with built-in hooks.
+                Built-in hooks (metrics, logging, latency) are automatically included.
         """
         self.workspace_name = workspace_name
         self._method_configs = method_configs or {}
-
-        # Build hooks list: always include built-in hooks
-        self._pre_hooks: list[Callable[[SlackApiCallContext], None]] = [
-            _metrics_hook,
-            _latency_start_hook,
-            _request_log_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[SlackApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[SlackApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
-
         self._sc = WebClient(
             token=token,
             timeout=timeout,
@@ -197,6 +185,11 @@ class SlackApi:
             ],
         )
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="users.list", verb="GET", workspace=self.workspace_name
+        )
+    )
     def users_list(self) -> list[SlackUser]:
         """Fetch all users from Slack API.
 
@@ -212,17 +205,7 @@ class SlackApi:
             additional_kwargs.update(method_config)
 
         while True:
-            with invoke_with_hooks(
-                SlackApiCallContext(
-                    method="users.list",
-                    verb="GET",
-                    workspace=self.workspace_name,
-                ),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                result = self._sc.api_call("users.list", params=additional_kwargs)
+            result = self._sc.api_call("users.list", params=additional_kwargs)
 
             users.extend(SlackUser(**user_data) for user_data in result["members"])
 
@@ -234,6 +217,11 @@ class SlackApi:
 
         return users
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="usergroups.list", verb="GET", workspace=self.workspace_name
+        )
+    )
     def usergroups_list(self, *, include_users: bool = True) -> list[SlackUsergroup]:
         """Fetch all usergroups from Slack API.
 
@@ -243,21 +231,16 @@ class SlackApi:
         Returns:
             List of SlackUsergroup objects with typed Pydantic models
         """
-        with invoke_with_hooks(
-            SlackApiCallContext(
-                method="usergroups.list",
-                verb="GET",
-                workspace=self.workspace_name,
-            ),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            result = self._sc.usergroups_list(
-                include_users=include_users, include_disabled=True
-            )
+        result = self._sc.usergroups_list(
+            include_users=include_users, include_disabled=True
+        )
         return [SlackUsergroup(**ug) for ug in result["usergroups"]]
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="usergroups.create", verb="POST", workspace=self.workspace_name
+        )
+    )
     def usergroup_create(
         self, *, handle: str, name: str | None = None
     ) -> SlackUsergroup:
@@ -270,19 +253,14 @@ class SlackApi:
         Returns:
             Created SlackUsergroup object
         """
-        with invoke_with_hooks(
-            SlackApiCallContext(
-                method="usergroups.create",
-                verb="POST",
-                workspace=self.workspace_name,
-            ),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            response = self._sc.usergroups_create(name=name or handle, handle=handle)
+        response = self._sc.usergroups_create(name=name or handle, handle=handle)
         return SlackUsergroup(**response["usergroup"])
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="usergroups.enable", verb="POST", workspace=self.workspace_name
+        )
+    )
     def usergroup_enable(self, *, usergroup_id: str) -> SlackUsergroup:
         """Enable a usergroup.
 
@@ -292,19 +270,14 @@ class SlackApi:
         Returns:
             Updated SlackUsergroup object
         """
-        with invoke_with_hooks(
-            SlackApiCallContext(
-                method="usergroups.enable",
-                verb="POST",
-                workspace=self.workspace_name,
-            ),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            response = self._sc.usergroups_enable(usergroup=usergroup_id)
+        response = self._sc.usergroups_enable(usergroup=usergroup_id)
         return SlackUsergroup(**response["usergroup"])
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="usergroups.disable", verb="POST", workspace=self.workspace_name
+        )
+    )
     def usergroup_disable(self, *, usergroup_id: str) -> SlackUsergroup:
         """Disable a usergroup.
 
@@ -314,19 +287,14 @@ class SlackApi:
         Returns:
             Updated SlackUsergroup object
         """
-        with invoke_with_hooks(
-            SlackApiCallContext(
-                method="usergroups.disable",
-                verb="POST",
-                workspace=self.workspace_name,
-            ),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            response = self._sc.usergroups_disable(usergroup=usergroup_id)
+        response = self._sc.usergroups_disable(usergroup=usergroup_id)
         return SlackUsergroup(**response["usergroup"])
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="usergroups.update", verb="POST", workspace=self.workspace_name
+        )
+    )
     def usergroup_update(
         self,
         *,
@@ -346,24 +314,21 @@ class SlackApi:
         Returns:
             Updated SlackUsergroup object
         """
-        with invoke_with_hooks(
-            SlackApiCallContext(
-                method="usergroups.update",
-                verb="POST",
-                workspace=self.workspace_name,
-            ),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            response = self._sc.usergroups_update(
-                usergroup=usergroup_id,
-                name=name,
-                description=description,
-                channels=channel_ids,
-            )
+        response = self._sc.usergroups_update(
+            usergroup=usergroup_id,
+            name=name,
+            description=description,
+            channels=channel_ids,
+        )
         return SlackUsergroup(**response["usergroup"])
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="usergroups.users.update",
+            verb="POST",
+            workspace=self.workspace_name,
+        )
+    )
     def usergroup_users_update(
         self,
         *,
@@ -379,21 +344,16 @@ class SlackApi:
         Returns:
             Updated SlackUsergroup object
         """
-        with invoke_with_hooks(
-            SlackApiCallContext(
-                method="usergroups.users.update",
-                verb="POST",
-                workspace=self.workspace_name,
-            ),
-            pre_hooks=self._pre_hooks,
-            post_hooks=self._post_hooks,
-            error_hooks=self._error_hooks,
-        ):
-            response = self._sc.usergroups_users_update(
-                usergroup=usergroup_id, users=user_ids
-            )
+        response = self._sc.usergroups_users_update(
+            usergroup=usergroup_id, users=user_ids
+        )
         return SlackUsergroup(**response["usergroup"])
 
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="conversations.list", verb="GET", workspace=self.workspace_name
+        )
+    )
     def conversations_list(self) -> list[SlackChannel]:
         """Fetch all conversations (channels) from Slack API.
 
@@ -409,19 +369,7 @@ class SlackApi:
             additional_kwargs.update(method_config)
 
         while True:
-            with invoke_with_hooks(
-                SlackApiCallContext(
-                    method="conversations.list",
-                    verb="GET",
-                    workspace=self.workspace_name,
-                ),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                result = self._sc.api_call(
-                    "conversations.list", params=additional_kwargs
-                )
+            result = self._sc.api_call("conversations.list", params=additional_kwargs)
 
             channels.extend(
                 SlackChannel(**channel_data) for channel_data in result["channels"]

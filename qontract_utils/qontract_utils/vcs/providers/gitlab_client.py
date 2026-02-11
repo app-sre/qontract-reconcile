@@ -2,7 +2,6 @@
 
 import contextvars
 import time
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import gitlab
@@ -10,7 +9,7 @@ import structlog
 from gitlab.v4.objects import Project
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 
 logger = structlog.get_logger(__name__)
 
@@ -75,6 +74,16 @@ def _request_log_hook(context: GitLabApiCallContext) -> None:
     logger.debug("API request", method=context.method, repo_url=context.repo_url)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class GitLabRepoApi:
     """GitLab Repository API client with hook system.
 
@@ -83,8 +92,12 @@ class GitLabRepoApi:
         token: GitLab personal access token
         gitlab_url: GitLab instance URL (default: https://gitlab.com)
         timeout: Request timeout in seconds
-        pre_hooks: List of hooks called before each API call
+        hooks: Optional custom hooks to merge with built-in hooks.
+            Built-in hooks (metrics, logging, latency) are automatically included.
     """
+
+    # Set by @with_hooks decorator
+    _hooks: Hooks
 
     def __init__(
         self,
@@ -92,29 +105,11 @@ class GitLabRepoApi:
         token: str,
         gitlab_url: str,
         timeout: int = 30,
-        pre_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[GitLabApiCallContext], None]] | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
         self._timeout = timeout
-        # Setup hook system - always include built-in hooks
-        self._pre_hooks: list[Callable[[GitLabApiCallContext], None]] = [
-            _metrics_hook,
-            _latency_start_hook,
-            _request_log_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[GitLabApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[GitLabApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
 
         # Create GitLab client
         self._gitlab = gitlab.Gitlab(
@@ -124,6 +119,9 @@ class GitLabRepoApi:
         )
         self._project: Project = self._gitlab.projects.get(project_id)
 
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(method="get_file", repo_url=self.repo_url)
+    )
     def get_file(self, path: str, ref: str = "master") -> str | None:
         """Fetch file content from repository.
 
@@ -135,13 +133,7 @@ class GitLabRepoApi:
             File content as string, or None if file not found
         """
         try:
-            with invoke_with_hooks(
-                GitLabApiCallContext(method="get_file", repo_url=self.repo_url),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                file = self._project.files.get(file_path=path, ref=ref)
+            file = self._project.files.get(file_path=path, ref=ref)
             return file.decode().decode("utf-8")
         except Exception:  # noqa: BLE001
             # File not found or other error - python-gitlab can raise various exceptions

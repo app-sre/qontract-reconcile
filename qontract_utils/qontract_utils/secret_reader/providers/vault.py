@@ -14,7 +14,6 @@ import contextvars
 import pathlib
 import threading
 import time
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -24,7 +23,7 @@ from hvac.exceptions import Forbidden, InvalidPath
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
 
-from qontract_utils.hooks import invoke_with_hooks
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.secret_reader.base import (
     Secret,
     SecretAccessForbiddenError,
@@ -122,6 +121,16 @@ def _request_log_hook(context: VaultApiCallContext) -> None:
     logger.debug("API request", method=context.method)
 
 
+@with_hooks(
+    hooks=Hooks(
+        pre_hooks=[
+            _metrics_hook,
+            _request_log_hook,
+            _latency_start_hook,
+        ],
+        post_hooks=[_latency_end_hook],
+    )
+)
 class VaultSecretBackend(SecretBackend):
     """HashiCorp Vault secret backend using python-hvac.
 
@@ -131,13 +140,9 @@ class VaultSecretBackend(SecretBackend):
     Reads from Vault KV v2 secrets engine with version support.
 
     Args:
-        server: Vault server URL (e.g., "https://vault.example.com")
-        role_id: AppRole role_id (required for AppRole auth)
-        secret_id: AppRole secret_id (required for AppRole auth)
-        kube_auth_role: Kubernetes auth role (required for K8s auth)
-        kube_auth_mount: Kubernetes auth mount point (default: "kubernetes")
-        kube_sa_token_path: Path to K8s service account token
-        auto_refresh: Enable auto-refresh of auth token (default: True)
+        settings: Vault secret backend settings
+        hooks: Optional custom hooks to merge with built-in hooks.
+            Built-in hooks (metrics, logging, latency) are automatically included.
 
     Raises:
         ValueError: If neither AppRole nor K8s auth credentials provided
@@ -146,15 +151,19 @@ class VaultSecretBackend(SecretBackend):
     Example:
         # AppRole auth
         backend = VaultSecretBackend(
-            server="https://vault.example.com",
-            role_id="my-role-id",
-            secret_id="my-secret-id",
+            settings=VaultSecretBackendSettings(
+                server="https://vault.example.com",
+                role_id="my-role-id",
+                secret_id="my-secret-id",
+            )
         )
 
         # Kubernetes auth
         backend = VaultSecretBackend(
-            server="https://vault.example.com",
-            kube_auth_role="qontract-api",
+            settings=VaultSecretBackendSettings(
+                server="https://vault.example.com",
+                kube_auth_role="qontract-api",
+            )
         )
 
         # Read secret
@@ -167,17 +176,19 @@ class VaultSecretBackend(SecretBackend):
         access_key = backend.read("aws/account1/creds", field="access_key_id")
     """
 
+    # Set by @with_hooks decorator
+    _hooks: Hooks
+
     def __init__(
         self,
         settings: VaultSecretBackendSettings,
-        pre_hooks: Iterable[Callable[[VaultApiCallContext], None]] | None = None,
-        post_hooks: Iterable[Callable[[VaultApiCallContext], None]] | None = None,
-        error_hooks: Iterable[Callable[[VaultApiCallContext], None]] | None = None,
+        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
         """Initialize Vault secret backend.
 
         Args:
             settings: Vault secret backend settings
+            hooks: Optional custom hooks to merge with built-in hooks
         """
         self._settings = settings
         self._client = hvac.Client(url=settings.server)
@@ -185,23 +196,6 @@ class VaultSecretBackend(SecretBackend):
         self._auth_lock = threading.Lock()  # Lock for authentication operations
         self._closed = False
         self._refresh_interval = 300  # 5 minutes
-
-        # Setup hook system - always include built-in hooks
-        self._pre_hooks: list[Callable[[VaultApiCallContext], None]] = [
-            _metrics_hook,
-            _latency_start_hook,
-            _request_log_hook,
-        ]
-        if pre_hooks:
-            self._pre_hooks.extend(pre_hooks)
-        self._post_hooks: list[Callable[[VaultApiCallContext], None]] = [
-            _latency_end_hook
-        ]
-        if post_hooks:
-            self._post_hooks.extend(post_hooks)
-        self._error_hooks: list[Callable[[VaultApiCallContext], None]] = []
-        if error_hooks:
-            self._error_hooks.extend(error_hooks)
 
         # Initial authentication
         self._authenticate()
@@ -218,6 +212,31 @@ class VaultSecretBackend(SecretBackend):
         """Vault server URL."""
         return self._settings.server
 
+    @invoke_with_hooks(
+        lambda self: VaultApiCallContext(
+            method="auth.approle.login", id=self._settings.server
+        )
+    )
+    def _approle_login(self) -> None:
+        """Perform AppRole authentication API call."""
+        self._client.auth.approle.login(
+            role_id=self._settings.role_id,
+            secret_id=self._settings.secret_id,
+        )
+
+    @invoke_with_hooks(
+        lambda self: VaultApiCallContext(
+            method="auth.kubernetes.login", id=self._settings.server
+        )
+    )
+    def _kube_login(self, jwt: str) -> None:
+        """Perform Kubernetes authentication API call."""
+        self._client.auth.kubernetes.login(
+            role=self._settings.kube_auth_role,
+            jwt=jwt,
+            mount_point=self._settings.kube_auth_mount,
+        )
+
     def _authenticate(self) -> None:
         """Authenticate with Vault using AppRole or Kubernetes auth.
 
@@ -228,37 +247,14 @@ class VaultSecretBackend(SecretBackend):
         if self._settings.role_id and self._settings.secret_id:
             # AppRole authentication
             logger.debug("Authenticating to Vault using AppRole")
-            with invoke_with_hooks(
-                VaultApiCallContext(
-                    method="auth.approle.login", id=self._settings.server
-                ),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                self._client.auth.approle.login(
-                    role_id=self._settings.role_id,
-                    secret_id=self._settings.secret_id,
-                )
+            self._approle_login()
         elif self._settings.kube_auth_role:
             # Kubernetes authentication
             logger.debug("Authenticating to Vault using Kubernetes auth")
             jwt = pathlib.Path(self._settings.kube_sa_token_path).read_text(
                 encoding="utf-8"
             )
-            with invoke_with_hooks(
-                VaultApiCallContext(
-                    method="auth.kubernetes.login", id=self._settings.server
-                ),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                self._client.auth.kubernetes.login(
-                    role=self._settings.kube_auth_role,
-                    jwt=jwt,
-                    mount_point=self._settings.kube_auth_mount,
-                )
+            self._kube_login(jwt)
         else:
             msg = (
                 "Must provide either AppRole credentials (role_id + secret_id) "
@@ -271,6 +267,21 @@ class VaultSecretBackend(SecretBackend):
             raise SecretBackendError("Vault authentication failed")
 
         logger.info("Successfully authenticated to Vault")
+
+    @invoke_with_hooks(
+        lambda self: VaultApiCallContext(
+            method="secrets.kv.v2.read_configuration", id=self._settings.server
+        ),
+        retry_config=NO_RETRY_CONFIG,
+    )
+    def _read_kv_config(self, mount_point: str) -> None:
+        """Read KV v2 configuration API call.
+
+        Note: This method intentionally uses NO_RETRY_CONFIG because it's used for
+        KV version detection via try/except. Any exception (InvalidPath, Forbidden, etc.)
+        indicates KV v1, so retries would be counterproductive.
+        """
+        self._client.secrets.kv.v2.read_configuration(mount_point)
 
     def _compile_vault_secret(self, path: str) -> VaultSecret:
         """Compile a VaultSecret object from the given secret path."""
@@ -287,15 +298,7 @@ class VaultSecretBackend(SecretBackend):
         # If this succeeds, it's a KV v2 engine
         # If it fails (any exception), assume KV v1
         try:
-            with invoke_with_hooks(
-                VaultApiCallContext(
-                    method="secrets.kv.v2.read_configuration", id=self._settings.server
-                ),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                self._client.secrets.kv.v2.read_configuration(mount_point)
+            self._read_kv_config(mount_point)
             kv_version = KV_VERSION_2
         except Exception:  # noqa: BLE001
             # Broad exception catch is intentional here:
@@ -380,6 +383,35 @@ class VaultSecretBackend(SecretBackend):
         )
         raise ValueError(msg)
 
+    @invoke_with_hooks(
+        lambda self: VaultApiCallContext(
+            method="secrets.kv.v2.read_secret_version",
+            id=self._settings.server,
+        )
+    )
+    def _read_kv_v2_secret(
+        self, path: str, mount_point: str, version: int | None
+    ) -> dict[str, Any]:
+        """Read KV v2 secret API call."""
+        response = self._client.secrets.kv.v2.read_secret_version(
+            path=path,
+            mount_point=mount_point,
+            version=version,
+        )
+        return response["data"]["data"]
+
+    @invoke_with_hooks(
+        lambda self: VaultApiCallContext(
+            method="secrets.kv.v1.read_secret", id=self._settings.server
+        )
+    )
+    def _read_kv_v1_secret(self, path: str, mount_point: str) -> dict[str, Any]:
+        """Read KV v1 secret API call."""
+        response = self._client.secrets.kv.v1.read_secret(
+            path=path, mount_point=mount_point
+        )
+        return response["data"]
+
     def read_all(self, secret: Secret) -> dict[str, Any]:
         """Read all fields from Vault secret.
 
@@ -414,37 +446,14 @@ class VaultSecretBackend(SecretBackend):
         # hvac.Client is thread-safe for authenticated operations
         try:
             if vault_secret.kv_version == KV_VERSION_2:
-                with invoke_with_hooks(
-                    VaultApiCallContext(
-                        method="secrets.kv.v2.read_secret_version",
-                        id=self._settings.server,
-                    ),
-                    pre_hooks=self._pre_hooks,
-                    post_hooks=self._post_hooks,
-                    error_hooks=self._error_hooks,
-                ):
-                    response = self._client.secrets.kv.v2.read_secret_version(
-                        path=vault_secret.read_path,
-                        mount_point=vault_secret.mount_point,
-                        version=secret.version,
-                    )
-
-                return response["data"]["data"]
-
-            # KV v1 - no versioning support
-            with invoke_with_hooks(
-                VaultApiCallContext(
-                    method="secrets.kv.v1.read_secret", id=self._settings.server
-                ),
-                pre_hooks=self._pre_hooks,
-                post_hooks=self._post_hooks,
-                error_hooks=self._error_hooks,
-            ):
-                response = self._client.secrets.kv.v1.read_secret(
-                    path=vault_secret.read_path, mount_point=vault_secret.mount_point
+                return self._read_kv_v2_secret(
+                    vault_secret.read_path, vault_secret.mount_point, secret.version
                 )
 
-            return response["data"]
+            # KV v1 - no versioning support
+            return self._read_kv_v1_secret(
+                vault_secret.read_path, vault_secret.mount_point
+            )
         except InvalidPath as e:
             raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
         except Forbidden as e:
