@@ -136,7 +136,7 @@ class Hooks(BaseModel, frozen=True):
     post_hooks: list[Callable[..., None]] = Field(default_factory=list)
     error_hooks: list[Callable[..., None]] = Field(default_factory=list)
     retry_hooks: list[Callable[..., None]] = Field(default_factory=list)
-    retry_config: RetryConfig | None = NO_RETRY_CONFIG
+    retry_config: RetryConfig | None = None
 
     def with_context(self, context: Any) -> Self:
         """Set context for hook execution.
@@ -241,9 +241,9 @@ def with_hooks(*, hooks: Hooks | None = None) -> Callable[[type], type]:
             merged_hooks = Hooks(
                 pre_hooks=[*decorator_hooks.pre_hooks, *user_hooks.pre_hooks],
                 post_hooks=[*decorator_hooks.post_hooks, *user_hooks.post_hooks],
-                error_hooks=user_hooks.error_hooks,
-                retry_hooks=user_hooks.retry_hooks,
-                retry_config=user_hooks.retry_config,
+                error_hooks=[*decorator_hooks.error_hooks, *user_hooks.error_hooks],
+                retry_hooks=[*decorator_hooks.retry_hooks, *user_hooks.retry_hooks],
+                retry_config=user_hooks.retry_config or decorator_hooks.retry_config,
             )
 
             # Set _hooks on instance

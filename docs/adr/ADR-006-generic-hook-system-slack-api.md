@@ -68,7 +68,7 @@ class Hooks(BaseModel, frozen=True):
     post_hooks: list[Callable[..., None]] = Field(default_factory=list)
     error_hooks: list[Callable[..., None]] = Field(default_factory=list)
     retry_hooks: list[Callable[..., None]] = Field(default_factory=list)
-    retry_config: RetryConfig | None = DEFAULT_RETRY_CONFIG
+    retry_config: RetryConfig | None = None # No retries by default
 ```
 
 **Why Hooks Dataclass:**
