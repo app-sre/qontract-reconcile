@@ -9,6 +9,7 @@ from typing import Any, NoReturn
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from hvac import adapters
 from hvac.exceptions import Forbidden, InvalidPath
 from pydantic import BaseModel
 from qontract_utils.hooks import Hooks
@@ -67,7 +68,7 @@ class TestVaultSecretBackendAuthentication:
 
             backend = VaultSecretBackend(approle_settings)
 
-            mock_client_class.assert_called_once_with(url="https://vault.test")
+            mock_client_class.assert_called_once_with(url="https://vault.test", adapter=adapters.RawAdapter)
             mock_client.auth.approle.login.assert_called_once_with(
                 role_id="test-role-id",
                 secret_id="test-secret-id",
@@ -90,7 +91,7 @@ class TestVaultSecretBackendAuthentication:
 
             backend = VaultSecretBackend(kube_settings)
 
-            mock_client_class.assert_called_once_with(url="https://vault.test")
+            mock_client_class.assert_called_once_with(url="https://vault.test", adapter=adapters.RawAdapter)
             mock_client.auth.kubernetes.login.assert_called_once_with(
                 role="test-kube-role",
                 jwt=mock_jwt_token,
