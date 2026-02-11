@@ -22,6 +22,15 @@ class SupportPlan(Enum):
     ENTERPRISE = "enterprise"
 
 
+SEVERITY_LEVEL_SUPPORT_PLANS = [
+    ("critical", SupportPlan.ENTERPRISE),
+    ("urgent", SupportPlan.BUSINESS),
+    ("high", SupportPlan.BUSINESS),
+    ("normal", SupportPlan.DEVELOPER),
+    ("low", SupportPlan.DEVELOPER),
+]
+
+
 class AWSApiSupport:
     def __init__(self, client: SupportClient) -> None:
         self.client = client
@@ -65,12 +74,12 @@ class AWSApiSupport:
         severity_levels = {
             level["code"].lower() for level in response["severityLevels"]
         }
-        match severity_levels:
-            case s if "critical" in s:
-                return SupportPlan.ENTERPRISE
-            case s if s & {"urgent", "high"}:
-                return SupportPlan.BUSINESS
-            case s if s & {"normal", "low"}:
-                return SupportPlan.DEVELOPER
-            case _:
-                return SupportPlan.BASIC
+
+        return next(
+            (
+                support_plan
+                for (severity_level, support_plan) in SEVERITY_LEVEL_SUPPORT_PLANS
+                if severity_level in severity_levels
+            ),
+            SupportPlan.BASIC,
+        )
