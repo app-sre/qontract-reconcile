@@ -18,11 +18,14 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from cachetools import TTLCache
 from pydantic import BaseModel
 from qontract_utils.json_utils import json_dumps, json_loads
+
+if TYPE_CHECKING:
+    from redis import Redis
 
 from qontract_api.logger import get_logger
 
@@ -227,6 +230,11 @@ class CacheBackend(ABC):
     def close(self) -> None:
         """Close cache connection and cleanup resources."""
         ...
+
+    @property
+    def redis_client(self) -> "Redis":
+        """Return the underlying Redis client. Only available for Redis-backed caches."""
+        raise NotImplementedError
 
     def clear_memory_cache(self) -> None:
         """Clear in-memory cache (Tier 1).

@@ -1289,6 +1289,53 @@ def gitlab_mr_sqs_consumer(ctx: click.Context, gitlab_project_id: str) -> None:
     run_integration(reconcile.gitlab_mr_sqs_consumer, ctx, gitlab_project_id)
 
 
+@integration.command(short_help="Log events to stdout.")
+@click.option(
+    "--redis-url-secret-path",
+    default="",
+    help="Vault secret path containing the Redis URL",
+)
+@click.option(
+    "--redis-url",
+    default=None,
+    help="Redis URL. Instead of vault secret path for testing purposes.",
+)
+@click.option(
+    "--use-ssl/--no-use-ssl", default=True, help="Use SSL for Redis connection."
+)
+@click.option("--stream-key", default="qontract:events", help="Redis Stream key")
+@click.option("--consumer-group", default="event-log-sink", help="Consumer group name")
+@click.option("--consumer-name", default="default", help="Consumer name")
+@click.pass_context
+def event_log_sink(
+    ctx: click.Context,
+    redis_url_secret_path: str,
+    redis_url: str | None,
+    use_ssl: bool,
+    stream_key: str,
+    consumer_group: str,
+    consumer_name: str,
+) -> None:
+    from reconcile.event_log_sink.integration import (
+        EventLogSinkIntegration,
+        EventLogSinkParams,
+    )
+
+    run_class_integration(
+        integration=EventLogSinkIntegration(
+            EventLogSinkParams(
+                redis_url_secret_path=redis_url_secret_path,
+                redis_url=redis_url,
+                redis_ssl=use_ssl,
+                stream_key=stream_key,
+                consumer_group=consumer_group,
+                consumer_name=consumer_name,
+            )
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Delete IAM access keys by access key ID.")
 @threaded()
 @account_name

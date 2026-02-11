@@ -219,6 +219,19 @@ class SecretSettings(BaseModel):
     )
 
 
+class EventSettings(BaseModel):
+    """Event publishing configuration."""
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable event publishing via Redis Streams",
+    )
+    stream_key: str = Field(
+        default="qontract:events",
+        description="Redis Stream key for event publishing",
+    )
+
+
 class Settings(BaseSettings):
     """Application settings from environment variables."""
 
@@ -355,6 +368,12 @@ class Settings(BaseSettings):
     secrets: SecretSettings = Field(
         default_factory=SecretSettings,
         description="Secret backend configuration (Vault, AWS KMS, Google)",
+    )
+
+    # Event Publishing Configuration (nested)
+    events: EventSettings = Field(
+        default_factory=EventSettings,
+        description="Event publishing configuration",
     )
 
     @field_validator("sentry_event_level", mode="after")

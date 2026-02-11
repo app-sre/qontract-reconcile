@@ -50,7 +50,6 @@ ENV \
     # bypass dynamic versioning (git not available)
     UV_DYNAMIC_VERSIONING_BYPASS="0.1.0"
 
-COPY --from=base --chown=1001:root $APP_ROOT $APP_ROOT
 COPY --chown=1001:root qontract_api qontract_api
 COPY --chown=1001:root qontract_api_client qontract_api_client
 COPY --chown=1001:root qontract_utils qontract_utils
