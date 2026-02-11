@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from qontract_api.auth import decode_token
 from qontract_api.cache.base import CacheBackend
+from qontract_api.event_manager import EventManager
 from qontract_api.models import User
 from qontract_api.secret_manager import SecretManager
 
@@ -69,7 +70,16 @@ def get_secret_manager(request: Request) -> SecretManager:
     return secret_manager
 
 
+def get_event_manager(request: Request) -> EventManager | None:
+    """Get event manager from app state.
+
+    Returns None if event publishing is disabled.
+    """
+    return getattr(request.app.state, "event_manager", None)
+
+
 # Type aliases for dependency injection
 CacheDep = Annotated[CacheBackend, Depends(get_cache)]
 UserDep = Annotated[User, Depends(get_current_user)]
 SecretManagerDep = Annotated[SecretManager, Depends(get_secret_manager)]
+EventManagerDep = Annotated[EventManager | None, Depends(get_event_manager)]

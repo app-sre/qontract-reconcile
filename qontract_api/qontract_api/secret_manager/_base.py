@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from typing import Any
 
 from qontract_utils.secret_reader import Secret, SecretBackend
 
@@ -27,6 +28,10 @@ class SecretManager:
             # TODO : TTL from config
             self.cache.set(cache_key, value, 5)
         return value
+
+    def read_all(self, secret: Secret) -> dict[str, Any]:
+        """Read all fields from a secret path."""
+        return self.secret_backends[secret.url].read_all(secret)
 
     def close(self) -> None:
         for secret_backend in self.secret_backends.values():

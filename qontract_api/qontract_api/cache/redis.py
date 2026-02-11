@@ -112,6 +112,11 @@ class RedisCacheBackend(CacheBackend):
         """
         self.client.close()
 
+    @property
+    def redis_client(self) -> Redis:
+        """Return the underlying Redis client."""
+        return self.client
+
     @contextmanager
     def lock(self, key: str, timeout: float = 300) -> Generator[None, None, None]:
         """Distributed lock using Valkey's native lock (Lua scripts + watch-dog).
