@@ -19,6 +19,7 @@ from typing import Any
 
 import hvac
 import structlog
+from hvac import adapters
 from hvac.exceptions import Forbidden, InvalidPath
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
@@ -191,7 +192,7 @@ class VaultSecretBackend(SecretBackend):
             hooks: Optional custom hooks to merge with built-in hooks
         """
         self._settings = settings
-        self._client = hvac.Client(url=settings.server)
+        self._client = hvac.Client(url=settings.server, adapter=adapters.RawAdapter)
         self._kv_version_cache: dict[str, int] = {}  # Cache KV version per mount point
         self._auth_lock = threading.Lock()  # Lock for authentication operations
         self._closed = False
@@ -398,7 +399,7 @@ class VaultSecretBackend(SecretBackend):
             mount_point=mount_point,
             version=version,
         )
-        return response["data"]["data"]
+        return response.json()["data"]["data"]
 
     @invoke_with_hooks(
         lambda self: VaultApiCallContext(
@@ -410,7 +411,7 @@ class VaultSecretBackend(SecretBackend):
         response = self._client.secrets.kv.v1.read_secret(
             path=path, mount_point=mount_point
         )
-        return response["data"]
+        return response.json()["data"]
 
     def read_all(self, secret: Secret) -> dict[str, Any]:
         """Read all fields from Vault secret.
