@@ -5,8 +5,7 @@ import pytest
 from mypy_boto3_iam import IAMClient
 from mypy_boto3_iam.type_defs import ListAccountAliasesResponseTypeDef
 from pytest_mock import MockerFixture
-
-from reconcile.utils.aws_api_typed.iam import AWSApiIam
+from qontract_utils.aws_api_typed.iam import AWSApiIam
 
 
 @pytest.fixture

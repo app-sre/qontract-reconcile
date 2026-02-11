@@ -1,6 +1,5 @@
 import pytest
-
-from reconcile.utils.aws_api_typed.api import (
+from qontract_utils.aws_api_typed.api import (
     AWSStaticCredentials,
     AWSTemporaryCredentials,
 )

@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
-from reconcile.utils.aws_api_typed.s3 import AWSApiS3
+from qontract_utils.aws_api_typed.s3 import AWSApiS3
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock

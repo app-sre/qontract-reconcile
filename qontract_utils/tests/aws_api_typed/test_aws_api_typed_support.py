@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
-from reconcile.utils.aws_api_typed.support import AWSApiSupport, SupportPlan
+from qontract_utils.aws_api_typed.support import AWSApiSupport, SupportPlan
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -73,7 +72,7 @@ def test_aws_api_typed_support_create_case(
 
 
 @pytest.mark.parametrize(
-    "security_levels, expected_support_level",
+    ("security_levels", "expected_support_level"),
     [
         ([{"code": "Low"}], SupportPlan.DEVELOPER),
         ([{"code": "Low"}, {"code": "Normal"}], SupportPlan.DEVELOPER),

@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
-from reconcile.utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
+from qontract_utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock

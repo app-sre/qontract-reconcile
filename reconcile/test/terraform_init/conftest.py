@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
+from qontract_utils.aws_api_typed.api import AWSApi
 
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
     ExternalResourcesSettingsV1,
@@ -15,7 +16,6 @@ from reconcile.terraform_init.integration import (
 )
 from reconcile.terraform_init.merge_request_manager import MergeRequestManager
 from reconcile.test.fixtures import Fixtures
-from reconcile.utils.aws_api_typed.api import AWSApi
 
 
 @pytest.fixture

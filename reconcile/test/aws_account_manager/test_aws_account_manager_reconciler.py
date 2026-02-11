@@ -14,6 +14,20 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
 
+from qontract_utils.aws_api_typed.iam import (
+    AWSAccessKey,
+    AWSEntityAlreadyExistsError,
+)
+from qontract_utils.aws_api_typed.organization import (
+    AWSAccountStatus,
+    AwsOrganizationOU,
+)
+from qontract_utils.aws_api_typed.service_quotas import (
+    AWSQuota,
+    AWSRequestedServiceQuotaChange,
+)
+from qontract_utils.aws_api_typed.support import AWSCase, SupportPlan
+
 from reconcile.aws_account_manager.reconciler import (
     TASK_ACCOUNT_ALIAS,
     TASK_CHECK_ENTERPRISE_SUPPORT_STATUS,
@@ -33,19 +47,6 @@ from reconcile.gql_definitions.fragments.aws_account_managed import (
     AWSContactV1,
     AWSQuotaV1,
 )
-from reconcile.utils.aws_api_typed.iam import (
-    AWSAccessKey,
-    AWSEntityAlreadyExistsError,
-)
-from reconcile.utils.aws_api_typed.organization import (
-    AWSAccountStatus,
-    AwsOrganizationOU,
-)
-from reconcile.utils.aws_api_typed.service_quotas import (
-    AWSQuota,
-    AWSRequestedServiceQuotaChange,
-)
-from reconcile.utils.aws_api_typed.support import AWSCase, SupportPlan
 from reconcile.utils.state import State
 
 

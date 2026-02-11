@@ -4,8 +4,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
-
-from reconcile.utils.aws_api_typed.sts import AWSApiSts
+from qontract_utils.aws_api_typed.sts import AWSApiSts
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock

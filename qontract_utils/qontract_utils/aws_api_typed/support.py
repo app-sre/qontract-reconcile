@@ -22,6 +22,15 @@ class SupportPlan(Enum):
     ENTERPRISE = "enterprise"
 
 
+SEVERITY_LEVEL_SUPPORT_PLANS = [
+    ("critical", SupportPlan.ENTERPRISE),
+    ("urgent", SupportPlan.BUSINESS),
+    ("high", SupportPlan.BUSINESS),
+    ("normal", SupportPlan.DEVELOPER),
+    ("low", SupportPlan.DEVELOPER),
+]
+
+
 class AWSApiSupport:
     def __init__(self, client: SupportClient) -> None:
         self.client = client
@@ -55,25 +64,22 @@ class AWSApiSupport:
 
     def get_support_level(self) -> SupportPlan:
         """Return the support level of the account."""
-
         try:
             response = self.client.describe_severity_levels(language="en")
         except self.client.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "SubscriptionRequiredException":
                 return SupportPlan.BASIC
-            raise err
+            raise
 
         severity_levels = {
             level["code"].lower() for level in response["severityLevels"]
         }
-        if "critical" in severity_levels:
-            return SupportPlan.ENTERPRISE
-        if "urgent" in severity_levels:
-            return SupportPlan.BUSINESS
-        if "high" in severity_levels:
-            return SupportPlan.BUSINESS
-        if "normal" in severity_levels:
-            return SupportPlan.DEVELOPER
-        if "low" in severity_levels:
-            return SupportPlan.DEVELOPER
-        return SupportPlan.BASIC
+
+        return next(
+            (
+                support_plan
+                for (severity_level, support_plan) in SEVERITY_LEVEL_SUPPORT_PLANS
+                if severity_level in severity_levels
+            ),
+            SupportPlan.BASIC,
+        )

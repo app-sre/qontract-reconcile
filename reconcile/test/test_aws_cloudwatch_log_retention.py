@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, call, create_autospec
 
 import pytest
 from botocore.exceptions import ClientError
+from qontract_utils.aws_api_typed.api import AWSStaticCredentials
 
 from reconcile.aws_cloudwatch_log_retention.integration import (
     get_desired_cleanup_options_by_region,
@@ -20,7 +21,6 @@ from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import 
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
     ExternalResourcesSettingsV1,
 )
-from reconcile.utils.aws_api_typed.api import AWSStaticCredentials
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.state import State

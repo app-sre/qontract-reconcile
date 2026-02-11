@@ -21,5 +21,5 @@ class AWSApiS3:
                     "LocationConstraint": region,
                 },
             }
-        self.client.create_bucket(Bucket=name, **bucket_kwargs)  # type: ignore
+        self.client.create_bucket(Bucket=name, **bucket_kwargs)  # type: ignore[arg-type]
         return f"arn:aws:s3:::{name}"

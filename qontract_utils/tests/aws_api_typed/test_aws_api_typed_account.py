@@ -4,8 +4,7 @@ import botocore
 import pytest
 from mypy_boto3_account import AccountClient
 from pytest_mock import MockerFixture
-
-from reconcile.utils.aws_api_typed.account import AWSApiAccount, OptStatus, Region
+from qontract_utils.aws_api_typed.account import AWSApiAccount, OptStatus, Region
 
 
 @pytest.fixture

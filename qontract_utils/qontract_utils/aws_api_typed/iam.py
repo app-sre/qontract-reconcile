@@ -64,14 +64,15 @@ class AWSApiIam:
         try:
             self.client.create_account_alias(AccountAlias=account_alias)
         except botocore.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "EntityAlreadyExists":
-                if self.get_account_alias() != account_alias:
-                    raise ValueError(
-                        "Account alias already exists for another AWS account. Choose another one!"
-                    ) from e
-            elif e.response["Error"]["Code"] == "AccessDeniedException":
-                # AccessDeniedException can occur if the user does not have permission to create an account alias.
-                # This can happen if the alias is already set and we don't have permission to change it.
-                # If the existing alias is the one we want, we can ignore the error.
-                if self.get_account_alias() != account_alias:
-                    raise
+            match e.response["Error"]["Code"]:
+                case "EntityAlreadyExists":
+                    if self.get_account_alias() != account_alias:
+                        raise ValueError(
+                            "Account alias already exists for another AWS account. Choose another one!"
+                        ) from e
+                case "AccessDeniedException":
+                    # AccessDeniedException can occur if the user does not have permission to create an account alias.
+                    # This can happen if the alias is already set and we don't have permission to change it.
+                    # If the existing alias is the one we want, we can ignore the error.
+                    if self.get_account_alias() != account_alias:
+                        raise

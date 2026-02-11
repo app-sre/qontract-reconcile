@@ -3,6 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 import jinja2
+from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 
 from reconcile.gql_definitions.terraform_init.aws_accounts import AWSAccountV1
 from reconcile.gql_definitions.terraform_init.aws_accounts import (
@@ -16,7 +17,6 @@ from reconcile.typed_queries.external_resources import get_settings
 from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
-from reconcile.utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.defer import defer
 from reconcile.utils.disabled_integrations import integration_is_enabled

@@ -8,8 +8,7 @@ from mypy_boto3_cloudformation import (
     StackUpdateCompleteWaiter,
 )
 from mypy_boto3_cloudformation.waiter import ChangeSetCreateCompleteWaiter
-
-from reconcile.utils.aws_api_typed.cloudformation import AWSApiCloudFormation
+from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 
 
 @pytest.fixture
@@ -75,10 +74,12 @@ def test_create_stack(
     mock_cloudformation_client.execute_change_set.assert_called_once_with(
         ChangeSetName="test-change-set-arn"
     )
-    mock_cloudformation_client.get_waiter.assert_has_calls([
-        call("change_set_create_complete"),
-        call("stack_create_complete"),
-    ])
+    mock_cloudformation_client.get_waiter.assert_has_calls(
+        [
+            call("change_set_create_complete"),
+            call("stack_create_complete"),
+        ]
+    )
     mock_change_set_create_complete_waiter.wait.assert_called_once_with(
         ChangeSetName="test-change-set-arn"
     )
