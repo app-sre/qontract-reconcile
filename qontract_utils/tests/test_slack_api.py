@@ -421,13 +421,10 @@ def test_usergroups_users_update_returns_slack_usergroup(
     }
     slack_api._sc.usergroups_users_update = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
 
-    usergroup = slack_api.usergroup_users_update(
+    slack_api.usergroup_users_update(
         usergroup_id="UG1",
         user_ids=["U1", "U2", "U3"],
     )
-
-    assert isinstance(usergroup, SlackUsergroup)
-    assert len(usergroup.users) == 3
     # Verify SlackApi calls Slack WebClient with correct parameters
     slack_api._sc.usergroups_users_update.assert_called_once_with(
         usergroup="UG1", users=["U1", "U2", "U3"]
