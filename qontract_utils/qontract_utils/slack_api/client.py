@@ -9,6 +9,7 @@ from typing import Any
 import structlog
 from prometheus_client import Counter, Histogram
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry import (
     ConnectionErrorRetryHandler,
     HttpRequest,
@@ -334,20 +335,20 @@ class SlackApi:
         *,
         usergroup_id: str,
         user_ids: list[str],
-    ) -> SlackUsergroup:
+    ) -> None:
         """Update the list of users for a usergroup.
 
         Args:
             usergroup_id: Encoded usergroup ID
             user_ids: List of encoded user IDs representing the entire list of users for the usergroup
-
-        Returns:
-            Updated SlackUsergroup object
         """
-        response = self._sc.usergroups_users_update(
-            usergroup=usergroup_id, users=user_ids
-        )
-        return SlackUsergroup(**response["usergroup"])
+        try:
+            self._sc.usergroups_users_update(usergroup=usergroup_id, users=user_ids)
+        except SlackApiError as e:
+            # Slack can throw an invalid_users error when emptying groups, but
+            # it will still empty the group (so this can be ignored).
+            if e.response["error"] != "invalid_users":
+                raise
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
