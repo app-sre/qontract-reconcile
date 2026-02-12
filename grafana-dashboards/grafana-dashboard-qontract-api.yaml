@@ -61,16 +61,55 @@ data:
               "color": {
                 "mode": "thresholds"
               },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "area"
+                }
+              },
               "mappings": [],
+              "max": 1,
+              "min": 0.98,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "semi-dark-red"
                   },
                   {
-                    "color": "red",
-                    "value": 80
+                    "color": "yellow",
+                    "value": 0.99
+                  },
+                  {
+                    "color": "green",
+                    "value": 0.995
                   }
                 ]
               },
@@ -80,28 +119,26 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 4,
+            "w": 8,
             "x": 0,
             "y": 1
           },
           "id": 4,
           "interval": "5m",
           "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
+            "legend": {
               "calcs": [
-                "lastNotNull"
+                "last"
               ],
-              "fields": "",
-              "values": false
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
             },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
           },
           "pluginVersion": "11.6.3",
           "targets": [
@@ -111,14 +148,14 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "1 -\nsum(increase(haproxy_backend_http_responses_total{code=\"5xx\", exported_namespace=\"$namespace\"}[$__range]))\n/\nsum(increase(haproxy_backend_http_responses_total{exported_namespace=\"$namespace\"}[$__range]))",
+              "expr": "1 -\nsum(increase(haproxy_backend_http_responses_total{code=\"5xx\", exported_namespace=\"$namespace\"}[$__interval]))\n/\nsum(increase(haproxy_backend_http_responses_total{exported_namespace=\"$namespace\"}[$__interval]))",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
           ],
           "title": "Availability",
-          "type": "stat"
+          "type": "timeseries"
         },
         {
           "datasource": {
@@ -182,8 +219,8 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 13,
-            "x": 4,
+            "w": 8,
+            "x": 8,
             "y": 1
           },
           "id": 6,
@@ -278,8 +315,8 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 7,
-            "x": 17,
+            "w": 8,
+            "x": 16,
             "y": 1
           },
           "id": 8,
@@ -763,8 +800,8 @@ data:
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
@@ -775,7 +812,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "container_memory_working_set_bytes{namespace=\"$namespace\", container=\"api\"}",
+              "expr": "container_memory_working_set_bytes{namespace=\"$namespace\", container=\"api\", pod=~\"$pod\"}",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
@@ -786,7 +823,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", container=\"api\", resource=\"memory\"})",
+              "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", container=\"api\", pod=~\"$pod\", resource=\"memory\"})",
               "hide": false,
               "legendFormat": "Memory Limit",
               "range": true,
@@ -873,8 +910,8 @@ data:
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
@@ -885,7 +922,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "pod:container_cpu_usage:sum{namespace=\"$namespace\", pod=~\"qontract-api-.*\", pod!~\"^qontract-api-worker-.*\"}",
+              "expr": "pod:container_cpu_usage:sum{namespace=\"$namespace\", pod=~\"qontract-api-.*\", pod!~\"^qontract-api-worker-.*\", pod=~\"$pod\"}",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
@@ -971,8 +1008,8 @@ data:
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
@@ -983,7 +1020,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"qontract-api-worker.*\"}",
+              "expr": "container_memory_working_set_bytes{namespace=\"$namespace\", pod=~\"qontract-api-worker.*\", pod=~\"$pod\"}",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
@@ -994,7 +1031,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"qontract-api-worker.*\", resource=\"memory\"})",
+              "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", pod=~\"qontract-api-worker.*\", pod=~\"$pod\", resource=\"memory\"})",
               "hide": false,
               "legendFormat": "Memory Limit",
               "range": true,
@@ -1081,8 +1118,8 @@ data:
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
@@ -1093,7 +1130,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "pod:container_cpu_usage:sum{namespace=\"$namespace\", pod=~\"qontract-api-worker.+\"}",
+              "expr": "pod:container_cpu_usage:sum{namespace=\"$namespace\", pod=~\"qontract-api-worker.+\", pod=~\"$pod\"}",
               "legendFormat": "{{pod}}",
               "range": true,
               "refId": "A"
@@ -1192,8 +1229,8 @@ data:
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
@@ -1206,7 +1243,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=~\"/api/v1/external/$external/.*\"}[5m])))",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\", handler=~\"/api/v1/external/$external/.*\"}[5m])))",
               "legendFormat": "p99 {{handler}}",
               "range": true,
               "refId": "A"
@@ -1217,7 +1254,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=~\"/api/v1/external/$external/.*\"}[5m])))",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\", handler=~\"/api/v1/external/$external/.*\"}[5m])))",
               "hide": false,
               "legendFormat": "p95 {{handler}}",
               "range": true,
@@ -1229,7 +1266,7 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.5, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=~\"/api/v1/external/$external/.*\"}[5m])))",
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\", handler=~\"/api/v1/external/$external/.*\"}[5m])))",
               "hide": false,
               "legendFormat": "p50 {{handler}}",
               "range": true,
@@ -1240,430 +1277,73 @@ data:
           "type": "timeseries"
         },
         {
-          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
           "gridPos": {
-            "h": 1,
+            "h": 8,
             "w": 24,
             "x": 0,
             "y": 44
           },
-          "id": 12,
-          "panels": [],
-          "repeat": "integration",
-          "title": "$integration Integration",
-          "type": "row"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "description": "Rate of applied actions for qontract-api worker tasks",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "none"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 0,
-            "y": 45
-          },
-          "id": 50,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.6.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "sum(increase(qontract_reconcile_worker_task_applied_actions_total{namespace=\"$namespace\", name=~\"$integration.reconcile\"}[5m]))",
-              "legendFormat": "Actions",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Applied Actions Rate (last 5m)",
-          "transformations": [
-            {
-              "id": "renameByRegex",
-              "options": {
-                "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
-                "renamePattern": "$1 $2"
-              }
-            }
-          ],
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "description": "",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 1
-                  }
-                ]
-              },
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 6,
-            "x": 6,
-            "y": 45
-          },
-          "id": 51,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.6.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(qontract_reconcile_worker_task_failure_total{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name)\n/\nsum(rate(qontract_reconcile_worker_task_success_total{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m]) + rate(qontract_reconcile_worker_task_failure_total{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name) or vector(0)\n* 100",
-              "legendFormat": "error %",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Task Error Rate",
-          "transformations": [
-            {
-              "id": "renameByRegex",
-              "options": {
-                "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
-                "renamePattern": "$1 $2"
-              }
-            }
-          ],
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 45
-          },
-          "id": 10,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.6.3",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le, handler) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=\"/api/v1/integrations/$integration/reconcile\"}[5m])))",
-              "legendFormat": "p99 {{handler}}",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum by (le, handler) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=\"/api/v1/integrations/$integration/reconcile\"}[5m])))",
-              "hide": false,
-              "legendFormat": "p95 {{handler}}",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.5, sum by (le, handler) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=\"/api/v1/integrations/$integration/reconcile\"}[5m])))",
-              "hide": false,
-              "legendFormat": "p50 {{handler}}",
-              "range": true,
-              "refId": "C"
-            }
-          ],
-          "title": "Latency (p50/p95/p99)",
-          "transformations": [
-            {
-              "id": "renameByRegex",
-              "options": {
-                "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
-                "renamePattern": "$1 $2"
-              }
-            }
-          ],
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 53
-          },
-          "id": 52,
+          "id": 57,
+          "maxPerRow": 2,
           "options": {
             "legend": {
               "calcs": [],
@@ -1673,11 +1353,13 @@ data:
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
+          "repeat": "external",
+          "repeatDirection": "h",
           "targets": [
             {
               "datasource": {
@@ -1685,154 +1367,611 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_bucket{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name, le))",
-              "legendFormat": "p99 {{handler}}",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.95, sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_bucket{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name, le))",
+              "expr": "histogram_quantile(0.95, sum by (le,pod) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", pod=~\"$pod\", handler=~\"/api/v1/external/$external/.*\"}[5m])))",
               "hide": false,
-              "legendFormat": "p95 {{handler}}",
+              "legendFormat": "{{pod}}",
               "range": true,
               "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "histogram_quantile(0.50, sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_bucket{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name, le))",
-              "hide": false,
-              "legendFormat": "p50 {{handler}}",
-              "range": true,
-              "refId": "C"
             }
           ],
-          "title": "Task Execution Time (p50/p95/p99)",
-          "transformations": [
-            {
-              "id": "renameByRegex",
-              "options": {
-                "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
-                "renamePattern": "$1 $2"
-              }
-            }
-          ],
+          "title": "$external - Qontract API Latency (p95 per pod)",
           "type": "timeseries"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${ds}"
-          },
-          "description": "",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 1
-                  }
-                ]
-              },
-              "unit": "none"
-            },
-            "overrides": []
-          },
+          "collapsed": true,
           "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 53
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 52
           },
-          "id": 53,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.6.3",
-          "targets": [
+          "id": 12,
+          "panels": [
             {
               "datasource": {
                 "type": "prometheus",
                 "uid": "${ds}"
               },
-              "editorMode": "code",
-              "expr": "(\n  sum(rate(qontract_reconcile_worker_task_elapsed_seconds_sum{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n  /\n  sum(rate(qontract_reconcile_worker_task_elapsed_seconds_count{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n)\n-\n(\n  sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_sum{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n  /\n  sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_count{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n)",
-              "legendFormat": "seconds",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Average Queue Wait Time",
-          "transformations": [
-            {
-              "id": "renameByRegex",
+              "description": "Rate of applied actions for qontract-api worker tasks",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green"
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "none"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 0,
+                "y": 53
+              },
+              "id": 50,
               "options": {
-                "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
-                "renamePattern": "$1 $2"
-              }
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "11.6.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(increase(qontract_reconcile_worker_task_applied_actions_total{namespace=\"$namespace\", name=~\"$integration.reconcile\"}[5m]))",
+                  "legendFormat": "Actions",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Applied Actions Rate (last 5m)",
+              "transformations": [
+                {
+                  "id": "renameByRegex",
+                  "options": {
+                    "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
+                    "renamePattern": "$1 $2"
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "description": "",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green"
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "unit": "percent"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 6,
+                "y": 53
+              },
+              "id": 51,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "11.6.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "sum(rate(qontract_reconcile_worker_task_failure_total{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name)\n/\nsum(rate(qontract_reconcile_worker_task_success_total{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m]) + rate(qontract_reconcile_worker_task_failure_total{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name) or vector(0)\n* 100",
+                  "legendFormat": "error %",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Task Error Rate",
+              "transformations": [
+                {
+                  "id": "renameByRegex",
+                  "options": {
+                    "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
+                    "renamePattern": "$1 $2"
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green"
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "s"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 53
+              },
+              "id": 10,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "pluginVersion": "11.6.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.99, sum by (le, handler) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=\"/api/v1/integrations/$integration/reconcile\"}[5m])))",
+                  "legendFormat": "p99 {{handler}}",
+                  "range": true,
+                  "refId": "A"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.95, sum by (le, handler) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=\"/api/v1/integrations/$integration/reconcile\"}[5m])))",
+                  "hide": false,
+                  "legendFormat": "p95 {{handler}}",
+                  "range": true,
+                  "refId": "B"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.5, sum by (le, handler) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", handler=\"/api/v1/integrations/$integration/reconcile\"}[5m])))",
+                  "hide": false,
+                  "legendFormat": "p50 {{handler}}",
+                  "range": true,
+                  "refId": "C"
+                }
+              ],
+              "title": "Latency (p50/p95/p99)",
+              "transformations": [
+                {
+                  "id": "renameByRegex",
+                  "options": {
+                    "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
+                    "renamePattern": "$1 $2"
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green"
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  "unit": "s"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 61
+              },
+              "id": 52,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              },
+              "pluginVersion": "11.6.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.99, sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_bucket{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name, le))",
+                  "legendFormat": "p99 {{handler}}",
+                  "range": true,
+                  "refId": "A"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.95, sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_bucket{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name, le))",
+                  "hide": false,
+                  "legendFormat": "p95 {{handler}}",
+                  "range": true,
+                  "refId": "B"
+                },
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "histogram_quantile(0.50, sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_bucket{\n  namespace=\"$namespace\", name=~\"$integration.reconcile\"\n}[5m])) by (name, le))",
+                  "hide": false,
+                  "legendFormat": "p50 {{handler}}",
+                  "range": true,
+                  "refId": "C"
+                }
+              ],
+              "title": "Task Execution Time (p50/p95/p99)",
+              "transformations": [
+                {
+                  "id": "renameByRegex",
+                  "options": {
+                    "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
+                    "renamePattern": "$1 $2"
+                  }
+                }
+              ],
+              "type": "timeseries"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "description": "",
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "mappings": [],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green"
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  "unit": "none"
+                },
+                "overrides": []
+              },
+              "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 61
+              },
+              "id": 53,
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "pluginVersion": "11.6.3",
+              "targets": [
+                {
+                  "datasource": {
+                    "type": "prometheus",
+                    "uid": "${ds}"
+                  },
+                  "editorMode": "code",
+                  "expr": "(\n  sum(rate(qontract_reconcile_worker_task_elapsed_seconds_sum{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n  /\n  sum(rate(qontract_reconcile_worker_task_elapsed_seconds_count{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n)\n-\n(\n  sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_sum{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n  /\n  sum(rate(qontract_reconcile_worker_task_execution_elapsed_seconds_count{\n    namespace=\"$namespace\", name=~\"$integration.reconcile\"\n  }[5m])) by (name)\n)",
+                  "legendFormat": "seconds",
+                  "range": true,
+                  "refId": "A"
+                }
+              ],
+              "title": "Average Queue Wait Time",
+              "transformations": [
+                {
+                  "id": "renameByRegex",
+                  "options": {
+                    "regex": "^(.+) /api/v\\d+/integrations/([^/]+)/.*",
+                    "renamePattern": "$1 $2"
+                  }
+                }
+              ],
+              "type": "timeseries"
             }
           ],
-          "type": "timeseries"
+          "repeat": "integration",
+          "title": "$integration Integration",
+          "type": "row"
         },
         {
           "collapsed": false,
@@ -1840,7 +1979,7 @@ data:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 61
+            "y": 53
           },
           "id": 55,
           "panels": [],
@@ -1905,28 +2044,31 @@ data:
                   }
                 ]
               },
-              "unit": "reqps"
+              "unit": "s"
             },
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
-            "w": 12,
+            "h": 10,
+            "w": 24,
             "x": 0,
-            "y": 62
+            "y": 54
           },
-          "id": 54,
+          "id": 56,
           "options": {
             "legend": {
               "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "sortBy": "Name",
+              "sortDesc": true,
+              "width": 400
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
@@ -1937,13 +2079,37 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(qontract_reconcile_external_api_${external_api}_requests_total{\n  namespace=\"$namespace\"\n}[5m])) by (resource, verb, method)",
-              "legendFormat": "__auto",
+              "expr": "histogram_quantile(0.99, sum(rate(qontract_reconcile_external_api_${external_api}_request_duration_seconds_bucket{\n  namespace=\"$namespace\", pod=~\"$pod\"\n}[5m])) by (resource, method, le))",
+              "legendFormat": "{{resource}} {{method}} p99",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "# P95\nhistogram_quantile(0.95, sum(rate(qontract_reconcile_external_api_${external_api}_request_duration_seconds_bucket{\n  namespace=\"$namespace\", pod=~\"$pod\"\n}[5m])) by (resource, method, le))",
+              "hide": false,
+              "legendFormat": "{{resource}} {{method}} p95",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "# P50\nhistogram_quantile(0.50, sum(rate(qontract_reconcile_external_api_${external_api}_request_duration_seconds_bucket{\n  namespace=\"$namespace\", pod=~\"$pod\"\n}[5m])) by (resource, method, le))",
+              "hide": false,
+              "legendFormat": "{{resource}} {{method}} p50",
+              "range": true,
+              "refId": "C"
             }
           ],
-          "title": "$external_api - Request Rate",
+          "title": "${external_api} - Request Duration (p50/p95/p99)",
           "type": "timeseries"
         },
         {
@@ -2008,23 +2174,26 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 62
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 64
           },
-          "id": 56,
+          "id": 58,
           "options": {
             "legend": {
               "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "sortBy": "Name",
+              "sortDesc": false,
+              "width": 400
             },
             "tooltip": {
               "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
+              "mode": "multi",
+              "sort": "desc"
             }
           },
           "pluginVersion": "11.6.3",
@@ -2035,37 +2204,113 @@ data:
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(qontract_reconcile_external_api_${external_api}_request_duration_seconds_bucket{\n  namespace=\"$namespace\"\n}[5m])) by (resource, method, le))",
-              "legendFormat": "p99 {{resource}} {{method}}",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "# P95\nhistogram_quantile(0.95, sum(rate(qontract_reconcile_external_api_${external_api}_request_duration_seconds_bucket{\n  namespace=\"$namespace\"\n}[5m])) by (resource, method, le))",
+              "expr": "# P95\nhistogram_quantile(0.95, sum(rate(qontract_reconcile_external_api_${external_api}_request_duration_seconds_bucket{\n  namespace=\"$namespace\", pod=~\"$pod\"\n}[5m])) by (pod, request, method, le))",
               "hide": false,
-              "legendFormat": "p95 {{resource}} {{method}}",
+              "legendFormat": "{{pod}} - {{resource}} {{method}}",
               "range": true,
               "refId": "B"
+            }
+          ],
+          "title": "${external_api} - Request Duration (p95/pod)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "description": "Most outgoing API requests are cached. Gaps in the data are expected.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
             },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 74
+          },
+          "id": 54,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 400
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.6.3",
+          "targets": [
             {
               "datasource": {
                 "type": "prometheus",
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "# P50\nhistogram_quantile(0.50, sum(rate(qontract_reconcile_external_api_${external_api}_request_duration_seconds_bucket{\n  namespace=\"$namespace\"\n}[5m])) by (resource, method, le))",
-              "hide": false,
-              "legendFormat": "p50 {{resource}} {{method}}",
+              "expr": "sum(rate(qontract_reconcile_external_api_${external_api}_requests_total{\n  namespace=\"$namespace\", pod=~\"$pod\"\n}[5m])) by (resource, verb, method)",
+              "legendFormat": "__auto",
               "range": true,
-              "refId": "C"
+              "refId": "A"
             }
           ],
-          "title": "${external_api} - Request Duration (p50/p95/p99)",
+          "title": "$external_api - Request Rate",
           "type": "timeseries"
         }
       ],
@@ -2259,6 +2504,36 @@ data:
             "refresh": 1,
             "regex": "/${aws_env}/",
             "type": "datasource"
+          },
+          {
+            "allValue": ".*",
+            "allowCustomValue": false,
+            "current": {
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${ds}"
+            },
+            "definition": "label_values(kube_pod_info{pod=~\"qontract-api.*\", namespace=\"${namespace}\"},pod)",
+            "includeAll": true,
+            "multi": true,
+            "name": "pod",
+            "options": [],
+            "query": {
+              "qryType": 1,
+              "query": "label_values(kube_pod_info{pod=~\"qontract-api.*\", namespace=\"${namespace}\"},pod)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            },
+            "refresh": 1,
+            "regex": "",
+            "sort": 1,
+            "type": "query"
           }
         ]
       },
@@ -2270,5 +2545,5 @@ data:
       "timezone": "",
       "title": "Qontract API Dashboard",
       "uid": "CAQAV30Vk",
-      "version": 5
+      "version": 6
     }
