@@ -34,8 +34,10 @@ pagerduty_request_duration = Histogram(
     ["method", "verb"],
 )
 
-# Local storage for latency tracking
-_latency_tracker = contextvars.ContextVar("latency_tracker", default=0.0)
+# Local storage for latency tracking (tuple stack to support nested calls)
+_latency_tracker: contextvars.ContextVar[tuple[float, ...]] = contextvars.ContextVar(
+    f"{__name__}.latency_tracker", default=()
+)
 
 TIMEOUT = 30
 TIME_WINDOW_SECONDS = 60
@@ -67,19 +69,21 @@ def _metrics_hook(context: PagerDutyApiCallContext) -> None:
 def _latency_start_hook(_context: PagerDutyApiCallContext) -> None:
     """Built-in hook to start latency measurement.
 
-    Stores the start time in local storage.
+    Pushes the start time onto the stack to support nested calls.
     """
-    _latency_tracker.set(time.perf_counter())
+    _latency_tracker.set((*_latency_tracker.get(), time.perf_counter()))
 
 
 def _latency_end_hook(context: PagerDutyApiCallContext) -> None:
     """Built-in hook to record latency measurement.
 
-    Calculates duration from start time and records to Prometheus histogram.
+    Pops the most recent start time from the stack and records duration.
     """
-    duration = time.perf_counter() - _latency_tracker.get()
+    stack = _latency_tracker.get()
+    start_time = stack[-1]
+    _latency_tracker.set(stack[:-1])
+    duration = time.perf_counter() - start_time
     pagerduty_request_duration.labels(context.method, context.verb).observe(duration)
-    _latency_tracker.set(0.0)
 
 
 def _request_log_hook(context: PagerDutyApiCallContext) -> None:
