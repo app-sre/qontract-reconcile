@@ -1,13 +1,17 @@
+import logging
 from collections.abc import Iterable
 from enum import Enum
+from io import StringIO
 from pathlib import Path
 
 from pydantic import BaseModel, field_validator
-from ruamel import yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
+from reconcile.utils.ruamel import create_ruamel_instance
+
+log = logging.getLogger(__name__)
 
 
 class PathTypes(Enum):
@@ -49,6 +53,7 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
         return f"delete user {self.username}"
 
     def process(self, gitlab_cli: GitLabApi) -> None:
+        yaml = create_ruamel_instance(explicit_start=True)
         for path_spec in self.paths:
             path_type = path_spec.type
             path = path_spec.path
@@ -62,43 +67,45 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                     path=path,
                     ref=self.branch,
                 )
-                content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
+                content = yaml.load(raw_file)
                 for gabi_user in content["users"][:]:
                     if self.username in gabi_user["$ref"]:
                         content["users"].remove(gabi_user)
-                new_content = "---\n"
-                new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
-                gitlab_cli.update_file(
-                    branch_name=self.branch,
-                    file_path=path,
-                    commit_message=self.title,
-                    content=new_content,
-                )
+
+                with StringIO() as stream:
+                    yaml.dump(content, stream)
+                    gitlab_cli.update_file(
+                        branch_name=self.branch,
+                        file_path=path,
+                        commit_message=self.title,
+                        content=stream.getvalue(),
+                    )
             elif path_type == PathTypes.AWS_ACCOUNTS:
                 raw_file = gitlab_cli.get_raw_file(
                     project=gitlab_cli.project,
                     path=path,
                     ref=self.branch,
                 )
-                content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
+                content = yaml.load(raw_file)
                 for reset_record in content["resetPasswords"]:
                     if self.username in reset_record["user"]["$ref"]:
                         content["resetPasswords"].remove(reset_record)
-                        new_content = "---\n"
-                        new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
-                        gitlab_cli.update_file(
-                            branch_name=self.branch,
-                            file_path=path,
-                            commit_message=self.title,
-                            content=new_content,
-                        )
+
+                        with StringIO() as stream:
+                            yaml.dump(content, stream)
+                            gitlab_cli.update_file(
+                                branch_name=self.branch,
+                                file_path=path,
+                                commit_message=self.title,
+                                content=stream.getvalue(),
+                            )
             elif path_type == PathTypes.SCHEDULE:
                 raw_file = gitlab_cli.get_raw_file(
                     project=gitlab_cli.project,
                     path=path,
                     ref=self.branch,
                 )
-                content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
+                content = yaml.load(raw_file)
                 delete_indexes: list[tuple[int, int]] = []
                 for schedule_index, schedule_record in enumerate(content["schedule"]):
                     for user_index, user in enumerate(schedule_record["users"]):
@@ -106,18 +113,19 @@ class CreateDeleteUserAppInterface(MergeRequestBase):
                             delete_indexes.append((schedule_index, user_index))
                 for schedule_index, user_index in reversed(delete_indexes):
                     del content["schedule"][schedule_index]["users"][user_index]
-                new_content = "---\n"
-                new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
-                gitlab_cli.update_file(
-                    branch_name=self.branch,
-                    file_path=path,
-                    commit_message=self.title,
-                    content=new_content,
-                )
+
+                with StringIO() as stream:
+                    yaml.dump(content, stream)
+                    gitlab_cli.update_file(
+                        branch_name=self.branch,
+                        file_path=path,
+                        commit_message=self.title,
+                        content=stream.getvalue(),
+                    )
 
 
 class CreateDeleteUserInfra(MergeRequestBase):
-    PLAYBOOK = "ansible/playbooks/bastion-accounts.yml"
+    PLAYBOOK = "ansible/hosts/host_vars/bastion.ci.int.devshift.net"
 
     name = "create_ssh_key_mr"
 
@@ -142,23 +150,24 @@ class CreateDeleteUserInfra(MergeRequestBase):
             path=self.PLAYBOOK,
             ref=self.branch,
         )
-        content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
+        yaml = create_ruamel_instance(explicit_start=True)
+        content = yaml.load(raw_file)
 
         new_list = []
-        for user in content[0]["vars"]["users"]:
+        for user in content["users"]:
             if user["name"] in self.usernames:
-                content[0]["vars"]["deleted_users"].append(user["name"])
+                log.info(["delete_user_from_infra", user["name"]])
+                content["deleted_users"].append(user["name"])
                 continue
             new_list.append(user)
 
-        content[0]["vars"]["users"] = new_list
+        content["users"] = new_list
 
-        new_content = "---\n"
-        new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
-
-        gitlab_cli.update_file(
-            branch_name=self.branch,
-            file_path=self.PLAYBOOK,
-            commit_message=self.title,
-            content=new_content,
-        )
+        with StringIO() as stream:
+            yaml.dump(content, stream)
+            gitlab_cli.update_file(
+                branch_name=self.branch,
+                file_path=self.PLAYBOOK,
+                commit_message=self.title,
+                content=stream.getvalue(),
+            )
