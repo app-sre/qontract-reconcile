@@ -9,9 +9,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import RedirectResponse
 from prometheus_fastapi_instrumentator import Instrumentator
+from qontract_utils.events.models import Event
 
 from qontract_api.config import settings
-from qontract_api.dependencies import UserDep
+from qontract_api.dependencies import EventManagerDep, UserDep
 from qontract_api.exceptions import (
     APIError,
     api_error_handler,
@@ -42,6 +43,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
     - SecretBackend (Vault for secret management)
     """
     from qontract_api.cache.factory import get_cache  # noqa: PLC0415
+    from qontract_api.event_manager._factory import (  # noqa: PLC0415
+        get_event_manager,
+    )
     from qontract_api.secret_manager._factory import (  # noqa: PLC0415
         get_secret_manager,
     )
@@ -54,6 +58,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
     # Startup: Initialize secret backend using factory (singleton pattern)
     # This creates the Vault client connection and starts token auto-refresh thread
     _app.state.secret_manager = get_secret_manager(cache=_app.state.cache)
+
+    # Startup: Initialize event manager (None if events are disabled)
+    _app.state.event_manager = get_event_manager(cache=_app.state.cache)
 
     yield
 

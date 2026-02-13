@@ -99,5 +99,5 @@ async def validation_exception_handler(  # noqa: RUF029 - FastAPI requires async
     )
     return JSONResponse(
         content=error_detail.model_dump(),
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
     )

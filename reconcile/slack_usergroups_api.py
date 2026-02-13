@@ -662,9 +662,10 @@ class SlackUsergroupsIntegration(
 
         task = await self.reconcile(workspaces=workspaces, dry_run=dry_run)
 
-        # TODO: APPSRE-13196
-        # as soon as qontract-api can send event to the #reconcile channel, we don't need to log and wait here
-        # for a non-dry-run reconciliation!
+        if not dry_run:
+            # In non-dry-run, we expect the task to complete asynchronously in the background
+            # and change events will be automatically published via the events framework.
+            return
 
         # wait for task completion and get the action list
         task_result = await slack_usergroups_task_status(
