@@ -2256,6 +2256,107 @@ def sre_checkpoints(ctx: click.Context) -> None:
 
 @get.command()
 @click.pass_context
+@click.option(
+    "--repo-name",
+    help="Specifies the gitlab repo name",
+    type=str,
+)
+@click.option(
+    "--ignore-awaiting-approval",
+    help="Ignore MR awaiting approval",
+    default=False,
+    type=bool,
+)
+def gitlab_repo_merge_request(
+    ctx: click.Context,
+    repo_name: str,
+    ignore_awaiting_approval: bool,
+) -> None:
+    import reconcile.gitlab_housekeeping as glhk
+
+    instance = queries.get_gitlab_instance()
+    settings = queries.get_app_interface_settings()
+    repo = next(
+        r
+        for r in queries.get_repos_gitlab_housekeeping(server=instance["url"])
+        if r["name"] == repo_name
+    )
+
+    hk = repo["housekeeping"]
+    must_pass = hk.get("must_pass")
+    rebase = hk.get("rebase")
+    gl = GitLabApi(instance, project_url=repo["url"], settings=settings)
+    state = init_state(integration=glhk.QONTRACT_INTEGRATION)
+    merge_requests = gl.get_merge_requests(state=MRState.OPENED, order_by="updated_at")
+
+    columns = [
+        "id",
+        "title",
+        "author",
+        "labels",
+        "merge_status",
+    ]
+    if must_pass:
+        columns.append("remaining_tests")
+    merge_queue_data = []
+    for mr in merge_requests:
+        last_pipeline_result = None
+        if must_pass:
+            commit = next(mr.commits())
+            state_key = f"{gl.project.path_with_namespace}/{mr.iid}/{commit.id}"
+            remaining_tests = state.get(state_key, must_pass)
+
+        merge_status = ""
+        if mr.merge_status in {
+            MRStatus.CANNOT_BE_MERGED,
+            MRStatus.CANNOT_BE_MERGED_RECHECK,
+        }:
+            # https://docs.gitlab.com/api/merge_requests/#merge-status
+            merge_status = mr.detailed_merge_status
+        elif mr.draft:
+            merge_status = "draft_status"
+        elif len(mr.commits()) == 0:
+            merge_status = "contains_no_changes"
+        elif must_pass and remaining_tests:
+            merge_status = "has_remain_tests"
+        elif any(label in glhk.HOLD_LABELS for label in mr.labels):
+            merge_status = "hold"
+        elif not any(label in glhk.MERGE_LABELS_PRIORITY for label in mr.labels):
+            if ignore_awaiting_approval:
+                continue
+            merge_status = "awaiting_approval"
+        elif rebase and not glhk.is_rebased(mr, gl):
+            merge_status = "needs_rebase"
+        else:
+            pipelines = gl.get_merge_request_pipelines(mr)
+            running_pipelines = [p for p in pipelines if p.status == PipelineStatus.RUNNING]
+            last_pipeline_result = None
+            if pipelines:
+                last_pipeline_result = pipelines[0].status
+            if not pipelines:
+                merge_status = "no_pipelines"
+            elif running_pipelines:
+                merge_status = "pipeline_running"
+            elif last_pipeline_result != PipelineStatus.SUCCESS:
+                merge_status = "last_pipeline_failed"
+
+        item = {
+            "id": f"[{mr.iid}]({mr.web_url})",
+            "title": mr.title,
+            "author": mr.author["username"],
+            "labels": ", ".join(mr.labels),
+            "merge_status": merge_status,
+        }
+        if must_pass:
+            item["remaining_tests"] = ", ".join(remaining_tests)
+        merge_queue_data.append(item)
+
+    ctx.obj["options"]["sort"] = False  # do not sort
+    print_output(ctx.obj["options"], merge_queue_data, columns)
+
+
+@get.command()
+@click.pass_context
 def app_interface_merge_queue(ctx: click.Context) -> None:
     import reconcile.gitlab_housekeeping as glhk
 

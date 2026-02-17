@@ -591,7 +591,11 @@ def test_get_merge_requests(
     mr = mocked_gitlab_api.get_merge_requests(state="opened")
 
     assert mr == [expected_mr]
-    project.mergerequests.list.assert_called_once_with(state="opened", get_all=True)
+    project.mergerequests.list.assert_called_once_with(
+        state="opened",
+        order_by="created_at",
+        get_all=True,
+    )
 
 
 def test_get_merge_request_label_events() -> None:
