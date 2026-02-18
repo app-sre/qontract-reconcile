@@ -23,7 +23,7 @@ query AppSRETektonAccessRevalidationRoles {
   roles: roles_v1 {
     path
     access {
-      role
+      clusterRole
       namespace {
         path
       }
@@ -48,7 +48,7 @@ class NamespaceV1(ConfiguredBaseModel):
 
 
 class AccessV1(ConfiguredBaseModel):
-    role: Optional[str] = Field(..., alias="role")
+    cluster_role: Optional[str] = Field(..., alias="clusterRole")
     namespace: Optional[NamespaceV1] = Field(..., alias="namespace")
 
 
