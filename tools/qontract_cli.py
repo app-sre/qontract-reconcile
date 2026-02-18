@@ -203,6 +203,7 @@ if TYPE_CHECKING:
     from reconcile.utils.external_resource_spec import ExternalResourceSpec
     from reconcile.utils.glitchtip.models import Project, ProjectStatistics
     from reconcile.utils.jjb_client import JJB
+    from reconcile.utils.ocm.status_board import ApplicationMetadataSpec
 
 
 def output(function: Callable) -> Callable:
@@ -2777,7 +2778,7 @@ def slo_document_services(ctx: click.Context, status_board_instance: str) -> Non
         print(f"Status-board instance '{status_board_instance}' not found.")
         sys.exit(1)
 
-    desired_product_apps: dict[str, set[str]] = (
+    desired_product_apps: dict[str, dict[str, ApplicationMetadataSpec]] = (
         StatusBoardExporterIntegration.get_product_apps(sb)
     )
 
