@@ -25,7 +25,7 @@ query AppSRETektonAccessRevalidationUsers {
     org_username
     roles {
       access {
-        role
+        clusterRole
         namespace {
           name
           cluster {
@@ -55,7 +55,7 @@ class NamespaceV1(ConfiguredBaseModel):
 
 
 class AccessV1(ConfiguredBaseModel):
-    role: Optional[str] = Field(..., alias="role")
+    cluster_role: Optional[str] = Field(..., alias="clusterRole")
     namespace: Optional[NamespaceV1] = Field(..., alias="namespace")
 
 

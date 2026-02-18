@@ -70,7 +70,7 @@ def main(
                     continue
 
                 namespace_tuple = (a.namespace.cluster.name, a.namespace.name)
-                namespace_roles[namespace_tuple].add(a.role)
+                namespace_roles[namespace_tuple].add(a.cluster_role)
 
         for namespace_tuple, roles in namespace_roles.items():
             if pp_app := pp_namespaces_apps.get(namespace_tuple):

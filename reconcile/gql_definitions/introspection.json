@@ -4496,7 +4496,17 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "PermissionQuayOrgTeam_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "AppEscalationPolicy_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionSlackUsergroup_v1",
                             "ofType": null
                         },
                         {
@@ -4616,6 +4626,11 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "PermissionAutomatedActions_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "AWSVPC_v1",
                             "ofType": null
                         },
@@ -4642,6 +4657,11 @@
                         {
                             "kind": "OBJECT",
                             "name": "VaultAuth_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionGithubOrgTeam_v1",
                             "ofType": null
                         },
                         {
@@ -4697,6 +4717,11 @@
                         {
                             "kind": "OBJECT",
                             "name": "UnleashProject_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "FeatureToggleUnleash_v1",
                             "ofType": null
                         },
                         {
@@ -4781,7 +4806,92 @@
                         },
                         {
                             "kind": "OBJECT",
+                            "name": "PipelinesProviderTekton_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
                             "name": "PipelinesProviderTektonProviderDefaults_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "OidcPermissionVault_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "OidcPermissionAcs_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionGithubOrg_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionJenkinsRole_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "PermissionGitlabGroupMembership_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "EndpointMonitoringProviderBlackboxExporter_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "EndpointMonitoringProviderSignalFx_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionActionList_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionCreateToken_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionExternalResourceFlushElastiCache_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionExternalResourceRdsReboot_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionExternalResourceRdsSnapshot_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionNoOp_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionOpenshiftTriggerCronjob_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionOpenshiftWorkloadDelete_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "OBJECT",
+                            "name": "AutomatedActionOpenshiftWorkloadRestart_v1",
                             "ofType": null
                         }
                     ]
@@ -18331,6 +18441,11 @@
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -18926,6 +19041,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -27723,6 +27843,11 @@
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -29283,6 +29408,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -31958,6 +32088,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "FeatureToggle_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -49359,6 +49494,11 @@
                             "kind": "INTERFACE",
                             "name": "PipelinesProvider_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -50094,6 +50234,11 @@
                             "kind": "INTERFACE",
                             "name": "OidcPermission_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -50259,6 +50404,11 @@
                             "kind": "INTERFACE",
                             "name": "OidcPermission_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -50395,6 +50545,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -50552,6 +50707,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -50733,6 +50893,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "Permission_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -51701,6 +51866,11 @@
                             "kind": "INTERFACE",
                             "name": "EndpointMonitoringProvider_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -51920,6 +52090,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "EndpointMonitoringProvider_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -52809,6 +52984,11 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -52981,6 +53161,11 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -53141,6 +53326,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -53346,6 +53536,11 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -53507,6 +53702,11 @@
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
                             "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
+                            "ofType": null
                         }
                     ],
                     "enumValues": null,
@@ -53643,6 +53843,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -53804,6 +54009,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -54008,6 +54218,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],
@@ -54240,6 +54455,11 @@
                         {
                             "kind": "INTERFACE",
                             "name": "AutomatedAction_v1",
+                            "ofType": null
+                        },
+                        {
+                            "kind": "INTERFACE",
+                            "name": "DatafileObject_v1",
                             "ofType": null
                         }
                     ],

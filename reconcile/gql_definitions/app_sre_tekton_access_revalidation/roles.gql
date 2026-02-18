@@ -4,7 +4,7 @@ query AppSRETektonAccessRevalidationRoles {
   roles: roles_v1 {
     path
     access {
-      role
+      clusterRole
       namespace {
         path
       }
