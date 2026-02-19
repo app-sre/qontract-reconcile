@@ -1933,3 +1933,51 @@ def test_populate_tf_resource_s3_cloudfront_with_bucket_policy_multiple_statemen
     assert "Statement1" in sids
     assert "Statement2" in sids
     assert "Grant access to CloudFront Origin Identity" in sids
+
+
+@pytest.mark.parametrize(
+    "get_object_enable_dirs",
+    [
+        [],
+        None,
+    ],
+    ids=["empty_list", "none"],
+)
+def test_populate_tf_resource_s3_cloudfront_raises_on_empty_get_object_enable_dirs(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+    get_object_enable_dirs: list[str] | None,
+) -> None:
+    init_values: dict = {
+        "region": "us-east-1",
+        "distribution_config": {
+            "enabled": True,
+            "default_root_object": "index.html",
+        },
+        "tags": {},
+    }
+    if get_object_enable_dirs is not None:
+        init_values["get_object_enable_dirs"] = get_object_enable_dirs
+
+    mocker.patch.object(ts, "add_resources")
+    mocker.patch.object(ts, "init_values", return_value=init_values)
+
+    resource: dict = {
+        "identifier": "s3-cf-bucket",
+        "provider": "s3-cloudfront",
+        "region": "us-east-1",
+        "distribution_config": {
+            "enabled": True,
+            "default_root_object": "index.html",
+        },
+    }
+    if get_object_enable_dirs is not None:
+        resource["get_object_enable_dirs"] = get_object_enable_dirs
+
+    spec = build_s3_spec(resource)
+
+    with pytest.raises(
+        ValueError,
+        match="get_object_enable_dirs must be provided and non-empty",
+    ):
+        ts.populate_tf_resource_s3_cloudfront(spec)
