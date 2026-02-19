@@ -3464,6 +3464,12 @@ class TerrascriptClient:
         tf_resources.append(cf_oai_tf_resource)
 
         # bucket policy for cloudfront - merge custom policy with CloudFront access statement
+        get_object_enable_dirs = common_values.get("get_object_enable_dirs", [])
+        if not get_object_enable_dirs:
+            raise ValueError(
+                f"get_object_enable_dirs must be provided and non-empty for resource {identifier}"
+            )
+
         cf_statement = {
             "Sid": "Grant access to CloudFront Origin Identity",
             "Effect": "Allow",
@@ -3471,7 +3477,7 @@ class TerrascriptClient:
             "Action": "s3:GetObject",
             "Resource": [
                 f"arn:aws:s3:::{identifier}/{enable_dir}/*"
-                for enable_dir in common_values.get("get_object_enable_dirs", [])
+                for enable_dir in get_object_enable_dirs
             ],
         }
 
