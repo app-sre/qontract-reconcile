@@ -1871,15 +1871,6 @@ def get_repos_gitlab_housekeeping(server: str = "") -> list[dict[str, Any]]:
     ]
 
 
-def get_repos_gitlab_jira(server: str = "") -> list[dict[str, Any]]:
-    code_components = get_code_components()
-    return [
-        {"url": c["url"], "jira": c["jira"]}
-        for c in code_components
-        if c["url"].startswith(server) and c.get("jira")
-    ]
-
-
 QUAY_ORGS_QUERY = """
 {
   quay_orgs: quay_orgs_v1 {
