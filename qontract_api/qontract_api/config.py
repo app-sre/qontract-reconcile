@@ -226,9 +226,9 @@ class EventSettings(BaseModel):
         default=True,
         description="Enable event publishing via Redis Streams",
     )
-    stream_key: str = Field(
-        default="qontract:events",
-        description="Redis Stream key for event publishing",
+    channel: str = Field(
+        default="main",
+        description="Redis channel name for publishing events",
     )
 
 

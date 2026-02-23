@@ -232,8 +232,8 @@ class CacheBackend(ABC):
         ...
 
     @property
-    def redis_client(self) -> "Redis":
-        """Return the underlying Redis client. Only available for Redis-backed caches."""
+    def client(self) -> "Redis":
+        """Return the underlying client."""
         raise NotImplementedError
 
     def clear_memory_cache(self) -> None:

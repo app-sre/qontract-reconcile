@@ -11,38 +11,38 @@ qontract-api performs actions on external systems (e.g., updating Slack usergrou
 - qontract-api celery tasks execute reconciliation actions but results are only stored as task results
 - There is no way for reconcile integrations to react to actions performed by qontract-api
 - Future use cases require audit logging, notification chains, and event-driven workflows
-- The solution must support multiple consumers and be extensible to new backends
+- The solution must support multiple consumers and be extensible to new event types
 
 ## Decision
 
-Use a generic event system with pluggable backends for communication between qontract-api (producer) and reconcile integrations (consumers). The generic API lives in `qontract_utils` with Protocol-based interfaces. The default backend uses Redis Streams (already available via the existing Redis infrastructure). AWS SNS/SQS is available as an alternative backend for future use.
+Use [faststream](https://faststream.ag2.ai/) with [CloudEvents](https://cloudevents.io/) for event-driven communication between qontract-api (producer) and subscriber processes (consumers). The shared event model and synchronous publishing wrapper live in `qontract_utils`. The subscriber runs as a separate ASGI process via faststream's `AsgiFastStream`.
 
 ### Key Points
 
-- **Protocol-based interfaces** (`EventPublisher`, `EventConsumer`) enable pluggable backends without code changes in producers/consumers
-- **Factory functions** (`create_event_publisher`, `create_event_consumer`) create backend instances -- users never import concrete implementations directly
-- **Pydantic `Event` model** with `version`, `event_type`, `source`, `timestamp`, and `payload` fields provides a standardized, versioned event schema
-- **Redis Streams as default backend** -- uses the existing Redis infrastructure, no additional infrastructure needed. Consumer groups provide reliable delivery with acknowledgment
-- **SNS/SQS available as alternative** -- for fan-out scenarios or when AWS infrastructure is available
-- **Fire-and-forget semantics** for publishing: event publishing failures are logged but do not break the producer task
-- **At-least-once delivery**: Redis Streams consumer groups guarantee at-least-once delivery; consumers must be idempotent
+- **CloudEvents standard** -- the `Event` model extends `cloudevents.pydantic.v2.event.CloudEvent`, providing an industry-standard, self-describing event envelope (`specversion`, `type`, `source`, `id`, `time`, `datacontenttype`, `data`)
+- **faststream as messaging framework** -- handles Redis broker connections, message serialization/deserialization, subscriber registration via decorators, and AsyncAPI specification generation
+- **Synchronous publisher** (`qontract_utils.events.RedisBroker`) -- wraps faststream's async `RedisBroker` in a sync context manager so that celery workers (sync) can publish events without async overhead
+- **Subscriber as ASGI app** (`qontract_api.subscriber`) -- runs as a separate uvicorn process with health check endpoints and auto-generated AsyncAPI documentation
+- **`EventManager`** (`qontract_api.event_manager`) -- encapsulates publishing with fire-and-forget semantics: failures are logged but never propagate to the producer task
+- **Feature-flagged** -- event publishing is controlled via `QAPI_EVENTS__ENABLED` (default: `true`) and the channel name via `QAPI_EVENTS__CHANNEL` (default: `"main"`)
 
 ## Alternatives Considered
 
-### Alternative 1: Redis Pub/Sub
+### Alternative 1: DIY Redis Streams with Protocol Abstraction
 
-Use Redis Pub/Sub (not Streams) for event messaging.
+Custom `EventPublisher`/`EventConsumer` protocols with factory functions, Redis Streams backend (XADD/XREADGROUP/XACK), and manual consumer group management.
 
 **Pros:**
 
-- Simple API
-- Already available in the stack
+- Full control over implementation details
+- No external framework dependency
 
 **Cons:**
 
-- No durability: messages are lost if no subscriber is listening
-- No replay capability for missed events
-- No acknowledgment mechanism
+- Significant boilerplate: custom protocols, factories, consumer group management, serialization
+- No standard event format -- custom schema requires documentation and versioning
+- No auto-generated API documentation
+- Consumer lifecycle (pending messages, acknowledgment, group creation) must be hand-coded
 
 ### Alternative 2: AWS SNS + SQS
 
@@ -59,108 +59,141 @@ SNS for publishing (fan-out), SQS for consuming (durable queues).
 - SNS wraps messages in an envelope that must be unwrapped
 - AWS credentials must be managed separately
 
-### Alternative 3: Redis Streams with Protocol-Based Abstraction (Selected)
+### Alternative 3: faststream with CloudEvents (Selected)
 
-Redis Streams for both publishing and consuming, abstracted behind Protocol interfaces. SNS/SQS available as alternative backend.
+faststream handles the messaging infrastructure (broker connections, serialization, subscriber lifecycle). CloudEvents provides the standardized event envelope.
 
 **Pros:**
 
+- Minimal boilerplate: decorator-based subscriber registration, automatic serialization
+- Industry-standard event format (CloudEvents 1.0) -- no custom schema to maintain
+- Auto-generated AsyncAPI documentation at `/docs/asyncapi`
+- Built-in health check endpoints for Kubernetes readiness/liveness
+- Sync publisher wrapper is thin (~40 lines) -- all heavy lifting delegated to faststream
 - Uses existing Redis infrastructure -- no additional setup needed
-- Durable: consumer groups retain messages until acknowledged
-- Consumer groups support multiple consumers with load balancing
-- Decoupled: producers and consumers only depend on the Protocol interface
-- Extensible: SNS/SQS backend already implemented, more can be added via the factory
 
 **Cons:**
 
+- External framework dependency (faststream)
 - Redis is a single point of failure (unlike managed SNS/SQS)
-- No native cross-region replication (unlike SNS)
 
 ## Consequences
 
 ### Positive
 
 - No additional infrastructure required -- uses existing Redis
-- Decoupled communication between qontract-api and reconcile
-- Standardized event schema enables audit logging and monitoring
-- Protocol-based design allows backend swaps (SNS/SQS, Kafka, etc.)
-- Consumer groups provide reliable, acknowledged delivery
+- Decoupled communication between qontract-api and subscribers
+- CloudEvents standard enables interoperability with external systems and tooling
+- AsyncAPI documentation auto-generated for service discovery
+- Subscriber runs as independent process -- can be scaled separately
+- Minimal code to maintain: the sync publisher wrapper and event model are ~50 lines total
 
 ### Negative
 
 - Redis as single point of failure
   - **Mitigation:** Redis is already critical infrastructure for caching; adding events doesn't change the risk profile
-- At-least-once delivery means consumers must handle duplicate events
-  - **Mitigation:** The initial consumer (stdout logger) is inherently idempotent; future consumers must be designed for idempotency
+- External dependency on faststream
+  - **Mitigation:** The sync publisher wrapper isolates the dependency; only the subscriber directly uses faststream decorators
 
 ## Implementation Guidelines
 
 ### Event Model
 
 ```python
-from qontract_utils.events.models import Event
+from qontract_utils.events import Event
 
 event = Event(
-    event_type="slack-usergroups.update_users",
     source="qontract-api",
-    payload={"workspace": "coreos", "usergroup": "team-a", "users": ["alice"]},
+    type="qontract-api.slack-usergroups.update_users",
+    data={"workspace": "coreos", "usergroup": "team-a", "users": ["alice"]},
+    datacontenttype="application/json",
 )
 ```
 
-### Publishing Events (Producer -- Redis Streams)
+### Publishing Events (Producer -- Sync)
 
-Use the factory function -- never import concrete implementations directly:
+Use `EventManager` in qontract-api celery tasks:
 
 ```python
-from qontract_utils.events.factory import create_event_publisher
-from qontract_utils.events.models import Event
+from qontract_api.event_manager import get_event_manager
+from qontract_utils.events import Event
 
-publisher = create_event_publisher("redis", client=redis_client, stream_key="qontract:events")
-publisher.publish(Event(
-    event_type="slack-usergroups.update_users",
-    source="qontract-api",
-    payload=action.model_dump(),
-))
+event_manager = get_event_manager()
+if event_manager:
+    event_manager.publish_event(
+        Event(
+            source=__name__,
+            type=f"qontract-api.slack-usergroups.{action.action_type}",
+            data=action.model_dump(mode="json"),
+            datacontenttype="application/json",
+        )
+    )
 ```
 
-### Consuming Events (Consumer -- Redis Streams)
+For direct publishing (e.g., scripts or tests):
 
 ```python
-from qontract_utils.events.factory import create_event_consumer
+from qontract_utils.events import Event, RedisBroker
 
-consumer = create_event_consumer(
-    "redis", client=redis_client, stream_key="qontract:events",
-    consumer_group="my-group", consumer_name="worker-1",
-)
-for message_id, event in consumer.receive():
-    process(event)
-    consumer.acknowledge(message_id)
+with RedisBroker("redis://localhost:6379") as broker:
+    broker.publish(
+        Event(
+            source="my-script",
+            type="test.ping",
+            data={"hello": "world"},
+            datacontenttype="application/json",
+        ),
+        channel="main",
+    )
+```
+
+### Subscribing to Events (Consumer -- Async)
+
+Add handlers in `qontract_api/qontract_api/subscriber/_subscriptions.py`:
+
+```python
+from qontract_utils.events import Event
+
+from ._base import broker
+
+
+@broker.subscriber("main")
+async def base_handler(event: Event) -> None:
+    print(event)
+```
+
+The subscriber runs as a separate process:
+
+```bash
+QAPI_START_MODE=subscriber uvicorn qontract_api.subscriber:app
 ```
 
 ### Configuration (qontract-api)
 
-```yaml
-events:
-  enabled: true
-  stream_key: "qontract:events"
-```
+Environment variables (prefix `QAPI_`):
 
-The Redis connection is reused from the existing cache backend (`cache.client`).
+| Variable | Default | Description |
+|---|---|---|
+| `QAPI_EVENTS__ENABLED` | `true` | Enable/disable event publishing |
+| `QAPI_EVENTS__CHANNEL` | `"main"` | Redis channel name for events |
+| `QAPI_START_MODE` | `"api"` | Process mode: `api`, `worker`, or `subscriber` |
+
+The Redis connection is reused from the existing cache backend (`cache_broker_url`).
 
 ### Checklist
 
-- [ ] Event publishing is behind a feature flag (`events.enabled`)
-- [ ] Publishing failures do not break the producer
-- [ ] Use factory functions, not concrete implementations
-- [ ] Consumers acknowledge messages only after successful processing
-- [ ] Event types use dot-separated naming (`integration.action`)
+- [ ] Event publishing is behind a feature flag (`QAPI_EVENTS__ENABLED`)
+- [ ] Publishing failures do not break the producer (`EventManager` catches all exceptions)
+- [ ] Events use CloudEvents format with `source`, `type`, `data`, and `datacontenttype`
+- [ ] Event types use dot-separated naming (`qontract-api.integration.action`)
+- [ ] New subscribers are registered in `qontract_api/subscriber/_subscriptions.py`
 
 ## References
 
-- Related ADRs: ADR-011 (Dependency Injection), ADR-012 (Typed Models), ADR-014 (Three-Layer Architecture), ADR-017 (Factory Pattern)
-- Event API: `qontract_utils/qontract_utils/events/`
-- Factory: `qontract_utils/qontract_utils/events/factory.py`
-- Protocols: `qontract_utils/qontract_utils/events/protocols.py`
-- Redis Streams: `qontract_utils/qontract_utils/events/redis_streams.py`
-- SNS/SQS (alternative): `qontract_utils/qontract_utils/events/sns_sqs.py`
-- Event log sink integration: `reconcile/event_log_sink/integration.py`
+- Related ADRs: ADR-011 (Dependency Injection), ADR-012 (Typed Models), ADR-014 (Three-Layer Architecture)
+- Event model and sync broker: `qontract_utils/qontract_utils/events/`
+- Subscriber ASGI app: `qontract_api/qontract_api/subscriber/`
+- Event manager: `qontract_api/qontract_api/event_manager/`
+- [faststream documentation](https://faststream.ag2.ai/)
+- [CloudEvents specification](https://cloudevents.io/)
+- [AsyncAPI specification](https://www.asyncapi.com/)

@@ -3,14 +3,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from qontract_utils.events.factory import create_event_publisher
-from qontract_utils.events.models import Event
+from qontract_utils.events import Event, RedisBroker
 
 if TYPE_CHECKING:
-    from qontract_utils.events.protocols import EventPublisher
-
-    from qontract_api.cache import CacheBackend
-    from qontract_api.config import EventSettings
+    from qontract_api.config import Settings
 
 log = logging.getLogger(__name__)
 
@@ -22,29 +18,31 @@ class EventManager:
     Publishing failures are logged but never propagated to the caller.
     """
 
-    def __init__(self, publisher: EventPublisher) -> None:
+    def __init__(self, publisher: RedisBroker, channel: str) -> None:
         self._publisher = publisher
+        self._channel = channel
 
     def publish_event(self, event: Event) -> None:
         """Publish a single event. Failures are logged but do not propagate."""
-        try:
-            self._publisher.publish(event)
-        except Exception:
-            log.exception(f"Failed to publish event {event.event_type}")
+        with self._publisher as publisher:
+            try:
+                publisher.publish(event, channel=self._channel)
+            except Exception:
+                log.exception(f"Failed to publish event {event.type}")
 
     @classmethod
-    def from_config(
-        cls, cache: CacheBackend, event_settings: EventSettings
-    ) -> EventManager | None:
+    def from_config(cls, settings: Settings) -> EventManager | None:
         """Create an EventManager from configuration.
 
         Returns None if event publishing is disabled.
         """
-        if not event_settings.enabled:
+        if not settings.events.enabled:
             return None
-        publisher = create_event_publisher(
-            "redis",
-            client=cache.redis_client,
-            stream_key=event_settings.stream_key,
-        )
-        return cls(publisher=publisher)
+        if settings.cache_backend != "redis":
+            log.warning(
+                "Event publishing is only supported with Redis backend. "
+                "EventManager will not be initialized."
+            )
+            return None
+        publisher = RedisBroker(settings.cache_broker_url)
+        return cls(publisher=publisher, channel=settings.events.channel)

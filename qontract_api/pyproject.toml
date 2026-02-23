@@ -9,7 +9,9 @@ requires-python = ">=3.12"
 dependencies = [
     "cachetools==6.2.2",
     "celery==5.5.3",
+    "cloudevents==1.12.0",
     "fastapi==0.121.1",
+    "faststream[cli,redis]==0.6.6",
     "prometheus-client==0.23.1",
     "prometheus-fastapi-instrumentator==7.1.0",
     "pydantic-settings==2.12.0",

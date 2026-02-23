@@ -9,10 +9,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import RedirectResponse
 from prometheus_fastapi_instrumentator import Instrumentator
-from qontract_utils.events.models import Event
 
 from qontract_api.config import settings
-from qontract_api.dependencies import EventManagerDep, UserDep
+from qontract_api.dependencies import UserDep
 from qontract_api.exceptions import (
     APIError,
     api_error_handler,
@@ -60,7 +59,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
     _app.state.secret_manager = get_secret_manager(cache=_app.state.cache)
 
     # Startup: Initialize event manager (None if events are disabled)
-    _app.state.event_manager = get_event_manager(cache=_app.state.cache)
+    _app.state.event_manager = get_event_manager()
 
     yield
 
