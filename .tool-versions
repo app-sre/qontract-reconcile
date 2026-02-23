@@ -3,4 +3,4 @@
 terraform 1.6.6
 oc 4.19.0
 helm 3.19.2
-uv 0.8.22
+uv
