@@ -537,10 +537,8 @@ class TerraformCli:
             self.upload_state()
             source.upload_state()
 
-    def _elasticache_import_password(
-        self, destination: TfResource, password: str
-    ) -> None:
-        """Import the elasticache auth_token random_password."""
+    def _import_random_password(self, destination: TfResource, password: str) -> None:
+        """Import a password into a random_password terraform resource."""
         self._tf_import(address=destination.address, value=password)
 
         if (
@@ -584,7 +582,7 @@ class TerraformCli:
         current_auth_token = source_ec.change.before.get("auth_token")
         if current_auth_token:
             with suppress(KeyError):
-                self._elasticache_import_password(
+                self._import_random_password(
                     destination_resources.get_resource_by_type("random_password"),
                     current_auth_token,
                 )
@@ -605,6 +603,94 @@ class TerraformCli:
                 source=possible_source_resouces[0],
                 destination=destination_resource,
             )
+        self.commit(source)
+
+    def migrate_rds_resources(self, source: TerraformCli) -> None:
+        """Migrate RDS resources from terraform-resources to ERv2.
+
+        The random_password resource doesn't exist in terraform-resources
+        (the password was generated in Python). We extract the current
+        password from the source aws_db_instance state and import it into
+        the destination's random_password resource.
+        """
+        source_resources = source.resource_changes(TfAction.DESTROY)
+        destination_resources = self.resource_changes(TfAction.CREATE)
+        if not source_resources or not destination_resources:
+            raise ValueError("No resource changes found!")
+
+        # Extract the current password from the source aws_db_instance
+        source_rds = source_resources.get_resource_by_type("aws_db_instance")
+        if not source_rds.change or not source_rds.change.before:
+            raise ValueError("Something went wrong with the source RDS instance!")
+
+        current_password = source_rds.change.before.get("password")
+        if current_password:
+            with suppress(KeyError):
+                self._import_random_password(
+                    destination_resources.get_resource_by_type("random_password"),
+                    current_password,
+                )
+
+        # migrate resources, skipping random_password (handled above)
+        movable_destinations = [
+            r
+            for r in destination_resources
+            if not (current_password and r.type == "random_password")
+        ]
+
+        if len(source_resources) != len(movable_destinations):
+            with pause_progress_spinner(self.progress_spinner):
+                rich_print(
+                    "[b red]The number of changes (ERv2 vs terraform-resource) does not match! Please review them carefully![/]"
+                )
+                rich_print("ERv2:")
+                rich_print(
+                    "\n".join([
+                        f"  {i}: {r.address}"
+                        for i, r in enumerate(movable_destinations, start=1)
+                    ])
+                )
+                rich_print("Terraform:")
+                rich_print(
+                    "\n".join([
+                        f"  {i}: {r.address}"
+                        for i, r in enumerate(source_resources, start=1)
+                    ])
+                )
+                if not Confirm.ask("Would you like to continue anyway?", default=False):
+                    return
+
+        for destination_resource in movable_destinations:
+            possible_source_resouces = source_resources[destination_resource]
+            if not possible_source_resouces:
+                raise ValueError(
+                    f"Source resource for {destination_resource} not found!"
+                )
+            elif len(possible_source_resouces) == 1:
+                source_resource = possible_source_resouces[0]
+            else:
+                with pause_progress_spinner(self.progress_spinner):
+                    rich_print(
+                        f"[b red]{destination_resource.address} not found![/] Please select the related source ID manually!"
+                    )
+                    for i, r in enumerate(possible_source_resouces, start=1):
+                        print(f"{i}: {r.address}")
+
+                    index = IntPrompt.ask(
+                        ":boom: Enter the number",
+                        choices=[
+                            str(i) for i in range(1, len(possible_source_resouces) + 1)
+                        ],
+                        show_choices=False,
+                    )
+                    source_resource = possible_source_resouces[index - 1]
+
+            self.move_resource(
+                source_state_file=source.state_file,
+                source=source_resource,
+                destination=destination_resource,
+            )
+
         self.commit(source)
 
     def migrate_resources(self, source: TerraformCli) -> None:
