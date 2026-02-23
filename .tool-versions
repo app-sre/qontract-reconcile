@@ -2,5 +2,5 @@
 # but it also serves as a reference for non-asdf users
 terraform 1.6.6
 oc 4.19.0
-helm 3.19.2
+helm 3.20.0
 uv
