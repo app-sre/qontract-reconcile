@@ -238,25 +238,6 @@ class GitLabApi:
         }
         self.project.commits.create(data)
 
-    def create_mr(
-        self,
-        source_branch: str,
-        target_branch: str,
-        title: str,
-        remove_source_branch: bool = True,
-        labels: Iterable[str] | None = None,
-    ) -> ProjectMergeRequest:
-        if labels is None:
-            labels = []
-        data = {
-            "source_branch": source_branch,
-            "target_branch": target_branch,
-            "title": title,
-            "remove_source_branch": str(remove_source_branch),
-            "labels": labels,
-        }
-        return self.project.mergerequests.create(data)
-
     def mr_exists(self, title: str) -> bool:
         mrs = self.get_merge_requests(state=MRState.OPENED)
         # since we are using a naming convention for these MRs
