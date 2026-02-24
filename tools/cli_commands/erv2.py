@@ -594,7 +594,7 @@ class TerraformCli:
                 self._import_random_password(
                     destination_resources.get_resource_by_type("random_password"),
                     current_auth_token,
-                    ""
+                    "",
                 )
 
         # migrate resources
