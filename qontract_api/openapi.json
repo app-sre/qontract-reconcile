@@ -16,6 +16,382 @@
         "title": "EscalationPolicyUsersResponse",
         "type": "object"
       },
+      "GlitchtipAlertActionCreate": {
+        "description": "Action: Create a new project alert.",
+        "properties": {
+          "action_type": {
+            "const": "create",
+            "default": "create",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "alert_name": {
+            "description": "Alert name",
+            "title": "Alert Name",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project": {
+            "description": "Project slug",
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "organization",
+          "project",
+          "alert_name"
+        ],
+        "title": "GlitchtipAlertActionCreate",
+        "type": "object"
+      },
+      "GlitchtipAlertActionDelete": {
+        "description": "Action: Delete a project alert.",
+        "properties": {
+          "action_type": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "alert_name": {
+            "description": "Alert name",
+            "title": "Alert Name",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project": {
+            "description": "Project slug",
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "organization",
+          "project",
+          "alert_name"
+        ],
+        "title": "GlitchtipAlertActionDelete",
+        "type": "object"
+      },
+      "GlitchtipAlertActionUpdate": {
+        "description": "Action: Update an existing project alert.",
+        "properties": {
+          "action_type": {
+            "const": "update",
+            "default": "update",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "alert_name": {
+            "description": "Alert name",
+            "title": "Alert Name",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project": {
+            "description": "Project slug",
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "organization",
+          "project",
+          "alert_name"
+        ],
+        "title": "GlitchtipAlertActionUpdate",
+        "type": "object"
+      },
+      "GlitchtipInstance": {
+        "description": "Glitchtip instance configuration.",
+        "properties": {
+          "console_url": {
+            "description": "Glitchtip instance base URL",
+            "title": "Console Url",
+            "type": "string"
+          },
+          "max_retries": {
+            "default": 3,
+            "description": "Max HTTP retries",
+            "title": "Max Retries",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Instance name (unique identifier)",
+            "title": "Name",
+            "type": "string"
+          },
+          "read_timeout": {
+            "default": 30,
+            "description": "HTTP read timeout in seconds",
+            "title": "Read Timeout",
+            "type": "integer"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for the API token"
+          }
+        },
+        "required": [
+          "name",
+          "console_url",
+          "token"
+        ],
+        "title": "GlitchtipInstance",
+        "type": "object"
+      },
+      "GlitchtipOrganization": {
+        "description": "Desired state for a single Glitchtip organization's projects.",
+        "properties": {
+          "name": {
+            "description": "Organization name",
+            "title": "Name",
+            "type": "string"
+          },
+          "projects": {
+            "default": [],
+            "description": "Projects within this organization",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipProject"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GlitchtipOrganization",
+        "type": "object"
+      },
+      "GlitchtipProject": {
+        "description": "Desired state for a single Glitchtip project's alerts.",
+        "properties": {
+          "alerts": {
+            "default": [],
+            "description": "Desired alerts for this project",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipProjectAlert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "name": {
+            "description": "Project name",
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "description": "Project slug (URL-friendly identifier)",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "GlitchtipProject",
+        "type": "object"
+      },
+      "GlitchtipProjectAlert": {
+        "description": "Desired state for a single project alert.",
+        "properties": {
+          "name": {
+            "description": "Alert name (unique identifier within a project)",
+            "title": "Name",
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Number of events to trigger the alert",
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "recipients": {
+            "default": [],
+            "description": "List of alert recipients",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipProjectAlertRecipient"
+            },
+            "title": "Recipients",
+            "type": "array"
+          },
+          "timespan_minutes": {
+            "description": "Time window in minutes for alert evaluation",
+            "title": "Timespan Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "timespan_minutes",
+          "quantity"
+        ],
+        "title": "GlitchtipProjectAlert",
+        "type": "object"
+      },
+      "GlitchtipProjectAlertRecipient": {
+        "description": "Desired state for a single project alert recipient.",
+        "properties": {
+          "recipient_type": {
+            "description": "Recipient type: 'email' or 'webhook'",
+            "title": "Recipient Type",
+            "type": "string"
+          },
+          "url": {
+            "default": "",
+            "description": "Webhook URL (empty for email recipients)",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_type"
+        ],
+        "title": "GlitchtipProjectAlertRecipient",
+        "type": "object"
+      },
+      "GlitchtipProjectAlertsReconcileRequest": {
+        "description": "Request model for Glitchtip project alerts reconciliation.\n\nPOST requests always queue a background task (async execution).",
+        "properties": {
+          "desired_state": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/GlitchtipOrganization"
+              },
+              "type": "array"
+            },
+            "description": "Desired state keyed by instance name, containing organizations with project alerts",
+            "title": "Desired State",
+            "type": "object"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "instances": {
+            "description": "List of Glitchtip instances to reconcile",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipInstance"
+            },
+            "title": "Instances",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instances",
+          "desired_state"
+        ],
+        "title": "GlitchtipProjectAlertsReconcileRequest",
+        "type": "object"
+      },
+      "GlitchtipProjectAlertsTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.\n\nReturned immediately when task is queued. Contains task_id and status_url\nfor retrieving the result via GET request.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "GlitchtipProjectAlertsTaskResponse",
+        "type": "object"
+      },
+      "GlitchtipProjectAlertsTaskResult": {
+        "description": "Result model for completed reconciliation task.\n\nReturned by GET /reconcile/{task_id}.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "List of actions calculated/performed",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GlitchtipAlertActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipAlertActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipAlertActionDelete"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GlitchtipProjectAlertsTaskResult",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -885,6 +1261,101 @@
         "summary": "Get Repo Owners",
         "tags": [
           "external"
+        ]
+      }
+    },
+    "/api/v1/integrations/glitchtip-project-alerts/reconcile": {
+      "post": {
+        "description": "Queue Glitchtip project alerts reconciliation task.\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /reconcile/{task_id} to retrieve the result.\n\nArgs:\n    reconcile_request: Reconciliation request with desired state\n    current_user: Authenticated user (from JWT token)\n    request: FastAPI Request object (used to generate status_url)\n\nReturns:\n    GlitchtipProjectAlertsTaskResponse with task_id and status_url",
+        "operationId": "glitchtip-project-alerts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlitchtipProjectAlertsReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlitchtipProjectAlertsTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Glitchtip Project Alerts",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/glitchtip-project-alerts/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\n**Non-blocking mode (default):** Returns immediate status (pending/success/failed)\n**Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    current_user: Authenticated user (from JWT token)\n    timeout: Maximum seconds to wait (default: None = non-blocking)\n\nReturns:\n    GlitchtipProjectAlertsTaskResult with status, actions, applied_count, and errors\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Task ID not found\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
+        "operationId": "glitchtip-project-alerts-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlitchtipProjectAlertsTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Glitchtip Project Alerts Task Status",
+        "tags": [
+          "integrations"
         ]
       }
     },
