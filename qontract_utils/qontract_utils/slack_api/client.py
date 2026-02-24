@@ -21,7 +21,7 @@ from slack_sdk.http_retry import (
     RateLimitErrorRetryHandler as SlackSDKRateLimitErrorRetryHandler,
 )
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.slack_api.models import (
     ChatPostMessageResponse,
@@ -31,6 +31,9 @@ from qontract_utils.slack_api.models import (
 )
 
 logger = structlog.get_logger(__name__)
+
+# Slack message text length limit
+MAX_MESSAGE_LENGTH = 10000
 
 # Following naming convention (qontract_reconcile_external_api_<component>_requests_total) to
 # automatically include this metric in dashboards
@@ -395,10 +398,37 @@ class SlackApi:
 
         return channels
 
+    def _send_message(
+        self,
+        *,
+        channel: str,
+        text: str,
+        thread_ts: str | None = None,
+    ) -> ChatPostMessageResponse:
+        """Send a message via chat.postMessage and parse the response.
+
+        Args:
+            channel: Channel ID
+            text: Message text
+            thread_ts: Thread timestamp for replies (optional)
+
+        Returns:
+            ChatPostMessageResponse with message timestamp and channel info
+        """
+        response = self._sc.chat_postMessage(
+            channel=channel, text=text, thread_ts=thread_ts
+        )
+        response_data = response.data
+        if not isinstance(response_data, dict):
+            msg = f"Unexpected response data type: {type(response_data)}"
+            raise TypeError(msg) from None
+        return ChatPostMessageResponse(**response_data)
+
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
             method="chat.postMessage", verb="POST", workspace=self.workspace_name
-        )
+        ),
+        retry_config=NO_RETRY_CONFIG,
     )
     def chat_post_message(
         self,
@@ -423,43 +453,32 @@ class SlackApi:
         Raises:
             SlackApiError: On channel_not_found or other Slack API errors
         """
-        # Truncate text if too long
-        if len(text) > 10000:
-            text = text[:10000] + "... [truncated]"
+        if len(text) > MAX_MESSAGE_LENGTH:
+            text = text[:MAX_MESSAGE_LENGTH] + "... [truncated]"
 
         try:
-            response = self._sc.chat_postMessage(
-                channel=channel, text=text, thread_ts=thread_ts
-            )
-            return ChatPostMessageResponse(**response.data)
+            return self._send_message(channel=channel, text=text, thread_ts=thread_ts)
         except SlackApiError as e:
             error_code = e.response["error"]
 
             if error_code == "not_in_channel":
-                # Auto-join public channel and retry
                 logger.info(
                     "Bot not in channel, auto-joining",
                     channel=channel,
                     workspace=self.workspace_name,
                 )
                 self._sc.conversations_join(channel=channel)
-                response = self._sc.chat_postMessage(
+                return self._send_message(
                     channel=channel, text=text, thread_ts=thread_ts
                 )
-                return ChatPostMessageResponse(**response.data)
 
             if error_code == "channel_not_found":
-                logger.error(
-                    "Channel not found",
-                    channel=channel,
-                    workspace=self.workspace_name,
+                logger.exception(
+                    "Channel not found", channel=channel, workspace=self.workspace_name
                 )
                 raise
 
-            # Other errors
             logger.warning(
-                "Slack API error posting message",
-                error=error_code,
-                channel=channel,
+                "Slack API error posting message", error=error_code, channel=channel
             )
             raise

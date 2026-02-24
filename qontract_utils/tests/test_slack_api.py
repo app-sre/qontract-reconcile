@@ -639,8 +639,8 @@ def test_chat_post_message_channel_not_found(slack_api: SlackApi) -> None:
             slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
 
         assert "channel_not_found" in str(exc_info.value)
-        mock_logger.error.assert_called_once()
-        call_args = mock_logger.error.call_args
+        mock_logger.exception.assert_called_once()
+        call_args = mock_logger.exception.call_args
         assert "C01234ABCD" in str(call_args)
         assert "test-workspace" in str(call_args)
 
