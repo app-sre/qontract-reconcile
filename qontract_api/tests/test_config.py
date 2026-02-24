@@ -62,3 +62,59 @@ def test_secret_model_minimal() -> None:
     assert secret.path == "secret/test/token"
     assert secret.field is None
     assert secret.version is None
+
+
+def test_slack_settings_notification_channel_default_none() -> None:
+    """Test SlackSettings notification_channel defaults to None."""
+    from qontract_api.config import SlackSettings
+
+    slack = SlackSettings()
+    assert slack.notification_channel is None
+
+
+def test_slack_settings_notification_workspace_default_none() -> None:
+    """Test SlackSettings notification_workspace defaults to None."""
+    from qontract_api.config import SlackSettings
+
+    slack = SlackSettings()
+    assert slack.notification_workspace is None
+
+
+def test_slack_settings_secret_path_default() -> None:
+    """Test SlackSettings secret_path defaults to app-sre/slack/bot-token."""
+    from qontract_api.config import SlackSettings
+
+    slack = SlackSettings()
+    assert slack.secret_path == "app-sre/slack/bot-token"
+
+
+def test_slack_settings_notification_fields_custom() -> None:
+    """Test SlackSettings accepts custom notification field values."""
+    from qontract_api.config import SlackSettings
+
+    slack = SlackSettings(
+        notification_channel="sd-app-sre-reconcile",
+        notification_workspace="app-sre",
+        secret_path="custom/slack/token",
+    )
+    assert slack.notification_channel == "sd-app-sre-reconcile"
+    assert slack.notification_workspace == "app-sre"
+    assert slack.secret_path == "custom/slack/token"
+
+
+def test_slack_settings_backwards_compatible() -> None:
+    """Test SlackSettings maintains backwards compatibility with existing defaults."""
+    from qontract_api.config import SlackSettings
+
+    slack = SlackSettings()
+    # Verify existing fields maintain their defaults
+    assert slack.api_url == "https://slack.com/api/"
+    assert slack.api_timeout == 30
+    assert slack.api_max_retries == 100
+    assert slack.usergroup_cache_ttl == 60 * 60
+    assert slack.users_cache_ttl == 60 * 60 * 12
+    assert slack.channels_cache_ttl == 60 * 60 * 12
+    # Verify new fields have correct defaults
+    assert slack.notification_channel is None
+    assert slack.notification_workspace is None
+    assert slack.secret_path == "app-sre/slack/bot-token"

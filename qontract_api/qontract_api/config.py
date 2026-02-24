@@ -68,6 +68,20 @@ class SlackSettings(BaseModel):
         description="Slack channels list cache TTL in seconds (12 hours)",
     )
 
+    # Notification configuration for event posting
+    notification_channel: str | None = Field(
+        default=None,
+        description="Channel name for event notifications (e.g., sd-app-sre-reconcile). If not set, Slack notifications are disabled.",
+    )
+    notification_workspace: str | None = Field(
+        default=None,
+        description="Workspace name for event notifications",
+    )
+    secret_path: str = Field(
+        default="app-sre/slack/bot-token",
+        description="Vault path to Slack bot token",
+    )
+
 
 class PagerDutySettings(BaseModel):
     """PagerDuty API configuration."""
