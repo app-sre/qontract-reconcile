@@ -23,7 +23,12 @@ from slack_sdk.http_retry import (
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
-from qontract_utils.slack_api.models import SlackChannel, SlackUser, SlackUsergroup
+from qontract_utils.slack_api.models import (
+    ChatPostMessageResponse,
+    SlackChannel,
+    SlackUser,
+    SlackUsergroup,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -389,3 +394,72 @@ class SlackApi:
             additional_kwargs["cursor"] = cursor
 
         return channels
+
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="chat.postMessage", verb="POST", workspace=self.workspace_name
+        )
+    )
+    def chat_post_message(
+        self,
+        *,
+        channel: str,
+        text: str,
+        thread_ts: str | None = None,
+    ) -> ChatPostMessageResponse:
+        """Post a message to a Slack channel.
+
+        Automatically joins public channels if the bot is not a member.
+        Truncates text longer than 10,000 characters.
+
+        Args:
+            channel: Channel ID (e.g., "C01234ABCD")
+            text: Message text
+            thread_ts: Thread timestamp for replies (optional)
+
+        Returns:
+            ChatPostMessageResponse with message timestamp and channel info
+
+        Raises:
+            SlackApiError: On channel_not_found or other Slack API errors
+        """
+        # Truncate text if too long
+        if len(text) > 10000:
+            text = text[:10000] + "... [truncated]"
+
+        try:
+            response = self._sc.chat_postMessage(
+                channel=channel, text=text, thread_ts=thread_ts
+            )
+            return ChatPostMessageResponse(**response.data)
+        except SlackApiError as e:
+            error_code = e.response["error"]
+
+            if error_code == "not_in_channel":
+                # Auto-join public channel and retry
+                logger.info(
+                    "Bot not in channel, auto-joining",
+                    channel=channel,
+                    workspace=self.workspace_name,
+                )
+                self._sc.conversations_join(channel=channel)
+                response = self._sc.chat_postMessage(
+                    channel=channel, text=text, thread_ts=thread_ts
+                )
+                return ChatPostMessageResponse(**response.data)
+
+            if error_code == "channel_not_found":
+                logger.error(
+                    "Channel not found",
+                    channel=channel,
+                    workspace=self.workspace_name,
+                )
+                raise
+
+            # Other errors
+            logger.warning(
+                "Slack API error posting message",
+                error=error_code,
+                channel=channel,
+            )
+            raise
