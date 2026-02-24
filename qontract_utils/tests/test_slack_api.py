@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from qontract_utils.hooks import Hooks
 from qontract_utils.slack_api import SlackApi, SlackChannel, SlackUser, SlackUsergroup
+from qontract_utils.slack_api.models import ChatPostMessageResponse
+from slack_sdk.errors import SlackApiError
 
 # Default values for tests (matching typical settings)
 DEFAULT_TIMEOUT = 30
@@ -550,3 +552,160 @@ def test_slack_api_gives_up_after_max_attempts(
 
     # Should have tried 3 times (attempts=3)
     assert call_count["count"] == 3
+
+
+# chat_post_message tests
+
+
+def test_chat_post_message_success(slack_api: SlackApi) -> None:
+    """Test chat_post_message returns ChatPostMessageResponse on success."""
+    mock_response = MagicMock()
+    mock_response.data = {
+        "ok": True,
+        "ts": "1234567890.000000",
+        "channel": "C01234ABCD",
+    }
+    slack_api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
+
+    result = slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+
+    assert isinstance(result, ChatPostMessageResponse)
+    assert result.ts == "1234567890.000000"
+    assert result.channel == "C01234ABCD"
+    assert result.thread_ts is None
+    slack_api._sc.chat_postMessage.assert_called_once_with(
+        channel="C01234ABCD", text="Hello", thread_ts=None
+    )
+
+
+def test_chat_post_message_thread_reply(slack_api: SlackApi) -> None:
+    """Test chat_post_message handles thread replies."""
+    mock_response = MagicMock()
+    mock_response.data = {
+        "ok": True,
+        "ts": "1234567891.000000",
+        "channel": "C01234ABCD",
+        "thread_ts": "1234567890.000000",
+    }
+    slack_api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
+
+    result = slack_api.chat_post_message(
+        channel="C01234ABCD", text="Reply", thread_ts="1234567890.000000"
+    )
+
+    assert isinstance(result, ChatPostMessageResponse)
+    assert result.thread_ts == "1234567890.000000"
+    slack_api._sc.chat_postMessage.assert_called_once_with(
+        channel="C01234ABCD", text="Reply", thread_ts="1234567890.000000"
+    )
+
+
+def test_chat_post_message_auto_join(slack_api: SlackApi) -> None:
+    """Test chat_post_message auto-joins channel on not_in_channel error."""
+    # First call raises not_in_channel, second succeeds
+    error_response = {"ok": False, "error": "not_in_channel"}
+    success_response = MagicMock()
+    success_response.data = {
+        "ok": True,
+        "ts": "1234567890.000000",
+        "channel": "C01234ABCD",
+    }
+
+    slack_api._sc.chat_postMessage = MagicMock(  # type: ignore[method-assign]
+        side_effect=[
+            SlackApiError("not_in_channel", response=error_response),
+            success_response,
+        ]
+    )
+    slack_api._sc.conversations_join = MagicMock()  # type: ignore[method-assign]
+
+    result = slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+
+    assert isinstance(result, ChatPostMessageResponse)
+    assert result.ts == "1234567890.000000"
+    slack_api._sc.conversations_join.assert_called_once_with(channel="C01234ABCD")
+    assert slack_api._sc.chat_postMessage.call_count == 2
+
+
+def test_chat_post_message_channel_not_found(slack_api: SlackApi) -> None:
+    """Test chat_post_message logs ERROR and re-raises channel_not_found."""
+    error_response = {"ok": False, "error": "channel_not_found"}
+    slack_api._sc.chat_postMessage = MagicMock(  # type: ignore[method-assign]
+        side_effect=SlackApiError("channel_not_found", response=error_response)
+    )
+
+    with patch("qontract_utils.slack_api.client.logger") as mock_logger:
+        with pytest.raises(SlackApiError) as exc_info:
+            slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+
+        assert "channel_not_found" in str(exc_info.value)
+        mock_logger.error.assert_called_once()
+        call_args = mock_logger.error.call_args
+        assert "C01234ABCD" in str(call_args)
+        assert "test-workspace" in str(call_args)
+
+
+def test_chat_post_message_other_error(slack_api: SlackApi) -> None:
+    """Test chat_post_message logs WARNING and re-raises other errors."""
+    error_response = {"ok": False, "error": "restricted_action"}
+    slack_api._sc.chat_postMessage = MagicMock(  # type: ignore[method-assign]
+        side_effect=SlackApiError("restricted_action", response=error_response)
+    )
+
+    with patch("qontract_utils.slack_api.client.logger") as mock_logger:
+        with pytest.raises(SlackApiError) as exc_info:
+            slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+
+        assert "restricted_action" in str(exc_info.value)
+        mock_logger.warning.assert_called_once()
+        call_args = mock_logger.warning.call_args
+        assert "restricted_action" in str(call_args)
+
+
+def test_chat_post_message_text_truncation(slack_api: SlackApi) -> None:
+    """Test chat_post_message truncates text longer than 10,000 characters."""
+    mock_response = MagicMock()
+    mock_response.data = {
+        "ok": True,
+        "ts": "1234567890.000000",
+        "channel": "C01234ABCD",
+    }
+    slack_api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
+
+    long_text = "x" * 15000
+    slack_api.chat_post_message(channel="C01234ABCD", text=long_text)
+
+    expected_text = "x" * 10000 + "... [truncated]"
+    slack_api._sc.chat_postMessage.assert_called_once_with(
+        channel="C01234ABCD", text=expected_text, thread_ts=None
+    )
+
+
+def test_chat_post_message_hooks_executed(mock_webclient: MagicMock) -> None:
+    """Test chat_post_message executes hooks with correct context."""
+    custom_hook = MagicMock()
+    api = SlackApi(
+        slack_api_url=DEFAULT_SLACK_API_URL,
+        workspace_name="test-workspace",
+        token="xoxb-test-token",
+        timeout=DEFAULT_TIMEOUT,
+        max_retries=DEFAULT_MAX_RETRIES,
+        hooks=Hooks(pre_hooks=[custom_hook]),
+    )
+
+    mock_response = MagicMock()
+    mock_response.data = {
+        "ok": True,
+        "ts": "1234567890.000000",
+        "channel": "C01234ABCD",
+    }
+    api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
+
+    api.chat_post_message(channel="C01234ABCD", text="Hello")
+
+    # Verify custom hook was called with correct context
+    custom_hook.assert_called_once()
+    context = custom_hook.call_args[0][0]
+    assert context.method == "chat.postMessage"
+    assert context.verb == "POST"
+    assert context.workspace == "test-workspace"
