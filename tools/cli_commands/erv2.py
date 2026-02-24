@@ -537,13 +537,16 @@ class TerraformCli:
             self.upload_state()
             source.upload_state()
 
-    def _import_random_password(self, destination: TfResource, password: str) -> None:
+    def _import_random_password(
+        self, destination: TfResource, password: str, provider: str
+    ) -> None:
         """Import a password into a random_password terraform resource."""
         self._tf_import(address=destination.address, value=password)
 
         if (
             not destination.change
             or not destination.change.after
+            or (provider == "rds" and not destination.change.after.get("keepers"))
             or not destination.change.after.get("override_special")
         ):
             # nothing to change, nothing to do
@@ -558,10 +561,16 @@ class TerraformCli:
             r for r in state_data["resources"] if r["name"] == destination.id
         )
 
-        # Set the "override_special" to disable the password reset
-        state_password_obj["instances"][0]["attributes"]["override_special"] = (
-            destination.change.after["override_special"]
-        )
+        if provider == "rds":
+            # Set the "keepers" attr to empty to disable the password reset
+            state_password_obj["instances"][0]["attributes"]["keepers"] = {
+                "reset_password": ""
+            }
+        else:
+            # Set the "override_special" to disable the password reset
+            state_password_obj["instances"][0]["attributes"]["override_special"] = (
+                destination.change.after["override_special"]
+            )
         # Write the state,
         self.state_file.write_text(json.dumps(state_data, indent=2))
 
@@ -629,6 +638,7 @@ class TerraformCli:
                 self._import_random_password(
                     destination_resources.get_resource_by_type("random_password"),
                     current_password,
+                    "rds",
                 )
 
         # migrate resources, skipping random_password (handled above)
