@@ -57,9 +57,6 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
 from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import (
     query as glitchtip_project_query,
 )
-from reconcile.typed_queries.app_interface_vault_settings import (
-    get_app_interface_vault_settings,
-)
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.glitchtip.models import (
@@ -73,7 +70,6 @@ from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
 )
-from reconcile.utils.secret_reader import SecretReaderBase, create_secret_reader
 
 QONTRACT_INTEGRATION = "glitchtip-project-alerts-api"
 GJB_ALERT_NAME = "Glitchtip-Jira-Bridge-Integration"
@@ -100,23 +96,9 @@ class GlitchtipProjectAlertsIntegration(
 ):
     """Manage Glitchtip project alerts."""
 
-    def __init__(self, params: GlitchtipProjectAlertsIntegrationParams) -> None:
-        super().__init__(params)
-        self._secret_reader: SecretReaderBase | None = None
-
     @property
     def name(self) -> str:
         return QONTRACT_INTEGRATION
-
-    @property
-    def secret_reader(self) -> SecretReaderBase:
-        """
-        Returns a secret reader backed by vault or another configured backend.
-        """
-        if self._secret_reader is None:
-            vault_settings = get_app_interface_vault_settings()
-            self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
-        return self._secret_reader
 
     def get_projects(self, query_func: Callable) -> list[GlitchtipProjectV1]:
         return glitchtip_project_query(query_func=query_func).glitchtip_projects or []
