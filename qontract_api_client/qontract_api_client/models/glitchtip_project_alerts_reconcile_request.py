@@ -10,9 +10,6 @@ from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
     from ..models.glitchtip_instance import GlitchtipInstance
-    from ..models.glitchtip_project_alerts_reconcile_request_desired_state import (
-        GlitchtipProjectAlertsReconcileRequestDesiredState,
-    )
 
 
 T = TypeVar("T", bound="GlitchtipProjectAlertsReconcileRequest")
@@ -25,21 +22,16 @@ class GlitchtipProjectAlertsReconcileRequest:
     POST requests always queue a background task (async execution).
 
         Attributes:
-            desired_state (GlitchtipProjectAlertsReconcileRequestDesiredState): Desired state keyed by instance name,
-                containing organizations with project alerts
             instances (list[GlitchtipInstance]): List of Glitchtip instances to reconcile
             dry_run (bool | Unset): If True, only calculate actions without executing. Default: True (safety first!)
                 Default: True.
     """
 
-    desired_state: GlitchtipProjectAlertsReconcileRequestDesiredState
     instances: list[GlitchtipInstance]
     dry_run: bool | Unset = True
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        desired_state = self.desired_state.to_dict()
-
         instances = []
         for instances_item_data in self.instances:
             instances_item = instances_item_data.to_dict()
@@ -50,7 +42,6 @@ class GlitchtipProjectAlertsReconcileRequest:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "desired_state": desired_state,
             "instances": instances,
         })
         if dry_run is not UNSET:
@@ -61,15 +52,8 @@ class GlitchtipProjectAlertsReconcileRequest:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         from ..models.glitchtip_instance import GlitchtipInstance
-        from ..models.glitchtip_project_alerts_reconcile_request_desired_state import (
-            GlitchtipProjectAlertsReconcileRequestDesiredState,
-        )
 
         d = dict(src_dict)
-        desired_state = GlitchtipProjectAlertsReconcileRequestDesiredState.from_dict(
-            d.pop("desired_state")
-        )
-
         instances = []
         _instances = d.pop("instances")
         for instances_item_data in _instances:
@@ -80,7 +64,6 @@ class GlitchtipProjectAlertsReconcileRequest:
         dry_run = d.pop("dry_run", UNSET)
 
         glitchtip_project_alerts_reconcile_request = cls(
-            desired_state=desired_state,
             instances=instances,
             dry_run=dry_run,
         )

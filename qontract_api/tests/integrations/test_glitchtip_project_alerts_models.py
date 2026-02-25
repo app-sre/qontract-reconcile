@@ -103,6 +103,22 @@ def test_glitchtip_instance() -> None:
     assert instance.console_url == "https://glitchtip.example.com"
     assert instance.read_timeout == 30
     assert instance.max_retries == 3
+    assert instance.organizations == []
+
+
+def test_glitchtip_instance_with_organizations() -> None:
+    """Test GlitchtipInstance model with embedded organizations."""
+    instance = GlitchtipInstance(
+        name="my-instance",
+        console_url="https://glitchtip.example.com",
+        token=Secret(
+            secret_manager_url="https://vault.example.com",
+            path="secret/glitchtip/token",
+        ),
+        organizations=[GlitchtipOrganization(name="my-org", projects=[])],
+    )
+    assert len(instance.organizations) == 1
+    assert instance.organizations[0].name == "my-org"
 
 
 def test_glitchtip_reconcile_request() -> None:
@@ -116,23 +132,20 @@ def test_glitchtip_reconcile_request() -> None:
                     secret_manager_url="https://vault.example.com",
                     path="secret/glitchtip/token",
                 ),
+                organizations=[GlitchtipOrganization(name="my-org", projects=[])],
             )
         ],
-        desired_state={
-            "my-instance": [GlitchtipOrganization(name="my-org", projects=[])]
-        },
         dry_run=True,
     )
     assert len(request.instances) == 1
     assert request.dry_run is True
-    assert "my-instance" in request.desired_state
+    assert len(request.instances[0].organizations) == 1
 
 
 def test_glitchtip_reconcile_request_default_dry_run() -> None:
     """Test that dry_run defaults to True (safety first)."""
     request = GlitchtipProjectAlertsReconcileRequest(
         instances=[],
-        desired_state={},
     )
     assert request.dry_run is True
 

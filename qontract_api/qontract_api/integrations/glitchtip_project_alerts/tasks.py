@@ -15,7 +15,6 @@ from qontract_api.integrations.glitchtip_project_alerts.glitchtip_client_factory
 )
 from qontract_api.integrations.glitchtip_project_alerts.models import (
     GlitchtipInstance,
-    GlitchtipOrganization,
     GlitchtipProjectAlertsTaskResult,
 )
 from qontract_api.integrations.glitchtip_project_alerts.service import (
@@ -52,7 +51,6 @@ def generate_lock_key(_self: Task, instances: list[GlitchtipInstance], **_: Any)
 def reconcile_glitchtip_project_alerts_task(
     self: Any,  # Celery Task instance (bind=True)
     instances: list[GlitchtipInstance],
-    desired_state: dict[str, list[GlitchtipOrganization]],
     *,
     dry_run: bool = True,
 ) -> GlitchtipProjectAlertsTaskResult | dict[str, str]:
@@ -64,7 +62,6 @@ def reconcile_glitchtip_project_alerts_task(
     Args:
         self: Celery task instance (bind=True)
         instances: List of GlitchtipInstance models (pickle-serialized by Celery)
-        desired_state: Desired state keyed by instance name
         dry_run: If True, only calculate actions without executing
 
     Returns:
@@ -95,7 +92,6 @@ def reconcile_glitchtip_project_alerts_task(
         # Execute reconciliation
         result = service.reconcile(
             instances=instances,
-            desired_state=desired_state,
             dry_run=dry_run,
         )
 

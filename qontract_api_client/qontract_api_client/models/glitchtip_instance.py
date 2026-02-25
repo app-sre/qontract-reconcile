@@ -9,6 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.glitchtip_organization import GlitchtipOrganization
     from ..models.secret import Secret
 
 
@@ -24,6 +25,7 @@ class GlitchtipInstance:
         name (str): Instance name (unique identifier)
         token (Secret): Reference to a secret stored in a secret manager.
         max_retries (int | Unset): Max HTTP retries Default: 3.
+        organizations (list[GlitchtipOrganization] | Unset): Desired organizations with project alerts
         read_timeout (int | Unset): HTTP read timeout in seconds Default: 30.
     """
 
@@ -31,6 +33,7 @@ class GlitchtipInstance:
     name: str
     token: Secret
     max_retries: int | Unset = 3
+    organizations: list[GlitchtipOrganization] | Unset = UNSET
     read_timeout: int | Unset = 30
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -43,6 +46,13 @@ class GlitchtipInstance:
 
         max_retries = self.max_retries
 
+        organizations: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.organizations, Unset):
+            organizations = []
+            for organizations_item_data in self.organizations:
+                organizations_item = organizations_item_data.to_dict()
+                organizations.append(organizations_item)
+
         read_timeout = self.read_timeout
 
         field_dict: dict[str, Any] = {}
@@ -54,6 +64,8 @@ class GlitchtipInstance:
         })
         if max_retries is not UNSET:
             field_dict["max_retries"] = max_retries
+        if organizations is not UNSET:
+            field_dict["organizations"] = organizations
         if read_timeout is not UNSET:
             field_dict["read_timeout"] = read_timeout
 
@@ -61,6 +73,7 @@ class GlitchtipInstance:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.glitchtip_organization import GlitchtipOrganization
         from ..models.secret import Secret
 
         d = dict(src_dict)
@@ -72,6 +85,17 @@ class GlitchtipInstance:
 
         max_retries = d.pop("max_retries", UNSET)
 
+        _organizations = d.pop("organizations", UNSET)
+        organizations: list[GlitchtipOrganization] | Unset = UNSET
+        if _organizations is not UNSET:
+            organizations = []
+            for organizations_item_data in _organizations:
+                organizations_item = GlitchtipOrganization.from_dict(
+                    organizations_item_data
+                )
+
+                organizations.append(organizations_item)
+
         read_timeout = d.pop("read_timeout", UNSET)
 
         glitchtip_instance = cls(
@@ -79,6 +103,7 @@ class GlitchtipInstance:
             name=name,
             token=token,
             max_retries=max_retries,
+            organizations=organizations,
             read_timeout=read_timeout,
         )
 

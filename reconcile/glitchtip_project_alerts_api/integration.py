@@ -34,9 +34,6 @@ from qontract_api_client.models.glitchtip_project_alert_recipient import (
 from qontract_api_client.models.glitchtip_project_alerts_reconcile_request import (
     GlitchtipProjectAlertsReconcileRequest,
 )
-from qontract_api_client.models.glitchtip_project_alerts_reconcile_request_desired_state import (
-    GlitchtipProjectAlertsReconcileRequestDesiredState,
-)
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
 
@@ -291,12 +288,6 @@ class GlitchtipProjectAlertsIntegration(
         desired_state: dict[str, list[Organization]],
         dry_run: bool,
     ) -> GlitchtipProjectAlertsTaskResponse:
-        desired_state_wrapper = GlitchtipProjectAlertsReconcileRequestDesiredState()
-        desired_state_wrapper.additional_properties = {
-            gi.name: self._build_api_desired_state(desired_state.get(gi.name, []))
-            for gi in instances
-        }
-
         request_data = GlitchtipProjectAlertsReconcileRequest(
             instances=[
                 GlitchtipInstanceRequest(
@@ -310,10 +301,12 @@ class GlitchtipProjectAlertsIntegration(
                     ),
                     read_timeout=gi.read_timeout or 30,
                     max_retries=gi.max_retries or 3,
+                    organizations=self._build_api_desired_state(
+                        desired_state.get(gi.name, [])
+                    ),
                 )
                 for gi in instances
             ],
-            desired_state=desired_state_wrapper,
             dry_run=dry_run,
         )
 
