@@ -9,7 +9,6 @@ This layer sits between the stateless SlackApi and business logic, providing:
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
@@ -23,12 +22,13 @@ from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroup,
     SlackUsergroupConfig,
 )
+from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @runtime_checkable
