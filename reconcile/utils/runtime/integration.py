@@ -250,6 +250,7 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
 
     def __init__(self, params: RunParamsTypeVar) -> None:
         self.params: RunParamsTypeVar = params
+        self._secret_reader: SecretReaderBase | None = None
 
     @property
     @abstractmethod
@@ -291,6 +292,16 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
         """
         config = get_config()
         return config["vault"]["server"]
+
+    @property
+    def secret_reader(self) -> SecretReaderBase:
+        """
+        Returns a function that can be used to read secrets from the vault or another secret reader.
+        """
+        if self._secret_reader is None:
+            vault_settings = get_app_interface_vault_settings()
+            self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+        return self._secret_reader
 
     @abstractmethod
     async def async_run(self, dry_run: bool) -> None:
