@@ -64,42 +64,44 @@ def test_secret_model_minimal() -> None:
     assert secret.version is None
 
 
-def test_slack_settings_notification_channel_default_none() -> None:
-    """Test SlackSettings notification_channel defaults to None."""
-    from qontract_api.config import SlackSettings
+def test_subscriber_settings_all_fields() -> None:
+    """Test SubscriberSettings with all fields."""
+    from qontract_api.config import SubscriberSettings
 
-    slack = SlackSettings()
-    assert slack.notification_channel is None
-
-
-def test_slack_settings_notification_workspace_default_none() -> None:
-    """Test SlackSettings notification_workspace defaults to None."""
-    from qontract_api.config import SlackSettings
-
-    slack = SlackSettings()
-    assert slack.notification_workspace is None
-
-
-def test_slack_settings_secret_path_default() -> None:
-    """Test SlackSettings secret_path defaults to app-sre/slack/bot-token."""
-    from qontract_api.config import SlackSettings
-
-    slack = SlackSettings()
-    assert slack.secret_path == "app-sre/slack/bot-token"
-
-
-def test_slack_settings_notification_fields_custom() -> None:
-    """Test SlackSettings accepts custom notification field values."""
-    from qontract_api.config import SlackSettings
-
-    slack = SlackSettings(
-        notification_channel="sd-app-sre-reconcile",
-        notification_workspace="app-sre",
-        secret_path="custom/slack/token",
+    subscriber = SubscriberSettings(
+        slack_channel="sd-app-sre-reconcile",
+        slack_workspace="app-sre",
+        slack_token_path="app-sre/slack/bot-token",
+        qontract_api_url="https://api.example.com",
+        qontract_api_token_path="app-sre/api/token",
     )
-    assert slack.notification_channel == "sd-app-sre-reconcile"
-    assert slack.notification_workspace == "app-sre"
-    assert slack.secret_path == "custom/slack/token"
+    assert subscriber.slack_channel == "sd-app-sre-reconcile"
+    assert subscriber.slack_workspace == "app-sre"
+    assert subscriber.slack_token_path == "app-sre/slack/bot-token"
+    assert subscriber.qontract_api_url == "https://api.example.com"
+    assert subscriber.qontract_api_token_path == "app-sre/api/token"
+
+
+def test_subscriber_settings_defaults() -> None:
+    """Test SubscriberSettings with only required fields."""
+    from qontract_api.config import SubscriberSettings
+
+    subscriber = SubscriberSettings(
+        slack_channel="sd-app-sre-reconcile",
+        slack_workspace="app-sre",
+        slack_token_path="app-sre/slack/bot-token",
+    )
+    assert subscriber.slack_channel == "sd-app-sre-reconcile"
+    assert subscriber.slack_workspace == "app-sre"
+    assert subscriber.slack_token_path == "app-sre/slack/bot-token"
+    assert subscriber.qontract_api_url == "http://localhost:8000"
+    assert subscriber.qontract_api_token_path == "app-sre/qontract-api/token"
+
+
+def test_settings_subscriber_default_none() -> None:
+    """Test Settings subscriber defaults to None."""
+    settings = Settings()
+    assert settings.subscriber is None
 
 
 def test_slack_settings_backwards_compatible() -> None:
@@ -114,7 +116,3 @@ def test_slack_settings_backwards_compatible() -> None:
     assert slack.usergroup_cache_ttl == 60 * 60
     assert slack.users_cache_ttl == 60 * 60 * 12
     assert slack.channels_cache_ttl == 60 * 60 * 12
-    # Verify new fields have correct defaults
-    assert slack.notification_channel is None
-    assert slack.notification_workspace is None
-    assert slack.secret_path == "app-sre/slack/bot-token"

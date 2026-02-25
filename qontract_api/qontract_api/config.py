@@ -68,18 +68,29 @@ class SlackSettings(BaseModel):
         description="Slack channels list cache TTL in seconds (12 hours)",
     )
 
-    # Notification configuration for event posting
-    notification_channel: str | None = Field(
-        default=None,
-        description="Channel name for event notifications (e.g., sd-app-sre-reconcile). If not set, Slack notifications are disabled.",
+
+class SubscriberSettings(BaseModel):
+    """Event subscriber configuration."""
+
+    slack_channel: str = Field(
+        ...,
+        description="Slack channel name for event notifications",
     )
-    notification_workspace: str | None = Field(
-        default=None,
-        description="Workspace name for event notifications",
+    slack_workspace: str = Field(
+        ...,
+        description="Slack workspace name",
     )
-    secret_path: str = Field(
-        default="app-sre/slack/bot-token",
-        description="Vault path to Slack bot token",
+    slack_token_path: str = Field(
+        ...,
+        description="Vault secret path for Slack bot token",
+    )
+    qontract_api_url: str = Field(
+        default="http://localhost:8000",
+        description="qontract-api server URL",
+    )
+    qontract_api_token_path: str = Field(
+        default="app-sre/qontract-api/token",
+        description="Vault secret path for qontract-api auth token",
     )
 
 
@@ -388,6 +399,12 @@ class Settings(BaseSettings):
     events: EventSettings = Field(
         default_factory=EventSettings,
         description="Event publishing configuration",
+    )
+
+    # Event Subscriber Configuration (nested)
+    subscriber: SubscriberSettings | None = Field(
+        default=None,
+        description="Event subscriber configuration",
     )
 
     @field_validator("sentry_event_level", mode="after")
