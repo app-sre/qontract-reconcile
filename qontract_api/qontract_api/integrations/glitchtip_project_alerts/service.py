@@ -1,5 +1,7 @@
 """Glitchtip project alerts reconciliation service."""
 
+import operator
+
 from qontract_utils.differ import diff_iterables
 from qontract_utils.glitchtip_api.models import (
     ProjectAlert,
@@ -28,30 +30,6 @@ from qontract_api.models import TaskStatus
 from qontract_api.secret_manager import SecretManager
 
 logger = get_logger(__name__)
-
-
-def _recipients_equal(
-    current: list[ProjectAlertRecipient], desired: list[ProjectAlertRecipient]
-) -> bool:
-    """Compare recipient lists ignoring pk (API-assigned IDs)."""
-
-    def recipient_key(r: ProjectAlertRecipient) -> tuple[str, str]:
-        return (r.recipient_type.value, r.url)
-
-    return {recipient_key(r) for r in current} == {recipient_key(r) for r in desired}
-
-
-def _alerts_equal(current: ProjectAlert, desired: ProjectAlert) -> bool:
-    """Compare alerts ignoring pk (API-assigned IDs).
-
-    The pk field is assigned by the Glitchtip API and should not be used
-    for comparison when determining if an alert needs to be updated.
-    """
-    return (
-        current.timespan_minutes == desired.timespan_minutes
-        and current.quantity == desired.quantity
-        and _recipients_equal(current.recipients, desired.recipients)
-    )
 
 
 def _find_desired_alert(
@@ -204,7 +182,7 @@ class GlitchtipProjectAlertsService:
                     current_alerts,
                     desired_alerts,
                     key=lambda a: a.name,
-                    equal=_alerts_equal,
+                    equal=operator.eq,
                 )
 
                 actions.extend(
