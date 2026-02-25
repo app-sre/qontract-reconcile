@@ -5,8 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qontract_api.integrations.slack_usergroups.models import (
-    SlackUsergroup,
-    SlackUsergroupConfig,
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
@@ -15,6 +13,7 @@ from qontract_api.integrations.slack_usergroups.tasks import (
     reconcile_slack_usergroups_task,
 )
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.slack.models import SlackUsergroup, SlackUsergroupConfig
 
 
 @pytest.fixture
@@ -83,7 +82,9 @@ def test_generate_lock_key_multiple_workspaces() -> None:
 
 @patch("qontract_api.integrations.slack_usergroups.tasks.get_cache")
 @patch("qontract_api.integrations.slack_usergroups.tasks.get_secret_manager")
-@patch("qontract_api.integrations.slack_usergroups.service.create_slack_workspace_client")
+@patch(
+    "qontract_api.integrations.slack_usergroups.service.create_slack_workspace_client"
+)
 def test_reconcile_task_dry_run_success(
     mock_factory_function: MagicMock,
     mock_get_secret_manager: MagicMock,

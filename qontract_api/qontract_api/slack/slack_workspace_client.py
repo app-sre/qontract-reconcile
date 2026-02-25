@@ -19,6 +19,11 @@ from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
 from qontract_utils.slack_api import SlackUser as SlackUserAPI
 from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
 
+from .models import (
+    SlackUsergroup,
+    SlackUsergroupConfig,
+)
+
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
@@ -279,12 +284,6 @@ class SlackWorkspaceClient:
         Returns:
             List of SlackUsergroup objects
         """
-        # Lazy import to avoid circular dependency
-        from qontract_api.integrations.slack_usergroups.models import (  # noqa: PLC0415
-            SlackUsergroup,
-            SlackUsergroupConfig,
-        )
-
         usergroups = [
             ug for ug in self.get_usergroups().values() if ug.handle in handles
         ]
@@ -324,12 +323,6 @@ class SlackWorkspaceClient:
         Returns:
             List of cleaned usergroups with only valid users/channels
         """
-        # Lazy import to avoid circular dependency
-        from qontract_api.integrations.slack_usergroups.models import (  # noqa: PLC0415
-            SlackUsergroup,
-            SlackUsergroupConfig,
-        )
-
         # Pre-fetch all data ONCE for all usergroups (2 cache lookups total!)
         # Build O(1) lookup sets ONCE
         valid_org_names = {
@@ -418,9 +411,7 @@ class SlackWorkspaceClient:
             usergroup_id=ug.id,
             name=name,
             description=description,
-            channel_ids=[
-                channel_id_by_name[ch.lstrip("#")] for ch in channels
-            ]
+            channel_ids=[channel_id_by_name[ch.lstrip("#")] for ch in channels]
             if channels
             else None,
         )
