@@ -1,13 +1,12 @@
 """Tests for event formatters."""
 
-import pytest
+from qontract_utils.events._models import Event
 
 from qontract_api.subscriber._formatters import (
     GenericEventFormatter,
     format_event,
     register_formatter,
 )
-from qontract_utils.events._models import Event
 
 
 def test_generic_formatter_basic_event() -> None:

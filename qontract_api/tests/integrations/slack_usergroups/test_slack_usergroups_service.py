@@ -1,8 +1,5 @@
 """Unit tests for SlackUsergroupsService."""
 
-
-# ruff: noqa: ARG001 - Unused fixtures acceptable for test setup
-
 from unittest.mock import MagicMock, patch
 
 import pytest

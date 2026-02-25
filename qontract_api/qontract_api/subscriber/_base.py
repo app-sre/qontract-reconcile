@@ -7,8 +7,6 @@ from faststream.specification import AsyncAPI
 
 from qontract_api.config import settings
 
-if not settings.events.enabled:
-    raise RuntimeError("Event publishing is disabled. Subscriber cannot be started.")
 if settings.cache_backend != "redis":
     raise RuntimeError(
         "Event publishing is only supported with Redis backend. Subscriber cannot be started."

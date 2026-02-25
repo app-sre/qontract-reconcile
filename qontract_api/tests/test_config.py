@@ -83,18 +83,15 @@ def test_subscriber_settings_all_fields() -> None:
 
 
 def test_subscriber_settings_defaults() -> None:
-    """Test SubscriberSettings with only required fields."""
+    """Test SubscriberSettings defaults to empty strings."""
     from qontract_api.config import SubscriberSettings
 
-    subscriber = SubscriberSettings(
-        slack_channel="sd-app-sre-reconcile",
-        slack_workspace="app-sre",
-        slack_token_path="app-sre/slack/bot-token",
-    )
-    assert subscriber.slack_channel == "sd-app-sre-reconcile"
-    assert subscriber.slack_workspace == "app-sre"
-    assert subscriber.slack_token_path == "app-sre/slack/bot-token"
+    subscriber = SubscriberSettings()
+    assert subscriber.slack_channel == ""
+    assert subscriber.slack_workspace == ""
+    assert subscriber.slack_token_path == ""
     assert subscriber.qontract_api_url == "http://localhost:8000"
+    assert subscriber.qontract_api_token == ""
     assert subscriber.qontract_api_token_path == "app-sre/qontract-api/token"
 
 

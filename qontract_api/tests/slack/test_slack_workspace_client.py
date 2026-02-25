@@ -130,7 +130,7 @@ def test_get_usergroups_cache_hit(
 def test_get_channels_cache_miss(
     client: SlackWorkspaceClient,
     mock_slack_api: MagicMock,
-    mock_cache: MagicMock,  # noqa: ARG001
+    mock_cache: MagicMock,
 ) -> None:
     """Test get_channels fetches from API on cache miss."""
     mock_channel = SlackChannel(id="C1", name="general")

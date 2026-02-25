@@ -109,8 +109,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
+    "ARG001",  # Unused argument (common in test fixtures)
     "PLC0415", # Import not at top level (lazy imports in tests)
     "PLR2004", # Magic value in comparison (acceptable in tests)
+    "PLC2701", # import from private module (testing internal state)
     "PLR6301", # Method could be function/classmethod/staticmethod (pytest uses instance methods)
     "PT012",   # pytest.raises with multiple statements (acceptable pattern)
     "RUF043",  # Regex metacharacters in pytest.raises match (intentional in tests)

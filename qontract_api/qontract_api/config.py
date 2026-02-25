@@ -73,15 +73,15 @@ class SubscriberSettings(BaseModel):
     """Event subscriber configuration."""
 
     slack_channel: str = Field(
-        ...,
+        default="",
         description="Slack channel name for event notifications",
     )
     slack_workspace: str = Field(
-        ...,
+        default="",
         description="Slack workspace name",
     )
-    slack_token_path: str = Field(
-        ...,
+    slack_token: Secret | None = Field(
+        default=None,
         description="Vault secret path for Slack bot token",
     )
     qontract_api_url: str = Field(
@@ -90,11 +90,7 @@ class SubscriberSettings(BaseModel):
     )
     qontract_api_token: str = Field(
         default="",
-        description="qontract-api auth token. Set via QAPI_SUBSCRIBER__QONTRACT_API_TOKEN",
-    )
-    qontract_api_token_path: str = Field(
-        default="app-sre/qontract-api/token",
-        description="Vault secret path for qontract-api auth token (alternative to direct token)",
+        description="Qontract-api auth token for subscriber to authenticate with qontract-api when posting events",
     )
 
 
@@ -406,8 +402,8 @@ class Settings(BaseSettings):
     )
 
     # Event Subscriber Configuration (nested)
-    subscriber: SubscriberSettings | None = Field(
-        default=None,
+    subscriber: SubscriberSettings = Field(
+        default=SubscriberSettings,
         description="Event subscriber configuration",
     )
 

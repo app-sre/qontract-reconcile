@@ -22,15 +22,8 @@ def _get_client() -> AuthenticatedClient:
     Raises:
         RuntimeError: If subscriber settings not configured or token not set
     """
-    if settings.subscriber is None:
-        raise RuntimeError(
-            "Subscriber settings not configured. Set QAPI_SUBSCRIBER__* environment variables."
-        )
-
     if not settings.subscriber.qontract_api_token:
-        raise RuntimeError(
-            "qontract-api auth token not set. Set QAPI_SUBSCRIBER__QONTRACT_API_TOKEN environment variable."
-        )
+        raise RuntimeError("settings.SubscriberSettings.qontract_api_token not set.")
 
     return AuthenticatedClient(
         base_url=settings.subscriber.qontract_api_url,
@@ -48,8 +41,8 @@ async def post_to_slack(message: str) -> None:
         RuntimeError: If subscriber settings not configured
         httpx.HTTPError: If API call fails
     """
-    if settings.subscriber is None:
-        raise RuntimeError("Subscriber settings not configured")
+    if settings.subscriber.slack_token is None:
+        raise RuntimeError("Subscriber settings slack_token not configured!")
 
     # Build chat request with secret reference for Slack bot token
     chat_request = ChatRequest(
@@ -57,7 +50,9 @@ async def post_to_slack(message: str) -> None:
         channel=settings.subscriber.slack_channel,
         text=message,
         secret=Secret(
-            path=settings.subscriber.slack_token_path,
+            path=settings.subscriber.slack_token.path,
+            field=settings.subscriber.slack_token.field,
+            version=settings.subscriber.slack_token.version,
             secret_manager_url=settings.secrets.default_provider_url,
         ),
     )
