@@ -180,7 +180,7 @@ class GlitchtipSettings(BaseModel):
         description="Glitchtip projects cache TTL in seconds (one hour)",
     )
     alerts_cache_ttl: int = Field(
-        default=60 * 5,
+        default=60 * 60,
         description="Glitchtip project alerts cache TTL in seconds (5 minutes)",
     )
 
