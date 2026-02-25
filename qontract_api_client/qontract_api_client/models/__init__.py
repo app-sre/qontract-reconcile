@@ -12,9 +12,6 @@ from .glitchtip_project_alert_recipient import GlitchtipProjectAlertRecipient
 from .glitchtip_project_alerts_reconcile_request import (
     GlitchtipProjectAlertsReconcileRequest,
 )
-from .glitchtip_project_alerts_reconcile_request_desired_state import (
-    GlitchtipProjectAlertsReconcileRequestDesiredState,
-)
 from .glitchtip_project_alerts_task_response import GlitchtipProjectAlertsTaskResponse
 from .glitchtip_project_alerts_task_result import GlitchtipProjectAlertsTaskResult
 from .health_response import HealthResponse
@@ -50,7 +47,6 @@ __all__ = (
     "GlitchtipProjectAlert",
     "GlitchtipProjectAlertRecipient",
     "GlitchtipProjectAlertsReconcileRequest",
-    "GlitchtipProjectAlertsReconcileRequestDesiredState",
     "GlitchtipProjectAlertsTaskResponse",
     "GlitchtipProjectAlertsTaskResult",
     "HTTPValidationError",

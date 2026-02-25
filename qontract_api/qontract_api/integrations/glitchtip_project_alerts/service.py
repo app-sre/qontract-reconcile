@@ -305,7 +305,6 @@ class GlitchtipProjectAlertsService:
     def reconcile(
         self,
         instances: list[GlitchtipInstance],
-        desired_state: dict[str, list[GlitchtipOrganization]],
         *,
         dry_run: bool = True,
     ) -> GlitchtipProjectAlertsTaskResult:
@@ -315,8 +314,7 @@ class GlitchtipProjectAlertsService:
         calculate diff, and execute actions (if dry_run=False).
 
         Args:
-            instances: List of Glitchtip instances to reconcile
-            desired_state: Desired state keyed by instance name
+            instances: List of Glitchtip instances to reconcile (organizations embedded)
             dry_run: If True, only calculate actions without executing (keyword-only)
 
         Returns:
@@ -331,7 +329,7 @@ class GlitchtipProjectAlertsService:
         applied_count = 0
 
         for instance in instances:
-            instance_desired = desired_state.get(instance.name, [])
+            instance_desired = instance.organizations
             logger.info(f"Reconciling Glitchtip instance: {instance.name}")
 
             try:

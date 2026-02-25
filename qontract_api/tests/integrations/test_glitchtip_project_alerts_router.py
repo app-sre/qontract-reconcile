@@ -37,11 +37,9 @@ def sample_reconcile_request() -> GlitchtipProjectAlertsReconcileRequest:
                     secret_manager_url="https://vault.example.com",
                     path="secret/glitchtip/token",
                 ),
+                organizations=[GlitchtipOrganization(name="my-org", projects=[])],
             )
         ],
-        desired_state={
-            "test-instance": [GlitchtipOrganization(name="my-org", projects=[])]
-        },
         dry_run=True,
     )
 
@@ -94,9 +92,9 @@ def test_post_reconcile_dry_run_false(
                     "secret_manager_url": "https://vault.example.com",
                     "path": "secret/glitchtip/token",
                 },
+                "organizations": [],
             }
         ],
-        "desired_state": {"test-instance": []},
         "dry_run": False,
     }
 

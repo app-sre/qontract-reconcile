@@ -108,6 +108,14 @@ def test_instance(test_token: Secret) -> GlitchtipInstance:
         name="test-instance",
         console_url="https://glitchtip.example.com",
         token=test_token,
+        organizations=[
+            GlitchtipOrganization(
+                name="my-org",
+                projects=[
+                    GlitchtipProject(name="my-project", slug="my-project", alerts=[])
+                ],
+            )
+        ],
     )
 
 
@@ -116,20 +124,8 @@ def test_reconcile_no_changes(
     test_instance: GlitchtipInstance,
 ) -> None:
     """Test reconcile with no changes needed."""
-    desired_state = {
-        "test-instance": [
-            GlitchtipOrganization(
-                name="my-org",
-                projects=[
-                    GlitchtipProject(name="my-project", slug="my-project", alerts=[])
-                ],
-            )
-        ]
-    }
-
     result = service.reconcile(
         instances=[test_instance],
-        desired_state=desired_state,
         dry_run=True,
     )
 
@@ -141,14 +137,17 @@ def test_reconcile_no_changes(
 
 def test_reconcile_creates_new_alert(
     service: GlitchtipProjectAlertsService,
-    test_instance: GlitchtipInstance,
+    test_token: Secret,
     mock_glitchtip_client: MagicMock,
 ) -> None:
     """Test reconcile calculates create action when alert is in desired but not current."""
     mock_glitchtip_client.get_project_alerts.return_value = []
 
-    desired_state = {
-        "test-instance": [
+    instance = GlitchtipInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        organizations=[
             GlitchtipOrganization(
                 name="my-org",
                 projects=[
@@ -165,12 +164,11 @@ def test_reconcile_creates_new_alert(
                     )
                 ],
             )
-        ]
-    }
+        ],
+    )
 
     result = service.reconcile(
-        instances=[test_instance],
-        desired_state=desired_state,
+        instances=[instance],
         dry_run=True,
     )
 
@@ -191,24 +189,8 @@ def test_reconcile_deletes_removed_alert(
         ProjectAlert(pk=42, name="old-alert", timespan_minutes=5, quantity=50)
     ]
 
-    desired_state = {
-        "test-instance": [
-            GlitchtipOrganization(
-                name="my-org",
-                projects=[
-                    GlitchtipProject(
-                        name="my-project",
-                        slug="my-project",
-                        alerts=[],  # No desired alerts
-                    )
-                ],
-            )
-        ]
-    }
-
     result = service.reconcile(
         instances=[test_instance],
-        desired_state=desired_state,
         dry_run=True,
     )
 
@@ -220,7 +202,7 @@ def test_reconcile_deletes_removed_alert(
 
 def test_reconcile_updates_changed_alert(
     service: GlitchtipProjectAlertsService,
-    test_instance: GlitchtipInstance,
+    test_token: Secret,
     mock_glitchtip_client: MagicMock,
 ) -> None:
     """Test reconcile calculates update action when alert configuration differs."""
@@ -228,8 +210,11 @@ def test_reconcile_updates_changed_alert(
         ProjectAlert(pk=10, name="my-alert", timespan_minutes=5, quantity=50)
     ]
 
-    desired_state = {
-        "test-instance": [
+    instance = GlitchtipInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        organizations=[
             GlitchtipOrganization(
                 name="my-org",
                 projects=[
@@ -246,12 +231,11 @@ def test_reconcile_updates_changed_alert(
                     )
                 ],
             )
-        ]
-    }
+        ],
+    )
 
     result = service.reconcile(
-        instances=[test_instance],
-        desired_state=desired_state,
+        instances=[instance],
         dry_run=True,
     )
 
@@ -263,14 +247,17 @@ def test_reconcile_updates_changed_alert(
 
 def test_reconcile_skips_unknown_organization(
     service: GlitchtipProjectAlertsService,
-    test_instance: GlitchtipInstance,
+    test_token: Secret,
     mock_glitchtip_client: MagicMock,
 ) -> None:
     """Test reconcile skips organizations that don't exist in current state."""
     mock_glitchtip_client.get_organizations.return_value = []
 
-    desired_state = {
-        "test-instance": [
+    instance = GlitchtipInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        organizations=[
             GlitchtipOrganization(
                 name="nonexistent-org",
                 projects=[
@@ -287,12 +274,11 @@ def test_reconcile_skips_unknown_organization(
                     )
                 ],
             )
-        ]
-    }
+        ],
+    )
 
     result = service.reconcile(
-        instances=[test_instance],
-        desired_state=desired_state,
+        instances=[instance],
         dry_run=True,
     )
 
@@ -312,7 +298,6 @@ def test_reconcile_handles_instance_error(
 
     result = service.reconcile(
         instances=[test_instance],
-        desired_state={"test-instance": []},
         dry_run=True,
     )
 
@@ -323,7 +308,7 @@ def test_reconcile_handles_instance_error(
 
 def test_reconcile_applies_actions_when_not_dry_run(
     service: GlitchtipProjectAlertsService,
-    test_instance: GlitchtipInstance,
+    test_token: Secret,
     mock_glitchtip_client: MagicMock,
 ) -> None:
     """Test reconcile actually creates alerts when dry_run=False."""
@@ -332,8 +317,11 @@ def test_reconcile_applies_actions_when_not_dry_run(
         pk=1, name="new-alert", timespan_minutes=5, quantity=100
     )
 
-    desired_state = {
-        "test-instance": [
+    instance = GlitchtipInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        organizations=[
             GlitchtipOrganization(
                 name="my-org",
                 projects=[
@@ -350,12 +338,11 @@ def test_reconcile_applies_actions_when_not_dry_run(
                     )
                 ],
             )
-        ]
-    }
+        ],
+    )
 
     result = service.reconcile(
-        instances=[test_instance],
-        desired_state=desired_state,
+        instances=[instance],
         dry_run=False,
     )
 

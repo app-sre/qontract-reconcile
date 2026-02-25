@@ -152,6 +152,15 @@
             "title": "Name",
             "type": "string"
           },
+          "organizations": {
+            "default": [],
+            "description": "Desired organizations with project alerts",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipOrganization"
+            },
+            "title": "Organizations",
+            "type": "array"
+          },
           "read_timeout": {
             "default": 30,
             "description": "HTTP read timeout in seconds",
@@ -285,17 +294,6 @@
       "GlitchtipProjectAlertsReconcileRequest": {
         "description": "Request model for Glitchtip project alerts reconciliation.\n\nPOST requests always queue a background task (async execution).",
         "properties": {
-          "desired_state": {
-            "additionalProperties": {
-              "items": {
-                "$ref": "#/components/schemas/GlitchtipOrganization"
-              },
-              "type": "array"
-            },
-            "description": "Desired state keyed by instance name, containing organizations with project alerts",
-            "title": "Desired State",
-            "type": "object"
-          },
           "dry_run": {
             "default": true,
             "description": "If True, only calculate actions without executing. Default: True (safety first!)",
@@ -312,8 +310,7 @@
           }
         },
         "required": [
-          "instances",
-          "desired_state"
+          "instances"
         ],
         "title": "GlitchtipProjectAlertsReconcileRequest",
         "type": "object"

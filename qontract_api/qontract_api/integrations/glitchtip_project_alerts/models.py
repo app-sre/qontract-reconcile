@@ -7,16 +7,6 @@ from pydantic import BaseModel, Field
 from qontract_api.models import Secret, TaskResult, TaskStatus
 
 
-class GlitchtipInstance(BaseModel, frozen=True):
-    """Glitchtip instance configuration."""
-
-    name: str = Field(..., description="Instance name (unique identifier)")
-    console_url: str = Field(..., description="Glitchtip instance base URL")
-    token: Secret = Field(..., description="Secret reference for the API token")
-    read_timeout: int = Field(default=30, description="HTTP read timeout in seconds")
-    max_retries: int = Field(default=3, description="Max HTTP retries")
-
-
 class GlitchtipProjectAlertRecipient(BaseModel, frozen=True):
     """Desired state for a single project alert recipient."""
 
@@ -58,6 +48,19 @@ class GlitchtipOrganization(BaseModel, frozen=True):
     )
 
 
+class GlitchtipInstance(BaseModel, frozen=True):
+    """Glitchtip instance configuration."""
+
+    name: str = Field(..., description="Instance name (unique identifier)")
+    console_url: str = Field(..., description="Glitchtip instance base URL")
+    token: Secret = Field(..., description="Secret reference for the API token")
+    read_timeout: int = Field(default=30, description="HTTP read timeout in seconds")
+    max_retries: int = Field(default=3, description="Max HTTP retries")
+    organizations: list[GlitchtipOrganization] = Field(
+        default=[], description="Desired organizations with project alerts"
+    )
+
+
 class GlitchtipProjectAlertsReconcileRequest(BaseModel, frozen=True):
     """Request model for Glitchtip project alerts reconciliation.
 
@@ -66,10 +69,6 @@ class GlitchtipProjectAlertsReconcileRequest(BaseModel, frozen=True):
 
     instances: list[GlitchtipInstance] = Field(
         ..., description="List of Glitchtip instances to reconcile"
-    )
-    desired_state: dict[str, list[GlitchtipOrganization]] = Field(
-        ...,
-        description="Desired state keyed by instance name, containing organizations with project alerts",
     )
     dry_run: bool = Field(
         default=True,

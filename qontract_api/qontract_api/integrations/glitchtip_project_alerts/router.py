@@ -55,7 +55,6 @@ def glitchtip_project_alerts(
         task_id=request.state.request_id,
         kwargs={
             "instances": reconcile_request.instances,
-            "desired_state": reconcile_request.desired_state,
             "dry_run": reconcile_request.dry_run,
         },
     )
