@@ -85,7 +85,7 @@ objects:
               secretKeyRef:
                 key: slack.webhook_url
                 name: app-interface
-          {{- if eq $.Values.gov_slack "true" }}
+          {{- if $logs.govSlack }}
           - name: SLACK_TRIGGERS_WEBHOOK_URL
             valueFrom:
               secretKeyRef:
@@ -217,7 +217,7 @@ objects:
               {{- if $logs.slack }}
               <store>
                 @type slack
-                {{- if eq $.Values.gov_slack "true" }}
+                {{- if $logs.govSlack }}
                 {{- if $integration.trigger }}
                 webhook_url ${SLACK_TRIGGERS_WEBHOOK_URL}
                 channel ${SLACK_CHANNEL_TRIGGER}

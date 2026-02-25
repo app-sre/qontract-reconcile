@@ -12,6 +12,7 @@ integrations:
   logs:
     slack: true
     slackErrorFilter: false
+    govSlack: false
   shard_specs:
   - shard_id: 0
     shards: 1
