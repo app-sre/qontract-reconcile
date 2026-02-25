@@ -8,18 +8,19 @@ This layer sits between the stateless GlitchtipApi and business logic, providing
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 from qontract_utils.glitchtip_api import GlitchtipApi
 from qontract_utils.glitchtip_api.models import Organization, Project, ProjectAlert
 
+from qontract_api.logger import get_logger
+
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CachedOrganizations(BaseModel, frozen=True):
