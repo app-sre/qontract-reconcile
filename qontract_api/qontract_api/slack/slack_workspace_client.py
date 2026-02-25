@@ -19,11 +19,6 @@ from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
 from qontract_utils.slack_api import SlackUser as SlackUserAPI
 from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
 
-from qontract_api.integrations.slack_usergroups.models import (
-    SlackUsergroup,
-    SlackUsergroupConfig,
-)
-
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend
     from qontract_api.config import Settings
@@ -275,7 +270,7 @@ class SlackWorkspaceClient:
         return None
 
     # PUBLIC HELPERS
-    def get_slack_usergroups(self, handles: list[str]) -> list[SlackUsergroup]:
+    def get_slack_usergroups(self, handles: list[str]) -> list:
         """Get Slack usergroups by handles.
 
         Args:
@@ -284,6 +279,12 @@ class SlackWorkspaceClient:
         Returns:
             List of SlackUsergroup objects
         """
+        # Lazy import to avoid circular dependency
+        from qontract_api.integrations.slack_usergroups.models import (
+            SlackUsergroup,
+            SlackUsergroupConfig,
+        )
+
         usergroups = [
             ug for ug in self.get_usergroups().values() if ug.handle in handles
         ]
@@ -315,8 +316,8 @@ class SlackWorkspaceClient:
         ]
 
     def clean_slack_usergroups(
-        self, usergroups: Iterable[SlackUsergroup]
-    ) -> list[SlackUsergroup]:
+        self, usergroups: Iterable
+    ) -> list:
         """Clean usergroups by removing non-existing users/channels (efficient batch operation).
 
         Args:
@@ -325,6 +326,12 @@ class SlackWorkspaceClient:
         Returns:
             List of cleaned usergroups with only valid users/channels
         """
+        # Lazy import to avoid circular dependency
+        from qontract_api.integrations.slack_usergroups.models import (
+            SlackUsergroup,
+            SlackUsergroupConfig,
+        )
+
         # Pre-fetch all data ONCE for all usergroups (2 cache lookups total!)
         # Build O(1) lookup sets ONCE
         valid_org_names = {

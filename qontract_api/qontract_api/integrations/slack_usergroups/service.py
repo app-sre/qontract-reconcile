@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from qontract_utils.differ import diff_iterables
 from qontract_utils.secret_reader import Secret
 
+from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
 from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroup,
@@ -15,12 +16,8 @@ from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
-from qontract_api.integrations.slack_usergroups.slack_client_factory import (
-    SlackClientFactory,
-)
-from qontract_api.integrations.slack_usergroups.slack_workspace_client import (
-    SlackWorkspaceClient,
-)
+from qontract_api.slack.slack_client_factory import create_slack_workspace_client
+from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager import SecretManager
@@ -39,18 +36,18 @@ class SlackUsergroupsService:
 
     def __init__(
         self,
-        slack_client_factory: SlackClientFactory,
+        cache: CacheBackend,
         secret_manager: SecretManager,
         settings: Settings,
     ) -> None:
         """Initialize service.
 
         Args:
-            slack_client_factory: Factory for creating SlackWorkspaceClient instances
-            secret_reader: Secret backend for retrieving Slack tokens
+            cache: Cache backend for distributed caching and locking
+            secret_manager: Secret backend for retrieving Slack tokens
             settings: Application settings
         """
-        self.slack_client_factory = slack_client_factory
+        self.cache = cache
         self.secret_manager = secret_manager
         self.settings = settings
 
@@ -63,14 +60,17 @@ class SlackUsergroupsService:
 
         Args:
             workspace_name: Name of the Slack workspace
+            token: Secret reference for Slack API token
 
         Returns:
             SlackWorkspaceClient instance with full caching + compute layer
         """
-        # Use factory to create client
-        return self.slack_client_factory.create_workspace_client(
+        return create_slack_workspace_client(
+            secret=token,
             workspace_name=workspace_name,
-            token=self.secret_manager.read(token),
+            cache=self.cache,
+            secret_manager=self.secret_manager,
+            settings=self.settings,
         )
 
     @staticmethod

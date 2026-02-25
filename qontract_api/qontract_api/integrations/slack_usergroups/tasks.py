@@ -17,9 +17,6 @@ from qontract_api.integrations.slack_usergroups.models import (
     SlackWorkspace,
 )
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
-from qontract_api.integrations.slack_usergroups.slack_client_factory import (
-    SlackClientFactory,
-)
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
@@ -80,10 +77,9 @@ def reconcile_slack_usergroups_task(
         secret_manager = get_secret_manager(cache=cache)
         event_manager = get_event_manager()
 
-        # Create factory and service
-        slack_client_factory = SlackClientFactory(cache=cache, settings=settings)
+        # Create service
         service = SlackUsergroupsService(
-            slack_client_factory=slack_client_factory,
+            cache=cache,
             secret_manager=secret_manager,
             settings=settings,
         )
