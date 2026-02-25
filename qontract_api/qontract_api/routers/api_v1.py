@@ -14,6 +14,7 @@ Structure:
 from fastapi import APIRouter
 
 from qontract_api.external.pagerduty import router as pagerduty_router
+from qontract_api.external.slack import router as slack_router
 from qontract_api.external.vcs import router as vcs_router
 from qontract_api.routers.integrations import integrations_router
 
@@ -23,6 +24,7 @@ api_v1_router = APIRouter(prefix="/api/v1")
 # Include major functional areas
 api_v1_router.include_router(integrations_router)
 api_v1_router.include_router(pagerduty_router.router)
+api_v1_router.include_router(slack_router.router)
 api_v1_router.include_router(vcs_router.router)
 
 # Future routers will be added here:

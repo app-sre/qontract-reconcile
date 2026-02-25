@@ -1,6 +1,6 @@
 """Custom exceptions and error handlers for qontract-api."""
 
-from fastapi import Request, status
+from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -71,17 +71,24 @@ async def api_error_handler(  # noqa: RUF029 - FastAPI requires async exception 
 
 
 async def general_exception_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
-    request: Request, _exc: Exception
+    request: Request, exc: Exception
 ) -> JSONResponse:
-    """Handle unexpected exceptions."""
+    """Handle unexpected exceptions including HTTPException."""
     request_id = getattr(request.state, "request_id", None)
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+        message = exc.detail
+    else:
+        log.error("Unhandled exception", request_id=request_id, exc_info=exc)
+        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        message = str(exc) or "Internal server error"
     error_detail = ErrorDetail(
-        message="Internal server error",
-        type="InternalServerError",
+        message=message,
+        type=type(exc).__name__,
         request_id=request_id,
     )
     return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        status_code=status_code,
         content=error_detail.model_dump(),
     )
 

@@ -573,10 +573,13 @@ def test_update_usergroup_users_with_empty_list_reactivates_disabled_usergroup(
     mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
 
 
-def test_chat_post_message_delegates_to_slack_api(
-    client: SlackWorkspaceClient, mock_slack_api: MagicMock
+def test_chat_post_message_resolves_channel_name(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
 ) -> None:
-    """Verify chat_post_message calls self.slack_api.chat_post_message with correct args."""
+    """Verify chat_post_message resolves channel name to ID and delegates."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
     mock_response = ChatPostMessageResponse(
         ts="1234567890.123456",
         channel="C123456",
@@ -589,18 +592,24 @@ def test_chat_post_message_delegates_to_slack_api(
     )
 
     mock_slack_api.chat_post_message.assert_called_once_with(
-        channel="general",
+        channel_id="C123456",
         text="Hello, world!",
         thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
     )
     assert result.ts == "1234567890.123456"
     assert result.channel == "C123456"
 
 
 def test_chat_post_message_with_thread_ts(
-    client: SlackWorkspaceClient, mock_slack_api: MagicMock
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
 ) -> None:
     """Verify thread_ts is passed through."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
     mock_response = ChatPostMessageResponse(
         ts="1234567890.123457",
         channel="C123456",
@@ -615,24 +624,73 @@ def test_chat_post_message_with_thread_ts(
     )
 
     mock_slack_api.chat_post_message.assert_called_once_with(
-        channel="general",
+        channel_id="C123456",
         text="Reply message",
         thread_ts="1234567890.123456",
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
     )
     assert result.thread_ts == "1234567890.123456"
 
 
-def test_chat_post_message_propagates_exceptions(
-    client: SlackWorkspaceClient, mock_slack_api: MagicMock
+def test_chat_post_message_strips_hash_prefix(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Verify channel name with '#' prefix is resolved correctly."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+    mock_response = ChatPostMessageResponse(
+        ts="1234567890.123456",
+        channel="C123456",
+    )
+    mock_slack_api.chat_post_message.return_value = mock_response
+
+    client.chat_post_message(
+        channel="#general",
+        text="Hello!",
+    )
+
+    mock_slack_api.chat_post_message.assert_called_once_with(
+        channel_id="C123456",
+        text="Hello!",
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
+    )
+
+
+def test_chat_post_message_channel_not_found_raises_value_error(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Verify ValueError is raised when channel name is not found."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+
+    with pytest.raises(ValueError, match="Channel 'nonexistent' not found"):
+        client.chat_post_message(
+            channel="nonexistent",
+            text="This will fail",
+        )
+
+
+def test_chat_post_message_propagates_slack_api_error(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
 ) -> None:
     """Verify SlackApiError from slack_api propagates (not caught)."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
     mock_slack_api.chat_post_message.side_effect = SlackApiError(
         message="channel_not_found", response={"error": "channel_not_found"}
     )
 
     with pytest.raises(SlackApiError) as exc_info:
         client.chat_post_message(
-            channel="nonexistent",
+            channel="general",
             text="This will fail",
         )
 

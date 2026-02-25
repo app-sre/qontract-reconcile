@@ -280,7 +280,7 @@ class SlackWorkspaceClient:
             List of SlackUsergroup objects
         """
         # Lazy import to avoid circular dependency
-        from qontract_api.integrations.slack_usergroups.models import (
+        from qontract_api.integrations.slack_usergroups.models import (  # noqa: PLC0415
             SlackUsergroup,
             SlackUsergroupConfig,
         )
@@ -315,9 +315,7 @@ class SlackWorkspaceClient:
             for ug in usergroups
         ]
 
-    def clean_slack_usergroups(
-        self, usergroups: Iterable
-    ) -> list:
+    def clean_slack_usergroups(self, usergroups: Iterable) -> list:
         """Clean usergroups by removing non-existing users/channels (efficient batch operation).
 
         Args:
@@ -327,7 +325,7 @@ class SlackWorkspaceClient:
             List of cleaned usergroups with only valid users/channels
         """
         # Lazy import to avoid circular dependency
-        from qontract_api.integrations.slack_usergroups.models import (
+        from qontract_api.integrations.slack_usergroups.models import (  # noqa: PLC0415
             SlackUsergroup,
             SlackUsergroupConfig,
         )
@@ -349,7 +347,7 @@ class SlackWorkspaceClient:
                     channels=[
                         name
                         for name in ug.config.channels
-                        if name in valid_channel_names
+                        if name.lstrip("#") in valid_channel_names
                     ],
                 ),
             )
@@ -420,7 +418,9 @@ class SlackWorkspaceClient:
             usergroup_id=ug.id,
             name=name,
             description=description,
-            channel_ids=[channel_id_by_name[name] for name in channels]
+            channel_ids=[
+                channel_id_by_name[ch.lstrip("#")] for ch in channels
+            ]
             if channels
             else None,
         )
@@ -485,22 +485,56 @@ class SlackWorkspaceClient:
         channel: str,
         text: str,
         thread_ts: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
+        username: str | None = None,
     ) -> ChatPostMessageResponse:
         """Post a message to a Slack channel.
 
-        Thin wrapper around SlackApi.chat_post_message — no caching needed
-        for chat messages (fire-and-forget). Exceptions propagate to caller.
+        Resolves channel name to ID via cached channels, then delegates
+        to SlackApi.chat_post_message. Exceptions propagate to caller.
 
         Args:
-            channel: Channel name or ID to post to
+            channel: Channel name (e.g., "sd-app-sre-reconcile")
             text: Message text
             thread_ts: Optional thread timestamp for replies
+            icon_emoji: Emoji to use as the message icon (e.g., ":robot_face:")
+            icon_url: URL to an image to use as the message icon
+            username: Bot username to display
 
         Returns:
             ChatPostMessageResponse with ts, channel, thread_ts
+
+        Raises:
+            ValueError: If channel name is not found
         """
+        channel_id = self._resolve_channel_id(channel)
         return self.slack_api.chat_post_message(
-            channel=channel,
+            channel_id=channel_id,
             text=text,
             thread_ts=thread_ts,
+            icon_emoji=icon_emoji,
+            icon_url=icon_url,
+            username=username,
         )
+
+    def _resolve_channel_id(self, channel_name: str) -> str:
+        """Resolve a channel name to its ID.
+
+        Strips leading '#' if present (e.g., "#general" → "general").
+
+        Args:
+            channel_name: Channel name (e.g., "general" or "#general")
+
+        Returns:
+            Channel ID (e.g., "C01234ABCD")
+
+        Raises:
+            ValueError: If channel name is not found
+        """
+        channel_name = channel_name.lstrip("#")
+        channels = self.get_channels()
+        for ch in channels.values():
+            if ch.name == channel_name:
+                return ch.id
+        raise ValueError(f"Channel '{channel_name}' not found")

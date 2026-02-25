@@ -401,22 +401,33 @@ class SlackApi:
     def _send_message(
         self,
         *,
-        channel: str,
+        channel_id: str,
         text: str,
         thread_ts: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
+        username: str | None = None,
     ) -> ChatPostMessageResponse:
         """Send a message via chat.postMessage and parse the response.
 
         Args:
-            channel: Channel ID
+            channel_id: Channel ID (e.g., "C01234ABCD")
             text: Message text
             thread_ts: Thread timestamp for replies (optional)
+            icon_emoji: Emoji to use as the message icon (e.g., ":robot_face:")
+            icon_url: URL to an image to use as the message icon
+            username: Bot username to display
 
         Returns:
             ChatPostMessageResponse with message timestamp and channel info
         """
         response = self._sc.chat_postMessage(
-            channel=channel, text=text, thread_ts=thread_ts
+            channel=channel_id,
+            text=text,
+            thread_ts=thread_ts,
+            icon_emoji=icon_emoji,
+            icon_url=icon_url,
+            username=username,
         )
         response_data = response.data
         if not isinstance(response_data, dict):
@@ -433,9 +444,12 @@ class SlackApi:
     def chat_post_message(
         self,
         *,
-        channel: str,
+        channel_id: str,
         text: str,
         thread_ts: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
+        username: str | None = None,
     ) -> ChatPostMessageResponse:
         """Post a message to a Slack channel.
 
@@ -443,9 +457,12 @@ class SlackApi:
         Truncates text longer than 10,000 characters.
 
         Args:
-            channel: Channel ID (e.g., "C01234ABCD")
+            channel_id: Channel ID (e.g., "C01234ABCD")
             text: Message text
             thread_ts: Thread timestamp for replies (optional)
+            icon_emoji: Emoji to use as the message icon (e.g., ":robot_face:")
+            icon_url: URL to an image to use as the message icon
+            username: Bot username to display
 
         Returns:
             ChatPostMessageResponse with message timestamp and channel info
@@ -457,28 +474,44 @@ class SlackApi:
             text = text[:MAX_MESSAGE_LENGTH] + "... [truncated]"
 
         try:
-            return self._send_message(channel=channel, text=text, thread_ts=thread_ts)
+            return self._send_message(
+                channel_id=channel_id,
+                text=text,
+                thread_ts=thread_ts,
+                icon_emoji=icon_emoji,
+                icon_url=icon_url,
+                username=username,
+            )
         except SlackApiError as e:
             error_code = e.response["error"]
 
             if error_code == "not_in_channel":
                 logger.info(
                     "Bot not in channel, auto-joining",
-                    channel=channel,
+                    channel_id=channel_id,
                     workspace=self.workspace_name,
                 )
-                self._sc.conversations_join(channel=channel)
+                self._sc.conversations_join(channel=channel_id)
                 return self._send_message(
-                    channel=channel, text=text, thread_ts=thread_ts
+                    channel_id=channel_id,
+                    text=text,
+                    thread_ts=thread_ts,
+                    icon_emoji=icon_emoji,
+                    icon_url=icon_url,
+                    username=username,
                 )
 
             if error_code == "channel_not_found":
                 logger.exception(
-                    "Channel not found", channel=channel, workspace=self.workspace_name
+                    "Channel not found",
+                    channel_id=channel_id,
+                    workspace=self.workspace_name,
                 )
                 raise
 
             logger.warning(
-                "Slack API error posting message", error=error_code, channel=channel
+                "Slack API error posting message",
+                error=error_code,
+                channel_id=channel_id,
             )
             raise

@@ -567,14 +567,19 @@ def test_chat_post_message_success(slack_api: SlackApi) -> None:
     }
     slack_api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
 
-    result = slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+    result = slack_api.chat_post_message(channel_id="C01234ABCD", text="Hello")
 
     assert isinstance(result, ChatPostMessageResponse)
     assert result.ts == "1234567890.000000"
     assert result.channel == "C01234ABCD"
     assert result.thread_ts is None
     slack_api._sc.chat_postMessage.assert_called_once_with(
-        channel="C01234ABCD", text="Hello", thread_ts=None
+        channel="C01234ABCD",
+        text="Hello",
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
     )
 
 
@@ -590,13 +595,18 @@ def test_chat_post_message_thread_reply(slack_api: SlackApi) -> None:
     slack_api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
 
     result = slack_api.chat_post_message(
-        channel="C01234ABCD", text="Reply", thread_ts="1234567890.000000"
+        channel_id="C01234ABCD", text="Reply", thread_ts="1234567890.000000"
     )
 
     assert isinstance(result, ChatPostMessageResponse)
     assert result.thread_ts == "1234567890.000000"
     slack_api._sc.chat_postMessage.assert_called_once_with(
-        channel="C01234ABCD", text="Reply", thread_ts="1234567890.000000"
+        channel="C01234ABCD",
+        text="Reply",
+        thread_ts="1234567890.000000",
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
     )
 
 
@@ -619,7 +629,7 @@ def test_chat_post_message_auto_join(slack_api: SlackApi) -> None:
     )
     slack_api._sc.conversations_join = MagicMock()  # type: ignore[method-assign]
 
-    result = slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+    result = slack_api.chat_post_message(channel_id="C01234ABCD", text="Hello")
 
     assert isinstance(result, ChatPostMessageResponse)
     assert result.ts == "1234567890.000000"
@@ -636,7 +646,7 @@ def test_chat_post_message_channel_not_found(slack_api: SlackApi) -> None:
 
     with patch("qontract_utils.slack_api.client.logger") as mock_logger:
         with pytest.raises(SlackApiError) as exc_info:
-            slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+            slack_api.chat_post_message(channel_id="C01234ABCD", text="Hello")
 
         assert "channel_not_found" in str(exc_info.value)
         mock_logger.exception.assert_called_once()
@@ -654,7 +664,7 @@ def test_chat_post_message_other_error(slack_api: SlackApi) -> None:
 
     with patch("qontract_utils.slack_api.client.logger") as mock_logger:
         with pytest.raises(SlackApiError) as exc_info:
-            slack_api.chat_post_message(channel="C01234ABCD", text="Hello")
+            slack_api.chat_post_message(channel_id="C01234ABCD", text="Hello")
 
         assert "restricted_action" in str(exc_info.value)
         mock_logger.warning.assert_called_once()
@@ -673,11 +683,16 @@ def test_chat_post_message_text_truncation(slack_api: SlackApi) -> None:
     slack_api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
 
     long_text = "x" * 15000
-    slack_api.chat_post_message(channel="C01234ABCD", text=long_text)
+    slack_api.chat_post_message(channel_id="C01234ABCD", text=long_text)
 
     expected_text = "x" * 10000 + "... [truncated]"
     slack_api._sc.chat_postMessage.assert_called_once_with(
-        channel="C01234ABCD", text=expected_text, thread_ts=None
+        channel="C01234ABCD",
+        text=expected_text,
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
     )
 
 
@@ -701,7 +716,7 @@ def test_chat_post_message_hooks_executed(mock_webclient: MagicMock) -> None:
     }
     api._sc.chat_postMessage = MagicMock(return_value=mock_response)  # type: ignore[method-assign]
 
-    api.chat_post_message(channel="C01234ABCD", text="Hello")
+    api.chat_post_message(channel_id="C01234ABCD", text="Hello")
 
     # Verify custom hook was called with correct context
     custom_hook.assert_called_once()
