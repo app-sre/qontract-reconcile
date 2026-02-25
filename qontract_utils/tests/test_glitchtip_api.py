@@ -96,6 +96,121 @@ def test_recipient_type_enum() -> None:
     assert RecipientType.WEBHOOK == "webhook"
 
 
+# --- Equality Tests ---
+
+_WEBHOOK = ProjectAlertRecipient(
+    recipient_type=RecipientType.WEBHOOK, url="https://example.com/hook"
+)
+_EMAIL = ProjectAlertRecipient(recipient_type=RecipientType.EMAIL, url="")
+
+
+@pytest.mark.parametrize(
+    ("r1", "r2", "equal"),
+    [
+        pytest.param(
+            ProjectAlertRecipient(
+                pk=1,
+                recipient_type=RecipientType.WEBHOOK,
+                url="https://example.com/hook",
+            ),
+            ProjectAlertRecipient(
+                pk=99,
+                recipient_type=RecipientType.WEBHOOK,
+                url="https://example.com/hook",
+            ),
+            True,
+            id="same-config-different-pk",
+        ),
+        pytest.param(
+            ProjectAlertRecipient(recipient_type=RecipientType.EMAIL, url=""),
+            ProjectAlertRecipient(recipient_type=RecipientType.WEBHOOK, url=""),
+            False,
+            id="different-type",
+        ),
+        pytest.param(
+            ProjectAlertRecipient(
+                recipient_type=RecipientType.WEBHOOK, url="https://a.com"
+            ),
+            ProjectAlertRecipient(
+                recipient_type=RecipientType.WEBHOOK, url="https://b.com"
+            ),
+            False,
+            id="different-url",
+        ),
+    ],
+)
+def test_project_alert_recipient_eq(
+    r1: ProjectAlertRecipient, r2: ProjectAlertRecipient, *, equal: bool
+) -> None:
+    assert (r1 == r2) is equal
+
+
+def test_project_alert_recipient_eq_non_recipient_raises() -> None:
+    """Comparing recipient with non-recipient raises NotImplementedError."""
+    with pytest.raises(NotImplementedError):
+        _EMAIL == "not-a-recipient"  # noqa: B015
+
+
+@pytest.mark.parametrize(
+    ("a1", "a2", "equal"),
+    [
+        pytest.param(
+            ProjectAlert(pk=1, name="alert-a", timespan_minutes=5, quantity=100),
+            ProjectAlert(pk=99, name="alert-b", timespan_minutes=5, quantity=100),
+            True,
+            id="same-config-different-pk-and-name",
+        ),
+        pytest.param(
+            ProjectAlert(name="alert", timespan_minutes=5, quantity=100),
+            ProjectAlert(name="alert", timespan_minutes=10, quantity=100),
+            False,
+            id="different-timespan",
+        ),
+        pytest.param(
+            ProjectAlert(name="alert", timespan_minutes=5, quantity=100),
+            ProjectAlert(name="alert", timespan_minutes=5, quantity=200),
+            False,
+            id="different-quantity",
+        ),
+        pytest.param(
+            ProjectAlert(
+                name="alert",
+                timespan_minutes=5,
+                quantity=100,
+                recipients=[_EMAIL, _WEBHOOK],
+            ),
+            ProjectAlert(
+                name="alert",
+                timespan_minutes=5,
+                quantity=100,
+                recipients=[_WEBHOOK, _EMAIL],
+            ),
+            True,
+            id="recipient-order-does-not-matter",
+        ),
+        pytest.param(
+            ProjectAlert(
+                name="alert", timespan_minutes=5, quantity=100, recipients=[_EMAIL]
+            ),
+            ProjectAlert(
+                name="alert", timespan_minutes=5, quantity=100, recipients=[_WEBHOOK]
+            ),
+            False,
+            id="different-recipients",
+        ),
+    ],
+)
+def test_project_alert_eq(a1: ProjectAlert, a2: ProjectAlert, *, equal: bool) -> None:
+    assert (a1 == a2) is equal
+
+
+def test_project_alert_eq_non_alert_raises() -> None:
+    """Comparing alert with non-alert raises NotImplementedError."""
+    a = ProjectAlert(name="alert", timespan_minutes=5, quantity=100)
+    with pytest.raises(NotImplementedError):
+        a == "not-an-alert"  # noqa: B015
+
+
 # --- Link Header Parsing Tests ---
 
 

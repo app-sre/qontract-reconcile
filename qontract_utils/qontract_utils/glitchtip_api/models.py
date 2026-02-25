@@ -33,6 +33,17 @@ class ProjectAlertRecipient(BaseModel):
     recipient_type: RecipientType = Field(..., alias="recipientType")
     url: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ProjectAlertRecipient):
+            raise NotImplementedError(
+                "Cannot compare to non ProjectAlertRecipient objects."
+            )
+
+        return self.recipient_type == other.recipient_type and self.url == other.url
+
+    def __hash__(self) -> int:
+        return hash((self.recipient_type, self.url))
+
 
 class ProjectAlert(BaseModel):
     """A Glitchtip project alert configuration.
@@ -52,6 +63,19 @@ class ProjectAlert(BaseModel):
     timespan_minutes: int = Field(..., alias="timespanMinutes")
     quantity: int
     recipients: list[ProjectAlertRecipient] = Field([], alias="alertRecipients")
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ProjectAlert):
+            raise NotImplementedError("Cannot compare to non ProjectAlert objects.")
+
+        return (
+            self.timespan_minutes == other.timespan_minutes
+            and self.quantity == other.quantity
+            and set(self.recipients) == set(other.recipients)
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.timespan_minutes, self.quantity, frozenset(self.recipients)))
 
 
 class Project(BaseModel):
