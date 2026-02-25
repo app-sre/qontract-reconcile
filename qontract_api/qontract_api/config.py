@@ -88,9 +88,13 @@ class SubscriberSettings(BaseModel):
         default="http://localhost:8000",
         description="qontract-api server URL",
     )
+    qontract_api_token: str = Field(
+        default="",
+        description="qontract-api auth token. Set via QAPI_SUBSCRIBER__QONTRACT_API_TOKEN",
+    )
     qontract_api_token_path: str = Field(
         default="app-sre/qontract-api/token",
-        description="Vault secret path for qontract-api auth token",
+        description="Vault secret path for qontract-api auth token (alternative to direct token)",
     )
 
 
