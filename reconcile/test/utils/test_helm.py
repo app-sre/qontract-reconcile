@@ -97,7 +97,7 @@ def test_template_enable_google_chat(
     helm_integration_specs: Sequence[HelmIntegrationSpec],
 ) -> None:
     helm_integration_specs[0].logs = IntegrationSpecLogsV1(
-        slack=None, googleChat=True, slackErrorFilter=None
+        slack=None, googleChat=True, slackErrorFilter=None, govSlack=None
     )
     template = helm.template(build_helm_values(helm_integration_specs))
     expected = yaml.safe_load(fxt.get("enable_google_chat.yml"))
@@ -145,7 +145,7 @@ def test_template_logs_slack(
     helm_integration_specs: Sequence[HelmIntegrationSpec],
 ) -> None:
     helm_integration_specs[0].logs = IntegrationSpecLogsV1(
-        slack=True, googleChat=None, slackErrorFilter=None
+        slack=True, googleChat=None, slackErrorFilter=None, govSlack=None
     )
     template = helm.template(build_helm_values(helm_integration_specs))
     expected = yaml.safe_load(fxt.get("logs_slack.yml"))
