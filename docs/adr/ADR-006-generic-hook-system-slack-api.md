@@ -599,6 +599,114 @@ api_default = SlackApi(
 )
 ```
 
+## Context-Aware Factories
+
+Context factories can now receive the decorated method's arguments by declaring matching parameter names in the factory signature. This enables hooks to access method-specific data (e.g., path, mount_point) for rich, structured logging and metrics.
+
+### Pattern Evolution
+
+**Before (static context — factory only receives self):**
+
+```python
+@invoke_with_hooks(
+    lambda self: VaultApiCallContext(
+        method="secrets.kv.v2.read_secret_version",
+        id=self._settings.server,
+    )
+)
+def _read_kv_v2_secret(self, path: str, mount_point: str, version: int | None) -> dict:
+    ...
+```
+
+Context is static — hooks cannot access `path` or `mount_point` values passed to the method at runtime.
+
+**After (context-aware — factory receives method args):**
+
+```python
+@invoke_with_hooks(
+    lambda self, path, mount_point: VaultApiCallContext(
+        method="secrets.kv.v2.read_secret_version",
+        id=self._settings.server,
+        path=path,
+        mount_point=mount_point,
+    )
+)
+def _read_kv_v2_secret(self, path: str, mount_point: str, version: int | None) -> dict:
+    ...
+```
+
+Context is dynamic — the factory receives actual `path` and `mount_point` values at call time, enabling hooks to produce meaningful output like `"Slow Vault request: path=secret/app1/token, mount_point=app-sre, duration=2.3s"`.
+
+### Argument Forwarding Rules
+
+1. **Parameter name matching**: Factory parameters must match method parameter names exactly (case-sensitive)
+2. **Self parameter**: The first parameter (if any) in the factory is always treated as `self` (the instance), never matched against method args
+3. **Subset selection**: Factory can declare a subset of the method's parameters — only declare what you need
+4. **Validation at decoration time**: Mismatched parameter names raise `TypeError` when `@invoke_with_hooks` is applied (fail-fast)
+5. **Cached signature inspection**: Signature inspection is performed once per factory and cached using a composite key `(id, code_hash)` — no per-call overhead
+6. **Backward compatible**: Existing factories with no args (`lambda: ...`) or self-only (`lambda self: ...`) continue to work unchanged — this is an opt-in feature
+
+### Use Cases
+
+**Slow request logging** (Vault example):
+
+```python
+def _slow_request_hook(context: VaultApiCallContext) -> None:
+    """Log slow Vault requests with path and mount_point."""
+    stack = _latency_tracker.get()
+    if not stack:
+        return
+    duration = time.perf_counter() - stack[-1]
+    if duration <= 1.0:
+        return
+    # Context has path and mount_point from method args
+    logger.warning(
+        "Slow Vault request",
+        path=context.path,
+        mount_point=context.mount_point,
+        duration=f"{duration:.1f}s",
+    )
+```
+
+**Metrics with labels** (method-specific dimensions):
+
+```python
+def _metrics_hook(context: SlackApiCallContext) -> None:
+    """Track API calls with method and workspace labels."""
+    slack_request.labels(
+        method=context.method,
+        workspace=context.workspace,  # From factory arg forwarding
+    ).inc()
+```
+
+**Rate limiting per resource**:
+
+```python
+@invoke_with_hooks(
+    lambda self, repo_owner, repo_name: GitHubApiCallContext(
+        method="repos.get",
+        owner=repo_owner,
+        repo=repo_name,
+    )
+)
+def get_repo(self, repo_owner: str, repo_name: str) -> dict:
+    ...
+
+def rate_limit_hook(context: GitHubApiCallContext) -> None:
+    """Apply rate limits per repository."""
+    bucket_key = f"github:{context.owner}/{context.repo}"
+    token_bucket.acquire(bucket_key, tokens=1)
+```
+
+### Migration Guidance
+
+**No migration required** — existing context factories continue to work unchanged. Adopt arg forwarding incrementally when hooks need method-specific data:
+
+1. Add optional fields to your context dataclass (e.g., `path: str | None = None`)
+2. Update factory signature to declare method args (e.g., `lambda self, path: ...`)
+3. Pass arg values to context constructor (e.g., `path=path`)
+4. Update hooks to use new context fields
+
 ## Future Enhancements
 
 Future versions could support additional hook types for comprehensive API lifecycle management.
