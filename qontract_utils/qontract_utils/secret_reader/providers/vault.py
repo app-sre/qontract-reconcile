@@ -66,11 +66,18 @@ class VaultApiCallContext:
     Attributes:
         method: API method name (e.g., "schedules.get")
         id: Vault server
+        path: Secret path (None for auth calls)
+        mount_point: KV mount point (None for auth calls)
     """
 
     method: str
     id: str
+    path: str | None = None
+    mount_point: str | None = None
 
+
+# Slow request threshold
+DEFAULT_SLOW_REQUEST_THRESHOLD = 1.0
 
 # Prometheus metrics
 vault_request = Counter(
@@ -127,6 +134,31 @@ def _request_log_hook(context: VaultApiCallContext) -> None:
     logger.debug("API request", method=context.method)
 
 
+def _slow_request_hook(context: VaultApiCallContext) -> None:
+    """Log slow Vault requests as warnings.
+
+    Reads duration from latency tracker (must run BEFORE _latency_end_hook).
+    Logs warning if request took longer than DEFAULT_SLOW_REQUEST_THRESHOLD.
+    Omits path/mount_point fields when None (e.g., auth calls).
+    """
+    stack = _latency_tracker.get()
+    if not stack:
+        return
+    start_time = stack[-1]
+    duration = time.perf_counter() - start_time
+    if duration <= DEFAULT_SLOW_REQUEST_THRESHOLD:
+        return
+    # Build structured log fields, omitting None values
+    log_fields: dict[str, str | float] = {}
+    if context.path is not None:
+        log_fields["path"] = context.path
+    if context.mount_point is not None:
+        log_fields["mount_point"] = context.mount_point
+    log_fields["duration"] = f"{duration:.1f}s"
+    log_fields["threshold"] = f"{DEFAULT_SLOW_REQUEST_THRESHOLD:.1f}s"
+    logger.warning("Slow Vault request", **log_fields)
+
+
 @with_hooks(
     hooks=Hooks(
         pre_hooks=[
@@ -134,7 +166,7 @@ def _request_log_hook(context: VaultApiCallContext) -> None:
             _request_log_hook,
             _latency_start_hook,
         ],
-        post_hooks=[_latency_end_hook],
+        post_hooks=[_slow_request_hook, _latency_end_hook],
     )
 )
 class VaultSecretBackend(SecretBackend):
@@ -275,8 +307,10 @@ class VaultSecretBackend(SecretBackend):
         logger.info("Successfully authenticated to Vault")
 
     @invoke_with_hooks(
-        lambda self: VaultApiCallContext(
-            method="secrets.kv.v2.read_configuration", id=self._settings.server
+        lambda self, mount_point: VaultApiCallContext(
+            method="secrets.kv.v2.read_configuration",
+            id=self._settings.server,
+            mount_point=mount_point,
         ),
         retry_config=NO_RETRY_CONFIG,
     )
@@ -390,9 +424,11 @@ class VaultSecretBackend(SecretBackend):
         raise ValueError(msg)
 
     @invoke_with_hooks(
-        lambda self: VaultApiCallContext(
+        lambda self, path, mount_point: VaultApiCallContext(
             method="secrets.kv.v2.read_secret_version",
             id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
         )
     )
     def _read_kv_v2_secret(
@@ -407,8 +443,11 @@ class VaultSecretBackend(SecretBackend):
         return response["data"]["data"]
 
     @invoke_with_hooks(
-        lambda self: VaultApiCallContext(
-            method="secrets.kv.v1.read_secret", id=self._settings.server
+        lambda self, path, mount_point: VaultApiCallContext(
+            method="secrets.kv.v1.read_secret",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
         )
     )
     def _read_kv_v1_secret(self, path: str, mount_point: str) -> dict[str, Any]:

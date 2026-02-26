@@ -503,7 +503,7 @@ class TestVaultSecretBackendHooks:
     def test_post_hooks_includes_latency(
         self, approle_settings: VaultSecretBackendSettings
     ) -> None:
-        """Test that latency_end hook is always included in post_hooks."""
+        """Test that slow_request and latency_end hooks are always included in post_hooks."""
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client.is_authenticated.return_value = True
@@ -511,13 +511,13 @@ class TestVaultSecretBackendHooks:
 
             backend = VaultSecretBackend(approle_settings)
 
-            # Should have at least the latency_end hook
-            assert len(backend._hooks.post_hooks) >= 1
+            # Should have slow_request and latency_end hooks
+            assert len(backend._hooks.post_hooks) >= 2
 
     def test_post_hooks_custom(
         self, approle_settings: VaultSecretBackendSettings
     ) -> None:
-        """Test custom post_hooks are added after latency hook."""
+        """Test custom post_hooks are added after built-in hooks."""
         custom_hook = MagicMock()
         with patch("hvac.Client") as mock_client_class:
             mock_client = MagicMock()
@@ -528,8 +528,8 @@ class TestVaultSecretBackendHooks:
                 approle_settings, hooks=Hooks(post_hooks=[custom_hook])
             )
 
-            # Should have latency_end hook + custom hook
-            assert len(backend._hooks.post_hooks) == 2
+            # Should have slow_request hook + latency_end hook + custom hook
+            assert len(backend._hooks.post_hooks) == 3
             assert custom_hook in backend._hooks.post_hooks
 
     def test_error_hooks_custom(
@@ -658,3 +658,204 @@ def test_vault_gives_up_after_max_attempts(enable_retry: None) -> None:
 
         # Should have tried 3 times (attempts=3)
         assert call_count["count"] == 3
+
+
+class TestVaultSlowRequestLogging:
+    """Test Vault slow request logging."""
+
+    def setup_method(self) -> None:
+        """Create a mock VaultSecretBackend for each test."""
+        with patch("hvac.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                role_id="test-role-id",
+                secret_id="test-secret-id",
+                auto_refresh=False,
+            )
+            self.backend = VaultSecretBackend(settings)
+            self.mock_client = mock_client
+
+    def test_slow_request_logs_warning(self) -> None:
+        """Test that slow Vault requests log a warning with path, mount_point, duration, threshold."""
+        import time
+        from unittest.mock import call
+
+        # Pre-cache KV version to avoid config call
+        self.backend._kv_version_cache["secret"] = 2
+        # Mock slow request (2.3 seconds)
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"token": "xoxb-test-token"}}
+        }
+
+        with patch("time.perf_counter") as mock_time:
+            # Use a counter to simulate passage of time
+            counter = {"calls": 0}
+
+            def time_func() -> float:
+                counter["calls"] += 1
+                # First call (latency_start_hook): 100.0
+                # Second call (slow_request_hook peek): 102.3 (2.3s elapsed)
+                # Third call (latency_end_hook): 102.3
+                return 100.0 if counter["calls"] == 1 else 102.3
+
+            mock_time.side_effect = time_func
+
+            with patch(
+                "qontract_utils.secret_reader.providers.vault.logger"
+            ) as mock_logger:
+                self.backend.read(Secret(path="secret/workspace-1/token"))
+
+                # Check warning was logged with correct fields
+                assert mock_logger.warning.call_count >= 1
+                # Find the "Slow Vault request" calls (filter out other potential warnings)
+                slow_request_calls = [
+                    call
+                    for call in mock_logger.warning.call_args_list
+                    if call[0][0] == "Slow Vault request"
+                ]
+                # Should have exactly 1 call for read_secret_version
+                assert len(slow_request_calls) == 1
+                call_args = slow_request_calls[0]
+                assert call_args[1]["path"] == "workspace-1/token"
+                assert call_args[1]["mount_point"] == "secret"
+                assert call_args[1]["duration"] == "2.3s"
+                assert call_args[1]["threshold"] == "1.0s"
+
+    def test_fast_request_no_warning(self) -> None:
+        """Test that fast Vault requests do not log a warning."""
+        # Pre-cache KV version to avoid config call
+        self.backend._kv_version_cache["secret"] = 2
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"token": "xoxb-test-token"}}
+        }
+
+        with patch("time.perf_counter") as mock_time:
+            # Use a counter to simulate passage of time
+            counter = {"calls": 0}
+
+            def time_func() -> float:
+                counter["calls"] += 1
+                # First call: 100.0, subsequent: 100.5 (0.5s elapsed - fast)
+                return 100.0 if counter["calls"] == 1 else 100.5
+
+            mock_time.side_effect = time_func
+
+            with patch(
+                "qontract_utils.secret_reader.providers.vault.logger"
+            ) as mock_logger:
+                self.backend.read(Secret(path="secret/workspace-1/token"))
+
+                # No slow request warning should be logged
+                slow_request_calls = [
+                    call
+                    for call in mock_logger.warning.call_args_list
+                    if len(call[0]) > 0 and call[0][0] == "Slow Vault request"
+                ]
+                assert len(slow_request_calls) == 0
+
+    def test_slow_auth_call_omits_path_mount_point(self) -> None:
+        """Test that slow auth calls omit path/mount_point fields (they are None)."""
+        with patch("time.perf_counter") as mock_time:
+            # Use a counter to simulate passage of time
+            counter = {"calls": 0}
+
+            def time_func() -> float:
+                counter["calls"] += 1
+                # First call: 100.0, subsequent: 102.5 (2.5s elapsed)
+                return 100.0 if counter["calls"] == 1 else 102.5
+
+            mock_time.side_effect = time_func
+
+            with patch(
+                "qontract_utils.secret_reader.providers.vault.logger"
+            ) as mock_logger:
+                # Trigger auth call by creating a new backend
+                with patch("hvac.Client") as mock_client_class:
+                    mock_client = MagicMock()
+                    mock_client.is_authenticated.return_value = True
+                    mock_client_class.return_value = mock_client
+
+                    VaultSecretBackend(
+                        VaultSecretBackendSettings(
+                            server="https://vault.test",
+                            role_id="test-role-id",
+                            secret_id="test-secret-id",
+                            auto_refresh=False,
+                        )
+                    )
+
+                    # Check warning was logged WITHOUT path/mount_point
+                    slow_request_calls = [
+                        call
+                        for call in mock_logger.warning.call_args_list
+                        if len(call[0]) > 0 and call[0][0] == "Slow Vault request"
+                    ]
+                    assert len(slow_request_calls) == 1
+                    call_args = slow_request_calls[0]
+                    # path and mount_point should NOT be in kwargs
+                    assert "path" not in call_args[1]
+                    assert "mount_point" not in call_args[1]
+                    # But duration and threshold should be present
+                    assert call_args[1]["duration"] == "2.5s"
+                    assert call_args[1]["threshold"] == "1.0s"
+
+    def test_slow_request_threshold_boundary(self) -> None:
+        """Test that exactly 1.0s is NOT slow, but 1.001s is slow."""
+        # Pre-cache KV version to avoid config call
+        self.backend._kv_version_cache["secret"] = 2
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"token": "xoxb-test-token"}}
+        }
+
+        # Test exactly 1.0s - NOT slow
+        with patch("time.perf_counter") as mock_time:
+            counter = {"calls": 0}
+
+            def time_func() -> float:
+                counter["calls"] += 1
+                return 100.0 if counter["calls"] == 1 else 101.0
+
+            mock_time.side_effect = time_func
+
+            with patch(
+                "qontract_utils.secret_reader.providers.vault.logger"
+            ) as mock_logger:
+                self.backend.read(Secret(path="secret/workspace-1/token"))
+                slow_request_calls = [
+                    call
+                    for call in mock_logger.warning.call_args_list
+                    if len(call[0]) > 0 and call[0][0] == "Slow Vault request"
+                ]
+                assert len(slow_request_calls) == 0
+
+        # Reset mock
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"token": "xoxb-test-token"}}
+        }
+
+        # Test 1.001s - IS slow
+        with patch("time.perf_counter") as mock_time:
+            counter = {"calls": 0}
+
+            def time_func() -> float:
+                counter["calls"] += 1
+                return 100.0 if counter["calls"] == 1 else 101.001
+
+            mock_time.side_effect = time_func
+
+            with patch(
+                "qontract_utils.secret_reader.providers.vault.logger"
+            ) as mock_logger:
+                self.backend.read(Secret(path="secret/workspace-1/token"))
+                slow_request_calls = [
+                    call
+                    for call in mock_logger.warning.call_args_list
+                    if len(call[0]) > 0 and call[0][0] == "Slow Vault request"
+                ]
+                assert len(slow_request_calls) == 1
+                call_args = slow_request_calls[0]
+                assert call_args[1]["duration"] == "1.0s"  # Formatted to 1 decimal
