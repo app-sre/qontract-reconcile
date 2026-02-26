@@ -1,17 +1,45 @@
 """Pydantic models for Glitchtip project alerts reconciliation API."""
 
-from typing import Annotated, Literal
+import re
+from enum import StrEnum
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from qontract_api.models import Secret, TaskResult, TaskStatus
+
+
+def _slugify(value: str) -> str:
+    """Convert value into a slug.
+
+    Adapted from https://docs.djangoproject.com/en/4.1/_modules/django/utils/text/#slugify
+    """
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
+
+
+class RecipientType(StrEnum):
+    """Type of alert recipient."""
+
+    EMAIL = "email"
+    WEBHOOK = "webhook"
 
 
 class GlitchtipProjectAlertRecipient(BaseModel, frozen=True):
     """Desired state for a single project alert recipient."""
 
-    recipient_type: str = Field(..., description="Recipient type: 'email' or 'webhook'")
+    recipient_type: RecipientType = Field(
+        ..., description="Recipient type: 'email' or 'webhook'"
+    )
     url: str = Field(default="", description="Webhook URL (empty for email recipients)")
+
+    @model_validator(mode="after")
+    def validate_url(self) -> "GlitchtipProjectAlertRecipient":
+        if self.recipient_type == RecipientType.WEBHOOK and not self.url:
+            raise ValueError("url must be set for webhook recipients")
+        if self.recipient_type == RecipientType.EMAIL and self.url:
+            raise ValueError("url must be empty for email recipients")
+        return self
 
 
 class GlitchtipProjectAlert(BaseModel, frozen=True):
@@ -33,10 +61,20 @@ class GlitchtipProject(BaseModel, frozen=True):
     """Desired state for a single Glitchtip project's alerts."""
 
     name: str = Field(..., description="Project name")
-    slug: str = Field(..., description="Project slug (URL-friendly identifier)")
+    slug: str = Field(
+        default="",
+        description="Project slug (URL-friendly identifier). Defaults to slugified name if not provided.",
+    )
     alerts: list[GlitchtipProjectAlert] = Field(
         default=[], description="Desired alerts for this project"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_slug_from_name(cls, values: Any) -> Any:
+        if isinstance(values, dict) and not values.get("slug"):
+            values["slug"] = _slugify(values["name"])
+        return values
 
 
 class GlitchtipOrganization(BaseModel, frozen=True):

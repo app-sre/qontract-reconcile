@@ -222,14 +222,14 @@
             "type": "string"
           },
           "slug": {
-            "description": "Project slug (URL-friendly identifier)",
+            "default": "",
+            "description": "Project slug (URL-friendly identifier). Defaults to slugified name if not provided.",
             "title": "Slug",
             "type": "string"
           }
         },
         "required": [
-          "name",
-          "slug"
+          "name"
         ],
         "title": "GlitchtipProject",
         "type": "object"
@@ -274,9 +274,8 @@
         "description": "Desired state for a single project alert recipient.",
         "properties": {
           "recipient_type": {
-            "description": "Recipient type: 'email' or 'webhook'",
-            "title": "Recipient Type",
-            "type": "string"
+            "$ref": "#/components/schemas/RecipientType",
+            "description": "Recipient type: 'email' or 'webhook'"
           },
           "url": {
             "default": "",
@@ -478,6 +477,15 @@
         ],
         "title": "PagerDutyUser",
         "type": "object"
+      },
+      "RecipientType": {
+        "description": "Type of alert recipient.",
+        "enum": [
+          "email",
+          "webhook"
+        ],
+        "title": "RecipientType",
+        "type": "string"
       },
       "RepoOwnersResponse": {
         "description": "Response model for repository OWNERS file data.\n\nAttention: usernames are provider-specific (e.g., GitHub usernames).",

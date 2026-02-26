@@ -21,19 +21,18 @@ class GlitchtipProject:
 
     Attributes:
         name (str): Project name
-        slug (str): Project slug (URL-friendly identifier)
         alerts (list[GlitchtipProjectAlert] | Unset): Desired alerts for this project
+        slug (str | Unset): Project slug (URL-friendly identifier). Defaults to slugified name if not provided. Default:
+            ''.
     """
 
     name: str
-    slug: str
     alerts: list[GlitchtipProjectAlert] | Unset = UNSET
+    slug: str | Unset = ""
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         name = self.name
-
-        slug = self.slug
 
         alerts: list[dict[str, Any]] | Unset = UNSET
         if not isinstance(self.alerts, Unset):
@@ -42,14 +41,17 @@ class GlitchtipProject:
                 alerts_item = alerts_item_data.to_dict()
                 alerts.append(alerts_item)
 
+        slug = self.slug
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
             "name": name,
-            "slug": slug,
         })
         if alerts is not UNSET:
             field_dict["alerts"] = alerts
+        if slug is not UNSET:
+            field_dict["slug"] = slug
 
         return field_dict
 
@@ -60,8 +62,6 @@ class GlitchtipProject:
         d = dict(src_dict)
         name = d.pop("name")
 
-        slug = d.pop("slug")
-
         _alerts = d.pop("alerts", UNSET)
         alerts: list[GlitchtipProjectAlert] | Unset = UNSET
         if _alerts is not UNSET:
@@ -71,10 +71,12 @@ class GlitchtipProject:
 
                 alerts.append(alerts_item)
 
+        slug = d.pop("slug", UNSET)
+
         glitchtip_project = cls(
             name=name,
-            slug=slug,
             alerts=alerts,
+            slug=slug,
         )
 
         glitchtip_project.additional_properties = d
