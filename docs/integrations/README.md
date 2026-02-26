@@ -13,6 +13,7 @@ qontract-api integrations follow a split architecture:
 
 Available integrations:
 
+- [Glitchtip Project Alerts](glitchtip-project-alerts.md) - Manage Glitchtip project alert configurations across instances with email/webhook recipients and Jira integration
 - [Slack Usergroups](slack-usergroups.md) - Manage Slack usergroups across workspaces with automatic membership from roles, schedules, git ownership, and PagerDuty
 
 ## Documentation Template
