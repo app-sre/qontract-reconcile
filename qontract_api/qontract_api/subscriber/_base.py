@@ -3,7 +3,9 @@ from typing import Any
 
 from faststream.asgi import AsgiFastStream, AsgiResponse, get, make_ping_asgi
 from faststream.redis import RedisBroker
+from faststream.redis.prometheus import RedisPrometheusMiddleware
 from faststream.specification import AsyncAPI
+from prometheus_client import CollectorRegistry, make_asgi_app
 
 from qontract_api.config import settings
 
@@ -12,7 +14,11 @@ if settings.cache_backend != "redis":
         "Event publishing is only supported with Redis backend. Subscriber cannot be started."
     )
 
-broker = RedisBroker(settings.cache_broker_url)
+registry = CollectorRegistry()
+broker = RedisBroker(
+    settings.cache_broker_url,
+    middlewares=[RedisPrometheusMiddleware(registry=registry)],
+)
 
 
 @get
@@ -27,5 +33,6 @@ app = AsgiFastStream(
     asgi_routes=[
         ("/health/ready", make_ping_asgi(broker, timeout=5.0)),
         ("/health/live", liveness_ping),
+        ("/metrics", make_asgi_app(registry)),
     ],
 )

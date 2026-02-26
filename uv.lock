@@ -676,6 +676,9 @@ cli = [
     { name = "typer" },
     { name = "watchfiles" },
 ]
+prometheus = [
+    { name = "prometheus-client" },
+]
 redis = [
     { name = "redis" },
 ]
@@ -1925,7 +1928,7 @@ dependencies = [
     { name = "celery" },
     { name = "cloudevents" },
     { name = "fastapi" },
-    { name = "faststream", extra = ["cli", "redis"] },
+    { name = "faststream", extra = ["cli", "prometheus", "redis"] },
     { name = "prometheus-client" },
     { name = "prometheus-fastapi-instrumentator" },
     { name = "pydantic" },
@@ -1958,7 +1961,7 @@ requires-dist = [
     { name = "celery", specifier = "==5.5.3" },
     { name = "cloudevents", specifier = "==1.12.0" },
     { name = "fastapi", specifier = "==0.121.1" },
-    { name = "faststream", extras = ["cli", "redis"], specifier = "==0.6.6" },
+    { name = "faststream", extras = ["cli", "redis", "prometheus"], specifier = "==0.6.6" },
     { name = "prometheus-client", specifier = "==0.23.1" },
     { name = "prometheus-fastapi-instrumentator", specifier = "==7.1.0" },
     { name = "pydantic", specifier = "==2.12.4" },
