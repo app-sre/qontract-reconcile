@@ -681,9 +681,6 @@ class TestVaultSlowRequestLogging:
 
     def test_slow_request_logs_warning(self) -> None:
         """Test that slow Vault requests log a warning with path, mount_point, duration, threshold."""
-        import time
-        from unittest.mock import call
-
         # Pre-cache KV version to avoid config call
         self.backend._kv_version_cache["secret"] = 2
         # Mock slow request (2.3 seconds)
@@ -770,38 +767,40 @@ class TestVaultSlowRequestLogging:
 
             mock_time.side_effect = time_func
 
-            with patch(
-                "qontract_utils.secret_reader.providers.vault.logger"
-            ) as mock_logger:
+            with (
+                patch(
+                    "qontract_utils.secret_reader.providers.vault.logger"
+                ) as mock_logger,
+                patch("hvac.Client") as mock_client_class,
+            ):
                 # Trigger auth call by creating a new backend
-                with patch("hvac.Client") as mock_client_class:
-                    mock_client = MagicMock()
-                    mock_client.is_authenticated.return_value = True
-                    mock_client_class.return_value = mock_client
+                mock_client = MagicMock()
+                mock_client.is_authenticated.return_value = True
+                mock_client_class.return_value = mock_client
 
-                    VaultSecretBackend(
-                        VaultSecretBackendSettings(
-                            server="https://vault.test",
-                            role_id="test-role-id",
-                            secret_id="test-secret-id",
-                            auto_refresh=False,
-                        )
+                VaultSecretBackend(
+                    VaultSecretBackendSettings(
+                        server="https://vault.test",
+                        role_id="test-role-id",
+                        secret_id="test-secret-id",
+                        auto_refresh=False,
                     )
+                )
 
-                    # Check warning was logged WITHOUT path/mount_point
-                    slow_request_calls = [
-                        call
-                        for call in mock_logger.warning.call_args_list
-                        if len(call[0]) > 0 and call[0][0] == "Slow Vault request"
-                    ]
-                    assert len(slow_request_calls) == 1
-                    call_args = slow_request_calls[0]
-                    # path and mount_point should NOT be in kwargs
-                    assert "path" not in call_args[1]
-                    assert "mount_point" not in call_args[1]
-                    # But duration and threshold should be present
-                    assert call_args[1]["duration"] == "2.5s"
-                    assert call_args[1]["threshold"] == "1.0s"
+                # Check warning was logged WITHOUT path/mount_point
+                slow_request_calls = [
+                    call
+                    for call in mock_logger.warning.call_args_list
+                    if len(call[0]) > 0 and call[0][0] == "Slow Vault request"
+                ]
+                assert len(slow_request_calls) == 1
+                call_args = slow_request_calls[0]
+                # path and mount_point should NOT be in kwargs
+                assert "path" not in call_args[1]
+                assert "mount_point" not in call_args[1]
+                # But duration and threshold should be present
+                assert call_args[1]["duration"] == "2.5s"
+                assert call_args[1]["threshold"] == "1.0s"
 
     def test_slow_request_threshold_boundary(self) -> None:
         """Test that exactly 1.0s is NOT slow, but 1.001s is slow."""
