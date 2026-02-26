@@ -42,6 +42,7 @@ query Integrations {
           slack
           googleChat
           slackErrorFilter
+          govSlack
         }
         resources {
           ...DeployResourcesFields
