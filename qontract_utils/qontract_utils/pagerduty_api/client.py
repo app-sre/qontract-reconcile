@@ -15,6 +15,7 @@ from pagerduty import RestApiV2Client
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.pagerduty_api.models import PagerDutyUser
 
 logger = structlog.get_logger(__name__)
@@ -32,7 +33,7 @@ pagerduty_request_duration = Histogram(
     "qontract_reconcile_external_api_pagerduty_request_duration_seconds",
     "PagerDuty API request duration in seconds",
     ["method", "verb"],
-    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
+    buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
 # Local storage for latency tracking (tuple stack to support nested calls)

@@ -24,6 +24,7 @@ from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
 
 from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.secret_reader.base import (
     Secret,
     SecretAccessForbiddenError,
@@ -84,7 +85,7 @@ vault_request_duration = Histogram(
     "qontract_reconcile_external_api_vault_request_duration_seconds",
     "Vault API request duration in seconds",
     ["method", "server"],
-    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
+    buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
 # Local storage for latency tracking (tuple stack to support nested calls)
