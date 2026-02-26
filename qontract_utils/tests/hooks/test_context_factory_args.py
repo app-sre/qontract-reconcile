@@ -4,6 +4,8 @@ Tests cover all scenarios for context factories that declare method arguments
 in their signature and receive those values at call time.
 """
 
+# ruff: noqa: ARG001, ARG005 - self parameters in factories are part of the API being tested
+
 import inspect
 from dataclasses import dataclass
 from typing import Any
