@@ -45,8 +45,8 @@ class GenericEventFormatter:
         emoji = self._get_emoji(event.type)
         json_data = json.dumps(event.data, indent=2, default=str)
         return (
-            f"{emoji} Event: `{event.type}`\n"
-            f"Source: {event.source}\n"
+            f"{emoji} *Event:* `{event.type}`\n"
+            f"ℹ️ *Source*: `{event.source}`\n"  # noqa: RUF001
             f"```\n{json_data}\n```"
         )
 

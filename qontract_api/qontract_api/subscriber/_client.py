@@ -55,6 +55,8 @@ async def post_to_slack(message: str) -> None:
             version=settings.subscriber.slack_token.version,
             secret_manager_url=settings.secrets.default_provider_url,
         ),
+        username=settings.subscriber.slack_username,
+        icon_emoji=settings.subscriber.slack_icon_emoji,
     )
 
     # Call qontract-api REST endpoint

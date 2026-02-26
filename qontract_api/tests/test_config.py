@@ -1,9 +1,8 @@
 """Tests for configuration settings."""
-# ruff: noqa: FBT001 - Boolean positional args acceptable in parametrized tests
 
 import pytest
 
-from qontract_api.config import Settings
+from qontract_api.config import Secret, Settings
 
 
 @pytest.mark.parametrize(
@@ -69,17 +68,22 @@ def test_subscriber_settings_all_fields() -> None:
     from qontract_api.config import SubscriberSettings
 
     subscriber = SubscriberSettings(
+        slack_workspace="redhat",
         slack_channel="sd-app-sre-reconcile",
-        slack_workspace="app-sre",
-        slack_token_path="app-sre/slack/bot-token",
+        slack_username="app-sre",
+        slack_icon_emoji="emoji",
+        slack_token=Secret(path="app-sre/slack/bot-token"),
         qontract_api_url="https://api.example.com",
-        qontract_api_token_path="app-sre/api/token",
+        qontract_api_token="token",
     )
+    assert subscriber.slack_workspace == "redhat"
     assert subscriber.slack_channel == "sd-app-sre-reconcile"
-    assert subscriber.slack_workspace == "app-sre"
-    assert subscriber.slack_token_path == "app-sre/slack/bot-token"
+    assert subscriber.slack_username == "app-sre"
+    assert subscriber.slack_icon_emoji == "emoji"
+    assert subscriber.slack_token is not None
+    assert subscriber.slack_token.path == "app-sre/slack/bot-token"
     assert subscriber.qontract_api_url == "https://api.example.com"
-    assert subscriber.qontract_api_token_path == "app-sre/api/token"
+    assert subscriber.qontract_api_token == "token"
 
 
 def test_subscriber_settings_defaults() -> None:
@@ -87,12 +91,13 @@ def test_subscriber_settings_defaults() -> None:
     from qontract_api.config import SubscriberSettings
 
     subscriber = SubscriberSettings()
+    assert subscriber.slack_workspace == "redhat-internal"
     assert subscriber.slack_channel == ""
-    assert subscriber.slack_workspace == ""
-    assert subscriber.slack_token_path == ""
+    assert subscriber.slack_username == "qontract-api-bot"
+    assert subscriber.slack_icon_emoji == ":robot_face:"
+    assert subscriber.slack_token is None
     assert subscriber.qontract_api_url == "http://localhost:8000"
     assert subscriber.qontract_api_token == ""
-    assert subscriber.qontract_api_token_path == "app-sre/qontract-api/token"
 
 
 def test_settings_subscriber_default_none() -> None:

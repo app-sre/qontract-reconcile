@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings==2.12.0",
     "pydantic==2.12.4",
     "python-jose[cryptography]==3.5.0",
+    "qontract-api-client",
     "qontract-utils",
     "redis==7.1.0",
     "sentry-sdk==2.51.0",
@@ -110,8 +111,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
     "ARG001",  # Unused argument (common in test fixtures)
+    "FBT001",  # Boolean positional args acceptable in parametrized tests
     "PLC0415", # Import not at top level (lazy imports in tests)
     "PLR2004", # Magic value in comparison (acceptable in tests)
+    "PLC1901", # xxx == "" (common in tests for empty string checks)
     "PLC2701", # import from private module (testing internal state)
     "PLR6301", # Method could be function/classmethod/staticmethod (pytest uses instance methods)
     "PT012",   # pytest.raises with multiple statements (acceptable pattern)
