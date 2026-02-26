@@ -445,7 +445,7 @@ def _alert_to_dict(alert: ProjectAlert) -> dict[str, Any]:
         "alertRecipients": [
             {
                 "recipientType": r.recipient_type.value,
-                "url": r.url,
+                **({"url": r.url} if r.url else {}),
             }
             for r in alert.recipients
         ],
