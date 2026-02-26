@@ -160,6 +160,135 @@ objects:
         app.kubernetes.io/component: api
         app.kubernetes.io/name: qontract-api
 
+
+  # --------- SUBSCRIBER DEPLOYMENT --------------
+  - apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: qontract-api-subscriber
+    spec:
+      minAvailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: subscriber
+
+  - apiVersion: v1
+    kind: ServiceAccount
+    imagePullSecrets: "${{IMAGE_PULL_SECRETS}}"
+    metadata:
+      name: qontract-api-subscriber
+      labels:
+        app.kubernetes.io/component: subscriber
+        app.kubernetes.io/name: qontract-api
+
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      annotations:
+        ignore-check.kube-linter.io/unset-cpu-requirements: "no cpu limits"
+      labels:
+        app.kubernetes.io/component: subscriber
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-subscriber
+    spec:
+      replicas: ${{QAPI_SUBSCRIBER_REPLICAS}}
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: subscriber
+          app.kubernetes.io/name: qontract-api
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: subscriber
+            app.kubernetes.io/name: qontract-api
+        spec:
+          restartPolicy: Always
+          serviceAccountName: qontract-api-subscriber
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - subscriber
+                    topologyKey: topology.kubernetes.io/zone
+                  weight: 100
+                - podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/component
+                          operator: In
+                          values:
+                            - subscriber
+                    topologyKey: kubernetes.io/hostname
+                  weight: 1
+          containers:
+            - env:
+                - name: QAPI_START_MODE
+                  value: subscriber
+                - name: QAPI_SUBSCRIBER_METRICS_PORT
+                  value: "${QAPI_SUBSCRIBER_METRICS_PORT}"
+                - name: QAPI_SENTRY_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ${QAPI_SENTRY_SECRET_NAME}
+                      key: dsn
+              envFrom:
+                - secretRef:
+                    name: qontract-api-secret
+                    optional: true
+                - configMapRef:
+                    name: qontract-api-config
+                    optional: true
+              image: "${IMAGE}:${IMAGE_TAG}"
+              name: subscriber
+              ports:
+                - containerPort: ${{QAPI_SUBSCRIBER_METRICS_PORT}}
+              readinessProbe:
+                httpGet:
+                  path: /health/ready
+                  port: ${{QAPI_APP_PORT}}
+                periodSeconds: 60
+                timeoutSeconds: 5
+              livenessProbe:
+                httpGet:
+                  path: /health/live
+                  port: ${{QAPI_APP_PORT}}
+                periodSeconds: 15
+                timeoutSeconds: 5
+              startupProbe:
+                tcpSocket:
+                  port: ${{QAPI_APP_PORT}}
+                initialDelaySeconds: 5
+                periodSeconds: 5
+                timeoutSeconds: 5
+              resources:
+                requests:
+                  cpu: ${{QAPI_SUBSCRIBER_CPU_REQUESTS}}
+                  memory: ${{QAPI_SUBSCRIBER_MEMORY_REQUESTS}}
+                limits:
+                  memory: ${{QAPI_SUBSCRIBER_MEMORY_LIMITS}}
+
+  # ---------- SUBSCRIBER SERVICE (PROMETHEUS) -----------
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: subscriber
+        app.kubernetes.io/name: qontract-api
+      name: qontract-api-subscriber
+    spec:
+      ports:
+        - name: "http"
+          port: ${{QAPI_SUBSCRIBER_METRICS_PORT}}
+          targetPort: ${{QAPI_SUBSCRIBER_METRICS_PORT}}
+      selector:
+        app.kubernetes.io/component: subscriber
+        app.kubernetes.io/name: qontract-api
+
   # --------- WORKER DEPLOYMENT --------------
   - apiVersion: policy/v1
     kind: PodDisruptionBudget
@@ -362,6 +491,33 @@ parameters:
 
   - name: QAPI_API_CPU_REQUESTS
     description: Web cpu requests
+    value: "100m"
+    required: true
+
+  # Subscriber config
+  - name: QAPI_SUBSCRIBER_METRICS_PORT
+    description: Port to expose the web app on
+    value: "8080"
+    required: true
+
+  ## Subscriber Pod limits
+  - name: QAPI_SUBSCRIBER_REPLICAS
+    description: Subscriber replicas
+    value: "3"
+    required: true
+
+  - name: QAPI_SUBSCRIBER_MEMORY_REQUESTS
+    description: Subscriber memory requests
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_SUBSCRIBER_MEMORY_LIMITS
+    description: Subscriber memory limits
+    value: "200Mi"
+    required: true
+
+  - name: QAPI_SUBSCRIBER_CPU_REQUESTS
+    description: Subscriber cpu requests
     value: "100m"
     required: true
 
