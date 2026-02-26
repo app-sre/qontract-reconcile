@@ -16,31 +16,22 @@ from qontract_api_client.api.integrations.glitchtip_project_alerts import (
 from qontract_api_client.api.integrations.glitchtip_project_alerts_task_status import (
     asyncio as glitchtip_project_alerts_task_status,
 )
-from qontract_api_client.models.glitchtip_instance import (
-    GlitchtipInstance as GlitchtipInstanceRequest,
-)
-from qontract_api_client.models.glitchtip_organization import (
-    GlitchtipOrganization as GlitchtipOrganizationRequest,
-)
-from qontract_api_client.models.glitchtip_project import (
-    GlitchtipProject as GlitchtipProjectRequest,
-)
-from qontract_api_client.models.glitchtip_project_alert import (
-    GlitchtipProjectAlert as GlitchtipProjectAlertRequest,
-)
+from qontract_api_client.models.glitchtip_instance import GlitchtipInstance
+from qontract_api_client.models.glitchtip_organization import GlitchtipOrganization
+from qontract_api_client.models.glitchtip_project import GlitchtipProject
+from qontract_api_client.models.glitchtip_project_alert import GlitchtipProjectAlert
 from qontract_api_client.models.glitchtip_project_alert_recipient import (
-    GlitchtipProjectAlertRecipient as GlitchtipProjectAlertRecipientRequest,
+    GlitchtipProjectAlertRecipient,
 )
 from qontract_api_client.models.glitchtip_project_alerts_reconcile_request import (
     GlitchtipProjectAlertsReconcileRequest,
 )
+from qontract_api_client.models.recipient_type import RecipientType
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
+from qontract_api_client.types import Unset
 
 from reconcile import jira_permissions_validator
-from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
-    GlitchtipInstanceV1,
-)
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
 )
@@ -56,13 +47,6 @@ from reconcile.gql_definitions.glitchtip_project_alerts.glitchtip_project import
 )
 from reconcile.utils import gql
 from reconcile.utils.disabled_integrations import integration_is_enabled
-from reconcile.utils.glitchtip.models import (
-    Organization,
-    Project,
-    ProjectAlert,
-    ProjectAlertRecipient,
-    RecipientType,
-)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -76,10 +60,12 @@ class GlitchtipProjectAlertsIntegrationParams(PydanticRunParams):
     instance: str | None = None
 
 
-def webhook_urls_are_unique(alerts: Iterable[ProjectAlert]) -> bool:
+def webhook_urls_are_unique(alerts: Iterable[GlitchtipProjectAlert]) -> bool:
     """Check that webhook URLs are unique across a project."""
     urls = []
     for alert in alerts:
+        if isinstance(alert.recipients, Unset):
+            continue
         for recipient in alert.recipients:
             if recipient.recipient_type == RecipientType.WEBHOOK:
                 if recipient.url in urls:
@@ -105,16 +91,18 @@ class GlitchtipProjectAlertsIntegration(
         recipient: GlitchtipProjectAlertRecipientEmailV1
         | GlitchtipProjectAlertRecipientWebhookV1
         | GlitchtipProjectAlertRecipientV1,
-    ) -> ProjectAlertRecipient:
+    ) -> GlitchtipProjectAlertRecipient:
         if isinstance(recipient, GlitchtipProjectAlertRecipientEmailV1):
-            return ProjectAlertRecipient(recipient_type=RecipientType.EMAIL)
+            return GlitchtipProjectAlertRecipient(recipient_type=RecipientType.EMAIL)
         if isinstance(recipient, GlitchtipProjectAlertRecipientWebhookV1):
             url = recipient.url
             if not url and recipient.url_secret:
                 url = self.secret_reader.read_secret(recipient.url_secret)
             if not url:
                 raise ValueError("url or urlSecret must be set for webhook recipient")
-            return ProjectAlertRecipient(recipient_type=RecipientType.WEBHOOK, url=url)
+            return GlitchtipProjectAlertRecipient(
+                recipient_type=RecipientType.WEBHOOK, url=url
+            )
         raise TypeError("Unsupported type")
 
     def _build_jira_project_alert(
@@ -122,19 +110,21 @@ class GlitchtipProjectAlertsIntegration(
         gjb_alert_url: str,
         gjb_token: str | None,
         jira: GlitchtipProjectJiraV1,
-    ) -> ProjectAlert:
+    ) -> GlitchtipProjectAlert:
         token_params = {"token": gjb_token} if gjb_token else {}
         params: dict[str, str | list[str]] = {
             "labels": jira.labels or [],
             "components": jira.components or [],
         } | token_params
         url = f"{gjb_alert_url}/{jira.project}?{urlencode(params, True)}"
-        return ProjectAlert(
+        return GlitchtipProjectAlert(
             name=GJB_ALERT_NAME,
             timespan_minutes=1,
             quantity=1,
             recipients=[
-                ProjectAlertRecipient(recipient_type=RecipientType.WEBHOOK, url=url)
+                GlitchtipProjectAlertRecipient(
+                    recipient_type=RecipientType.WEBHOOK, url=url
+                )
             ],
         )
 
@@ -143,7 +133,7 @@ class GlitchtipProjectAlertsIntegration(
         gjb_alert_url: str,
         gjb_token: str | None,
         jira: GlitchtipProjectJiraV1,
-    ) -> list[ProjectAlert]:
+    ) -> list[GlitchtipProjectAlert]:
         assert jira.escalation_policy is not None
         token_params = {"token": gjb_token} if gjb_token else {}
         channels = jira.escalation_policy.channels
@@ -163,12 +153,12 @@ class GlitchtipProjectAlertsIntegration(
                 params["issue_type"] = board.issue_type
             url = f"{gjb_alert_url}/{board.name}?{urlencode(params, True)}"
             alerts.append(
-                ProjectAlert(
+                GlitchtipProjectAlert(
                     name=GJB_ALERT_NAME,
                     timespan_minutes=1,
                     quantity=1,
                     recipients=[
-                        ProjectAlertRecipient(
+                        GlitchtipProjectAlertRecipient(
                             recipient_type=RecipientType.WEBHOOK, url=url
                         )
                     ],
@@ -181,7 +171,7 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_project: GlitchtipProjectV1,
         gjb_alert_url: str | None,
         gjb_token: str | None,
-    ) -> list[ProjectAlert]:
+    ) -> list[GlitchtipProjectAlert]:
         if not (glitchtip_project.jira and gjb_alert_url):
             return []
         jira = glitchtip_project.jira
@@ -198,7 +188,7 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_project: GlitchtipProjectV1,
         gjb_alert_url: str | None,
         gjb_token: str | None,
-    ) -> Project:
+    ) -> GlitchtipProject:
         alerts = []
         for alert in glitchtip_project.alerts or []:
             if alert.name == GJB_ALERT_NAME:
@@ -206,7 +196,7 @@ class GlitchtipProjectAlertsIntegration(
                     f"'{GJB_ALERT_NAME}' alert name is reserved. Please use another name."
                 )
             alerts.append(
-                ProjectAlert(
+                GlitchtipProjectAlert(
                     name=alert.name,
                     timespan_minutes=alert.timespan_minutes,
                     quantity=alert.quantity,
@@ -225,9 +215,8 @@ class GlitchtipProjectAlertsIntegration(
                 "Glitchtip project alert webhook URLs must be unique across a project. Do not trigger the same webhook twice."
             )
 
-        return Project(
+        return GlitchtipProject(
             name=glitchtip_project.name,
-            platform=None,
             slug=glitchtip_project.project_id or "",
             alerts=alerts,
         )
@@ -237,76 +226,24 @@ class GlitchtipProjectAlertsIntegration(
         glitchtip_projects: Iterable[GlitchtipProjectV1],
         gjb_alert_url: str | None,
         gjb_token: str | None,
-    ) -> list[Organization]:
-        organizations: dict[str, Organization] = {}
+    ) -> list[GlitchtipOrganization]:
+        projects_by_org: dict[str, list[GlitchtipProject]] = defaultdict(list)
         for glitchtip_project in glitchtip_projects:
-            organization = organizations.setdefault(
-                glitchtip_project.organization.name,
-                Organization(name=glitchtip_project.organization.name),
-            )
-            organization.projects.append(
+            projects_by_org[glitchtip_project.organization.name].append(
                 self._build_project(glitchtip_project, gjb_alert_url, gjb_token)
             )
-        return list(organizations.values())
-
-    @staticmethod
-    def _build_api_desired_state(
-        orgs: list[Organization],
-    ) -> list[GlitchtipOrganizationRequest]:
         return [
-            GlitchtipOrganizationRequest(
-                name=org.name,
-                projects=[
-                    GlitchtipProjectRequest(
-                        name=proj.name,
-                        slug=proj.slug,
-                        alerts=[
-                            GlitchtipProjectAlertRequest(
-                                name=alert.name,
-                                timespan_minutes=alert.timespan_minutes,
-                                quantity=alert.quantity,
-                                recipients=[
-                                    GlitchtipProjectAlertRecipientRequest(
-                                        recipient_type=r.recipient_type.value,
-                                        url=r.url,
-                                    )
-                                    for r in alert.recipients
-                                ],
-                            )
-                            for alert in proj.alerts
-                        ],
-                    )
-                    for proj in org.projects
-                ],
-            )
-            for org in orgs
+            GlitchtipOrganization(name=org_name, projects=projects)
+            for org_name, projects in projects_by_org.items()
         ]
 
     async def reconcile(
         self,
-        instances: list[GlitchtipInstanceV1],
-        desired_state: dict[str, list[Organization]],
+        instances: list[GlitchtipInstance],
         dry_run: bool,
     ) -> GlitchtipProjectAlertsTaskResponse:
         request_data = GlitchtipProjectAlertsReconcileRequest(
-            instances=[
-                GlitchtipInstanceRequest(
-                    name=gi.name,
-                    console_url=gi.console_url,
-                    token=Secret(
-                        secret_manager_url=self.secret_manager_url,
-                        path=gi.automation_token.path,
-                        field=gi.automation_token.field,
-                        version=gi.automation_token.version,
-                    ),
-                    read_timeout=gi.read_timeout or 30,
-                    max_retries=gi.max_retries or 3,
-                    organizations=self._build_api_desired_state(
-                        desired_state.get(gi.name, [])
-                    ),
-                )
-                for gi in instances
-            ],
+            instances=instances,
             dry_run=dry_run,
         )
 
@@ -329,37 +266,45 @@ class GlitchtipProjectAlertsIntegration(
                 glitchtip_project.organization.instance.name
             ].append(glitchtip_project)
 
-        instances_to_reconcile = []
-        desired_state = {}
+        instances: list[GlitchtipInstance] = []
         for glitchtip_instance in glitchtip_instances:
             if self.params.instance and glitchtip_instance.name != self.params.instance:
                 continue
 
-            instances_to_reconcile.append(glitchtip_instance)
-            glitchtip_jira_bridge_token = (
+            gjb_token = (
                 self.secret_reader.read_secret(
                     glitchtip_instance.glitchtip_jira_bridge_token
                 )
                 if glitchtip_instance.glitchtip_jira_bridge_token
                 else None
             )
-            desired_state[glitchtip_instance.name] = self.fetch_desired_state(
-                glitchtip_projects=glitchtip_projects_by_instance[
-                    glitchtip_instance.name
-                ],
-                gjb_alert_url=glitchtip_instance.glitchtip_jira_bridge_alert_url,
-                gjb_token=glitchtip_jira_bridge_token,
+            instances.append(
+                GlitchtipInstance(
+                    name=glitchtip_instance.name,
+                    console_url=glitchtip_instance.console_url,
+                    token=Secret(
+                        secret_manager_url=self.secret_manager_url,
+                        path=glitchtip_instance.automation_token.path,
+                        field=glitchtip_instance.automation_token.field,
+                        version=glitchtip_instance.automation_token.version,
+                    ),
+                    read_timeout=glitchtip_instance.read_timeout or 30,
+                    max_retries=glitchtip_instance.max_retries or 3,
+                    organizations=self.fetch_desired_state(
+                        glitchtip_projects=glitchtip_projects_by_instance[
+                            glitchtip_instance.name
+                        ],
+                        gjb_alert_url=glitchtip_instance.glitchtip_jira_bridge_alert_url,
+                        gjb_token=gjb_token,
+                    ),
+                )
             )
 
-        if not instances_to_reconcile:
+        if not instances:
             logging.warning("No Glitchtip instances to reconcile")
             return
 
-        task = await self.reconcile(
-            instances=instances_to_reconcile,
-            desired_state=desired_state,
-            dry_run=dry_run,
-        )
+        task = await self.reconcile(instances=instances, dry_run=dry_run)
 
         task_result = await glitchtip_project_alerts_task_status(
             client=self.qontract_api_client, task_id=task.id, timeout=300

@@ -6,6 +6,7 @@ from typing import Any, TypeVar
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
+from ..models.recipient_type import RecipientType
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="GlitchtipProjectAlertRecipient")
@@ -16,16 +17,16 @@ class GlitchtipProjectAlertRecipient:
     """Desired state for a single project alert recipient.
 
     Attributes:
-        recipient_type (str): Recipient type: 'email' or 'webhook'
+        recipient_type (RecipientType): Type of alert recipient.
         url (str | Unset): Webhook URL (empty for email recipients) Default: ''.
     """
 
-    recipient_type: str
+    recipient_type: RecipientType
     url: str | Unset = ""
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        recipient_type = self.recipient_type
+        recipient_type = self.recipient_type.value
 
         url = self.url
 
@@ -42,7 +43,7 @@ class GlitchtipProjectAlertRecipient:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        recipient_type = d.pop("recipient_type")
+        recipient_type = RecipientType(d.pop("recipient_type"))
 
         url = d.pop("url", UNSET)
 

@@ -22,6 +22,7 @@ from .health_status import HealthStatus
 from .http_validation_error import HTTPValidationError
 from .liveness_response_liveness import LivenessResponseLiveness
 from .pager_duty_user import PagerDutyUser
+from .recipient_type import RecipientType
 from .repo_owners_response import RepoOwnersResponse
 from .schedule_users_response import ScheduleUsersResponse
 from .secret import Secret
@@ -59,6 +60,7 @@ __all__ = (
     "HealthStatus",
     "LivenessResponseLiveness",
     "PagerDutyUser",
+    "RecipientType",
     "RepoOwnersResponse",
     "ScheduleUsersResponse",
     "Secret",

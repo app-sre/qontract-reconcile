@@ -1,5 +1,8 @@
 """Unit tests for Glitchtip project alerts models."""
 
+import pytest
+from pydantic import ValidationError
+
 from qontract_api.integrations.glitchtip_project_alerts.models import (
     GlitchtipAlertActionCreate,
     GlitchtipAlertActionDelete,
@@ -75,6 +78,18 @@ def test_glitchtip_project() -> None:
     assert project.name == "my-project"
     assert project.slug == "my-project"
     assert len(project.alerts) == 1
+
+
+def test_glitchtip_project_slug_from_name() -> None:
+    """Test that slug is derived from name when not provided."""
+    project = GlitchtipProject(name="My Project Name")
+    assert project.slug == "my-project-name"
+
+
+def test_glitchtip_project_explicit_slug_not_overridden() -> None:
+    """Test that an explicit slug is not overridden by name slugification."""
+    project = GlitchtipProject(name="My Project Name", slug="custom-slug")
+    assert project.slug == "custom-slug"
 
 
 def test_glitchtip_organization() -> None:
@@ -225,3 +240,33 @@ def test_glitchtip_task_response() -> None:
     assert response.id == "task-123"
     assert response.status == TaskStatus.PENDING
     assert "task-123" in response.status_url
+
+
+def test_webhook_recipient_requires_url() -> None:
+    """Test that a webhook recipient with an empty URL raises ValidationError."""
+    with pytest.raises(ValidationError, match="url must be set for webhook recipients"):
+        GlitchtipProjectAlertRecipient(recipient_type="webhook", url="")
+
+
+def test_email_recipient_requires_empty_url() -> None:
+    """Test that an email recipient with a non-empty URL raises ValidationError."""
+    with pytest.raises(ValidationError, match="url must be empty for email recipients"):
+        GlitchtipProjectAlertRecipient(
+            recipient_type="email", url="https://example.com/hook"
+        )
+
+
+def test_valid_webhook_recipient() -> None:
+    """Test that a webhook recipient with a URL passes validation."""
+    recipient = GlitchtipProjectAlertRecipient(
+        recipient_type="webhook", url="https://example.com/hook"
+    )
+    assert recipient.recipient_type == "webhook"
+    assert recipient.url == "https://example.com/hook"
+
+
+def test_valid_email_recipient() -> None:
+    """Test that an email recipient with no URL passes validation."""
+    recipient = GlitchtipProjectAlertRecipient(recipient_type="email", url="")
+    assert recipient.recipient_type == "email"
+    assert not recipient.url
