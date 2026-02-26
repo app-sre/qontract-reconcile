@@ -29,15 +29,11 @@ class EventManager:
         Propagates structlog context (e.g. request_id) as message headers,
         similar to the Celery context propagation in tasks/__init__.py.
         """
-        context = structlog.contextvars.get_merged_contextvars(
-            structlog.get_logger()
-        )
+        context = structlog.contextvars.get_merged_contextvars(structlog.get_logger())
         headers = {k: str(v) for k, v in context.items()} if context else None
         with self._publisher as publisher:
             try:
-                publisher.publish(
-                    event, channel=self._channel, headers=headers
-                )
+                publisher.publish(event, channel=self._channel, headers=headers)
             except Exception:
                 log.exception(f"Failed to publish event {event.type}")
 
