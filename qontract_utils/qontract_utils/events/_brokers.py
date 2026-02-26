@@ -33,7 +33,12 @@ class RedisBroker:
         self._loop.close()
 
     def publish(
-        self, message: SendableMessage, channel: str | None = None
+        self,
+        message: SendableMessage,
+        channel: str | None = None,
+        headers: dict[str, Any] | None = None,
     ) -> int | bytes:
         """Publish a message. Same API as RedisBroker.publish()."""
-        return self._run(self._broker.publish(message, channel=channel))
+        return self._run(
+            self._broker.publish(message, channel=channel, headers=headers)
+        )

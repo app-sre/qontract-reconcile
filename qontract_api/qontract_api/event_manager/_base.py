@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import structlog
 from qontract_utils.events import Event, RedisBroker
 
 if TYPE_CHECKING:
@@ -23,10 +24,20 @@ class EventManager:
         self._channel = channel
 
     def publish_event(self, event: Event) -> None:
-        """Publish a single event. Failures are logged but do not propagate."""
+        """Publish a single event. Failures are logged but do not propagate.
+
+        Propagates structlog context (e.g. request_id) as message headers,
+        similar to the Celery context propagation in tasks/__init__.py.
+        """
+        context = structlog.contextvars.get_merged_contextvars(
+            structlog.get_logger()
+        )
+        headers = {k: str(v) for k, v in context.items()} if context else None
         with self._publisher as publisher:
             try:
-                publisher.publish(event, channel=self._channel)
+                publisher.publish(
+                    event, channel=self._channel, headers=headers
+                )
             except Exception:
                 log.exception(f"Failed to publish event {event.type}")
 
