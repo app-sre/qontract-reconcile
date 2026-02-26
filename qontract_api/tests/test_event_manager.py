@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 from qontract_utils.events import Event
@@ -40,7 +40,7 @@ class TestEventManager:
     ) -> None:
         event_manager.publish_event(sample_event)
         mock_publisher.__enter__().publish.assert_called_once_with(  # noqa: PLC2801
-            sample_event, channel="test-channel"
+            sample_event, channel="test-channel", headers=ANY
         )
 
     def test_publish_event_failure_does_not_propagate(

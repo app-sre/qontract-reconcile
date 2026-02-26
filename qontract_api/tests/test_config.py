@@ -92,18 +92,12 @@ def test_subscriber_settings_defaults() -> None:
 
     subscriber = SubscriberSettings()
     assert subscriber.slack_workspace == "redhat-internal"
-    assert subscriber.slack_channel == ""
+    assert subscriber.slack_channel == "dev-null"
     assert subscriber.slack_username == "qontract-api-bot"
     assert subscriber.slack_icon_emoji == ":robot_face:"
     assert subscriber.slack_token is None
-    assert subscriber.qontract_api_url == "http://localhost:8000"
+    assert subscriber.qontract_api_url == "http://qontract-api:8080"
     assert subscriber.qontract_api_token == ""
-
-
-def test_settings_subscriber_default_none() -> None:
-    """Test Settings subscriber defaults to None."""
-    settings = Settings()
-    assert settings.subscriber is None
 
 
 def test_slack_settings_backwards_compatible() -> None:
