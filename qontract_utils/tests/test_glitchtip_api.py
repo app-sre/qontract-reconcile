@@ -406,6 +406,80 @@ def test_create_project_alert(
     mock_httpx_client.post.assert_called_once()
 
 
+def test_create_project_alert_email_recipient_omits_url(
+    glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
+) -> None:
+    """Test that email recipients do not send url in the request body."""
+    mock_httpx_client.post.return_value = _make_response(
+        {
+            "id": 42,
+            "name": "alert-with-email",
+            "timespanMinutes": 1,
+            "quantity": 10,
+            "alertRecipients": [{"id": 1, "recipientType": "email", "url": ""}],
+        }
+    )
+
+    alert = ProjectAlert(
+        name="alert-with-email",
+        timespan_minutes=1,
+        quantity=10,
+        recipients=[ProjectAlertRecipient(recipient_type=RecipientType.EMAIL)],
+    )
+    glitchtip_api.create_project_alert("my-org", "my-project", alert)
+
+    mock_httpx_client.post.assert_called_once_with(
+        "/api/0/projects/my-org/my-project/alerts/",
+        json={
+            "name": "alert-with-email",
+            "timespanMinutes": 1,
+            "quantity": 10,
+            "alertRecipients": [{"recipientType": "email"}],
+        },
+    )
+
+
+def test_create_project_alert_webhook_recipient_includes_url(
+    glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
+) -> None:
+    """Test that webhook recipients include url in the request body."""
+    mock_httpx_client.post.return_value = _make_response(
+        {
+            "id": 42,
+            "name": "alert-with-webhook",
+            "timespanMinutes": 1,
+            "quantity": 10,
+            "alertRecipients": [
+                {"id": 1, "recipientType": "webhook", "url": "https://example.com/hook"}
+            ],
+        }
+    )
+
+    alert = ProjectAlert(
+        name="alert-with-webhook",
+        timespan_minutes=1,
+        quantity=10,
+        recipients=[
+            ProjectAlertRecipient(
+                recipient_type=RecipientType.WEBHOOK, url="https://example.com/hook"
+            )
+        ],
+    )
+    glitchtip_api.create_project_alert("my-org", "my-project", alert)
+
+    mock_httpx_client.post.assert_called_once_with(
+        "/api/0/projects/my-org/my-project/alerts/",
+        json={
+            "name": "alert-with-webhook",
+            "timespanMinutes": 1,
+            "quantity": 10,
+            "alertRecipients": [
+                {"recipientType": "webhook", "url": "https://example.com/hook"}
+            ],
+        },
+    )
+
+
 def test_update_project_alert(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
