@@ -32,6 +32,7 @@ pagerduty_request_duration = Histogram(
     "qontract_reconcile_external_api_pagerduty_request_duration_seconds",
     "PagerDuty API request duration in seconds",
     ["method", "verb"],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
 )
 
 # Local storage for latency tracking (tuple stack to support nested calls)
