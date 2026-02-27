@@ -69,9 +69,9 @@ def mock_secret_manager() -> MagicMock:
 def mock_glitchtip_client() -> MagicMock:
     """Create mock GlitchtipWorkspaceClient."""
     mock = MagicMock(spec=GlitchtipWorkspaceClient)
-    mock.get_organizations.return_value = [
-        Organization(pk=1, name="my-org", slug="my-org")
-    ]
+    mock.get_organizations.return_value = {
+        "my-org": Organization(pk=1, name="my-org", slug="my-org")
+    }
     mock.get_projects.return_value = [
         Project(pk=1, name="my-project", slug="my-project")
     ]
@@ -251,7 +251,7 @@ def test_reconcile_skips_unknown_organization(
     mock_glitchtip_client: MagicMock,
 ) -> None:
     """Test reconcile skips organizations that don't exist in current state."""
-    mock_glitchtip_client.get_organizations.return_value = []
+    mock_glitchtip_client.get_organizations.return_value = {}
 
     instance = GlitchtipInstance(
         name="test-instance",
