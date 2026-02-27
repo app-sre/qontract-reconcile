@@ -16,6 +16,7 @@ from prometheus_client import Counter, Histogram
 
 from qontract_utils.glitchtip_api.models import Organization, Project, ProjectAlert
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 
 logger = structlog.get_logger(__name__)
 
@@ -32,6 +33,7 @@ glitchtip_request_duration = Histogram(
     "qontract_reconcile_external_api_glitchtip_request_duration_seconds",
     "Glitchtip API request duration in seconds",
     ["method", "verb"],
+    buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
 # Local storage for latency tracking (tuple stack to support nested calls)
