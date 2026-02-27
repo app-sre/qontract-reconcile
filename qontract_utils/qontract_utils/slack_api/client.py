@@ -22,6 +22,7 @@ from slack_sdk.http_retry import (
 )
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.slack_api.models import SlackChannel, SlackUser, SlackUsergroup
 
 logger = structlog.get_logger(__name__)
@@ -38,6 +39,7 @@ slack_request_duration = Histogram(
     "qontract_reconcile_external_api_slack_request_duration_seconds",
     "Slack API request duration in seconds",
     ["resource", "verb"],
+    buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
 # Local storage for latency tracking (tuple stack to support nested calls)
