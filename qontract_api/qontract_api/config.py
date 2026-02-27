@@ -167,6 +167,24 @@ class VCSSettings(BaseModel):
     )
 
 
+class GlitchtipSettings(BaseModel):
+    """Glitchtip API and integration configuration."""
+
+    # Cache TTLs (seconds)
+    organizations_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip organizations cache TTL in seconds (one hour)",
+    )
+    projects_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip projects cache TTL in seconds (one hour)",
+    )
+    alerts_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip project alerts cache TTL in seconds (5 minutes)",
+    )
+
+
 class VaultSettings(BaseModel):
     # Vault-specific configuration
     backend_type: str = Field(
@@ -343,6 +361,12 @@ class Settings(BaseSettings):
     pagerduty: PagerDutySettings = Field(
         default_factory=PagerDutySettings,
         description="PagerDuty API and integration configuration",
+    )
+
+    # Glitchtip Configuration (nested)
+    glitchtip: GlitchtipSettings = Field(
+        default_factory=GlitchtipSettings,
+        description="Glitchtip API and integration configuration",
     )
 
     # VCS Configuration (nested)
