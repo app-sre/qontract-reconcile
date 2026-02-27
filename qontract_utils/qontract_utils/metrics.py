@@ -1,6 +1,7 @@
 from prometheus_client.utils import INF
 
 DEFAULT_BUCKETS_EXTERNAL_API = (
+    0.1,
     0.5,
     0.75,
     1.0,
