@@ -148,9 +148,7 @@ class GlitchtipProjectAlertsService:
             | GlitchtipAlertActionDelete
         ] = []
 
-        # Build a map of current projects keyed by org_name/project_slug
-        current_orgs = glitchtip.get_organizations()
-        current_org_by_name = {org.name: org for org in current_orgs}
+        current_org_by_name = glitchtip.get_organizations()
 
         for desired_org in organizations:
             current_org = current_org_by_name.get(desired_org.name)
@@ -236,11 +234,8 @@ class GlitchtipProjectAlertsService:
         )
 
         # Find org slug
-        current_orgs = glitchtip.get_organizations()
-        org_slug = next(
-            (o.slug for o in current_orgs if o.name == action.organization),
-            action.organization,
-        )
+        current_org = glitchtip.get_organizations().get(action.organization)
+        org_slug = current_org.slug if current_org else action.organization
 
         match action:
             case GlitchtipAlertActionCreate():

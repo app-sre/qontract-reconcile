@@ -89,20 +89,20 @@ class GlitchtipWorkspaceClient:
             logger.warning(f"Could not acquire lock for {cache_key}: {e}")
 
     # CACHED DATA ACCESS
-    def get_organizations(self) -> list[Organization]:
+    def get_organizations(self) -> dict[str, Organization]:
         """Get all organizations (cached with distributed locking).
 
         Returns:
-            List of Organization objects
+            Dict of Organization objects keyed by organization name
         """
         cache_key = self._cache_key_organizations()
 
         if cached := self.cache.get_obj(cache_key, CachedOrganizations):
-            return cached.items
+            return {org.name: org for org in cached.items}
 
         with self.cache.lock(cache_key):
             if cached := self.cache.get_obj(cache_key, CachedOrganizations):
-                return cached.items
+                return {org.name: org for org in cached.items}
 
             orgs = self.glitchtip_api.organizations()
             self.cache.set_obj(
@@ -110,7 +110,7 @@ class GlitchtipWorkspaceClient:
                 CachedOrganizations(items=orgs),
                 self.settings.glitchtip.organizations_cache_ttl,
             )
-            return orgs
+            return {org.name: org for org in orgs}
 
     def get_projects(self, org_slug: str) -> list[Project]:
         """Get projects for an organization (cached with distributed locking).
