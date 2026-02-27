@@ -148,15 +148,22 @@ def _slow_request_hook(context: VaultApiCallContext) -> None:
     duration = time.perf_counter() - start_time
     if duration <= DEFAULT_SLOW_REQUEST_THRESHOLD:
         return
+
     # Build structured log fields, omitting None values
     log_fields: dict[str, str | float] = {}
-    if context.path is not None:
+    if context.path:
         log_fields["path"] = context.path
-    if context.mount_point is not None:
+    if context.mount_point:
         log_fields["mount_point"] = context.mount_point
-    log_fields["duration"] = f"{duration:.1f}s"
-    log_fields["threshold"] = f"{DEFAULT_SLOW_REQUEST_THRESHOLD:.1f}s"
-    logger.warning("Slow Vault request", **log_fields)
+
+    logger.warning(
+        "Slow Vault request",
+        method=context.method,
+        server=context.id,
+        duration=f"{duration:.1f}s",
+        threshold=f"{DEFAULT_SLOW_REQUEST_THRESHOLD:.1f}s",
+        **log_fields,
+    )
 
 
 @with_hooks(
@@ -166,7 +173,11 @@ def _slow_request_hook(context: VaultApiCallContext) -> None:
             _request_log_hook,
             _latency_start_hook,
         ],
-        post_hooks=[_slow_request_hook, _latency_end_hook],
+        post_hooks=[
+            # slow request hook must run before latency end hook to access duration
+            _slow_request_hook,
+            _latency_end_hook,
+        ],
     )
 )
 class VaultSecretBackend(SecretBackend):
