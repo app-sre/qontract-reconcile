@@ -77,7 +77,7 @@ class VaultApiCallContext:
 
 
 # Slow request threshold
-DEFAULT_SLOW_REQUEST_THRESHOLD = 1.0
+DEFAULT_SLOW_REQUEST_THRESHOLD = 2.0
 
 # Prometheus metrics
 vault_request = Counter(

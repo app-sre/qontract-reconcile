@@ -720,7 +720,7 @@ class TestVaultSlowRequestLogging:
                 assert call_args[1]["path"] == "workspace-1/token"
                 assert call_args[1]["mount_point"] == "secret"
                 assert call_args[1]["duration"] == "2.3s"
-                assert call_args[1]["threshold"] == "1.0s"
+                assert call_args[1]["threshold"] == "2.0s"
 
     def test_fast_request_no_warning(self) -> None:
         """Test that fast Vault requests do not log a warning."""
@@ -800,23 +800,23 @@ class TestVaultSlowRequestLogging:
                 assert "mount_point" not in call_args[1]
                 # But duration and threshold should be present
                 assert call_args[1]["duration"] == "2.5s"
-                assert call_args[1]["threshold"] == "1.0s"
+                assert call_args[1]["threshold"] == "2.0s"
 
     def test_slow_request_threshold_boundary(self) -> None:
-        """Test that exactly 1.0s is NOT slow, but 1.001s is slow."""
+        """Test that exactly 2.0s is NOT slow, but 2.001s is slow."""
         # Pre-cache KV version to avoid config call
         self.backend._kv_version_cache["secret"] = 2
         self.mock_client.secrets.kv.v2.read_secret_version.return_value = {
             "data": {"data": {"token": "xoxb-test-token"}}
         }
 
-        # Test exactly 1.0s - NOT slow
+        # Test exactly 2.0s - NOT slow
         with patch("time.perf_counter") as mock_time:
             counter = {"calls": 0}
 
             def time_func() -> float:
                 counter["calls"] += 1
-                return 100.0 if counter["calls"] == 1 else 101.0
+                return 100.0 if counter["calls"] == 1 else 102.0
 
             mock_time.side_effect = time_func
 
@@ -836,13 +836,13 @@ class TestVaultSlowRequestLogging:
             "data": {"data": {"token": "xoxb-test-token"}}
         }
 
-        # Test 1.001s - IS slow
+        # Test 2.001s - IS slow
         with patch("time.perf_counter") as mock_time:
             counter = {"calls": 0}
 
             def time_func() -> float:
                 counter["calls"] += 1
-                return 100.0 if counter["calls"] == 1 else 101.001
+                return 100.0 if counter["calls"] == 1 else 102.001
 
             mock_time.side_effect = time_func
 
@@ -857,4 +857,4 @@ class TestVaultSlowRequestLogging:
                 ]
                 assert len(slow_request_calls) == 1
                 call_args = slow_request_calls[0]
-                assert call_args[1]["duration"] == "1.0s"  # Formatted to 1 decimal
+                assert call_args[1]["duration"] == "2.0s"  # Formatted to 1 decimal
