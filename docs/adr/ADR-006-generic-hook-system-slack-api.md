@@ -640,7 +640,7 @@ Context is dynamic — the factory receives actual `path` and `mount_point` valu
 ### Argument Forwarding Rules
 
 1. **Parameter name matching**: Factory parameters must match method parameter names exactly (case-sensitive)
-2. **Self parameter**: The first parameter (if any) in the factory is always treated as `self` (the instance), never matched against method args
+2. **Self parameter**: `self` in factory is matched by name against the method's `self` parameter — it receives the class instance. Factories that don't need the instance can omit `self`.
 3. **Subset selection**: Factory can declare a subset of the method's parameters — only declare what you need
 4. **Validation at decoration time**: Mismatched parameter names raise `TypeError` when `@invoke_with_hooks` is applied (fail-fast)
 5. **Cached signature inspection**: Signature inspection is performed once per factory and cached using a composite key `(id, code_hash)` — no per-call overhead

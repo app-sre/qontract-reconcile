@@ -33,9 +33,7 @@ def test_factory_receives_method_args() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._hooks = Hooks(
-                pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG
-            )
+            self._hooks = Hooks(pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(
             lambda self, path, mount_point: MyContext(
@@ -110,9 +108,7 @@ def test_factory_receives_subset_of_args() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._hooks = Hooks(
-                pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG
-            )
+            self._hooks = Hooks(pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda self, path: MyContext(path=path))
         def do_work(self, path: str, mount_point: str, version: int) -> str:
@@ -137,9 +133,7 @@ def test_factory_receives_kwargs() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._hooks = Hooks(
-                pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG
-            )
+            self._hooks = Hooks(pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(
             lambda self, path, mount_point: MyContext(
@@ -169,7 +163,9 @@ def test_factory_mismatch_raises_at_decoration_time() -> None:
             def __init__(self) -> None:
                 self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
-            @invoke_with_hooks(lambda self, nonexistent_param: {"value": nonexistent_param})
+            @invoke_with_hooks(
+                lambda self, nonexistent_param: {"value": nonexistent_param}
+            )
             def do_work(self, path: str) -> str:
                 return path
 
@@ -182,7 +178,9 @@ def test_factory_signature_is_cached() -> None:
         return {"path": path}
 
     # Patch inspect.signature to count calls
-    with patch("qontract_utils.hooks.inspect.signature", wraps=inspect.signature) as mock_sig:  # type: ignore[name-defined]
+    with patch(
+        "qontract_utils.hooks.inspect.signature", wraps=inspect.signature
+    ) as mock_sig:
 
         class TestApi:
             def __init__(self) -> None:
@@ -220,9 +218,7 @@ def test_factory_with_default_values_in_method() -> None:
 
     class TestApi:
         def __init__(self) -> None:
-            self._hooks = Hooks(
-                pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG
-            )
+            self._hooks = Hooks(pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG)
 
         @invoke_with_hooks(lambda self, path: MyContext(path=path))
         def do_work(self, path: str = "default/path") -> str:
@@ -234,6 +230,29 @@ def test_factory_with_default_values_in_method() -> None:
     assert result == "default/path"
     assert len(captured_context) == 1
     assert captured_context[0].path == "default/path"
+
+
+def test_factory_without_self_on_instance_method() -> None:
+    """Factory that only wants method args (no instance) works on instance methods."""
+    captured_context: list[MyContext] = []
+
+    def capture_hook(ctx: MyContext) -> None:
+        captured_context.append(ctx)
+
+    class TestApi:
+        def __init__(self) -> None:
+            self._hooks = Hooks(pre_hooks=[capture_hook], retry_config=NO_RETRY_CONFIG)
+
+        @invoke_with_hooks(lambda path: MyContext(path=path))
+        def do_work(self, path: str, mount_point: str) -> str:
+            return f"{path}@{mount_point}"
+
+    api = TestApi()
+    result = api.do_work("secret/foo", "kv")
+
+    assert result == "secret/foo@kv"
+    assert len(captured_context) == 1
+    assert captured_context[0].path == "secret/foo"
 
 
 def test_factory_args_work_with_hooks() -> None:

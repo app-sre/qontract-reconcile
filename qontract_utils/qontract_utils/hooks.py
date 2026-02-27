@@ -17,8 +17,7 @@ type OnType = (
 
 # Cache for factory signature inspection to avoid per-call overhead.
 # Keyed by (factory_id, code_hash) to handle object ID recycling.
-# Value is (param_names_after_self, has_self_param).
-_factory_signature_cache: dict[tuple[int, int], tuple[list[str], bool]] = {}
+_factory_signature_cache: dict[tuple[int, int], list[str]] = {}
 
 
 def _get_factory_cache_key(factory: Callable[..., Any]) -> tuple[int, int]:
@@ -37,39 +36,30 @@ def _get_factory_cache_key(factory: Callable[..., Any]) -> tuple[int, int]:
     return (factory_id, code_hash)
 
 
-def _inspect_factory_signature(factory: Callable[..., Any]) -> tuple[list[str], bool]:
-    """Inspect factory signature and return parameter info.
+def _inspect_factory_signature(factory: Callable[..., Any]) -> list[str]:
+    """Inspect factory signature and return parameter names.
 
     Args:
         factory: Context factory callable
 
     Returns:
-        Tuple of (param_names_after_self, has_self_param)
-        - param_names_after_self: List of parameter names (excluding first param if it exists)
-        - has_self_param: True if factory has at least one param (treated as instance/self)
-
-    Note:
-        The first parameter (if any) is always treated as 'self' or instance parameter.
-        Only parameters after the first are considered method argument parameters.
+        List of all parameter names (POSITIONAL_OR_KEYWORD and KEYWORD_ONLY only,
+        excluding VAR_POSITIONAL and VAR_KEYWORD).
     """
     cache_key = _get_factory_cache_key(factory)
     if cache_key in _factory_signature_cache:
         return _factory_signature_cache[cache_key]
 
     sig = inspect.signature(factory)
-    params = list(sig.parameters.values())
+    param_names = [
+        p.name
+        for p in sig.parameters.values()
+        if p.kind
+        in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+    ]
 
-    # First param (if exists) is always treated as self/instance
-    # Only params after the first are method arg params
-    has_self = len(params) > 0
-    params_after_self = params[1:] if has_self else []
-
-    # Extract parameter names (excluding first param which is self)
-    param_names = [p.name for p in params_after_self]
-
-    result = (param_names, has_self)
-    _factory_signature_cache[cache_key] = result
-    return result
+    _factory_signature_cache[cache_key] = param_names
+    return param_names
 
 
 def _validate_factory_signature(
@@ -84,22 +74,14 @@ def _validate_factory_signature(
     Raises:
         TypeError: If factory declares parameter not in method signature
     """
-    factory_params, _ = _inspect_factory_signature(factory)
+    factory_params = _inspect_factory_signature(factory)
+    method_param_names = list(inspect.signature(method).parameters.keys())
 
-    # Get method signature (skip self for instance methods)
-    method_sig = inspect.signature(method)
-    method_params = list(method_sig.parameters.keys())
-
-    # Skip 'self' in method params if present
-    if method_params and method_params[0] == "self":
-        method_params = method_params[1:]
-
-    # Check each factory param exists in method
     for param_name in factory_params:
-        if param_name not in method_params:
+        if param_name not in method_param_names:
             msg = (
                 f"Context factory parameter '{param_name}' not found in method "
-                f"'{method.__name__}' signature. Available parameters: {method_params}"
+                f"'{method.__name__}' signature. Available parameters: {method_param_names}"
             )
             raise TypeError(msg)
 
@@ -123,43 +105,27 @@ def _build_context_from_args(
     Returns:
         Context object created by factory
     """
-    factory_params, has_self = _inspect_factory_signature(factory)
+    factory_params = _inspect_factory_signature(factory)
 
-    # If factory has no params (lambda: ...), just call it
-    if not has_self and not factory_params:
+    if not factory_params:
         return factory()
 
-    # If factory only has self (lambda self: ...), call with instance
-    if has_self and not factory_params:
-        return factory(instance)
-
-    # Factory wants method args - extract them
-    # Get method signature and skip 'self' if it's an instance method
+    # Bind method args (strip self from sig since args don't include it)
     method_sig = inspect.signature(method)
-    method_params = list(method_sig.parameters.values())
-
-    # Skip 'self' parameter if present (instance methods)
-    if method_params and method_params[0].name == "self":
-        method_params = method_params[1:]
-        # Create a partial signature without self for binding
-        params_without_self = [p for p in method_sig.parameters.values() if p.name != "self"]
-        method_sig_for_binding = inspect.Signature(parameters=params_without_self)
-    else:
-        method_sig_for_binding = method_sig
-
-    # Bind the actual args (which don't include self) to the signature
-    bound_args = method_sig_for_binding.bind(*args, **kwargs)
+    method_param_list = list(method_sig.parameters.values())
+    if method_param_list and method_param_list[0].name == "self":
+        method_param_list = method_param_list[1:]
+    binding_sig = inspect.Signature(parameters=method_param_list)
+    bound_args = binding_sig.bind(*args, **kwargs)
     bound_args.apply_defaults()
 
-    # Extract values for factory params
-    extracted = {}
-    for param_name in factory_params:
-        if param_name in bound_args.arguments:
-            extracted[param_name] = bound_args.arguments[param_name]
+    # Build available values: method args + instance as "self"
+    available: dict[str, Any] = dict(bound_args.arguments)
+    if instance is not None:
+        available["self"] = instance
 
-    # Call factory with instance (if has_self) and extracted args
-    if has_self:
-        return factory(instance, **extracted)
+    # Extract what factory needs
+    extracted = {name: available[name] for name in factory_params if name in available}
     return factory(**extracted)
 
 
@@ -326,7 +292,7 @@ class Hooks(BaseModel, frozen=True):
         """
         context = getattr(self, "_context", None)
         wrapper = _ExecutionWrapper(hooks=self)
-        return InvokeWithHooksMethod(func, lambda _: context).__get__(wrapper)(
+        return InvokeWithHooksMethod(func, lambda: context).__get__(wrapper)(
             *args, **kwargs
         )
 
