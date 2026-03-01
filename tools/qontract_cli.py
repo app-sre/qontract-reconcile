@@ -4440,9 +4440,6 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
 
     E.g: qontract-reconcile --config=<config> external-resources migrate aws app-sre-stage rds dashdotdb-stage
     """
-    if ctx.obj["provider"] == "rds":
-        # The "random_password" is not an AWS resource. It's just in the outputs and can't be migrated :(
-        raise NotImplementedError("RDS migration is not supported yet!")
 
     if not Confirm.ask(
         dedent("""
@@ -4529,8 +4526,9 @@ def migrate(ctx: click.Context, dry_run: bool, skip_build: bool) -> None:
             "Migrating the resources from terraform-resources to ERv2",
         ):
             if ctx.obj["provider"] == "elasticache":
-                # Elasticache migration is a bit different
                 erv2_tf_cli.migrate_elasticache_resources(source=tfr_tf_cli)
+            elif ctx.obj["provider"] == "rds":
+                erv2_tf_cli.migrate_rds_resources(source=tfr_tf_cli)
             else:
                 erv2_tf_cli.migrate_resources(source=tfr_tf_cli)
 
