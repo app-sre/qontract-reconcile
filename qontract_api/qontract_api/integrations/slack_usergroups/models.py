@@ -2,10 +2,19 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from qontract_api.models import TaskResult, TaskStatus
 from qontract_api.slack.models import SlackWorkspace
+
+_USERS_TRUNCATE_THRESHOLD = 30
+
+
+def _truncate_users(users: list[str]) -> list[str]:
+    """Truncate user list for serialization if it exceeds threshold."""
+    if len(users) > _USERS_TRUNCATE_THRESHOLD:
+        return [*users[:_USERS_TRUNCATE_THRESHOLD], "..."]
+    return users
 
 
 class SlackUsergroupsReconcileRequest(BaseModel, frozen=True):
@@ -38,6 +47,12 @@ class SlackUsergroupActionCreate(BaseModel, frozen=True):
     def sorted_list(cls, value: list[str]) -> list[str]:
         return sorted(value)
 
+    @field_serializer("users")
+    @classmethod
+    def truncate_users(cls, users: list[str]) -> list[str]:
+        """Truncate user list in serialized output to avoid huge log/event payloads."""
+        return _truncate_users(users)
+
 
 class SlackUsergroupActionUpdateUsers(BaseModel, frozen=True):
     """Action: Update usergroup users."""
@@ -53,6 +68,12 @@ class SlackUsergroupActionUpdateUsers(BaseModel, frozen=True):
     @classmethod
     def sorted_list(cls, value: list[str]) -> list[str]:
         return sorted(value)
+
+    @field_serializer("users")
+    @classmethod
+    def truncate_users(cls, users: list[str]) -> list[str]:
+        """Truncate user list in serialized output to avoid huge log/event payloads."""
+        return _truncate_users(users)
 
 
 class SlackUsergroupActionUpdateMetadata(BaseModel, frozen=True):
