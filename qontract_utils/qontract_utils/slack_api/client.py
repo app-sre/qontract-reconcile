@@ -21,11 +21,19 @@ from slack_sdk.http_retry import (
     RateLimitErrorRetryHandler as SlackSDKRateLimitErrorRetryHandler,
 )
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
-from qontract_utils.slack_api.models import SlackChannel, SlackUser, SlackUsergroup
+from qontract_utils.slack_api.models import (
+    ChatPostMessageResponse,
+    SlackChannel,
+    SlackUser,
+    SlackUsergroup,
+)
 
 logger = structlog.get_logger(__name__)
+
+# Slack message text length limit
+MAX_MESSAGE_LENGTH = 10000
 
 # Following naming convention (qontract_reconcile_external_api_<component>_requests_total) to
 # automatically include this metric in dashboards
@@ -389,3 +397,121 @@ class SlackApi:
             additional_kwargs["cursor"] = cursor
 
         return channels
+
+    def _send_message(
+        self,
+        *,
+        channel_id: str,
+        text: str,
+        thread_ts: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
+        username: str | None = None,
+    ) -> ChatPostMessageResponse:
+        """Send a message via chat.postMessage and parse the response.
+
+        Args:
+            channel_id: Channel ID (e.g., "C01234ABCD")
+            text: Message text
+            thread_ts: Thread timestamp for replies (optional)
+            icon_emoji: Emoji to use as the message icon (e.g., ":robot_face:")
+            icon_url: URL to an image to use as the message icon
+            username: Bot username to display
+
+        Returns:
+            ChatPostMessageResponse with message timestamp and channel info
+        """
+        response = self._sc.chat_postMessage(
+            channel=channel_id,
+            text=text,
+            thread_ts=thread_ts,
+            icon_emoji=icon_emoji,
+            icon_url=icon_url,
+            username=username,
+        )
+        response_data = response.data
+        if not isinstance(response_data, dict):
+            msg = f"Unexpected response data type: {type(response_data)}"
+            raise TypeError(msg) from None
+        return ChatPostMessageResponse(**response_data)
+
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
+            method="chat.postMessage", verb="POST", workspace=self.workspace_name
+        ),
+        retry_config=NO_RETRY_CONFIG,
+    )
+    def chat_post_message(
+        self,
+        *,
+        channel_id: str,
+        text: str,
+        thread_ts: str | None = None,
+        icon_emoji: str | None = None,
+        icon_url: str | None = None,
+        username: str | None = None,
+    ) -> ChatPostMessageResponse:
+        """Post a message to a Slack channel.
+
+        Automatically joins public channels if the bot is not a member.
+        Truncates text longer than 10,000 characters.
+
+        Args:
+            channel_id: Channel ID (e.g., "C01234ABCD")
+            text: Message text
+            thread_ts: Thread timestamp for replies (optional)
+            icon_emoji: Emoji to use as the message icon (e.g., ":robot_face:")
+            icon_url: URL to an image to use as the message icon
+            username: Bot username to display
+
+        Returns:
+            ChatPostMessageResponse with message timestamp and channel info
+
+        Raises:
+            SlackApiError: On channel_not_found or other Slack API errors
+        """
+        if len(text) > MAX_MESSAGE_LENGTH:
+            text = text[:MAX_MESSAGE_LENGTH] + "... [truncated]"
+
+        try:
+            return self._send_message(
+                channel_id=channel_id,
+                text=text,
+                thread_ts=thread_ts,
+                icon_emoji=icon_emoji,
+                icon_url=icon_url,
+                username=username,
+            )
+        except SlackApiError as e:
+            error_code = e.response["error"]
+
+            if error_code == "not_in_channel":
+                logger.info(
+                    "Bot not in channel, auto-joining",
+                    channel_id=channel_id,
+                    workspace=self.workspace_name,
+                )
+                self._sc.conversations_join(channel=channel_id)
+                return self._send_message(
+                    channel_id=channel_id,
+                    text=text,
+                    thread_ts=thread_ts,
+                    icon_emoji=icon_emoji,
+                    icon_url=icon_url,
+                    username=username,
+                )
+
+            if error_code == "channel_not_found":
+                logger.exception(
+                    "Channel not found",
+                    channel_id=channel_id,
+                    workspace=self.workspace_name,
+                )
+                raise
+
+            logger.warning(
+                "Slack API error posting message",
+                error=error_code,
+                channel_id=channel_id,
+            )
+            raise

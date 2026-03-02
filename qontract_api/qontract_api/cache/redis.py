@@ -45,7 +45,7 @@ class RedisCacheBackend(CacheBackend):
             memory_max_size=memory_max_size,
             memory_ttl=memory_ttl,
         )
-        self.client = client
+        self._client = client
 
     def get(self, key: str) -> str | None:
         """Get value from cache as string.
@@ -111,6 +111,11 @@ class RedisCacheBackend(CacheBackend):
         closed automatically. Explicit close for cleanup.
         """
         self.client.close()
+
+    @property
+    def client(self) -> Redis:
+        """Return the underlying Redis client."""
+        return self._client
 
     @contextmanager
     def lock(self, key: str, timeout: float = 300) -> Generator[None, None, None]:

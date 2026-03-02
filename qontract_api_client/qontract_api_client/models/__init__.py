@@ -1,5 +1,7 @@
 """Contains all the data models used in inputs/outputs"""
 
+from .chat_request import ChatRequest
+from .chat_response import ChatResponse
 from .escalation_policy_users_response import EscalationPolicyUsersResponse
 from .health_response import HealthResponse
 from .health_response_components import HealthResponseComponents
@@ -24,6 +26,8 @@ from .validation_error import ValidationError
 from .vcs_provider import VCSProvider
 
 __all__ = (
+    "ChatRequest",
+    "ChatResponse",
     "EscalationPolicyUsersResponse",
     "HTTPValidationError",
     "HealthResponse",

@@ -68,3 +68,11 @@ class SlackChannel(BaseModel, frozen=True):
     name: str
     is_archived: bool = False
     is_member: bool = False
+
+
+class ChatPostMessageResponse(BaseModel, frozen=True):
+    """Response from chat.postMessage Slack API call."""
+
+    ts: str
+    channel: str
+    thread_ts: str | None = None

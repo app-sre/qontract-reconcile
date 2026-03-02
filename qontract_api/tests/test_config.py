@@ -1,9 +1,8 @@
 """Tests for configuration settings."""
-# ruff: noqa: FBT001 - Boolean positional args acceptable in parametrized tests
 
 import pytest
 
-from qontract_api.config import Settings
+from qontract_api.config import Secret, Settings
 
 
 @pytest.mark.parametrize(
@@ -62,3 +61,54 @@ def test_secret_model_minimal() -> None:
     assert secret.path == "secret/test/token"
     assert secret.field is None
     assert secret.version is None
+
+
+def test_subscriber_settings_all_fields() -> None:
+    """Test SubscriberSettings with all fields."""
+    from qontract_api.config import SubscriberSettings
+
+    subscriber = SubscriberSettings(
+        slack_workspace="redhat",
+        slack_channel="sd-app-sre-reconcile",
+        slack_username="app-sre",
+        slack_icon_emoji="emoji",
+        slack_token=Secret(path="app-sre/slack/bot-token"),
+        qontract_api_url="https://api.example.com",
+        qontract_api_token="token",
+    )
+    assert subscriber.slack_workspace == "redhat"
+    assert subscriber.slack_channel == "sd-app-sre-reconcile"
+    assert subscriber.slack_username == "app-sre"
+    assert subscriber.slack_icon_emoji == "emoji"
+    assert subscriber.slack_token is not None
+    assert subscriber.slack_token.path == "app-sre/slack/bot-token"
+    assert subscriber.qontract_api_url == "https://api.example.com"
+    assert subscriber.qontract_api_token == "token"
+
+
+def test_subscriber_settings_defaults() -> None:
+    """Test SubscriberSettings defaults to empty strings."""
+    from qontract_api.config import SubscriberSettings
+
+    subscriber = SubscriberSettings()
+    assert subscriber.slack_workspace == "redhat-internal"
+    assert subscriber.slack_channel == "dev-null"
+    assert subscriber.slack_username == "qontract-api-bot"
+    assert subscriber.slack_icon_emoji == ":robot_face:"
+    assert subscriber.slack_token is None
+    assert subscriber.qontract_api_url == "http://qontract-api:8080"
+    assert subscriber.qontract_api_token == ""
+
+
+def test_slack_settings_backwards_compatible() -> None:
+    """Test SlackSettings maintains backwards compatibility with existing defaults."""
+    from qontract_api.config import SlackSettings
+
+    slack = SlackSettings()
+    # Verify existing fields maintain their defaults
+    assert slack.api_url == "https://slack.com/api/"
+    assert slack.api_timeout == 30
+    assert slack.api_max_retries == 100
+    assert slack.usergroup_cache_ttl == 60 * 60
+    assert slack.users_cache_ttl == 60 * 60 * 12
+    assert slack.channels_cache_ttl == 60 * 60 * 12

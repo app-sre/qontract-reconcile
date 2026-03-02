@@ -1,17 +1,16 @@
 """Unit tests for Slack usergroups models."""
 
 from qontract_api.integrations.slack_usergroups.models import (
-    SlackUsergroup,
     SlackUsergroupActionCreate,
     SlackUsergroupActionUpdateMetadata,
     SlackUsergroupActionUpdateUsers,
-    SlackUsergroupConfig,
     SlackUsergroupsReconcileRequest,
     SlackUsergroupsTaskResponse,
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.slack.models import SlackUsergroup, SlackUsergroupConfig
 
 
 def test_slack_usergroup_config_minimal() -> None:

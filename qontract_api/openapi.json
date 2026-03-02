@@ -1,6 +1,119 @@
 {
   "components": {
     "schemas": {
+      "ChatRequest": {
+        "description": "Request model for posting a Slack message.\n\nImmutable model with all fields required to send a chat message.\n\nAttributes:\n    workspace_name: Slack workspace name\n    channel: Channel name to post to\n    text: Message text\n    thread_ts: Optional thread timestamp for replies\n    icon_emoji: Emoji to use as the message icon\n    icon_url: URL to an image to use as the message icon\n    username: Bot username to display\n    secret: Secret reference for Slack bot token",
+        "properties": {
+          "channel": {
+            "description": "Channel name to post to (e.g., 'sd-app-sre-reconcile')",
+            "title": "Channel",
+            "type": "string"
+          },
+          "icon_emoji": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Emoji to use as the message icon (e.g., ':robot_face:')",
+            "title": "Icon Emoji"
+          },
+          "icon_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to an image to use as the message icon",
+            "title": "Icon Url"
+          },
+          "secret": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for Slack bot token"
+          },
+          "text": {
+            "description": "Message text",
+            "title": "Text",
+            "type": "string"
+          },
+          "thread_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional thread timestamp for replies",
+            "title": "Thread Ts"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bot username to display",
+            "title": "Username"
+          },
+          "workspace_name": {
+            "description": "Slack workspace name",
+            "title": "Workspace Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_name",
+          "channel",
+          "text",
+          "secret"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
+      "ChatResponse": {
+        "description": "Response model for a posted Slack message.\n\nImmutable model returning the Slack API response fields.\n\nAttributes:\n    ts: Message timestamp\n    channel: Channel ID where the message was posted\n    thread_ts: Thread timestamp if this was a threaded reply",
+        "properties": {
+          "channel": {
+            "description": "Channel ID where the message was posted",
+            "title": "Channel",
+            "type": "string"
+          },
+          "thread_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Thread timestamp if this was a threaded reply",
+            "title": "Thread Ts"
+          },
+          "ts": {
+            "description": "Message timestamp",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ts",
+          "channel"
+        ],
+        "title": "ChatResponse",
+        "type": "object"
+      },
       "EscalationPolicyUsersResponse": {
         "description": "Response model for escalation policy users endpoint.\n\nImmutable response containing list of users in an escalation policy.\n\nAttributes:\n    users: List of users in escalation policy",
         "properties": {
@@ -766,6 +879,43 @@
           }
         },
         "summary": "Get Schedule Users",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/slack/chat": {
+      "post": {
+        "description": "Post a message to a Slack channel.\n\nSends a chat message to the specified channel in the given workspace.\nSupports threaded replies via thread_ts.\n\nArgs:\n    request: Chat request with channel, text, and credentials\n\nReturns:\n    ChatResponse with ts, channel, and optional thread_ts\n\nRaises:\n    HTTPException:\n        - 502 Bad Gateway: If Slack API call fails",
+        "operationId": "slack-chat-post-message",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Chat",
         "tags": [
           "external"
         ]

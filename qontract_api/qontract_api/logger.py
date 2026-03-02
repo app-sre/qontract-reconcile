@@ -26,7 +26,9 @@ def setup_logger(logger: str, log_level: str | None = None) -> logging.Logger:
     )
 
 
-def setup_logging() -> structlog.typing.WrappedLogger:
+def setup_logging(
+    extra_processors: list[structlog.typing.Processor] | None = None,
+) -> structlog.typing.WrappedLogger:
     """Configure and return application logger.
 
     Uses JSON formatting by default (LOG_FORMAT_JSON=True).
@@ -57,6 +59,8 @@ def setup_logging() -> structlog.typing.WrappedLogger:
         structlog.dev.set_exc_info,
         structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False),
     ]
+    if extra_processors:
+        processors.extend(extra_processors)
     if settings.log_format_json:
         processors += [
             structlog.processors.dict_tracebacks,
