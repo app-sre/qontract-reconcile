@@ -14,7 +14,7 @@ dependencies = [
     "prometheus-client==0.23.1",
     "pydantic==2.12.4",
     "pygithub==1.58.2",
-    "python-gitlab==6.0.0",
+    "python-gitlab==8.1.0",
     "redis==7.1.0",
     "requests==2.32.5",
     "ruamel-yaml==0.17.40",
