@@ -11,26 +11,25 @@ class RedisBroker:
 
     def __init__(self, url: str) -> None:
         self._broker = FastRedisBroker(url)
-        self._loop = asyncio.new_event_loop()
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
+        if self._loop is None or self._loop.is_closed():
+            raise RuntimeError("Broker is not connected. Use as context manager.")
         return self._loop.run_until_complete(coro)
 
     def __enter__(self) -> Self:
-        self.connect()
+        self._loop = asyncio.new_event_loop()
+        self._run(self._broker.connect())
         return self
 
     def __exit__(self, *args: object) -> None:
-        self.close()
-
-    def connect(self) -> None:
-        """Establish the Redis connection."""
-        self._run(self._broker.connect())
-
-    def close(self) -> None:
-        """Close the connection and event loop."""
-        self._run(self._broker.stop())
-        self._loop.close()
+        try:
+            self._run(self._broker.stop())
+        finally:
+            if self._loop and not self._loop.is_closed():
+                self._loop.close()
+            self._loop = None
 
     def publish(
         self,
