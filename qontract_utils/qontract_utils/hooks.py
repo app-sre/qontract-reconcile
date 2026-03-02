@@ -15,6 +15,119 @@ type OnType = (
     | Callable[[Exception], bool | float | timedelta]
 )
 
+# Cache for factory signature inspection to avoid per-call overhead.
+# Keyed by (factory_id, code_hash) to handle object ID recycling.
+_factory_signature_cache: dict[tuple[int, int], list[str]] = {}
+
+
+def _get_factory_cache_key(factory: Callable[..., Any]) -> tuple[int, int]:
+    """Get cache key for factory signature.
+
+    Uses both id() and hash of code object to avoid cache pollution from
+    recycled object IDs.
+    """
+    factory_id = id(factory)
+    # Use hash of code object if available (for lambdas/functions)
+    try:
+        code_hash = hash(factory.__code__)
+    except AttributeError:
+        # For callables without __code__ (e.g., bound methods), use just id
+        code_hash = 0
+    return (factory_id, code_hash)
+
+
+def _inspect_factory_signature(factory: Callable[..., Any]) -> list[str]:
+    """Inspect factory signature and return parameter names.
+
+    Args:
+        factory: Context factory callable
+
+    Returns:
+        List of all parameter names (POSITIONAL_OR_KEYWORD and KEYWORD_ONLY only,
+        excluding VAR_POSITIONAL and VAR_KEYWORD).
+    """
+    cache_key = _get_factory_cache_key(factory)
+    if cache_key in _factory_signature_cache:
+        return _factory_signature_cache[cache_key]
+
+    sig = inspect.signature(factory)
+    param_names = [
+        p.name
+        for p in sig.parameters.values()
+        if p.kind
+        in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+    ]
+
+    _factory_signature_cache[cache_key] = param_names
+    return param_names
+
+
+def _validate_factory_signature(
+    factory: Callable[..., Any], method: Callable[..., Any]
+) -> None:
+    """Validate that factory parameters exist in method signature.
+
+    Args:
+        factory: Context factory callable
+        method: Method being decorated
+
+    Raises:
+        TypeError: If factory declares parameter not in method signature
+    """
+    factory_params = _inspect_factory_signature(factory)
+    method_param_names = list(inspect.signature(method).parameters.keys())
+
+    for param_name in factory_params:
+        if param_name not in method_param_names:
+            msg = (
+                f"Context factory parameter '{param_name}' not found in method "
+                f"'{method.__name__}' signature. Available parameters: {method_param_names}"
+            )
+            raise TypeError(msg)
+
+
+def _build_context_from_args(
+    factory: Callable[..., Any],
+    instance: Any | None,
+    method: Callable[..., Any],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> Any:
+    """Build context by calling factory with extracted method args.
+
+    Args:
+        factory: Context factory callable
+        instance: Instance for instance methods (None for standalone)
+        method: Method being called
+        args: Positional arguments passed to method (WITHOUT self)
+        kwargs: Keyword arguments passed to method
+
+    Returns:
+        Context object created by factory
+    """
+    factory_params = _inspect_factory_signature(factory)
+
+    if not factory_params:
+        return factory()
+
+    # Bind method args (strip self from sig since args don't include it)
+    method_sig = inspect.signature(method)
+    method_param_list = list(method_sig.parameters.values())
+    if method_param_list and method_param_list[0].name == "self":
+        method_param_list = method_param_list[1:]
+    binding_sig = inspect.Signature(parameters=method_param_list)
+    bound_args = binding_sig.bind(*args, **kwargs)
+    bound_args.apply_defaults()
+
+    # Build available values: method args + instance as "self"
+    available: dict[str, Any] = dict(bound_args.arguments)
+    if instance is not None:
+        available["self"] = instance
+
+    # Extract what factory needs
+    extracted = {name: available[name] for name in factory_params if name in available}
+    return factory(**extracted)
+
 
 @dataclass(frozen=True)
 class RetryConfig:
@@ -179,7 +292,7 @@ class Hooks(BaseModel, frozen=True):
         """
         context = getattr(self, "_context", None)
         wrapper = _ExecutionWrapper(hooks=self)
-        return InvokeWithHooksMethod(func, lambda _: context).__get__(wrapper)(
+        return InvokeWithHooksMethod(func, lambda: context).__get__(wrapper)(
             *args, **kwargs
         )
 
@@ -315,6 +428,9 @@ class invoke_with_hooks:  # noqa: N801 - lowercase for decorator API aesthetics
 
     def __call__[**P, R](self, func: Callable[P, R]) -> Callable[P, R]:
         """Wrap function with InvokeWithHooksMethod descriptor."""
+        # Validate factory signature against method signature at decoration time
+        if self.context_factory is not None:
+            _validate_factory_signature(self.context_factory, func)
         return InvokeWithHooksMethod(
             func, self.context_factory, self.retry_config, self.hooks
         )
@@ -350,7 +466,7 @@ class InvokeWithHooksMethod:
     def _create_wrapper(
         self,
         hooks: Hooks,
-        context: Any,
+        instance: Any | None,
         callable_name: str,
         prepend_args: tuple[Any, ...] = (),
     ) -> Callable[..., Any]:
@@ -358,17 +474,25 @@ class InvokeWithHooksMethod:
 
         Args:
             hooks: Hook configuration to use
-            context: Context object for hooks
+            instance: Instance for context factory (None for standalone functions)
             callable_name: Name for stamina logging
             prepend_args: Arguments to prepend to function call (e.g., instance for methods)
 
         Returns:
             Wrapper function that executes hooks and retries
         """
-        hook_args = (context,) if context is not None else ()
 
         @functools.wraps(self.func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Build context from args at call time
+            if self.context_factory is not None:
+                context = _build_context_from_args(
+                    self.context_factory, instance, self.func, args, kwargs
+                )
+            else:
+                context = None
+
+            hook_args = (context,) if context is not None else ()
             retry_config = self.retry_config or hooks.retry_config or NO_RETRY_CONFIG
 
             # Pre-hooks (once before retry)
@@ -416,14 +540,12 @@ class InvokeWithHooksMethod:
                 "Use @invoke_with_hooks(hooks=Hooks(...)) or call as instance method."
             )
 
-        # Create context without instance
-        context = self.context_factory() if self.context_factory else None
         callable_name = self.func.__name__
 
-        # Create and execute wrapper
+        # Create and execute wrapper (instance=None for standalone)
         wrapper = self._create_wrapper(
             hooks=self.hooks,
-            context=context,
+            instance=None,
             callable_name=callable_name,
             prepend_args=(),
         )
@@ -442,23 +564,24 @@ class InvokeWithHooksMethod:
         # If decorator has explicit hooks, use those; otherwise use instance._hooks
         hooks: Hooks = self.hooks or instance._hooks  # noqa: SLF001
 
-        # Create context (only pass instance to context_factory)
-        context = self.context_factory(instance) if self.context_factory else None
         prepend_args: tuple[Any, ...] = ()
 
         # Determine callable name and prepend args
         if isinstance(instance, _ExecutionWrapper):
             # executed via Hooks.invoke()
             callable_name = self.func.__name__
+            # For Hooks.invoke(), the instance is the wrapper, not the actual instance
+            context_instance = None
         else:
             callable_name = f"{instance.__class__.__name__}.{self.func.__name__}"
             # add instance (self) as first argument for class instance method calls
             prepend_args = (instance,)
+            context_instance = instance
 
         # Create and return wrapper
         return self._create_wrapper(
             hooks=hooks,
-            context=context,
+            instance=context_instance,
             callable_name=callable_name,
             prepend_args=prepend_args,
         )
