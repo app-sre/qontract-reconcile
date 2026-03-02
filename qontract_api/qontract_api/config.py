@@ -259,9 +259,13 @@ class EventSettings(BaseModel):
         default=True,
         description="Enable event publishing via Redis Streams",
     )
-    channel: str = Field(
+    stream: str = Field(
         default="main",
-        description="Redis channel name for publishing events",
+        description="Redis stream name for publishing events",
+    )
+    consumer_group: str = Field(
+        default="qontract-api-subscriber",
+        description="Redis consumer group name for stream subscribers",
     )
 
 

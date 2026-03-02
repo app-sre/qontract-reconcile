@@ -35,10 +35,8 @@ class RedisBroker:
     def publish(
         self,
         message: SendableMessage,
-        channel: str | None = None,
+        stream: str | None = None,
         headers: dict[str, Any] | None = None,
     ) -> int | bytes:
-        """Publish a message. Same API as RedisBroker.publish()."""
-        return self._run(
-            self._broker.publish(message, channel=channel, headers=headers)
-        )
+        """Publish a message to a Redis Stream."""
+        return self._run(self._broker.publish(message, stream=stream, headers=headers))

@@ -1,9 +1,12 @@
 """FastStream subscriber handler for processing events from Redis streams."""
 
+import platform
 import time
 
+from faststream.redis import StreamSub
 from qontract_utils.events import Event
 
+from qontract_api.config import settings
 from qontract_api.logger import get_logger
 
 from ._base import broker
@@ -19,9 +22,18 @@ from ._metrics import (
 logger = get_logger(__name__)
 
 
-@broker.subscriber("main")
+@broker.subscriber(
+    stream=StreamSub(
+        settings.events.stream,
+        group=settings.events.consumer_group,
+        consumer=platform.node(),
+    )
+)
 async def event_handler(event: Event) -> None:
     """Process events from main stream and post to Slack.
+
+    Uses Redis Streams with a consumer group so that each event is delivered
+    to exactly one subscriber pod, enabling safe horizontal scaling.
 
     Per-event error isolation: Exceptions are caught and logged,
     allowing the stream to continue processing subsequent events.

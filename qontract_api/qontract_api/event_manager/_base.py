@@ -19,9 +19,9 @@ class EventManager:
     Publishing failures are logged but never propagated to the caller.
     """
 
-    def __init__(self, publisher: RedisBroker, channel: str) -> None:
+    def __init__(self, publisher: RedisBroker, stream: str) -> None:
         self._publisher = publisher
-        self._channel = channel
+        self._stream = stream
 
     def publish_event(self, event: Event) -> None:
         """Publish a single event. Failures are logged but do not propagate.
@@ -33,7 +33,7 @@ class EventManager:
         headers = {k: str(v) for k, v in context.items()} if context else None
         with self._publisher as publisher:
             try:
-                publisher.publish(event, channel=self._channel, headers=headers)
+                publisher.publish(event, stream=self._stream, headers=headers)
             except Exception:
                 log.exception(f"Failed to publish event {event.type}")
 
@@ -52,4 +52,4 @@ class EventManager:
             )
             return None
         publisher = RedisBroker(settings.cache_broker_url)
-        return cls(publisher=publisher, channel=settings.events.channel)
+        return cls(publisher=publisher, stream=settings.events.stream)
