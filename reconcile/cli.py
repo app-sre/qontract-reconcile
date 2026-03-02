@@ -1956,6 +1956,14 @@ def quay_membership(ctx: click.Context) -> None:
     run_integration(reconcile.quay_membership, ctx)
 
 
+@integration.command(short_help="Manages robot accounts in Quay organizations.")
+@click.pass_context
+def quay_robot_accounts(ctx: click.Context) -> None:
+    import reconcile.quay_robot_accounts
+
+    run_integration(reconcile.quay_robot_accounts, ctx)
+
+
 @integration.command(short_help="Mirrors external images into GCP Artifact Registry.")
 @click.pass_context
 @binary(["skopeo"])
