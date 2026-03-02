@@ -104,6 +104,7 @@ fragment VaultSecret on VaultSecret_v1 {
 query Clusters($name: String) {
   clusters: clusters_v1(name: $name) {
     path
+    labels
     name
     description
     serverUrl
@@ -627,6 +628,7 @@ class DisableClusterAutomationsV1(ConfiguredBaseModel):
 
 class ClusterV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
+    labels: Optional[Json] = Field(..., alias="labels")
     name: str = Field(..., alias="name")
     description: Optional[str] = Field(..., alias="description")
     server_url: str = Field(..., alias="serverUrl")
