@@ -347,12 +347,10 @@ def test_usergroups_update_returns_slack_usergroup(
 
     usergroup = slack_api.usergroup_update(
         usergroup_id="UG1",
-        name="Updated Name",
         description="Updated description",
     )
 
     assert isinstance(usergroup, SlackUsergroup)
-    assert usergroup.name == "Updated Name"
     assert usergroup.description == "Updated description"
 
 

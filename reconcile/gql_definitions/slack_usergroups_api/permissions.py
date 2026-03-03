@@ -41,7 +41,6 @@ query SlackUsergroupApiPermission {
   permissions: permissions_v1 {
     service
     ... on PermissionSlackUsergroup_v1 {
-      name
       channels
       description
       handle
@@ -138,7 +137,6 @@ class SlackWorkspaceV1(ConfiguredBaseModel):
 
 
 class PermissionSlackUsergroupV1(PermissionV1):
-    name: str = Field(..., alias="name")
     channels: list[str] = Field(..., alias="channels")
     description: str = Field(..., alias="description")
     handle: str = Field(..., alias="handle")

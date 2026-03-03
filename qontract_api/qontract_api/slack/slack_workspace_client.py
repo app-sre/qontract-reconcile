@@ -382,20 +382,14 @@ class SlackWorkspaceClient:
         return created_ug
 
     def update_usergroup(
-        self,
-        *,
-        handle: str,
-        name: str | None = None,
-        description: str | None = None,
-        channels: Iterable[str] | None = None,
+        self, *, handle: str, description: str, channels: Iterable[str]
     ) -> None:
         """Update usergroup and cache (O(1) update, not invalidation).
 
         Args:
             handle: Usergroup handle (e.g., "oncall-team")
-            name: Usergroup display name
             description: Short description of the usergroup
-            channel_names: List of channel names associate with the usergroup
+            channels: List of channel names associate with the usergroup
         """
         # Get usergroup by handle
         ug = self._get_usergroup_by_handle(handle)
@@ -410,11 +404,8 @@ class SlackWorkspaceClient:
 
         self.slack_api.usergroup_update(
             usergroup_id=ug.id,
-            name=name,
             description=description,
-            channel_ids=[channel_id_by_name[ch.lstrip("#")] for ch in channels]
-            if channels
-            else None,
+            channel_ids=[channel_id_by_name[ch.lstrip("#")] for ch in channels],
         )
 
     def update_usergroup_users(
