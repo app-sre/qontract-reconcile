@@ -314,7 +314,6 @@ class SlackApi:
         self,
         *,
         usergroup_id: str,
-        name: str | None = None,
         description: str | None = None,
         channel_ids: list[str] | None = None,
     ) -> SlackUsergroup:
@@ -322,7 +321,6 @@ class SlackApi:
 
         Args:
             usergroup_id: Encoded usergroup ID
-            name: Usergroup display name
             description: Short description of the usergroup
             channel_ids: List of encoded channel IDs that the usergroup uses by default
 
@@ -331,7 +329,6 @@ class SlackApi:
         """
         response = self._sc.usergroups_update(
             usergroup=usergroup_id,
-            name=name,
             description=description,
             channels=channel_ids,
         )

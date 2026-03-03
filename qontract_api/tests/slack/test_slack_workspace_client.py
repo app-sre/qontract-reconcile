@@ -191,16 +191,15 @@ def test_update_usergroup_calls_api_and_clears_cache(
     # WorkspaceClient takes handle, converts to ID
     client.update_usergroup(
         handle="oncall",
-        name="Updated Name",
         description="Updated desc",
+        channels=[],
     )
 
     # SlackApi receives ID (not handle) and channel_ids parameter
     mock_slack_api.usergroup_update.assert_called_once_with(
         usergroup_id="UG1",
-        name="Updated Name",
         description="Updated desc",
-        channel_ids=None,
+        channel_ids=[],
     )
     # Verify cache was cleared
     mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
@@ -294,15 +293,14 @@ def test_update_usergroup_with_channels(
     # WorkspaceClient takes channel NAMES, converts to IDs
     client.update_usergroup(
         handle="oncall",
-        name="Updated Name",
+        description="Updated desc",
         channels=["general", "random"],
     )
 
     # Verify SlackApi received channel IDs (not names)
     mock_slack_api.usergroup_update.assert_called_once_with(
         usergroup_id="UG1",
-        name="Updated Name",
-        description=None,
+        description="Updated desc",
         channel_ids=["C1", "C2"],
     )
     # Verify cache was cleared
@@ -376,8 +374,7 @@ def test_update_usergroup_raises_error_if_handle_not_found(
         SlackUsergroupNotFoundError, match="Usergroup notfound not found"
     ):
         client.update_usergroup(
-            handle="notfound",
-            name="Updated Name",
+            handle="notfound", description="Desc", channels=["general"]
         )
 
 

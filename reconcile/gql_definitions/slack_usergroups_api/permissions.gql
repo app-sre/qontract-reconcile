@@ -4,7 +4,6 @@ query SlackUsergroupApiPermission {
   permissions: permissions_v1 {
     service
     ... on PermissionSlackUsergroup_v1 {
-      name
       channels
       description
       handle
