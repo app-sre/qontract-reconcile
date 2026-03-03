@@ -18,11 +18,12 @@ from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
 from qontract_utils.slack_api import SlackUser as SlackUserAPI
 from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
 
+from qontract_api.logger import get_logger
+
 from .models import (
     SlackUsergroup,
     SlackUsergroupConfig,
 )
-from qontract_api.logger import get_logger
 
 if TYPE_CHECKING:
     from qontract_api.cache.base import CacheBackend

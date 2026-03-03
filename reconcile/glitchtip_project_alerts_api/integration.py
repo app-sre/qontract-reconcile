@@ -306,6 +306,11 @@ class GlitchtipProjectAlertsIntegration(
 
         task = await self.reconcile(instances=instances, dry_run=dry_run)
 
+        if not dry_run:
+            # In non-dry-run, we expect the task to complete asynchronously in the background
+            # and change events will be automatically published via the events framework.
+            return
+
         task_result = await glitchtip_project_alerts_task_status(
             client=self.qontract_api_client, task_id=task.id, timeout=300
         )
