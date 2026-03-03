@@ -3661,6 +3661,23 @@ def glitchtip_project_alerts(ctx: click.Context, instance: str | None) -> None:
     )
 
 
+@integration.command(short_help="Configure Glitchtip project alerts.")
+@click.option("--instance", help="Reconcile just this instance.", default=None)
+@click.pass_context
+def glitchtip_project_alerts_api(ctx: click.Context, instance: str | None) -> None:
+    from reconcile.glitchtip_project_alerts_api.integration import (
+        GlitchtipProjectAlertsIntegration,
+        GlitchtipProjectAlertsIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=GlitchtipProjectAlertsIntegration(
+            GlitchtipProjectAlertsIntegrationParams(instance=instance)
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Glitchtip project dsn as openshift secret.")
 @threaded()
 @binary(["oc", "ssh"])
