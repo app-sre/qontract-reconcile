@@ -10,19 +10,16 @@ from qontract_utils.glitchtip_api.models import (
 )
 
 from qontract_api.config import Settings
-from qontract_api.integrations.glitchtip_project_alerts.glitchtip_client_factory import (
-    GlitchtipClientFactory,
-)
-from qontract_api.integrations.glitchtip_project_alerts.glitchtip_workspace_client import (
-    GlitchtipWorkspaceClient,
+from qontract_api.glitchtip import GlitchtipClientFactory, GlitchtipWorkspaceClient
+from qontract_api.glitchtip.models import (
+    GlitchtipInstance,
+    GlitchtipOrganization,
+    GlitchtipProjectAlert,
 )
 from qontract_api.integrations.glitchtip_project_alerts.models import (
     GlitchtipAlertActionCreate,
     GlitchtipAlertActionDelete,
     GlitchtipAlertActionUpdate,
-    GlitchtipInstance,
-    GlitchtipOrganization,
-    GlitchtipProjectAlert,
     GlitchtipProjectAlertsTaskResult,
 )
 from qontract_api.logger import get_logger

@@ -8,9 +8,11 @@ from fastapi.testclient import TestClient
 
 from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
-from qontract_api.integrations.glitchtip_project_alerts.models import (
+from qontract_api.glitchtip.models import (
     GlitchtipInstance,
     GlitchtipOrganization,
+)
+from qontract_api.integrations.glitchtip_project_alerts.models import (
     GlitchtipProjectAlertsReconcileRequest,
     GlitchtipProjectAlertsTaskResult,
 )
