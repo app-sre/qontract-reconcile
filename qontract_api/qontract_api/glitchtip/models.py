@@ -2,7 +2,7 @@
 
 import re
 from enum import StrEnum
-from typing import Any
+from typing import Any, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -34,7 +34,7 @@ class GlitchtipProjectAlertRecipient(BaseModel, frozen=True):
     url: str = Field(default="", description="Webhook URL (empty for email recipients)")
 
     @model_validator(mode="after")
-    def validate_url(self) -> "GlitchtipProjectAlertRecipient":
+    def validate_url(self) -> Self:
         if self.recipient_type == RecipientType.WEBHOOK and not self.url:
             raise ValueError("url must be set for webhook recipients")
         if self.recipient_type == RecipientType.EMAIL and self.url:
