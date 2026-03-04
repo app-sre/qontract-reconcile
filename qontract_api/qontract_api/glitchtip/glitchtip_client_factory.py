@@ -4,7 +4,7 @@ from qontract_utils.glitchtip_api import GlitchtipApi
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
-from qontract_api.integrations.glitchtip_project_alerts.glitchtip_workspace_client import (
+from qontract_api.glitchtip.glitchtip_workspace_client import (
     GlitchtipWorkspaceClient,
 )
 
