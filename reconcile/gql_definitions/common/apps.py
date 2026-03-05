@@ -23,6 +23,7 @@ query Apps {
   apps: apps_v1 {
     path
     name
+    labels
     parentApp {
       path
       name
@@ -46,6 +47,7 @@ class AppV1_AppV1(ConfiguredBaseModel):
 class AppV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     name: str = Field(..., alias="name")
+    labels: Optional[Json] = Field(..., alias="labels")
     parent_app: Optional[AppV1_AppV1] = Field(..., alias="parentApp")
 
 

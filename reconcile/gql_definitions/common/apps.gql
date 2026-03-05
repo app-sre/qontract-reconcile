@@ -4,6 +4,7 @@ query Apps {
   apps: apps_v1 {
     path
     name
+    labels
     parentApp {
       path
       name
