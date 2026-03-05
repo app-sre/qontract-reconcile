@@ -10,7 +10,10 @@ from gitlab.v4.objects import (
 )
 from pytest_mock import MockerFixture
 
+from unittest.mock import call
+
 from reconcile.change_owners.change_log_tracking import (
+    LABEL_FILTERED_OUTPUTS,
     ChangeLog,
     ChangeLogIntegration,
     ChangeLogIntegrationParams,
@@ -139,8 +142,77 @@ def test_change_log_tracking_with_deleted_app(
 
     integration.run(dry_run=False)
 
-    mocks["state"].add.assert_called_once_with(
-        "bundle-diffs.json",
-        expected_change_log.model_dump(),
+    expected_calls = [
+        call("bundle-diffs.json", expected_change_log.model_dump(), force=True),
+    ]
+    # label-filtered outputs produce empty changelogs when no apps match
+    for output_file, _virtual_app in LABEL_FILTERED_OUTPUTS.values():
+        expected_calls.append(
+            call(output_file, ChangeLog(items=[]).model_dump(), force=True)
+        )
+    mocks["state"].add.assert_has_calls(expected_calls)
+
+
+def test_change_log_tracking_rosa_label_filter(
+    mocker: MockerFixture,
+    gql_api_builder: Callable[..., GqlApi],
+    gql_class_factory: Callable[..., ChangeTypesQueryData],
+) -> None:
+    rosa_app = AppV1(
+        path="/services/rosa-app/app.yml",
+        name="rosa-app",
+        labels='{"service": "rosa-app", "rosa": "true"}',
+        parentApp=None,
+    )
+    non_rosa_app = AppV1(
+        path="/services/other/app.yml",
+        name="other-app",
+        labels='{"service": "other"}',
+        parentApp=None,
+    )
+    mocks = setup_mocks(
+        mocker,
+        gql_api_builder,
+        gql_class_factory,
+        apps=[rosa_app, non_rosa_app],
+        datafiles={
+            "/services/rosa-app/namespaces/ns.yml": {
+                "datafilepath": "/services/rosa-app/namespaces/ns.yml",
+                "datafileschema": "/openshift/namespace-1.yml",
+                "old": {
+                    "$schema": "/openshift/namespace-1.yml",
+                    "app": {"name": "rosa-app"},
+                },
+            }
+        },
+        commit_message="Merge branch 'dev' into 'master'\n\nupdate rosa config",
+    )
+
+    integration = ChangeLogIntegration(
+        ChangeLogIntegrationParams(
+            gitlab_project_id="test",
+            process_existing=True,
+            commit=None,
+        )
+    )
+
+    integration.run(dry_run=False)
+
+    # the rosa-filtered output should contain the item with virtual app injected
+    rosa_call = call(
+        "bundle-diffs-rosa.json",
+        ChangeLog(
+            items=[
+                ChangeLogItem(
+                    apps=sorted(["rosa-app", "rosa-platform"]),
+                    change_types=[],
+                    commit=COMMIT_SHA,
+                    description="update rosa config",
+                    error=False,
+                    merged_at=MERGED_AT,
+                ),
+            ]
+        ).model_dump(),
         force=True,
     )
+    assert rosa_call in mocks["state"].add.call_args_list
