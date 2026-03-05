@@ -100,6 +100,7 @@ query Integrations {
           slack
           googleChat
           slackErrorFilter
+          govSlack
         }
         resources {
           ...DeployResourcesFields
@@ -220,6 +221,7 @@ class IntegrationSpecLogsV1(ConfiguredBaseModel):
     slack: Optional[bool] = Field(..., alias="slack")
     google_chat: Optional[bool] = Field(..., alias="googleChat")
     slack_error_filter: Optional[bool] = Field(..., alias="slackErrorFilter")
+    gov_slack: Optional[bool] = Field(..., alias="govSlack")
 
 
 class IntegrationSpecV1(ConfiguredBaseModel):

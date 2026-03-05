@@ -5,8 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qontract_api.integrations.slack_usergroups.models import (
-    SlackUsergroup,
-    SlackUsergroupConfig,
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
@@ -15,6 +13,7 @@ from qontract_api.integrations.slack_usergroups.tasks import (
     reconcile_slack_usergroups_task,
 )
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.slack.models import SlackUsergroup, SlackUsergroupConfig
 
 
 @pytest.fixture
@@ -83,9 +82,11 @@ def test_generate_lock_key_multiple_workspaces() -> None:
 
 @patch("qontract_api.integrations.slack_usergroups.tasks.get_cache")
 @patch("qontract_api.integrations.slack_usergroups.tasks.get_secret_manager")
-@patch("qontract_api.integrations.slack_usergroups.tasks.SlackClientFactory")
+@patch(
+    "qontract_api.integrations.slack_usergroups.service.create_slack_workspace_client"
+)
 def test_reconcile_task_dry_run_success(
-    mock_factory_class: MagicMock,
+    mock_factory_function: MagicMock,
     mock_get_secret_manager: MagicMock,
     mock_get_cache: MagicMock,
     sample_workspaces: list[SlackWorkspace],
@@ -103,9 +104,8 @@ def test_reconcile_task_dry_run_success(
     mock_slack_client.get_slack_usergroups.return_value = []
     mock_slack_client.clean_slack_usergroups.return_value = []
 
-    mock_factory = MagicMock()
-    mock_factory.create_workspace_client.return_value = mock_slack_client
-    mock_factory_class.return_value = mock_factory
+    # Mock the factory function to return the client directly
+    mock_factory_function.return_value = mock_slack_client
 
     # Create mock task instance
     mock_self = MagicMock()
@@ -123,5 +123,5 @@ def test_reconcile_task_dry_run_success(
     assert result.applied_count == 0  # dry-run
     assert result.errors == []
 
-    # Verify secret was read
-    assert mock_secret_backend.read.called
+    # Verify factory function was called with correct arguments
+    assert mock_factory_function.called

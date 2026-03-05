@@ -21,7 +21,7 @@ def test_no_hooks() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {"value": 0})
+        @invoke_with_hooks(lambda: {"value": 0})
         def do_work(self) -> None:
             execution_log.append("work")
 
@@ -297,7 +297,7 @@ def test_context_modification_in_pre_hook() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(pre_hooks=[pre_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda *_: context_data)
+        @invoke_with_hooks(lambda: context_data)
         def do_work(self) -> None:
             pass
 
@@ -319,7 +319,7 @@ def test_context_modification_in_post_hook() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {"value": 21})
+        @invoke_with_hooks(lambda: {"value": 21})
         def do_work(self) -> None:
             pass
 
@@ -341,7 +341,7 @@ def test_context_modification_in_error_hook() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(error_hooks=[error_hook], retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda *_: context_data)
+        @invoke_with_hooks(lambda: context_data)
         def do_work(self) -> None:
             raise ValueError("test error")
 
@@ -448,7 +448,7 @@ def test_typed_context() -> None:
                 retry_config=NO_RETRY_CONFIG,
             )
 
-        @invoke_with_hooks(lambda _self: shared_context)
+        @invoke_with_hooks(lambda: shared_context)
         def do_work(self) -> None:
             shared_context.value += 5
 
@@ -464,7 +464,7 @@ def test_empty_hook_lists() -> None:
         def __init__(self) -> None:
             self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
-        @invoke_with_hooks(lambda _self: {"value": 42})
+        @invoke_with_hooks(lambda: {"value": 42})
         def do_work(self) -> int:
             return 42
 
@@ -547,7 +547,7 @@ def test_context_state_preserved_across_hooks() -> None:
                 retry_config=NO_RETRY_CONFIG,
             )
 
-        @invoke_with_hooks(lambda _self: shared_context)
+        @invoke_with_hooks(lambda: shared_context)
         def do_work(self) -> None:
             shared_context["counter"] += 10
             execution_log.append(f"main: {shared_context['counter']}")
@@ -585,7 +585,7 @@ def test_complex_context_type() -> None:
                 retry_config=NO_RETRY_CONFIG,
             )
 
-        @invoke_with_hooks(lambda _self: context)
+        @invoke_with_hooks(lambda: context)
         def do_work(self) -> None:
             pass
 
@@ -604,7 +604,7 @@ def test_complex_context_type() -> None:
                 retry_config=NO_RETRY_CONFIG,
             )
 
-        @invoke_with_hooks(lambda _self: context2)
+        @invoke_with_hooks(lambda: context2)
         def do_work(self) -> None:
             raise ValueError("error")
 
@@ -637,7 +637,7 @@ def test_mypy_return_type_preserved(tmp_path: Path) -> None:
             def __init__(self) -> None:
                 self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
-            @invoke_with_hooks(lambda _: {})
+            @invoke_with_hooks(lambda: {})
             def get_name(self) -> str:
                 return "alice"
 
@@ -659,7 +659,7 @@ def test_mypy_return_type_mismatch_detected(tmp_path: Path) -> None:
             def __init__(self) -> None:
                 self._hooks = Hooks(retry_config=NO_RETRY_CONFIG)
 
-            @invoke_with_hooks(lambda _: {})
+            @invoke_with_hooks(lambda: {})
             def get_name(self) -> str:
                 return "alice"
 

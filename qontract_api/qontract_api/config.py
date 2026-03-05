@@ -69,6 +69,39 @@ class SlackSettings(BaseModel):
     )
 
 
+class SubscriberSettings(BaseModel):
+    """Event subscriber configuration."""
+
+    slack_channel: str = Field(
+        default="dev-null",
+        description="Slack channel name for event notifications",
+    )
+    slack_workspace: str = Field(
+        default="redhat-internal",
+        description="Slack workspace name",
+    )
+    slack_token: Secret | None = Field(
+        default=None,
+        description="Vault secret path for Slack bot token",
+    )
+    slack_username: str = Field(
+        default="qontract-api-bot",
+        description="Slack username for event notifications (optional)",
+    )
+    slack_icon_emoji: str = Field(
+        default=":robot_face:",
+        description="Slack icon emoji for event notifications (optional)",
+    )
+    qontract_api_url: str = Field(
+        default="http://qontract-api:8080",
+        description="qontract-api server URL",
+    )
+    qontract_api_token: str = Field(
+        default="",
+        description="Qontract-api auth token for subscriber to authenticate with qontract-api when posting events",
+    )
+
+
 class PagerDutySettings(BaseModel):
     """PagerDuty API configuration."""
 
@@ -167,6 +200,24 @@ class VCSSettings(BaseModel):
     )
 
 
+class GlitchtipSettings(BaseModel):
+    """Glitchtip API and integration configuration."""
+
+    # Cache TTLs (seconds)
+    organizations_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip organizations cache TTL in seconds (one hour)",
+    )
+    projects_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip projects cache TTL in seconds (one hour)",
+    )
+    alerts_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip project alerts cache TTL in seconds (5 minutes)",
+    )
+
+
 class VaultSettings(BaseModel):
     # Vault-specific configuration
     backend_type: str = Field(
@@ -219,11 +270,29 @@ class SecretSettings(BaseModel):
     )
 
 
+class EventSettings(BaseModel):
+    """Event publishing configuration."""
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable event publishing via Redis Streams",
+    )
+    stream: str = Field(
+        default="main",
+        description="Redis stream name for publishing events",
+    )
+    consumer_group: str = Field(
+        default="qontract-api-subscriber",
+        description="Redis consumer group name for stream subscribers",
+    )
+
+
 class Settings(BaseSettings):
     """Application settings from environment variables."""
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
+        extra="ignore",
         env_file=".env",
         env_file_encoding="utf-8",
         env_prefix="QAPI_",
@@ -344,6 +413,12 @@ class Settings(BaseSettings):
         description="PagerDuty API and integration configuration",
     )
 
+    # Glitchtip Configuration (nested)
+    glitchtip: GlitchtipSettings = Field(
+        default_factory=GlitchtipSettings,
+        description="Glitchtip API and integration configuration",
+    )
+
     # VCS Configuration (nested)
     vcs: VCSSettings = Field(
         default_factory=VCSSettings,
@@ -354,6 +429,18 @@ class Settings(BaseSettings):
     secrets: SecretSettings = Field(
         default_factory=SecretSettings,
         description="Secret backend configuration (Vault, AWS KMS, Google)",
+    )
+
+    # Event Publishing Configuration (nested)
+    events: EventSettings = Field(
+        default_factory=EventSettings,
+        description="Event publishing configuration",
+    )
+
+    # Event Subscriber Configuration (nested)
+    subscriber: SubscriberSettings = Field(
+        default_factory=SubscriberSettings,
+        description="Event subscriber configuration",
     )
 
     @field_validator("sentry_event_level", mode="after")

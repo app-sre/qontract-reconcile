@@ -1,26 +1,21 @@
 """Unit tests for SlackUsergroupsService."""
 
-
-# ruff: noqa: ARG001 - Unused fixtures acceptable for test setup
-
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
 from qontract_api.integrations.slack_usergroups.models import (
-    SlackUsergroup,
     SlackUsergroupActionCreate,
     SlackUsergroupActionUpdateMetadata,
     SlackUsergroupActionUpdateUsers,
-    SlackUsergroupConfig,
     SlackWorkspace,
 )
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
-from qontract_api.integrations.slack_usergroups.slack_workspace_client import (
-    SlackWorkspaceClient,
-)
 from qontract_api.models import Secret, TaskStatus
+from qontract_api.slack.models import SlackUsergroup, SlackUsergroupConfig
+from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 
 @pytest.fixture
@@ -75,22 +70,30 @@ def mock_slack_client() -> MagicMock:
 
 
 @pytest.fixture
-def mock_slack_client_factory(mock_slack_client: MagicMock) -> MagicMock:
-    """Mock SlackClientFactory."""
-    mock = MagicMock()
-    mock.create_workspace_client.return_value = mock_slack_client
-    return mock
+def mock_cache() -> MagicMock:
+    """Mock CacheBackend."""
+    return MagicMock(spec=CacheBackend)
+
+
+@pytest.fixture
+def mock_slack_client_factory(mock_slack_client: MagicMock) -> MagicMock:  # type: ignore[misc]
+    """Mock create_slack_workspace_client function."""
+    with patch(
+        "qontract_api.integrations.slack_usergroups.service.create_slack_workspace_client"
+    ) as mock:
+        mock.return_value = mock_slack_client
+        yield mock
 
 
 @pytest.fixture
 def service(
-    mock_slack_client_factory: MagicMock,
+    mock_cache: MagicMock,
     mock_secret_manager: MagicMock,
     mock_settings: Settings,
 ) -> SlackUsergroupsService:
     """Create SlackUsergroupsService with mocks."""
     return SlackUsergroupsService(
-        slack_client_factory=mock_slack_client_factory,
+        cache=mock_cache,
         secret_manager=mock_secret_manager,
         settings=mock_settings,
     )
@@ -101,7 +104,7 @@ def service(
 
 def test_service_initialization(service: SlackUsergroupsService) -> None:
     """Test service initializes with all dependencies."""
-    assert service.slack_client_factory is not None
+    assert service.cache is not None
     assert service.secret_manager is not None
     assert service.settings is not None
 
@@ -109,7 +112,9 @@ def test_service_initialization(service: SlackUsergroupsService) -> None:
 # Empty state (no actions)
 
 
-def test_reconcile_empty_workspaces_dry_run(service: SlackUsergroupsService) -> None:
+def test_reconcile_empty_workspaces_dry_run(
+    service: SlackUsergroupsService, mock_slack_client_factory: MagicMock
+) -> None:
     """Test reconcile with no workspaces returns empty result."""
     result = service.reconcile(workspaces=[], dry_run=True)
 
@@ -120,7 +125,10 @@ def test_reconcile_empty_workspaces_dry_run(service: SlackUsergroupsService) -> 
 
 
 def test_reconcile_no_usergroups_dry_run(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile with workspace but no usergroups."""
     workspace = SlackWorkspace(
@@ -146,7 +154,10 @@ def test_reconcile_no_usergroups_dry_run(
 
 
 def test_reconcile_create_usergroup_dry_run(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile generates create action for new usergroup (dry-run)."""
     workspace = SlackWorkspace(
@@ -184,7 +195,10 @@ def test_reconcile_create_usergroup_dry_run(
 
 
 def test_reconcile_create_usergroup_apply(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile creates usergroup (apply mode)."""
     workspace = SlackWorkspace(
@@ -222,7 +236,10 @@ def test_reconcile_create_usergroup_apply(
 
 
 def test_reconcile_update_users_dry_run(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile generates update users action (dry-run)."""
     workspace = SlackWorkspace(
@@ -269,7 +286,10 @@ def test_reconcile_update_users_dry_run(
 
 
 def test_reconcile_update_users_apply(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile updates usergroup users (apply mode)."""
     workspace = SlackWorkspace(
@@ -316,7 +336,10 @@ def test_reconcile_update_users_apply(
 
 
 def test_reconcile_update_metadata_dry_run(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile generates update metadata action (dry-run)."""
     workspace = SlackWorkspace(
@@ -365,7 +388,10 @@ def test_reconcile_update_metadata_dry_run(
 
 
 def test_reconcile_multiple_actions_dry_run(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile generates multiple actions for different changes."""
     workspace = SlackWorkspace(
@@ -417,6 +443,7 @@ def test_reconcile_error_in_workspace_processing(
     mock_slack_client: MagicMock,
     mock_secret_manager: MagicMock,
     test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile handles errors in workspace processing."""
     workspace = SlackWorkspace(
@@ -426,8 +453,8 @@ def test_reconcile_error_in_workspace_processing(
         token=test_token,
     )
 
-    # Mock: mock_secret_manager raises exception
-    mock_secret_manager.read.side_effect = Exception("Secret read error")
+    # Mock: create_slack_workspace_client raises exception (simulates secret read error)
+    mock_slack_client_factory.side_effect = Exception("Secret read error")
 
     result = service.reconcile(workspaces=[workspace], dry_run=True)
 
@@ -441,7 +468,10 @@ def test_reconcile_error_in_workspace_processing(
 
 
 def test_reconcile_error_in_action_execution(
-    service: SlackUsergroupsService, mock_slack_client: MagicMock, test_token: Secret
+    service: SlackUsergroupsService,
+    mock_slack_client: MagicMock,
+    test_token: Secret,
+    mock_slack_client_factory: MagicMock,
 ) -> None:
     """Test reconcile handles errors during action execution (apply mode)."""
     workspace = SlackWorkspace(
@@ -481,23 +511,22 @@ def test_create_slack_client_uses_factory(
     service: SlackUsergroupsService,
     mock_slack_client_factory: MagicMock,
     mock_secret_manager: MagicMock,
+    mock_cache: MagicMock,
+    mock_settings: Settings,
     test_token: Secret,
 ) -> None:
-    """Test _create_slack_client uses factory and secret reader."""
+    """Test _create_slack_client uses factory function and secret manager."""
     client = service._create_slack_client(
         workspace_name="test-workspace", token=test_token
     )
 
-    # Verify secret was read with correct Secret object
-    mock_secret_manager.read.assert_called_once()
-    call_args = mock_secret_manager.read.call_args[0][0]
-    assert isinstance(call_args, Secret)
-    assert call_args.path == "secret/slack/test-workspace"
-
-    # Verify factory was called with workspace name and token
-    mock_slack_client_factory.create_workspace_client.assert_called_once_with(
+    # Verify factory function was called with correct args
+    mock_slack_client_factory.assert_called_once_with(
+        secret=test_token,
         workspace_name="test-workspace",
-        token="xoxb-token-for-secret/slack/test-workspace",
+        cache=mock_cache,
+        secret_manager=mock_secret_manager,
+        settings=mock_settings,
     )
 
     assert client is not None

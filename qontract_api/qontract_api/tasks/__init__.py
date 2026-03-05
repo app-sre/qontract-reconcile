@@ -133,6 +133,7 @@ celery_app = Celery(
     include=[
         "qontract_api.tasks.health",
         "qontract_api.integrations.slack_usergroups.tasks",
+        "qontract_api.integrations.glitchtip_project_alerts.tasks",
     ],
 )
 

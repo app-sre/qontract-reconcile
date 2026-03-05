@@ -10,6 +10,7 @@ from github.Repository import Repository
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 
 logger = structlog.get_logger(__name__)
 
@@ -26,6 +27,7 @@ github_request_duration = Histogram(
     "qontract_reconcile_external_api_github_request_duration_seconds",
     "GitHub API request duration in seconds",
     ["method", "repo_url"],
+    buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
 # Local storage for latency tracking (tuple stack to support nested calls)

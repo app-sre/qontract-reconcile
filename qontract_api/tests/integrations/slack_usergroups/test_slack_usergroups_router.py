@@ -9,14 +9,13 @@ from fastapi.testclient import TestClient
 from qontract_api.auth import create_access_token
 from qontract_api.constants import REQUEST_ID_HEADER
 from qontract_api.integrations.slack_usergroups.models import (
-    SlackUsergroup,
     SlackUsergroupActionCreate,
-    SlackUsergroupConfig,
     SlackUsergroupsReconcileRequest,
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
 from qontract_api.models import Secret, TaskStatus, TokenData
+from qontract_api.slack.models import SlackUsergroup, SlackUsergroupConfig
 
 
 @pytest.fixture

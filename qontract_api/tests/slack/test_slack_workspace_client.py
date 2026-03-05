@@ -1,54 +1,26 @@
-"""Unit tests for SlackWorkspaceClient."""
+"""Unit tests for SlackWorkspaceClient.chat_post_message method."""
 
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.slack_api import (
-    SlackApi,
+    ChatPostMessageResponse,
+    SlackApiError,
     SlackChannel,
     SlackUser,
     SlackUsergroup,
     SlackUserProfile,
 )
 
-from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
-from qontract_api.integrations.slack_usergroups.slack_workspace_client import (
+from qontract_api.slack.slack_workspace_client import (
     CachedChannels,
     CachedUsergroups,
     CachedUsers,
     SlackUsergroupNotFoundError,
     SlackWorkspaceClient,
 )
-
-
-@pytest.fixture
-def mock_slack_api() -> MagicMock:
-    """Create mock SlackApi."""
-    mock = MagicMock(spec=SlackApi)
-    mock.workspace_name = "test-workspace"
-    return mock
-
-
-@pytest.fixture
-def mock_cache() -> MagicMock:
-    """Create mock CacheBackend."""
-    m = MagicMock(spec=CacheBackend)
-    m.get_obj.return_value = None
-    m.lock.return_value.__enter__ = MagicMock()
-    m.lock.return_value.__exit__ = MagicMock(return_value=False)
-    return m
-
-
-@pytest.fixture
-def mock_settings() -> Settings:
-    """Create Settings with test values."""
-    settings = Settings()
-    settings.slack.usergroup_cache_ttl = 300
-    settings.slack.users_cache_ttl = 900
-    settings.slack.channels_cache_ttl = 900
-    return settings
 
 
 @pytest.fixture
@@ -158,7 +130,7 @@ def test_get_usergroups_cache_hit(
 def test_get_channels_cache_miss(
     client: SlackWorkspaceClient,
     mock_slack_api: MagicMock,
-    mock_cache: MagicMock,  # noqa: ARG001
+    mock_cache: MagicMock,
 ) -> None:
     """Test get_channels fetches from API on cache miss."""
     mock_channel = SlackChannel(id="C1", name="general")
@@ -219,16 +191,15 @@ def test_update_usergroup_calls_api_and_clears_cache(
     # WorkspaceClient takes handle, converts to ID
     client.update_usergroup(
         handle="oncall",
-        name="Updated Name",
         description="Updated desc",
+        channels=[],
     )
 
     # SlackApi receives ID (not handle) and channel_ids parameter
     mock_slack_api.usergroup_update.assert_called_once_with(
         usergroup_id="UG1",
-        name="Updated Name",
         description="Updated desc",
-        channel_ids=None,
+        channel_ids=[],
     )
     # Verify cache was cleared
     mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
@@ -322,15 +293,14 @@ def test_update_usergroup_with_channels(
     # WorkspaceClient takes channel NAMES, converts to IDs
     client.update_usergroup(
         handle="oncall",
-        name="Updated Name",
+        description="Updated desc",
         channels=["general", "random"],
     )
 
     # Verify SlackApi received channel IDs (not names)
     mock_slack_api.usergroup_update.assert_called_once_with(
         usergroup_id="UG1",
-        name="Updated Name",
-        description=None,
+        description="Updated desc",
         channel_ids=["C1", "C2"],
     )
     # Verify cache was cleared
@@ -404,8 +374,7 @@ def test_update_usergroup_raises_error_if_handle_not_found(
         SlackUsergroupNotFoundError, match="Usergroup notfound not found"
     ):
         client.update_usergroup(
-            handle="notfound",
-            name="Updated Name",
+            handle="notfound", description="Desc", channels=["general"]
         )
 
 
@@ -599,3 +568,127 @@ def test_update_usergroup_users_with_empty_list_reactivates_disabled_usergroup(
     )
     # Verify cache was cleared
     mock_cache.delete.assert_called_once_with("slack:test-workspace:usergroups")
+
+
+def test_chat_post_message_resolves_channel_name(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Verify chat_post_message resolves channel name to ID and delegates."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+    mock_response = ChatPostMessageResponse(
+        ts="1234567890.123456",
+        channel="C123456",
+    )
+    mock_slack_api.chat_post_message.return_value = mock_response
+
+    result = client.chat_post_message(
+        channel="general",
+        text="Hello, world!",
+    )
+
+    mock_slack_api.chat_post_message.assert_called_once_with(
+        channel_id="C123456",
+        text="Hello, world!",
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
+    )
+    assert result.ts == "1234567890.123456"
+    assert result.channel == "C123456"
+
+
+def test_chat_post_message_with_thread_ts(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Verify thread_ts is passed through."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+    mock_response = ChatPostMessageResponse(
+        ts="1234567890.123457",
+        channel="C123456",
+        thread_ts="1234567890.123456",
+    )
+    mock_slack_api.chat_post_message.return_value = mock_response
+
+    result = client.chat_post_message(
+        channel="general",
+        text="Reply message",
+        thread_ts="1234567890.123456",
+    )
+
+    mock_slack_api.chat_post_message.assert_called_once_with(
+        channel_id="C123456",
+        text="Reply message",
+        thread_ts="1234567890.123456",
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
+    )
+    assert result.thread_ts == "1234567890.123456"
+
+
+def test_chat_post_message_strips_hash_prefix(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Verify channel name with '#' prefix is resolved correctly."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+    mock_response = ChatPostMessageResponse(
+        ts="1234567890.123456",
+        channel="C123456",
+    )
+    mock_slack_api.chat_post_message.return_value = mock_response
+
+    client.chat_post_message(
+        channel="#general",
+        text="Hello!",
+    )
+
+    mock_slack_api.chat_post_message.assert_called_once_with(
+        channel_id="C123456",
+        text="Hello!",
+        thread_ts=None,
+        icon_emoji=None,
+        icon_url=None,
+        username=None,
+    )
+
+
+def test_chat_post_message_channel_not_found_raises_value_error(
+    client: SlackWorkspaceClient, mock_cache: MagicMock
+) -> None:
+    """Verify ValueError is raised when channel name is not found."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+
+    with pytest.raises(ValueError, match="Channel 'nonexistent' not found"):
+        client.chat_post_message(
+            channel="nonexistent",
+            text="This will fail",
+        )
+
+
+def test_chat_post_message_propagates_slack_api_error(
+    client: SlackWorkspaceClient, mock_slack_api: MagicMock, mock_cache: MagicMock
+) -> None:
+    """Verify SlackApiError from slack_api propagates (not caught)."""
+    mock_cache.get_obj.return_value = CachedChannels(
+        items=[SlackChannel(id="C123456", name="general")]
+    )
+    mock_slack_api.chat_post_message.side_effect = SlackApiError(
+        message="channel_not_found", response={"error": "channel_not_found"}
+    )
+
+    with pytest.raises(SlackApiError) as exc_info:
+        client.chat_post_message(
+            channel="general",
+            text="This will fail",
+        )
+
+    assert exc_info.value.response["error"] == "channel_not_found"

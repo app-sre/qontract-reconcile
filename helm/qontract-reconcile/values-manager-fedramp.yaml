@@ -19,6 +19,7 @@ integrations:
     slack: true
     googleChat: true
     slackErrorFilter: true
+    govSlack: true
   disableUnleash: true
   unleashConnectionPool: true
   shard_specs:

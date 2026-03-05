@@ -27,6 +27,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 | [ADR-015](ADR-015-cache-update-strategy.md)                      | Cache Update Instead of Invalidation                   | Accepted |
 | [ADR-016](ADR-016-two-tier-cache.md)                             | Two-Tier Cache Architecture (Memory + Redis)           | Accepted |
 | [ADR-017](ADR-017-factory-pattern.md)                            | Factory Pattern                                        | Accepted |
+| [ADR-018](ADR-018-event-driven-communication.md)                 | Event-Driven Communication Pattern                     | Accepted |
 
 ## ADR Categories
 
@@ -54,6 +55,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 - [ADR-015](ADR-015-cache-update-strategy.md) - Cache update strategy (update vs invalidation)
 - [ADR-016](ADR-016-two-tier-cache.md) - Two-tier cache (memory + Redis) for performance
 - [ADR-017](ADR-017-factory-pattern.md) - Factory pattern for extensibility
+- [ADR-018](ADR-018-event-driven-communication.md) - Event-driven communication (SNS/SQS)
 
 ### Code Conventions
 

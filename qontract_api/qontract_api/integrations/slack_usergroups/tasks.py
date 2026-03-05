@@ -7,17 +7,16 @@ Tasks run in Celery workers, separate from the FastAPI application.
 from typing import Any
 
 from celery import Task
+from qontract_utils.events import Event
 
 from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
+from qontract_api.event_manager import get_event_manager
 from qontract_api.integrations.slack_usergroups.models import (
     SlackUsergroupsTaskResult,
     SlackWorkspace,
 )
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
-from qontract_api.integrations.slack_usergroups.slack_client_factory import (
-    SlackClientFactory,
-)
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
@@ -76,11 +75,11 @@ def reconcile_slack_usergroups_task(
         # Get shared dependencies
         cache = get_cache()
         secret_manager = get_secret_manager(cache=cache)
+        event_manager = get_event_manager()
 
-        # Create factory and service
-        slack_client_factory = SlackClientFactory(cache=cache, settings=settings)
+        # Create service
         service = SlackUsergroupsService(
-            slack_client_factory=slack_client_factory,
+            cache=cache,
             secret_manager=secret_manager,
             settings=settings,
         )
@@ -99,6 +98,18 @@ def reconcile_slack_usergroups_task(
             actions=[action.model_dump() for action in result.actions],
             errors=result.errors,
         )
+
+        # Publish events for applied actions (non-dry-run only)
+        if not dry_run and result.applied_count > 0 and event_manager:
+            for action in result.actions:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type=f"qontract-api.slack-usergroups.{action.action_type}",
+                        data=action.model_dump(mode="json"),
+                        datacontenttype="application/json",
+                    )
+                )
 
         return result
 

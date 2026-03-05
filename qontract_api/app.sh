@@ -20,10 +20,16 @@ APP_PORT="${QAPI_APP_PORT:-8080}"
 AUTO_RELOAD="${AUTO_RELOAD:-0}"
 UVICORN_OPTS="${QAPI_UVICORN_OPTS:- --host 0.0.0.0 --proxy-headers --forwarded-allow-ips=* --no-access-log}"
 UVICORN_OPTS="${UVICORN_OPTS} --port ${APP_PORT}"
+
 # start celery worker with solo pool by default to ensure only one worker is running
 # we scale the number of workers using kubernetes pods
 # this also ensures prometheus metrics are working
 CELERY_OPTS="${QAPI_CELERY_OPTS:- --pool solo}"
+
+# Subscriber runs a separate uvicorn instance
+SUBSCRIBER_OPTS="${QAPI_SUBSCRIBER_OPTS:- --host 0.0.0.0 --proxy-headers --forwarded-allow-ips=* --no-access-log}"
+SUBSCRIBER_OPTS="${SUBSCRIBER_OPTS} --port ${APP_PORT}"
+
 DEBUGGER_PORT=${DEBUGPY_PORT:-5678}
 DEBUGGER_ENABLED="${DEBUGGER_ENABLED:-false}"
 
@@ -48,6 +54,10 @@ elif [[ "${START_MODE}" == "worker" ]]; then
     echo "---> Starting worker ..."
     # shellcheck disable=SC2086,SC2090
     exec "${CMD_CHAIN[@]}" celery --app=qontract_api.worker worker ${CELERY_OPTS} "$@"
+elif [[ "${START_MODE}" == "subscriber" ]]; then
+    echo "---> Starting subscriber ..."
+    # shellcheck disable=SC2086,SC2090
+    exec "${CMD_CHAIN[@]}" uvicorn ${SUBSCRIBER_OPTS} "$@" qontract_api.subscriber:app
 else
-    echo "unknow mode ${START_MODE} - use 'api' or 'worker' instead"
+    echo "unknow mode ${START_MODE} - use 'api', 'worker' or'subscriber' instead"
 fi

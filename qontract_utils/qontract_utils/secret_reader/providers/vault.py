@@ -24,6 +24,7 @@ from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
 
 from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.secret_reader.base import (
     Secret,
     SecretAccessForbiddenError,
@@ -65,11 +66,18 @@ class VaultApiCallContext:
     Attributes:
         method: API method name (e.g., "schedules.get")
         id: Vault server
+        path: Secret path (None for auth calls)
+        mount_point: KV mount point (None for auth calls)
     """
 
     method: str
     id: str
+    path: str | None = None
+    mount_point: str | None = None
 
+
+# Slow request threshold
+DEFAULT_SLOW_REQUEST_THRESHOLD = 2.0
 
 # Prometheus metrics
 vault_request = Counter(
@@ -84,6 +92,7 @@ vault_request_duration = Histogram(
     "qontract_reconcile_external_api_vault_request_duration_seconds",
     "Vault API request duration in seconds",
     ["method", "server"],
+    buckets=DEFAULT_BUCKETS_EXTERNAL_API,
 )
 
 # Local storage for latency tracking (tuple stack to support nested calls)
@@ -125,6 +134,38 @@ def _request_log_hook(context: VaultApiCallContext) -> None:
     logger.debug("API request", method=context.method)
 
 
+def _slow_request_hook(context: VaultApiCallContext) -> None:
+    """Log slow Vault requests as warnings.
+
+    Reads duration from latency tracker (must run BEFORE _latency_end_hook).
+    Logs warning if request took longer than DEFAULT_SLOW_REQUEST_THRESHOLD.
+    Omits path/mount_point fields when None (e.g., auth calls).
+    """
+    stack = _latency_tracker.get()
+    if not stack:
+        return
+    start_time = stack[-1]
+    duration = time.perf_counter() - start_time
+    if duration <= DEFAULT_SLOW_REQUEST_THRESHOLD:
+        return
+
+    # Build structured log fields, omitting None values
+    log_fields: dict[str, str | float] = {}
+    if context.path:
+        log_fields["path"] = context.path
+    if context.mount_point:
+        log_fields["mount_point"] = context.mount_point
+
+    logger.warning(
+        "Slow Vault request",
+        method=context.method,
+        server=context.id,
+        duration=f"{duration:.1f}s",
+        threshold=f"{DEFAULT_SLOW_REQUEST_THRESHOLD:.1f}s",
+        **log_fields,
+    )
+
+
 @with_hooks(
     hooks=Hooks(
         pre_hooks=[
@@ -132,7 +173,11 @@ def _request_log_hook(context: VaultApiCallContext) -> None:
             _request_log_hook,
             _latency_start_hook,
         ],
-        post_hooks=[_latency_end_hook],
+        post_hooks=[
+            # slow request hook must run before latency end hook to access duration
+            _slow_request_hook,
+            _latency_end_hook,
+        ],
     )
 )
 class VaultSecretBackend(SecretBackend):
@@ -273,8 +318,10 @@ class VaultSecretBackend(SecretBackend):
         logger.info("Successfully authenticated to Vault")
 
     @invoke_with_hooks(
-        lambda self: VaultApiCallContext(
-            method="secrets.kv.v2.read_configuration", id=self._settings.server
+        lambda self, mount_point: VaultApiCallContext(
+            method="secrets.kv.v2.read_configuration",
+            id=self._settings.server,
+            mount_point=mount_point,
         ),
         retry_config=NO_RETRY_CONFIG,
     )
@@ -388,9 +435,11 @@ class VaultSecretBackend(SecretBackend):
         raise ValueError(msg)
 
     @invoke_with_hooks(
-        lambda self: VaultApiCallContext(
+        lambda self, path, mount_point: VaultApiCallContext(
             method="secrets.kv.v2.read_secret_version",
             id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
         )
     )
     def _read_kv_v2_secret(
@@ -405,8 +454,11 @@ class VaultSecretBackend(SecretBackend):
         return response["data"]["data"]
 
     @invoke_with_hooks(
-        lambda self: VaultApiCallContext(
-            method="secrets.kv.v1.read_secret", id=self._settings.server
+        lambda self, path, mount_point: VaultApiCallContext(
+            method="secrets.kv.v1.read_secret",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
         )
     )
     def _read_kv_v1_secret(self, path: str, mount_point: str) -> dict[str, Any]:

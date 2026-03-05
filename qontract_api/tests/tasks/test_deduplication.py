@@ -95,7 +95,7 @@ def test_deduplicated_task_releases_lock_on_exception(
     """Test lock is released even when task raises exception."""
 
     @deduplicated_task(lock_key_fn=lambda x: x, timeout=60)
-    def test_task(x: str) -> str:  # noqa: ARG001
+    def test_task(x: str) -> str:
         raise ValueError("Task failed")
 
     with (

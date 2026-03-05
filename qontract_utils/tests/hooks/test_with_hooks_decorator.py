@@ -33,7 +33,7 @@ def test_basic() -> None:
         def __init__(self, hooks: Hooks | None = None) -> None:
             pass
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> str:
             execution_order.append("main")
             return "result"
@@ -71,7 +71,7 @@ def test_merges_user_hooks() -> None:
         def __init__(self, hooks: Hooks | None = None) -> None:
             pass
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> str:
             execution_order.append("main")
             return "result"
@@ -117,7 +117,7 @@ def test_hook_execution_order() -> None:
         def __init__(self, hooks: Hooks | None = None) -> None:
             pass
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -163,7 +163,7 @@ def test_none_hooks() -> None:
         def __init__(self, hooks: Hooks | None = None) -> None:
             pass
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -212,7 +212,7 @@ def test_with_other_params() -> None:
             self.token = token
             self.timeout = timeout
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -238,7 +238,7 @@ def test_empty_decorator_hooks() -> None:
         def __init__(self, hooks: Hooks | None = None) -> None:
             pass
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> None:
             execution_order.append("main")
 
@@ -268,7 +268,7 @@ def test_merges_error_hooks() -> None:
         def __init__(self, hooks: Hooks | None = None) -> None:
             pass
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> str:
             execution_order.append("main")
             raise RuntimeError("boom")
@@ -309,7 +309,7 @@ def test_merges_retry_hooks(enable_retry: None) -> None:
         def __init__(self, hooks: Hooks | None = None) -> None:
             pass
 
-        @invoke_with_hooks(lambda _: {"test": "context"})
+        @invoke_with_hooks(lambda: {"test": "context"})
         def do_work(self) -> str:
             nonlocal call_count
             call_count += 1
