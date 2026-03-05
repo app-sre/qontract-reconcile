@@ -543,35 +543,40 @@ class TerraformCli:
         """Import a password into a random_password terraform resource."""
         self._tf_import(address=destination.address, value=password)
 
-        if (
-            not destination.change
-            or not destination.change.after
-            or (provider == "rds" and not destination.change.after.get("keepers"))
-            or not destination.change.after.get("override_special")
-        ):
-            # nothing to change, nothing to do
+        if not destination.change or not destination.change.after:
+            return
+
+        if provider == "rds":
+            if not destination.change.after.get("keepers"):
+                return
+        elif not destination.change.after.get("override_special"):
+            return
+
+        if self._dry_run:
+            # in dry-run mode, tf_import is a no-op, therefore, the password is not in the state yet.
             return
 
         state_data = json.loads(self.state_file.read_text())
         state_data["serial"] += 1
-        if self._dry_run:
-            # in dry-run mode, tf_import is a no-op, therefore, the password is not in the state yet.
-            return
+        # Strip index suffix (e.g. "this[0]" -> "this") since the state
+        # stores the name without the index.
+        resource_name = destination.id.split("[")[0]
         state_password_obj = next(
-            r for r in state_data["resources"] if r["name"] == destination.id
+            r
+            for r in state_data["resources"]
+            if r["type"] == destination.type and r["name"] == resource_name
         )
 
+        # Align state attributes with the ERv2 random_password resource
+        # configuration to prevent replacement on the next plan.
+        attrs = state_password_obj["instances"][0]["attributes"]
         if provider == "rds":
-            # Set the "keepers" attr to empty to disable the password reset
-            state_password_obj["instances"][0]["attributes"]["keepers"] = {
-                "reset_password": ""
-            }
+            attrs["keepers"] = destination.change.after["keepers"]
+            attrs["special"] = destination.change.after.get("special", False)
+            attrs["min_numeric"] = destination.change.after.get("min_numeric", 0)
         else:
-            # Set the "override_special" to disable the password reset
-            state_password_obj["instances"][0]["attributes"]["override_special"] = (
-                destination.change.after["override_special"]
-            )
-        # Write the state,
+            attrs["override_special"] = destination.change.after["override_special"]
+
         self.state_file.write_text(json.dumps(state_data, indent=2))
 
     def migrate_elasticache_resources(self, source: TerraformCli) -> None:
