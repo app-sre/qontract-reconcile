@@ -38,7 +38,7 @@ GitLab merge trains run MR-B's pipeline against `target + A + B` speculatively, 
 - **Overlap detection is reference-aware:** each MR's changed paths are expanded to include files referenced via `$ref` crossrefs and files that reference the changed files (backrefs). This prevents merging semantically coupled but file-disjoint changes (see "Why file-level overlap is not enough" below)
 - **Optimistic MRs are rebased with `skip_ci=True` before merge** to satisfy fast-forward merge requirements without triggering redundant pipelines
 - The `if rebase: return` exit after a single merge is removed, allowing multiple merges per loop
-- `rebase_limit` is separated from `merge_limit` so more MRs can be kept pipeline-ready simultaneously
+- `limit` is redefined as a per-repo cap (not per-run) controlling the steady-state number of rebased MRs with active pipelines
 - A circuit breaker prevents zombie MRs (repeated pipeline failures) from blocking the queue
 - New Prometheus metrics track optimistic merge success rate and overlap frequency
 
@@ -113,7 +113,7 @@ Build a full merge train in `gitlab_housekeeping.py` by creating temporary branc
 
 **Pros:**
 
-- Full speculative validation (same safety as GitLab merge trains)
+- Full speculative validation (s)me safety as GitLab merge trains)
 - Uses existing Jenkins infrastructure
 
 **Cons:**
@@ -128,7 +128,7 @@ Build a full merge train in `gitlab_housekeeping.py` by creating temporary branc
 Keep the serial one-merge-per-cycle model but improve queue hygiene:
 
 - Require last pipeline to pass before adding MR to merge queue
-- Only rebase top `rebase_limit` (1-3) MRs to reduce wasted CI
+- Redefine `limit` as a per-repo cap (not per-run) and keep it small (1-3) to reduce wasted CI from over-rebasing across rapid reconcile cycles
 - Label MRs that fail to merge for an "error queue" and remove from active queue
 - Handle corner cases (pipeline pass + approved but merge fails due to GitLab issues)
 
@@ -177,7 +177,7 @@ After the first merge, allow subsequent non-overlapping MRs to merge with `skip_
 - Throughput increase from ~7 MRs/hour to ~10-20 MRs/hour for typical workloads (see throughput analysis below)
 - Eliminates priority starvation: lower-priority MRs progress within the same loop iteration
 - Reference-aware overlap detection prevents the class of semantic conflicts identified in review (crossref dependencies between file-disjoint MRs)
-- Separated `rebase_limit` / `merge_limit` gives operators fine-grained control over queue behavior
+- Per-repo `limit` semantics give operators fine-grained control over pipeline concurrency and queue behavior
 - Phase 0 queue hardening (error labeling, pipeline-must-pass filtering) improves reliability regardless of multi-merge
 - Circuit breaker prevents zombie MRs from blocking the queue
 - New metrics provide visibility into merge queue health and overlap rates
@@ -202,7 +202,7 @@ After the first merge, allow subsequent non-overlapping MRs to merge with `skip_
 
 Operational improvements that reduce wasted CI and improve reliability, independent of multi-merge:
 
-1. **Bump `limit` from 2 to 6** in app-interface `app.yml`. While this alone doesn't break the serial dependency, it keeps more MRs rebased in the queue, reducing wait time for the first merge each loop. This is a prerequisite for Phase 1 to have enough pipeline-ready MRs to merge in batch.
+1. **Redefine `limit` as a per-repo cap, not per-run.** Currently `limit` controls how many MRs are rebased *per reconcile run*, with the counter resetting each invocation. Since `gitlab-housekeeping` runs frequently (~1 min cycles), a `limit: 2` still results in many MRs being rebased across runs, each triggering a pipeline -- most of which are wasted when only one MR merges per cycle. The fix: change the semantics so `limit` means "at most N MRs should be in a rebased-and-pipeline-pending state at any time for this repo." Before rebasing, count how many MRs already have running or recent pipelines and only rebase up to `limit - already_active`. Keep `limit` small (2-3) to minimize wasted CI. This is a prerequisite for Phase 1: with per-repo semantics, bumping `limit` to 6 for multi-merge becomes safe because it controls the *steady-state pipeline concurrency*, not the per-run rebase burst.
 
 2. **Filter MRs with failed pipelines from the merge queue.** Move the pipeline-success check from `merge_merge_requests` into `preprocess_merge_requests` so MRs without a passing last pipeline are excluded before sorting and slot allocation. This prevents failed MRs from consuming rebase slots.
 
@@ -212,9 +212,9 @@ Operational improvements that reduce wasted CI and improve reliability, independ
 
 ### Phase 1: Optimistic Multi-Merge (2-3 weeks)
 
-#### 1. Add `rebase_limit` to the housekeeping schema in qontract-schemas
+#### 1. Add `merge_limit` to the housekeeping schema in qontract-schemas
 
-The schema must support an optional `rebase_limit` field alongside the existing `limit`. When absent, `rebase_limit` defaults to `limit`.
+The schema must support an optional `merge_limit` field alongside the existing `limit`. `limit` controls the per-repo pipeline concurrency cap (how many MRs can be in a rebased-and-pipeline-pending state). `merge_limit` controls how many MRs can be merged per loop iteration (relevant for multi-merge). When absent, `merge_limit` defaults to `limit`.
 
 #### 2. Build reference graph from bundle
 
@@ -372,12 +372,14 @@ merge_batch_size_histogram.labels(gl.project.id).observe(merges)
 - `paths_cache` avoids calling `get_merge_request_changed_paths()` twice for the same MR (once for the overlap check, once for updating `merged_paths` after merge).
 - The `ref_graph` is loaded once at the start of the merge loop from the pre-computed artifact (see step 2).
 
-#### 4. Separate `rebase_limit` from `merge_limit` in `run()`
+#### 4. Wire up per-repo `limit` and `merge_limit` in `run()`
 
 ```python
-merge_limit = hk.get("limit") or default_limit
-rebase_limit = hk.get("rebase_limit") or merge_limit
+limit = hk.get("limit") or default_limit  # per-repo pipeline concurrency cap
+merge_limit = hk.get("merge_limit") or limit  # max merges per loop iteration
 ```
+
+In `rebase_merge_requests`, count MRs that already have running/recent pipelines and only rebase up to `limit - already_active`.
 
 #### 5. Add circuit breaker for zombie MRs
 
@@ -395,14 +397,14 @@ Track consecutive pipeline failures per MR IID in `State`. After 3 consecutive f
 
 **With optimistic multi-merge:** The first merge still takes ~10 min (waiting for pipeline via insist). After the first merge, additional MRs whose pipelines have already completed can merge after a `skip_ci` rebase (seconds per merge). Since all rebased MRs start pipelines at roughly the same time, most finish within a narrow window around the 8-minute mark.
 
-With `rebase_limit: 10` and reference-aware overlap detection, the effective non-overlapping rate depends on the MR mix. Reference expansion increases the overlap surface compared to raw file-level detection -- MRs touching files that share `$ref` crossrefs will be flagged even if the files themselves are different.
+With a per-repo `limit: 6` (meaning 6 MRs in a rebased-and-pipeline-pending state at any time) and reference-aware overlap detection, the effective non-overlapping rate depends on the MR mix. Reference expansion increases the overlap surface compared to raw file-level detection -- MRs touching files that share `$ref` crossrefs will be flagged even if the files themselves are different.
 
 **Assumptions:**
 
 - 60-70% of queued MRs are truly independent (no shared `$ref` neighborhood) -- lower than the 80% raw file estimate due to ref expansion
 - Pipeline time variance: 6-10 minutes, with most completing within 1-2 minutes of each other
 - `skip_ci` rebase takes ~2-5 seconds per MR (GitLab API call, no pipeline trigger)
-- Jenkins has sufficient executor capacity for 10 parallel pipelines (spot autoscaling)
+- Jenkins has sufficient executor capacity for 6 parallel pipelines (spot autoscaling)
 
 **Projections:**
 
@@ -420,24 +422,24 @@ Only pursue if Phase 1 metrics show overlap rate exceeding 30%. This phase invol
 
 **Phase 0:**
 
+- [ ] Redefine `limit` as per-repo cap (count already-active pipelines before rebasing)
 - [ ] Broaden merge exception handling to catch `GitlabMergeError`
 - [ ] Add error-queue labeling for MRs that fail to merge repeatedly
 - [ ] Move pipeline-success check into `preprocess_merge_requests`
-- [ ] Bump `limit` from 2 to 6 in app-interface `app.yml`
 
 **Phase 1:**
 
-- [ ] Add `rebase_limit` to housekeeping schema in qontract-schemas
+- [ ] Add `merge_limit` to housekeeping schema in qontract-schemas
 - [ ] Build reference graph from bundle (`build_ref_graph()`)
 - [ ] Implement `expand_paths()`, `get_changed_paths()`, and `has_overlapping_changes()`
 - [ ] Replace the single-merge `return` with reference-aware multi-merge loop
 - [ ] Add `mr.rebase(skip_ci=True)` for optimistic MRs before merge
 - [ ] Verify `skip_ci` parameter support in python-gitlab `mr.rebase()`
-- [ ] Separate `rebase_limit` from `merge_limit` in `run()` (backward compatible)
+- [ ] Wire up per-repo `limit` and `merge_limit` in `run()` (backward compatible)
 - [ ] Add circuit breaker with `State` tracking
 - [ ] Add `optimistic_merges_total`, `optimistic_merge_rejected_total`, `merge_batch_size` metrics
 - [ ] Add unit tests for overlap detection, ref expansion, and multi-merge behavior
-- [ ] Set `limit: 6`, `rebase_limit: 10` in app-interface `app.yml`
+- [ ] Set `limit: 6` (per-repo cap) in app-interface `app.yml` once per-repo semantics are in place
 - [ ] Monitor `optimistic_merge_rejected_total` for overlap rate after rollout
 
 ## References
