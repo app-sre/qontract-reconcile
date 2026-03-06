@@ -17,7 +17,7 @@ The `gitlab-housekeeping` integration manages merge request lifecycle for app-in
 
 After merging MR-A, the target branch HEAD changes. The `is_rebased()` check compares the MR's SHA against the target branch HEAD, so every other rebased MR fails this check and must be re-rebased, triggering new pipelines. The result is one merge per pipeline-duration cycle (~10 minutes), regardless of the `limit` config.
 
-With app-interface's `limit: 2` and ~8 minute pipelines, the maximum throughput is ~7 MRs/hour. During sustained load (10+ MRs queued), low-priority MRs (e.g. `lgtm` label) experience starvation -- they are perpetually pushed to future reconcile loops by higher-priority MRs that consume all rebase and merge slots.
+With app-interface's `limit: 2` and ~8 minute pipelines, the measured serial throughput is ~7.9 MRs/hour (empirically measured from a 6h 52m production pod log on 2026-03-03, see Throughput Analysis). During sustained load (10+ MRs queued), low-priority MRs (e.g. `lgtm` label) experience starvation -- they are perpetually pushed to future reconcile loops by higher-priority MRs that consume all rebase and merge slots. In the observed log, MR 177008 was starved for over 3h 51m despite having `lgtm`, never merging while 53 other MRs merged ahead of it.
 
 ### Why increasing the limit alone does not help
 
@@ -132,7 +132,7 @@ Keep the serial one-merge-per-cycle model but improve queue hygiene:
 
 **Cons:**
 
-- Does not break the serial throughput ceiling (~7 MRs/hour)
+- Does not break the serial throughput ceiling (~8 MRs/hour measured)
 - Priority starvation persists under sustained load
 - Does not address the fundamental bottleneck
 
@@ -208,7 +208,7 @@ This was proposed by @mafriedm: "if there is no coverage overlap between 2 MRs, 
 
 ### Positive
 
-- Throughput increase from ~7 MRs/hour to ~10-20 MRs/hour for typical cross-service workloads (see throughput analysis below)
+- Throughput increase from ~8 MRs/hour (measured baseline) to ~10-20 MRs/hour for typical cross-service workloads (see throughput analysis below)
 - Eliminates priority starvation: lower-priority MRs progress within the same loop iteration
 - Label-based overlap detection is safe by construction: service-level isolation captures crossref dependencies without a reference graph
 - Zero additional API calls for overlap detection (labels already present from `gitlab_labeler`)
@@ -394,7 +394,16 @@ In `rebase_merge_requests`, count MRs that already have running/recent pipelines
 
 ### Throughput Analysis
 
-**Current state:** 1 merge per cycle. Cycle time = pipeline duration (~8 min) + insist retry overhead (~1 min) + reconcile sleep (~1 min) = ~10 min. Throughput: ~6 MRs/hour. Note: recent pipeline optimizations (skipping template-render for most MRs) may already be improving this baseline.
+**Measured baseline:** During ADR development, a full production pod log (`gitlab-housekeeping-4-68bff97fd6-dzls2-int`, 2026-03-03 14:28–21:21 UTC, 9,326 lines) was captured and analyzed. Key findings from the observation window:
+
+- **53 app-interface merges** over 6h 40m → **~7.9 MRs/hour sustained throughput**
+- **Median inter-merge interval: ~7.7 minutes** (range: 4m–17m, remarkably consistent across the full window)
+- **Reconcile loop cadence: ~1.5–2 minutes** per cycle
+- **2,142 "rebase limit reached" events** — massive rebase churn; with `limit: 2`, only 2 MRs are rebased per run but across ~30 runs/hour, many MRs get repeatedly rebased and invalidated
+- **267 "unable to merge" errors** — unhandled edge cases (405 Method Not Allowed, branch state issues) that block queue slots
+- **MR starvation case (MR 177008):** appeared 12+ times as "rebase limit reached" over 3h 51m, never merged during the entire 6h 52m observation window despite having an `lgtm` label — while 53 other MRs merged ahead of it
+
+The theoretical calculation (pipeline ~8 min + insist ~1 min + reconcile ~1 min = ~10 min/cycle → ~6 MRs/hour) slightly underestimates the empirical rate because the insist polling and reconcile overhead vary. The measured ~7.9 MRs/hour represents peak serial throughput under sustained load with a non-empty queue. Note: recent pipeline optimizations (skipping template-render for most MRs) may further improve this baseline.
 
 **With label-based optimistic multi-merge:** The first merge still takes ~10 min (waiting for pipeline via insist). After the first merge, additional MRs whose pipelines have already completed and whose `tenant-*` labels don't overlap with merged MRs can merge after a `skip_ci` rebase (seconds per merge). Since all rebased MRs start pipelines at roughly the same time, most finish within a narrow window around the 8-minute mark.
 
@@ -414,7 +423,7 @@ With a per-repo `limit: 6` (meaning 6 MRs in a rebased-and-pipeline-pending stat
 - **Optimistic estimate:** 1 + 3 = 4 per cycle = **~24 MRs/hour**
 - **Realistic midpoint:** ~10-20 MRs/hour, depending on service distribution of queued MRs, pipeline time variance, and `skip_ci` rebase reliability
 
-Even the conservative estimate represents a ~2x improvement over the current ~6 MRs/hour ceiling. Phase 2 (change-type refinement) could unlock further gains by allowing same-service MRs to multi-merge.
+Even the conservative estimate represents a ~1.5x improvement over the measured ~8 MRs/hour baseline. The realistic midpoint of ~15 MRs/hour would nearly double throughput. Phase 2 (change-type refinement) could unlock further gains by allowing same-service MRs to multi-merge.
 
 ### Phase 2: Change-Type Refinement (conditional)
 
