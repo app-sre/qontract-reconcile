@@ -29,12 +29,12 @@ GitLab merge trains run MR-B's pipeline against `target + A + B` speculatively, 
 
 ## Decision
 
-**Implement optimistic non-overlapping multi-merge in `gitlab_housekeeping.py`: after the first merge in a loop, merge subsequent MRs if their `tenant-*` labels do not overlap with any already-merged MR's labels. Only self-serviceable MRs are eligible for optimistic merge.**
+**Implement optimistic non-overlapping multi-merge in `gitlab_housekeeping.py`: after the first merge in a loop, merge subsequent MRs if their `tenant-*` labels do not overlap with any already-merged MR's labels. Only MRs with at least one `tenant-*` label are eligible for optimistic merge.**
 
 ### Key Points
 
 - The first MR in each loop iteration still requires `is_rebased()` and a passing pipeline (unchanged safety)
-- **Eligibility gate:** only MRs carrying a `self-serviceable` label are candidates for optimistic merge. This excludes qr-bump, hack-script, and global changes (which are `not-self-serviceable`)
+- **Eligibility gate:** only MRs with at least one `tenant-*` label are candidates for optimistic merge. MRs without `tenant-*` labels (global infrastructure changes, cross-cutting refactors) have no label to compare and fall back to serial processing. MRs with many `tenant-*` labels (e.g. qr-bump touching dozens of services) are naturally serialized by the overlap check itself
 - **Overlap detection via `tenant-*` labels:** subsequent MRs skip the `is_rebased()` check if their `tenant-*` label set has zero intersection with the union of all previously merged MRs' `tenant-*` labels. Labels are already applied by `gitlab_labeler` before housekeeping runs -- zero additional API calls
 - **Optimistic MRs are rebased with `skip_ci=True` before merge** to satisfy fast-forward merge requirements without triggering redundant pipelines
 - The `if rebase: return` exit after a single merge is removed, allowing multiple merges per loop
@@ -140,7 +140,7 @@ Keep the serial one-merge-per-cycle model but improve queue hygiene:
 
 ### Alternative 4: Optimistic Non-Overlapping Multi-Merge with Label-Based Overlap (Selected)
 
-After the first merge, allow subsequent non-overlapping MRs to merge with `skip_ci` rebase. Overlap detection uses `tenant-*` labels (applied by `gitlab_labeler`) as the isolation boundary. Only self-serviceable MRs are eligible for optimistic merge.
+After the first merge, allow subsequent non-overlapping MRs to merge with `skip_ci` rebase. Overlap detection uses `tenant-*` labels (applied by `gitlab_labeler`) as the isolation boundary. Only MRs with at least one `tenant-*` label are eligible for optimistic merge.
 
 **Pros:**
 
@@ -148,7 +148,7 @@ After the first merge, allow subsequent non-overlapping MRs to merge with `skip_
 - Label-based overlap is safe by construction: service-level isolation captures `$ref` crossref dependencies without needing a reference graph
 - Zero additional API calls for overlap detection (labels are already present)
 - ~50 lines of Python -- dramatically simpler than ref-graph or change-type approaches
-- Self-serviceable eligibility gate excludes high-risk MR types (qr-bump, hack-script, global changes)
+- `tenant-*` label eligibility gate: MRs without labels fall back to serial; MRs touching many services are naturally serialized by overlap
 - Safe fallback: same-service MRs are serialized (no regression)
 - Projected 10-20 MRs/hour for typical cross-service workloads
 - 1-2 week implementation timeline
@@ -212,7 +212,7 @@ This was proposed by @mafriedm: "if there is no coverage overlap between 2 MRs, 
 - Eliminates priority starvation: lower-priority MRs progress within the same loop iteration
 - Label-based overlap detection is safe by construction: service-level isolation captures crossref dependencies without a reference graph
 - Zero additional API calls for overlap detection (labels already present from `gitlab_labeler`)
-- Self-serviceable eligibility gate limits blast radius to well-understood, low-risk MR types
+- `tenant-*` label eligibility gate naturally limits blast radius: label-less MRs fall back to serial, multi-service MRs are serialized by overlap
 - Per-repo `limit` semantics give operators fine-grained control over pipeline concurrency and queue behavior
 - Phase 0 queue hardening (healthcheck-probe model, error labeling) improves reliability regardless of multi-merge
 - New metrics provide visibility into merge queue health and overlap rates
@@ -254,15 +254,14 @@ The schema must support an optional `merge_limit` field alongside the existing `
 
 ```python
 TENANT_LABEL_PREFIX = "tenant-"
-SELF_SERVICEABLE_LABEL = "self-serviceable"
 
 def get_tenant_labels(mr: ProjectMergeRequest) -> set[str]:
     """Extract tenant-* labels from an MR."""
     return {l for l in mr.labels if l.startswith(TENANT_LABEL_PREFIX)}
 
 def is_eligible_for_optimistic_merge(mr: ProjectMergeRequest) -> bool:
-    """Only self-serviceable MRs with tenant labels are eligible."""
-    return SELF_SERVICEABLE_LABEL in mr.labels and bool(get_tenant_labels(mr))
+    """MRs with at least one tenant-* label are eligible."""
+    return bool(get_tenant_labels(mr))
 
 def has_overlapping_labels(
     mr_labels: set[str], merged_labels: set[str]
@@ -285,7 +284,7 @@ The solution: the `insist` wait-and-retry behavior only applies *before* the fir
 
 **Merge rejection handling.** Even with `skip_ci` rebase, the merge may fail for other reasons (race conditions, GitLab transient errors). The python-gitlab library raises `GitlabOperationError` (or a subclass like `GitlabMRClosedError`, `GitlabMROnBuildSuccessError`) on rejection. The exception handler must catch `GitlabOperationError` broadly and treat rejection as a skip.
 
-**Eligibility gate.** Only self-serviceable MRs with `tenant-*` labels are candidates for optimistic merge. MRs without these labels (qr-bump, hack-script, global changes) are skipped for the optimistic path and deferred to the next cycle.
+**Eligibility gate.** Only MRs with at least one `tenant-*` label are candidates for optimistic merge. MRs without `tenant-*` labels (global infrastructure changes, cross-cutting refactors) have no label to compare and fall back to serial processing. MRs touching many services (e.g. qr-bump) have many `tenant-*` labels and are naturally serialized by the overlap check.
 
 ```python
 merged_labels: set[str] = set()
@@ -375,7 +374,7 @@ merge_batch_size_histogram.labels(gl.project.id).observe(merges)
 - `mr.rebase(skip_ci=True)` is called before `mr.merge()` for optimistic MRs to satisfy fast-forward merge requirements. The `skip_ci` flag prevents a redundant pipeline. `GitlabMRRebaseError` is caught separately to distinguish rebase failures from merge failures.
 - The `insist=False` fallback call in `run()` works correctly: it never raises `InsistOnPipelineError` regardless, so the multi-merge loop runs without interruption.
 - `GitlabOperationError` is the common parent of all MR-related exceptions in python-gitlab (`GitlabMRClosedError`, `GitlabMRForbiddenError`, `GitlabMROnBuildSuccessError`, etc.). Catching it after `GitlabMRClosedError` covers fast-forward rejection, pipeline-gated rejection, and other server-side refusals.
-- `is_eligible_for_optimistic_merge()` gates which MRs can enter the optimistic path. MRs without `self-serviceable` or `tenant-*` labels are silently skipped and deferred to the next serial cycle.
+- `is_eligible_for_optimistic_merge()` gates which MRs can enter the optimistic path. MRs without `tenant-*` labels are silently skipped and deferred to the next serial cycle. MRs with many `tenant-*` labels are naturally serialized by the overlap check.
 - No `paths_cache` or API calls needed for overlap detection -- labels are read directly from the MR object.
 
 #### 4. Wire up per-repo `limit` and `merge_limit` in `run()`
@@ -404,7 +403,7 @@ With a per-repo `limit: 6` (meaning 6 MRs in a rebased-and-pipeline-pending stat
 **Assumptions:**
 
 - 50-70% of queued MRs touch different services (non-overlapping `tenant-*` labels). This is lower than the ~80% raw file-level estimate because same-service MRs are serialized regardless of which files they touch.
-- Only self-serviceable MRs are eligible for optimistic merge; qr-bump, hack-script, and global changes are excluded (~20-30% of MR volume)
+- Only MRs with `tenant-*` labels are eligible; MRs without labels (global infrastructure) fall back to serial. MRs touching many services are naturally serialized by overlap check.
 - Pipeline time variance: 6-10 minutes, with most completing within 1-2 minutes of each other
 - `skip_ci` rebase takes ~2-5 seconds per MR (GitLab API call, no pipeline trigger)
 - Jenkins has sufficient executor capacity for 6 parallel pipelines (spot autoscaling)
@@ -448,7 +447,7 @@ Defer detailed design until Phase 1 data is available.
 - [ ] Add `merge_limit` to housekeeping schema in qontract-schemas
 - [ ] Implement `get_tenant_labels()`, `is_eligible_for_optimistic_merge()`, and `has_overlapping_labels()`
 - [ ] Replace the single-merge `return` with label-based multi-merge loop
-- [ ] Add `self-serviceable` eligibility gate (skip qr-bump, hack-script, global changes)
+- [ ] Add `tenant-*` label eligibility gate (MRs without labels fall back to serial)
 - [ ] Add `mr.rebase(skip_ci=True)` for optimistic MRs before merge
 - [ ] Verify `skip_ci` parameter support in python-gitlab `mr.rebase()`
 - [ ] Wire up per-repo `limit` and `merge_limit` in `run()` (backward compatible)
