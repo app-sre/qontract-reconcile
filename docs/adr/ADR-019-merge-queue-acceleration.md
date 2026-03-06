@@ -2,7 +2,9 @@
 
 **Status:** Proposed
 **Date:** 2026-03-03
+**Updated:** 2026-03-05
 **Authors:** @TGPSKI
+**Reviewers:** @jfchevrette, @fenghuang, @wangdi
 
 ## Context
 
@@ -27,34 +29,64 @@ GitLab merge trains run MR-B's pipeline against `target + A + B` speculatively, 
 
 ## Decision
 
-**Implement optimistic non-overlapping multi-merge in `gitlab_housekeeping.py`: after the first merge in a loop, merge subsequent MRs without re-rebase if their changed files do not overlap with any already-merged MR's changed files.**
+**Implement optimistic non-overlapping multi-merge in `gitlab_housekeeping.py`: after the first merge in a loop, merge subsequent MRs if their changed files -- expanded to include `$ref` crossref targets and backrefs -- do not overlap with any already-merged MR's expanded file set.**
 
 ### Key Points
 
 - The first MR in each loop iteration still requires `is_rebased()` and a passing pipeline (unchanged safety)
-- Subsequent MRs skip the `is_rebased()` check if their changed file paths have zero intersection with the union of all previously merged MRs' changed file paths
+- Subsequent MRs skip the `is_rebased()` check if their expanded changed file paths have zero intersection with the union of all previously merged MRs' expanded file paths
+- **Overlap detection is reference-aware:** each MR's changed paths are expanded to include files referenced via `$ref` crossrefs and files that reference the changed files (backrefs). This prevents merging semantically coupled but file-disjoint changes (see "Why file-level overlap is not enough" below)
+- **Optimistic MRs are rebased with `skip_ci=True` before merge** to satisfy fast-forward merge requirements without triggering redundant pipelines
 - The `if rebase: return` exit after a single merge is removed, allowing multiple merges per loop
 - `rebase_limit` is separated from `merge_limit` so more MRs can be kept pipeline-ready simultaneously
 - A circuit breaker prevents zombie MRs (repeated pipeline failures) from blocking the queue
 - New Prometheus metrics track optimistic merge success rate and overlap frequency
 
+### Why file-level overlap is not enough
+
+Raw file-path intersection misses cross-file semantic dependencies that exist via `$ref` crossrefs in app-interface datafiles. Two concrete examples:
+
+1. **Namespace + resource parameter:** MR-A changes `data/services/foo/namespaces/bar.yml` (adds an external resource reference), MR-B changes `resources/services/foo/some-config.yml` (the resource template). Different files, but the namespace file references the resource via `$ref`. Changes from MR-A may conflict with MR-B's resource content, but file-level overlap would not detect this.
+
+2. **Role/permission + user:** MR-A changes `data/access/roles/some-role.yml` (modifies permissions), MR-B changes `data/access/users/some-user.yml` (adds a `$ref` to that role). A reviewer approved MR-B based on the *old* permissions in the role. If MR-A merges first, the user effectively gets different permissions than what was reviewed.
+
+The solution is to expand each MR's changed paths to include its `$ref` dependency neighborhood (see Implementation Guidelines).
+
 ### Rationale
 
 Most app-interface MRs modify independent YAML datafiles under different service directories. When MR-A changes `data/services/foo/app.yml` and MR-B changes `data/services/bar/deploy.yml`, MR-B's pipeline result against `old_master` is identical to its result against `old_master + MR-A`. The file contents, schema validation, and integration dry-runs are all independent.
 
-This approach gets 70-80% of the throughput benefit of GitLab merge trains with no infrastructure changes and ~100 lines of code.
+With reference-aware overlap detection, the safety guarantee extends to cross-file dependencies: if two MRs touch files that are connected by `$ref` crossrefs (directly or transitively), they are treated as overlapping and fall back to serial merge. This eliminates the class of semantic conflicts identified in review while preserving the throughput benefit for the majority of MRs that are truly independent.
+
+This approach gets 60-70% of the throughput benefit of GitLab merge trains with no infrastructure changes.
 
 ### Relationship to Existing Changed-Path Analysis
 
-Several integrations already analyze which files an MR changes. This ADR's overlap detection reuses an existing utility rather than introducing a new mechanism:
+Several integrations already analyze which files an MR changes. This ADR's overlap detection reuses existing utilities rather than introducing new mechanisms:
 
-- **`GitLabApi.get_merge_request_changed_paths()`** (`reconcile/utils/gitlab_api.py:405`) is the shared method that calls the GitLab MR changes API. It is already used by `gitlab_owners` (for CODEOWNERS-style approval routing), `gitlab_labeler` (for `tenant-*` label assignment), and `openshift_saas_deploy_change_tester` (for filtering saas-file diffs). This ADR's overlap detection reuses the same method.
+- **`GitLabApi.get_merge_request_changed_paths()`** (`reconcile/utils/gitlab_api.py:405`) is the shared method that calls the GitLab MR changes API. It is already used by `gitlab_owners` (for CODEOWNERS-style approval routing), `gitlab_labeler` (for `tenant-*` label assignment), and `openshift_saas_deploy_change_tester` (for filtering saas-file diffs). This ADR's overlap detection reuses the same method as the starting point for path expansion.
 
 - **`gitlab_labeler`** already applies `tenant-*` labels (e.g. `tenant-foo`) based on which `data/services/` directories an MR touches. These labels are present on the MR by the time `gitlab_housekeeping` runs. A coarse overlap check could compare `tenant-*` labels between MRs with zero additional API calls. However, tenant labels are too imprecise: two MRs touching different files under the same service directory (e.g. `app.yml` vs `deploy.yml`) would incorrectly appear to overlap.
 
 - **change-owners** uses a different mechanism entirely: the qontract-server `/diff` endpoint compares two bundle SHAs. This provides deep semantic diff information (per-field changes, change-type coverage), but requires a running qontract-server with loaded bundles and is not available in the housekeeping merge loop context.
 
-The decision is to use `get_merge_request_changed_paths()` directly for exact file-level overlap detection. This adds one GitLab API call per MR candidate in the merge loop (at most `merge_limit` calls, typically 6). If API call volume becomes a concern, a two-tier approach could first check `tenant-*` labels (zero API calls, coarse filter) and only call the API for MRs with overlapping tenant labels.
+### Reference-Aware Path Expansion
+
+Raw file paths from `get_merge_request_changed_paths()` are expanded using a reference graph built from the bundle's datafiles. For each changed file, the expanded set includes:
+
+1. **The file itself** (direct change)
+2. **Forward refs:** files referenced by the changed file via `$ref` crossrefs (e.g., a namespace file's `cluster`, `app`, `environment` refs)
+3. **Backward refs:** files that reference the changed file (e.g., if a role file changes, all user files that `$ref` that role are included)
+
+The reference graph can be built by traversing all datafiles in the bundle and collecting `$ref` pointers. The bundle is already loaded in memory by qontract-server and available via the `/graphql` endpoint. Two implementation approaches:
+
+- **Bundle-local:** Load the bundle JSON directly in `gitlab_housekeeping` and traverse datafiles to build the ref graph. This is self-contained but adds memory and startup cost.
+- **qontract-server query:** Query the GraphQL API for synthetic backref fields and forward refs. This reuses existing infrastructure but adds network calls.
+- **Pre-computed lookup table:** Build the reference graph as a periodic job (or as part of bundle validation) and store it as a JSON artifact. `gitlab_housekeeping` loads this artifact at startup. This is the most efficient at runtime.
+
+The recommended approach is the pre-computed lookup table, built during bundle validation and stored alongside the bundle. This adds zero runtime overhead to the merge loop beyond a dictionary lookup.
+
+The expansion depth should be configurable (default: 1 hop). For most app-interface patterns, 1-hop expansion (direct refs and backrefs) is sufficient. Deeper transitive expansion increases safety but also increases the overlap rate, reducing throughput.
 
 ## Alternatives Considered
 
@@ -91,64 +123,139 @@ Build a full merge train in `gitlab_housekeeping.py` by creating temporary branc
 - Requires changes to `pr_check.sh` to validate against speculative branches instead of master
 - High ongoing maintenance burden
 
-### Alternative 3: Optimistic Non-Overlapping Multi-Merge (Selected)
+### Alternative 3: Serial Queue Hardening (Wang Di's Proposal)
 
-After the first merge, allow subsequent non-overlapping MRs to merge without re-rebase.
+Keep the serial one-merge-per-cycle model but improve queue hygiene:
+
+- Require last pipeline to pass before adding MR to merge queue
+- Only rebase top `rebase_limit` (1-3) MRs to reduce wasted CI
+- Label MRs that fail to merge for an "error queue" and remove from active queue
+- Handle corner cases (pipeline pass + approved but merge fails due to GitLab issues)
+
+**Pros:**
+
+- Zero risk of broken master (serial merge preserved)
+- Addresses wasted CI from over-rebasing
+- Simple to implement, no new concepts
+- Handles operational edge cases not currently covered
+
+**Cons:**
+
+- Does not break the serial throughput ceiling (~7 MRs/hour)
+- Priority starvation persists under sustained load
+- Does not address the fundamental bottleneck
+
+**Assessment:** These are valuable operational improvements that should be adopted as Phase 0 regardless of which acceleration strategy is selected. They complement rather than replace multi-merge.
+
+### Alternative 4: Optimistic Non-Overlapping Multi-Merge (Selected)
+
+After the first merge, allow subsequent non-overlapping MRs to merge with `skip_ci` rebase. Overlap detection is reference-aware, using `$ref` crossref expansion to catch semantic dependencies between file-disjoint MRs.
 
 **Pros:**
 
 - No infrastructure changes (keeps Jenkins, no licensing changes)
-- Minimal code changes (~100 lines in `gitlab_housekeeping.py`)
-- Uses existing `GitLabApi.get_merge_request_changed_paths()` API
+- Reference-aware overlap detection prevents the class of semantic conflicts identified in review (namespace+resource, role+user)
+- Uses existing `GitLabApi.get_merge_request_changed_paths()` API plus bundle reference graph
 - Safe fallback: overlapping MRs are deferred to re-rebase (no regression)
-- Projected 15-30 MRs/hour for typical non-overlapping workloads
-- 1-2 week implementation timeline
+- Projected 10-20 MRs/hour for typical non-overlapping workloads
+- 2-3 week implementation timeline
 - New metrics provide data to justify further investment if needed
 
 **Cons:**
 
-- Overlapping MRs fall back to serial behavior
-  - **Mitigation:** Most app-interface MRs are non-overlapping; the `optimistic_merge_rejected_total` metric quantifies overlap rate
-- Theoretical risk of broken master when non-overlapping MRs have semantic dependencies (e.g. schema change + new datafile using that schema)
-  - **Mitigation:** This is rare in app-interface. The post-merge master pipeline catches it immediately. This is the same risk model as "merge when pipeline succeeds" workflows.
+- Reference-aware expansion increases the overlap rate compared to raw file-level detection, reducing throughput gain
+  - **Mitigation:** Most app-interface MRs touch independent service directories with no cross-refs; the `optimistic_merge_rejected_total` metric quantifies the effective overlap rate
+- Requires building and maintaining a reference graph from the bundle
+  - **Mitigation:** The graph is derived from existing bundle data and can be pre-computed during validation
+- Residual risk of broken master for dependencies not captured by `$ref` (e.g. two MRs that independently add conflicting YAML keys to different files consumed by the same integration)
+  - **Mitigation:** Post-merge master pipeline catches this immediately. This risk class is narrow and equivalent to "merge when pipeline succeeds" workflows
 
 ## Consequences
 
 ### Positive
 
-- Throughput increase from ~7 MRs/hour to ~15-30 MRs/hour for typical workloads (see throughput analysis below)
+- Throughput increase from ~7 MRs/hour to ~10-20 MRs/hour for typical workloads (see throughput analysis below)
 - Eliminates priority starvation: lower-priority MRs progress within the same loop iteration
+- Reference-aware overlap detection prevents the class of semantic conflicts identified in review (crossref dependencies between file-disjoint MRs)
 - Separated `rebase_limit` / `merge_limit` gives operators fine-grained control over queue behavior
+- Phase 0 queue hardening (error labeling, pipeline-must-pass filtering) improves reliability regardless of multi-merge
 - Circuit breaker prevents zombie MRs from blocking the queue
 - New metrics provide visibility into merge queue health and overlap rates
 - No infrastructure changes, licensing costs, or CI migration
 
 ### Negative
 
-- Optimistic merges introduce a small risk of broken master for semantically dependent but file-disjoint changes
-  - **Mitigation:** Post-merge master pipeline detects this. The risk is equivalent to any "merge when pipeline succeeds" workflow and is very low for app-interface's YAML-file-per-service structure.
+- Reference-aware path expansion increases the effective overlap rate compared to raw file-level detection, reducing throughput gain
+  - **Mitigation:** The `optimistic_merge_rejected_total` metric tracks overlap rate by reason. If ref-expansion causes excessive overlap, the expansion depth can be tuned or the two-tier approach (tenant labels first, then API) can reduce false positives.
+- Residual risk of broken master for dependencies not captured by `$ref` crossrefs
+  - **Mitigation:** Post-merge master pipeline detects this. The risk class is narrow (non-`$ref` semantic coupling between independent files) and equivalent to "merge when pipeline succeeds" workflows.
 - Additional GitLab API calls per MR (`get_merge_request_changed_paths`) in the merge loop
   - **Mitigation:** One API call per MR candidate. With `merge_limit: 6`, this is at most 6 additional calls per loop.
-- If overlap rate exceeds 30%, the approach degrades toward serial behavior
-  - **Mitigation:** The `optimistic_merge_rejected_total` metric tracks this. If overlap rate is high, escalate to Alternative 2 (speculative train).
+- Requires building and maintaining a reference graph from the bundle
+  - **Mitigation:** Pre-computed during bundle validation and stored as a JSON artifact. Runtime cost is a dictionary lookup.
+- If overlap rate exceeds 40%, the approach degrades toward serial behavior
+  - **Mitigation:** The `optimistic_merge_rejected_total` metric tracks this. If overlap rate is consistently high, escalate to Alternative 2 (speculative train).
 
 ## Implementation Guidelines
 
-### Phase 0: Config Bump (immediate)
+### Phase 0: Queue Hardening and Config Tuning (immediate)
 
-Increase `limit` from 2 to 6 in app-interface `app.yml`. While this alone doesn't break the serial dependency, it keeps more MRs rebased in the queue, reducing wait time for the first merge each loop. This is a prerequisite for Phase 1 to have enough pipeline-ready MRs to merge in batch.
+Operational improvements that reduce wasted CI and improve reliability, independent of multi-merge:
 
-### Phase 1: Optimistic Multi-Merge (1-2 weeks)
+1. **Bump `limit` from 2 to 6** in app-interface `app.yml`. While this alone doesn't break the serial dependency, it keeps more MRs rebased in the queue, reducing wait time for the first merge each loop. This is a prerequisite for Phase 1 to have enough pipeline-ready MRs to merge in batch.
+
+2. **Filter MRs with failed pipelines from the merge queue.** Move the pipeline-success check from `merge_merge_requests` into `preprocess_merge_requests` so MRs without a passing last pipeline are excluded before sorting and slot allocation. This prevents failed MRs from consuming rebase slots.
+
+3. **Label MRs that fail to merge repeatedly.** When `mr.merge()` raises an exception (beyond `GitlabMRClosedError`), catch `GitlabMergeError` and apply a label (e.g. `merge-error`) to the MR. Exclude MRs with this label from the merge queue. This creates a visible "error queue" for manual triage and prevents stuck MRs from blocking the queue.
+
+4. **Broaden merge exception handling.** Currently only `GitlabMRClosedError` is caught. Add `GitlabMergeError` to handle fast-forward rejection, pipeline-gated rejection, branch-missing, and other server-side refusals gracefully.
+
+### Phase 1: Optimistic Multi-Merge (2-3 weeks)
 
 #### 1. Add `rebase_limit` to the housekeeping schema in qontract-schemas
 
 The schema must support an optional `rebase_limit` field alongside the existing `limit`. When absent, `rebase_limit` defaults to `limit`.
 
-#### 2. Implement overlap detection helper
+#### 2. Build reference graph from bundle
+
+Build a lookup table mapping each datafile path to its expanded dependency neighborhood:
 
 ```python
-def get_changed_paths(mr: ProjectMergeRequest, gl: GitLabApi) -> set[str]:
-    return set(gl.get_merge_request_changed_paths(mr))
+def build_ref_graph(bundle: dict) -> dict[str, set[str]]:
+    """Build forward and backward ref maps from bundle datafiles."""
+    forward_refs: dict[str, set[str]] = defaultdict(set)
+    backward_refs: dict[str, set[str]] = defaultdict(set)
+
+    for path, datafile in bundle["data"].items():
+        for ref_target in extract_refs(datafile):
+            forward_refs[path].add(ref_target)
+            backward_refs[ref_target].add(path)
+
+    expanded: dict[str, set[str]] = {}
+    for path in bundle["data"]:
+        expanded[path] = {path} | forward_refs.get(path, set()) | backward_refs.get(path, set())
+    return expanded
+```
+
+This graph is pre-computed once per bundle load and passed into the merge loop. `extract_refs()` recursively walks the datafile JSON and collects all `{"$ref": "..."}` target paths.
+
+#### 3. Implement reference-aware overlap detection
+
+```python
+def expand_paths(
+    raw_paths: set[str], ref_graph: dict[str, set[str]]
+) -> set[str]:
+    """Expand raw changed paths to include $ref neighbors."""
+    expanded = set()
+    for p in raw_paths:
+        expanded.update(ref_graph.get(p, {p}))
+    return expanded
+
+def get_changed_paths(
+    mr: ProjectMergeRequest, gl: GitLabApi, ref_graph: dict[str, set[str]]
+) -> set[str]:
+    raw = set(gl.get_merge_request_changed_paths(mr))
+    return expand_paths(raw, ref_graph)
 
 def has_overlapping_changes(
     mr_paths: set[str], merged_paths: set[str]
@@ -156,15 +263,17 @@ def has_overlapping_changes(
     return bool(mr_paths & merged_paths)
 ```
 
-#### 3. Modify `merge_merge_requests()` merge loop
+#### 4. Modify `merge_merge_requests()` merge loop
 
-This is the most complex change. There are three interacting concerns:
+This is the most complex change. There are four interacting concerns:
 
 **The `@retry` / `InsistOnPipelineError` interaction.** The current function is decorated with `@retry(max_attempts=10)`. When `insist=True` and a pipeline is still running, it raises `InsistOnPipelineError`, which restarts the entire function from the top. Any local state (`merged_paths`, `first_merge_done`) is lost on retry. The `insist` mechanism is effectively a polling loop that waits for the *first* rebased MR's pipeline to complete.
 
 The solution: the `insist` wait-and-retry behavior only applies *before* the first merge. Once we have merged at least one MR, we stop waiting for running pipelines and only consider MRs whose pipelines have already completed successfully. This avoids the retry blowing away the multi-merge state, because we never raise `InsistOnPipelineError` after the first merge. Concretely, `wait_for_pipeline` with `insist` is only checked when `first_merge_done is False`.
 
-**Merge rejection on non-rebased MRs.** After the first merge changes the target branch, subsequent MRs are no longer rebased. Calling `mr.merge()` on a non-rebased MR may succeed (merge commit projects) or fail (fast-forward projects). The python-gitlab library raises `GitlabMergeError` (or a subclass) on rejection. The exception handler must catch broadly -- not just `GitlabMRClosedError` but any `GitlabMergeError` -- and treat rejection as a skip (the MR will be re-rebased next loop).
+**Fast-forward merge requires rebase.** App-interface uses fast-forward merge. After the first merge changes the target branch, subsequent MRs are no longer rebased and `mr.merge()` will be rejected. The solution: call `mr.rebase(skip_ci=True)` before `mr.merge()` for optimistic MRs. This rebases the MR onto the new target HEAD without triggering a new pipeline, allowing the fast-forward merge to proceed. The existing pipeline result is still valid because the MR's changes do not overlap with the merged changes (guaranteed by the overlap check).
+
+**Merge rejection handling.** Even with `skip_ci` rebase, the merge may fail for other reasons (race conditions, GitLab transient errors). The python-gitlab library raises `GitlabMergeError` (or a subclass) on rejection. The exception handler must catch broadly and treat rejection as a skip.
 
 **Caching changed paths.** `get_merge_request_changed_paths()` calls the GitLab API. The overlap check and the `merged_paths` update both need the paths for the same MR. Cache the result to avoid a redundant API call.
 
@@ -179,7 +288,7 @@ for merge_request in merge_requests:
     if rebase:
         if first_merge_done:
             if mr.iid not in paths_cache:
-                paths_cache[mr.iid] = get_changed_paths(mr, gl)
+                paths_cache[mr.iid] = get_changed_paths(mr, gl, ref_graph)
             if has_overlapping_changes(paths_cache[mr.iid], merged_paths):
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id, reason="overlap"
@@ -219,21 +328,31 @@ for merge_request in merge_requests:
             squash = (
                 gl.project.squash_option == SQUASH_OPTION_ALWAYS
             ) or mr.squash
+
+            if first_merge_done and rebase:
+                # Rebase onto new target HEAD without triggering pipeline.
+                # Safe because overlap check guarantees no file conflicts.
+                mr.rebase(skip_ci=True)
+
             mr.merge(squash=squash)
             if mr.iid not in paths_cache:
-                paths_cache[mr.iid] = get_changed_paths(mr, gl)
+                paths_cache[mr.iid] = get_changed_paths(mr, gl, ref_graph)
             merged_paths.update(paths_cache[mr.iid])
             if first_merge_done:
                 optimistic_merges.labels(mr.target_project_id).inc()
             first_merge_done = True
             merges += 1
             # ... existing metrics (merged_merge_requests, time_to_merge) ...
+        except gitlab.exceptions.GitlabMRRebaseError as e:
+            logging.warning(
+                f"optimistic rebase failed for {mr.iid}: {e}"
+            )
+            optimistic_merge_rejected.labels(
+                project_id=mr.target_project_id, reason="rebase_failed"
+            ).inc()
         except gitlab.exceptions.GitlabMRClosedError as e:
             logging.error(f"unable to merge {mr.iid}: {e}")
         except gitlab.exceptions.GitlabMergeError as e:
-            # GitLab rejected the merge (e.g. fast-forward not possible
-            # because MR is not rebased onto current target). Skip this MR;
-            # it will be re-rebased next loop.
             logging.warning(
                 f"optimistic merge rejected for {mr.iid}: {e}"
             )
@@ -247,9 +366,11 @@ merge_batch_size_histogram.labels(gl.project.id).observe(merges)
 **Key design constraints:**
 
 - `InsistOnPipelineError` is only raised before the first merge (`not first_merge_done`). After the first merge, running pipelines are silently skipped. This ensures the retry decorator never resets multi-merge state.
+- `mr.rebase(skip_ci=True)` is called before `mr.merge()` for optimistic MRs to satisfy fast-forward merge requirements. The `skip_ci` flag prevents a redundant pipeline. `GitlabMRRebaseError` is caught separately to distinguish rebase failures from merge failures.
 - The `insist=False` fallback call (lines 739-753 in `run()`) works correctly: it never raises `InsistOnPipelineError` regardless, so the multi-merge loop runs without interruption.
 - `GitlabMergeError` is the base class for merge-related failures in python-gitlab. Catching it covers fast-forward rejection, pipeline-gated rejection, and other server-side refusals.
 - `paths_cache` avoids calling `get_merge_request_changed_paths()` twice for the same MR (once for the overlap check, once for updating `merged_paths` after merge).
+- The `ref_graph` is loaded once at the start of the merge loop from the pre-computed artifact (see step 2).
 
 #### 4. Separate `rebase_limit` from `merge_limit` in `run()`
 
@@ -272,15 +393,24 @@ Track consecutive pipeline failures per MR IID in `State`. After 3 consecutive f
 
 **Current state:** 1 merge per cycle. Cycle time = pipeline duration (~8 min) + insist retry overhead (~1 min) + reconcile sleep (~1 min) = ~10 min. Throughput: ~6 MRs/hour.
 
-**With optimistic multi-merge:** The first merge still takes ~10 min (waiting for pipeline via insist). After the first merge, additional MRs whose pipelines have already completed can merge immediately (seconds per merge). Since all rebased MRs start pipelines at roughly the same time, most finish within a narrow window around the 8-minute mark.
+**With optimistic multi-merge:** The first merge still takes ~10 min (waiting for pipeline via insist). After the first merge, additional MRs whose pipelines have already completed can merge after a `skip_ci` rebase (seconds per merge). Since all rebased MRs start pipelines at roughly the same time, most finish within a narrow window around the 8-minute mark.
 
-With `rebase_limit: 10` and an 80% non-overlapping rate (typical for app-interface), expect ~8 MRs eligible for optimistic merge per cycle. Not all will have completed pipelines -- pipeline times vary and some may still be running when the first MR merges. Conservatively assume 3-5 optimistic merges succeed per cycle.
+With `rebase_limit: 10` and reference-aware overlap detection, the effective non-overlapping rate depends on the MR mix. Reference expansion increases the overlap surface compared to raw file-level detection -- MRs touching files that share `$ref` crossrefs will be flagged even if the files themselves are different.
 
-- **Conservative estimate:** 1 (first) + 3 (optimistic) = 4 merges per 10-min cycle = **~24 MRs/hour**
-- **Optimistic estimate:** 1 + 5 = 6 per cycle = **~36 MRs/hour**
-- **Realistic midpoint:** ~15-30 MRs/hour, depending on pipeline time variance and overlap rate
+**Assumptions:**
 
-These projections assume Jenkins has sufficient executor capacity for 10 parallel pipelines. Jenkins spot autoscaling already handles this.
+- 60-70% of queued MRs are truly independent (no shared `$ref` neighborhood) -- lower than the 80% raw file estimate due to ref expansion
+- Pipeline time variance: 6-10 minutes, with most completing within 1-2 minutes of each other
+- `skip_ci` rebase takes ~2-5 seconds per MR (GitLab API call, no pipeline trigger)
+- Jenkins has sufficient executor capacity for 10 parallel pipelines (spot autoscaling)
+
+**Projections:**
+
+- **Conservative estimate:** 1 (first) + 2 (optimistic) = 3 merges per 10-min cycle = **~18 MRs/hour**
+- **Optimistic estimate:** 1 + 4 = 5 per cycle = **~30 MRs/hour**
+- **Realistic midpoint:** ~10-20 MRs/hour, depending on pipeline time variance, overlap rate, and `skip_ci` rebase reliability
+
+Even the conservative estimate represents a ~3x improvement over the current ~6 MRs/hour ceiling.
 
 ### Phase 2: Speculative Stacking (conditional)
 
@@ -288,13 +418,25 @@ Only pursue if Phase 1 metrics show overlap rate exceeding 30%. This phase invol
 
 ### Checklist
 
+**Phase 0:**
+
+- [ ] Broaden merge exception handling to catch `GitlabMergeError`
+- [ ] Add error-queue labeling for MRs that fail to merge repeatedly
+- [ ] Move pipeline-success check into `preprocess_merge_requests`
+- [ ] Bump `limit` from 2 to 6 in app-interface `app.yml`
+
+**Phase 1:**
+
 - [ ] Add `rebase_limit` to housekeeping schema in qontract-schemas
-- [ ] Implement `get_changed_paths()` and `has_overlapping_changes()` in `gitlab_housekeeping.py`
-- [ ] Replace the single-merge `return` with overlap-aware multi-merge loop
+- [ ] Build reference graph from bundle (`build_ref_graph()`)
+- [ ] Implement `expand_paths()`, `get_changed_paths()`, and `has_overlapping_changes()`
+- [ ] Replace the single-merge `return` with reference-aware multi-merge loop
+- [ ] Add `mr.rebase(skip_ci=True)` for optimistic MRs before merge
+- [ ] Verify `skip_ci` parameter support in python-gitlab `mr.rebase()`
 - [ ] Separate `rebase_limit` from `merge_limit` in `run()` (backward compatible)
 - [ ] Add circuit breaker with `State` tracking
 - [ ] Add `optimistic_merges_total`, `optimistic_merge_rejected_total`, `merge_batch_size` metrics
-- [ ] Add unit tests for overlap detection and multi-merge behavior
+- [ ] Add unit tests for overlap detection, ref expansion, and multi-merge behavior
 - [ ] Set `limit: 6`, `rebase_limit: 10` in app-interface `app.yml`
 - [ ] Monitor `optimistic_merge_rejected_total` for overlap rate after rollout
 
@@ -303,7 +445,10 @@ Only pursue if Phase 1 metrics show overlap rate exceeding 30%. This phase invol
 - Implementation: `reconcile/gitlab_housekeeping.py` -- merge loop, rebase logic, priority sorting
 - Implementation: `reconcile/utils/gitlab_api.py:405` -- `get_merge_request_changed_paths()`
 - Implementation: `reconcile/utils/state.py` -- `State` for circuit breaker persistence
+- Crossrefs: `qontract-schemas/schemas/common-1.json` -- `$ref` crossref definition
+- Crossrefs: `qontract-validator/validator/validator.py` -- `validate_ref()` crossref resolution
 - App-interface config: `data/services/app-interface/app.yml` -- `gitlabHousekeeping.limit`
 - CI pipeline: `hack/pr_check.sh`, `hack/manual_reconcile.sh`, `hack/select-integrations.py`
 - External: [GitLab merge trains](https://docs.gitlab.com/ci/pipelines/merge_trains/)
 - External: [GitLab merge_ref API](https://docs.gitlab.com/api/merge_requests/#merge-to-default-merge-ref-path)
+- External: [python-gitlab MR rebase](https://python-gitlab.readthedocs.io/en/stable/gl_objects/merge_requests.html) -- `mr.rebase(skip_ci=True)`
