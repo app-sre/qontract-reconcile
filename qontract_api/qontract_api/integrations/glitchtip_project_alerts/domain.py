@@ -1,4 +1,4 @@
-"""Pydantic domain models for Glitchtip."""
+"""Pydantic domain models for Glitchtip project alerts."""
 
 import re
 from enum import StrEnum

@@ -1,4 +1,4 @@
-"""API models for PagerDuty external integration."""
+"""API schemas for PagerDuty external integration."""
 
 from pydantic import BaseModel, ConfigDict, Field
 

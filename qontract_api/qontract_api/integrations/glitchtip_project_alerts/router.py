@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Request, status
 
 from qontract_api.config import settings
 from qontract_api.dependencies import UserDep
-from qontract_api.integrations.glitchtip_project_alerts.models import (
+from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipProjectAlertsReconcileRequest,
     GlitchtipProjectAlertsTaskResponse,
     GlitchtipProjectAlertsTaskResult,

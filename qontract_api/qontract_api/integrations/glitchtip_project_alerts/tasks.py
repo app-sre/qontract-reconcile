@@ -13,8 +13,8 @@ from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
 from qontract_api.glitchtip import GlitchtipClientFactory
-from qontract_api.glitchtip.models import GlitchtipInstance
-from qontract_api.integrations.glitchtip_project_alerts.models import (
+from qontract_api.integrations.glitchtip_project_alerts.domain import GlitchtipInstance
+from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipProjectAlertsTaskResult,
 )
 from qontract_api.integrations.glitchtip_project_alerts.service import (

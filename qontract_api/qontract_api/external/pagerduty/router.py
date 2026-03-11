@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep
-from qontract_api.external.pagerduty.models import (
+from qontract_api.external.pagerduty.schemas import (
     EscalationPolicyUsersResponse,
     PagerDutyUser,
     ScheduleUsersResponse,

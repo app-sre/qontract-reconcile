@@ -1,4 +1,4 @@
-"""API models for VCS external integration."""
+"""API schemas for VCS external integration."""
 
 from enum import StrEnum
 

@@ -8,7 +8,7 @@ from qontract_utils.slack_api import SlackApiError
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep
-from qontract_api.external.slack.models import ChatRequest, ChatResponse
+from qontract_api.external.slack.schemas import ChatRequest, ChatResponse
 from qontract_api.logger import get_logger
 from qontract_api.slack import create_slack_workspace_client
 

@@ -3,14 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from qontract_api.glitchtip.models import (
+from qontract_api.integrations.glitchtip_project_alerts.domain import (
     GlitchtipInstance,
     GlitchtipOrganization,
     GlitchtipProject,
     GlitchtipProjectAlert,
     GlitchtipProjectAlertRecipient,
 )
-from qontract_api.integrations.glitchtip_project_alerts.models import (
+from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipAlertActionCreate,
     GlitchtipAlertActionDelete,
     GlitchtipAlertActionUpdate,

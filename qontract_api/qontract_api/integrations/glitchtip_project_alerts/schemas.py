@@ -1,10 +1,10 @@
-"""Pydantic models for Glitchtip project alerts reconciliation API."""
+"""Pydantic schemas for Glitchtip project alerts reconciliation API."""
 
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from qontract_api.glitchtip.models import GlitchtipInstance
+from qontract_api.integrations.glitchtip_project_alerts.domain import GlitchtipInstance
 from qontract_api.models import TaskResult, TaskStatus
 
 

@@ -7,13 +7,13 @@ from qontract_utils.glitchtip_api.models import Organization, Project, ProjectAl
 
 from qontract_api.config import Settings
 from qontract_api.glitchtip import GlitchtipWorkspaceClient
-from qontract_api.glitchtip.models import (
+from qontract_api.integrations.glitchtip_project_alerts.domain import (
     GlitchtipInstance,
     GlitchtipOrganization,
     GlitchtipProject,
     GlitchtipProjectAlert,
 )
-from qontract_api.integrations.glitchtip_project_alerts.models import (
+from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipAlertActionCreate,
     GlitchtipAlertActionDelete,
     GlitchtipAlertActionUpdate,

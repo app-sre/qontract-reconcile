@@ -1,4 +1,4 @@
-"""API models for Slack external chat endpoint."""
+"""API schemas for Slack external chat endpoint."""
 
 from pydantic import BaseModel, Field
 

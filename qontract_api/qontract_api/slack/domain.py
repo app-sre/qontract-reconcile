@@ -1,4 +1,4 @@
-"""Pydantic models for Slack usergroups reconciliation API."""
+"""Pydantic domain models for Slack usergroups reconciliation."""
 
 from pydantic import BaseModel, Field, field_validator
 
