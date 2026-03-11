@@ -6,9 +6,20 @@ Following ADR-012 (Fully Typed Pydantic Models Over Nested Dicts):
 - Type-safe throughout
 """
 
+import re
 from enum import StrEnum
+from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+def _slugify(value: str) -> str:
+    """Convert value into a slug.
+
+    Adapted from https://docs.djangoproject.com/en/4.1/_modules/django/utils/text/#slugify
+    """
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
 class RecipientType(StrEnum):
@@ -85,6 +96,8 @@ class Project(BaseModel):
         pk: Primary key (id) of the project, set by Glitchtip API
         name: Project name
         slug: Project slug (URL-friendly identifier)
+        platform: Project platform (e.g., "python", "javascript")
+        event_throttle_rate: Event throttle rate (0 = no throttle)
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
@@ -92,6 +105,8 @@ class Project(BaseModel):
     pk: int | None = Field(None, alias="id")
     name: str
     slug: str = ""
+    platform: str | None = None
+    event_throttle_rate: int = Field(0, alias="eventThrottleRate")
 
 
 class Organization(BaseModel):
@@ -108,3 +123,67 @@ class Organization(BaseModel):
     pk: int | None = Field(None, alias="id")
     name: str
     slug: str = ""
+
+
+class User(BaseModel):
+    """A Glitchtip organization user (member).
+
+    Attributes:
+        pk: Primary key (id) of the member, set by Glitchtip API
+        email: User email address (used as unique identifier)
+        role: Organization role (e.g., "member", "admin", "owner")
+        pending: Whether the user invitation is pending acceptance
+    """
+
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
+
+    pk: int | None = Field(None, alias="id")
+    email: str
+    role: str = Field("member", alias="orgRole")
+    pending: bool = False
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, User):
+            raise NotImplementedError("Cannot compare to non User objects.")
+        return self.email == other.email
+
+    def __hash__(self) -> int:
+        return hash(self.email)
+
+
+class Team(BaseModel):
+    """A Glitchtip team.
+
+    Attributes:
+        pk: Primary key (id) of the team, set by Glitchtip API
+        slug: Team slug (URL-friendly identifier, used as unique key)
+    """
+
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
+
+    pk: int | None = Field(None, alias="id")
+    slug: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def derive_slug_from_name(cls, values: Any) -> Any:
+        """Derive slug from name if slug is not provided (Django slugify)."""
+        if isinstance(values, dict) and not values.get("slug") and values.get("name"):
+            values = dict(values)
+            values["slug"] = _slugify(values["name"])
+        return values
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Team):
+            raise NotImplementedError("Cannot compare to non Team objects.")
+        return self.slug == other.slug
+
+    def __hash__(self) -> int:
+        return hash(self.slug)
+
+    @model_validator(mode="after")
+    def validate_slug(self) -> Self:
+        """Ensure slug is not empty."""
+        if not self.slug:
+            raise ValueError("Team slug cannot be empty")
+        return self
