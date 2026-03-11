@@ -157,11 +157,14 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
 
 **Check if a domain layer already exists** before creating a new one. Search `qontract_api/qontract_api/` for existing domain directories (e.g., `slack/`, `glitchtip/`). If one exists for your domain, extend it rather than creating a duplicate.
 
-A domain layer in `qontract_api/<domain>/` is needed when the domain has **shared infrastructure** (workspace client, factory) used by multiple integrations or external endpoints. If only one integration uses the domain models, put `domain.py` inside the integration folder instead (see Integration Files below).
+A domain layer in `qontract_api/<domain>/` is needed when the domain has **shared infrastructure** (workspace client, factory) used by multiple integrations or external endpoints. For `domain.py` specifically, placement depends on whether the models are (or are likely to be) shared — see the placement decision below.
 
 Create `qontract_api/qontract_api/<domain>/`:
 
-- **`domain.py`** - Shared domain models (Pydantic, frozen=True). These model the external system's concepts (workspaces, usergroups, instances, projects, etc.). Only create this file in the domain layer if multiple integrations share these models. If only one integration uses them, put `domain.py` inside the integration folder instead (see below).
+- **`domain.py`** - Desired-state domain models (Pydantic, frozen=True). These model the external system's concepts (workspaces, usergroups, instances, projects, etc.). Placement decision:
+  1. **Check if `domain.py` already exists** in the domain layer — if so, extend it rather than duplicating models in the integration folder.
+  2. **If you are the first integration for this domain**, assess whether the models are inherently shareable (e.g., the domain has a workspace client used by multiple integrations or external endpoints). If yes, create `domain.py` in the domain layer proactively — even if only one integration exists today. If the domain is narrow and unlikely to be shared, put `domain.py` inside the integration folder instead.
+  3. **If models are already in an integration folder** and a second integration now needs them, refactor by moving them to the domain layer and updating imports.
 - **`<domain>_client_factory.py`** - Factory for creating workspace clients (ADR-017). Resolves secrets via SecretManager, creates API client + workspace client with proper configuration.
 - **`workspace_client.py`** (Layer 2) - Caching layer on top of the pure API client:
   - In-memory + Redis caching via `CacheBackend`
@@ -466,7 +469,7 @@ Phases have dependencies. Document these in the migration plan so phases can be 
 - **Never import from `reconcile/` in qontract-api code** (ADR-007)
 - **`qontract_utils/` is sync-only** - used by Celery workers. Only Layer 1 API clients go here.
 - **Workspace clients (Layer 2) belong in `qontract_api/`**, not `qontract_utils/`
-- **Domain models in integration folder (`domain.py`) when only used by one integration**; move to `qontract_api/<domain>/domain.py` only when shared across multiple integrations or needed by the workspace client
+- **Domain models placement**: put `domain.py` in the domain layer (`qontract_api/<domain>/`) if the models are shared, already exist there, or the domain is likely to be shared by future integrations; put `domain.py` inside the integration folder only when the domain is narrow and unlikely to be shared. If models later need to be shared, refactor by moving them to the domain layer.
 - **Factories and workspace clients always in `qontract_api/<domain>/`** (shared infrastructure)
 - **Integration files use `domain.py` + `schemas.py`**, not `models.py`: `domain.py` = desired-state reconciliation models, `schemas.py` = API contract (request/response/action models)
 - **External endpoint files use `schemas.py`**, not `models.py`: API request/response models
