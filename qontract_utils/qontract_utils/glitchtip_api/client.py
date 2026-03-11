@@ -14,7 +14,13 @@ import httpx
 import structlog
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.glitchtip_api.models import Organization, Project, ProjectAlert
+from qontract_utils.glitchtip_api.models import (
+    Organization,
+    Project,
+    ProjectAlert,
+    Team,
+    User,
+)
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 
@@ -418,6 +424,378 @@ class GlitchtipApi:
         """
         self._delete(
             f"/api/0/projects/{organization_slug}/{project_slug}/alerts/{alert_pk}/"
+        )
+
+    # --- Organizations ---
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="organizations.create", verb="POST", id=self.host
+        )
+    )
+    def create_organization(self, name: str) -> Organization:
+        """Create a new organization.
+
+        Args:
+            name: Organization name
+
+        Returns:
+            Created Organization
+        """
+        return Organization.model_validate(
+            self._post("/api/0/organizations/", data={"name": name})
+        )
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="organizations.delete", verb="DELETE", id=self.host
+        )
+    )
+    def delete_organization(self, slug: str) -> None:
+        """Delete an organization.
+
+        Args:
+            slug: Organization slug
+        """
+        self._delete(f"/api/0/organizations/{slug}/")
+
+    # --- Teams ---
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="teams.list", verb="GET", id=self.host
+        )
+    )
+    def teams(self, organization_slug: str) -> list[Team]:
+        """List teams in an organization.
+
+        Args:
+            organization_slug: Organization slug
+
+        Returns:
+            List of Team objects
+        """
+        return [
+            Team.model_validate(r)
+            for r in self._list(
+                f"/api/0/organizations/{organization_slug}/teams/",
+                params={"limit": 100},
+            )
+        ]
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="teams.create", verb="POST", id=self.host
+        )
+    )
+    def create_team(self, organization_slug: str, slug: str) -> Team:
+        """Create a team in an organization.
+
+        Args:
+            organization_slug: Organization slug
+            slug: Team slug
+
+        Returns:
+            Created Team
+        """
+        return Team.model_validate(
+            self._post(
+                f"/api/0/organizations/{organization_slug}/teams/",
+                data={"slug": slug},
+            )
+        )
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="teams.delete", verb="DELETE", id=self.host
+        )
+    )
+    def delete_team(self, organization_slug: str, slug: str) -> None:
+        """Delete a team.
+
+        Args:
+            organization_slug: Organization slug
+            slug: Team slug
+        """
+        self._delete(f"/api/0/teams/{organization_slug}/{slug}/")
+
+    # --- Projects (extended CRUD) ---
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="projects.create", verb="POST", id=self.host
+        )
+    )
+    def create_project(
+        self,
+        organization_slug: str,
+        team_slug: str,
+        name: str,
+        platform: str | None,
+    ) -> Project:
+        """Create a project under a team.
+
+        Args:
+            organization_slug: Organization slug
+            team_slug: Team slug (project is initially assigned to this team)
+            name: Project name
+            platform: Project platform (e.g., "python")
+
+        Returns:
+            Created Project
+        """
+        return Project.model_validate(
+            self._post(
+                f"/api/0/teams/{organization_slug}/{team_slug}/projects/",
+                data={"name": name, "platform": platform},
+            )
+        )
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="projects.update", verb="PUT", id=self.host
+        )
+    )
+    def update_project(
+        self,
+        organization_slug: str,
+        slug: str,
+        name: str,
+        platform: str | None,
+        event_throttle_rate: int,
+    ) -> Project:
+        """Update a project.
+
+        Args:
+            organization_slug: Organization slug
+            slug: Project slug
+            name: New project name
+            platform: New platform
+            event_throttle_rate: New event throttle rate
+
+        Returns:
+            Updated Project
+        """
+        return Project.model_validate(
+            self._put(
+                f"/api/0/projects/{organization_slug}/{slug}/",
+                data={
+                    "name": name,
+                    "platform": platform,
+                    "eventThrottleRate": event_throttle_rate,
+                },
+            )
+        )
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="projects.delete", verb="DELETE", id=self.host
+        )
+    )
+    def delete_project(self, organization_slug: str, slug: str) -> None:
+        """Delete a project.
+
+        Args:
+            organization_slug: Organization slug
+            slug: Project slug
+        """
+        self._delete(f"/api/0/projects/{organization_slug}/{slug}/")
+
+    # --- Project-Team associations ---
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="projects.add_team", verb="POST", id=self.host
+        )
+    )
+    def add_project_to_team(
+        self, organization_slug: str, project_slug: str, team_slug: str
+    ) -> Project:
+        """Add a project to a team.
+
+        Args:
+            organization_slug: Organization slug
+            project_slug: Project slug
+            team_slug: Team slug
+
+        Returns:
+            Updated Project
+        """
+        return Project.model_validate(
+            self._post(
+                f"/api/0/projects/{organization_slug}/{project_slug}/teams/{team_slug}/"
+            )
+        )
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="projects.remove_team", verb="DELETE", id=self.host
+        )
+    )
+    def remove_project_from_team(
+        self, organization_slug: str, project_slug: str, team_slug: str
+    ) -> None:
+        """Remove a project from a team.
+
+        Args:
+            organization_slug: Organization slug
+            project_slug: Project slug
+            team_slug: Team slug
+        """
+        self._delete(
+            f"/api/0/projects/{organization_slug}/{project_slug}/teams/{team_slug}/"
+        )
+
+    # --- Organization users ---
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="organization_users.list", verb="GET", id=self.host
+        )
+    )
+    def organization_users(self, organization_slug: str) -> list[User]:
+        """List organization members.
+
+        Args:
+            organization_slug: Organization slug
+
+        Returns:
+            List of User objects
+        """
+        return [
+            User.model_validate(r)
+            for r in self._list(
+                f"/api/0/organizations/{organization_slug}/members/",
+                params={"limit": 100},
+            )
+        ]
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="organization_users.invite", verb="POST", id=self.host
+        )
+    )
+    def invite_user(self, organization_slug: str, email: str, role: str) -> User:
+        """Invite a user to an organization.
+
+        Args:
+            organization_slug: Organization slug
+            email: User email address
+            role: Organization role (e.g., "member", "admin")
+
+        Returns:
+            Created User (invitation pending)
+        """
+        return User.model_validate(
+            self._post(
+                f"/api/0/organizations/{organization_slug}/members/",
+                data={
+                    "email": email,
+                    "send_invite": False,
+                    "orgRole": role,
+                    "teamRoles": [],
+                },
+            )
+        )
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="organization_users.delete", verb="DELETE", id=self.host
+        )
+    )
+    def delete_user(self, organization_slug: str, pk: int) -> None:
+        """Remove a user from an organization.
+
+        Args:
+            organization_slug: Organization slug
+            pk: User primary key
+        """
+        self._delete(f"/api/0/organizations/{organization_slug}/members/{pk}/")
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="organization_users.update_role", verb="PUT", id=self.host
+        )
+    )
+    def update_user_role(self, organization_slug: str, pk: int, role: str) -> User:
+        """Update a user's role in an organization.
+
+        Args:
+            organization_slug: Organization slug
+            pk: User primary key
+            role: New role (e.g., "member", "admin")
+
+        Returns:
+            Updated User
+        """
+        return User.model_validate(
+            self._put(
+                f"/api/0/organizations/{organization_slug}/members/{pk}/",
+                data={"orgRole": role},
+            )
+        )
+
+    # --- Team users ---
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="team_users.list", verb="GET", id=self.host
+        )
+    )
+    def team_users(self, organization_slug: str, team_slug: str) -> list[User]:
+        """List members of a team.
+
+        Args:
+            organization_slug: Organization slug
+            team_slug: Team slug
+
+        Returns:
+            List of User objects
+        """
+        return [
+            User.model_validate(r)
+            for r in self._list(
+                f"/api/0/teams/{organization_slug}/{team_slug}/members/",
+                params={"limit": 100},
+            )
+        ]
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="team_users.add", verb="POST", id=self.host
+        )
+    )
+    def add_user_to_team(
+        self, organization_slug: str, team_slug: str, user_pk: int
+    ) -> None:
+        """Add a user to a team.
+
+        Args:
+            organization_slug: Organization slug
+            team_slug: Team slug
+            user_pk: User primary key
+        """
+        self._post(
+            f"/api/0/organizations/{organization_slug}/members/{user_pk}/teams/{team_slug}/"
+        )
+
+    @invoke_with_hooks(
+        lambda self: GlitchtipApiCallContext(
+            method="team_users.remove", verb="DELETE", id=self.host
+        )
+    )
+    def remove_user_from_team(
+        self, organization_slug: str, team_slug: str, user_pk: int
+    ) -> None:
+        """Remove a user from a team.
+
+        Args:
+            organization_slug: Organization slug
+            team_slug: Team slug
+            user_pk: User primary key
+        """
+        self._delete(
+            f"/api/0/organizations/{organization_slug}/members/{user_pk}/teams/{team_slug}/"
         )
 
     def close(self) -> None:
