@@ -424,7 +424,11 @@ Phase 6: Documentation
 
 ## Verification & Commit
 
-After completing each implementation phase, run verification and commit before moving on:
+After completing each implementation phase, follow these steps before moving on:
+
+1. **Update the migration plan** — mark the phase as completed and note any decisions made.
+
+2. **Run ALL checks — this is mandatory before every commit:**
 
 ```bash
 make format               # Auto-format code
@@ -433,7 +437,7 @@ make types-test           # MyPy strict mode
 make unittest             # Unit tests (or pytest on specific test files)
 ```
 
-Fix any issues, then commit with a message following this pattern:
+Fix any issues until all checks pass, then commit with a message following this pattern:
 
 ```bash
 git add <relevant files>
@@ -447,8 +451,6 @@ Examples:
 - `aws-account-manager-api: phase 4 - client-side integration`
 - `aws-account-manager-api: phase 5 - tests`
 - `aws-account-manager-api: phase 6 - documentation`
-
-Update the migration plan with the phase status after committing.
 
 ## Phase Dependencies
 
