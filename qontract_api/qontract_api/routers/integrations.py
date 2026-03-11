@@ -7,6 +7,7 @@ ensuring they are isolated under /integrations/* and can share common policies.
 from fastapi import APIRouter
 
 from qontract_api.integrations.github_owners import router as github_owners_router
+from qontract_api.integrations.glitchtip import router as glitchtip_router
 from qontract_api.integrations.glitchtip_project_alerts import (
     router as glitchtip_project_alerts_router,
 )
@@ -22,6 +23,7 @@ integrations_router = APIRouter(
 integrations_router.include_router(slack_usergroups_router.router)
 integrations_router.include_router(glitchtip_project_alerts_router.router)
 integrations_router.include_router(github_owners_router.router)
+integrations_router.include_router(glitchtip_router.router)
 
 # Future integrations will be added here:
 # - AWS RDS reboot
