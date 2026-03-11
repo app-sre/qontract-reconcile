@@ -4,16 +4,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qontract_api.integrations.slack_usergroups.models import (
+from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupsTaskResult,
-    SlackWorkspace,
 )
 from qontract_api.integrations.slack_usergroups.tasks import (
     generate_lock_key,
     reconcile_slack_usergroups_task,
 )
 from qontract_api.models import Secret, TaskStatus
-from qontract_api.slack.models import SlackUsergroup, SlackUsergroupConfig
+from qontract_api.slack.domain import SlackUsergroup, SlackUsergroupConfig, SlackWorkspace
 
 
 @pytest.fixture

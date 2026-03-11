@@ -1,6 +1,6 @@
 """PagerDuty external API integration."""
 
-from qontract_api.external.pagerduty.models import (
+from qontract_api.external.pagerduty.schemas import (
     EscalationPolicyUsersResponse,
     PagerDutyUser,
     ScheduleUsersResponse,

@@ -20,7 +20,7 @@ from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
 
 from qontract_api.logger import get_logger
 
-from .models import (
+from .domain import (
     SlackUsergroup,
     SlackUsergroupConfig,
 )

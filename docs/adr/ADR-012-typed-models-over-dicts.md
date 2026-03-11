@@ -498,7 +498,7 @@ class Usergroup(BaseModel):
 ## References
 
 - Related ADRs: ADR-011 (Dependency Injection Pattern)
-- Implementation: `qontract_api/integrations/slack_usergroups/models.py`
+- Implementation: `qontract_api/integrations/slack_usergroups/schemas.py` (API contract), `qontract_api/slack/domain.py` (desired-state domain models)
 - Pydantic documentation: [Models](https://docs.pydantic.dev/latest/concepts/models/)
 - FastAPI integration: [Request Body](https://fastapi.tiangolo.com/tutorial/body/)
 

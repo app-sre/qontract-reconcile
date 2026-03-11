@@ -10,7 +10,7 @@ from pydantic import Field
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep
-from qontract_api.external.vcs.models import RepoOwnersResponse, VCSProvider
+from qontract_api.external.vcs.schemas import RepoOwnersResponse, VCSProvider
 from qontract_api.external.vcs.vcs_factory import create_vcs_workspace_client
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret

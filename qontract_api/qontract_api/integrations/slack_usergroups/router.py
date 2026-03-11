@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Request, status
 
 from qontract_api.config import settings
 from qontract_api.dependencies import UserDep
-from qontract_api.integrations.slack_usergroups.models import (
+from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupsReconcileRequest,
     SlackUsergroupsTaskResponse,
     SlackUsergroupsTaskResult,

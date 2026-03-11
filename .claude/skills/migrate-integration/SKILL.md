@@ -157,11 +157,14 @@ Following ADR-007 (no reconcile/ imports in qontract-api) and ADR-014 (three-lay
 
 **Check if a domain layer already exists** before creating a new one. Search `qontract_api/qontract_api/` for existing domain directories (e.g., `slack/`, `glitchtip/`). If one exists for your domain, extend it rather than creating a duplicate.
 
-Every integration gets its own domain layer in `qontract_api/`, even if only one integration uses it currently. This mirrors the existing pattern for slack and glitchtip.
+A domain layer in `qontract_api/<domain>/` is needed when the domain has **shared infrastructure** (workspace client, factory) used by multiple integrations or external endpoints. For `domain.py` specifically, placement depends on whether the models are (or are likely to be) shared — see the placement decision below.
 
 Create `qontract_api/qontract_api/<domain>/`:
 
-- **`models.py`** - Shared domain models (Pydantic, frozen=True). These model the external system's concepts (workspaces, usergroups, instances, projects, etc.)
+- **`domain.py`** - Desired-state domain models (Pydantic, frozen=True). These model the external system's concepts (workspaces, usergroups, instances, projects, etc.). Placement decision:
+  1. **Check if `domain.py` already exists** in the domain layer — if so, extend it rather than duplicating models in the integration folder.
+  2. **If you are the first integration for this domain**, assess whether the models are inherently shareable (e.g., the domain has a workspace client used by multiple integrations or external endpoints). If yes, create `domain.py` in the domain layer proactively — even if only one integration exists today. If the domain is narrow and unlikely to be shared, put `domain.py` inside the integration folder instead.
+  3. **If models are already in an integration folder** and a second integration now needs them, refactor by moving them to the domain layer and updating imports.
 - **`<domain>_client_factory.py`** - Factory for creating workspace clients (ADR-017). Resolves secrets via SecretManager, creates API client + workspace client with proper configuration.
 - **`workspace_client.py`** (Layer 2) - Caching layer on top of the pure API client:
   - In-memory + Redis caching via `CacheBackend`
@@ -174,7 +177,18 @@ Reference: `qontract_api/qontract_api/slack/`, `qontract_api/qontract_api/glitch
 
 ### Integration Files (qontract_api/qontract_api/integrations/<name_underscore>/)
 
-#### models.py
+#### domain.py (desired-state models)
+
+Following ADR-012 (typed Pydantic models):
+
+- Contains desired-state Pydantic models used by the reconciliation logic (instances, organizations, projects, alerts, etc.)
+- Models represent **what the system wants to reconcile** — no `pk` fields, may include validators
+- All models `frozen=True` for immutability
+- Place here when the domain models are **only used by this one integration**. If shared with other integrations, place in `qontract_api/<domain>/domain.py` instead and import from there.
+
+Reference: `qontract_api/qontract_api/integrations/glitchtip_project_alerts/domain.py`
+
+#### schemas.py (API contract)
 
 Following ADR-012 (typed Pydantic models):
 
@@ -185,7 +199,7 @@ Following ADR-012 (typed Pydantic models):
 - All models `frozen=True` for immutability
 - Sort list fields via `field_validator` for deterministic output
 
-Reference: `qontract_api/qontract_api/integrations/slack_usergroups/models.py`
+Reference: `qontract_api/qontract_api/integrations/slack_usergroups/schemas.py`
 
 #### service.py
 
@@ -252,14 +266,7 @@ Empty file or re-exports.
 
 3. **Add settings** to `qontract_api/qontract_api/config.py` if needed (cache TTLs, timeouts, etc.)
 
-4. **Regenerate the API client** after creating server-side routers:
-
-   ```bash
-   cd qontract_api && make generate-openapi-spec
-   cd qontract_api_client && make generate-client
-   ```
-
-   Do this after Phase 2 AND again after Phase 3 (if external endpoints are added).
+4. **Regenerate the API client** after creating server-side routers (see Phase 4 prerequisites).
 
 ## Phase 3: External Endpoints (if needed)
 
@@ -276,7 +283,7 @@ Check if the old integration fetches data from external services during desired 
 
 If external endpoints are needed, create `qontract_api/qontract_api/external/<service>/`:
 
-- **`models.py`** - Request/response models for the external endpoint
+- **`schemas.py`** - Request/response models for the external endpoint
 - **`router.py`** - FastAPI endpoint (typically GET with query params for secret references)
 - **`<service>_workspace_client.py`** - Caching wrapper for the external API client
 - **`<service>_factory.py`** - Factory to create workspace clients
@@ -293,16 +300,16 @@ Reference: `qontract_api/qontract_api/external/pagerduty/`, `qontract_api/qontra
 
 ### Auto-Generated Client
 
-After creating server-side routers (integration + external), regenerate the API client:
-
-```bash
-cd qontract_api && make generate-openapi-spec
-cd qontract_api_client && make generate-client
-```
-
-This creates typed Python client functions matching all new endpoints.
+After creating server-side routers (integration + external), regenerate the API client (see Phase 4 prerequisites).
 
 ## Phase 4: Client-Side Integration (reconcile/)
+
+> **Prerequisite:** The API client must be regenerated before starting this phase. Run after Phase 2, and again after Phase 3 if external endpoints were added:
+> ```bash
+> cd qontract_api && make generate-openapi-spec
+> cd qontract_api_client && make generate-client
+> ```
+> This creates typed Python client functions matching all new endpoints.
 
 Following ADR-008 (QontractReconcileApiIntegration pattern).
 
@@ -398,8 +405,8 @@ Phase 1: Shared Utilities (qontract_utils/)
   Created qontract_utils/<domain>/api.py
 
 Phase 2: Server-Side (qontract_api/)
-  Created qontract_api/<domain>/models.py, workspace_client.py, factory.py
-  Created qontract_api/integrations/<name>/models.py
+  Created qontract_api/<domain>/domain.py, workspace_client.py, factory.py
+  Created qontract_api/integrations/<name>/domain.py, schemas.py
   Created qontract_api/integrations/<name>/service.py
   Created qontract_api/integrations/<name>/router.py
   Created qontract_api/integrations/<name>/tasks.py
@@ -418,9 +425,13 @@ Phase 6: Documentation
   Created docs/integrations/<name>.md
 ```
 
-## Verification
+## Verification & Commit
 
-After completing each implementation phase, run verification before moving on:
+After completing each implementation phase, follow these steps before moving on:
+
+1. **Update the migration plan** — mark the phase as completed and note any decisions made.
+
+2. **Run ALL checks — this is mandatory before every commit:**
 
 ```bash
 make format               # Auto-format code
@@ -429,7 +440,20 @@ make types-test           # MyPy strict mode
 make unittest             # Unit tests (or pytest on specific test files)
 ```
 
-Fix any issues before proceeding to the next phase. Update the migration plan with the phase status.
+Fix any issues until all checks pass, then commit with a message following this pattern:
+
+```bash
+git add <relevant files>
+git commit -m "<integration-name>-api: phase N - <short description>"
+```
+
+Examples:
+- `aws-account-manager-api: phase 1 - shared utilities`
+- `aws-account-manager-api: phase 2 - server-side integration`
+- `aws-account-manager-api: phase 3 - external endpoints`
+- `aws-account-manager-api: phase 4 - client-side integration`
+- `aws-account-manager-api: phase 5 - tests`
+- `aws-account-manager-api: phase 6 - documentation`
 
 ## Phase Dependencies
 
@@ -445,7 +469,10 @@ Phases have dependencies. Document these in the migration plan so phases can be 
 - **Never import from `reconcile/` in qontract-api code** (ADR-007)
 - **`qontract_utils/` is sync-only** - used by Celery workers. Only Layer 1 API clients go here.
 - **Workspace clients (Layer 2) belong in `qontract_api/`**, not `qontract_utils/`
-- **Domain models + factories always in `qontract_api/<domain>/`**, even if only one integration uses them
+- **Domain models placement**: put `domain.py` in the domain layer (`qontract_api/<domain>/`) if the models are shared, already exist there, or the domain is likely to be shared by future integrations; put `domain.py` inside the integration folder only when the domain is narrow and unlikely to be shared. If models later need to be shared, refactor by moving them to the domain layer.
+- **Factories and workspace clients always in `qontract_api/<domain>/`** (shared infrastructure)
+- **Integration files use `domain.py` + `schemas.py`**, not `models.py`: `domain.py` = desired-state reconciliation models, `schemas.py` = API contract (request/response/action models)
+- **External endpoint files use `schemas.py`**, not `models.py`: API request/response models
 - **All models are Pydantic with `frozen=True`** (ADR-012)
 - **All dependencies injected via constructor** (ADR-011)
 - **`dry_run` always defaults to `True`** - safety first
