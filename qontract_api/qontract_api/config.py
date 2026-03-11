@@ -226,6 +226,15 @@ class GlitchtipSettings(BaseModel):
     )
 
 
+class LdapSettings(BaseModel):
+    """LDAP external integration configuration."""
+
+    groups_cache_ttl: int = Field(
+        default=5 * 60,
+        description="LDAP group members cache TTL in seconds (five minutes)",
+    )
+
+
 class VaultSettings(BaseModel):
     # Vault-specific configuration
     backend_type: str = Field(
@@ -425,6 +434,12 @@ class Settings(BaseSettings):
     glitchtip: GlitchtipSettings = Field(
         default_factory=GlitchtipSettings,
         description="Glitchtip API and integration configuration",
+    )
+
+    # LDAP Configuration (nested)
+    ldap: LdapSettings = Field(
+        default_factory=LdapSettings,
+        description="LDAP external integration configuration",
     )
 
     # VCS Configuration (nested)
