@@ -216,6 +216,14 @@ class GlitchtipSettings(BaseModel):
         default=60 * 60,
         description="Glitchtip project alerts cache TTL in seconds (one hour)",
     )
+    teams_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip teams cache TTL in seconds (one hour)",
+    )
+    users_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip organization/team users cache TTL in seconds (one hour)",
+    )
 
 
 class VaultSettings(BaseModel):

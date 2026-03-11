@@ -98,6 +98,7 @@ class Project(BaseModel):
         slug: Project slug (URL-friendly identifier)
         platform: Project platform (e.g., "python", "javascript")
         event_throttle_rate: Event throttle rate (0 = no throttle)
+        team_slugs: Team slugs this project belongs to (derived from API response)
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
@@ -107,6 +108,25 @@ class Project(BaseModel):
     slug: str = ""
     platform: str | None = None
     event_throttle_rate: int = Field(0, alias="eventThrottleRate")
+    team_slugs: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_team_slugs(cls, values: Any) -> Any:
+        """Extract team slugs from nested team objects in the API response."""
+        if (
+            isinstance(values, dict)
+            and "teams" in values
+            and not values.get("team_slugs")
+        ):
+            raw_teams = values.get("teams", [])
+            values = dict(values)
+            values["team_slugs"] = [
+                t.get("slug", "")
+                for t in raw_teams
+                if isinstance(t, dict) and t.get("slug")
+            ]
+        return values
 
 
 class Organization(BaseModel):
