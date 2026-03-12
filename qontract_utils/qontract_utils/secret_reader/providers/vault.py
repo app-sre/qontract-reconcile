@@ -286,6 +286,15 @@ class VaultSecretBackend(SecretBackend):
             mount_point=self._settings.kube_auth_mount,
         )
 
+    @invoke_with_hooks(
+        lambda self: VaultApiCallContext(
+            method="auth.token.renew_self", id=self._settings.server
+        )
+    )
+    def _renew_self(self) -> None:
+        """Perform token renewal API call."""
+        self._client.auth.token.renew_self()
+
     def _authenticate(self) -> None:
         """Authenticate with Vault using AppRole or Kubernetes auth.
 
@@ -381,15 +390,25 @@ class VaultSecretBackend(SecretBackend):
                     try:
                         logger.debug("Attempting to renew Vault token")
                         # Try to renew the existing token first to avoid GC churn
-                        self._client.auth.token.renew_self()
-                    except Exception:
+                        self._renew_self()
+                    except hvac.exceptions.VaultError as e:
                         try:
-                            logger.info("Token renewal failed, re-authenticating")
+                            logger.warning(
+                                "Token renewal failed, re-authenticating", exc_info=e
+                            )
                             # If renewal fails (e.g. token expired), get a new one
                             self._authenticate()
                         except Exception:
                             # Log error but don't crash thread
                             # Next iteration will try again
+                            logger.exception("Failed to refresh Vault token")
+                    except Exception:  # noqa: BLE001
+                        try:
+                            logger.warning(
+                                "Token renewal failed unexpectedly, re-authenticating"
+                            )
+                            self._authenticate()
+                        except Exception:
                             logger.exception("Failed to refresh Vault token")
 
     def read(self, secret: Secret) -> str:
