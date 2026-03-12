@@ -370,7 +370,8 @@ class VaultSecretBackend(SecretBackend):
     def _auto_refresh_loop(self) -> None:
         """Background thread to periodically refresh Vault auth token.
 
-        Runs every 10 minutes, re-authenticates to get fresh token.
+        Attempts to renew the current token. If renewal fails, falls back
+        to re-authentication to get a fresh token.
         Logs errors but doesn't crash thread to allow recovery.
         """
         while not self._closed:
@@ -378,12 +379,18 @@ class VaultSecretBackend(SecretBackend):
             if not self._closed:
                 with self._auth_lock:
                     try:
-                        logger.debug("Auto-refreshing Vault token")
-                        self._authenticate()
+                        logger.debug("Attempting to renew Vault token")
+                        # Try to renew the existing token first to avoid GC churn
+                        self._client.auth.token.renew_self()
                     except Exception:
-                        # Log error but don't crash thread
-                        # Next iteration will try again
-                        logger.exception("Failed to refresh Vault token")
+                        try:
+                            logger.info("Token renewal failed, re-authenticating")
+                            # If renewal fails (e.g. token expired), get a new one
+                            self._authenticate()
+                        except Exception:
+                            # Log error but don't crash thread
+                            # Next iteration will try again
+                            logger.exception("Failed to refresh Vault token")
 
     def read(self, secret: Secret) -> str:
         """Read secret from Vault KV.
