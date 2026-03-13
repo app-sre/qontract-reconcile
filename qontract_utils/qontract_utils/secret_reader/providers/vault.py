@@ -391,24 +391,16 @@ class VaultSecretBackend(SecretBackend):
                         logger.debug("Attempting to renew Vault token")
                         # Try to renew the existing token first to avoid GC churn
                         self._renew_self()
-                    except hvac.exceptions.VaultError as e:
+                    except Exception as e:  # noqa: BLE001
                         try:
                             logger.warning(
                                 "Token renewal failed, re-authenticating", exc_info=e
                             )
                             # If renewal fails (e.g. token expired), get a new one
                             self._authenticate()
-                        except Exception:
+                        except Exception:  # noqa: BLE001
                             # Log error but don't crash thread
                             # Next iteration will try again
-                            logger.exception("Failed to refresh Vault token")
-                    except Exception:  # noqa: BLE001
-                        try:
-                            logger.warning(
-                                "Token renewal failed unexpectedly, re-authenticating"
-                            )
-                            self._authenticate()
-                        except Exception:
                             logger.exception("Failed to refresh Vault token")
 
     def read(self, secret: Secret) -> str:
