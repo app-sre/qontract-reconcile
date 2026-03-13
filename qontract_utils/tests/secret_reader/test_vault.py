@@ -9,7 +9,7 @@ from typing import Any, NoReturn
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
-from hvac.exceptions import Forbidden, InvalidPath
+from hvac.exceptions import Forbidden, InvalidPath, VaultError
 from pydantic import BaseModel
 from qontract_utils.hooks import Hooks
 from qontract_utils.secret_reader.base import (
@@ -386,6 +386,84 @@ class TestVaultSecretBackendAutoRefresh:
             backend = VaultSecretBackend(approle_settings)
 
             assert not hasattr(backend, "_refresh_thread")
+
+    def test_auto_refresh_loop_renew_success(self) -> None:
+        """Test that the auto-refresh loop successfully renews the token."""
+        with (
+            patch("hvac.Client") as mock_client_class,
+            patch("time.sleep") as mock_sleep,
+        ):
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="http://vault", kube_auth_role="role", auto_refresh=False
+            )
+
+            # Use a dummy token to avoid the file read in _authenticate
+            with patch("pathlib.Path.open", mock_open(read_data="dummy_jwt")):
+                backend = VaultSecretBackend(settings)
+
+            # Simulate the loop behavior
+            backend._closed = False
+
+            counter = 0
+
+            def side_effect(*_args: Any, **_kwargs: Any) -> None:
+                nonlocal counter
+                if counter > 0:
+                    backend._closed = True  # Exit loop after first iteration
+                counter += 1
+
+            mock_sleep.side_effect = side_effect
+
+            backend._auto_refresh_loop()
+
+            # Verify renew_self was called and _authenticate was NOT called (after initial setup)
+            mock_client.auth.token.renew_self.assert_called_once()
+            assert (
+                mock_client.auth.kubernetes.login.call_count == 1
+            )  # Only called during __init__
+
+    def test_auto_refresh_loop_renew_failure_fallback(self) -> None:
+        """Test that the auto-refresh loop falls back to login if renew fails."""
+        with (
+            patch("hvac.Client") as mock_client_class,
+            patch("time.sleep") as mock_sleep,
+        ):
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            # Make renew_self fail
+            mock_client.auth.token.renew_self.side_effect = VaultError("Token expired")
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="http://vault", kube_auth_role="role", auto_refresh=False
+            )
+
+            with patch("pathlib.Path.open", mock_open(read_data="dummy_jwt")):
+                backend = VaultSecretBackend(settings)
+
+            backend._closed = False
+
+            counter = 0
+
+            def side_effect(*_args: Any, **_kwargs: Any) -> None:
+                nonlocal counter
+                if counter > 0:
+                    backend._closed = True
+                counter += 1
+
+            mock_sleep.side_effect = side_effect
+
+            # We must patch Path.open again because _authenticate will be called in the fallback
+            with patch("pathlib.Path.open", mock_open(read_data="dummy_jwt")):
+                backend._auto_refresh_loop()
+
+            # Verify renew was attempted, but failed, so login was called again
+            mock_client.auth.token.renew_self.assert_called_once()
+            assert mock_client.auth.kubernetes.login.call_count == 2  # Init + Fallback
 
 
 class TestVaultSecretBackendClose:
