@@ -1142,7 +1142,6 @@ class SaasHerder:
                 username, password = (
                     base64.b64decode(auth["auth"]).decode("utf-8").split(":")
                 )
-
                 return SaasHerder._get_and_validate_image(
                     full_image_path=image,
                     username=username,
@@ -1185,11 +1184,19 @@ class SaasHerder:
                 logging.error(
                     f"{error_prefix} Image : {full_image_path} does not exist"
                 )
+        # catches all exceptions
+        # if the exception contains 'authentication', log a different message to help debugging
         except Exception as e:
-            logging.error(
-                f"{error_prefix} Image is invalid: {full_image_path}. "
-                + f"details: {e!s}"
-            )
+            if 'authentication' in str(e).lower():
+                logging.error(
+                    f"{error_prefix} Failed to authenticate to the repository for image: {full_image_path}. "
+                    + f"details: {e!s}"
+                )
+            else:
+                logging.error(
+                    f"{error_prefix} Image is invalid: {full_image_path}. "
+                    + f"details: {e!s}"
+                    )
         return None
 
     def _is_block_rule_violated(
