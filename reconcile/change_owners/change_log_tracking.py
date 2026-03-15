@@ -24,7 +24,14 @@ from reconcile.change_owners.changes import (
 from reconcile.typed_queries.apps import get_apps
 from reconcile.typed_queries.jenkins import get_jenkins_configs
 from reconcile.typed_queries.namespaces import get_namespaces
-from reconcile.utils import gql
+from reconcile.change_owners.metrics import (
+    ChangeLogAppChange,
+    ChangeLogChangeType,
+    ChangeLogCommitProcessed,
+    ChangeLogItemsGauge,
+    ChangeLogProcessingError,
+)
+from reconcile.utils import gql, metrics
 from reconcile.utils.defer import defer
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
@@ -35,6 +42,12 @@ from reconcile.utils.state import init_state
 QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
 DEFAULT_MERGE_COMMIT_PREFIX = "Merge branch '"
+# Label-based filtered outputs: {label_key: (output_filename, virtual_app_name)}
+# virtual_app_name is injected into each item's apps list so the
+# progressive-delivery plugin can match a single aggregate component.
+LABEL_FILTERED_OUTPUTS: dict[str, tuple[str, str]] = {
+    "rosa": ("bundle-diffs-rosa.json", "rosa-platform"),
+}
 
 
 class ChangeLogItem(BaseModel):
@@ -239,5 +252,66 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         change_log.items = sorted(
             change_log.items, key=lambda i: i.merged_at, reverse=True
         )
+
+        # build label filter sets for metrics and filtered outputs
+        labeled_app_sets: dict[str, set[str]] = {}
+        for label_key in LABEL_FILTERED_OUTPUTS:
+            labeled_app_sets[label_key] = {
+                a.name
+                for a in apps
+                if a.labels and a.labels.get(label_key) == "true"
+            }
+
+        # emit metrics
+        metrics.set_gauge(
+            ChangeLogItemsGauge(label_filter="all"),
+            len(change_log.items),
+        )
+        for item in change_log.items:
+            metrics.inc_counter(ChangeLogCommitProcessed())
+            if item.error:
+                metrics.inc_counter(ChangeLogProcessingError())
+            for label_key, app_names in labeled_app_sets.items():
+                matches = any(app in app_names for app in item.apps)
+                if matches:
+                    for app in item.apps:
+                        if app in app_names:
+                            metrics.inc_counter(ChangeLogAppChange(
+                                app=app, label_filter=label_key,
+                            ))
+                    for ct in item.change_types:
+                        metrics.inc_counter(ChangeLogChangeType(
+                            change_type=ct, label_filter=label_key,
+                        ))
+
+        for label_key, app_names in labeled_app_sets.items():
+            filtered_count = sum(
+                1 for item in change_log.items
+                if any(app in app_names for app in item.apps)
+            )
+            metrics.set_gauge(
+                ChangeLogItemsGauge(label_filter=label_key),
+                filtered_count,
+            )
+
         if not dry_run:
             integration_state.add(BUNDLE_DIFFS_OBJ, change_log.model_dump(), force=True)
+
+            # produce label-filtered changelog outputs
+            for label_key, (output_file, virtual_app) in LABEL_FILTERED_OUTPUTS.items():
+                label_app_names = labeled_app_sets[label_key]
+                filtered_items = []
+                for item in change_log.items:
+                    if any(app in label_app_names for app in item.apps):
+                        enriched = item.model_copy(
+                            update={"apps": sorted({*item.apps, virtual_app})}
+                        )
+                        filtered_items.append(enriched)
+                filtered_log = ChangeLog(items=filtered_items)
+                logging.info(
+                    f"label={label_key}: {len(filtered_items)} items, "
+                    f"apps: {filtered_log.apps}"
+                )
+                integration_state.add(
+                    output_file, filtered_log.model_dump(), force=True
+                )
