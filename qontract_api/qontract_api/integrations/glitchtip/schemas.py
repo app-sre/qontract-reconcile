@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-from qontract_api.integrations.glitchtip.domain import GlitchtipInstance
+from qontract_api.integrations.glitchtip.domain import GIInstance
 from qontract_api.models import TaskResult, TaskStatus
 
 # --- 14 action models (discriminated union) ---
@@ -170,7 +170,7 @@ class GlitchtipTaskResult(TaskResult, frozen=True):
 class GlitchtipReconcileRequest(BaseModel, frozen=True):
     """Request model for Glitchtip reconciliation."""
 
-    instances: list[GlitchtipInstance] = Field(
+    instances: list[GIInstance] = Field(
         ..., description="List of Glitchtip instances to reconcile"
     )
     dry_run: bool = Field(

@@ -9,7 +9,7 @@ from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
 from qontract_api.glitchtip import GlitchtipClientFactory
-from qontract_api.integrations.glitchtip.domain import GlitchtipInstance
+from qontract_api.integrations.glitchtip.domain import GIInstance
 from qontract_api.integrations.glitchtip.schemas import GlitchtipTaskResult
 from qontract_api.integrations.glitchtip.service import GlitchtipService
 from qontract_api.logger import get_logger
@@ -20,7 +20,7 @@ from qontract_api.tasks import celery_app, deduplicated_task
 logger = get_logger(__name__)
 
 
-def generate_lock_key(_self: Task, instances: list[GlitchtipInstance], **_: Any) -> str:
+def generate_lock_key(_self: Task, instances: list[GIInstance], **_: Any) -> str:
     """Generate deduplication lock key based on instance names."""
     instance_names = sorted(inst.name for inst in instances)
     return ",".join(instance_names)
@@ -30,7 +30,7 @@ def generate_lock_key(_self: Task, instances: list[GlitchtipInstance], **_: Any)
 @deduplicated_task(lock_key_fn=generate_lock_key, timeout=600)
 def reconcile_glitchtip_task(
     self: Any,
-    instances: list[GlitchtipInstance],
+    instances: list[GIInstance],
     *,
     dry_run: bool = True,
 ) -> GlitchtipTaskResult | dict[str, str]:

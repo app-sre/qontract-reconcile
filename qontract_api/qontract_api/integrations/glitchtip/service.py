@@ -5,9 +5,9 @@ from qontract_utils.glitchtip_api.models import Team as ApiTeam
 from qontract_api.config import Settings
 from qontract_api.glitchtip import GlitchtipClientFactory, GlitchtipWorkspaceClient
 from qontract_api.integrations.glitchtip.domain import (
-    GlitchtipInstance,
-    GlitchtipOrganization,
-    GlitchtipProject,
+    GIInstance,
+    GIOrganization,
+    GIProject,
     GlitchtipTeam,
 )
 from qontract_api.integrations.glitchtip.schemas import (
@@ -82,7 +82,7 @@ class GlitchtipService:
         self.settings = settings
 
     def _create_glitchtip_client(
-        self, instance: GlitchtipInstance
+        self, instance: GIInstance
     ) -> GlitchtipWorkspaceClient:
         token = self.secret_manager.read(instance.token)
         return self.glitchtip_client_factory.create_workspace_client(
@@ -97,7 +97,7 @@ class GlitchtipService:
     def _calculate_actions(
         instance_name: str,
         glitchtip: GlitchtipWorkspaceClient,
-        organizations: list[GlitchtipOrganization],
+        organizations: list[GIOrganization],
         ignore_user_email: str,
     ) -> list[_AnyAction]:
         """Calculate all reconciliation actions for an instance.
@@ -167,7 +167,7 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_user_actions(
-        desired_org: GlitchtipOrganization,
+        desired_org: GIOrganization,
         org_slug: str,
         glitchtip: GlitchtipWorkspaceClient,
         ignore_user_email: str,
@@ -208,7 +208,7 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_team_actions(
-        desired_org: GlitchtipOrganization,
+        desired_org: GIOrganization,
         org_slug: str,
         glitchtip: GlitchtipWorkspaceClient,
     ) -> list[_AnyAction]:
@@ -242,7 +242,7 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_team_membership_actions(
-        desired_org: GlitchtipOrganization,
+        desired_org: GIOrganization,
         team_slug: str,
         desired_team: GlitchtipTeam,
         org_slug: str,
@@ -274,7 +274,7 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_project_actions(
-        desired_org: GlitchtipOrganization,
+        desired_org: GIOrganization,
         org_slug: str,
         glitchtip: GlitchtipWorkspaceClient,
     ) -> list[_AnyAction]:
@@ -325,9 +325,9 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_project_team_actions(
-        desired_org: GlitchtipOrganization,
+        desired_org: GIOrganization,
         project_slug: str,
-        desired_project: GlitchtipProject,
+        desired_project: GIProject,
         current_team_slugs: list[str],
     ) -> list[_AnyAction]:
         current = set(current_team_slugs)
@@ -421,7 +421,7 @@ class GlitchtipService:
         | GlitchtipActionAddProjectToTeam
         | GlitchtipActionRemoveProjectFromTeam,
         org_slug: str,
-        desired_org: GlitchtipOrganization | None,
+        desired_org: GIOrganization | None,
     ) -> None:
         match action:
             case GlitchtipActionCreateProject():
@@ -484,7 +484,7 @@ class GlitchtipService:
     def _execute_action(
         glitchtip: GlitchtipWorkspaceClient,
         action: _AnyAction,
-        desired_orgs: list[GlitchtipOrganization],
+        desired_orgs: list[GIOrganization],
     ) -> None:
         """Execute a single reconciliation action.
 
@@ -537,7 +537,7 @@ class GlitchtipService:
 
     def reconcile(
         self,
-        instances: list[GlitchtipInstance],
+        instances: list[GIInstance],
         *,
         dry_run: bool = True,
     ) -> GlitchtipTaskResult:
