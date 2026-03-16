@@ -52,7 +52,7 @@ test:
 		echo ""; \
 		exit 1; \
 	fi
-	uv run ruff check .
+	uv run ruff check  --no-fix .
 	uv run ruff format --check .
 	uv run mypy .
 	uv run pytest --cov=qontract_api --cov-report=term-missing --cov-report xml
