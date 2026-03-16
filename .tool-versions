@@ -4,3 +4,5 @@ terraform 1.6.6
 oc 4.19.0
 helm 3.19.2
 uv
+aqua:slok/sloth 0.12.0
+aqua:prometheus/alertmanager 0.29.0
