@@ -398,7 +398,7 @@ class VaultSecretBackend(SecretBackend):
                             )
                             # If renewal fails (e.g. token expired), get a new one
                             self._authenticate()
-                        except Exception:  # noqa: BLE001
+                        except Exception:
                             # Log error but don't crash thread
                             # Next iteration will try again
                             logger.exception("Failed to refresh Vault token")
