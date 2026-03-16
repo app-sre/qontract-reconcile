@@ -7,7 +7,7 @@ from qontract_utils.secret_reader import Secret
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
-from qontract_api.integrations.slack_usergroups.models import (
+from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupAction,
     SlackUsergroupActionCreate,
     SlackUsergroupActionUpdateMetadata,
@@ -17,7 +17,7 @@ from qontract_api.integrations.slack_usergroups.models import (
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager import SecretManager
-from qontract_api.slack.models import SlackUsergroup, SlackWorkspace
+from qontract_api.slack.domain import SlackUsergroup, SlackWorkspace
 from qontract_api.slack.slack_client_factory import create_slack_workspace_client
 from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 

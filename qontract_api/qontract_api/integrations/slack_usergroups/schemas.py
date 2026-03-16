@@ -1,11 +1,11 @@
-"""Pydantic models for Slack usergroups reconciliation API."""
+"""Pydantic schemas for Slack usergroups reconciliation API."""
 
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from qontract_api.models import TaskResult, TaskStatus
-from qontract_api.slack.models import SlackWorkspace
+from qontract_api.slack.domain import SlackWorkspace
 
 _USERS_TRUNCATE_THRESHOLD = 30
 

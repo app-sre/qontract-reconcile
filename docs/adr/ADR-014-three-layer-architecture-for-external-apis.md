@@ -406,7 +406,7 @@ This pattern was first implemented for the Slack API integration:
   - Methods: `users_list()`, `usergroups_update()`, `conversations_list()`
   - Returns: `list[SlackUser]`, `SlackUsergroup`, `list[SlackChannel]`
 
-- **Layer 2:** `SlackWorkspaceClient` in `qontract_api/integrations/slack_usergroups/slack_workspace_client.py`
+- **Layer 2:** `SlackWorkspaceClient` in `qontract_api/slack/slack_workspace_client.py`
   - Methods: `get_users()`, `get_usergroup_by_handle()`, `update_usergroup()`
   - Cache: Users, usergroups, channels with TTL
   - Compute: `get_users_by_ids()`, `get_channels_by_ids()`

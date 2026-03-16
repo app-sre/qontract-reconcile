@@ -12,10 +12,10 @@ from qontract_utils.events import Event
 from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
-from qontract_api.integrations.slack_usergroups.models import (
+from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupsTaskResult,
-    SlackWorkspace,
 )
+from qontract_api.slack.domain import SlackWorkspace
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus

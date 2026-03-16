@@ -6,15 +6,14 @@ import pytest
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings
-from qontract_api.integrations.slack_usergroups.models import (
+from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupActionCreate,
     SlackUsergroupActionUpdateMetadata,
     SlackUsergroupActionUpdateUsers,
-    SlackWorkspace,
 )
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
 from qontract_api.models import Secret, TaskStatus
-from qontract_api.slack.models import SlackUsergroup, SlackUsergroupConfig
+from qontract_api.slack.domain import SlackUsergroup, SlackUsergroupConfig, SlackWorkspace
 from qontract_api.slack.slack_workspace_client import SlackWorkspaceClient
 
 

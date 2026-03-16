@@ -286,6 +286,15 @@ class VaultSecretBackend(SecretBackend):
             mount_point=self._settings.kube_auth_mount,
         )
 
+    @invoke_with_hooks(
+        lambda self: VaultApiCallContext(
+            method="auth.token.renew_self", id=self._settings.server
+        )
+    )
+    def _renew_self(self) -> None:
+        """Perform token renewal API call."""
+        self._client.auth.token.renew_self()
+
     def _authenticate(self) -> None:
         """Authenticate with Vault using AppRole or Kubernetes auth.
 
@@ -370,7 +379,8 @@ class VaultSecretBackend(SecretBackend):
     def _auto_refresh_loop(self) -> None:
         """Background thread to periodically refresh Vault auth token.
 
-        Runs every 10 minutes, re-authenticates to get fresh token.
+        Attempts to renew the current token. If renewal fails, falls back
+        to re-authentication to get a fresh token.
         Logs errors but doesn't crash thread to allow recovery.
         """
         while not self._closed:
@@ -378,12 +388,20 @@ class VaultSecretBackend(SecretBackend):
             if not self._closed:
                 with self._auth_lock:
                     try:
-                        logger.debug("Auto-refreshing Vault token")
-                        self._authenticate()
-                    except Exception:
-                        # Log error but don't crash thread
-                        # Next iteration will try again
-                        logger.exception("Failed to refresh Vault token")
+                        logger.debug("Attempting to renew Vault token")
+                        # Try to renew the existing token first to avoid GC churn
+                        self._renew_self()
+                    except Exception as e:  # noqa: BLE001
+                        try:
+                            logger.warning(
+                                "Token renewal failed, re-authenticating", exc_info=e
+                            )
+                            # If renewal fails (e.g. token expired), get a new one
+                            self._authenticate()
+                        except Exception:
+                            # Log error but don't crash thread
+                            # Next iteration will try again
+                            logger.exception("Failed to refresh Vault token")
 
     def read(self, secret: Secret) -> str:
         """Read secret from Vault KV.

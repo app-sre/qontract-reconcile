@@ -5,13 +5,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from qontract_utils.glitchtip_api.models import Organization, Project
 
-from qontract_api.glitchtip.models import (
+from qontract_api.integrations.glitchtip_project_alerts.domain import (
     GlitchtipInstance,
     GlitchtipOrganization,
     GlitchtipProject,
     GlitchtipProjectAlert,
 )
-from qontract_api.integrations.glitchtip_project_alerts.models import (
+from qontract_api.integrations.glitchtip_project_alerts.schemas import (
     GlitchtipAlertActionCreate,
     GlitchtipProjectAlertsTaskResult,
 )
