@@ -9,7 +9,11 @@ from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupsTaskResult,
 )
 from qontract_api.models import Secret, TaskStatus
-from qontract_api.slack.domain import SlackUsergroup, SlackUsergroupConfig, SlackWorkspace
+from qontract_api.slack.domain import (
+    SlackUsergroup,
+    SlackUsergroupConfig,
+    SlackWorkspace,
+)
 
 
 def test_slack_usergroup_config_minimal() -> None:

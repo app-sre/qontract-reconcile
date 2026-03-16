@@ -15,11 +15,11 @@ from qontract_api.event_manager import get_event_manager
 from qontract_api.integrations.slack_usergroups.schemas import (
     SlackUsergroupsTaskResult,
 )
-from qontract_api.slack.domain import SlackWorkspace
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
+from qontract_api.slack.domain import SlackWorkspace
 from qontract_api.tasks import celery_app, deduplicated_task
 
 logger = get_logger(__name__)

@@ -12,7 +12,11 @@ from qontract_api.integrations.slack_usergroups.tasks import (
     reconcile_slack_usergroups_task,
 )
 from qontract_api.models import Secret, TaskStatus
-from qontract_api.slack.domain import SlackUsergroup, SlackUsergroupConfig, SlackWorkspace
+from qontract_api.slack.domain import (
+    SlackUsergroup,
+    SlackUsergroupConfig,
+    SlackWorkspace,
+)
 
 
 @pytest.fixture
