@@ -21,7 +21,7 @@ class GlitchtipTeam(BaseModel, frozen=True):
     )
 
 
-class GlitchtipProject(BaseModel, frozen=True):
+class GIProject(BaseModel, frozen=True):
     """Desired state for a single Glitchtip project."""
 
     name: str = Field(..., description="Project name")
@@ -35,14 +35,14 @@ class GlitchtipProject(BaseModel, frozen=True):
     )
 
 
-class GlitchtipOrganization(BaseModel, frozen=True):
+class GIOrganization(BaseModel, frozen=True):
     """Desired state for a single Glitchtip organization."""
 
     name: str = Field(..., description="Organization name")
     teams: list[GlitchtipTeam] = Field(
         default=[], description="Desired teams in this organization"
     )
-    projects: list[GlitchtipProject] = Field(
+    projects: list[GIProject] = Field(
         default=[], description="Desired projects in this organization"
     )
     users: list[GlitchtipUser] = Field(
@@ -50,7 +50,7 @@ class GlitchtipOrganization(BaseModel, frozen=True):
     )
 
 
-class GlitchtipInstance(BaseModel, frozen=True):
+class GIInstance(BaseModel, frozen=True):
     """Glitchtip instance configuration with desired state."""
 
     name: str = Field(..., description="Instance name (unique identifier)")
@@ -61,6 +61,6 @@ class GlitchtipInstance(BaseModel, frozen=True):
     )
     read_timeout: int = Field(default=30, description="HTTP read timeout in seconds")
     max_retries: int = Field(default=3, description="Max HTTP retries")
-    organizations: list[GlitchtipOrganization] = Field(
+    organizations: list[GIOrganization] = Field(
         default=[], description="Desired organizations to reconcile"
     )
