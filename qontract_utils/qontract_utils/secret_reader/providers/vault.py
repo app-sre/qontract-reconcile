@@ -289,7 +289,8 @@ class VaultSecretBackend(SecretBackend):
     @invoke_with_hooks(
         lambda self: VaultApiCallContext(
             method="auth.token.renew_self", id=self._settings.server
-        )
+        ),
+        retry_config=NO_RETRY_CONFIG,
     )
     def _renew_self(self) -> None:
         """Perform token renewal API call."""
