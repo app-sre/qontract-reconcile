@@ -23,7 +23,13 @@ from hvac.exceptions import Forbidden, InvalidPath
 from prometheus_client import Counter, Histogram
 from pydantic import BaseModel
 
-from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.hooks import (
+    NO_RETRY_CONFIG,
+    Hooks,
+    RetryConfig,
+    invoke_with_hooks,
+    with_hooks,
+)
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 from qontract_utils.secret_reader.base import (
     Secret,
@@ -34,6 +40,24 @@ from qontract_utils.secret_reader.base import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _should_retry_vault(exc: Exception) -> bool:
+    """Return True if exception should be retried, False if it should fail instantly."""
+    # Do not retry on Forbidden (403), as it typically means token expired
+    # or policy denied access. Retrying 10 times over 45s is wasteful.
+    return not isinstance(exc, Forbidden)
+
+
+VAULT_READ_RETRY_CONFIG = RetryConfig(
+    on=_should_retry_vault,
+    attempts=10,
+    timeout=45.0,
+    wait_initial=0.1,
+    wait_max=5.0,
+    wait_jitter=1.0,
+    wait_exp_base=2,
+)
 
 # KV secrets engine versions
 KV_VERSION_1 = 1
@@ -459,7 +483,8 @@ class VaultSecretBackend(SecretBackend):
             id=self._settings.server,
             path=path,
             mount_point=mount_point,
-        )
+        ),
+        retry_config=VAULT_READ_RETRY_CONFIG,
     )
     def _read_kv_v2_secret(
         self, path: str, mount_point: str, version: int | None
@@ -478,7 +503,8 @@ class VaultSecretBackend(SecretBackend):
             id=self._settings.server,
             path=path,
             mount_point=mount_point,
-        )
+        ),
+        retry_config=VAULT_READ_RETRY_CONFIG,
     )
     def _read_kv_v1_secret(self, path: str, mount_point: str) -> dict[str, Any]:
         """Read KV v1 secret API call."""
@@ -531,8 +557,28 @@ class VaultSecretBackend(SecretBackend):
             )
         except InvalidPath as e:
             raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
-        except Forbidden as e:
-            raise SecretAccessForbiddenError(f"Access denied: {secret.path}") from e
+        except Forbidden:
+            logger.warning(
+                f"Vault token expired or permission denied reading {secret.path}. Re-authenticating..."
+            )
+            # Use lock to prevent thundering herd when multiple threads
+            # encounter expired token simultaneously
+            with self._auth_lock:
+                # Check if another thread already re-authenticated
+                if not self._client.is_authenticated():
+                    self._authenticate()
+            try:
+                if vault_secret.kv_version == KV_VERSION_2:
+                    return self._read_kv_v2_secret(
+                        vault_secret.read_path, vault_secret.mount_point, secret.version
+                    )
+                return self._read_kv_v1_secret(
+                    vault_secret.read_path, vault_secret.mount_point
+                )
+            except InvalidPath as e:
+                raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
+            except Forbidden as e:
+                raise SecretAccessForbiddenError(f"Access denied: {secret.path}") from e
 
     def close(self) -> None:
         """Close Vault client and stop auto-refresh thread.
