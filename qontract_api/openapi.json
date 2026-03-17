@@ -129,6 +129,550 @@
         "title": "EscalationPolicyUsersResponse",
         "type": "object"
       },
+      "GIInstance": {
+        "description": "Glitchtip instance configuration with desired state.",
+        "properties": {
+          "automation_user_email": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for the automation user email"
+          },
+          "console_url": {
+            "description": "Glitchtip instance base URL",
+            "title": "Console Url",
+            "type": "string"
+          },
+          "max_retries": {
+            "default": 3,
+            "description": "Max HTTP retries",
+            "title": "Max Retries",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Instance name (unique identifier)",
+            "title": "Name",
+            "type": "string"
+          },
+          "organizations": {
+            "default": [],
+            "description": "Desired organizations to reconcile",
+            "items": {
+              "$ref": "#/components/schemas/GIOrganization"
+            },
+            "title": "Organizations",
+            "type": "array"
+          },
+          "read_timeout": {
+            "default": 30,
+            "description": "HTTP read timeout in seconds",
+            "title": "Read Timeout",
+            "type": "integer"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for the API token"
+          }
+        },
+        "required": [
+          "name",
+          "console_url",
+          "token",
+          "automation_user_email"
+        ],
+        "title": "GIInstance",
+        "type": "object"
+      },
+      "GIOrganization": {
+        "description": "Desired state for a single Glitchtip organization.",
+        "properties": {
+          "name": {
+            "description": "Organization name",
+            "title": "Name",
+            "type": "string"
+          },
+          "projects": {
+            "default": [],
+            "description": "Desired projects in this organization",
+            "items": {
+              "$ref": "#/components/schemas/GIProject"
+            },
+            "title": "Projects",
+            "type": "array"
+          },
+          "teams": {
+            "default": [],
+            "description": "Desired teams in this organization",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipTeam"
+            },
+            "title": "Teams",
+            "type": "array"
+          },
+          "users": {
+            "default": [],
+            "description": "Desired members of this organization",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GIOrganization",
+        "type": "object"
+      },
+      "GIProject": {
+        "description": "Desired state for a single Glitchtip project.",
+        "properties": {
+          "event_throttle_rate": {
+            "default": 0,
+            "description": "Event throttle rate (0 = no throttle)",
+            "title": "Event Throttle Rate",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Project name",
+            "title": "Name",
+            "type": "string"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Project platform",
+            "title": "Platform"
+          },
+          "slug": {
+            "description": "Project slug (URL-friendly identifier)",
+            "title": "Slug",
+            "type": "string"
+          },
+          "teams": {
+            "default": [],
+            "description": "Team slugs this project belongs to",
+            "items": {
+              "type": "string"
+            },
+            "title": "Teams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "GIProject",
+        "type": "object"
+      },
+      "GlitchtipActionAddProjectToTeam": {
+        "description": "Action: Add a project to a team.",
+        "properties": {
+          "action_type": {
+            "const": "add_project_to_team",
+            "default": "add_project_to_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project_slug": {
+            "description": "Project slug",
+            "title": "Project Slug",
+            "type": "string"
+          },
+          "team_slug": {
+            "description": "Team slug",
+            "title": "Team Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "project_slug",
+          "team_slug"
+        ],
+        "title": "GlitchtipActionAddProjectToTeam",
+        "type": "object"
+      },
+      "GlitchtipActionAddUserToTeam": {
+        "description": "Action: Add a user to a team.",
+        "properties": {
+          "action_type": {
+            "const": "add_user_to_team",
+            "default": "add_user_to_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "email": {
+            "description": "User email",
+            "title": "Email",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "team_slug": {
+            "description": "Team slug",
+            "title": "Team Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "team_slug",
+          "email"
+        ],
+        "title": "GlitchtipActionAddUserToTeam",
+        "type": "object"
+      },
+      "GlitchtipActionCreateOrganization": {
+        "description": "Action: Create a new organization.",
+        "properties": {
+          "action_type": {
+            "const": "create_organization",
+            "default": "create_organization",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization"
+        ],
+        "title": "GlitchtipActionCreateOrganization",
+        "type": "object"
+      },
+      "GlitchtipActionCreateProject": {
+        "description": "Action: Create a project in an organization.",
+        "properties": {
+          "action_type": {
+            "const": "create_project",
+            "default": "create_project",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project_name": {
+            "description": "Project name",
+            "title": "Project Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "project_name"
+        ],
+        "title": "GlitchtipActionCreateProject",
+        "type": "object"
+      },
+      "GlitchtipActionCreateTeam": {
+        "description": "Action: Create a team in an organization.",
+        "properties": {
+          "action_type": {
+            "const": "create_team",
+            "default": "create_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "team_slug": {
+            "description": "Team slug",
+            "title": "Team Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "team_slug"
+        ],
+        "title": "GlitchtipActionCreateTeam",
+        "type": "object"
+      },
+      "GlitchtipActionDeleteOrganization": {
+        "description": "Action: Delete an organization.",
+        "properties": {
+          "action_type": {
+            "const": "delete_organization",
+            "default": "delete_organization",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization"
+        ],
+        "title": "GlitchtipActionDeleteOrganization",
+        "type": "object"
+      },
+      "GlitchtipActionDeleteProject": {
+        "description": "Action: Delete a project.",
+        "properties": {
+          "action_type": {
+            "const": "delete_project",
+            "default": "delete_project",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project_slug": {
+            "description": "Project slug",
+            "title": "Project Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "project_slug"
+        ],
+        "title": "GlitchtipActionDeleteProject",
+        "type": "object"
+      },
+      "GlitchtipActionDeleteTeam": {
+        "description": "Action: Delete a team from an organization.",
+        "properties": {
+          "action_type": {
+            "const": "delete_team",
+            "default": "delete_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "team_slug": {
+            "description": "Team slug",
+            "title": "Team Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "team_slug"
+        ],
+        "title": "GlitchtipActionDeleteTeam",
+        "type": "object"
+      },
+      "GlitchtipActionDeleteUser": {
+        "description": "Action: Remove a user from an organization.",
+        "properties": {
+          "action_type": {
+            "const": "delete_user",
+            "default": "delete_user",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "email": {
+            "description": "User email",
+            "title": "Email",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "email"
+        ],
+        "title": "GlitchtipActionDeleteUser",
+        "type": "object"
+      },
+      "GlitchtipActionInviteUser": {
+        "description": "Action: Invite a user to an organization.",
+        "properties": {
+          "action_type": {
+            "const": "invite_user",
+            "default": "invite_user",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "email": {
+            "description": "User email",
+            "title": "Email",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "role": {
+            "description": "Organization role",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "email",
+          "role"
+        ],
+        "title": "GlitchtipActionInviteUser",
+        "type": "object"
+      },
+      "GlitchtipActionRemoveProjectFromTeam": {
+        "description": "Action: Remove a project from a team.",
+        "properties": {
+          "action_type": {
+            "const": "remove_project_from_team",
+            "default": "remove_project_from_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project_slug": {
+            "description": "Project slug",
+            "title": "Project Slug",
+            "type": "string"
+          },
+          "team_slug": {
+            "description": "Team slug",
+            "title": "Team Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "project_slug",
+          "team_slug"
+        ],
+        "title": "GlitchtipActionRemoveProjectFromTeam",
+        "type": "object"
+      },
+      "GlitchtipActionRemoveUserFromTeam": {
+        "description": "Action: Remove a user from a team.",
+        "properties": {
+          "action_type": {
+            "const": "remove_user_from_team",
+            "default": "remove_user_from_team",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "email": {
+            "description": "User email",
+            "title": "Email",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "team_slug": {
+            "description": "Team slug",
+            "title": "Team Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "team_slug",
+          "email"
+        ],
+        "title": "GlitchtipActionRemoveUserFromTeam",
+        "type": "object"
+      },
+      "GlitchtipActionUpdateProject": {
+        "description": "Action: Update a project's settings.",
+        "properties": {
+          "action_type": {
+            "const": "update_project",
+            "default": "update_project",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "project_slug": {
+            "description": "Project slug",
+            "title": "Project Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "project_slug"
+        ],
+        "title": "GlitchtipActionUpdateProject",
+        "type": "object"
+      },
+      "GlitchtipActionUpdateUserRole": {
+        "description": "Action: Update a user's role in an organization.",
+        "properties": {
+          "action_type": {
+            "const": "update_user_role",
+            "default": "update_user_role",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "email": {
+            "description": "User email",
+            "title": "Email",
+            "type": "string"
+          },
+          "organization": {
+            "description": "Organization name",
+            "title": "Organization",
+            "type": "string"
+          },
+          "role": {
+            "description": "New role",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization",
+          "email",
+          "role"
+        ],
+        "title": "GlitchtipActionUpdateUserRole",
+        "type": "object"
+      },
       "GlitchtipAlertActionCreate": {
         "description": "Action: Create a new project alert.",
         "properties": {
@@ -501,6 +1045,182 @@
         "title": "GlitchtipProjectAlertsTaskResult",
         "type": "object"
       },
+      "GlitchtipReconcileRequest": {
+        "description": "Request model for Glitchtip reconciliation.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "instances": {
+            "description": "List of Glitchtip instances to reconcile",
+            "items": {
+              "$ref": "#/components/schemas/GIInstance"
+            },
+            "title": "Instances",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instances"
+        ],
+        "title": "GlitchtipReconcileRequest",
+        "type": "object"
+      },
+      "GlitchtipTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "GlitchtipTaskResponse",
+        "type": "object"
+      },
+      "GlitchtipTaskResult": {
+        "description": "Result model for completed Glitchtip reconciliation task.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "List of actions calculated/performed",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionCreateOrganization"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteOrganization"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionInviteUser"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteUser"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionUpdateUserRole"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionCreateTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionAddUserToTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionRemoveUserFromTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionCreateProject"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionUpdateProject"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteProject"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionAddProjectToTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionRemoveProjectFromTeam"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GlitchtipTaskResult",
+        "type": "object"
+      },
+      "GlitchtipTeam": {
+        "description": "Desired state for a single Glitchtip team.",
+        "properties": {
+          "name": {
+            "description": "Team name (slug will be derived)",
+            "title": "Name",
+            "type": "string"
+          },
+          "users": {
+            "default": [],
+            "description": "Desired members of this team",
+            "items": {
+              "$ref": "#/components/schemas/GlitchtipUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GlitchtipTeam",
+        "type": "object"
+      },
+      "GlitchtipUser": {
+        "description": "Desired state for a single Glitchtip organization user.",
+        "properties": {
+          "email": {
+            "description": "User email address",
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "default": "member",
+            "description": "Organization role",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "GlitchtipUser",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -574,6 +1294,36 @@
           "status"
         ],
         "title": "HealthStatus",
+        "type": "object"
+      },
+      "LdapGroupMember": {
+        "description": "A member of an LDAP group.\n\nAttributes:\n    id: Member identifier (username or email)",
+        "properties": {
+          "id": {
+            "description": "Member identifier (username or email)",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "LdapGroupMember",
+        "type": "object"
+      },
+      "LdapGroupMembersResponse": {
+        "description": "Response model for LDAP group members endpoint.\n\nAttributes:\n    members: List of LDAP group members",
+        "properties": {
+          "members": {
+            "description": "List of LDAP group members",
+            "items": {
+              "$ref": "#/components/schemas/LdapGroupMember"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "title": "LdapGroupMembersResponse",
         "type": "object"
       },
       "PagerDutyUser": {
@@ -1083,6 +1833,130 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/external/ldap/groups/{group_name}/members": {
+      "get": {
+        "description": "Get members of an LDAP group.\n\nFetches members from the internal groups proxy API using OAuth2\nclient-credentials authentication. Results are cached for performance.\n\nArgs:\n    group_name: LDAP group name\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n    secret: LdapSecret with OAuth2 connection details and client_secret reference\n\nReturns:\n    LdapGroupMembersResponse with list of group members\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If the internal groups API call fails",
+        "operationId": "ldap-group-members",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_name",
+            "required": true,
+            "schema": {
+              "title": "Group Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Base URL of the internal groups API",
+            "in": "query",
+            "name": "base_url",
+            "required": true,
+            "schema": {
+              "description": "Base URL of the internal groups API",
+              "title": "Base Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "OAuth2 token endpoint URL",
+            "in": "query",
+            "name": "token_url",
+            "required": true,
+            "schema": {
+              "description": "OAuth2 token endpoint URL",
+              "title": "Token Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "OAuth2 client ID",
+            "in": "query",
+            "name": "client_id",
+            "required": true,
+            "schema": {
+              "description": "OAuth2 client ID",
+              "title": "Client Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapGroupMembersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Group Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
     "/api/v1/external/pagerduty/escalation-policies/{policy_id}/users": {
       "get": {
         "description": "Get users in a PagerDuty escalation policy.\n\nFetches all users across all escalation rules in the policy.\nResults are cached for performance (TTL configured in settings).\n\nArgs:\n    policy_id: PagerDuty escalation policy ID\n    instance: PagerDuty instance name\n\nReturns:\n    EscalationPolicyUsersResponse with list of users\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If PagerDuty API call fails\n\nExample:\n    GET /api/v1/external/pagerduty/escalation-policies/XYZ789/users?instance=app-sre\n    Response:\n    {\n        \"users\": [\n            {\"username\": \"jsmith\"},\n            {\"username\": \"mdoe\"}\n        ]\n    }",
@@ -1509,6 +2383,101 @@
           }
         ],
         "summary": "Glitchtip Project Alerts Task Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/glitchtip/reconcile": {
+      "post": {
+        "description": "Queue Glitchtip reconciliation task.\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /reconcile/{task_id} to retrieve the result.\n\nArgs:\n    reconcile_request: Reconciliation request with desired state\n    current_user: Authenticated user (from JWT token)\n    request: FastAPI Request object (used to generate status_url)\n\nReturns:\n    GlitchtipTaskResponse with task_id and status_url",
+        "operationId": "glitchtip",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlitchtipReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlitchtipTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Glitchtip Reconcile",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/glitchtip/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation result (blocking or non-blocking).\n\n**Non-blocking mode (default):** Returns immediate status\n**Blocking mode (with timeout):** Waits up to timeout seconds\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    current_user: Authenticated user (from JWT token)\n    timeout: Maximum seconds to wait (default: None = non-blocking)\n\nReturns:\n    GlitchtipTaskResult with status, actions, applied_count, and errors",
+        "operationId": "glitchtip-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlitchtipTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Glitchtip Reconcile Task Status",
         "tags": [
           "integrations"
         ]

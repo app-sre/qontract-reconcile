@@ -12,7 +12,13 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 from qontract_utils.glitchtip_api import GlitchtipApi
-from qontract_utils.glitchtip_api.models import Organization, Project, ProjectAlert
+from qontract_utils.glitchtip_api.models import (
+    Organization,
+    Project,
+    ProjectAlert,
+    Team,
+    User,
+)
 
 from qontract_api.logger import get_logger
 
@@ -39,6 +45,18 @@ class CachedProjectAlerts(BaseModel, frozen=True):
     """Cached list of ProjectAlert objects (for two-tier cache serialization)."""
 
     items: list[ProjectAlert] = Field(default_factory=list)
+
+
+class CachedTeams(BaseModel, frozen=True):
+    """Cached list of Team objects (for two-tier cache serialization)."""
+
+    items: list[Team] = Field(default_factory=list)
+
+
+class CachedUsers(BaseModel, frozen=True):
+    """Cached list of User objects (for two-tier cache serialization)."""
+
+    items: list[User] = Field(default_factory=list)
 
 
 class GlitchtipWorkspaceClient:
@@ -79,6 +97,15 @@ class GlitchtipWorkspaceClient:
 
     def _cache_key_alerts(self, org_slug: str, project_slug: str) -> str:
         return f"glitchtip:{self.instance_name}:{org_slug}:{project_slug}:alerts"
+
+    def _cache_key_teams(self, org_slug: str) -> str:
+        return f"glitchtip:{self.instance_name}:{org_slug}:teams"
+
+    def _cache_key_org_users(self, org_slug: str) -> str:
+        return f"glitchtip:{self.instance_name}:{org_slug}:users"
+
+    def _cache_key_team_users(self, org_slug: str, team_slug: str) -> str:
+        return f"glitchtip:{self.instance_name}:{org_slug}:{team_slug}:team_users"
 
     def _clear_cache(self, cache_key: str) -> None:
         """Clear cache for given key."""
@@ -214,3 +241,192 @@ class GlitchtipWorkspaceClient:
         """
         self.glitchtip_api.delete_project_alert(org_slug, project_slug, alert_pk)
         self._clear_cache(self._cache_key_alerts(org_slug, project_slug))
+
+    # --- Organizations ---
+
+    def create_organization(self, name: str) -> Organization:
+        """Create an organization and clear organizations cache."""
+        org = self.glitchtip_api.create_organization(name)
+        self._clear_cache(self._cache_key_organizations())
+        return org
+
+    def delete_organization(self, slug: str) -> None:
+        """Delete an organization and clear organizations cache."""
+        self.glitchtip_api.delete_organization(slug)
+        self._clear_cache(self._cache_key_organizations())
+
+    # --- Teams ---
+
+    def get_teams(self, org_slug: str) -> list[Team]:
+        """Get teams for an organization (cached with distributed locking).
+
+        Args:
+            org_slug: Organization slug
+
+        Returns:
+            List of Team objects
+        """
+        cache_key = self._cache_key_teams(org_slug)
+
+        if cached := self.cache.get_obj(cache_key, CachedTeams):
+            return cached.items
+
+        with self.cache.lock(cache_key):
+            if cached := self.cache.get_obj(cache_key, CachedTeams):
+                return cached.items
+
+            teams = self.glitchtip_api.teams(org_slug)
+            self.cache.set_obj(
+                cache_key,
+                CachedTeams(items=teams),
+                self.settings.glitchtip.teams_cache_ttl,
+            )
+            return teams
+
+    def create_team(self, org_slug: str, slug: str) -> Team:
+        """Create a team and clear teams cache."""
+        team = self.glitchtip_api.create_team(org_slug, slug)
+        self._clear_cache(self._cache_key_teams(org_slug))
+        return team
+
+    def delete_team(self, org_slug: str, slug: str) -> None:
+        """Delete a team and clear teams cache."""
+        self.glitchtip_api.delete_team(org_slug, slug)
+        self._clear_cache(self._cache_key_teams(org_slug))
+
+    # --- Organization users ---
+
+    def get_organization_users(self, org_slug: str) -> list[User]:
+        """Get organization members (cached with distributed locking).
+
+        Args:
+            org_slug: Organization slug
+
+        Returns:
+            List of User objects
+        """
+        cache_key = self._cache_key_org_users(org_slug)
+
+        if cached := self.cache.get_obj(cache_key, CachedUsers):
+            return cached.items
+
+        with self.cache.lock(cache_key):
+            if cached := self.cache.get_obj(cache_key, CachedUsers):
+                return cached.items
+
+            users = self.glitchtip_api.organization_users(org_slug)
+            self.cache.set_obj(
+                cache_key,
+                CachedUsers(items=users),
+                self.settings.glitchtip.users_cache_ttl,
+            )
+            return users
+
+    def invite_user(self, org_slug: str, email: str, role: str) -> User:
+        """Invite a user and clear organization users cache."""
+        user = self.glitchtip_api.invite_user(org_slug, email, role)
+        self._clear_cache(self._cache_key_org_users(org_slug))
+        return user
+
+    def delete_user(self, org_slug: str, pk: int) -> None:
+        """Delete a user and clear organization users cache."""
+        self.glitchtip_api.delete_user(org_slug, pk)
+        self._clear_cache(self._cache_key_org_users(org_slug))
+
+    def update_user_role(self, org_slug: str, pk: int, role: str) -> User:
+        """Update user role and clear organization users cache."""
+        user = self.glitchtip_api.update_user_role(org_slug, pk, role)
+        self._clear_cache(self._cache_key_org_users(org_slug))
+        return user
+
+    # --- Team users ---
+
+    def get_team_users(self, org_slug: str, team_slug: str) -> list[User]:
+        """Get team members (cached with distributed locking).
+
+        Args:
+            org_slug: Organization slug
+            team_slug: Team slug
+
+        Returns:
+            List of User objects
+        """
+        cache_key = self._cache_key_team_users(org_slug, team_slug)
+
+        if cached := self.cache.get_obj(cache_key, CachedUsers):
+            return cached.items
+
+        with self.cache.lock(cache_key):
+            if cached := self.cache.get_obj(cache_key, CachedUsers):
+                return cached.items
+
+            users = self.glitchtip_api.team_users(org_slug, team_slug)
+            self.cache.set_obj(
+                cache_key,
+                CachedUsers(items=users),
+                self.settings.glitchtip.users_cache_ttl,
+            )
+            return users
+
+    def add_user_to_team(self, org_slug: str, team_slug: str, user_pk: int) -> None:
+        """Add user to team and clear team users cache."""
+        self.glitchtip_api.add_user_to_team(org_slug, team_slug, user_pk)
+        self._clear_cache(self._cache_key_team_users(org_slug, team_slug))
+
+    def remove_user_from_team(
+        self, org_slug: str, team_slug: str, user_pk: int
+    ) -> None:
+        """Remove user from team and clear team users cache."""
+        self.glitchtip_api.remove_user_from_team(org_slug, team_slug, user_pk)
+        self._clear_cache(self._cache_key_team_users(org_slug, team_slug))
+
+    # --- Projects (extended) ---
+
+    def create_project(
+        self,
+        org_slug: str,
+        team_slug: str,
+        name: str,
+        platform: str | None,
+    ) -> Project:
+        """Create a project and clear projects cache."""
+        project = self.glitchtip_api.create_project(org_slug, team_slug, name, platform)
+        self._clear_cache(self._cache_key_projects(org_slug))
+        return project
+
+    def update_project(
+        self,
+        org_slug: str,
+        slug: str,
+        name: str,
+        platform: str | None,
+        event_throttle_rate: int,
+    ) -> Project:
+        """Update a project and clear projects cache."""
+        project = self.glitchtip_api.update_project(
+            org_slug, slug, name, platform, event_throttle_rate
+        )
+        self._clear_cache(self._cache_key_projects(org_slug))
+        return project
+
+    def delete_project(self, org_slug: str, slug: str) -> None:
+        """Delete a project and clear projects cache."""
+        self.glitchtip_api.delete_project(org_slug, slug)
+        self._clear_cache(self._cache_key_projects(org_slug))
+
+    def add_project_to_team(
+        self, org_slug: str, project_slug: str, team_slug: str
+    ) -> Project:
+        """Add project to team and clear projects cache."""
+        project = self.glitchtip_api.add_project_to_team(
+            org_slug, project_slug, team_slug
+        )
+        self._clear_cache(self._cache_key_projects(org_slug))
+        return project
+
+    def remove_project_from_team(
+        self, org_slug: str, project_slug: str, team_slug: str
+    ) -> None:
+        """Remove project from team and clear projects cache."""
+        self.glitchtip_api.remove_project_from_team(org_slug, project_slug, team_slug)
+        self._clear_cache(self._cache_key_projects(org_slug))

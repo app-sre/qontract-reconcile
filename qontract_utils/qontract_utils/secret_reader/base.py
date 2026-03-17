@@ -32,9 +32,12 @@ class SecretBackendError(Exception):
 
 
 class Secret(Protocol):
-    path: str
-    field: str | None
-    version: int | None
+    @property
+    def path(self) -> str: ...
+    @property
+    def field(self) -> str | None: ...
+    @property
+    def version(self) -> int | None: ...
 
     @property
     def url(self) -> str: ...

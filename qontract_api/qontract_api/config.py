@@ -216,6 +216,23 @@ class GlitchtipSettings(BaseModel):
         default=60 * 60,
         description="Glitchtip project alerts cache TTL in seconds (one hour)",
     )
+    teams_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip teams cache TTL in seconds (one hour)",
+    )
+    users_cache_ttl: int = Field(
+        default=60 * 60,
+        description="Glitchtip organization/team users cache TTL in seconds (one hour)",
+    )
+
+
+class LdapSettings(BaseModel):
+    """LDAP external integration configuration."""
+
+    groups_cache_ttl: int = Field(
+        default=5 * 60,
+        description="LDAP group members cache TTL in seconds (five minutes)",
+    )
 
 
 class VaultSettings(BaseModel):
@@ -417,6 +434,12 @@ class Settings(BaseSettings):
     glitchtip: GlitchtipSettings = Field(
         default_factory=GlitchtipSettings,
         description="Glitchtip API and integration configuration",
+    )
+
+    # LDAP Configuration (nested)
+    ldap: LdapSettings = Field(
+        default_factory=LdapSettings,
+        description="LDAP external integration configuration",
     )
 
     # VCS Configuration (nested)
