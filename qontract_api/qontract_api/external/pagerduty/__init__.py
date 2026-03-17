@@ -1,12 +1,12 @@
 """PagerDuty external API integration."""
 
+from qontract_api.external.pagerduty.pagerduty_factory import (
+    create_pagerduty_workspace_client,
+)
 from qontract_api.external.pagerduty.schemas import (
     EscalationPolicyUsersResponse,
     PagerDutyUser,
     ScheduleUsersResponse,
-)
-from qontract_api.external.pagerduty.pagerduty_factory import (
-    create_pagerduty_workspace_client,
 )
 
 __all__ = [

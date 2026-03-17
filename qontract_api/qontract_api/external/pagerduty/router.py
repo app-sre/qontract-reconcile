@@ -9,13 +9,13 @@ from fastapi import APIRouter, Query
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep
+from qontract_api.external.pagerduty.pagerduty_factory import (
+    create_pagerduty_workspace_client,
+)
 from qontract_api.external.pagerduty.schemas import (
     EscalationPolicyUsersResponse,
     PagerDutyUser,
     ScheduleUsersResponse,
-)
-from qontract_api.external.pagerduty.pagerduty_factory import (
-    create_pagerduty_workspace_client,
 )
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret
