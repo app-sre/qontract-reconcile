@@ -64,7 +64,7 @@ dependencies = [
     "toml>=0.10.0,<0.11.0",
     "UnleashClient~=5.11",
     "urllib3~=2.2",
-    "websocket-client<0.55.0,>=0.35",
+    "websocket-client<1.10,>=1.9",
     "yamllint==1.34.0",
     "qontract-api-client",
     "qontract-utils",
