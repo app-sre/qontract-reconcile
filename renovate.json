@@ -1,4 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>app-sre/shared-pipelines//renovate/default.json"]
+  "extends": ["github>app-sre/shared-pipelines//renovate/default.json"],
+  "constraints": {
+    "uv": "0.10.11" 
+  }
 }
