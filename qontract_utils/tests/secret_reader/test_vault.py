@@ -1030,7 +1030,9 @@ class TestVaultRetryConfiguration:
                     raise VaultError("Temporary failure")
                 return {"data": {"data": {"token": "xoxb-success"}}}
 
-            mock_client.secrets.kv.v2.read_secret_version.side_effect = error_side_effect
+            mock_client.secrets.kv.v2.read_secret_version.side_effect = (
+                error_side_effect
+            )
 
             result = backend.read(Secret(path="secret/test/path"))
 
