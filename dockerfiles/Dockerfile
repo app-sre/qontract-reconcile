@@ -1,7 +1,7 @@
 ###############################################################################
 # STAGE 1 - build-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.5.1-1 AS build-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-builder-master:1.5.1-1@sha256:b376ee1b22f804ee7a13a5f6e0cf2fe67e897827c2be6d73fd5b89bfbe1931e1 AS build-image
 COPY --from=ghcr.io/astral-sh/uv:0.10.11@sha256:3472e43b4e738cf911c99d41bb34331280efad54c73b1def654a6227bb59b2b4 /uv /bin/uv
 
 WORKDIR /work
@@ -28,7 +28,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.5.1-1 AS dev-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.5.1-1@sha256:2a2a15f47273bc3a5119b2cd936e87749103567207ba84692d3fec1d88050a31 AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.10.11@sha256:3472e43b4e738cf911c99d41bb34331280efad54c73b1def654a6227bb59b2b4 /uv /bin/uv
 
 ENV \
