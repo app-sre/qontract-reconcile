@@ -513,6 +513,24 @@ class VaultSecretBackend(SecretBackend):
         )
         return response["data"]
 
+    def _read_secret_with_version(
+        self, vault_secret: VaultSecret, version: int | None
+    ) -> dict[str, Any]:
+        """Read secret from Vault based on KV version.
+
+        Args:
+            vault_secret: Compiled Vault secret metadata
+            version: Optional version number for KV v2
+
+        Returns:
+            Dict with all secret fields
+        """
+        if vault_secret.kv_version == KV_VERSION_2:
+            return self._read_kv_v2_secret(
+                vault_secret.read_path, vault_secret.mount_point, version
+            )
+        return self._read_kv_v1_secret(vault_secret.read_path, vault_secret.mount_point)
+
     def read_all(self, secret: Secret) -> dict[str, Any]:
         """Read all fields from Vault secret.
 
@@ -546,39 +564,11 @@ class VaultSecretBackend(SecretBackend):
         # Read from Vault (KV v1 or v2)
         # hvac.Client is thread-safe for authenticated operations
         try:
-            if vault_secret.kv_version == KV_VERSION_2:
-                return self._read_kv_v2_secret(
-                    vault_secret.read_path, vault_secret.mount_point, secret.version
-                )
-
-            # KV v1 - no versioning support
-            return self._read_kv_v1_secret(
-                vault_secret.read_path, vault_secret.mount_point
-            )
+            return self._read_secret_with_version(vault_secret, secret.version)
         except InvalidPath as e:
             raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
-        except Forbidden:
-            logger.warning(
-                f"Vault token expired or permission denied reading {secret.path}. Re-authenticating..."
-            )
-            # Use lock to prevent thundering herd when multiple threads
-            # encounter expired token simultaneously
-            with self._auth_lock:
-                # Check if another thread already re-authenticated
-                if not self._client.is_authenticated():
-                    self._authenticate()
-            try:
-                if vault_secret.kv_version == KV_VERSION_2:
-                    return self._read_kv_v2_secret(
-                        vault_secret.read_path, vault_secret.mount_point, secret.version
-                    )
-                return self._read_kv_v1_secret(
-                    vault_secret.read_path, vault_secret.mount_point
-                )
-            except InvalidPath as e:
-                raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
-            except Forbidden as e:
-                raise SecretAccessForbiddenError(f"Access denied: {secret.path}") from e
+        except Forbidden as e:
+            raise SecretAccessForbiddenError(f"Access denied: {secret.path}") from e
 
     def close(self) -> None:
         """Close Vault client and stop auto-refresh thread.

@@ -936,3 +936,106 @@ class TestVaultSlowRequestLogging:
                 assert len(slow_request_calls) == 1
                 call_args = slow_request_calls[0]
                 assert call_args[1]["duration"] == "2.0s"  # Formatted to 1 decimal
+
+
+class TestVaultRetryConfiguration:
+    """Test Vault retry configuration behavior."""
+
+    def test_vault_read_retry_config_skips_forbidden(self) -> None:
+        """Test that VAULT_READ_RETRY_CONFIG is configured to skip Forbidden errors."""
+        from qontract_utils.secret_reader.providers.vault import VAULT_READ_RETRY_CONFIG
+
+        # Verify retry config parameters
+        assert VAULT_READ_RETRY_CONFIG.attempts == 10
+        assert VAULT_READ_RETRY_CONFIG.timeout == 45.0
+
+        # Verify on is a callable (function, not exception type)
+        assert callable(VAULT_READ_RETRY_CONFIG.on)
+
+        # Test the on() function behavior
+        # Should retry on non-Forbidden exceptions
+        assert VAULT_READ_RETRY_CONFIG.on(Exception("network error")) is True
+        assert VAULT_READ_RETRY_CONFIG.on(VaultError("vault error")) is True
+        assert VAULT_READ_RETRY_CONFIG.on(InvalidPath()) is True
+
+        # Should NOT retry on Forbidden (expired token / permission denied)
+        assert VAULT_READ_RETRY_CONFIG.on(Forbidden()) is False
+
+    def test_read_does_not_retry_on_forbidden(
+        self,
+        enable_retry: None,  # noqa: ARG002
+    ) -> None:
+        """Test that read operations fail fast on Forbidden without retrying."""
+        with patch("hvac.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                role_id="test-role-id",
+                secret_id="test-secret-id",
+                auto_refresh=False,
+            )
+            backend = VaultSecretBackend(settings)
+
+            # Track call count
+            call_count = {"count": 0}
+
+            def forbidden_side_effect(*args: Any, **kwargs: Any) -> NoReturn:
+                call_count["count"] += 1
+                raise Forbidden
+
+            # First call raises Forbidden, triggering re-auth
+            # Second call (after re-auth) also raises Forbidden
+            mock_client.secrets.kv.v2.read_secret_version.side_effect = (
+                forbidden_side_effect
+            )
+
+            # Should raise SecretAccessForbiddenError after re-auth attempt
+            with pytest.raises(
+                SecretAccessForbiddenError, match="Access denied: secret/test/path"
+            ):
+                backend.read(Secret(path="secret/test/path"))
+
+            # Should be called exactly once:
+            # 1. Initial attempt (fails with Forbidden)
+            # NO additional retries because Forbidden bypasses retry logic, and we removed the fallback
+            assert call_count["count"] == 1
+
+    def test_renew_self_does_not_retry(self) -> None:
+        """Test that _renew_self fails fast without retrying (NO_RETRY_CONFIG).
+
+        Note: This test does NOT use enable_retry fixture because we're testing
+        that NO_RETRY_CONFIG disables retries even when retries are globally enabled.
+        """
+        with (
+            patch("hvac.Client") as mock_client_class,
+            patch("pathlib.Path.open", mock_open(read_data="dummy_jwt")),
+        ):
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                kube_auth_role="test-role",
+                auto_refresh=False,
+            )
+            backend = VaultSecretBackend(settings)
+
+            # Track renew_self call count
+            call_count = {"count": 0}
+
+            def count_calls(*args: Any, **kwargs: Any) -> NoReturn:
+                call_count["count"] += 1
+                raise VaultError("Token expired")
+
+            mock_client.auth.token.renew_self.side_effect = count_calls
+
+            # Call _renew_self directly
+            with pytest.raises(VaultError, match="Token expired"):
+                backend._renew_self()
+
+            # Should be called exactly ONCE (NO retries due to NO_RETRY_CONFIG)
+            assert call_count["count"] == 1
