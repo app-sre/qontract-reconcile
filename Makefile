@@ -1,4 +1,4 @@
-.PHONY: help build push rc build-test test-app test clean
+.PHONY: help build push rc build-test test-app test clean update-uv
 
 CONTAINER_ENGINE ?= $(shell which podman >/dev/null 2>&1 && echo podman || echo docker)
 CONTAINER_UID ?= $(shell id -u)
@@ -58,6 +58,14 @@ clean: ## Clean up the local development environment
 	@rm -rf .tox .eggs reconcile.egg-info build .pytest_cache venv .venv GIT_VERSION
 	@find . -name "__pycache__" -type d -print0 | xargs -0 rm -rf
 	@find . -name "*.pyc" -delete
+
+update-uv: ## Update uv version in all files (prompts for version if UV_VERSION is not set)
+	@if [ -z "$(UV_VERSION)" ]; then \
+		printf "New uv version: " && read version; \
+	else \
+		version="$(UV_VERSION)"; \
+	fi; \
+	bash tools/update-uv-version.sh $$version $(UV_DIGEST)
 
 pypi-konflux:
 	uv build --sdist --wheel
