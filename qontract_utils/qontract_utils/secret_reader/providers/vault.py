@@ -51,12 +51,6 @@ def _should_retry_vault(exc: Exception) -> bool:
 
 VAULT_READ_RETRY_CONFIG = RetryConfig(
     on=_should_retry_vault,
-    attempts=10,
-    timeout=45.0,
-    wait_initial=0.1,
-    wait_max=5.0,
-    wait_jitter=1.0,
-    wait_exp_base=2,
 )
 
 # KV secrets engine versions
@@ -513,24 +507,6 @@ class VaultSecretBackend(SecretBackend):
         )
         return response["data"]
 
-    def _read_secret_with_version(
-        self, vault_secret: VaultSecret, version: int | None
-    ) -> dict[str, Any]:
-        """Read secret from Vault based on KV version.
-
-        Args:
-            vault_secret: Compiled Vault secret metadata
-            version: Optional version number for KV v2
-
-        Returns:
-            Dict with all secret fields
-        """
-        if vault_secret.kv_version == KV_VERSION_2:
-            return self._read_kv_v2_secret(
-                vault_secret.read_path, vault_secret.mount_point, version
-            )
-        return self._read_kv_v1_secret(vault_secret.read_path, vault_secret.mount_point)
-
     def read_all(self, secret: Secret) -> dict[str, Any]:
         """Read all fields from Vault secret.
 
@@ -564,7 +540,13 @@ class VaultSecretBackend(SecretBackend):
         # Read from Vault (KV v1 or v2)
         # hvac.Client is thread-safe for authenticated operations
         try:
-            return self._read_secret_with_version(vault_secret, secret.version)
+            if vault_secret.kv_version == KV_VERSION_2:
+                return self._read_kv_v2_secret(
+                    vault_secret.read_path, vault_secret.mount_point, secret.version
+                )
+            return self._read_kv_v1_secret(
+                vault_secret.read_path, vault_secret.mount_point
+            )
         except InvalidPath as e:
             raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
         except Forbidden as e:

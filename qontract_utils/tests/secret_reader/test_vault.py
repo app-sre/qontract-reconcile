@@ -1003,6 +1003,41 @@ class TestVaultRetryConfiguration:
             # NO additional retries because Forbidden bypasses retry logic, and we removed the fallback
             assert call_count["count"] == 1
 
+    def test_read_retries_on_vault_error(
+        self,
+        enable_retry: None,  # noqa: ARG002
+    ) -> None:
+        """Test that read operations retry on non-Forbidden Vault errors."""
+        with patch("hvac.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.is_authenticated.return_value = True
+            mock_client_class.return_value = mock_client
+
+            settings = VaultSecretBackendSettings(
+                server="https://vault.test",
+                role_id="test-role-id",
+                secret_id="test-secret-id",
+                auto_refresh=False,
+            )
+            backend = VaultSecretBackend(settings)
+
+            # Track call count
+            call_count = {"count": 0}
+
+            def error_side_effect(*args: Any, **kwargs: Any) -> Any:
+                call_count["count"] += 1
+                if call_count["count"] < 3:
+                    raise VaultError("Temporary failure")
+                return {"data": {"data": {"token": "xoxb-success"}}}
+
+            mock_client.secrets.kv.v2.read_secret_version.side_effect = error_side_effect
+
+            result = backend.read(Secret(path="secret/test/path"))
+
+            assert result == "xoxb-success"
+            # Should be called 3 times (2 failures + 1 success)
+            assert call_count["count"] == 3
+
     def test_renew_self_does_not_retry(self) -> None:
         """Test that _renew_self fails fast without retrying (NO_RETRY_CONFIG).
 
