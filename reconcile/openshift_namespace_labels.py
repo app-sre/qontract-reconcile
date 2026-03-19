@@ -244,7 +244,7 @@ def get_desired(
     """
     to_be_ignored = []
     for ns in namespaces:
-        if not ns.labels:
+        if ns.labels is None:
             continue
 
         cluster, ns_name = get_names_for_namespace(ns)
