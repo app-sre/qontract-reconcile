@@ -28,6 +28,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 | [ADR-016](ADR-016-two-tier-cache.md)                             | Two-Tier Cache Architecture (Memory + Redis)           | Accepted |
 | [ADR-017](ADR-017-factory-pattern.md)                            | Factory Pattern                                        | Accepted |
 | [ADR-018](ADR-018-event-driven-communication.md)                 | Event-Driven Communication Pattern                     | Accepted |
+| [ADR-019](ADR-019-merge-queue-acceleration.md)                   | Merge Queue Acceleration via Optimistic Multi-Merge    | Proposed |
 
 ## ADR Categories
 
@@ -41,6 +42,7 @@ An Architecture Decision Record (ADR) documents an important architecture decisi
 ### Execution Patterns
 
 - [ADR-003](ADR-003-async-only-api-with-blocking-get.md) - Async-only API with blocking GET pattern
+- [ADR-019](ADR-019-merge-queue-acceleration.md) - Optimistic non-overlapping multi-merge for gitlab-housekeeping
 
 ### Cross-Cutting Concerns
 
