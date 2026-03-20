@@ -42,6 +42,14 @@ from qontract_utils.secret_reader.base import (
 logger = structlog.get_logger(__name__)
 
 
+SHORT_RETRY_CONFIG = RetryConfig(
+    on=Exception,
+    attempts=3,
+    wait_initial=1.0,
+    wait_max=2.0,
+)
+
+
 def _should_retry_vault(exc: Exception) -> bool:
     """Return True if exception should be retried, False if it should fail instantly."""
     # Do not retry on Forbidden (403), as it typically means token expired
@@ -308,7 +316,7 @@ class VaultSecretBackend(SecretBackend):
         lambda self: VaultApiCallContext(
             method="auth.token.renew_self", id=self._settings.server
         ),
-        retry_config=NO_RETRY_CONFIG,
+        retry_config=SHORT_RETRY_CONFIG,
     )
     def _renew_self(self) -> None:
         """Perform token renewal API call."""
