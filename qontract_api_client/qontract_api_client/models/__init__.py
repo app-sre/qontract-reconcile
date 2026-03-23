@@ -3,6 +3,11 @@
 from .chat_request import ChatRequest
 from .chat_response import ChatResponse
 from .escalation_policy_users_response import EscalationPolicyUsersResponse
+from .github_org_desired_state import GithubOrgDesiredState
+from .github_owner_action_add_owner import GithubOwnerActionAddOwner
+from .github_owners_reconcile_request import GithubOwnersReconcileRequest
+from .github_owners_task_response import GithubOwnersTaskResponse
+from .github_owners_task_result import GithubOwnersTaskResult
 from .glitchtip_alert_action_create import GlitchtipAlertActionCreate
 from .glitchtip_alert_action_delete import GlitchtipAlertActionDelete
 from .glitchtip_alert_action_update import GlitchtipAlertActionUpdate
@@ -43,6 +48,11 @@ __all__ = (
     "ChatRequest",
     "ChatResponse",
     "EscalationPolicyUsersResponse",
+    "GithubOrgDesiredState",
+    "GithubOwnerActionAddOwner",
+    "GithubOwnersReconcileRequest",
+    "GithubOwnersTaskResponse",
+    "GithubOwnersTaskResult",
     "GlitchtipAlertActionCreate",
     "GlitchtipAlertActionDelete",
     "GlitchtipAlertActionUpdate",

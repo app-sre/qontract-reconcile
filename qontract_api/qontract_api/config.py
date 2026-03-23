@@ -200,6 +200,16 @@ class VCSSettings(BaseModel):
     )
 
 
+class GithubOrgSettings(BaseModel):
+    """GitHub organization membership integration configuration."""
+
+    # Cache TTLs (seconds)
+    members_cache_ttl: int = Field(
+        default=60 * 60,
+        description="GitHub org members (admins + pending invitations) cache TTL in seconds (one hour)",
+    )
+
+
 class GlitchtipSettings(BaseModel):
     """Glitchtip API and integration configuration."""
 
@@ -411,6 +421,12 @@ class Settings(BaseSettings):
     pagerduty: PagerDutySettings = Field(
         default_factory=PagerDutySettings,
         description="PagerDuty API and integration configuration",
+    )
+
+    # GitHub Org Configuration (nested)
+    github_org: GithubOrgSettings = Field(
+        default_factory=GithubOrgSettings,
+        description="GitHub organization membership integration configuration",
     )
 
     # Glitchtip Configuration (nested)

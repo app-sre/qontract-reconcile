@@ -1,0 +1,24 @@
+# qenerate: plugin=pydantic_v2
+query GithubOwnersApiRoles {
+  roles: roles_v1 {
+    name
+    users {
+      github_username
+    }
+    bots {
+      github_username
+    }
+    permissions {
+      service
+      ... on PermissionGithubOrg_v1 {
+        org
+        role
+      }
+      ... on PermissionGithubOrgTeam_v1 {
+        org
+        role
+      }
+    }
+    expirationDate
+  }
+}

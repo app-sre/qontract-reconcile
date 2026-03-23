@@ -755,6 +755,23 @@ def github_owners(ctx: click.Context) -> None:
     run_integration(reconcile.github_owners, ctx)
 
 
+@integration.command(short_help="Configures owners in a GitHub org via qontract-api.")
+@click.option("--org", help="Reconcile just this GitHub org.", default=None)
+@click.pass_context
+def github_owners_api(ctx: click.Context, org: str | None) -> None:
+    from reconcile.github_owners_api import (
+        GithubOwnersIntegration,
+        GithubOwnersIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=GithubOwnersIntegration(
+            GithubOwnersIntegrationParams(org_name=org)
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Validates GitHub organization settings.")
 @click.pass_context
 def github_validator(ctx: click.Context) -> None:
