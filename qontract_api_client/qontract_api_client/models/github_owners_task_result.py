@@ -26,13 +26,17 @@ class GithubOwnersTaskResult:
             status (TaskStatus): Status for background tasks.
 
                 Used across all async API endpoints to indicate task execution state.
-            actions (list[GithubOwnerActionAddOwner] | Unset): List of actions calculated/performed
+            actions (list[GithubOwnerActionAddOwner] | Unset): All actions calculated (desired - current), including any
+                that failed to apply.
+            applied_actions (list[GithubOwnerActionAddOwner] | Unset): Actions that were successfully applied (non-dry-run
+                only).
             applied_count (int | Unset): Number of actions actually applied (0 if dry_run=True) Default: 0.
             errors (list[str] | Unset): List of errors encountered during reconciliation
     """
 
     status: TaskStatus
     actions: list[GithubOwnerActionAddOwner] | Unset = UNSET
+    applied_actions: list[GithubOwnerActionAddOwner] | Unset = UNSET
     applied_count: int | Unset = 0
     errors: list[str] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -47,6 +51,13 @@ class GithubOwnersTaskResult:
                 actions_item = actions_item_data.to_dict()
                 actions.append(actions_item)
 
+        applied_actions: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.applied_actions, Unset):
+            applied_actions = []
+            for applied_actions_item_data in self.applied_actions:
+                applied_actions_item = applied_actions_item_data.to_dict()
+                applied_actions.append(applied_actions_item)
+
         applied_count = self.applied_count
 
         errors: list[str] | Unset = UNSET
@@ -60,6 +71,8 @@ class GithubOwnersTaskResult:
         })
         if actions is not UNSET:
             field_dict["actions"] = actions
+        if applied_actions is not UNSET:
+            field_dict["applied_actions"] = applied_actions
         if applied_count is not UNSET:
             field_dict["applied_count"] = applied_count
         if errors is not UNSET:
@@ -83,6 +96,17 @@ class GithubOwnersTaskResult:
 
                 actions.append(actions_item)
 
+        _applied_actions = d.pop("applied_actions", UNSET)
+        applied_actions: list[GithubOwnerActionAddOwner] | Unset = UNSET
+        if _applied_actions is not UNSET:
+            applied_actions = []
+            for applied_actions_item_data in _applied_actions:
+                applied_actions_item = GithubOwnerActionAddOwner.from_dict(
+                    applied_actions_item_data
+                )
+
+                applied_actions.append(applied_actions_item)
+
         applied_count = d.pop("applied_count", UNSET)
 
         errors = cast(list[str], d.pop("errors", UNSET))
@@ -90,6 +114,7 @@ class GithubOwnersTaskResult:
         github_owners_task_result = cls(
             status=status,
             actions=actions,
+            applied_actions=applied_actions,
             applied_count=applied_count,
             errors=errors,
         )

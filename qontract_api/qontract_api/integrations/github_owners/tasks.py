@@ -95,14 +95,16 @@ def reconcile_github_owners_task(
             f"Task {request_id} completed",
             status=result.status,
             total_actions=len(result.actions),
-            applied_count=result.applied_count,
+            applied_count=len(result.applied_actions),
             actions=[action.model_dump() for action in result.actions],
             errors=result.errors,
         )
 
-        # Publish events for applied actions (non-dry-run only)
-        if not dry_run and result.applied_count > 0 and event_manager:
-            for action in result.actions:
+        # Publish events only for actions that were actually applied (non-dry-run only).
+        # result.applied_actions excludes any actions that failed to execute,
+        # preventing spurious events for partial failures.
+        if not dry_run and result.applied_actions and event_manager:
+            for action in result.applied_actions:
                 event_manager.publish_event(
                     Event(
                         source=__name__,

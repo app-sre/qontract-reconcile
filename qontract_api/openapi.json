@@ -246,11 +246,40 @@
         "properties": {
           "actions": {
             "default": [],
-            "description": "List of actions calculated/performed",
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
             "items": {
-              "$ref": "#/components/schemas/GithubOwnerActionAddOwner"
+              "discriminator": {
+                "mapping": {
+                  "add_owner": "#/components/schemas/GithubOwnerActionAddOwner"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GithubOwnerActionAddOwner"
+                }
+              ]
             },
             "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_owner": "#/components/schemas/GithubOwnerActionAddOwner"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GithubOwnerActionAddOwner"
+                }
+              ]
+            },
+            "title": "Applied Actions",
             "type": "array"
           },
           "applied_count": {

@@ -210,5 +210,8 @@ class GithubOrgApi:
         """
         org = self._gh.get_organization(org_name)
         user = self._gh.get_user(username)
-        assert isinstance(user, NamedUser)
+        if not isinstance(user, NamedUser):
+            raise TypeError(
+                f"Expected NamedUser for '{username}', got {type(user).__name__}"
+            )
         org.add_to_members(user, "admin")

@@ -27,7 +27,9 @@ class GithubOwnerActionAddOwner(BaseModel, frozen=True):
     username: str = Field(..., description="GitHub username to add as org admin")
 
 
-# Union type for all action models (extensible for future action types)
+# Union type for all action models (extensible for future action types).
+# Use GithubOwnerAction (not GithubOwnerActionAddOwner directly) in all result
+# fields so that adding a second action type is a non-breaking schema extension.
 GithubOwnerAction = Annotated[
     GithubOwnerActionAddOwner,
     Field(discriminator="action_type"),
@@ -40,9 +42,13 @@ class GithubOwnersTaskResult(TaskResult, frozen=True):
     Returned by GET /reconcile/{task_id}.
     """
 
-    actions: list[GithubOwnerActionAddOwner] = Field(
+    actions: list[GithubOwnerAction] = Field(
         default=[],
-        description="List of actions calculated/performed",
+        description="All actions calculated (desired - current), including any that failed to apply.",
+    )
+    applied_actions: list[GithubOwnerAction] = Field(
+        default=[],
+        description="Actions that were successfully applied (non-dry-run only).",
     )
 
 

@@ -13,6 +13,7 @@ from qontract_api_client.models.github_owners_task_response import (
 from qontract_api_client.models.github_owners_task_result import GithubOwnersTaskResult
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
+from qontract_utils.exceptions import IntegrationError
 
 from reconcile.github_owners_api import (
     GithubOwnersIntegration,
@@ -534,7 +535,7 @@ class TestAsyncRun:
                 "qontract_api_client",
                 new_callable=lambda: property(lambda self: MagicMock()),
             ),
-            pytest.raises(SystemExit),
+            pytest.raises(IntegrationError),
         ):
             mock_gql.get_api.return_value = MagicMock()
             await integration.async_run(dry_run=True)
@@ -576,7 +577,7 @@ class TestAsyncRun:
                 "qontract_api_client",
                 new_callable=lambda: property(lambda self: MagicMock()),
             ),
-            pytest.raises(SystemExit),
+            pytest.raises(IntegrationError),
         ):
             mock_gql.get_api.return_value = MagicMock()
             await integration.async_run(dry_run=True)

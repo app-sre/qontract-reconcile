@@ -19,7 +19,6 @@ Design note — add-only behavior:
 """
 
 import logging
-import sys
 from collections import defaultdict
 from collections.abc import Callable
 
@@ -40,6 +39,7 @@ from qontract_api_client.models.github_owners_reconcile_request import (
 )
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
+from qontract_utils.exceptions import IntegrationError
 
 from reconcile.gql_definitions.common.github_orgs import GithubOrgV1
 from reconcile.gql_definitions.common.github_orgs import query as github_orgs_query
@@ -210,14 +210,15 @@ class GithubOwnersIntegration(
         )
 
         if task_result.status == TaskStatus.PENDING:
-            logging.error("Task did not complete within the timeout period")
-            sys.exit(1)
+            raise IntegrationError(
+                "github-owners-api: task did not complete within the timeout period"
+            )
 
         for action in task_result.actions or []:
             logging.info(f"{action.action_type=} {action.org_name=} {action.username=}")
 
         if task_result.errors:
-            logging.error(f"Errors encountered: {len(task_result.errors)}")
-            for error in task_result.errors:
-                logging.error(f"  - {error}")
-            sys.exit(1)
+            errors_summary = "; ".join(task_result.errors)
+            raise IntegrationError(
+                f"github-owners-api: {len(task_result.errors)} error(s): {errors_summary}"
+            )

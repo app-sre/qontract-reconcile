@@ -143,8 +143,8 @@ class GithubOwnersService:
             GithubOwnersTaskResult with actions, applied_count, and errors
         """
         all_actions: list[GithubOwnerActionAddOwner] = []
+        applied_actions: list[GithubOwnerActionAddOwner] = []
         errors: list[str] = []
-        applied_count = 0
 
         for org in organizations:
             logger.info(f"Reconciling GitHub org: {org.org_name}")
@@ -165,7 +165,7 @@ class GithubOwnersService:
                 for action in org_actions:
                     try:
                         self._execute_action(github_client, action)
-                        applied_count += 1
+                        applied_actions.append(action)
                     except Exception as e:
                         error_msg = (
                             f"{action.org_name}/{action.username}: "
@@ -177,6 +177,7 @@ class GithubOwnersService:
         return GithubOwnersTaskResult(
             status=TaskStatus.FAILED if errors else TaskStatus.SUCCESS,
             actions=all_actions,
-            applied_count=applied_count,
+            applied_actions=applied_actions,
+            applied_count=len(applied_actions),
             errors=errors,
         )
