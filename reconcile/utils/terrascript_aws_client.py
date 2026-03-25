@@ -6071,7 +6071,7 @@ class TerrascriptClient:
             "vpc_security_group_ids": common_values.get("vpc_security_group_ids"),
             "update_default_version": common_values.get("update_default_version"),
             "block_device_mappings": common_values.get("block_device_mappings"),
-            "metadata_options": common_values.get("metadata_options")
+            "metadata_options": common_values.get("metadata_options"),
             "tags": tags,
             "tag_specifications": [
                 {"resource_type": "instance", "tags": tags},
