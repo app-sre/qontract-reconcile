@@ -100,16 +100,30 @@ def reconcile_github_owners_task(
             errors=result.errors,
         )
 
-        # Publish events only for actions that were actually applied (non-dry-run only).
-        # result.applied_actions excludes any actions that failed to execute,
-        # preventing spurious events for partial failures.
-        if not dry_run and result.applied_actions and event_manager:
+        if not dry_run and event_manager:
+            # Publish one event per successfully applied action.
+            # result.applied_actions excludes actions that failed to execute,
+            # preventing spurious success events for partial failures.
             for action in result.applied_actions:
                 event_manager.publish_event(
                     Event(
                         source=__name__,
                         type=f"qontract-api.github-owners.{action.action_type}",
                         data=action.model_dump(mode="json"),
+                        datacontenttype="application/json",
+                    )
+                )
+
+            # Publish one error event per reconciliation error so that failures
+            # are visible in the event stream. In non-dry-run mode the client
+            # integration does not wait for the task result, so errors would
+            # otherwise be silent outside of worker logs.
+            for error in result.errors:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type="qontract-api.github-owners.error",
+                        data={"error": error},
                         datacontenttype="application/json",
                     )
                 )
