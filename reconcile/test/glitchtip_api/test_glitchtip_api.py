@@ -475,7 +475,7 @@ def test_build_desired_state_uses_project_id_as_slug(mocker: MockerFixture) -> N
     project = make_gql_project(
         project_name="my project",
         org_name=ORG_NAME,
-        teams=[],
+        teams=[make_team(name="default-team")],
         project_id="custom-slug-123",
     )
 
@@ -495,7 +495,7 @@ def test_build_desired_state_event_throttle_rate_defaults_to_zero(
     project = make_gql_project(
         project_name="no-throttle-project",
         org_name=ORG_NAME,
-        teams=[],
+        teams=[make_team(name="default-team")],
         event_throttle_rate=None,
     )
 
@@ -550,12 +550,12 @@ def test_build_desired_state_multiple_orgs(mocker: MockerFixture) -> None:
     project_org1 = make_gql_project(
         project_name="project-org1",
         org_name="org-1",
-        teams=[],
+        teams=[make_team(name="default-team")],
     )
     project_org2 = make_gql_project(
         project_name="project-org2",
         org_name="org-2",
-        teams=[],
+        teams=[make_team(name="default-team")],
     )
 
     orgs = _run_build_desired_state(integration, [project_org1, project_org2])
@@ -563,6 +563,23 @@ def test_build_desired_state_multiple_orgs(mocker: MockerFixture) -> None:
     assert len(orgs) == 2
     org_names = {org.name for org in orgs}
     assert org_names == {"org-1", "org-2"}
+
+
+def test_build_desired_state_raises_for_project_without_teams(
+    mocker: MockerFixture,
+) -> None:
+    """A project with no teams raises ValueError immediately."""
+    integration = make_integration()
+    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
+
+    project = make_gql_project(
+        project_name="no-team-project",
+        org_name=ORG_NAME,
+        teams=[],
+    )
+
+    with pytest.raises(ValueError, match="has no teams assigned"):
+        _run_build_desired_state(integration, [project])
 
 
 def test_build_desired_state_org_users_deduplicated_across_teams(

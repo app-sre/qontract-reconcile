@@ -192,6 +192,12 @@ class GlitchtipApiIntegration(
                         if email not in org_users[org_name]:
                             org_users[org_name][email] = user
 
+            if not project_team_slugs:
+                raise ValueError(
+                    f"Project '{proj.name}' in org '{proj.organization.name}' "
+                    f"has no teams assigned — cannot reconcile"
+                )
+
             project_slug = proj.project_id or _slugify(proj.name)
             org_projects[org_name].append(
                 GIProject(
