@@ -275,6 +275,185 @@
         "title": "GIProject",
         "type": "object"
       },
+      "GithubOrgDesiredState": {
+        "description": "Desired owner state for a single GitHub organization.\n\nAttributes:\n    org_name: GitHub organization name\n    token: Vault secret reference for the org's GitHub API token\n    base_url: GitHub API base URL (override for GitHub Enterprise)\n    owners: Desired set of lowercase GitHub usernames that should be org admins",
+        "properties": {
+          "base_url": {
+            "default": "https://api.github.com",
+            "description": "GitHub API base URL (override for GitHub Enterprise)",
+            "title": "Base Url",
+            "type": "string"
+          },
+          "org_name": {
+            "description": "GitHub organization name",
+            "title": "Org Name",
+            "type": "string"
+          },
+          "owners": {
+            "description": "Desired set of GitHub usernames that should be org admins",
+            "items": {
+              "type": "string"
+            },
+            "title": "Owners",
+            "type": "array"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Vault secret reference for the GitHub API token"
+          }
+        },
+        "required": [
+          "org_name",
+          "token",
+          "owners"
+        ],
+        "title": "GithubOrgDesiredState",
+        "type": "object"
+      },
+      "GithubOwnerActionAddOwner": {
+        "description": "Action: Add a user as an org admin (owner).\n\nNote: Owner removal is intentionally NOT supported. The integration only\nadds owners and never removes them, preserving the behavior of the original\ngithub-owners reconcile integration. This is a deliberate safety decision \u2014\nremoving org admins is a high-impact operation that requires explicit manual\nreview rather than automated removal.",
+        "properties": {
+          "action_type": {
+            "const": "add_owner",
+            "default": "add_owner",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "org_name": {
+            "description": "GitHub organization name",
+            "title": "Org Name",
+            "type": "string"
+          },
+          "username": {
+            "description": "GitHub username to add as org admin",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_name",
+          "username"
+        ],
+        "title": "GithubOwnerActionAddOwner",
+        "type": "object"
+      },
+      "GithubOwnersReconcileRequest": {
+        "description": "Request model for github-owners reconciliation.\n\nPOST requests always queue a background task and return immediately\nwith a task_id. Use GET /reconcile/{task_id} to retrieve the result.",
+        "properties": {
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing. Default: True (safety first!)",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "organizations": {
+            "description": "List of GitHub organizations with their desired owner membership",
+            "items": {
+              "$ref": "#/components/schemas/GithubOrgDesiredState"
+            },
+            "title": "Organizations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "organizations"
+        ],
+        "title": "GithubOwnersReconcileRequest",
+        "type": "object"
+      },
+      "GithubOwnersTaskResponse": {
+        "description": "Response model for POST /reconcile endpoint.\n\nReturned immediately when the task is queued. Contains task_id and\nstatus_url for retrieving the result via GET request.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "GithubOwnersTaskResponse",
+        "type": "object"
+      },
+      "GithubOwnersTaskResult": {
+        "description": "Result model for a completed github-owners reconciliation task.\n\nReturned by GET /reconcile/{task_id}.",
+        "properties": {
+          "actions": {
+            "default": [],
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_owner": "#/components/schemas/GithubOwnerActionAddOwner"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GithubOwnerActionAddOwner"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_owner": "#/components/schemas/GithubOwnerActionAddOwner"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GithubOwnerActionAddOwner"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GithubOwnersTaskResult",
+        "type": "object"
+      },
       "GlitchtipActionAddProjectToTeam": {
         "description": "Action: Add a project to a team.",
         "properties": {
@@ -2368,6 +2547,101 @@
         "summary": "Get Repo Owners",
         "tags": [
           "external"
+        ]
+      }
+    },
+    "/api/v1/integrations/github-owners/reconcile": {
+      "post": {
+        "description": "Queue a GitHub owners reconciliation task.\n\nThis endpoint always queues a background task and returns immediately\nwith a task_id. Use GET /reconcile/{task_id} to retrieve the result.\n\nArgs:\n    reconcile_request: Reconciliation request with desired owner state\n    current_user: Authenticated user (from JWT token)\n    request: FastAPI Request object (used to generate status_url)\n\nReturns:\n    GithubOwnersTaskResponse with task_id and status_url",
+        "operationId": "github-owners",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GithubOwnersReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubOwnersTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Github Owners",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/github-owners/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve the reconciliation result (blocking or non-blocking).\n\n**Non-blocking mode (default):** Returns immediate status (pending/success/failed)\n**Blocking mode (with timeout):** Waits up to timeout seconds, returns 408 if still pending\n\nArgs:\n    task_id: Task ID from POST /reconcile response\n    current_user: Authenticated user (from JWT token)\n    timeout: Maximum seconds to wait (default: None = non-blocking)\n\nReturns:\n    GithubOwnersTaskResult with status, actions, applied_count, and errors\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Task ID not found\n        - 408 Request Timeout: Task still pending after timeout (blocking mode only)",
+        "operationId": "github-owners-task-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion. Omit for immediate status check.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubOwnersTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Github Owners Task Status",
+        "tags": [
+          "integrations"
         ]
       }
     },

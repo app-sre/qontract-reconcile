@@ -6,6 +6,11 @@ from .escalation_policy_users_response import EscalationPolicyUsersResponse
 from .gi_instance import GIInstance
 from .gi_organization import GIOrganization
 from .gi_project import GIProject
+from .github_org_desired_state import GithubOrgDesiredState
+from .github_owner_action_add_owner import GithubOwnerActionAddOwner
+from .github_owners_reconcile_request import GithubOwnersReconcileRequest
+from .github_owners_task_response import GithubOwnersTaskResponse
+from .github_owners_task_result import GithubOwnersTaskResult
 from .glitchtip_action_add_project_to_team import GlitchtipActionAddProjectToTeam
 from .glitchtip_action_add_user_to_team import GlitchtipActionAddUserToTeam
 from .glitchtip_action_create_organization import GlitchtipActionCreateOrganization
@@ -72,6 +77,11 @@ __all__ = (
     "GIInstance",
     "GIOrganization",
     "GIProject",
+    "GithubOrgDesiredState",
+    "GithubOwnerActionAddOwner",
+    "GithubOwnersReconcileRequest",
+    "GithubOwnersTaskResponse",
+    "GithubOwnersTaskResult",
     "GlitchtipActionAddProjectToTeam",
     "GlitchtipActionAddUserToTeam",
     "GlitchtipActionCreateOrganization",
