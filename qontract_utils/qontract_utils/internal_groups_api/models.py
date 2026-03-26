@@ -7,10 +7,10 @@ class GroupMember(BaseModel, frozen=True):
     """A member of an LDAP group.
 
     Attributes:
-        id: Member identifier (username or email)
+        id: LDAP username (uid) of the member — never an email address
     """
 
-    id: str = Field(..., description="Member identifier (username or email)")
+    id: str = Field(..., description="LDAP username (uid) of the member")
 
 
 class Group(BaseModel, frozen=True):
