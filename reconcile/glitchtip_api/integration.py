@@ -99,18 +99,21 @@ class GlitchtipApiIntegration(
         )
         return [m.id for m in (response.members or [])]
 
-    async def _build_team_users(
-        self,
+    @staticmethod
+    def _build_team_users(
         glitchtip_team: GlitchtipTeamV1,
         organization: GlitchtipProjectV1_GlitchtipOrganizationV1,
         mail_domain: str,
-        ldap_api_url: str,
-        ldap_token_url: str,
-        ldap_client_id: str,
-        ldap_cred_path: str,
-        ldap_cred_version: int | None,
+        ldap_members: dict[str, list[str]],
     ) -> dict[str, GlitchtipUser]:
-        """Build email→GlitchtipUser map for a team (roles take precedence over LDAP)."""
+        """Build email→GlitchtipUser map for a team (roles take precedence over LDAP).
+
+        Args:
+            glitchtip_team: Team definition from GQL
+            organization: Parent organization (for role lookup)
+            mail_domain: Domain appended to usernames to form email addresses
+            ldap_members: Pre-fetched cache of group name → member ID list
+        """
         users_by_email: dict[str, GlitchtipUser] = {}
 
         for role in glitchtip_team.roles:
@@ -123,20 +126,8 @@ class GlitchtipApiIntegration(
             member_role = (
                 glitchtip_team.members_organization_role or DEFAULT_MEMBER_ROLE
             )
-            tasks = [
-                self._get_ldap_member_ids(
-                    group_name=group,
-                    ldap_cred_path=ldap_cred_path,
-                    ldap_cred_version=ldap_cred_version,
-                    ldap_api_url=ldap_api_url,
-                    ldap_token_url=ldap_token_url,
-                    ldap_client_id=ldap_client_id,
-                )
-                for group in glitchtip_team.ldap_groups
-            ]
-            all_member_lists = await asyncio.gather(*tasks)
-            for member_ids in all_member_lists:
-                for member_id in member_ids:
+            for group in glitchtip_team.ldap_groups:
+                for member_id in ldap_members.get(group, []):
                     email = f"{member_id}@{mail_domain}"
                     if email not in users_by_email:
                         users_by_email[email] = GlitchtipUser(
@@ -159,6 +150,35 @@ class GlitchtipApiIntegration(
         org_projects: dict[str, list[GIProject]] = defaultdict(list)
         org_users: dict[str, dict[str, GlitchtipUser]] = defaultdict(dict)
 
+        # Pre-fetch all unique LDAP groups concurrently to avoid redundant API calls
+        # when the same group appears across multiple teams.
+        all_ldap_groups = {
+            group
+            for proj in glitchtip_projects
+            for team in proj.teams
+            for group in (team.ldap_groups or [])
+        }
+        if all_ldap_groups:
+            ordered_groups = sorted(all_ldap_groups)
+            member_lists = await asyncio.gather(
+                *[
+                    self._get_ldap_member_ids(
+                        group_name=group,
+                        ldap_cred_path=ldap_cred_path,
+                        ldap_cred_version=ldap_cred_version,
+                        ldap_api_url=ldap_api_url,
+                        ldap_token_url=ldap_token_url,
+                        ldap_client_id=ldap_client_id,
+                    )
+                    for group in ordered_groups
+                ]
+            )
+            ldap_members: dict[str, list[str]] = dict(
+                zip(ordered_groups, member_lists, strict=True)
+            )
+        else:
+            ldap_members = {}
+
         for proj in glitchtip_projects:
             org_name = proj.organization.name
             project_team_slugs: list[str] = []
@@ -168,15 +188,11 @@ class GlitchtipApiIntegration(
                 project_team_slugs.append(team_slug)
 
                 if team_slug not in org_teams[org_name]:
-                    users_by_email = await self._build_team_users(
+                    users_by_email = self._build_team_users(
                         glitchtip_team=glitchtip_team,
                         organization=proj.organization,
                         mail_domain=mail_domain,
-                        ldap_api_url=ldap_api_url,
-                        ldap_token_url=ldap_token_url,
-                        ldap_client_id=ldap_client_id,
-                        ldap_cred_path=ldap_cred_path,
-                        ldap_cred_version=ldap_cred_version,
+                        ldap_members=ldap_members,
                     )
                     org_teams[org_name][team_slug] = GlitchtipTeam(
                         name=glitchtip_team.name,
