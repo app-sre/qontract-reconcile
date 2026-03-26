@@ -253,9 +253,19 @@ class GlitchtipApiIntegration(
             )
         ldap_settings = ldap_settings_data.settings[0].ldap_groups
         ldap_credentials = self.secret_reader.read_all_secret(ldap_settings.credentials)
-        ldap_api_url: str = ldap_credentials.get("api_url", "")
-        ldap_token_url: str = ldap_credentials.get("issuer_url", "")
-        ldap_client_id: str = ldap_credentials.get("client_id", "")
+        missing = [
+            k
+            for k in ("api_url", "issuer_url", "client_id")
+            if not ldap_credentials.get(k)
+        ]
+        if missing:
+            raise ValueError(
+                f"Missing required LDAP credential fields in secret "
+                f"'{ldap_settings.credentials.path}': {missing}"
+            )
+        ldap_api_url: str = ldap_credentials["api_url"]
+        ldap_token_url: str = ldap_credentials["issuer_url"]
+        ldap_client_id: str = ldap_credentials["client_id"]
         ldap_cred_path: str = ldap_settings.credentials.path
         ldap_cred_version: int | None = ldap_settings.credentials.version
 
