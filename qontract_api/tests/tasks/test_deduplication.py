@@ -70,7 +70,9 @@ def test_deduplicated_task_with_multiple_args(mock_cache: MagicMock) -> None:
 
     assert result == "result-a-b-10"
     # Verify lock key includes both x and y
-    mock_cache.lock.assert_called_once_with("task_lock:test_task:dry_run=true:a-b", timeout=120)
+    mock_cache.lock.assert_called_once_with(
+        "task_lock:test_task:dry_run=true:a-b", timeout=120
+    )
 
 
 def test_deduplicated_task_lock_timeout(mock_cache: MagicMock) -> None:
@@ -123,7 +125,9 @@ def test_deduplicated_task_with_kwargs(mock_cache: MagicMock) -> None:
         result = test_task(workspace="test-ws", dry_run=False)
 
     assert result == {"workspace": "test-ws", "dry_run": False}
-    mock_cache.lock.assert_called_once_with("task_lock:test_task:dry_run=false:test-ws", timeout=60)
+    mock_cache.lock.assert_called_once_with(
+        "task_lock:test_task:dry_run=false:test-ws", timeout=60
+    )
 
 
 def test_deduplicated_task_dry_run_and_production_use_separate_keys(
