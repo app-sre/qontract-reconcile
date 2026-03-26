@@ -56,9 +56,12 @@ def deduplicated_task(
     def decorator(func: Callable[P, R]) -> Callable[P, R | dict[str, str]]:
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | dict[str, str]:
-            # Generate lock key from task arguments
+            # Generate lock key from task arguments.
+            # Always include dry_run in the key so that dry-run and production
+            # tasks for the same resources do not block each other.
             lock_key_suffix = lock_key_fn(*args, **kwargs)
-            lock_key = f"task_lock:{func.__name__}:{lock_key_suffix}"
+            dry_run = str(kwargs.get("dry_run", True)).lower()
+            lock_key = f"task_lock:{func.__name__}:dry_run={dry_run}:{lock_key_suffix}"
 
             logger.debug(
                 f"Attempting to acquire lock for task {func.__name__}",
