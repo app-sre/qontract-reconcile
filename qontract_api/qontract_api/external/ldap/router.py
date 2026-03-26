@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
+from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep
 from qontract_api.external.ldap.internal_groups_factory import (
     create_internal_groups_workspace_client,
@@ -58,8 +59,6 @@ def get_group_members(
         HTTPException:
             - 500 Internal Server Error: If the internal groups API call fails
     """
-    from qontract_api.config import settings  # noqa: PLC0415
-
     client = create_internal_groups_workspace_client(
         secret=secret,
         cache=cache,
