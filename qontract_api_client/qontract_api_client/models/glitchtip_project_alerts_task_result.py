@@ -29,13 +29,23 @@ class GlitchtipProjectAlertsTaskResult:
 
                 Used across all async API endpoints to indicate task execution state.
             actions (list[GlitchtipAlertActionCreate | GlitchtipAlertActionDelete | GlitchtipAlertActionUpdate] | Unset):
-                List of actions calculated/performed
+                All actions calculated (desired - current), including any that failed to apply.
+            applied_actions (list[GlitchtipAlertActionCreate | GlitchtipAlertActionDelete | GlitchtipAlertActionUpdate] |
+                Unset): Actions that were successfully applied (non-dry-run only).
             applied_count (int | Unset): Number of actions actually applied (0 if dry_run=True) Default: 0.
             errors (list[str] | Unset): List of errors encountered during reconciliation
     """
 
     status: TaskStatus
     actions: (
+        list[
+            GlitchtipAlertActionCreate
+            | GlitchtipAlertActionDelete
+            | GlitchtipAlertActionUpdate
+        ]
+        | Unset
+    ) = UNSET
+    applied_actions: (
         list[
             GlitchtipAlertActionCreate
             | GlitchtipAlertActionDelete
@@ -67,6 +77,20 @@ class GlitchtipProjectAlertsTaskResult:
 
                 actions.append(actions_item)
 
+        applied_actions: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.applied_actions, Unset):
+            applied_actions = []
+            for applied_actions_item_data in self.applied_actions:
+                applied_actions_item: dict[str, Any]
+                if isinstance(applied_actions_item_data, GlitchtipAlertActionCreate):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(applied_actions_item_data, GlitchtipAlertActionUpdate):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                else:
+                    applied_actions_item = applied_actions_item_data.to_dict()
+
+                applied_actions.append(applied_actions_item)
+
         applied_count = self.applied_count
 
         errors: list[str] | Unset = UNSET
@@ -80,6 +104,8 @@ class GlitchtipProjectAlertsTaskResult:
         })
         if actions is not UNSET:
             field_dict["actions"] = actions
+        if applied_actions is not UNSET:
+            field_dict["applied_actions"] = applied_actions
         if applied_count is not UNSET:
             field_dict["applied_count"] = applied_count
         if errors is not UNSET:
@@ -142,6 +168,60 @@ class GlitchtipProjectAlertsTaskResult:
 
                 actions.append(actions_item)
 
+        _applied_actions = d.pop("applied_actions", UNSET)
+        applied_actions: (
+            list[
+                GlitchtipAlertActionCreate
+                | GlitchtipAlertActionDelete
+                | GlitchtipAlertActionUpdate
+            ]
+            | Unset
+        ) = UNSET
+        if _applied_actions is not UNSET:
+            applied_actions = []
+            for applied_actions_item_data in _applied_actions:
+
+                def _parse_applied_actions_item(
+                    data: object,
+                ) -> (
+                    GlitchtipAlertActionCreate
+                    | GlitchtipAlertActionDelete
+                    | GlitchtipAlertActionUpdate
+                ):
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_0 = (
+                            GlitchtipAlertActionCreate.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_0
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_1 = (
+                            GlitchtipAlertActionUpdate.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_1
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    if not isinstance(data, dict):
+                        raise TypeError()
+                    applied_actions_item_type_2 = GlitchtipAlertActionDelete.from_dict(
+                        data
+                    )
+
+                    return applied_actions_item_type_2
+
+                applied_actions_item = _parse_applied_actions_item(
+                    applied_actions_item_data
+                )
+
+                applied_actions.append(applied_actions_item)
+
         applied_count = d.pop("applied_count", UNSET)
 
         errors = cast(list[str], d.pop("errors", UNSET))
@@ -149,6 +229,7 @@ class GlitchtipProjectAlertsTaskResult:
         glitchtip_project_alerts_task_result = cls(
             status=status,
             actions=actions,
+            applied_actions=applied_actions,
             applied_count=applied_count,
             errors=errors,
         )

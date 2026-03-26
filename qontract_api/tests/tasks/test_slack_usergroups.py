@@ -124,6 +124,7 @@ def test_reconcile_task_dry_run_success(
     assert isinstance(result, SlackUsergroupsTaskResult)
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 0  # dry-run
+    assert result.applied_actions == []
     assert result.errors == []
 
     # Verify factory function was called with correct arguments

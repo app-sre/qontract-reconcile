@@ -202,8 +202,8 @@ class SlackUsergroupsService:
             ReconcileResponse with actions, applied_count, and errors
         """
         all_actions = []
+        applied_actions = []
         errors = []
-        applied_count = 0
 
         # Process each workspace
         for workspace in workspaces:
@@ -237,7 +237,7 @@ class SlackUsergroupsService:
                 for action in all_actions:
                     try:
                         self._execute_action(slack=slack, action=action)
-                        applied_count += 1
+                        applied_actions.append(action)
                     except Exception as e:
                         error_msg = f"{action.workspace}/{action.usergroup}: Failed to execute action {action.action_type}: {e}"
                         logger.exception(error_msg)
@@ -246,6 +246,7 @@ class SlackUsergroupsService:
         return SlackUsergroupsTaskResult(
             status=TaskStatus.FAILED if errors else TaskStatus.SUCCESS,
             actions=all_actions,
-            applied_count=applied_count,
+            applied_actions=applied_actions,
+            applied_count=len(applied_actions),
             errors=errors,
         )

@@ -34,13 +34,23 @@ class SlackUsergroupsTaskResult:
 
                 Used across all async API endpoints to indicate task execution state.
             actions (list[SlackUsergroupActionCreate | SlackUsergroupActionUpdateMetadata | SlackUsergroupActionUpdateUsers]
-                | Unset): List of actions calculated/performed
+                | Unset): All actions calculated (desired - current), including any that failed to apply.
+            applied_actions (list[SlackUsergroupActionCreate | SlackUsergroupActionUpdateMetadata |
+                SlackUsergroupActionUpdateUsers] | Unset): Actions that were successfully applied (non-dry-run only).
             applied_count (int | Unset): Number of actions actually applied (0 if dry_run=True) Default: 0.
             errors (list[str] | Unset): List of errors encountered during reconciliation
     """
 
     status: TaskStatus
     actions: (
+        list[
+            SlackUsergroupActionCreate
+            | SlackUsergroupActionUpdateMetadata
+            | SlackUsergroupActionUpdateUsers
+        ]
+        | Unset
+    ) = UNSET
+    applied_actions: (
         list[
             SlackUsergroupActionCreate
             | SlackUsergroupActionUpdateMetadata
@@ -74,6 +84,22 @@ class SlackUsergroupsTaskResult:
 
                 actions.append(actions_item)
 
+        applied_actions: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.applied_actions, Unset):
+            applied_actions = []
+            for applied_actions_item_data in self.applied_actions:
+                applied_actions_item: dict[str, Any]
+                if isinstance(applied_actions_item_data, SlackUsergroupActionCreate):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, SlackUsergroupActionUpdateUsers
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                else:
+                    applied_actions_item = applied_actions_item_data.to_dict()
+
+                applied_actions.append(applied_actions_item)
+
         applied_count = self.applied_count
 
         errors: list[str] | Unset = UNSET
@@ -87,6 +113,8 @@ class SlackUsergroupsTaskResult:
         })
         if actions is not UNSET:
             field_dict["actions"] = actions
+        if applied_actions is not UNSET:
+            field_dict["applied_actions"] = applied_actions
         if applied_count is not UNSET:
             field_dict["applied_count"] = applied_count
         if errors is not UNSET:
@@ -157,6 +185,60 @@ class SlackUsergroupsTaskResult:
 
                 actions.append(actions_item)
 
+        _applied_actions = d.pop("applied_actions", UNSET)
+        applied_actions: (
+            list[
+                SlackUsergroupActionCreate
+                | SlackUsergroupActionUpdateMetadata
+                | SlackUsergroupActionUpdateUsers
+            ]
+            | Unset
+        ) = UNSET
+        if _applied_actions is not UNSET:
+            applied_actions = []
+            for applied_actions_item_data in _applied_actions:
+
+                def _parse_applied_actions_item(
+                    data: object,
+                ) -> (
+                    SlackUsergroupActionCreate
+                    | SlackUsergroupActionUpdateMetadata
+                    | SlackUsergroupActionUpdateUsers
+                ):
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_0 = (
+                            SlackUsergroupActionCreate.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_0
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_1 = (
+                            SlackUsergroupActionUpdateUsers.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_1
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    if not isinstance(data, dict):
+                        raise TypeError()
+                    applied_actions_item_type_2 = (
+                        SlackUsergroupActionUpdateMetadata.from_dict(data)
+                    )
+
+                    return applied_actions_item_type_2
+
+                applied_actions_item = _parse_applied_actions_item(
+                    applied_actions_item_data
+                )
+
+                applied_actions.append(applied_actions_item)
+
         applied_count = d.pop("applied_count", UNSET)
 
         errors = cast(list[str], d.pop("errors", UNSET))
@@ -164,6 +246,7 @@ class SlackUsergroupsTaskResult:
         slack_usergroups_task_result = cls(
             status=status,
             actions=actions,
+            applied_actions=applied_actions,
             applied_count=applied_count,
             errors=errors,
         )

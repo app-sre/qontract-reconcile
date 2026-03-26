@@ -108,7 +108,11 @@ class SlackUsergroupsTaskResult(TaskResult, frozen=True):
 
     actions: list[SlackUsergroupAction] = Field(
         default=[],
-        description="List of actions calculated/performed",
+        description="All actions calculated (desired - current), including any that failed to apply.",
+    )
+    applied_actions: list[SlackUsergroupAction] = Field(
+        default=[],
+        description="Actions that were successfully applied (non-dry-run only).",
     )
 
 

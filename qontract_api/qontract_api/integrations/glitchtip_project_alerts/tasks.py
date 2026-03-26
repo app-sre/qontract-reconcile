@@ -105,14 +105,23 @@ def reconcile_glitchtip_project_alerts_task(
             errors=result.errors,
         )
 
-        # Publish events for applied actions (non-dry-run only)
-        if not dry_run and result.applied_count > 0 and event_manager:
-            for action in result.actions:
+        if not dry_run and event_manager:
+            for action in result.applied_actions:
                 event_manager.publish_event(
                     Event(
                         source=__name__,
                         type=f"qontract-api.glitchtip-project-alerts.{action.action_type}",
                         data=action.model_dump(mode="json"),
+                        datacontenttype="application/json",
+                    )
+                )
+
+            for error in result.errors:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type="qontract-api.glitchtip-project-alerts.error",
+                        data={"error": error},
                         datacontenttype="application/json",
                     )
                 )

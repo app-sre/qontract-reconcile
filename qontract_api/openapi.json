@@ -637,7 +637,7 @@
         "properties": {
           "actions": {
             "default": [],
-            "description": "List of actions calculated/performed",
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
             "items": {
               "anyOf": [
                 {
@@ -652,6 +652,25 @@
               ]
             },
             "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GlitchtipAlertActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipAlertActionUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipAlertActionDelete"
+                }
+              ]
+            },
+            "title": "Applied Actions",
             "type": "array"
           },
           "applied_count": {
@@ -1113,7 +1132,7 @@
         "properties": {
           "actions": {
             "default": [],
-            "description": "List of actions calculated/performed",
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
             "items": {
               "anyOf": [
                 {
@@ -1128,6 +1147,25 @@
               ]
             },
             "title": "Actions",
+            "type": "array"
+          },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (non-dry-run only).",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SlackUsergroupActionCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/SlackUsergroupActionUpdateUsers"
+                },
+                {
+                  "$ref": "#/components/schemas/SlackUsergroupActionUpdateMetadata"
+                }
+              ]
+            },
+            "title": "Applied Actions",
             "type": "array"
           },
           "applied_count": {

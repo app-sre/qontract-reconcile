@@ -198,14 +198,15 @@ def test_reconcile_task_publishes_events_on_non_dry_run(
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 1
     assert result.errors == []
+    assert len(result.applied_actions) == 1
+    assert isinstance(result.applied_actions[0], GlitchtipAlertActionCreate)
 
     mock_event_manager.publish_event.assert_called_once()
     call_args = mock_event_manager.publish_event.call_args[0][0]
     assert "glitchtip-project-alerts" in call_args.type
-    assert isinstance(result.actions[0], GlitchtipAlertActionCreate)
     assert (
         call_args.type
-        == f"qontract-api.glitchtip-project-alerts.{result.actions[0].action_type}"
+        == f"qontract-api.glitchtip-project-alerts.{result.applied_actions[0].action_type}"
     )
 
 
@@ -274,3 +275,79 @@ def test_reconcile_task_no_events_when_event_manager_is_none(
     assert isinstance(result, GlitchtipProjectAlertsTaskResult)
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 1
+    assert len(result.applied_actions) == 1
+
+
+@patch("qontract_api.integrations.glitchtip_project_alerts.tasks.get_event_manager")
+@patch("qontract_api.integrations.glitchtip_project_alerts.tasks.get_cache")
+@patch("qontract_api.integrations.glitchtip_project_alerts.tasks.get_secret_manager")
+@patch(
+    "qontract_api.integrations.glitchtip_project_alerts.tasks.GlitchtipClientFactory"
+)
+def test_reconcile_task_publishes_error_events_on_failure(
+    mock_client_factory_cls: MagicMock,
+    mock_get_secret_manager: MagicMock,
+    mock_get_cache: MagicMock,
+    mock_get_event_manager: MagicMock,
+    test_token: Secret,
+) -> None:
+    """Test that error events are published when actions fail in non-dry-run mode."""
+    mock_get_cache.return_value = MagicMock()
+    mock_get_secret_manager.return_value = MagicMock()
+    mock_event_manager = MagicMock()
+    mock_get_event_manager.return_value = mock_event_manager
+
+    mock_workspace_client = MagicMock()
+    mock_workspace_client.get_organizations.return_value = {
+        "my-org": Organization(pk=1, name="my-org", slug="my-org")
+    }
+    mock_workspace_client.get_projects.return_value = [
+        Project(pk=1, name="my-project", slug="my-project")
+    ]
+    mock_workspace_client.get_project_alerts.return_value = []
+    mock_workspace_client.create_project_alert.side_effect = RuntimeError("API error")
+    mock_client_factory_cls.return_value.create_workspace_client.return_value = (
+        mock_workspace_client
+    )
+
+    instance = GlitchtipInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        organizations=[
+            GlitchtipOrganization(
+                name="my-org",
+                projects=[
+                    GlitchtipProject(
+                        name="my-project",
+                        slug="my-project",
+                        alerts=[
+                            GlitchtipProjectAlert(
+                                name="new-alert",
+                                timespan_minutes=5,
+                                quantity=100,
+                            )
+                        ],
+                    )
+                ],
+            )
+        ],
+    )
+
+    mock_self = MagicMock()
+    mock_self.request.id = "test-task-error"
+
+    task_func = reconcile_glitchtip_project_alerts_task.__wrapped__.__wrapped__
+
+    result = task_func(mock_self, [instance], dry_run=False)
+
+    assert isinstance(result, GlitchtipProjectAlertsTaskResult)
+    assert result.status == TaskStatus.FAILED
+    assert result.applied_count == 0
+    assert result.applied_actions == []
+    assert len(result.errors) == 1
+
+    # One error event should be published, no success events
+    mock_event_manager.publish_event.assert_called_once()
+    call_args = mock_event_manager.publish_event.call_args[0][0]
+    assert call_args.type == "qontract-api.glitchtip-project-alerts.error"
