@@ -25,7 +25,6 @@ from qontract_api_client.models.glitchtip_team import GlitchtipTeam
 from qontract_api_client.models.glitchtip_user import GlitchtipUser
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
-
 from qontract_utils.glitchtip_api import slugify
 
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
@@ -50,7 +49,6 @@ from reconcile.utils.runtime.integration import (
 QONTRACT_INTEGRATION = "glitchtip-api"
 DEFAULT_MEMBER_ROLE = "member"
 _LDAP_CLIENT_SECRET_FIELD = "client_secret"
-
 
 
 def _get_user_role(
