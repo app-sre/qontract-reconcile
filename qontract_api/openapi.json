@@ -1141,7 +1141,26 @@
             "default": [],
             "description": "List of actions calculated/performed",
             "items": {
-              "anyOf": [
+              "discriminator": {
+                "mapping": {
+                  "add_project_to_team": "#/components/schemas/GlitchtipActionAddProjectToTeam",
+                  "add_user_to_team": "#/components/schemas/GlitchtipActionAddUserToTeam",
+                  "create_organization": "#/components/schemas/GlitchtipActionCreateOrganization",
+                  "create_project": "#/components/schemas/GlitchtipActionCreateProject",
+                  "create_team": "#/components/schemas/GlitchtipActionCreateTeam",
+                  "delete_organization": "#/components/schemas/GlitchtipActionDeleteOrganization",
+                  "delete_project": "#/components/schemas/GlitchtipActionDeleteProject",
+                  "delete_team": "#/components/schemas/GlitchtipActionDeleteTeam",
+                  "delete_user": "#/components/schemas/GlitchtipActionDeleteUser",
+                  "invite_user": "#/components/schemas/GlitchtipActionInviteUser",
+                  "remove_project_from_team": "#/components/schemas/GlitchtipActionRemoveProjectFromTeam",
+                  "remove_user_from_team": "#/components/schemas/GlitchtipActionRemoveUserFromTeam",
+                  "update_project": "#/components/schemas/GlitchtipActionUpdateProject",
+                  "update_user_role": "#/components/schemas/GlitchtipActionUpdateUserRole"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
                 {
                   "$ref": "#/components/schemas/GlitchtipActionCreateOrganization"
                 },
