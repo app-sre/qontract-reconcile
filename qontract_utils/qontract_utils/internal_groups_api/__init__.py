@@ -8,11 +8,12 @@ Layer 1 (Pure Communication):
 - Models: Pydantic models for group members
 """
 
-from qontract_utils.internal_groups_api.api import InternalGroupsApi
+from qontract_utils.internal_groups_api.api import InternalGroupsApi, TokenExpiredError
 from qontract_utils.internal_groups_api.models import Group, GroupMember
 
 __all__ = [
     "Group",
     "GroupMember",
     "InternalGroupsApi",
+    "TokenExpiredError",
 ]
