@@ -293,7 +293,7 @@ class GlitchtipApiIntegration(
             sys.exit(1)
 
         for action in task_result.actions or []:
-            logging.info(f"action_type={action.action_type}")
+            logging.info(action.to_dict())
 
         if task_result.errors:
             logging.error(f"Errors encountered: {len(task_result.errors)}")
