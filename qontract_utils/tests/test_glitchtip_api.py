@@ -12,8 +12,30 @@ from qontract_utils.glitchtip_api import (
     ProjectAlert,
     ProjectAlertRecipient,
     RecipientType,
+    slugify,
 )
 from qontract_utils.glitchtip_api.client import get_next_url, parse_link_header
+
+# --- slugify ---
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("Hello World", "hello-world"),
+        ("my-team", "my-team"),
+        ("My Team Name", "my-team-name"),
+        ("  leading-trailing  ", "leading-trailing"),
+        ("with_underscore", "with_underscore"),
+        ("Special! Chars@#", "special-chars"),
+        ("multiple   spaces", "multiple-spaces"),
+        ("already-slug", "already-slug"),
+        ("UPPER CASE", "upper-case"),
+    ],
+)
+def test_slugify(value: str, expected: str) -> None:
+    assert slugify(value) == expected
+
 
 # --- Model Tests ---
 

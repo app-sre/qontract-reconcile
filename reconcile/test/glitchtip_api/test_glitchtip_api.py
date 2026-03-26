@@ -8,11 +8,12 @@ from pytest_mock import MockerFixture
 from qontract_api_client.models.gi_organization import GIOrganization
 from qontract_api_client.models.glitchtip_user import GlitchtipUser
 
+from qontract_utils.glitchtip_api import slugify
+
 from reconcile.glitchtip_api.integration import (
     DEFAULT_MEMBER_ROLE,
     GlitchtipApiIntegration,
     _get_user_role,
-    _slugify,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     AppEscalationPolicyChannelsV1,
@@ -87,29 +88,6 @@ def make_team(
         ldapGroups=ldap_groups,
         membersOrganizationRole=members_organization_role,
     )
-
-
-# ---------------------------------------------------------------------------
-# _slugify
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("Hello World", "hello-world"),
-        ("my-team", "my-team"),
-        ("My Team Name", "my-team-name"),
-        ("  leading-trailing  ", "leading-trailing"),
-        ("with_underscore", "with_underscore"),
-        ("Special! Chars@#", "special-chars"),
-        ("multiple   spaces", "multiple-spaces"),
-        ("already-slug", "already-slug"),
-        ("UPPER CASE", "upper-case"),
-    ],
-)
-def test_slugify(value: str, expected: str) -> None:
-    assert _slugify(value) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -456,10 +434,10 @@ def test_build_desired_state_basic(mocker: MockerFixture) -> None:
     assert len(org.projects) == 1
     gi_project = org.projects[0]
     assert gi_project.name == "my-project"
-    assert gi_project.slug == _slugify("my-project")
+    assert gi_project.slug == slugify("my-project")
     assert gi_project.platform == "python"
     assert gi_project.event_throttle_rate == 100
-    assert gi_project.teams == [_slugify("Alpha Team")]
+    assert gi_project.teams == [slugify("Alpha Team")]
 
     # Org-level users
     assert isinstance(org.users, list)
@@ -536,7 +514,7 @@ def test_build_desired_state_deduplicates_teams(mocker: MockerFixture) -> None:
     assert org.teams[0].name == "Shared Team"
 
     # Both projects reference the team slug
-    team_slug = _slugify("Shared Team")
+    team_slug = slugify("Shared Team")
     assert isinstance(org.projects, list)
     assert org.projects[0].teams == [team_slug]
     assert org.projects[1].teams == [team_slug]

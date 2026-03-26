@@ -1,21 +1,12 @@
 """Pydantic domain models for Glitchtip project alerts."""
 
-import re
 from enum import StrEnum
 from typing import Any, Self
 
 from pydantic import BaseModel, Field, model_validator
+from qontract_utils.glitchtip_api import slugify
 
 from qontract_api.models import Secret
-
-
-def _slugify(value: str) -> str:
-    """Convert value into a slug.
-
-    Adapted from https://docs.djangoproject.com/en/4.1/_modules/django/utils/text/#slugify
-    """
-    value = re.sub(r"[^\w\s-]", "", value.lower())
-    return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
 class RecipientType(StrEnum):
@@ -73,7 +64,7 @@ class GlitchtipProject(BaseModel, frozen=True):
     @classmethod
     def set_slug_from_name(cls, values: Any) -> Any:
         if isinstance(values, dict) and not values.get("slug"):
-            values["slug"] = _slugify(values["name"])
+            values["slug"] = slugify(values["name"])
         return values
 
 

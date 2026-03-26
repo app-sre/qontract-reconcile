@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import re
 import sys
 from collections import defaultdict
 from collections.abc import Callable
@@ -27,6 +26,8 @@ from qontract_api_client.models.glitchtip_user import GlitchtipUser
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
 
+from qontract_utils.glitchtip_api import slugify
+
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
 )
@@ -50,11 +51,6 @@ QONTRACT_INTEGRATION = "glitchtip-api"
 DEFAULT_MEMBER_ROLE = "member"
 _LDAP_CLIENT_SECRET_FIELD = "client_secret"
 
-
-def _slugify(value: str) -> str:
-    """Convert a value into a URL-friendly slug (Django slugify convention)."""
-    value = re.sub(r"[^\w\s-]", "", value.lower())
-    return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
 def _get_user_role(
@@ -170,7 +166,7 @@ class GlitchtipApiIntegration(
             project_team_slugs: list[str] = []
 
             for glitchtip_team in proj.teams:
-                team_slug = _slugify(glitchtip_team.name)
+                team_slug = slugify(glitchtip_team.name)
                 project_team_slugs.append(team_slug)
 
                 if team_slug not in org_teams[org_name]:
@@ -198,7 +194,7 @@ class GlitchtipApiIntegration(
                     f"has no teams assigned — cannot reconcile"
                 )
 
-            project_slug = proj.project_id or _slugify(proj.name)
+            project_slug = proj.project_id or slugify(proj.name)
             org_projects[org_name].append(
                 GIProject(
                     name=proj.name,

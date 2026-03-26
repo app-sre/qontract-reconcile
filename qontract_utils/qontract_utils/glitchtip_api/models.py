@@ -13,7 +13,7 @@ from typing import Any, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-def _slugify(value: str) -> str:
+def slugify(value: str) -> str:
     """Convert value into a slug.
 
     Adapted from https://docs.djangoproject.com/en/4.1/_modules/django/utils/text/#slugify
@@ -190,7 +190,7 @@ class Team(BaseModel):
         """Derive slug from name if slug is not provided (Django slugify)."""
         if isinstance(values, dict) and not values.get("slug") and values.get("name"):
             values = dict(values)
-            values["slug"] = _slugify(values["name"])
+            values["slug"] = slugify(values["name"])
         return values
 
     def __eq__(self, other: object) -> bool:
