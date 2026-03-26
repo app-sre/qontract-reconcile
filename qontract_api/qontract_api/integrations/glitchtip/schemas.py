@@ -149,22 +149,9 @@ GlitchtipAction = Annotated[
 class GlitchtipTaskResult(TaskResult, frozen=True):
     """Result model for completed Glitchtip reconciliation task."""
 
-    actions: list[
-        GlitchtipActionCreateOrganization
-        | GlitchtipActionDeleteOrganization
-        | GlitchtipActionInviteUser
-        | GlitchtipActionDeleteUser
-        | GlitchtipActionUpdateUserRole
-        | GlitchtipActionCreateTeam
-        | GlitchtipActionDeleteTeam
-        | GlitchtipActionAddUserToTeam
-        | GlitchtipActionRemoveUserFromTeam
-        | GlitchtipActionCreateProject
-        | GlitchtipActionUpdateProject
-        | GlitchtipActionDeleteProject
-        | GlitchtipActionAddProjectToTeam
-        | GlitchtipActionRemoveProjectFromTeam
-    ] = Field(default=[], description="List of actions calculated/performed")
+    actions: list[GlitchtipAction] = Field(
+        default=[], description="List of actions calculated/performed"
+    )
 
 
 class GlitchtipReconcileRequest(BaseModel, frozen=True):
