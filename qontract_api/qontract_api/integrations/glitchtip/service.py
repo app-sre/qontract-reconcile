@@ -131,12 +131,43 @@ class GlitchtipService:
                 actions.append(
                     GlitchtipActionCreateOrganization(organization=desired_org.name)
                 )
+                # Current state is empty by definition — generate all child creates now.
+                # This allows single-pass convergence and complete dry-run reporting.
+                actions.extend(
+                    GlitchtipActionInviteUser(
+                        organization=desired_org.name,
+                        email=user.email,
+                        role=user.role,
+                    )
+                    for user in desired_org.users
+                )
+                for team in desired_org.teams:
+                    team_slug = _team_slug(team)
+                    actions.append(
+                        GlitchtipActionCreateTeam(
+                            organization=desired_org.name, team_slug=team_slug
+                        )
+                    )
+                    actions.extend(
+                        GlitchtipActionAddUserToTeam(
+                            organization=desired_org.name,
+                            team_slug=team_slug,
+                            email=team_user.email,
+                        )
+                        for team_user in team.users
+                    )
+                actions.extend(
+                    GlitchtipActionCreateProject(
+                        organization=desired_org.name, project_name=project.name
+                    )
+                    for project in desired_org.projects
+                )
 
         # --- Phases 2-4: Per-org reconciliation (only for orgs that currently exist) ---
         for desired_org in organizations:
             current_org = current_org_by_name.get(desired_org.name)
             if not current_org:
-                # Org doesn't exist yet — skip current state reads
+                # New org — child actions already generated in phase 1 above
                 continue
 
             org_slug = current_org.slug
