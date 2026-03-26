@@ -78,6 +78,8 @@ def _latency_start_hook(_context: GlitchtipApiCallContext) -> None:
 def _latency_end_hook(context: GlitchtipApiCallContext) -> None:
     """Built-in hook to record latency measurement."""
     stack = _latency_tracker.get()
+    if not stack:
+        return
     start_time = stack[-1]
     _latency_tracker.set(stack[:-1])
     duration = time.perf_counter() - start_time

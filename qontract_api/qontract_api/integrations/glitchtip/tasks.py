@@ -77,14 +77,20 @@ def reconcile_glitchtip_task(
 
         if not dry_run and result.applied_count > 0 and event_manager:
             for action in result.actions:
-                event_manager.publish_event(
-                    Event(
-                        source=__name__,
-                        type=f"qontract-api.glitchtip.{action.action_type}",
-                        data=action.model_dump(mode="json"),
-                        datacontenttype="application/json",
+                try:
+                    event_manager.publish_event(
+                        Event(
+                            source=__name__,
+                            type=f"qontract-api.glitchtip.{action.action_type}",
+                            data=action.model_dump(mode="json"),
+                            datacontenttype="application/json",
+                        )
                     )
-                )
+                except Exception:
+                    logger.exception(
+                        "Failed to publish event",
+                        action_type=action.action_type,
+                    )
 
         return result
 
