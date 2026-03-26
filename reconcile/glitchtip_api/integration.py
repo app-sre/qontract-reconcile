@@ -39,8 +39,14 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
-from reconcile.ldap_groups.integration import LdapGroupsIntegration
+from reconcile.gql_definitions.ldap_groups.settings import (
+    query as ldap_groups_settings_query,
+)
 from reconcile.utils import gql
+from reconcile.utils.exceptions import (
+    AppInterfaceLdapGroupsSettingsError,
+    AppInterfaceSettingsError,
+)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -238,7 +244,14 @@ class GlitchtipApiIntegration(
         ).instances
         glitchtip_projects = self.get_glitchtip_projects(query_func=gqlapi.query)
 
-        ldap_settings = LdapGroupsIntegration.get_integration_settings(gqlapi.query)
+        ldap_settings_data = ldap_groups_settings_query(gqlapi.query)
+        if not ldap_settings_data.settings:
+            raise AppInterfaceSettingsError("No app-interface settings found.")
+        if not ldap_settings_data.settings[0].ldap_groups:
+            raise AppInterfaceLdapGroupsSettingsError(
+                "No app-interface ldap-groups settings found."
+            )
+        ldap_settings = ldap_settings_data.settings[0].ldap_groups
         ldap_credentials = self.secret_reader.read_all_secret(ldap_settings.credentials)
         ldap_api_url: str = ldap_credentials.get("api_url", "")
         ldap_token_url: str = ldap_credentials.get("issuer_url", "")
