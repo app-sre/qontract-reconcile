@@ -250,42 +250,49 @@ class GlitchtipApiIntegration(
         for proj in glitchtip_projects:
             projects_by_instance[proj.organization.instance.name].append(proj)
 
-        instances: list[GIInstance] = []
-        for glitchtip_instance in glitchtip_instances:
-            if self.params.instance and glitchtip_instance.name != self.params.instance:
-                continue
+        filtered_instances = [
+            inst
+            for inst in glitchtip_instances
+            if not self.params.instance or inst.name == self.params.instance
+        ]
 
-            organizations = await self._build_desired_state(
-                glitchtip_projects=projects_by_instance[glitchtip_instance.name],
-                mail_domain=glitchtip_instance.mail_domain or "redhat.com",
-                ldap_api_url=ldap_api_url,
-                ldap_token_url=ldap_token_url,
-                ldap_client_id=ldap_client_id,
-                ldap_cred_path=ldap_cred_path,
-                ldap_cred_version=ldap_cred_version,
-            )
-
-            instances.append(
-                GIInstance(
-                    name=glitchtip_instance.name,
-                    console_url=glitchtip_instance.console_url,
-                    token=Secret(
-                        secret_manager_url=self.secret_manager_url,
-                        path=glitchtip_instance.automation_token.path,
-                        field=glitchtip_instance.automation_token.field,
-                        version=glitchtip_instance.automation_token.version,
-                    ),
-                    automation_user_email=Secret(
-                        secret_manager_url=self.secret_manager_url,
-                        path=glitchtip_instance.automation_user_email.path,
-                        field=glitchtip_instance.automation_user_email.field,
-                        version=glitchtip_instance.automation_user_email.version,
-                    ),
-                    read_timeout=glitchtip_instance.read_timeout or 30,
-                    max_retries=glitchtip_instance.max_retries or 3,
-                    organizations=organizations,
+        all_organizations = await asyncio.gather(
+            *[
+                self._build_desired_state(
+                    glitchtip_projects=projects_by_instance[inst.name],
+                    mail_domain=inst.mail_domain or "redhat.com",
+                    ldap_api_url=ldap_api_url,
+                    ldap_token_url=ldap_token_url,
+                    ldap_client_id=ldap_client_id,
+                    ldap_cred_path=ldap_cred_path,
+                    ldap_cred_version=ldap_cred_version,
                 )
+                for inst in filtered_instances
+            ]
+        )
+
+        instances: list[GIInstance] = [
+            GIInstance(
+                name=inst.name,
+                console_url=inst.console_url,
+                token=Secret(
+                    secret_manager_url=self.secret_manager_url,
+                    path=inst.automation_token.path,
+                    field=inst.automation_token.field,
+                    version=inst.automation_token.version,
+                ),
+                automation_user_email=Secret(
+                    secret_manager_url=self.secret_manager_url,
+                    path=inst.automation_user_email.path,
+                    field=inst.automation_user_email.field,
+                    version=inst.automation_user_email.version,
+                ),
+                read_timeout=inst.read_timeout or 30,
+                max_retries=inst.max_retries or 3,
+                organizations=organizations,
             )
+            for inst, organizations in zip(filtered_instances, all_organizations, strict=True)
+        ]
 
         if not instances:
             logging.warning("No Glitchtip instances to reconcile")
