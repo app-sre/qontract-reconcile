@@ -516,6 +516,7 @@ class GlitchtipService:
         glitchtip: GlitchtipWorkspaceClient,
         action: _AnyAction,
         desired_orgs: list[GIOrganization],
+        org_slug: str,
     ) -> None:
         """Execute a single reconciliation action.
 
@@ -523,15 +524,13 @@ class GlitchtipService:
             glitchtip: GlitchtipWorkspaceClient
             action: Action to execute
             desired_orgs: Desired organizations (to look up project/team details)
+            org_slug: Current slug for action.organization (pre-fetched by caller)
         """
         logger.info(
             "Executing action",
             action_type=action.action_type,
             organization=action.organization,
         )
-        current_orgs = glitchtip.get_organizations()
-        current_org = current_orgs.get(action.organization)
-        org_slug = current_org.slug if current_org else action.organization
         desired_org = next(
             (o for o in desired_orgs if o.name == action.organization), None
         )
@@ -605,12 +604,16 @@ class GlitchtipService:
                 continue
 
             if not dry_run:
+                current_orgs = glitchtip.get_organizations()
                 for action in instance_actions:
+                    current_org = current_orgs.get(action.organization)
+                    org_slug = current_org.slug if current_org else action.organization
                     try:
                         self._execute_action(
                             glitchtip=glitchtip,
                             action=action,
                             desired_orgs=instance.organizations,
+                            org_slug=org_slug,
                         )
                         applied_count += 1
                     except Exception as e:
@@ -620,6 +623,12 @@ class GlitchtipService:
                         )
                         logger.exception(error_msg)
                         errors.append(error_msg)
+                    if isinstance(
+                        action,
+                        GlitchtipActionCreateOrganization
+                        | GlitchtipActionDeleteOrganization,
+                    ):
+                        current_orgs = glitchtip.get_organizations()
 
         return GlitchtipTaskResult(
             status=TaskStatus.FAILED if errors else TaskStatus.SUCCESS,
