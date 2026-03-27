@@ -639,7 +639,15 @@
             "default": [],
             "description": "All actions calculated (desired - current), including any that failed to apply.",
             "items": {
-              "anyOf": [
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/GlitchtipAlertActionCreate",
+                  "delete": "#/components/schemas/GlitchtipAlertActionDelete",
+                  "update": "#/components/schemas/GlitchtipAlertActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
                 {
                   "$ref": "#/components/schemas/GlitchtipAlertActionCreate"
                 },
@@ -658,7 +666,15 @@
             "default": [],
             "description": "Actions that were successfully applied (non-dry-run only).",
             "items": {
-              "anyOf": [
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/GlitchtipAlertActionCreate",
+                  "delete": "#/components/schemas/GlitchtipAlertActionDelete",
+                  "update": "#/components/schemas/GlitchtipAlertActionUpdate"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
                 {
                   "$ref": "#/components/schemas/GlitchtipAlertActionCreate"
                 },
