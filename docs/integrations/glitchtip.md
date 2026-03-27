@@ -1,6 +1,6 @@
 # Glitchtip
 
-**Last Updated:** 2026-03-16
+**Last Updated:** 2026-03-27
 
 ## Description
 
@@ -35,10 +35,10 @@ Each project belongs to an organization, which belongs to an instance. The clien
 **Automation user:** The automation user email is excluded from all user diffs to prevent the reconciler from removing itself.
 
 **Reconciliation ordering** (preserved from the legacy `glitchtip` integration):
-1. Create missing organizations
-2. Reconcile users (invite / delete / update role) — must precede team membership
-3. Reconcile teams (create / delete) and team memberships
-4. Reconcile projects (create / update / delete) and project-team associations
+1. Create missing organizations — for new orgs, all child actions (users, teams, team memberships, projects) are generated upfront in the same pass (single-pass convergence), so dry-run shows the full picture and no extra API calls are made
+2. Reconcile users (invite / delete / update role) — must precede team membership (existing orgs only)
+3. Reconcile teams (create / delete) and team memberships (existing orgs only)
+4. Reconcile projects (create / update / delete) and project-team associations (existing orgs only)
 5. Delete obsolete organizations (last)
 
 ## Architecture
@@ -47,8 +47,8 @@ Each project belongs to an organization, which belongs to an instance. The clien
 
 - Fetches all Glitchtip instances from App-Interface (`glitchtip_instances_v1`)
 - Fetches all Glitchtip projects from App-Interface (`glitchtip_projects_v1`), grouped by instance and organization
-- Fetches LDAP settings from App-Interface (`LdapGroupsIntegration.get_integration_settings`) and resolves OAuth2 credentials from Vault
-- For each team with LDAP groups, calls the qontract-api LDAP external endpoint (`GET /api/v1/external/ldap/groups/{group_name}/members`) concurrently via `asyncio.gather`
+- Fetches LDAP settings directly from App-Interface (`ldap_groups_settings_v1`) and resolves OAuth2 credentials from Vault; fails fast if `api_url`, `issuer_url`, or `client_id` are missing
+- Collects all unique LDAP groups across all teams, then pre-fetches them concurrently via `asyncio.gather` to the qontract-api LDAP external endpoint (`GET /api/v1/external/ldap/groups/{group_name}/members`), avoiding duplicate calls when the same group appears in multiple teams
 - Builds complete desired state hierarchy and sends it to qontract-api via `POST /reconcile`
 - In dry-run mode, polls `GET /reconcile/{task_id}` with a 300-second timeout and logs all actions
 - Exits with code 1 if errors occurred
@@ -442,7 +442,8 @@ The integration can perform these 14 reconciliation actions:
 - The automation user email is never deleted from any organization
 - Projects cannot be created without at least one team — the creation is skipped with a warning if no teams are defined
 - Organizations are deleted last, after all per-org user/team/project reconciliation is complete
-- Team membership and project-team associations for newly created teams/projects are handled during execution, not pre-calculated
+- For new organizations, all child actions (users, teams, team memberships, projects) are generated upfront — no API calls to the Glitchtip instance are needed during calculation
+- For new teams within existing organizations, team membership is seeded during execution (not pre-calculated), since the team slug must exist in Glitchtip before members can be added
 
 **Managed Resources:**
 
@@ -553,9 +554,9 @@ organization:
 **Client Architecture:**
 
 - Queries all Glitchtip instances (`glitchtip_instances_v1`) and projects (`glitchtip_projects_v1`) from App-Interface via GraphQL
-- Reads LDAP OAuth2 credentials from Vault via `LdapGroupsIntegration.get_integration_settings`
+- Reads LDAP settings from App-Interface (`ldap_groups_settings_v1`) and validates that `api_url`, `issuer_url`, and `client_id` are present in Vault before proceeding
 - Groups projects by instance name, then by organization name
-- For each team with `ldap_groups`, concurrently fetches LDAP group members via the qontract-api LDAP external endpoint using `asyncio.gather`
+- Collects all unique LDAP groups across all teams, pre-fetches them concurrently via `asyncio.gather`, and passes the cache to team-user resolution (avoids duplicate API calls for shared groups)
 - Merges LDAP members with role-based users (role-based takes precedence for the same email)
 - Builds the full `GIInstance → GIOrganization → [GlitchtipTeam, GIProject, GlitchtipUser]` structure
 - Submits the reconciliation request to qontract-api
