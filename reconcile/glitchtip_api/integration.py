@@ -166,19 +166,17 @@ class GlitchtipApiIntegration(
         }
         if all_ldap_groups:
             ordered_groups = sorted(all_ldap_groups)
-            member_lists = await asyncio.gather(
-                *[
-                    self._get_ldap_member_ids(
-                        group_name=group,
-                        ldap_cred_path=ldap_cred_path,
-                        ldap_cred_version=ldap_cred_version,
-                        ldap_api_url=ldap_api_url,
-                        ldap_token_url=ldap_token_url,
-                        ldap_client_id=ldap_client_id,
-                    )
-                    for group in ordered_groups
-                ]
-            )
+            member_lists = await asyncio.gather(*[
+                self._get_ldap_member_ids(
+                    group_name=group,
+                    ldap_cred_path=ldap_cred_path,
+                    ldap_cred_version=ldap_cred_version,
+                    ldap_api_url=ldap_api_url,
+                    ldap_token_url=ldap_token_url,
+                    ldap_client_id=ldap_client_id,
+                )
+                for group in ordered_groups
+            ])
             ldap_members: dict[str, list[str]] = dict(
                 zip(ordered_groups, member_lists, strict=True)
             )
@@ -279,20 +277,18 @@ class GlitchtipApiIntegration(
             if not self.params.instance or inst.name == self.params.instance
         ]
 
-        all_organizations = await asyncio.gather(
-            *[
-                self._build_desired_state(
-                    glitchtip_projects=projects_by_instance[inst.name],
-                    mail_domain=inst.mail_domain or "redhat.com",
-                    ldap_api_url=ldap_api_url,
-                    ldap_token_url=ldap_token_url,
-                    ldap_client_id=ldap_client_id,
-                    ldap_cred_path=ldap_cred_path,
-                    ldap_cred_version=ldap_cred_version,
-                )
-                for inst in filtered_instances
-            ]
-        )
+        all_organizations = await asyncio.gather(*[
+            self._build_desired_state(
+                glitchtip_projects=projects_by_instance[inst.name],
+                mail_domain=inst.mail_domain or "redhat.com",
+                ldap_api_url=ldap_api_url,
+                ldap_token_url=ldap_token_url,
+                ldap_client_id=ldap_client_id,
+                ldap_cred_path=ldap_cred_path,
+                ldap_cred_version=ldap_cred_version,
+            )
+            for inst in filtered_instances
+        ])
 
         instances: list[GIInstance] = [
             GIInstance(
@@ -314,7 +310,9 @@ class GlitchtipApiIntegration(
                 max_retries=inst.max_retries or 3,
                 organizations=organizations,
             )
-            for inst, organizations in zip(filtered_instances, all_organizations, strict=True)
+            for inst, organizations in zip(
+                filtered_instances, all_organizations, strict=True
+            )
         ]
 
         if not instances:

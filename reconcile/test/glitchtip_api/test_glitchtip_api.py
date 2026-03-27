@@ -609,7 +609,5 @@ def test_build_desired_state_ldap_group_fetched_once_across_teams(
     # Both teams should still receive the members
     org = orgs[0]
     assert isinstance(org.teams, list)
-    team_user_emails = {
-        user.email for team in org.teams for user in (team.users or [])
-    }
+    team_user_emails = {user.email for team in org.teams for user in (team.users or [])}
     assert f"shared-user@{MAIL_DOMAIN}" in team_user_emails
