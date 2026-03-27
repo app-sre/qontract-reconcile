@@ -145,7 +145,9 @@ def test_new_org_action_ordering(mock_glitchtip: MagicMock) -> None:
     actions = _calculate(mock_glitchtip, [org])
 
     create_org_idx = next(
-        i for i, a in enumerate(actions) if isinstance(a, GlitchtipActionCreateOrganization)
+        i
+        for i, a in enumerate(actions)
+        if isinstance(a, GlitchtipActionCreateOrganization)
     )
     child_indices = [
         i
