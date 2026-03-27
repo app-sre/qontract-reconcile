@@ -17,7 +17,7 @@ from qontract_api.integrations.slack_usergroups.schemas import (
 )
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
 from qontract_api.logger import get_logger
-from qontract_api.models import TaskStatus
+from qontract_api.models import SkippedTaskResult, TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
 from qontract_api.slack.domain import SlackWorkspace
 from qontract_api.tasks import celery_app, deduplicated_task
@@ -50,7 +50,7 @@ def reconcile_slack_usergroups_task(
     workspaces: list[SlackWorkspace],
     *,
     dry_run: bool = True,
-) -> SlackUsergroupsTaskResult | dict[str, str]:
+) -> SlackUsergroupsTaskResult | SkippedTaskResult:
     """Reconcile Slack usergroups (background task).
 
     This task runs in a Celery worker, not in the FastAPI application.
@@ -63,7 +63,7 @@ def reconcile_slack_usergroups_task(
 
     Returns:
         SlackUsergroupsTaskResult on success
-        {"status": "skipped", "reason": "duplicate_task"} if duplicate task
+        SkippedTaskResult if a duplicate task is already running
 
     Note:
         @deduplicated_task decorator may return early if duplicate task is detected.

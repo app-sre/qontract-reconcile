@@ -13,7 +13,7 @@ from fastapi import HTTPException, status
 from hvac.exceptions import VaultError
 
 from qontract_api.logger import get_logger
-from qontract_api.models import TaskStatus
+from qontract_api.models import SkippedTaskResult, TaskStatus
 
 logger = get_logger(__name__)
 
@@ -141,18 +141,18 @@ def get_celery_task_result[T: TaskResult](
             result = async_result.result
 
             # Special case: Deduplication skip (from @deduplicated_task)
-            if isinstance(result, dict) and result.get("status") == "skipped":
+            if isinstance(result, SkippedTaskResult):
                 logger.info(
                     f"Task {task_id} was skipped (duplicate)",
                     task_id=task_id,
-                    reason=result.get("reason"),
+                    reason=result.reason,
                 )
                 # Construct result (result_cls is a Pydantic model, not Protocol)
                 return result_cls(
                     status=TaskStatus.SUCCESS,
                     actions=[],
                     applied_count=0,
-                    errors=[f"Task skipped: {result.get('reason')}"],
+                    errors=[f"Task skipped: {result.reason}"],
                 )
 
             # Normal success: Result is already Pydantic model (pickle deserialization)

@@ -12,6 +12,7 @@ from typing import ParamSpec, TypeVar
 
 from qontract_api.cache.factory import get_cache
 from qontract_api.logger import get_logger
+from qontract_api.models import SkippedTaskResult
 
 logger = get_logger(__name__)
 
@@ -22,7 +23,7 @@ R = TypeVar("R")
 def deduplicated_task(
     lock_key_fn: Callable[..., str],
     timeout: int = 600,
-) -> Callable[[Callable[P, R]], Callable[P, R | dict[str, str]]]:
+) -> Callable[[Callable[P, R]], Callable[P, R | SkippedTaskResult]]:
     """Decorator for task deduplication using distributed locks via CacheBackend.
 
     Prevents multiple instances of the same task from running simultaneously.
@@ -48,14 +49,14 @@ def deduplicated_task(
 
     Usage Notes:
         - Lock key is: task_lock:{function_name}:{lock_key}
-        - Non-blocking: Returns {"status": "skipped"} if duplicate detected
+        - Non-blocking: Returns SkippedTaskResult if duplicate detected
         - Lock is automatically released when function returns
         - Uses global cache (get_cache()) - shared across all tasks in worker
     """
 
-    def decorator(func: Callable[P, R]) -> Callable[P, R | dict[str, str]]:
+    def decorator(func: Callable[P, R]) -> Callable[P, R | SkippedTaskResult]:
         @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | dict[str, str]:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | SkippedTaskResult:
             # Generate lock key from task arguments.
             # Always include dry_run in the key so that dry-run and production
             # tasks for the same resources do not block each other.
@@ -97,7 +98,7 @@ def deduplicated_task(
                     lock_key=lock_key,
                     lock_key_suffix=lock_key_suffix,
                 )
-                return {"status": "skipped", "reason": "duplicate_task"}
+                return SkippedTaskResult()
 
         return wrapper
 

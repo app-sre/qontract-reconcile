@@ -37,6 +37,17 @@ class TaskResult(BaseModel, frozen=True):
     )
 
 
+class SkippedTaskResult(BaseModel, frozen=True):
+    """Result model for a task skipped due to deduplication.
+
+    Returned by @deduplicated_task when the lock cannot be acquired because
+    an identical task is already running.
+    """
+
+    status: str = Field(default="skipped", description="Always 'skipped'")
+    reason: str = Field(default="duplicate_task", description="Reason for skipping")
+
+
 class TokenData(BaseModel):
     """Data to be encoded in JWT token."""
 
