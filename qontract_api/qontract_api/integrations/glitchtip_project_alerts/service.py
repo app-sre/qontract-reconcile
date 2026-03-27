@@ -17,6 +17,7 @@ from qontract_api.integrations.glitchtip_project_alerts.domain import (
     GlitchtipProjectAlert,
 )
 from qontract_api.integrations.glitchtip_project_alerts.schemas import (
+    GlitchtipAlertAction,
     GlitchtipAlertActionCreate,
     GlitchtipAlertActionDelete,
     GlitchtipAlertActionUpdate,
@@ -122,11 +123,7 @@ class GlitchtipProjectAlertsService:
         instance_name: str,
         glitchtip: GlitchtipWorkspaceClient,
         organizations: list[GlitchtipOrganization],
-    ) -> list[
-        GlitchtipAlertActionCreate
-        | GlitchtipAlertActionUpdate
-        | GlitchtipAlertActionDelete
-    ]:
+    ) -> list[GlitchtipAlertAction]:
         """Calculate reconciliation actions for an instance.
 
         Fetches current state from Glitchtip and diffs against desired state.
@@ -139,11 +136,7 @@ class GlitchtipProjectAlertsService:
         Returns:
             List of actions to reconcile current to desired state
         """
-        actions: list[
-            GlitchtipAlertActionCreate
-            | GlitchtipAlertActionUpdate
-            | GlitchtipAlertActionDelete
-        ] = []
+        actions: list[GlitchtipAlertAction] = []
 
         current_org_by_name = glitchtip.get_organizations()
 
@@ -312,16 +305,8 @@ class GlitchtipProjectAlertsService:
         Returns:
             GlitchtipProjectAlertsTaskResult with actions, applied_count, and errors
         """
-        all_actions: list[
-            GlitchtipAlertActionCreate
-            | GlitchtipAlertActionUpdate
-            | GlitchtipAlertActionDelete
-        ] = []
-        applied_actions: list[
-            GlitchtipAlertActionCreate
-            | GlitchtipAlertActionUpdate
-            | GlitchtipAlertActionDelete
-        ] = []
+        all_actions: list[GlitchtipAlertAction] = []
+        applied_actions: list[GlitchtipAlertAction] = []
         errors: list[str] = []
 
         for instance in instances:
