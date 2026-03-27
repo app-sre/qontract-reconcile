@@ -26,3 +26,4 @@ class ConfiguredBaseModel(BaseModel):
 
 class DisableAutomations(ConfiguredBaseModel):
     integrations: Optional[list[str]] = Field(..., alias="integrations")
+# test
