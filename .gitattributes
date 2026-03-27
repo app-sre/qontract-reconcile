@@ -1,2 +1,4 @@
 qontract_api_client/qontract_api_client/**/*.py linguist-generated=true
 reconcile/gql_definitions/**/*.py linguist-generated=true
+qontract_api/openapi.json linguist-generated=true
+reconcile/gql_definitions/introspection.json linguist-generated=true
