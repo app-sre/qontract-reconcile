@@ -41,7 +41,10 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 PROVIDERS = ["prometheus-rule"]
 
-NAMESPACE_NAME = "openshift-customer-monitoring"
+NAMESPACE_NAMES = frozenset([
+    "openshift-customer-monitoring",
+    "app-sre-observability-per-cluster",
+])
 DEFAULT_PROMTOOL_VERSION = "3.2.1"
 
 
@@ -127,11 +130,13 @@ def get_rules_and_tests(
     cluster_names: Iterable[str] | None = None,
 ) -> list[Test]:
     """Iterates through all namespaces and returns a list of tests to run"""
-    namespace_with_prom_rules, _ = orb.get_namespaces(
+    all_namespaces, _ = orb.get_namespaces(
         PROVIDERS,
         cluster_names=cluster_names or [],
-        namespace_name=NAMESPACE_NAME,
     )
+    namespace_with_prom_rules = [
+        ns for ns in all_namespaces if ns["name"] in NAMESPACE_NAMES
+    ]
 
     iterable: list[RuleToFetch] = []
     for namespace in namespace_with_prom_rules:
