@@ -747,14 +747,6 @@ def github(ctx: click.Context) -> None:
     run_integration(reconcile.github_org, ctx)
 
 
-@integration.command(short_help="Configures owners in a GitHub org.")
-@click.pass_context
-def github_owners(ctx: click.Context) -> None:
-    import reconcile.github_owners
-
-    run_integration(reconcile.github_owners, ctx)
-
-
 @integration.command(short_help="Configures owners in a GitHub org via qontract-api.")
 @click.option("--org", help="Reconcile just this GitHub org.", default=None)
 @click.pass_context

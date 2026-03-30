@@ -86,7 +86,8 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   Container Registry.
   github                          Configures the teams and members in a GitHub
                                   org.
-  github-owners                   Configures owners in a GitHub org.
+  github-owners-api               Configures owners in a GitHub org via
+                                  qontract-api.
   github-repo-invites             Accept GitHub repository invitations for
                                   known repositories.
   github-repo-permissions-validator
