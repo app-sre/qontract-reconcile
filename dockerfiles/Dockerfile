@@ -59,7 +59,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image-pre-test
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.5.0-1@sha256:792cb39465e78c46859ec937125fb397323e0b0044d19c2548d008b9fc9d54fd AS prod-image-pre-test
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.5.1-1@sha256:2a2a15f47273bc3a5119b2cd936e87749103567207ba84692d3fec1d88050a31 AS prod-image-pre-test
 
 # Tini
 ENV TINI_VERSION=v0.19.0
