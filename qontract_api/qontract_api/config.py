@@ -400,6 +400,10 @@ class Settings(BaseSettings):
     jwt_expire_days: int = Field(
         default=180, description="JWT token expiration in days"
     )
+    jwt_revoked_subjects: list[str] = Field(
+        default_factory=list,
+        description="List of revoked JWT subjects. Tokens with these subjects will be rejected.",
+    )
 
     # API Task Execution
     api_task_max_timeout: int = Field(
