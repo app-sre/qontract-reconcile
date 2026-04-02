@@ -4,13 +4,54 @@
 
 **qontract-reconcile** is a comprehensive infrastructure reconciliation tool developed by Red Hat's App-SRE Team. It manages 80+ integrations across AWS, OpenShift, GitHub, GitLab, and other platforms, following a declarative "desired state vs current state" reconciliation pattern.
 
+## Workspace Structure
+
+Four packages in a uv workspace with strict boundaries:
+
+| Package                | Role                             | Imports from                            |
+| ---------------------- | -------------------------------- | --------------------------------------- |
+| `reconcile/`           | 158+ CLI integrations (original) | `qontract_utils`, `qontract_api_client` |
+| `qontract_api/`        | FastAPI REST service             | `qontract_utils`, `qontract_api_client` |
+| `qontract_api_client/` | Auto-generated API client        | nothing (standalone)                    |
+| `qontract_utils/`      | Shared utilities library         | nothing (standalone)                    |
+
+### Import Rules (ADR-007)
+
+- `qontract_api/` MUST NOT import from `reconcile/`
+- `reconcile/` MUST NOT import from `qontract_api/`
+- Shared code goes to `qontract_utils/` — migrated from `reconcile/utils/` with refactoring, type hints, tests (>80% coverage)
+- `reconcile/` is a read-only reference implementation for qontract-api development
+
+### Generated Files — NEVER Edit Manually
+
+1. **`qontract_api/openapi.json`** — generated from FastAPI code via `cd qontract_api && make generate-openapi-spec`
+2. **`qontract_api_client/qontract_api_client/`** — generated from openapi.json via `cd qontract_api_client && make generate-client`
+3. **`reconcile/gql_definitions/**/*.py`** — generated from `.gql` files via `make gql-query-classes`
+
+Change the SOURCE, then regenerate. Never edit these files.
+
+### Key Directories
+
+- `reconcile/` — Original CLI integrations (read-only reference for qontract-api work)
+- `reconcile/gql_definitions/` — Auto-generated GraphQL dataclasses
+- `qontract_api/qontract_api/integrations/` — API-based integration services (Layer 3)
+- `qontract_api/qontract_api/routers/` — FastAPI route definitions
+- `qontract_api/qontract_api/tasks/` — Celery task definitions
+- `qontract_api/qontract_api/cache/` — Distributed cache backends
+- `qontract_utils/qontract_utils/vcs/` — VCS clients (GitHub, GitLab — Layer 1)
+- `qontract_utils/qontract_utils/secret_reader/` — Vault secret readers
+- `tools/` — CLI utilities and standalone tools
+- `docs/adr/` — Architecture Decision Records (binding, read before architectural changes)
+- `docs/patterns/` — Implementation pattern documentation
+- `helm/qontract-reconcile/` — Helm chart for deployment
+
 ## Development Environment
 
 ### Prerequisites
 
-- **Python 3.12**
-- **uv** for dependency management (modern pip/pipenv replacement)
-- **Docker** for containerized development
+- **Python 3.12** (exact pin)
+- **uv** (>=0.10.11) for dependency management
+- **Docker/Podman** for containerized development
 
 ### Setup
 
@@ -23,28 +64,64 @@ uv sync -U               # Install dependencies
 ### Code Quality
 
 ```bash
-make format              # Format code with ruff
-make linter-test         # Run linting checks
-make types-test          # Run MyPy type checking
+make format              # Auto-fix: ruff check --fix + ruff format
+make linter-test         # Lint: ruff check --no-fix + ruff format --check
+make types-test          # Type check: mypy strict (disallow_untyped_defs, pydantic plugin)
+make unittest            # Tests: pytest with coverage (>60% required)
+make all-tests           # ALL: linter-test + types-test + qenerate-test + helm-test + unittest
 ```
 
-### Testing
+Sub-packages have their own `make test` (in `qontract_api/`, `qontract_api_client/`, `qontract_utils/`).
+
+### Regeneration Workflows
+
+After changing FastAPI routes/models:
 
 ```bash
-make unittest            # Run unit tests
-make all-tests           # Run full test suite (unit + integration)
-pytest path/to/test.py   # Run specific test file
-pytest -k "test_name"    # Run tests matching pattern
+cd qontract_api && make generate-openapi-spec   # → updates openapi.json
+cd qontract_api_client && make generate-client   # → regenerates client from openapi.json
+```
+
+After changing GraphQL schema:
+
+```bash
+make gql-introspection     # Fetch schema from localhost:4000/graphql
+make gql-query-classes     # Generate Pydantic models from .gql files
+# or combined:
+make qenerate
 ```
 
 ### Development Workflows
 
 ```bash
-make gql-query-classes   # Regenerate GraphQL dataclasses (required after schema changes)
 make dev-reconcile-loop  # Start containerized development environment
 ```
 
-## Architecture Overview
+## Tooling Stack
+
+- **Package manager**: uv, workspace with 4 members
+- **Linting/formatting**: ruff (line-length=88, target py312)
+- **Type checking**: mypy strict (disallow_untyped_defs, pydantic plugin)
+- **Testing**: pytest + pytest-mock + moto (AWS mocking) + responses (HTTP mocking)
+- **GraphQL codegen**: qenerate
+- **API client codegen**: openapi-python-client with custom templates
+- **Build backend**: hatchling + uv-dynamic-versioning (git tags)
+- **CI/CD**: Tekton pipelines (.tekton/), separate pipelines per package
+- **Container**: podman/docker, multi-stage Dockerfile
+
+### Ruff Config Differences
+
+- **Root** (`reconcile/`, `tools/`): Selected rule sets (E, W, F, I, PL, UP, SIM, B, PERF, etc.)
+- **qontract_api/** and **qontract_utils/**: `select = ["ALL"]` with pragmatic ignores
+- All exclude `reconcile/gql_definitions` from linting
+
+### Key Entry Points
+
+- `qontract-reconcile` → `reconcile.cli:integration`
+- `qontract-cli` → `tools.qontract_cli:root`
+- `run-integration` → `reconcile.run_integration:main`
+
+## Architecture
 
 ### Core Reconciliation Pattern
 
@@ -53,16 +130,21 @@ make dev-reconcile-loop  # Start containerized development environment
 3. **Calculate diff** between desired and current state
 4. **Apply changes** to reconcile the difference
 
-### Key Directories
+**Plan-and-Apply**: Build complete diff/plan FIRST, then execute. Check `dry_run` only at execution point. Same log output in both modes.
 
-- `reconcile/` - 158 integration modules + core utilities
-- `reconcile/gql_definitions/` - Auto-generated GraphQL dataclasses (do not edit manually)
-- `qontract-api/` - REST API server for our integrations
-- `qontract-api-client/` - Auto-generated Python client for qontract-api
-- `qontract-utils/` - Utilities shared across qontract-api and reconcile
-- `tools/` - CLI utilities and standalone tools
-- `docs/patterns/` - Architectural documentation and best practices
-- `docs/ADR/` - Architectural decision records
+### Three-Layer Architecture (ADR-014)
+
+For all external API integrations:
+
+- **Layer 1: API Client** (`qontract_utils/`) — Stateless, returns Pydantic models, handles retries/timeouts. No caching, no business logic.
+- **Layer 2: Workspace Client** (`qontract_api/`) — Uses Layer 1. Adds distributed cache (Redis) with TTL, distributed locking (double-check pattern), compute helpers.
+- **Layer 3: Service/Tasks** (`qontract_api/integrations/`) — Uses Layer 2. Pure business logic, dry-run, orchestration. No direct API calls.
+
+**Rule:** Tasks MUST use Layer 2 (workspace client), never Layer 1 directly.
+
+### Architectural Decisions (ADRs)
+
+All ADRs are documented in `docs/adr/` and are binding. Always choose the "Selected" alternative. Treat examples as examples — adapt them to the current context.
 
 ### GraphQL Data Binding
 
@@ -72,7 +154,7 @@ make dev-reconcile-loop  # Start containerized development environment
 
 ### Integration Structure
 
-Most integrations follow this pattern:
+CLI integrations follow this pattern:
 
 ```python
 def run(dry_run: bool, thread_pool_size: int = 10) -> None:
@@ -83,81 +165,27 @@ def run(dry_run: bool, thread_pool_size: int = 10) -> None:
     # 4. Apply changes (unless dry_run=True)
 ```
 
+API-backed integrations (ADR-008) use:
+
+```python
+class MyIntegrationApi(QontractReconcileApiIntegration):
+    async def async_run(self, dry_run: bool) -> None:
+        # Uses self.qontract_api_client for API calls
+```
+
 ## Testing Guidelines
 
-### Test Organization
-
-- Unit tests: `tests/` directory, mirror the source structure
-- Integration tests: Use pytest fixtures for external dependencies
-- All tests must pass for CI/CD pipeline
-
-### Test Utilities
-
-- `reconcile.test.fixtures` - Common test fixtures and utilities
-- Comprehensive mocking support for external API calls
+- Unit tests use pytest functions (no classes)
 - Use `@pytest.fixture` for reusable test data
-
-## Common Development Patterns
-
-### Error Handling
-
-- Use structured logging with `reconcile.utils.logger`
-- Implement proper exception handling for external API calls
-- Support for signal handling and graceful shutdowns
-
-### Configuration
-
-- Environment-based configuration via `reconcile.utils.config`
-- Support for both file-based and environment variable configuration
-- Vault integration for sensitive data
-
-### Sharding Support
-
-- Many integrations support horizontal scaling via sharding
-- Use `reconcile.utils.sharding` utilities
-- Test both sharded and non-sharded execution paths
-
-### Archtitectural Decisions
-
-- Documented in `docs/ADR/` directory
-- Follow the decisions for consistency across integrations
-- Always choose the "Selected" in the Alternatives Considered section
-- Treat the examples as examples, don't follow them blindly. You're allowed to adapt them to the current context and needs.
-
-## Integration Development
-
-### Creating New Integrations
-
-1. Create module in `reconcile/` directory
-2. Implement `run()` function with `dry_run` parameter
-3. Add comprehensive unit tests
-4. Update GraphQL queries if needed (run `make gql-query-classes`)
-5. Add integration to appropriate configuration
-
-### GraphQL Queries
-
-- Define queries in integration modules
-- Use type-safe generated classes from `reconcile.gql_definitions`
-- Regenerate classes after schema changes: `make gql-query-classes`
-
-## Debugging and Development
-
-### Local Development
-
-- Use `make dev-reconcile-loop` for containerized development
-- Environment variables in `.env` files for local configuration
-- Comprehensive dry-run support for safe testing
-
-### Profiling and Monitoring
-
-- Built-in profiling support via `reconcile.utils.profiling`
-- Prometheus metrics integration
-- Structured logging with correlation IDs
+- Use `@pytest.mark.parametrize` for multiple inputs
+- Mock ALL external dependencies — no live network calls
+- Test both `dry_run=True` and `dry_run=False`
+- Use `moto` for AWS mocking, `responses` for HTTP mocking
+- All tests must pass for CI/CD pipeline
 
 ## Important Notes
 
-- **Never edit** files in `reconcile/gql_definitions/**/*.py` - they are auto-generated
+- **Never edit** generated files (see [Generated Files](#generated-files--never-edit-manually))
 - Always test integrations in dry-run mode first
-- Use type hints consistently - MyPy enforcement is strict
+- Use type hints consistently — MyPy enforcement is strict
 - Follow existing patterns for error handling and logging
-- All public functions should include comprehensive docstrings
