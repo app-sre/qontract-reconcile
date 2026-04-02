@@ -35,7 +35,7 @@ dependencies = [
     "jsonpointer~=2.4",
     "kubernetes==32.0.1",
     "ldap3>=2.9.1,<2.10.0",
-    "networkx~=2.8",
+    "networkx~=3.6",
     "parse==1.18.0",
     "prometheus-client~=0.8",
     "psycopg2-binary~=2.9",
