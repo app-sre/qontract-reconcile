@@ -1,5 +1,6 @@
 ---
-description: Create a new Architecture Decision Record (ADR)
+name: adr
+description: Create a new Architecture Decision Record (ADR). Use this skill when someone wants to create, write, or propose a new ADR, or when they mention "architecture decision", "ADR", or "decision record". Triggers on requests to document architectural decisions, patterns, or conventions.
 ---
 
 # Architecture Decision Record (ADR) Creation
@@ -63,15 +64,3 @@ You are helping create a new Architecture Decision Record (ADR) for the qontract
 - Use examples to illustrate (e.g., "Example: Slack API Integration")
 - Default status is "Proposed" unless user specifies otherwise
 - Author is the current system user (from `whoami`), not "App-SRE Team"
-
-## Example Usage
-
-User: `/adr`
-Assistant: I'll help you create a new ADR. Let me check the next available number...
-
-[Determines next number is 016]
-
-I propose ADR-016. Is this correct?
-
-User: yes, title is "use-pydantic-for-api-models"
-Assistant: [Asks for context, decision, alternatives, etc. and creates the ADR]
