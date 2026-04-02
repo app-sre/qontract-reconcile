@@ -25,16 +25,49 @@ class AWSEntityAlreadyExistsError(Exception):
     """Raised when the user already exists in IAM."""
 
 
+class AWSLimitExceededError(Exception):
+    """Raised when an AWS IAM resource limit is exceeded (e.g., max 2 access keys)."""
+
+
 class AWSApiIam:
     def __init__(self, client: IAMClient) -> None:
         self.client = client
 
     def create_access_key(self, user_name: str) -> AWSAccessKey:
-        """Create an access key for a given user."""
-        credentials = self.client.create_access_key(
-            UserName=user_name,
-        )
+        """Create an access key for a given user.
+
+        Raises AWSLimitExceededError if the user already has the maximum
+        number of access keys (2).
+        """
+        try:
+            credentials = self.client.create_access_key(
+                UserName=user_name,
+            )
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "LimitExceeded":
+                raise AWSLimitExceededError(
+                    f"Max access keys reached for user {user_name}"
+                ) from e
+            raise
         return AWSAccessKey(**credentials["AccessKey"])
+
+    def list_access_keys(self, user_name: str) -> list[AWSAccessKey]:
+        """List access keys for a user."""
+        response = self.client.list_access_keys(UserName=user_name)
+        return [
+            AWSAccessKey(
+                AccessKeyId=k["AccessKeyId"],
+                SecretAccessKey="",
+            )
+            for k in response["AccessKeyMetadata"]
+        ]
+
+    def delete_access_key(self, *, user_name: str, access_key_id: str) -> None:
+        """Delete an access key."""
+        self.client.delete_access_key(
+            UserName=user_name,
+            AccessKeyId=access_key_id,
+        )
 
     def create_user(self, user_name: str) -> AWSUser:
         """Create a new IAM user."""
@@ -55,9 +88,10 @@ class AWSApiIam:
             PolicyArn=policy_arn,
         )
 
-    def get_account_alias(self) -> str:
-        """Get the account alias."""
-        return self.client.list_account_aliases()["AccountAliases"][0]
+    def get_account_alias(self) -> str | None:
+        """Get the account alias, or None if not set."""
+        aliases = self.client.list_account_aliases()["AccountAliases"]
+        return aliases[0] if aliases else None
 
     def set_account_alias(self, account_alias: str) -> None:
         """Set the account alias."""

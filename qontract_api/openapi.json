@@ -1,6 +1,493 @@
 {
   "components": {
     "schemas": {
+      "AWSAccountManagerCreateAccountRequest": {
+        "description": "Request to create a plain AWS account.\n\nHandles only AWS-level operations: create org account, describe,\ntag, set alias. One payer account + one account request per call.",
+        "properties": {
+          "account_request": {
+            "$ref": "#/components/schemas/AWSAccountRequest",
+            "description": "Account to create"
+          },
+          "default_tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Default tags for the new account",
+            "title": "Default Tags",
+            "type": "object"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing.",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "organization_account_role": {
+            "default": "OrganizationAccountAccessRole",
+            "description": "Role to assume in the new account",
+            "title": "Organization Account Role",
+            "type": "string"
+          },
+          "payer_account": {
+            "$ref": "#/components/schemas/AWSPayerAccount",
+            "description": "Payer account with credentials"
+          }
+        },
+        "required": [
+          "payer_account",
+          "account_request"
+        ],
+        "title": "AWSAccountManagerCreateAccountRequest",
+        "type": "object"
+      },
+      "AWSAccountManagerCreateIAMUserRequest": {
+        "description": "Request to create an IAM user in an AWS account.\n\nAssumes into the account via the payer's manager role and creates\nan IAM user with the specified policy. Credentials are saved to Vault.",
+        "properties": {
+          "account_name": {
+            "description": "Name of the target account",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "account_uid": {
+            "description": "AWS account ID of the target account",
+            "title": "Account Uid",
+            "type": "string"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing.",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "organization_account_role": {
+            "default": "OrganizationAccountAccessRole",
+            "description": "Role to assume in the target account",
+            "title": "Organization Account Role",
+            "type": "string"
+          },
+          "payer_account": {
+            "$ref": "#/components/schemas/AWSPayerAccount",
+            "description": "Payer account with credentials"
+          },
+          "policy_arn": {
+            "description": "Policy ARN to attach to the IAM user",
+            "title": "Policy Arn",
+            "type": "string"
+          },
+          "secret_vault_path": {
+            "description": "Vault path for storing IAM credentials",
+            "title": "Secret Vault Path",
+            "type": "string"
+          },
+          "user_name": {
+            "description": "Name of the IAM user to create",
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payer_account",
+          "account_name",
+          "account_uid",
+          "user_name",
+          "policy_arn",
+          "secret_vault_path"
+        ],
+        "title": "AWSAccountManagerCreateIAMUserRequest",
+        "type": "object"
+      },
+      "AWSAccountManagerReconcileRequest": {
+        "description": "Request to reconcile a single AWS account.\n\nIf ``organization`` is present, the account is treated as an organization\naccount (payer credentials + role assumption). Otherwise it is a standalone\naccount with direct credentials.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Desired account alias",
+            "title": "Alias"
+          },
+          "automation_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payer's manager role ARN (required for org accounts)",
+            "title": "Automation Role"
+          },
+          "automation_token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Credentials (payer's for org accounts, own for non-org)"
+          },
+          "default_tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Default tags for the account",
+            "title": "Default Tags",
+            "type": "object"
+          },
+          "dry_run": {
+            "default": true,
+            "description": "If True, only calculate actions without executing.",
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "enterprise_support": {
+            "default": false,
+            "description": "Whether enterprise support is required",
+            "title": "Enterprise Support",
+            "type": "boolean"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AWSAccountOrganization"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Organization details (OU + tags). If set, account is org-managed."
+          },
+          "organization_account_role": {
+            "default": "OrganizationAccountAccessRole",
+            "description": "Role to assume in org account",
+            "title": "Organization Account Role",
+            "type": "string"
+          },
+          "payer_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payer account UID (required for org accounts \u2014 role assumed on payer, not org account)",
+            "title": "Payer Uid"
+          },
+          "quotas": {
+            "description": "Desired service quotas",
+            "items": {
+              "$ref": "#/components/schemas/AWSQuota"
+            },
+            "title": "Quotas",
+            "type": "array"
+          },
+          "resources_default_region": {
+            "description": "Default AWS region",
+            "title": "Resources Default Region",
+            "type": "string"
+          },
+          "security_contact": {
+            "$ref": "#/components/schemas/AWSSecurityContact",
+            "description": "Desired security contact"
+          },
+          "supported_deployment_regions": {
+            "description": "Desired enabled regions",
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Deployment Regions",
+            "type": "array"
+          },
+          "uid": {
+            "description": "AWS account ID",
+            "title": "Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name",
+          "uid",
+          "automation_token",
+          "resources_default_region",
+          "security_contact"
+        ],
+        "title": "AWSAccountManagerReconcileRequest",
+        "type": "object"
+      },
+      "AWSAccountManagerTaskResponse": {
+        "description": "Response model for POST endpoints.\n\nReturned immediately when task is queued. Contains task_id and status_url\nfor retrieving the result via GET request.",
+        "properties": {
+          "id": {
+            "description": "Task ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "pending",
+            "description": "Task status (always 'pending' initially)"
+          },
+          "status_url": {
+            "description": "URL to retrieve task result (GET request)",
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status_url"
+        ],
+        "title": "AWSAccountManagerTaskResponse",
+        "type": "object"
+      },
+      "AWSAccountOrganization": {
+        "description": "Organization membership details for an AWS account.",
+        "properties": {
+          "ou": {
+            "description": "Organizational Unit path",
+            "title": "Ou",
+            "type": "string"
+          },
+          "tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Tags to apply to the account",
+            "title": "Tags",
+            "type": "object"
+          }
+        },
+        "required": [
+          "ou"
+        ],
+        "title": "AWSAccountOrganization",
+        "type": "object"
+      },
+      "AWSAccountRequest": {
+        "description": "Request to create a new AWS account under a payer account.",
+        "properties": {
+          "email": {
+            "description": "Account owner email",
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "description": "Account name",
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "description": "App-interface path to account request file",
+            "title": "Path",
+            "type": "string"
+          },
+          "uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Existing account ID for takeover scenarios",
+            "title": "Uid"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "path"
+        ],
+        "title": "AWSAccountRequest",
+        "type": "object"
+      },
+      "AWSPayerAccount": {
+        "description": "A payer (management) account in an AWS organization.",
+        "properties": {
+          "automation_role": {
+            "description": "IAM role ARN for account management",
+            "title": "Automation Role",
+            "type": "string"
+          },
+          "automation_token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for automation credentials"
+          },
+          "name": {
+            "description": "Account name",
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_account_tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Default tags for organization accounts",
+            "title": "Organization Account Tags",
+            "type": "object"
+          },
+          "resources_default_region": {
+            "description": "Default AWS region for API calls",
+            "title": "Resources Default Region",
+            "type": "string"
+          },
+          "uid": {
+            "description": "AWS account ID",
+            "title": "Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "uid",
+          "automation_token",
+          "automation_role",
+          "resources_default_region"
+        ],
+        "title": "AWSPayerAccount",
+        "type": "object"
+      },
+      "AWSQuota": {
+        "description": "Service quota configuration for an AWS account.",
+        "properties": {
+          "quota_code": {
+            "description": "Quota code within the service (e.g., 'L-F678F1CE')",
+            "title": "Quota Code",
+            "type": "string"
+          },
+          "service_code": {
+            "description": "AWS service code (e.g., 'vpc')",
+            "title": "Service Code",
+            "type": "string"
+          },
+          "value": {
+            "description": "Desired quota value",
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "service_code",
+          "quota_code",
+          "value"
+        ],
+        "title": "AWSQuota",
+        "type": "object"
+      },
+      "AWSSecurityContact": {
+        "description": "Security contact information for an AWS account.",
+        "properties": {
+          "email": {
+            "description": "Contact email address",
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "description": "Contact name",
+            "title": "Name",
+            "type": "string"
+          },
+          "phone_number": {
+            "description": "Contact phone number",
+            "title": "Phone Number",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Contact title",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "phone_number"
+        ],
+        "title": "AWSSecurityContact",
+        "type": "object"
+      },
+      "AccountCreateCompleteAction": {
+        "description": "Account creation completed \u2014 contains the created account's name and UID.",
+        "properties": {
+          "account_name": {
+            "description": "Name of the created account",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "account_uid": {
+            "description": "AWS account ID of the created account",
+            "title": "Account Uid",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "create_complete",
+            "default": "create_complete",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "payer_account_name": {
+            "description": "Name of the payer account that managed creation",
+            "title": "Payer Account Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name",
+          "payer_account_name",
+          "account_uid"
+        ],
+        "title": "AccountCreateCompleteAction",
+        "type": "object"
+      },
+      "AccountCreateIAMUserAction": {
+        "description": "IAM user creation action \u2014 contains account and user details.",
+        "properties": {
+          "account_name": {
+            "description": "Name of the account",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "create_iam_user",
+            "default": "create_iam_user",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "description": "Additional detail",
+            "title": "Detail",
+            "type": "string"
+          },
+          "user_name": {
+            "description": "IAM user name created",
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name",
+          "user_name"
+        ],
+        "title": "AccountCreateIAMUserAction",
+        "type": "object"
+      },
       "ChatRequest": {
         "description": "Request model for posting a Slack message.\n\nImmutable model with all fields required to send a chat message.\n\nAttributes:\n    workspace_name: Slack workspace name\n    channel: Channel name to post to\n    text: Message text\n    thread_ts: Optional thread timestamp for replies\n    icon_emoji: Emoji to use as the message icon\n    icon_url: URL to an image to use as the message icon\n    username: Bot username to display\n    secret: Secret reference for Slack bot token",
         "properties": {
@@ -112,6 +599,162 @@
           "channel"
         ],
         "title": "ChatResponse",
+        "type": "object"
+      },
+      "CreateAccountResult": {
+        "description": "Result for GET /create-account/{task_id}.\n\nOn completion, contains the created account's name and UID.",
+        "properties": {
+          "actions": {
+            "description": "Completed account creation (empty while in progress)",
+            "items": {
+              "$ref": "#/components/schemas/AccountCreateCompleteAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CreateAccountResult",
+        "type": "object"
+      },
+      "CreateIAMUserResult": {
+        "description": "Result for GET /create-iam-user/{task_id}.\n\nContains IAM user creation details.",
+        "properties": {
+          "actions": {
+            "description": "IAM user creation actions performed",
+            "items": {
+              "$ref": "#/components/schemas/AccountCreateIAMUserAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CreateIAMUserResult",
+        "type": "object"
+      },
+      "CreateMergeRequestRequest": {
+        "description": "Request to create a merge request in a VCS repository.",
+        "properties": {
+          "auto_merge": {
+            "default": false,
+            "description": "Whether to enable auto-merge",
+            "title": "Auto Merge",
+            "type": "boolean"
+          },
+          "description": {
+            "default": "",
+            "description": "Merge request description",
+            "title": "Description",
+            "type": "string"
+          },
+          "file_operations": {
+            "description": "File operations to include in the MR",
+            "items": {
+              "$ref": "#/components/schemas/MergeRequestFileOperation"
+            },
+            "title": "File Operations",
+            "type": "array"
+          },
+          "labels": {
+            "description": "Labels to apply to the MR",
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "repo_url": {
+            "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+            "title": "Repo Url",
+            "type": "string"
+          },
+          "source_branch": {
+            "description": "Source branch name",
+            "title": "Source Branch",
+            "type": "string"
+          },
+          "target_branch": {
+            "default": "master",
+            "description": "Target branch name",
+            "title": "Target Branch",
+            "type": "string"
+          },
+          "title": {
+            "description": "Merge request title",
+            "title": "Title",
+            "type": "string"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for VCS API token"
+          }
+        },
+        "required": [
+          "repo_url",
+          "token",
+          "title",
+          "source_branch",
+          "file_operations"
+        ],
+        "title": "CreateMergeRequestRequest",
+        "type": "object"
+      },
+      "CreateMergeRequestResponse": {
+        "description": "Response after creating a merge request.",
+        "properties": {
+          "url": {
+            "description": "URL of the created merge request",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "CreateMergeRequestResponse",
         "type": "object"
       },
       "EscalationPolicyUsersResponse": {
@@ -576,6 +1219,40 @@
         "title": "HealthStatus",
         "type": "object"
       },
+      "MergeRequestFileOperation": {
+        "description": "A file operation within a merge request.\n\nSet ``content`` to ``None`` to delete the file.",
+        "properties": {
+          "commit_message": {
+            "description": "Commit message for this file change",
+            "title": "Commit Message",
+            "type": "string"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File content (None = delete the file)",
+            "title": "Content"
+          },
+          "path": {
+            "description": "File path in the repository",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content",
+          "commit_message"
+        ],
+        "title": "MergeRequestFileOperation",
+        "type": "object"
+      },
       "PagerDutyUser": {
         "description": "PagerDuty user representation.\n\nImmutable model representing a user from PagerDuty API.\n\nAttributes:\n    username: PagerDuty username (computed from email)",
         "properties": {
@@ -599,6 +1276,267 @@
         ],
         "title": "RecipientType",
         "type": "string"
+      },
+      "ReconcileActionEnableSupport": {
+        "description": "Action: enterprise support enabled.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "enable_support",
+            "default": "enable_support",
+            "title": "Action Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name"
+        ],
+        "title": "ReconcileActionEnableSupport",
+        "type": "object"
+      },
+      "ReconcileActionMoveOU": {
+        "description": "Action: account moved to a different OU.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "move_ou",
+            "default": "move_ou",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "ou": {
+            "description": "Target OU path",
+            "title": "Ou",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name",
+          "ou"
+        ],
+        "title": "ReconcileActionMoveOU",
+        "type": "object"
+      },
+      "ReconcileActionRequestQuota": {
+        "description": "Action: service quota increase requested.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "request_quota",
+            "default": "request_quota",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "quota_code": {
+            "description": "AWS quota code",
+            "title": "Quota Code",
+            "type": "string"
+          },
+          "service_code": {
+            "description": "AWS service code",
+            "title": "Service Code",
+            "type": "string"
+          },
+          "value": {
+            "description": "Requested quota value",
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "account_name",
+          "service_code",
+          "quota_code",
+          "value"
+        ],
+        "title": "ReconcileActionRequestQuota",
+        "type": "object"
+      },
+      "ReconcileActionSetAlias": {
+        "description": "Action: account alias set.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "set_alias",
+            "default": "set_alias",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "alias": {
+            "description": "Applied alias",
+            "title": "Alias",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name",
+          "alias"
+        ],
+        "title": "ReconcileActionSetAlias",
+        "type": "object"
+      },
+      "ReconcileActionSetRegions": {
+        "description": "Action: supported regions updated.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "set_regions",
+            "default": "set_regions",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "disabled": {
+            "description": "Regions disabled",
+            "items": {
+              "type": "string"
+            },
+            "title": "Disabled",
+            "type": "array"
+          },
+          "enabled": {
+            "description": "Regions enabled",
+            "items": {
+              "type": "string"
+            },
+            "title": "Enabled",
+            "type": "array"
+          }
+        },
+        "required": [
+          "account_name"
+        ],
+        "title": "ReconcileActionSetRegions",
+        "type": "object"
+      },
+      "ReconcileActionSetSecurityContact": {
+        "description": "Action: security contact set.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "set_security_contact",
+            "default": "set_security_contact",
+            "title": "Action Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_name"
+        ],
+        "title": "ReconcileActionSetSecurityContact",
+        "type": "object"
+      },
+      "ReconcileActionTag": {
+        "description": "Action: account tags updated.",
+        "properties": {
+          "account_name": {
+            "description": "Account name",
+            "title": "Account Name",
+            "type": "string"
+          },
+          "action_type": {
+            "const": "tag",
+            "default": "tag",
+            "title": "Action Type",
+            "type": "string"
+          },
+          "tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Applied tags",
+            "title": "Tags",
+            "type": "object"
+          }
+        },
+        "required": [
+          "account_name",
+          "tags"
+        ],
+        "title": "ReconcileActionTag",
+        "type": "object"
+      },
+      "ReconcileResult": {
+        "description": "Result for GET /reconcile/{task_id}.\n\nSuccess/failure status for account reconciliation.",
+        "properties": {
+          "actions": {
+            "description": "Reconciliation actions performed",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReconcileActionTag"
+                },
+                {
+                  "$ref": "#/components/schemas/ReconcileActionMoveOU"
+                },
+                {
+                  "$ref": "#/components/schemas/ReconcileActionSetAlias"
+                },
+                {
+                  "$ref": "#/components/schemas/ReconcileActionRequestQuota"
+                },
+                {
+                  "$ref": "#/components/schemas/ReconcileActionEnableSupport"
+                },
+                {
+                  "$ref": "#/components/schemas/ReconcileActionSetSecurityContact"
+                },
+                {
+                  "$ref": "#/components/schemas/ReconcileActionSetRegions"
+                }
+              ]
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "applied_count": {
+            "default": 0,
+            "description": "Number of actions actually applied (0 if dry_run=True)",
+            "title": "Applied Count",
+            "type": "integer"
+          },
+          "errors": {
+            "default": [],
+            "description": "List of errors encountered during reconciliation",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Task execution status (pending/success/failed)"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ReconcileResult",
+        "type": "object"
       },
       "RepoOwnersResponse": {
         "description": "Response model for repository OWNERS file data.\n\nAttention: usernames are provider-specific (e.g., GitHub usernames).",
@@ -1302,6 +2240,148 @@
         ]
       }
     },
+    "/api/v1/external/vcs/merge-requests": {
+      "get": {
+        "description": "Find an open merge request by source branch.\n\nArgs:\n    params: Query parameters with repo_url, source_branch, and token\n\nReturns:\n    CreateMergeRequestResponse with the MR URL, or None if not found",
+        "operationId": "vcs-find-merge-request",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+            "in": "query",
+            "name": "repo_url",
+            "required": true,
+            "schema": {
+              "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+              "title": "Repo Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Source branch name to search for",
+            "in": "query",
+            "name": "source_branch",
+            "required": true,
+            "schema": {
+              "description": "Source branch name to search for",
+              "title": "Source Branch",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CreateMergeRequestResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Vcs-Find-Merge-Request"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Find Merge Request",
+        "tags": [
+          "external"
+        ]
+      },
+      "post": {
+        "description": "Create a merge request with file changes in a VCS repository.\n\nCreates a new branch, applies file operations (create/update/delete),\nand opens a merge request against the target branch.\n\nCallers should use ``GET /merge-requests`` to check for existing MRs\nbefore calling this endpoint to avoid duplicate creation.\n\nArgs:\n    request: Merge request details including repo, auth, and file operations\n\nReturns:\n    CreateMergeRequestResponse with the URL of the created merge request",
+        "operationId": "vcs-create-merge-request",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMergeRequestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateMergeRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Create Merge Request",
+        "tags": [
+          "external"
+        ]
+      }
+    },
     "/api/v1/external/vcs/repos/owners": {
       "get": {
         "description": "Get OWNERS file data from a Git repository.\n\nFetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.\nResults are cached for performance (TTL configured in settings).\n\nArgs:\n    params: VCSQueryParams with repo_url, owners_file, ref, and secret reference\n\nReturns:\n    RepoOwnersResponse with provider type, approvers, and reviewers lists\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If VCS API call fails or tokens not found\n\nExample:\n    GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master\n    Response:\n    {\n        \"provider\": \"github\",\n        \"approvers\": [\"github_user1\", \"github_user2\"],\n        \"reviewers\": [\"github_user3\"]\n    }",
@@ -1416,6 +2496,301 @@
         "summary": "Get Repo Owners",
         "tags": [
           "external"
+        ]
+      }
+    },
+    "/api/v1/integrations/aws-account-manager/create-account": {
+      "post": {
+        "description": "Queue creation of a single AWS account.\n\nQueues a background task and returns immediately with a task_id.\nThe task retries itself until the full workflow completes.\nUse GET /create-account/{task_id} to retrieve the result.\n\nReturns 409 with the original task response if a creation workflow\nfor the same request is already in progress.",
+        "operationId": "aws-account-manager-create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AWSAccountManagerCreateAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AWSAccountManagerTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AWSAccountManagerTaskResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Aws Account Manager Create",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/aws-account-manager/create-account/{task_id}": {
+      "get": {
+        "description": "Retrieve account creation task result.",
+        "operationId": "aws-account-manager-create-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAccountResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Aws Account Manager Create Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/aws-account-manager/create-iam-user": {
+      "post": {
+        "description": "Queue creation of an IAM user in an AWS account.\n\nAssumes into the account via the payer's manager role and creates\nan IAM user with the specified policy. Credentials are saved to Vault.\nUse GET /create-iam-user/{task_id} to retrieve the result.",
+        "operationId": "aws-account-manager-create-iam-user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AWSAccountManagerCreateIAMUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AWSAccountManagerTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Aws Account Manager Create Iam User",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/aws-account-manager/create-iam-user/{task_id}": {
+      "get": {
+        "description": "Retrieve IAM user creation task result.",
+        "operationId": "aws-account-manager-create-iam-user-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateIAMUserResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Aws Account Manager Create Iam User Status",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/aws-account-manager/reconcile": {
+      "post": {
+        "description": "Queue reconciliation of a single AWS account.\n\nQueues a background task and returns immediately with a task_id.\nUse GET /reconcile/{task_id} to retrieve the result.",
+        "operationId": "aws-account-manager-reconcile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AWSAccountManagerReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AWSAccountManagerTaskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Aws Account Manager Reconcile",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/aws-account-manager/reconcile/{task_id}": {
+      "get": {
+        "description": "Retrieve reconciliation task result.",
+        "operationId": "aws-account-manager-reconcile-status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional: Block up to N seconds for completion.",
+            "in": "query",
+            "name": "timeout",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 300,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional: Block up to N seconds for completion.",
+              "title": "Timeout"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Aws Account Manager Reconcile Status",
+        "tags": [
+          "integrations"
         ]
       }
     },

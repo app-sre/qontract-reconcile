@@ -231,6 +231,19 @@ class SecretBackend(ABC):
             old_creds = backend.read_all("aws/account1/creds", version=5)
         """
 
+    @abstractmethod
+    def write(self, path: str, data: dict[str, str]) -> None:
+        """Write secret data to the backend.
+
+        Args:
+            path: Secret path (e.g., 'app-sre-v2/creds/terraform/my-account/config')
+            data: Key-value pairs to write
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to write secret
+            SecretBackendError: Backend error during write
+        """
+
     def close(self) -> None:  # noqa: B027
         """Close backend connections and cleanup resources.
 

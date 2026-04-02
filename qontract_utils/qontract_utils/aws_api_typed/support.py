@@ -62,6 +62,21 @@ class AWSApiSupport:
         case = self.client.describe_cases(caseIdList=[case_id])["cases"][0]
         return AWSCase(**case)
 
+    def find_open_cases(self, *, subject_contains: str) -> list[AWSCase]:
+        """Find open support cases whose subject contains the given string.
+
+        Uses describe_cases with includeResolvedCases=False to get only open cases.
+        """
+        cases: list[AWSCase] = []
+        paginator = self.client.get_paginator("describe_cases")
+        for page in paginator.paginate(includeResolvedCases=False):
+            cases.extend(
+                AWSCase(**case_data)
+                for case_data in page.get("cases", [])
+                if subject_contains in case_data.get("subject", "")
+            )
+        return cases
+
     def get_support_level(self) -> SupportPlan:
         """Return the support level of the account."""
         try:

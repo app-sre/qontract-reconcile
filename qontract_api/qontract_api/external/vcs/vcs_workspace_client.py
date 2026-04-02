@@ -2,6 +2,7 @@
 
 from qontract_utils.vcs.models import RepoOwners
 from qontract_utils.vcs.owners_parser import OwnersParser
+from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 from qontract_utils.vcs.vcs_client import VCSClient
 
 from qontract_api.cache import CacheBackend
@@ -31,6 +32,7 @@ class VCSWorkspaceClient:
         ...     settings=settings,
         ... )
         >>> owners = client.get_owners(owners_file="/OWNERS", ref="main")
+
     """
 
     def __init__(
@@ -49,6 +51,7 @@ class VCSWorkspaceClient:
             cache: Cache backend
             settings: Application settings
             ref: Git reference
+
         """
         self.repo_url = repo_url
         self._cache = cache
@@ -81,6 +84,7 @@ class VCSWorkspaceClient:
 
         Returns:
             RepoOwners with approvers and reviewers lists
+
         """
         # Cache key includes repo_url, path, and ref
         cache_key = f"vcs:owners:{self.repo_url}:{owners_file}:{ref}"
@@ -110,6 +114,32 @@ class VCSWorkspaceClient:
 
             return owners
 
+    def find_merge_request(self, source_branch: str) -> str | None:
+        """Find an open merge request by source branch.
+
+        Args:
+            source_branch: Source branch name to search for
+
+        Returns:
+            URL of the open merge request, or None if not found
+
+        """
+        return self._api_client.find_merge_request(source_branch)
+
+    def create_merge_request(self, mr_input: CreateMergeRequestInput) -> str:
+        """Create a merge request with file changes.
+
+        Delegates to the underlying VCS API client.
+
+        Args:
+            mr_input: Merge request details including file operations
+
+        Returns:
+            URL of the created merge request
+
+        """
+        return self._api_client.create_merge_request(mr_input)
+
     def _fetch_owners(self, owners_file: str, ref: str) -> RepoOwners:
         """Fetch OWNERS data from VCS API.
 
@@ -119,6 +149,7 @@ class VCSWorkspaceClient:
 
         Returns:
             RepoOwners with approvers and reviewers
+
         """
         parser = OwnersParser(vcs_client=self._api_client, ref=ref)
         return parser.get_owners(owners_file)

@@ -99,8 +99,8 @@ def reconcile_slack_usergroups_task(
             errors=result.errors,
         )
 
-        # Publish events for applied actions (non-dry-run only)
-        if not dry_run and result.applied_count > 0 and event_manager:
+        # Publish events for all actions (non-dry-run only)
+        if not dry_run and event_manager:
             for action in result.actions:
                 event_manager.publish_event(
                     Event(

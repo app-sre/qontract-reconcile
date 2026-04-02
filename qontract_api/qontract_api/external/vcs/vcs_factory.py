@@ -60,3 +60,25 @@ def create_vcs_workspace_client(
         cache=cache,
         settings=settings,
     )
+
+
+def create_app_interface_vcs_client(
+    cache: CacheBackend, settings: Settings
+) -> VCSWorkspaceClient:
+    """Create a VCSWorkspaceClient for the app-interface repository.
+
+    Uses the configured app-interface repo URL and token from settings.
+
+    Args:
+        cache: Cache backend for distributed cache
+        settings: Application settings with VCS configuration
+
+    Returns:
+        VCSWorkspaceClient for app-interface
+    """
+    return create_vcs_workspace_client(
+        repo_url=settings.vcs.app_interface_repo_url,
+        token=settings.vcs.app_interface_token,
+        cache=cache,
+        settings=settings,
+    )

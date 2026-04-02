@@ -45,6 +45,20 @@ class AwsOrganizationOU(BaseModel):
             raise KeyError(f"OU not found: {path}")
         return node
 
+    def find_path_by_id(self, target_id: str, *, prefix: str = "") -> str | None:
+        """Find the path string for an OU by its ID."""
+        current_path = f"{prefix}/{self.name}" if prefix else self.name
+        if self.id == target_id:
+            return current_path
+        return next(
+            (
+                result
+                for child in self.children
+                if (result := child.find_path_by_id(target_id, prefix=current_path))
+            ),
+            None,
+        )
+
     def __hash__(self) -> int:
         return hash(self.id)
 
@@ -155,3 +169,12 @@ class AWSApiOrganizations:
     def untag_resource(self, resource_id: str, tag_keys: Iterable[str]) -> None:
         """Untag a resource."""
         self.client.untag_resource(ResourceId=resource_id, TagKeys=list(tag_keys))
+
+    def list_tags_for_resource(self, resource_id: str) -> dict[str, str]:
+        """List all tags for a resource."""
+        tags: dict[str, str] = {}
+        paginator = self.client.get_paginator("list_tags_for_resource")
+        for page in paginator.paginate(ResourceId=resource_id):
+            for tag in page["Tags"]:
+                tags[tag["Key"]] = tag["Value"]
+        return tags

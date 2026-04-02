@@ -33,6 +33,16 @@ class SecretManager:
         """Read all fields from a secret path."""
         return self.secret_backends[secret.url].read_all(secret)
 
+    def write(self, path: str, data: dict[str, str], *, backend_url: str) -> None:
+        """Write secret data to a secret backend.
+
+        Args:
+            path: Secret path
+            data: Key-value pairs to write
+            backend_url: URL of the secret backend to write to
+        """
+        self.secret_backends[backend_url].write(path=path, data=data)
+
     def close(self) -> None:
         for secret_backend in self.secret_backends.values():
             secret_backend.close()

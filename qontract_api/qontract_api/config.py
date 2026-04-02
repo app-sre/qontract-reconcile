@@ -193,6 +193,16 @@ class VCSSettings(BaseModel):
         description="Provider-specific configuration",
     )
 
+    # App-interface repository (used by integrations that create MRs)
+    app_interface_repo_url: str = Field(
+        default="",
+        description="App-interface repository URL (e.g., https://gitlab.cee.redhat.com/service/app-interface)",
+    )
+    app_interface_token: str = Field(
+        default="",
+        description="GitLab API token for app-interface MR creation",
+    )
+
     # Cache TTLs (seconds)
     owners_cache_ttl: int = Field(
         default=60 * 60 * 12,

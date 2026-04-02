@@ -257,7 +257,7 @@ class VaultSecretBackend(SecretBackend):
     def __init__(
         self,
         settings: VaultSecretBackendSettings,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # noqa: ARG002
     ) -> None:
         """Initialize Vault secret backend.
 
@@ -559,6 +559,66 @@ class VaultSecretBackend(SecretBackend):
             raise SecretNotFoundError(f"Secret not found: {secret.path}") from e
         except Forbidden as e:
             raise SecretAccessForbiddenError(f"Access denied: {secret.path}") from e
+
+    @invoke_with_hooks(
+        lambda self, path, mount_point, _data: VaultApiCallContext(
+            method="secrets.kv.v2.create_or_update_secret",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
+        ),
+        retry_config=VAULT_READ_RETRY_CONFIG,
+    )
+    def _write_kv_v2_secret(
+        self, path: str, mount_point: str, data: dict[str, str]
+    ) -> None:
+        """Write KV v2 secret API call."""
+        self._client.secrets.kv.v2.create_or_update_secret(
+            path=path, mount_point=mount_point, secret=data
+        )
+
+    @invoke_with_hooks(
+        lambda self, path, mount_point, _data: VaultApiCallContext(
+            method="secrets.kv.v1.create_or_update_secret",
+            id=self._settings.server,
+            path=path,
+            mount_point=mount_point,
+        ),
+        retry_config=VAULT_READ_RETRY_CONFIG,
+    )
+    def _write_kv_v1_secret(
+        self, path: str, mount_point: str, data: dict[str, str]
+    ) -> None:
+        """Write KV v1 secret API call."""
+        self._client.secrets.kv.v1.create_or_update_secret(
+            path=path, mount_point=mount_point, secret=data
+        )
+
+    def write(self, path: str, data: dict[str, str]) -> None:
+        """Write secret data to Vault KV.
+
+        Automatically detects KV v1 or v2 based on mount point configuration.
+
+        Args:
+            path: Secret path (e.g., 'app-sre-v2/creds/terraform/my-account/config')
+            data: Key-value pairs to write
+
+        Raises:
+            SecretAccessForbiddenError: Access denied to write secret
+        """
+        vault_secret = self._compile_vault_secret(path)
+        logger.info(f"Writing Vault secret: path={path}")
+        try:
+            if vault_secret.kv_version == KV_VERSION_2:
+                self._write_kv_v2_secret(
+                    vault_secret.read_path, vault_secret.mount_point, data
+                )
+            else:
+                self._write_kv_v1_secret(
+                    vault_secret.read_path, vault_secret.mount_point, data
+                )
+        except Forbidden as e:
+            raise SecretAccessForbiddenError(f"Access denied writing: {path}") from e
 
     def close(self) -> None:
         """Close Vault client and stop auto-refresh thread.

@@ -11,6 +11,10 @@ from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.vcs.provider_protocol import (
+    AUTO_MERGE_LABEL,
+    CreateMergeRequestInput,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -111,7 +115,7 @@ class GitLabRepoApi:
         token: str,
         gitlab_url: str,
         timeout: int = 30,
-        hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
+        hooks: Hooks | None = None,  # noqa: ARG002
     ) -> None:
         self.project_id = project_id
         self.repo_url = f"{gitlab_url}/{project_id}"
@@ -144,3 +148,87 @@ class GitLabRepoApi:
         except Exception:  # noqa: BLE001
             # File not found or other error - python-gitlab can raise various exceptions
             return None
+
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(
+            method="find_merge_request", repo_url=self.repo_url
+        )
+    )
+    def find_merge_request(self, source_branch: str) -> str | None:
+        """Find an open merge request by source branch.
+
+        Args:
+            source_branch: Source branch name to search for
+
+        Returns:
+            URL of the open merge request, or None if not found
+        """
+        mrs = self._project.mergerequests.list(
+            source_branch=source_branch, state="opened", per_page=1
+        )
+        if mrs:
+            return mrs[0].web_url
+        return None
+
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(
+            method="create_merge_request", repo_url=self.repo_url
+        )
+    )
+    def create_merge_request(self, mr_input: CreateMergeRequestInput) -> str:
+        """Create a merge request with file changes.
+
+        Callers must check for existing MRs via ``find_merge_request``
+        before calling this method to avoid duplicate branch/MR creation.
+
+        Args:
+            mr_input: Merge request details including file operations
+
+        Returns:
+            URL of the created merge request
+        """
+        # Create branch from target
+        self._project.branches.create(
+            {
+                "branch": mr_input.source_branch,
+                "ref": mr_input.target_branch,
+            }
+        )
+
+        # Apply file operations
+        for file_op in mr_input.file_operations:
+            if file_op.content is not None:
+                self._project.files.create(
+                    {
+                        "file_path": file_op.path,
+                        "branch": mr_input.source_branch,
+                        "content": file_op.content,
+                        "commit_message": file_op.commit_message,
+                    }
+                )
+            else:
+                file = self._project.files.get(
+                    file_path=file_op.path, ref=mr_input.source_branch
+                )
+                file.delete(
+                    branch=mr_input.source_branch,
+                    commit_message=file_op.commit_message,
+                )
+
+        # Build labels, adding auto-merge label if requested
+        labels = list(mr_input.labels)
+        if mr_input.auto_merge:
+            labels.append(AUTO_MERGE_LABEL)
+
+        # Create merge request
+        mr = self._project.mergerequests.create(
+            {
+                "source_branch": mr_input.source_branch,
+                "target_branch": mr_input.target_branch,
+                "title": mr_input.title,
+                "description": mr_input.description,
+                "labels": labels,
+            }
+        )
+
+        return mr.web_url
