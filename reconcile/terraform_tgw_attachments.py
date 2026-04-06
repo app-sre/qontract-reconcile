@@ -128,6 +128,7 @@ def _build_desired_state_tgw_attachments(
     clusters: Iterable[ClusterV1],
     ocm_map: OCMMap | None,
     awsapi: AWSApi,
+    tgw_account_names: list[str],
     account_name: str | None = None,
 ) -> tuple[list[DesiredStateItem], bool]:
     """
@@ -137,7 +138,9 @@ def _build_desired_state_tgw_attachments(
     desired_state = []
     error = False
 
-    for item in _build_desired_state_items(clusters, ocm_map, awsapi, account_name):
+    for item in _build_desired_state_items(
+        clusters, ocm_map, awsapi, tgw_account_names, account_name
+    ):
         if item is None:
             error = True
         else:
@@ -149,18 +152,23 @@ def _build_desired_state_items(
     clusters: Iterable[ClusterV1],
     ocm_map: OCMMap | None,
     awsapi: AWSApi,
+    tgw_account_names: list[str],
     account_name: str | None = None,
 ) -> Generator[DesiredStateItem | None, Any, None]:
     for cluster_info in clusters:
         ocm = ocm_map.get(cluster_info.name) if ocm_map and cluster_info.ocm else None
         for peer_connection in cluster_info.peering.connections:  # type: ignore[union-attr]
             if _is_tgw_peer_connection(peer_connection, account_name):
-                yield from _build_desired_state_tgw_connection(
-                    cast("ClusterPeeringConnectionAccountTGWV1", peer_connection),
-                    cluster_info,
-                    ocm,
-                    awsapi,
+                tgw_peer_connection = cast(
+                    "ClusterPeeringConnectionAccountTGWV1", peer_connection
                 )
+                if tgw_peer_connection.account.name in tgw_account_names:
+                    yield from _build_desired_state_tgw_connection(
+                        tgw_peer_connection,
+                        cluster_info,
+                        ocm,
+                        awsapi,
+                    )
 
 
 def _build_desired_state_tgw_connection(
@@ -437,10 +445,12 @@ def setup(
     secret_reader = create_secret_reader(vault_settings.vault)
     aws_api = AWSApi(1, all_accounts, secret_reader=secret_reader, init_users=False)
     ocm_map = _build_ocm_map(desired_state_data_source.clusters, vault_settings)
+    tgw_account_names = [a["name"] for a in tgw_accounts]
     desired_state, err = _build_desired_state_tgw_attachments(
         desired_state_data_source.clusters,
         ocm_map,
         aws_api,
+        tgw_account_names,
         account_name,
     )
     if err:
