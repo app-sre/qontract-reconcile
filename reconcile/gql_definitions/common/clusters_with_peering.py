@@ -143,6 +143,7 @@ query ClustersWithPeering {
             automationToken {
               ...VaultSecret
             }
+            supportedDeploymentRegions
           }
           tags
           cidrBlock
@@ -262,6 +263,7 @@ class ClusterPeeringConnectionAccountTGWV1_AWSAccountV1(ConfiguredBaseModel):
     uid: str = Field(..., alias="uid")
     terraform_username: Optional[str] = Field(..., alias="terraformUsername")
     automation_token: VaultSecret = Field(..., alias="automationToken")
+    supported_deployment_regions: Optional[list[str]] = Field(..., alias="supportedDeploymentRegions")
 
 
 class ClusterPeeringConnectionAccountTGWV1(ClusterPeeringConnectionV1):

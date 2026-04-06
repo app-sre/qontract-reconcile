@@ -1379,6 +1379,9 @@ class AWSApi:
                             continue
                         party_tgw_id = party["TransitGatewayId"]
                         party_region = party["Region"]
+                        supported_regions = account.get("supportedDeploymentRegions")
+                        if supported_regions and party_region not in supported_regions:
+                            continue
                         party_ec2 = self._account_ec2_client(
                             account["name"], party_region
                         )

@@ -67,6 +67,7 @@ query ClustersWithPeering {
             automationToken {
               ...VaultSecret
             }
+            supportedDeploymentRegions
           }
           tags
           cidrBlock
