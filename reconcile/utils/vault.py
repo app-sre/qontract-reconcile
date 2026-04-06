@@ -286,7 +286,7 @@ class VaultClient:
             msg = f"permission denied accessing secret '{path}'"
             raise SecretAccessForbiddenError(msg) from None
 
-        if secret is None or "data" not in secret:
+        if secret is None or not isinstance(secret, dict) or "data" not in secret:
             raise SecretNotFoundError(path)
 
         return secret["data"]
@@ -411,7 +411,10 @@ class VaultClient:
 
     def _list(self, path: str) -> dict:
         try:
-            return self._client.list(path)
+            response = self._client.list(path)
+            if response is None or not isinstance(response, dict):
+                return {}
+            return response
         except hvac.exceptions.Forbidden:
             msg = f"permission denied accessing path '{path}'"
             raise PathAccessForbiddenError(msg) from None
