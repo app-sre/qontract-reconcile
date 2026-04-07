@@ -65,7 +65,7 @@ def deduplicated_task(
                 if isinstance(return_hint, type) and issubclass(return_hint, TaskResult)
                 else TaskResult
             )
-        except Exception:
+        except NameError:
             skip_result_cls = TaskResult
 
         @wraps(func)
@@ -112,7 +112,7 @@ def deduplicated_task(
                     lock_key_suffix=lock_key_suffix,
                 )
                 return cast(
-                    R,
+                    "R",
                     skip_result_cls(
                         status=TaskStatus.SKIPPED,
                         errors=["duplicate_task"],
