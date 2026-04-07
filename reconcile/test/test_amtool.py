@@ -7,7 +7,7 @@ from reconcile.utils import amtool
 
 def test_minimal_version() -> None:
     if result := amtool.version():
-        assert semver.VersionInfo.parse(str(result)).compare("0.28.1") >= 0
+        assert semver.VersionInfo.parse(str(result)).compare("0.29.0") >= 0
     else:
         pytest.fail(f"Error getting amtool version {result}")
 
