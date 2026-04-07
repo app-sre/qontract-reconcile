@@ -1586,7 +1586,7 @@ class TerrascriptClient:
 
             if accepter.api_security_group_id:
                 hcp_api_ingress_rule = aws_security_group_rule(
-                    f"api-access-from-{requester.tgw_id}",
+                    f"api-access-from-tgw-{connection_name}",
                     provider="aws." + acc_alias,
                     type="ingress",
                     security_group_id=accepter.api_security_group_id,
@@ -1594,7 +1594,7 @@ class TerrascriptClient:
                     from_port=443,
                     to_port=443,
                     protocol="tcp",
-                    description=f"HCP API access from TGW attachment {requester.tgw_id}",
+                    description=f"HCP API access from TGW attachment {connection_name}",
                 )
                 self.add_resource(infra_account_name, hcp_api_ingress_rule)
 

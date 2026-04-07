@@ -13,6 +13,13 @@ from terrascript.resource import (
     aws_s3_bucket_policy,
 )
 
+from reconcile.terraform_tgw_attachments import (
+    Accepter,
+    ClusterAccountProviderInfo,
+    DesiredStateItem,
+    Requester,
+    TGWAccountProviderInfo,
+)
 from reconcile.utils.aws_api import AmiTag
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
@@ -1981,3 +1988,83 @@ def test_populate_tf_resource_s3_cloudfront_raises_on_empty_get_object_enable_di
         match="get_object_enable_dirs must be provided and non-empty",
     ):
         ts.populate_tf_resource_s3_cloudfront(spec)
+
+
+def _make_tgw_desired_state_item(
+    connection_name: str,
+    tgw_id: str,
+    vpc_id: str,
+    api_security_group_id: str | None = None,
+) -> DesiredStateItem:
+    return DesiredStateItem(
+        connection_provider="tgw",
+        connection_name=connection_name,
+        infra_acount_name="infra-account",
+        requester=Requester(
+            tgw_id=tgw_id,
+            tgw_arn=f"arn:aws:ec2:us-east-1:123456789012:transit-gateway/{tgw_id}",
+            region="us-east-1",
+            cidr_block="10.0.0.0/16",
+            cidr_blocks=["10.0.0.0/16"],
+            account=TGWAccountProviderInfo(
+                name="tgw-account",
+                uid="123456789012",
+                assume_region="us-east-1",
+            ),
+        ),
+        accepter=Accepter(
+            cidr_block="172.16.0.0/16",
+            region="us-east-1",
+            vpc_id=vpc_id,
+            route_table_ids=["rtb-123"],
+            subnets_id_az=[{"id": "subnet-123", "az": "us-east-1a"}],
+            account=ClusterAccountProviderInfo(
+                name="cluster-account",
+                uid="987654321098",
+                assume_region="us-east-1",
+                assume_cidr="172.16.0.0/16",
+            ),
+            api_security_group_id=api_security_group_id,
+        ),
+        deleted=False,
+    )
+
+
+def test_populate_tgw_attachments_unique_sg_rule_ids_per_cluster(
+    mocker: MockerFixture,
+    ts: TerrascriptClient,
+) -> None:
+    """Two clusters sharing the same TGW must produce distinct security group rule IDs."""
+    mocked_add_resource = mocker.patch.object(ts, "add_resource")
+    mocker.patch.object(ts, "_multiregion_account", return_value=False)
+
+    shared_tgw_id = "tgw-shared123"
+    items = [
+        _make_tgw_desired_state_item(
+            connection_name="conn-cluster-a",
+            tgw_id=shared_tgw_id,
+            vpc_id="vpc-aaa",
+            api_security_group_id="sg-aaa",
+        ),
+        _make_tgw_desired_state_item(
+            connection_name="conn-cluster-b",
+            tgw_id=shared_tgw_id,
+            vpc_id="vpc-bbb",
+            api_security_group_id="sg-bbb",
+        ),
+    ]
+
+    ts.populate_tgw_attachments(items)
+
+    sg_rule_calls = [
+        call
+        for call in mocked_add_resource.call_args_list
+        if type(call.args[1]).__name__ == "aws_security_group_rule"
+    ]
+
+    sg_rule_ids = [call.args[1]._name for call in sg_rule_calls]
+    assert "api-access-from-tgw-conn-cluster-a" in sg_rule_ids
+    assert "api-access-from-tgw-conn-cluster-b" in sg_rule_ids
+    assert len(set(sg_rule_ids)) == len(sg_rule_ids), (
+        "Security group rule IDs must be unique"
+    )
