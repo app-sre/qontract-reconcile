@@ -4,6 +4,7 @@ from enum import Enum
 class TaskStatus(str, Enum):
     FAILED = "failed"
     PENDING = "pending"
+    SKIPPED = "skipped"
     SUCCESS = "success"
 
     def __str__(self) -> str:
