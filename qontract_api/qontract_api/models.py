@@ -14,6 +14,7 @@ class TaskStatus(StrEnum):
     PENDING = "pending"  # Task queued or in progress
     SUCCESS = "success"  # Task completed successfully
     FAILED = "failed"  # Task failed with errors
+    SKIPPED = "skipped"  # Task skipped due to deduplication
 
 
 class TaskResult(BaseModel, frozen=True):
@@ -25,7 +26,7 @@ class TaskResult(BaseModel, frozen=True):
 
     status: TaskStatus = Field(
         ...,
-        description="Task execution status (pending/success/failed)",
+        description="Task execution status (pending/success/failed/skipped)",
     )
     applied_count: int = Field(
         default=0,
@@ -35,17 +36,6 @@ class TaskResult(BaseModel, frozen=True):
         default=[],
         description="List of errors encountered during reconciliation",
     )
-
-
-class SkippedTaskResult(BaseModel, frozen=True):
-    """Result model for a task skipped due to deduplication.
-
-    Returned by @deduplicated_task when the lock cannot be acquired because
-    an identical task is already running.
-    """
-
-    status: str = Field(default="skipped", description="Always 'skipped'")
-    reason: str = Field(default="duplicate_task", description="Reason for skipping")
 
 
 class TokenData(BaseModel):

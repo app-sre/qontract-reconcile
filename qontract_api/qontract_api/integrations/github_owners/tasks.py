@@ -17,7 +17,7 @@ from qontract_api.integrations.github_owners.domain import GithubOrgDesiredState
 from qontract_api.integrations.github_owners.schemas import GithubOwnersTaskResult
 from qontract_api.integrations.github_owners.service import GithubOwnersService
 from qontract_api.logger import get_logger
-from qontract_api.models import SkippedTaskResult, TaskStatus
+from qontract_api.models import TaskResult, TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
 from qontract_api.tasks import celery_app, deduplicated_task
 
@@ -51,7 +51,7 @@ def reconcile_github_owners_task(
     organizations: list[GithubOrgDesiredState],
     *,
     dry_run: bool = True,
-) -> GithubOwnersTaskResult | SkippedTaskResult:
+) -> GithubOwnersTaskResult | TaskResult:
     """Reconcile GitHub organization owner membership (background task).
 
     This task runs in a Celery worker, not in the FastAPI application.
@@ -64,7 +64,7 @@ def reconcile_github_owners_task(
 
     Returns:
         GithubOwnersTaskResult on success
-        SkippedTaskResult if a duplicate task is already running
+        TaskResult with SKIPPED status if a duplicate task is already running
 
     Note:
         @deduplicated_task decorator may return early if duplicate task is detected.

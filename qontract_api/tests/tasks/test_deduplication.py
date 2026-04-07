@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qontract_api.models import SkippedTaskResult
+from qontract_api.models import TaskResult, TaskStatus
 from qontract_api.tasks import deduplicated_task
 
 
@@ -50,10 +50,10 @@ def test_deduplicated_task_skips_duplicate(mock_cache: MagicMock) -> None:
     with patch("qontract_api.tasks._deduplication.get_cache", return_value=mock_cache):
         result = test_task("workspace-1")
 
-    # Should return a proper SkippedTaskResult model, not a raw dict
-    assert isinstance(result, SkippedTaskResult)
-    assert result.status == "skipped"
-    assert result.reason == "duplicate_task"
+    # Should return TaskResult with SKIPPED status, not a raw dict
+    assert isinstance(result, TaskResult)
+    assert result.status == TaskStatus.SKIPPED
+    assert result.errors == ["duplicate_task"]
 
 
 def test_deduplicated_task_with_multiple_args(mock_cache: MagicMock) -> None:
