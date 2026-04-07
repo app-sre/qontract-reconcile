@@ -299,7 +299,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/TaskStatus",
-            "description": "Task execution status (pending/success/failed)"
+            "description": "Task execution status (pending/success/failed/skipped)"
           }
         },
         "required": [
@@ -706,7 +706,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/TaskStatus",
-            "description": "Task execution status (pending/success/failed)"
+            "description": "Task execution status (pending/success/failed/skipped)"
           }
         },
         "required": [
@@ -1201,7 +1201,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/TaskStatus",
-            "description": "Task execution status (pending/success/failed)"
+            "description": "Task execution status (pending/success/failed/skipped)"
           }
         },
         "required": [
@@ -1253,7 +1253,8 @@
         "enum": [
           "pending",
           "success",
-          "failed"
+          "failed",
+          "skipped"
         ],
         "title": "TaskStatus",
         "type": "string"
