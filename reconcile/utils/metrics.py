@@ -71,6 +71,13 @@ reconcile_time = Histogram(
     buckets=(60.0, 150.0, 300.0, 600.0, 1200.0, 1800.0, 2400.0, 3000.0, float("inf")),
 )
 
+oc_get_items_duration = Histogram(
+    name="qontract_reconcile_oc_get_items_seconds",
+    documentation="Duration of OC get_items calls",
+    labelnames=["integration", "cluster", "kind"],
+    buckets=(0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, float("inf")),
+)
+
 registry_reachouts = Counter(
     name="qontract_reconcile_registry_get_manifest_total",
     documentation="Number of GET requests on image registries",

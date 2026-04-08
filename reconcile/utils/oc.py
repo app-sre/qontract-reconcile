@@ -52,7 +52,7 @@ from reconcile.utils.jump_host import (
     JumphostParameters,
     JumpHostSSH,
 )
-from reconcile.utils.metrics import reconcile_time
+from reconcile.utils.metrics import oc_get_items_duration, reconcile_time
 from reconcile.utils.openshift_resource import OpenshiftResource as OR
 from reconcile.utils.secret_reader import (
     SecretNotFoundError,
@@ -480,37 +480,46 @@ class OCCli:
             self.jump_host.cleanup()
 
     def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
-        cmd = ["get", kind, "-o", "json"]
+        start_time = time.monotonic()
+        try:
+            cmd = ["get", kind, "-o", "json"]
 
-        if "namespace" in kwargs:
-            namespace = kwargs["namespace"]
-            # for cluster scoped integrations
-            # currently only openshift-clusterrolebindings
-            if namespace != "cluster":
-                if not self.project_exists(namespace):
-                    return []
-                cmd.extend(["-n", namespace])
+            if "namespace" in kwargs:
+                namespace = kwargs["namespace"]
+                # for cluster scoped integrations
+                # currently only openshift-clusterrolebindings
+                if namespace != "cluster":
+                    if not self.project_exists(namespace):
+                        return []
+                    cmd.extend(["-n", namespace])
 
-        if "labels" in kwargs:
-            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels", {}).items()]
-            cmd += ["-l", ",".join(labels_list)]
+            if "labels" in kwargs:
+                labels_list = [f"{k}={v}" for k, v in kwargs.get("labels", {}).items()]
+                cmd += ["-l", ",".join(labels_list)]
 
-        resource_names = kwargs.get("resource_names")
-        if resource_names:
-            resource_items = []
-            for resource_name in resource_names:
-                resource_cmd = cmd + [resource_name]
-                item = self._run_json(resource_cmd, allow_not_found=True)
-                if item:
-                    resource_items.append(item)
-            items_list = {"items": resource_items}
-        else:
-            items_list = self._run_json(cmd)
+            resource_names = kwargs.get("resource_names")
+            if resource_names:
+                resource_items = []
+                for resource_name in resource_names:
+                    resource_cmd = cmd + [resource_name]
+                    item = self._run_json(resource_cmd, allow_not_found=True)
+                    if item:
+                        resource_items.append(item)
+                items_list = {"items": resource_items}
+            else:
+                items_list = self._run_json(cmd)
 
-        items = items_list.get("items")
-        if items is None:
-            raise Exception("Expecting items")
-        return items
+            items = items_list.get("items")
+            if items is None:
+                raise Exception("Expecting items")
+            return items
+        finally:
+            duration = time.monotonic() - start_time
+            oc_get_items_duration.labels(
+                integration=RunningState().integration,
+                cluster=self.cluster_name,
+                kind=kind,
+            ).observe(duration)
 
     def get(
         self,
@@ -1422,52 +1431,61 @@ class OCNative(OCCli):
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError))
     def get_items(self, kind: str, **kwargs: Any) -> list[dict[str, Any]]:
-        resource = self.get_api_resource(kind)
-        obj_client = self._get_obj_client(
-            group_version=resource.group_version, kind=resource.kind
-        )
+        start_time = time.monotonic()
+        try:
+            resource = self.get_api_resource(kind)
+            obj_client = self._get_obj_client(
+                group_version=resource.group_version, kind=resource.kind
+            )
 
-        namespace = ""
-        if "namespace" in kwargs:
-            namespace = kwargs["namespace"]
-            # for cluster scoped integrations
-            # currently only openshift-clusterrolebindings
-            if namespace != "cluster":
-                if not self.project_exists(namespace):
-                    return []
+            namespace = ""
+            if "namespace" in kwargs:
+                namespace = kwargs["namespace"]
+                # for cluster scoped integrations
+                # currently only openshift-clusterrolebindings
+                if namespace != "cluster":
+                    if not self.project_exists(namespace):
+                        return []
 
-        labels = ""
-        if "labels" in kwargs:
-            labels_list = [f"{k}={v}" for k, v in kwargs.get("labels", {}).items()]
-            labels = ",".join(labels_list)
+            labels = ""
+            if "labels" in kwargs:
+                labels_list = [f"{k}={v}" for k, v in kwargs.get("labels", {}).items()]
+                labels = ",".join(labels_list)
 
-        resource_names = kwargs.get("resource_names")
-        if resource_names:
-            resource_items = []
-            for resource_name in resource_names:
-                try:
-                    item = obj_client.get(
-                        name=resource_name,
-                        namespace=namespace,
-                        label_selector=labels,
-                        _request_timeout=REQUEST_TIMEOUT,
-                    )
-                    if item:
-                        resource_items.append(item.to_dict())
-                except NotFoundError:
-                    pass
-            items_list = {"items": resource_items}
-        else:
-            items_list = obj_client.get(
-                namespace=namespace,
-                label_selector=labels,
-                _request_timeout=REQUEST_TIMEOUT,
-            ).to_dict()
+            resource_names = kwargs.get("resource_names")
+            if resource_names:
+                resource_items = []
+                for resource_name in resource_names:
+                    try:
+                        item = obj_client.get(
+                            name=resource_name,
+                            namespace=namespace,
+                            label_selector=labels,
+                            _request_timeout=REQUEST_TIMEOUT,
+                        )
+                        if item:
+                            resource_items.append(item.to_dict())
+                    except NotFoundError:
+                        pass
+                items_list = {"items": resource_items}
+            else:
+                items_list = obj_client.get(
+                    namespace=namespace,
+                    label_selector=labels,
+                    _request_timeout=REQUEST_TIMEOUT,
+                ).to_dict()
 
-        items = items_list.get("items")
-        if items is None:
-            raise Exception("Expecting items")
-        return items
+            items = items_list.get("items")
+            if items is None:
+                raise Exception("Expecting items")
+            return items
+        finally:
+            duration = time.monotonic() - start_time
+            oc_get_items_duration.labels(
+                integration=RunningState().integration,
+                cluster=self.cluster_name,
+                kind=kind,
+            ).observe(duration)
 
     @retry(max_attempts=5, exceptions=(ServerTimeoutError, ForbiddenError))
     def get(
