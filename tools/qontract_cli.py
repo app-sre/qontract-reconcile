@@ -1113,8 +1113,19 @@ def network_reservations(ctx: click.Context) -> None:
     type=int,
     default=24,
 )
+@click.option(
+    "--within",
+    help="Parent CIDR block to find the first available sub-block within (e.g. 10.0.0.0/8).",
+    type=str,
+    default=None,
+)
 @click.pass_context
-def cidr_blocks(ctx: click.Context, for_cluster: int, mask: int) -> None:
+def cidr_blocks(
+    ctx: click.Context,
+    for_cluster: int,
+    mask: int,
+    within: str | None,
+) -> None:
     import ipaddress
 
     from reconcile.typed_queries.aws_vpcs import get_aws_vpcs
@@ -1184,23 +1195,48 @@ def cidr_blocks(ctx: click.Context, for_cluster: int, mask: int) -> None:
     cidrs.sort(key=lambda item: ipaddress.ip_network(item["cidr"]))
 
     if for_cluster:
+        parent_network: ipaddress.IPv4Network | None = None
+        if within:
+            try:
+                parent_network = ipaddress.IPv4Network(within)
+            except ValueError:
+                print(f"ERROR: Invalid CIDR block: {within}")
+                sys.exit(1)
+
         latest_cluster_cidr = next(
-            (item for item in reversed(cidrs) if item["type"] == "cluster"),
+            (
+                item
+                for item in reversed(cidrs)
+                if item["type"] == "cluster"
+                and (
+                    parent_network is None
+                    or ipaddress.IPv4Network(item["cidr"]).subnet_of(parent_network)
+                )
+            ),
             None,
         )
 
-        if not latest_cluster_cidr:
+        if latest_cluster_cidr:
+            avail_addr = ipaddress.ip_address(latest_cluster_cidr["to"]) + 1
+        elif parent_network is not None:
+            avail_addr = parent_network.network_address
+        else:
             print("ERROR: Unable to find any existing cluster CIDR block.")
             sys.exit(1)
 
-        avail_addr = ipaddress.ip_address(latest_cluster_cidr["to"]) + 1
-
         print(f"INFO: Latest available network address: {avail_addr!s}")
         try:
-            result_cidr_block = str(ipaddress.ip_network((avail_addr, mask)))
+            result_cidr_block = ipaddress.IPv4Network((avail_addr, mask))
         except ValueError:
             print(f"ERROR: Invalid CIDR Mask {mask} Provided.")
             sys.exit(1)
+
+        if parent_network is not None and not result_cidr_block.subnet_of(
+            parent_network
+        ):
+            print(f"ERROR: No available /{mask} block within {within}.")
+            sys.exit(1)
+
         print(f"INFO: You are reserving {2 ** (32 - mask)!s} network addresses.")
         print(f"\nYou can use: {result_cidr_block!s}")
     else:
