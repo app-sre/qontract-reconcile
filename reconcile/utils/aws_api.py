@@ -931,19 +931,28 @@ class AWSApi:
         subnets: bool = False,
         hcp_vpc_endpoint_sg: bool = False,
     ) -> tuple[str | None, list[str] | None, list[dict[str, str]] | None, str | None]:
-        """
-        Returns a cluster VPC details:
-            - VPC ID
-            - Route table IDs (optional)
-            - Subnets list including Subnet ID and Subnet Availability zone
-            - VPC Endpoint default security group of the private API router (optional)
-        :param account: a dictionary containing the following keys:
-                        - name - name of the AWS account
-                        - assume_role - role to assume to get access
-                                        to the cluster's AWS account
-                        - assume_region - region in which to operate
-                        - assume_cidr - CIDR block of the cluster to
-                                        use to find the matching VPC
+        """Return cluster VPC details as a 4-tuple.
+
+        Returns:
+            vpc_id: VPC ID matching *assume_cidr*, or ``None``.
+            route_table_ids: Route table IDs when *route_tables* is True.
+            subnets_id_az: Subnet ID / AZ pairs when *subnets* is True.
+            api_security_group_id: Security group ID of the private API
+                router VPC endpoint when *hcp_vpc_endpoint_sg* is True.
+                Resolves to either the ``*-default-sg`` or
+                ``*-vpce-private-router`` HyperShift SG, preferring
+                ``-default-sg`` when both are present (existing peering
+                and TGW ingress rules live on that SG).  Raises
+                ``ValueError`` on multiple endpoints, duplicate suffixes,
+                or no matching SG.
+
+        Args:
+            account: Dict with keys *name*, *assume_role*,
+                *assume_region*, and *assume_cidr*.
+            route_tables: Fetch route table IDs for the VPC.
+            subnets: Fetch subnet details for the VPC.
+            hcp_vpc_endpoint_sg: Look up the private-router VPC
+                endpoint security group (private HCP clusters only).
         """
         assume_role_data = self._get_account_assume_data(account)
         assumed_ec2 = self._get_assumed_role_client(
@@ -982,6 +991,18 @@ class AWSApi:
     def _get_api_security_group_id(
         self, assumed_ec2: EC2Client, vpc_id: str
     ) -> str | None:
+        """Return the security group ID for the private-router VPC endpoint.
+
+        HyperShift attaches a security group to the private-router VPC
+        endpoint that controls access to the cluster API.  Older clusters
+        use a ``*-default-sg`` name while newer ones use
+        ``*-vpce-private-router``.  During migration both may coexist on
+        the same endpoint; this method prefers ``-default-sg`` because
+        existing peering/TGW ingress rules are configured on that SG.
+
+        Raises ``ValueError`` when the endpoint state is unexpected
+        (multiple endpoints, duplicate suffixes, or no matching SG).
+        """
         endpoints = AWSApi._get_vpc_endpoints(
             [
                 {"Name": "vpc-id", "Values": [vpc_id]},
@@ -1002,18 +1023,33 @@ class AWSApi:
         vpc_endpoint_id = endpoint["VpcEndpointId"]
         # https://github.com/openshift/hypershift/blob/c855f68e84e78924ccc9c2132b75dc7e30c4e1d8/control-plane-operator/controllers/hostedcontrolplane/hostedcontrolplane_controller.go#L4243
         # https://github.com/openshift/hypershift/blob/2569f3353ef5ac0858eace9ee77310c3cc38b8e0/control-plane-operator/controllers/awsprivatelink/awsprivatelink_controller.go#L787
-        security_groups = [
-            sg
-            for sg in endpoint["Groups"]
-            if sg["GroupName"].endswith("-default-sg")
-            or sg["GroupName"].endswith("-vpce-private-router")
-        ]
-        if len(security_groups) != 1:
+        vpce_sg = None
+        default_sg = None
+        for sg in endpoint["Groups"]:
+            if sg["GroupName"].endswith("-vpce-private-router"):
+                if vpce_sg is not None:
+                    raise ValueError(
+                        f"multiple VPC endpoint security groups matching "
+                        f"'-vpce-private-router' for private API router "
+                        f"{vpc_endpoint_id} in VPC {vpc_id}"
+                    )
+                vpce_sg = sg
+            elif sg["GroupName"].endswith("-default-sg"):
+                if default_sg is not None:
+                    raise ValueError(
+                        f"multiple VPC endpoint security groups matching "
+                        f"'-default-sg' for private API router "
+                        f"{vpc_endpoint_id} in VPC {vpc_id}"
+                    )
+                default_sg = sg
+        selected = default_sg or vpce_sg
+        if selected is None:
             raise ValueError(
-                f"exactly one VPC endpoint default security group for private API router {vpc_endpoint_id} "
-                f"in VPC {vpc_id} expected but {len(security_groups)} found"
+                f"no VPC endpoint security group matching '-default-sg' or "
+                f"'-vpce-private-router' for private API router {vpc_endpoint_id} "
+                f"in VPC {vpc_id}"
             )
-        return security_groups[0]["GroupId"]
+        return selected["GroupId"]
 
     def get_cluster_nat_gateways_egress_ips(
         self, account: dict[str, Any], vpc_id: str
