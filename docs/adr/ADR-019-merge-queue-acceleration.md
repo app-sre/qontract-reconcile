@@ -4,7 +4,7 @@
 **Date:** 2026-03-03
 **Updated:** 2026-03-06
 **Authors:** @TGPSKI
-**Reviewers:** @jfchevrette, @fenghuang, @wangdi, @chassing, @fishi0x01, @mafriedm, @kfischer
+**Reviewers:** @jfchevrette, @fenghuang, @wangdi, @chassing, @fishi0x01, @mafriedm
 
 ## Context
 
@@ -187,7 +187,8 @@ The reference graph would be pre-computed during bundle validation and stored as
 
 Use the existing change-type system to determine if two MRs overlap. Change types define schema + JSONPath boundaries for self-serviceable changes. If two MRs have no coverage overlap (i.e., they are covered by disjoint change-type definitions), they are safe to merge in parallel.
 
-This was proposed by @mafriedm: "if there is no coverage overlap between 2 MRs, they are safe to merge sequentially... it's not rock solid but it's likely a very good start." @kfischer noted: "change types weren't designed with overlap in mind; two change types with different owners could still have overlapping refs." @mafriedm's response: "if you find 2 MRs merged that shouldn't have, you create a change type that produces overlap."
+This was proposed by @maorfr: "if there is no coverage overlap between 2 MRs, they are safe to merge sequentially... it's not rock solid but it's likely a very good start." @
+@fishi0x01 noted: "change types weren't designed with overlap in mind; two change types with different owners could still have overlapping refs." @maorfr's response: "if you find 2 MRs merged that shouldn't have, you create a change type that produces overlap."
 
 **Pros:**
 
