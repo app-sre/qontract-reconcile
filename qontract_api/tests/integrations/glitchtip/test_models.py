@@ -238,18 +238,22 @@ def test_action_invite_user() -> None:
 
 def test_action_delete_user() -> None:
     """Test GlitchtipActionDeleteUser action_type literal."""
-    action = GlitchtipActionDeleteUser(organization="my-org", email="user@example.com")
+    action = GlitchtipActionDeleteUser(
+        organization="my-org", email="user@example.com", pk=42
+    )
     assert action.action_type == "delete_user"
     assert action.email == "user@example.com"
+    assert action.pk == 42
 
 
 def test_action_update_user_role() -> None:
     """Test GlitchtipActionUpdateUserRole action_type literal."""
     action = GlitchtipActionUpdateUserRole(
-        organization="my-org", email="user@example.com", role="admin"
+        organization="my-org", email="user@example.com", role="admin", pk=42
     )
     assert action.action_type == "update_user_role"
     assert action.role == "admin"
+    assert action.pk == 42
 
 
 def test_action_create_team() -> None:
@@ -267,23 +271,33 @@ def test_action_delete_team() -> None:
 
 
 def test_action_add_user_to_team() -> None:
-    """Test GlitchtipActionAddUserToTeam action_type literal."""
+    """Test GlitchtipActionAddUserToTeam action_type literal and optional pk."""
     action = GlitchtipActionAddUserToTeam(
-        organization="my-org", team_slug="backend", email="dev@example.com"
+        organization="my-org", team_slug="backend", email="dev@example.com", pk=7
     )
     assert action.action_type == "add_user_to_team"
     assert action.team_slug == "backend"
     assert action.email == "dev@example.com"
+    assert action.pk == 7
+
+
+def test_action_add_user_to_team_pk_defaults_to_none() -> None:
+    """Test GlitchtipActionAddUserToTeam pk defaults to None for newly invited users."""
+    action = GlitchtipActionAddUserToTeam(
+        organization="my-org", team_slug="backend", email="new@example.com"
+    )
+    assert action.pk is None
 
 
 def test_action_remove_user_from_team() -> None:
     """Test GlitchtipActionRemoveUserFromTeam action_type literal."""
     action = GlitchtipActionRemoveUserFromTeam(
-        organization="my-org", team_slug="backend", email="dev@example.com"
+        organization="my-org", team_slug="backend", email="dev@example.com", pk=7
     )
     assert action.action_type == "remove_user_from_team"
     assert action.team_slug == "backend"
     assert action.email == "dev@example.com"
+    assert action.pk == 7
 
 
 def test_action_create_project() -> None:

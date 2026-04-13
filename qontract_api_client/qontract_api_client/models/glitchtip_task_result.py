@@ -51,13 +51,39 @@ class GlitchtipTaskResult:
             | GlitchtipActionCreateProject | GlitchtipActionCreateTeam | GlitchtipActionDeleteOrganization |
             GlitchtipActionDeleteProject | GlitchtipActionDeleteTeam | GlitchtipActionDeleteUser | GlitchtipActionInviteUser
             | GlitchtipActionRemoveProjectFromTeam | GlitchtipActionRemoveUserFromTeam | GlitchtipActionUpdateProject |
-            GlitchtipActionUpdateUserRole] | Unset): List of actions calculated/performed
+            GlitchtipActionUpdateUserRole] | Unset): All actions calculated (desired - current), including any that failed
+            to apply.
+        applied_actions (list[GlitchtipActionAddProjectToTeam | GlitchtipActionAddUserToTeam |
+            GlitchtipActionCreateOrganization | GlitchtipActionCreateProject | GlitchtipActionCreateTeam |
+            GlitchtipActionDeleteOrganization | GlitchtipActionDeleteProject | GlitchtipActionDeleteTeam |
+            GlitchtipActionDeleteUser | GlitchtipActionInviteUser | GlitchtipActionRemoveProjectFromTeam |
+            GlitchtipActionRemoveUserFromTeam | GlitchtipActionUpdateProject | GlitchtipActionUpdateUserRole] | Unset):
+            Actions that were successfully applied (subset of actions, empty on dry_run).
         applied_count (int | Unset): Number of actions actually applied (0 if dry_run=True) Default: 0.
         errors (list[str] | Unset): List of errors encountered during reconciliation
     """
 
     status: TaskStatus
     actions: (
+        list[
+            GlitchtipActionAddProjectToTeam
+            | GlitchtipActionAddUserToTeam
+            | GlitchtipActionCreateOrganization
+            | GlitchtipActionCreateProject
+            | GlitchtipActionCreateTeam
+            | GlitchtipActionDeleteOrganization
+            | GlitchtipActionDeleteProject
+            | GlitchtipActionDeleteTeam
+            | GlitchtipActionDeleteUser
+            | GlitchtipActionInviteUser
+            | GlitchtipActionRemoveProjectFromTeam
+            | GlitchtipActionRemoveUserFromTeam
+            | GlitchtipActionUpdateProject
+            | GlitchtipActionUpdateUserRole
+        ]
+        | Unset
+    ) = UNSET
+    applied_actions: (
         list[
             GlitchtipActionAddProjectToTeam
             | GlitchtipActionAddUserToTeam
@@ -151,6 +177,60 @@ class GlitchtipTaskResult:
 
                 actions.append(actions_item)
 
+        applied_actions: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.applied_actions, Unset):
+            applied_actions = []
+            for applied_actions_item_data in self.applied_actions:
+                applied_actions_item: dict[str, Any]
+                if isinstance(
+                    applied_actions_item_data, GlitchtipActionCreateOrganization
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionDeleteOrganization
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(applied_actions_item_data, GlitchtipActionInviteUser):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(applied_actions_item_data, GlitchtipActionDeleteUser):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionUpdateUserRole
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(applied_actions_item_data, GlitchtipActionCreateTeam):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(applied_actions_item_data, GlitchtipActionDeleteTeam):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionAddUserToTeam
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionRemoveUserFromTeam
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionCreateProject
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionUpdateProject
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionDeleteProject
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                elif isinstance(
+                    applied_actions_item_data, GlitchtipActionAddProjectToTeam
+                ):
+                    applied_actions_item = applied_actions_item_data.to_dict()
+                else:
+                    applied_actions_item = applied_actions_item_data.to_dict()
+
+                applied_actions.append(applied_actions_item)
+
         applied_count = self.applied_count
 
         errors: list[str] | Unset = UNSET
@@ -164,6 +244,8 @@ class GlitchtipTaskResult:
         })
         if actions is not UNSET:
             field_dict["actions"] = actions
+        if applied_actions is not UNSET:
+            field_dict["applied_actions"] = applied_actions
         if applied_count is not UNSET:
             field_dict["applied_count"] = applied_count
         if errors is not UNSET:
@@ -387,6 +469,192 @@ class GlitchtipTaskResult:
 
                 actions.append(actions_item)
 
+        _applied_actions = d.pop("applied_actions", UNSET)
+        applied_actions: (
+            list[
+                GlitchtipActionAddProjectToTeam
+                | GlitchtipActionAddUserToTeam
+                | GlitchtipActionCreateOrganization
+                | GlitchtipActionCreateProject
+                | GlitchtipActionCreateTeam
+                | GlitchtipActionDeleteOrganization
+                | GlitchtipActionDeleteProject
+                | GlitchtipActionDeleteTeam
+                | GlitchtipActionDeleteUser
+                | GlitchtipActionInviteUser
+                | GlitchtipActionRemoveProjectFromTeam
+                | GlitchtipActionRemoveUserFromTeam
+                | GlitchtipActionUpdateProject
+                | GlitchtipActionUpdateUserRole
+            ]
+            | Unset
+        ) = UNSET
+        if _applied_actions is not UNSET:
+            applied_actions = []
+            for applied_actions_item_data in _applied_actions:
+
+                def _parse_applied_actions_item(
+                    data: object,
+                ) -> (
+                    GlitchtipActionAddProjectToTeam
+                    | GlitchtipActionAddUserToTeam
+                    | GlitchtipActionCreateOrganization
+                    | GlitchtipActionCreateProject
+                    | GlitchtipActionCreateTeam
+                    | GlitchtipActionDeleteOrganization
+                    | GlitchtipActionDeleteProject
+                    | GlitchtipActionDeleteTeam
+                    | GlitchtipActionDeleteUser
+                    | GlitchtipActionInviteUser
+                    | GlitchtipActionRemoveProjectFromTeam
+                    | GlitchtipActionRemoveUserFromTeam
+                    | GlitchtipActionUpdateProject
+                    | GlitchtipActionUpdateUserRole
+                ):
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_0 = (
+                            GlitchtipActionCreateOrganization.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_0
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_1 = (
+                            GlitchtipActionDeleteOrganization.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_1
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_2 = (
+                            GlitchtipActionInviteUser.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_2
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_3 = (
+                            GlitchtipActionDeleteUser.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_3
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_4 = (
+                            GlitchtipActionUpdateUserRole.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_4
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_5 = (
+                            GlitchtipActionCreateTeam.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_5
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_6 = (
+                            GlitchtipActionDeleteTeam.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_6
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_7 = (
+                            GlitchtipActionAddUserToTeam.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_7
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_8 = (
+                            GlitchtipActionRemoveUserFromTeam.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_8
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_9 = (
+                            GlitchtipActionCreateProject.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_9
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_10 = (
+                            GlitchtipActionUpdateProject.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_10
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_11 = (
+                            GlitchtipActionDeleteProject.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_11
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        applied_actions_item_type_12 = (
+                            GlitchtipActionAddProjectToTeam.from_dict(data)
+                        )
+
+                        return applied_actions_item_type_12
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    if not isinstance(data, dict):
+                        raise TypeError()
+                    applied_actions_item_type_13 = (
+                        GlitchtipActionRemoveProjectFromTeam.from_dict(data)
+                    )
+
+                    return applied_actions_item_type_13
+
+                applied_actions_item = _parse_applied_actions_item(
+                    applied_actions_item_data
+                )
+
+                applied_actions.append(applied_actions_item)
+
         applied_count = d.pop("applied_count", UNSET)
 
         errors = cast(list[str], d.pop("errors", UNSET))
@@ -394,6 +662,7 @@ class GlitchtipTaskResult:
         glitchtip_task_result = cls(
             status=status,
             actions=actions,
+            applied_actions=applied_actions,
             applied_count=applied_count,
             errors=errors,
         )

@@ -25,12 +25,14 @@ class GlitchtipActionAddUserToTeam:
         organization (str): Organization name
         team_slug (str): Team slug
         action_type (Literal['add_user_to_team'] | Unset):  Default: 'add_user_to_team'.
+        pk (int | None | Unset): User primary key (None when user is being invited in the same run)
     """
 
     email: str
     organization: str
     team_slug: str
     action_type: Literal["add_user_to_team"] | Unset = "add_user_to_team"
+    pk: int | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -42,6 +44,12 @@ class GlitchtipActionAddUserToTeam:
 
         action_type = self.action_type
 
+        pk: int | None | Unset
+        if isinstance(self.pk, Unset):
+            pk = UNSET
+        else:
+            pk = self.pk
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
@@ -51,6 +59,8 @@ class GlitchtipActionAddUserToTeam:
         })
         if action_type is not UNSET:
             field_dict["action_type"] = action_type
+        if pk is not UNSET:
+            field_dict["pk"] = pk
 
         return field_dict
 
@@ -71,11 +81,21 @@ class GlitchtipActionAddUserToTeam:
                 f"action_type must match const 'add_user_to_team', got '{action_type}'"
             )
 
+        def _parse_pk(data: object) -> int | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(int | None | Unset, data)
+
+        pk = _parse_pk(d.pop("pk", UNSET))
+
         glitchtip_action_add_user_to_team = cls(
             email=email,
             organization=organization,
             team_slug=team_slug,
             action_type=action_type,
+            pk=pk,
         )
 
         glitchtip_action_add_user_to_team.additional_properties = d

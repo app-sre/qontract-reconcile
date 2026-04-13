@@ -33,7 +33,7 @@ def reconcile_glitchtip_task(
     instances: list[GIInstance],
     *,
     dry_run: bool = True,
-) -> GlitchtipTaskResult | dict[str, str]:
+) -> GlitchtipTaskResult:
     """Reconcile Glitchtip organizations, teams, projects, and users (background task).
 
     Args:
@@ -42,8 +42,7 @@ def reconcile_glitchtip_task(
         dry_run: If True, only calculate actions without executing
 
     Returns:
-        GlitchtipTaskResult on success
-        {"status": "skipped", "reason": "duplicate_task"} if duplicate task
+        GlitchtipTaskResult on success, or with SKIPPED status if duplicate task
     """
     request_id = self.request.id
 
@@ -75,22 +74,26 @@ def reconcile_glitchtip_task(
             errors=result.errors,
         )
 
-        if not dry_run and result.applied_count > 0 and event_manager:
-            for action in result.actions:
-                try:
-                    event_manager.publish_event(
-                        Event(
-                            source=__name__,
-                            type=f"qontract-api.glitchtip.{action.action_type}",
-                            data=action.model_dump(mode="json"),
-                            datacontenttype="application/json",
-                        )
+        if not dry_run and event_manager:
+            for action in result.applied_actions:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type=f"qontract-api.glitchtip.{action.action_type}",
+                        data=action.model_dump(mode="json"),
+                        datacontenttype="application/json",
                     )
-                except Exception:
-                    logger.exception(
-                        "Failed to publish event",
-                        action_type=action.action_type,
+                )
+
+            for error in result.errors:
+                event_manager.publish_event(
+                    Event(
+                        source=__name__,
+                        type="qontract-api.glitchtip.error",
+                        data={"error": error},
+                        datacontenttype="application/json",
                     )
+                )
 
         return result
 

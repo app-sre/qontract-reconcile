@@ -23,12 +23,14 @@ class GlitchtipActionUpdateUserRole:
     Attributes:
         email (str): User email
         organization (str): Organization name
+        pk (int): User primary key (resolved at planning time)
         role (str): New role
         action_type (Literal['update_user_role'] | Unset):  Default: 'update_user_role'.
     """
 
     email: str
     organization: str
+    pk: int
     role: str
     action_type: Literal["update_user_role"] | Unset = "update_user_role"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -37,6 +39,8 @@ class GlitchtipActionUpdateUserRole:
         email = self.email
 
         organization = self.organization
+
+        pk = self.pk
 
         role = self.role
 
@@ -47,6 +51,7 @@ class GlitchtipActionUpdateUserRole:
         field_dict.update({
             "email": email,
             "organization": organization,
+            "pk": pk,
             "role": role,
         })
         if action_type is not UNSET:
@@ -61,6 +66,8 @@ class GlitchtipActionUpdateUserRole:
 
         organization = d.pop("organization")
 
+        pk = d.pop("pk")
+
         role = d.pop("role")
 
         action_type = cast(
@@ -74,6 +81,7 @@ class GlitchtipActionUpdateUserRole:
         glitchtip_action_update_user_role = cls(
             email=email,
             organization=organization,
+            pk=pk,
             role=role,
             action_type=action_type,
         )

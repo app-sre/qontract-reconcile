@@ -39,6 +39,7 @@ class GlitchtipActionDeleteUser(BaseModel, frozen=True):
     action_type: Literal["delete_user"] = "delete_user"
     organization: str = Field(..., description="Organization name")
     email: str = Field(..., description="User email")
+    pk: int = Field(..., description="User primary key (resolved at planning time)")
 
 
 class GlitchtipActionUpdateUserRole(BaseModel, frozen=True):
@@ -48,6 +49,7 @@ class GlitchtipActionUpdateUserRole(BaseModel, frozen=True):
     organization: str = Field(..., description="Organization name")
     email: str = Field(..., description="User email")
     role: str = Field(..., description="New role")
+    pk: int = Field(..., description="User primary key (resolved at planning time)")
 
 
 class GlitchtipActionCreateTeam(BaseModel, frozen=True):
@@ -73,6 +75,10 @@ class GlitchtipActionAddUserToTeam(BaseModel, frozen=True):
     organization: str = Field(..., description="Organization name")
     team_slug: str = Field(..., description="Team slug")
     email: str = Field(..., description="User email")
+    pk: int | None = Field(
+        default=None,
+        description="User primary key (None when user is being invited in the same run)",
+    )
 
 
 class GlitchtipActionRemoveUserFromTeam(BaseModel, frozen=True):
@@ -82,6 +88,7 @@ class GlitchtipActionRemoveUserFromTeam(BaseModel, frozen=True):
     organization: str = Field(..., description="Organization name")
     team_slug: str = Field(..., description="Team slug")
     email: str = Field(..., description="User email")
+    pk: int = Field(..., description="User primary key (resolved at planning time)")
 
 
 class GlitchtipActionCreateProject(BaseModel, frozen=True):
@@ -150,7 +157,12 @@ class GlitchtipTaskResult(TaskResult, frozen=True):
     """Result model for completed Glitchtip reconciliation task."""
 
     actions: list[GlitchtipAction] = Field(
-        default=[], description="List of actions calculated/performed"
+        default=[],
+        description="All actions calculated (desired - current), including any that failed to apply.",
+    )
+    applied_actions: list[GlitchtipAction] = Field(
+        default=[],
+        description="Actions that were successfully applied (subset of actions, empty on dry_run).",
     )
 
 

@@ -256,6 +256,7 @@ def test_reconcile_deletes_user(
     assert len(result.actions) == 1
     assert isinstance(result.actions[0], GlitchtipActionDeleteUser)
     assert result.actions[0].email == "old-user@example.com"
+    assert result.actions[0].pk == 10
 
 
 def test_reconcile_updates_user_role(
@@ -291,6 +292,7 @@ def test_reconcile_updates_user_role(
     assert isinstance(result.actions[0], GlitchtipActionUpdateUserRole)
     assert result.actions[0].email == "user@example.com"
     assert result.actions[0].role == "admin"
+    assert result.actions[0].pk == 11
 
 
 def test_reconcile_creates_team(
@@ -475,6 +477,7 @@ def test_reconcile_handles_instance_error(
     assert len(result.errors) == 1
     assert "Connection refused" in result.errors[0]
     assert result.applied_count == 0
+    assert result.applied_actions == []
 
 
 def test_reconcile_executes_actions_when_not_dry_run(
@@ -508,6 +511,8 @@ def test_reconcile_executes_actions_when_not_dry_run(
 
     assert result.status == TaskStatus.SUCCESS
     assert result.applied_count == 1
+    assert len(result.applied_actions) == 1
+    assert isinstance(result.applied_actions[0], GlitchtipActionInviteUser)
     mock_glitchtip_client.invite_user.assert_called_once()
 
 

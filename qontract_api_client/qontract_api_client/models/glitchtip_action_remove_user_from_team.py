@@ -23,12 +23,14 @@ class GlitchtipActionRemoveUserFromTeam:
     Attributes:
         email (str): User email
         organization (str): Organization name
+        pk (int): User primary key (resolved at planning time)
         team_slug (str): Team slug
         action_type (Literal['remove_user_from_team'] | Unset):  Default: 'remove_user_from_team'.
     """
 
     email: str
     organization: str
+    pk: int
     team_slug: str
     action_type: Literal["remove_user_from_team"] | Unset = "remove_user_from_team"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -37,6 +39,8 @@ class GlitchtipActionRemoveUserFromTeam:
         email = self.email
 
         organization = self.organization
+
+        pk = self.pk
 
         team_slug = self.team_slug
 
@@ -47,6 +51,7 @@ class GlitchtipActionRemoveUserFromTeam:
         field_dict.update({
             "email": email,
             "organization": organization,
+            "pk": pk,
             "team_slug": team_slug,
         })
         if action_type is not UNSET:
@@ -60,6 +65,8 @@ class GlitchtipActionRemoveUserFromTeam:
         email = d.pop("email")
 
         organization = d.pop("organization")
+
+        pk = d.pop("pk")
 
         team_slug = d.pop("team_slug")
 
@@ -76,6 +83,7 @@ class GlitchtipActionRemoveUserFromTeam:
         glitchtip_action_remove_user_from_team = cls(
             email=email,
             organization=organization,
+            pk=pk,
             team_slug=team_slug,
             action_type=action_type,
         )

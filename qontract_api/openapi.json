@@ -262,10 +262,6 @@
             },
             "title": "Teams",
             "type": "array"
-          },
-          "status": {
-            "$ref": "#/components/schemas/TaskStatus",
-            "description": "Task execution status (pending/success/failed/skipped)"
           }
         },
         "required": [
@@ -445,7 +441,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/TaskStatus",
-            "description": "Task execution status (pending/success/failed)"
+            "description": "Task execution status (pending/success/failed/skipped)"
           }
         },
         "required": [
@@ -505,6 +501,18 @@
             "description": "Organization name",
             "title": "Organization",
             "type": "string"
+          },
+          "pk": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User primary key (None when user is being invited in the same run)",
+            "title": "Pk"
           },
           "team_slug": {
             "description": "Team slug",
@@ -688,11 +696,17 @@
             "description": "Organization name",
             "title": "Organization",
             "type": "string"
+          },
+          "pk": {
+            "description": "User primary key (resolved at planning time)",
+            "title": "Pk",
+            "type": "integer"
           }
         },
         "required": [
           "organization",
-          "email"
+          "email",
+          "pk"
         ],
         "title": "GlitchtipActionDeleteUser",
         "type": "object"
@@ -782,6 +796,11 @@
             "title": "Organization",
             "type": "string"
           },
+          "pk": {
+            "description": "User primary key (resolved at planning time)",
+            "title": "Pk",
+            "type": "integer"
+          },
           "team_slug": {
             "description": "Team slug",
             "title": "Team Slug",
@@ -791,7 +810,8 @@
         "required": [
           "organization",
           "team_slug",
-          "email"
+          "email",
+          "pk"
         ],
         "title": "GlitchtipActionRemoveUserFromTeam",
         "type": "object"
@@ -842,6 +862,11 @@
             "title": "Organization",
             "type": "string"
           },
+          "pk": {
+            "description": "User primary key (resolved at planning time)",
+            "title": "Pk",
+            "type": "integer"
+          },
           "role": {
             "description": "New role",
             "title": "Role",
@@ -851,7 +876,8 @@
         "required": [
           "organization",
           "email",
-          "role"
+          "role",
+          "pk"
         ],
         "title": "GlitchtipActionUpdateUserRole",
         "type": "object"
@@ -1318,7 +1344,7 @@
         "properties": {
           "actions": {
             "default": [],
-            "description": "List of actions calculated/performed",
+            "description": "All actions calculated (desired - current), including any that failed to apply.",
             "items": {
               "discriminator": {
                 "mapping": {
@@ -1387,6 +1413,77 @@
             "title": "Actions",
             "type": "array"
           },
+          "applied_actions": {
+            "default": [],
+            "description": "Actions that were successfully applied (subset of actions, empty on dry_run).",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add_project_to_team": "#/components/schemas/GlitchtipActionAddProjectToTeam",
+                  "add_user_to_team": "#/components/schemas/GlitchtipActionAddUserToTeam",
+                  "create_organization": "#/components/schemas/GlitchtipActionCreateOrganization",
+                  "create_project": "#/components/schemas/GlitchtipActionCreateProject",
+                  "create_team": "#/components/schemas/GlitchtipActionCreateTeam",
+                  "delete_organization": "#/components/schemas/GlitchtipActionDeleteOrganization",
+                  "delete_project": "#/components/schemas/GlitchtipActionDeleteProject",
+                  "delete_team": "#/components/schemas/GlitchtipActionDeleteTeam",
+                  "delete_user": "#/components/schemas/GlitchtipActionDeleteUser",
+                  "invite_user": "#/components/schemas/GlitchtipActionInviteUser",
+                  "remove_project_from_team": "#/components/schemas/GlitchtipActionRemoveProjectFromTeam",
+                  "remove_user_from_team": "#/components/schemas/GlitchtipActionRemoveUserFromTeam",
+                  "update_project": "#/components/schemas/GlitchtipActionUpdateProject",
+                  "update_user_role": "#/components/schemas/GlitchtipActionUpdateUserRole"
+                },
+                "propertyName": "action_type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionCreateOrganization"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteOrganization"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionInviteUser"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteUser"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionUpdateUserRole"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionCreateTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionAddUserToTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionRemoveUserFromTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionCreateProject"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionUpdateProject"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionDeleteProject"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionAddProjectToTeam"
+                },
+                {
+                  "$ref": "#/components/schemas/GlitchtipActionRemoveProjectFromTeam"
+                }
+              ]
+            },
+            "title": "Applied Actions",
+            "type": "array"
+          },
           "applied_count": {
             "default": 0,
             "description": "Number of actions actually applied (0 if dry_run=True)",
@@ -1404,7 +1501,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/TaskStatus",
-            "description": "Task execution status (pending/success/failed)"
+            "description": "Task execution status (pending/success/failed/skipped)"
           }
         },
         "required": [
