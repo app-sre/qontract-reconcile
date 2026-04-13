@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-03-03
-**Updated:** 2026-03-06
+**Updated:** 2026-04-13
 **Authors:** @TGPSKI
 **Reviewers:** @jfchevrette, @fenghuang, @wangdi, @chassing, @fishi0x01, @mafriedm
 
@@ -39,7 +39,7 @@ GitLab merge trains run MR-B's pipeline against `target + A + B` speculatively, 
 - **Optimistic MRs are rebased with `skip_ci=True` before merge** to satisfy fast-forward merge requirements without triggering redundant pipelines
 - The `if rebase: return` exit after a single merge is removed, allowing multiple merges per loop
 - `limit` is redefined as a per-repo cap (not per-run) controlling the steady-state number of rebased MRs with active pipelines
-- A healthcheck-probe model prevents zombie MRs (repeated pipeline failures) from blocking the queue: after N consecutive failures, MRs are moved to an error queue
+- A healthcheck-probe model prevents zombie MRs (repeated pipeline failures) from blocking the queue: check the last N pipelines (already fetched via `gl.get_merge_request_pipelines(mr)`) for consecutive failures, then apply a `merge-error` label to flag the MR in the existing merge queue rendering for IC triage
 - New Prometheus metrics track optimistic merge success rate and overlap frequency
 
 ### Why file-level overlap is not enough -- and why we chose labels
@@ -120,7 +120,7 @@ Keep the serial one-merge-per-cycle model but improve queue hygiene:
 
 - Require last pipeline to pass before adding MR to merge queue
 - Redefine `limit` as a per-repo cap (not per-run) and keep it small (1-3) to reduce wasted CI from over-rebasing across rapid reconcile cycles
-- Label MRs that fail to merge for an "error queue" and remove from active queue
+- Flag MRs that fail to merge with `merge-error` label in the existing merge queue rendering
 - Handle corner cases (pipeline pass + approved but merge fails due to GitLab issues)
 
 **Pros:**
@@ -203,7 +203,7 @@ This was proposed by @maorfr: "if there is no coverage overlap between 2 MRs, th
 - Change-type coverage operates at JSONPath level, not file level, introducing a conceptual mismatch with the file-based merge conflict model
 - Adds dependency on qontract-server availability during the merge loop
 
-**Assessment:** This is a promising future refinement (Phase 2) if label-based detection proves too coarse. It requires making change-type coverage information available to `gitlab_housekeeping` (e.g., via labels or `State`). Should only be pursued if Phase 1 metrics show a high same-service overlap rate.
+**Assessment:** This is a promising future refinement (Phase 2) if label-based detection proves too coarse. It requires making change-type coverage information available to `gitlab_housekeeping` (e.g., via labels or notes). Should only be pursued if Phase 1 metrics show a high same-service overlap rate.
 
 ## Consequences
 
@@ -215,7 +215,7 @@ This was proposed by @maorfr: "if there is no coverage overlap between 2 MRs, th
 - Zero additional API calls for overlap detection (labels already present from `gitlab_labeler`)
 - `tenant-*` label eligibility gate naturally limits blast radius: label-less MRs fall back to serial, multi-service MRs are serialized by overlap
 - Per-repo `limit` semantics give operators fine-grained control over pipeline concurrency and queue behavior
-- Phase 0 queue hardening (healthcheck-probe model, error labeling) improves reliability regardless of multi-merge
+- Phase 0 queue hardening (pipeline-history healthcheck, error flagging in merge queue) improves reliability regardless of multi-merge
 - New metrics provide visibility into merge queue health and overlap rates
 - No infrastructure changes, licensing costs, or CI migration
 - ~50 lines of new Python -- minimal maintenance burden
@@ -239,9 +239,9 @@ Operational improvements that reduce wasted CI and improve reliability, independ
 
 1. **Redefine `limit` as a per-repo cap, not per-run.** Currently `limit` controls how many MRs are rebased *per reconcile run*, with the counter resetting each invocation. Since `gitlab-housekeeping` runs frequently (~1 min cycles), a `limit: 2` still results in many MRs being rebased across runs, each triggering a pipeline -- most of which are wasted when only one MR merges per cycle. The fix: change the semantics so `limit` means "at most N MRs should be in a rebased-and-pipeline-pending state at any time for this repo." Before rebasing, count how many MRs already have running or recent pipelines and only rebase up to `limit - already_active`. Keep `limit` small (2-3) to minimize wasted CI. This is a prerequisite for Phase 1: with per-repo semantics, bumping `limit` to 6 for multi-merge becomes safe because it controls the *steady-state pipeline concurrency*, not the per-run rebase burst.
 
-2. **Healthcheck-probe model for pipeline failures.** Simple pipeline-success filtering is dangerous because of flaky integrations -- transient CI errors would prematurely eject MRs from the queue. Instead, implement a retry budget: track consecutive pipeline failures per MR IID in `State`. After N consecutive failures (configurable, default 3), apply a `merge-error` label and exclude from the merge queue (error queue for manual triage). Auto-recover: when a new pipeline succeeds, reset the failure counter and remove the `merge-error` label. This balances retesting (crucial for flaky CI) with preventing zombie MRs from blocking the queue indefinitely.
+2. **Healthcheck-probe model for pipeline failures.** Simple pipeline-success filtering is dangerous because of flaky integrations -- transient CI errors would prematurely eject MRs from the queue. Instead, implement a retry budget using pipeline history: since we already fetch all pipelines for a given MR via `gl.get_merge_request_pipelines(mr)`, and every rebase creates a new pipeline, check the last N pipelines (configurable, default 3) for consecutive failures. If the last N pipelines all failed, apply a `merge-error` label and flag the MR in the existing merge queue rendering (markdown files / inscope plugins) so the IC can triage errors from the same merge queue page. No separate error queue or additional `State` persistence is needed. Auto-recover: when a new pipeline succeeds, the failure streak is broken and the `merge-error` label is removed. This balances retesting (crucial for flaky CI) with preventing zombie MRs from blocking the queue indefinitely.
 
-3. **Label MRs that fail to merge repeatedly.** When `mr.merge()` raises an exception (beyond `GitlabMRClosedError`), catch `GitlabOperationError` and apply a `merge-error` label to the MR. Exclude MRs with this label from the merge queue. This creates a visible "error queue" for manual triage and handles corner cases like pipeline-pass-but-merge-fail (branch missing, approval retracted, GitLab transient errors).
+3. **Flag MRs that fail to merge repeatedly.** When `mr.merge()` raises an exception (beyond `GitlabMRClosedError`), catch `GitlabOperationError` and apply a `merge-error` label to the MR. Exclude MRs with this label from the active merge queue. The `merge-error` label serves as a flag in the existing merge queue rendering (markdown files / inscope plugins) -- not a separate queue. The IC can filter for error-flagged MRs on the same merge queue page for triage. This handles corner cases like pipeline-pass-but-merge-fail (branch missing, approval retracted, GitLab transient errors).
 
 4. **Broaden merge exception handling.** Currently only `GitlabMRClosedError` is caught. Add `GitlabOperationError` to handle fast-forward rejection, pipeline-gated rejection, branch-missing, and other server-side refusals gracefully. Note: python-gitlab does not have a `GitlabMergeError` class; `GitlabOperationError` is the common parent of all MR-related exceptions (`GitlabMRClosedError`, `GitlabMRForbiddenError`, `GitlabMROnBuildSuccessError`, etc.).
 
@@ -448,9 +448,9 @@ Defer detailed design until Phase 1 data is available.
 **Phase 0:**
 
 - [ ] Redefine `limit` as per-repo cap (count already-active pipelines before rebasing)
-- [ ] Implement healthcheck-probe model for pipeline failures (track consecutive failures in `State`, `merge-error` label after N failures)
+- [ ] Implement healthcheck-probe model for pipeline failures (check last N pipelines from `gl.get_merge_request_pipelines(mr)`, `merge-error` label after N consecutive failures)
 - [ ] Broaden merge exception handling to catch `GitlabOperationError`
-- [ ] Add error-queue labeling for MRs that fail to merge repeatedly (corner cases: pipeline-pass-but-merge-fail)
+- [ ] Add `merge-error` flag in existing merge queue rendering for MRs that fail to merge repeatedly (corner cases: pipeline-pass-but-merge-fail)
 
 **Phase 1:**
 
@@ -470,14 +470,14 @@ Defer detailed design until Phase 1 data is available.
 
 - [ ] Evaluate Phase 1 overlap metrics -- only proceed if same-service overlap rate >30%
 - [ ] Design change-type coverage comparison for same-service MRs
-- [ ] Make change-type coverage available to `gitlab_housekeeping` (via labels, notes, or State)
+- [ ] Make change-type coverage available to `gitlab_housekeeping` (via labels or notes)
 
 ## References
 
 - Implementation: `reconcile/gitlab_housekeeping.py` -- merge loop, rebase logic, priority sorting
 - Implementation: `reconcile/gitlab_labeler.py` -- `tenant-*` label assignment based on changed paths
 - Implementation: `reconcile/utils/gitlab_api.py` -- `get_merge_request_changed_paths()` (used by `gitlab_labeler`, available for future refinements)
-- Implementation: `reconcile/utils/state.py` -- `State` for healthcheck-probe persistence
+- Implementation: `reconcile/utils/state.py` -- `State` (no longer needed for healthcheck-probe; pipeline history from `gl.get_merge_request_pipelines(mr)` is used instead)
 - Implementation: `reconcile/change_owners/` -- change-type coverage logic (Phase 2 reference)
 - Crossrefs: `qontract-schemas/schemas/common-1.json` -- `$ref` crossref definition
 - App-interface config: `data/services/app-interface/app.yml` -- `gitlabHousekeeping.limit`
