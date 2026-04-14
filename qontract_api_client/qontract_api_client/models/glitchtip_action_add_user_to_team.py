@@ -22,6 +22,7 @@ class GlitchtipActionAddUserToTeam:
 
     Attributes:
         email (str): User email
+        instance (str): Glitchtip instance name
         organization (str): Organization name
         team_slug (str): Team slug
         action_type (Literal['add_user_to_team'] | Unset):  Default: 'add_user_to_team'.
@@ -29,6 +30,7 @@ class GlitchtipActionAddUserToTeam:
     """
 
     email: str
+    instance: str
     organization: str
     team_slug: str
     action_type: Literal["add_user_to_team"] | Unset = "add_user_to_team"
@@ -37,6 +39,8 @@ class GlitchtipActionAddUserToTeam:
 
     def to_dict(self) -> dict[str, Any]:
         email = self.email
+
+        instance = self.instance
 
         organization = self.organization
 
@@ -54,6 +58,7 @@ class GlitchtipActionAddUserToTeam:
         field_dict.update(self.additional_properties)
         field_dict.update({
             "email": email,
+            "instance": instance,
             "organization": organization,
             "team_slug": team_slug,
         })
@@ -68,6 +73,8 @@ class GlitchtipActionAddUserToTeam:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         email = d.pop("email")
+
+        instance = d.pop("instance")
 
         organization = d.pop("organization")
 
@@ -92,6 +99,7 @@ class GlitchtipActionAddUserToTeam:
 
         glitchtip_action_add_user_to_team = cls(
             email=email,
+            instance=instance,
             organization=organization,
             team_slug=team_slug,
             action_type=action_type,

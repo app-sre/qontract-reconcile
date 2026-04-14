@@ -459,6 +459,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -476,6 +481,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "project_slug",
           "team_slug"
@@ -495,6 +501,11 @@
           "email": {
             "description": "User email",
             "title": "Email",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
             "type": "string"
           },
           "organization": {
@@ -521,6 +532,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "team_slug",
           "email"
@@ -537,6 +549,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -544,6 +561,7 @@
           }
         },
         "required": [
+          "instance",
           "organization"
         ],
         "title": "GlitchtipActionCreateOrganization",
@@ -558,6 +576,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -570,6 +593,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "project_name"
         ],
@@ -585,6 +609,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -597,6 +626,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "team_slug"
         ],
@@ -612,6 +642,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -619,6 +654,7 @@
           }
         },
         "required": [
+          "instance",
           "organization"
         ],
         "title": "GlitchtipActionDeleteOrganization",
@@ -633,6 +669,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -645,6 +686,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "project_slug"
         ],
@@ -660,6 +702,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -672,6 +719,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "team_slug"
         ],
@@ -692,6 +740,11 @@
             "title": "Email",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -704,6 +757,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "email",
           "pk"
@@ -725,6 +779,11 @@
             "title": "Email",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -737,6 +796,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "email",
           "role"
@@ -751,6 +811,11 @@
             "const": "remove_project_from_team",
             "default": "remove_project_from_team",
             "title": "Action Type",
+            "type": "string"
+          },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
             "type": "string"
           },
           "organization": {
@@ -770,6 +835,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "project_slug",
           "team_slug"
@@ -791,6 +857,11 @@
             "title": "Email",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -808,6 +879,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "team_slug",
           "email",
@@ -825,6 +897,11 @@
             "title": "Action Type",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -837,6 +914,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "project_slug"
         ],
@@ -857,6 +935,11 @@
             "title": "Email",
             "type": "string"
           },
+          "instance": {
+            "description": "Glitchtip instance name",
+            "title": "Instance",
+            "type": "string"
+          },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
@@ -874,6 +957,7 @@
           }
         },
         "required": [
+          "instance",
           "organization",
           "email",
           "role",

@@ -22,6 +22,7 @@ class GlitchtipActionUpdateUserRole:
 
     Attributes:
         email (str): User email
+        instance (str): Glitchtip instance name
         organization (str): Organization name
         pk (int): User primary key (resolved at planning time)
         role (str): New role
@@ -29,6 +30,7 @@ class GlitchtipActionUpdateUserRole:
     """
 
     email: str
+    instance: str
     organization: str
     pk: int
     role: str
@@ -37,6 +39,8 @@ class GlitchtipActionUpdateUserRole:
 
     def to_dict(self) -> dict[str, Any]:
         email = self.email
+
+        instance = self.instance
 
         organization = self.organization
 
@@ -50,6 +54,7 @@ class GlitchtipActionUpdateUserRole:
         field_dict.update(self.additional_properties)
         field_dict.update({
             "email": email,
+            "instance": instance,
             "organization": organization,
             "pk": pk,
             "role": role,
@@ -63,6 +68,8 @@ class GlitchtipActionUpdateUserRole:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         email = d.pop("email")
+
+        instance = d.pop("instance")
 
         organization = d.pop("organization")
 
@@ -80,6 +87,7 @@ class GlitchtipActionUpdateUserRole:
 
         glitchtip_action_update_user_role = cls(
             email=email,
+            instance=instance,
             organization=organization,
             pk=pk,
             role=role,

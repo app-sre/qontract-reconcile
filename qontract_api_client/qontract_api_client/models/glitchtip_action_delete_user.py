@@ -22,12 +22,14 @@ class GlitchtipActionDeleteUser:
 
     Attributes:
         email (str): User email
+        instance (str): Glitchtip instance name
         organization (str): Organization name
         pk (int): User primary key (resolved at planning time)
         action_type (Literal['delete_user'] | Unset):  Default: 'delete_user'.
     """
 
     email: str
+    instance: str
     organization: str
     pk: int
     action_type: Literal["delete_user"] | Unset = "delete_user"
@@ -35,6 +37,8 @@ class GlitchtipActionDeleteUser:
 
     def to_dict(self) -> dict[str, Any]:
         email = self.email
+
+        instance = self.instance
 
         organization = self.organization
 
@@ -46,6 +50,7 @@ class GlitchtipActionDeleteUser:
         field_dict.update(self.additional_properties)
         field_dict.update({
             "email": email,
+            "instance": instance,
             "organization": organization,
             "pk": pk,
         })
@@ -59,6 +64,8 @@ class GlitchtipActionDeleteUser:
         d = dict(src_dict)
         email = d.pop("email")
 
+        instance = d.pop("instance")
+
         organization = d.pop("organization")
 
         pk = d.pop("pk")
@@ -71,6 +78,7 @@ class GlitchtipActionDeleteUser:
 
         glitchtip_action_delete_user = cls(
             email=email,
+            instance=instance,
             organization=organization,
             pk=pk,
             action_type=action_type,

@@ -22,6 +22,7 @@ class GlitchtipActionRemoveUserFromTeam:
 
     Attributes:
         email (str): User email
+        instance (str): Glitchtip instance name
         organization (str): Organization name
         pk (int): User primary key (resolved at planning time)
         team_slug (str): Team slug
@@ -29,6 +30,7 @@ class GlitchtipActionRemoveUserFromTeam:
     """
 
     email: str
+    instance: str
     organization: str
     pk: int
     team_slug: str
@@ -37,6 +39,8 @@ class GlitchtipActionRemoveUserFromTeam:
 
     def to_dict(self) -> dict[str, Any]:
         email = self.email
+
+        instance = self.instance
 
         organization = self.organization
 
@@ -50,6 +54,7 @@ class GlitchtipActionRemoveUserFromTeam:
         field_dict.update(self.additional_properties)
         field_dict.update({
             "email": email,
+            "instance": instance,
             "organization": organization,
             "pk": pk,
             "team_slug": team_slug,
@@ -63,6 +68,8 @@ class GlitchtipActionRemoveUserFromTeam:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         email = d.pop("email")
+
+        instance = d.pop("instance")
 
         organization = d.pop("organization")
 
@@ -82,6 +89,7 @@ class GlitchtipActionRemoveUserFromTeam:
 
         glitchtip_action_remove_user_from_team = cls(
             email=email,
+            instance=instance,
             organization=organization,
             pk=pk,
             team_slug=team_slug,

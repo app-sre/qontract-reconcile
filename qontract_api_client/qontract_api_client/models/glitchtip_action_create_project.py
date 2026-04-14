@@ -21,17 +21,21 @@ class GlitchtipActionCreateProject:
     """Action: Create a project in an organization.
 
     Attributes:
+        instance (str): Glitchtip instance name
         organization (str): Organization name
         project_name (str): Project name
         action_type (Literal['create_project'] | Unset):  Default: 'create_project'.
     """
 
+    instance: str
     organization: str
     project_name: str
     action_type: Literal["create_project"] | Unset = "create_project"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        instance = self.instance
+
         organization = self.organization
 
         project_name = self.project_name
@@ -41,6 +45,7 @@ class GlitchtipActionCreateProject:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
+            "instance": instance,
             "organization": organization,
             "project_name": project_name,
         })
@@ -52,6 +57,8 @@ class GlitchtipActionCreateProject:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        instance = d.pop("instance")
+
         organization = d.pop("organization")
 
         project_name = d.pop("project_name")
@@ -65,6 +72,7 @@ class GlitchtipActionCreateProject:
             )
 
         glitchtip_action_create_project = cls(
+            instance=instance,
             organization=organization,
             project_name=project_name,
             action_type=action_type,
