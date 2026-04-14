@@ -8,6 +8,16 @@ from reconcile.utils.early_exit_cache import CacheHeadResult, CacheKey, CacheSta
 from tools import qontract_cli
 
 
+def _make_cluster(name: str, vpc_cidr: str, account_name: str = "acc") -> dict:
+    return {
+        "name": name,
+        "network": {"vpc": vpc_cidr},
+        "spec": {"account": {"name": account_name}},
+        "peering": None,
+        "description": None,
+    }
+
+
 @pytest.fixture
 def env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_INTERFACE_STATE_BUCKET", "some-bucket")
@@ -252,3 +262,105 @@ def test_external_resources_get_credentials(
         format=None,
         version=None,
     )
+
+
+@pytest.fixture
+def mock_cidr_deps(mocker: MockerFixture) -> Mock:
+    mock_q = mocker.patch("tools.qontract_cli.queries", autospec=True)
+    mocker.patch("reconcile.typed_queries.aws_vpcs.get_aws_vpcs", return_value=[])
+    return mock_q
+
+
+def test_cidr_blocks_for_cluster_next_block(mock_cidr_deps: Mock) -> None:
+    mock_cidr_deps.get_clusters.return_value = [
+        _make_cluster("c1", "10.0.0.0/24"),
+        _make_cluster("c2", "10.0.1.0/24"),
+    ]
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["cidr-blocks", "--for-cluster", "true", "--mask", "24"],
+        obj={"options": {"output": "table"}},
+    )
+    assert result.exit_code == 0
+    assert "10.0.2.0/24" in result.output
+
+
+def test_cidr_blocks_within_finds_first_available(mock_cidr_deps: Mock) -> None:
+    mock_cidr_deps.get_clusters.return_value = [
+        _make_cluster("c1", "10.0.0.0/24"),
+        _make_cluster("c2", "10.0.1.0/24"),
+    ]
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        [
+            "cidr-blocks",
+            "--for-cluster",
+            "true",
+            "--mask",
+            "24",
+            "--within",
+            "10.0.0.0/16",
+        ],
+        obj={"options": {"output": "table"}},
+    )
+    assert result.exit_code == 0
+    assert "10.0.2.0/24" in result.output
+
+
+def test_cidr_blocks_within_no_existing_clusters(mock_cidr_deps: Mock) -> None:
+    mock_cidr_deps.get_clusters.return_value = [
+        _make_cluster("c1", "10.0.0.0/24"),
+    ]
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        [
+            "cidr-blocks",
+            "--for-cluster",
+            "true",
+            "--mask",
+            "24",
+            "--within",
+            "172.16.0.0/16",
+        ],
+        obj={"options": {"output": "table"}},
+    )
+    assert result.exit_code == 0
+    assert "172.16.0.0/24" in result.output
+
+
+def test_cidr_blocks_within_exhausted(mock_cidr_deps: Mock) -> None:
+    mock_cidr_deps.get_clusters.return_value = [
+        _make_cluster("c1", "10.0.0.0/24"),
+        _make_cluster("c2", "10.0.1.0/24"),
+    ]
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        [
+            "cidr-blocks",
+            "--for-cluster",
+            "true",
+            "--mask",
+            "24",
+            "--within",
+            "10.0.0.0/23",
+        ],
+        obj={"options": {"output": "table"}},
+    )
+    assert result.exit_code != 0
+    assert "No available" in result.output
+
+
+def test_cidr_blocks_within_invalid_cidr(mock_cidr_deps: Mock) -> None:
+    mock_cidr_deps.get_clusters.return_value = []
+    runner = CliRunner()
+    result = runner.invoke(
+        qontract_cli.get,
+        ["cidr-blocks", "--for-cluster", "true", "--within", "not-a-cidr"],
+        obj={"options": {"output": "table"}},
+    )
+    assert result.exit_code != 0
+    assert "Invalid CIDR" in result.output

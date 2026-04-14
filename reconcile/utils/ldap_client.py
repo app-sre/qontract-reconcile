@@ -10,6 +10,12 @@ from ldap3 import (
 )
 
 
+class LdapClientError(Exception):
+    """Raised when an LDAP client operation fails."""
+
+    pass
+
+
 class LdapClient:
     """
     LdapClient that wraps search functionality from ldap3 library
@@ -31,9 +37,21 @@ class LdapClient:
 
     def get_users(self, uids: Iterable[str]) -> set[str]:
         user_filter = "".join(f"(uid={u})" for u in uids)
-        _, _, results, _ = self.connection.search(
-            self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
+        success, status, results, _ = self.connection.search(
+            self.base_dn,
+            f"(&(objectclass=person)(|{user_filter}))",
+            attributes=["uid"],
         )
+
+        if not success:
+            error_code = status.get("result") if isinstance(status, dict) else None
+            error_desc = (
+                status.get("description") if isinstance(status, dict) else str(status)
+            )
+            raise LdapClientError(
+                f"LDAP search failed (error {error_code}: {error_desc})"
+            )
+
         return {r["attributes"]["uid"][0] for r in results}
 
     def get_group_members(self, groups_dns: set[str]) -> dict[str, set[str]]:

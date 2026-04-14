@@ -536,3 +536,112 @@ def test_get_cluster_vpc_details_with_hcp_security_group(
     assert route_table_ids is None
     assert subnets_id_az is None
     assert api_security_group_id == expected_sg_id
+
+
+def test_get_cluster_vpc_details_with_both_hcp_security_groups(
+    mocker: MockerFixture,
+    aws_api: AWSApi,
+) -> None:
+    """When both legacy -default-sg and newer -vpce-private-router SGs are
+    attached to the VPC endpoint, prefer -default-sg because existing
+    peering/TGW ingress rules are configured on that SG."""
+    expected_vpc_id = "id"
+    mocker.patch.object(
+        aws_api,
+        "get_account_vpcs",
+        return_value=[
+            {
+                "CidrBlock": "cidr",
+                "VpcId": expected_vpc_id,
+            }
+        ],
+    )
+    mocker.patch.object(
+        AWSApi,
+        "_get_vpc_endpoints",
+        return_value=[
+            {
+                "VpcEndpointId": "vpce-id",
+                "Groups": [
+                    {
+                        "GroupName": "abc-default-sg",
+                        "GroupId": "sg-legacy",
+                    },
+                    {
+                        "GroupName": "abc-vpce-private-router",
+                        "GroupId": "sg-new",
+                    },
+                ],
+            }
+        ],
+    )
+
+    vpc_id, route_table_ids, subnets_id_az, api_security_group_id = (
+        aws_api.get_cluster_vpc_details(
+            {
+                "name": "some-account",
+                "assume_region": "us-east-1",
+                "assume_cidr": "cidr",
+            },
+            hcp_vpc_endpoint_sg=True,
+        )
+    )
+
+    assert vpc_id == expected_vpc_id
+    assert route_table_ids is None
+    assert subnets_id_az is None
+    assert api_security_group_id == "sg-legacy"
+
+
+@pytest.mark.parametrize(
+    "duplicate_suffix",
+    [
+        "-vpce-private-router",
+        "-default-sg",
+    ],
+)
+def test_get_cluster_vpc_details_duplicate_hcp_sg_raises(
+    mocker: MockerFixture,
+    aws_api: AWSApi,
+    duplicate_suffix: str,
+) -> None:
+    """Two SGs with the same recognised suffix should fail fast."""
+    mocker.patch.object(
+        aws_api,
+        "get_account_vpcs",
+        return_value=[
+            {
+                "CidrBlock": "cidr",
+                "VpcId": "id",
+            }
+        ],
+    )
+    mocker.patch.object(
+        AWSApi,
+        "_get_vpc_endpoints",
+        return_value=[
+            {
+                "VpcEndpointId": "vpce-id",
+                "Groups": [
+                    {
+                        "GroupName": f"first{duplicate_suffix}",
+                        "GroupId": "sg-1",
+                    },
+                    {
+                        "GroupName": f"second{duplicate_suffix}",
+                        "GroupId": "sg-2",
+                    },
+                ],
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="multiple VPC endpoint security groups"):
+        aws_api.get_cluster_vpc_details(
+            {
+                "name": "some-account",
+                "assume_region": "us-east-1",
+                "assume_cidr": "cidr",
+            },
+            hcp_vpc_endpoint_sg=True,
+        )

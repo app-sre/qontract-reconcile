@@ -4,7 +4,7 @@ import ldap3
 import pytest
 from pytest_mock import MockerFixture
 
-from reconcile.utils.ldap_client import LdapClient
+from reconcile.utils.ldap_client import LdapClient, LdapClientError
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def test_ldap_client(
     mocker: MockerFixture, connection_search_result: list[dict[str, Any]]
 ) -> None:
     mocked_connection = mocker.Mock(spec=ldap3.Connection)
-    mocked_connection.search.return_value = None, None, connection_search_result, None
+    mocked_connection.search.return_value = True, None, connection_search_result, None
 
     with LdapClient("test", mocked_connection) as ldap_client:
         assert ldap_client.base_dn == "test"
@@ -50,7 +50,7 @@ def test_ldap_client_get_users(
     mocker: MockerFixture, connection_search_result: list[dict[str, Any]]
 ) -> None:
     mocked_connection = mocker.Mock(spec=ldap3.Connection)
-    mocked_connection.search.return_value = None, None, connection_search_result, None
+    mocked_connection.search.return_value = True, None, connection_search_result, None
 
     with LdapClient("test", mocked_connection) as ldap_client:
         uids = ["user1", "user2", "user3"]
@@ -63,6 +63,31 @@ def test_ldap_client_get_users(
     )
 
 
+def test_ldap_client_get_users_search_failure(mocker: MockerFixture) -> None:
+    """Test that LdapClientError is raised when LDAP search fails."""
+    mocked_connection = mocker.Mock(spec=ldap3.Connection)
+    # Simulate LDAP error 53 (Server Unwilling to Perform)
+    mocked_connection.search.return_value = (
+        False,
+        {"result": 53, "description": "Server Unwilling To Perform"},
+        [],
+        None,
+    )
+    mocked_connection.result = {
+        "result": 53,
+        "description": "Server Unwilling To Perform",
+    }
+
+    with (
+        LdapClient("test", mocked_connection) as ldap_client,
+        pytest.raises(LdapClientError) as exc_info,
+    ):
+        ldap_client.get_users(["user1"])
+
+    assert "error 53" in str(exc_info.value)
+    assert "Server Unwilling To Perform" in str(exc_info.value)
+
+
 #
 # test get_group_members
 #
@@ -72,7 +97,7 @@ def test_ldap_client_get_rover_groups(
     mocker: MockerFixture, connection_search_result: list[dict[str, Any]]
 ) -> None:
     mocked_connection = mocker.Mock(spec=ldap3.Connection)
-    mocked_connection.search.return_value = None, None, connection_search_result, None
+    mocked_connection.search.return_value = True, None, connection_search_result, None
 
     with LdapClient("test", mocked_connection) as ldap_client:
         group_dns = {

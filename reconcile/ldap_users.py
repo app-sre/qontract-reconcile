@@ -116,11 +116,24 @@ def run(dry_run: bool, app_interface_project_id: str, infra_project_id: str) -> 
     associated with users that are no longer found in the LDAP.
     """
     users_paths = transform_users_with_paths(get_users_with_paths())
+    app_interface_usernames = get_usernames(users_paths)
 
-    ldap_users = get_ldap_users(get_ldap_settings(), get_usernames(users_paths))
+    ldap_users = get_ldap_users(get_ldap_settings(), app_interface_usernames)
+
+    # Safety check: If LDAP returns 0 users, abort to prevent mass deletion
+    if app_interface_usernames and not ldap_users:
+        raise RuntimeError(
+            "LDAP returned empty result set - aborting to prevent mass deletion"
+        )
 
     users_to_delete = filter_users_not_exists(users_paths, ldap_users)
     usernames_to_delete = get_usernames(users_to_delete)
+
+    if usernames_to_delete:
+        logging.info(
+            f"Processing {len(usernames_to_delete)} deletions "
+            f"(app-interface: {len(app_interface_usernames)}, LDAP: {len(ldap_users)})"
+        )
 
     delete_user_from_app_interface(dry_run, app_interface_project_id, users_to_delete)
     delete_user_from_infra(dry_run, infra_project_id, usernames_to_delete)
