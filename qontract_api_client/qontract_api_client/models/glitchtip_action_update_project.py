@@ -21,20 +21,17 @@ class GlitchtipActionUpdateProject:
     """Action: Update a project's settings.
 
     Attributes:
-        instance (str): Glitchtip instance name
         organization (str): Organization name
         project_slug (str): Project slug
         action_type (Literal['update_project'] | Unset):  Default: 'update_project'.
     """
 
-    instance: str
     organization: str
     project_slug: str
     action_type: Literal["update_project"] | Unset = "update_project"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        instance = self.instance
         organization = self.organization
 
         project_slug = self.project_slug
@@ -44,7 +41,6 @@ class GlitchtipActionUpdateProject:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "instance": instance,
             "organization": organization,
             "project_slug": project_slug,
         })
@@ -56,8 +52,6 @@ class GlitchtipActionUpdateProject:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        instance = d.pop("instance")
-
         organization = d.pop("organization")
 
         project_slug = d.pop("project_slug")
@@ -71,7 +65,6 @@ class GlitchtipActionUpdateProject:
             )
 
         glitchtip_action_update_project = cls(
-            instance=instance,
             organization=organization,
             project_slug=project_slug,
             action_type=action_type,

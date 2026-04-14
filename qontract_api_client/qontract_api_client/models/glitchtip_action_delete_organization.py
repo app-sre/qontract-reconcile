@@ -21,18 +21,15 @@ class GlitchtipActionDeleteOrganization:
     """Action: Delete an organization.
 
     Attributes:
-        instance (str): Glitchtip instance name
         organization (str): Organization name
         action_type (Literal['delete_organization'] | Unset):  Default: 'delete_organization'.
     """
 
-    instance: str
     organization: str
     action_type: Literal["delete_organization"] | Unset = "delete_organization"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        instance = self.instance
         organization = self.organization
 
         action_type = self.action_type
@@ -40,7 +37,6 @@ class GlitchtipActionDeleteOrganization:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "instance": instance,
             "organization": organization,
         })
         if action_type is not UNSET:
@@ -51,8 +47,6 @@ class GlitchtipActionDeleteOrganization:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
-        instance = d.pop("instance")
-
         organization = d.pop("organization")
 
         action_type = cast(
@@ -64,7 +58,6 @@ class GlitchtipActionDeleteOrganization:
             )
 
         glitchtip_action_delete_organization = cls(
-            instance=instance,
             organization=organization,
             action_type=action_type,
         )

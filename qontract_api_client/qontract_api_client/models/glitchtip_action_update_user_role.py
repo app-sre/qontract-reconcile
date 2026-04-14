@@ -21,7 +21,6 @@ class GlitchtipActionUpdateUserRole:
     """Action: Update a user's role in an organization.
 
     Attributes:
-        instance (str): Glitchtip instance name
         email (str): User email
         organization (str): Organization name
         pk (int): User primary key (resolved at planning time)
@@ -30,7 +29,6 @@ class GlitchtipActionUpdateUserRole:
     """
 
     email: str
-    instance: str
     organization: str
     pk: int
     role: str
@@ -40,7 +38,6 @@ class GlitchtipActionUpdateUserRole:
     def to_dict(self) -> dict[str, Any]:
         email = self.email
 
-        instance = self.instance
         organization = self.organization
 
         pk = self.pk
@@ -52,7 +49,6 @@ class GlitchtipActionUpdateUserRole:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
-            "instance": instance,
             "email": email,
             "organization": organization,
             "pk": pk,
@@ -67,8 +63,6 @@ class GlitchtipActionUpdateUserRole:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         email = d.pop("email")
-
-        instance = d.pop("instance")
 
         organization = d.pop("organization")
 
@@ -86,7 +80,6 @@ class GlitchtipActionUpdateUserRole:
 
         glitchtip_action_update_user_role = cls(
             email=email,
-            instance=instance,
             organization=organization,
             pk=pk,
             role=role,
