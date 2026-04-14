@@ -47,7 +47,9 @@ def sample_instances(
             console_url="https://glitchtip.example.com",
             token=test_token,
             automation_user_email=test_automation_email_secret,
-            organizations=[GIOrganization(name="my-org", teams=[], projects=[], users=[])],
+            organizations=[
+                GIOrganization(name="my-org", teams=[], projects=[], users=[])
+            ],
         )
     ]
 
@@ -67,7 +69,9 @@ def _task_func() -> Callable:
 def _make_action(
     org: str = "my-org", email: str = "user@example.com"
 ) -> GlitchtipActionInviteUser:
-    return GlitchtipActionInviteUser(organization=org, email=email, role="member")
+    return GlitchtipActionInviteUser(
+        instance="my-instance", organization=org, email=email, role="member"
+    )
 
 
 def _make_result(
@@ -158,7 +162,10 @@ def test_publishes_one_event_per_applied_action(
     sample_instances: list[GIInstance],
 ) -> None:
     """One success event is published per applied action."""
-    actions = [_make_action(email="alice@example.com"), _make_action(email="bob@example.com")]
+    actions = [
+        _make_action(email="alice@example.com"),
+        _make_action(email="bob@example.com"),
+    ]
     mock_service_cls.return_value.reconcile.return_value = _make_result(
         applied_actions=actions
     )
@@ -231,7 +238,9 @@ def test_publishes_both_event_types_on_partial_failure(
     _task_func()(mock_self, sample_instances, dry_run=False)
 
     assert mock_event_manager.publish_event.call_count == 2
-    event_types = {c[0][0].type for c in mock_event_manager.publish_event.call_args_list}
+    event_types = {
+        c[0][0].type for c in mock_event_manager.publish_event.call_args_list
+    }
     assert event_types == {
         "qontract-api.glitchtip.invite_user",
         "qontract-api.glitchtip.error",
@@ -288,4 +297,6 @@ def test_no_events_published_when_event_manager_disabled(
     mock_get_event_manager.return_value = None
 
     result = _task_func()(mock_self, sample_instances, dry_run=False)
-    assert result.status == TaskStatus.FAILED  # errors present → failed, no exception raised
+    assert (
+        result.status == TaskStatus.FAILED
+    )  # errors present → failed, no exception raised

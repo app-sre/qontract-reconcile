@@ -111,7 +111,7 @@ class GlitchtipService:
         5. Delete obsolete organizations
 
         Args:
-            instance_name: Glitchtip instance name (for logging)
+            instance_name: Glitchtip instance name (for logging and action context)
             glitchtip: GlitchtipWorkspaceClient to fetch current state
             organizations: Desired organizations
             ignore_user_email: Automation user email to exclude from user diffs
@@ -130,12 +130,15 @@ class GlitchtipService:
                     f"[{instance_name}] Organization '{desired_org.name}' missing — will create"
                 )
                 actions.append(
-                    GlitchtipActionCreateOrganization(organization=desired_org.name)
+                    GlitchtipActionCreateOrganization(
+                        instance=instance_name, organization=desired_org.name
+                    )
                 )
                 # Current state is empty by definition — generate all child creates now.
                 # This allows single-pass convergence and complete dry-run reporting.
                 actions.extend(
                     GlitchtipActionInviteUser(
+                        instance=instance_name,
                         organization=desired_org.name,
                         email=user.email,
                         role=user.role,
@@ -146,11 +149,14 @@ class GlitchtipService:
                     team_slug = _team_slug(team)
                     actions.append(
                         GlitchtipActionCreateTeam(
-                            organization=desired_org.name, team_slug=team_slug
+                            instance=instance_name,
+                            organization=desired_org.name,
+                            team_slug=team_slug,
                         )
                     )
                     actions.extend(
                         GlitchtipActionAddUserToTeam(
+                            instance=instance_name,
                             organization=desired_org.name,
                             team_slug=team_slug,
                             email=team_user.email,
@@ -159,7 +165,9 @@ class GlitchtipService:
                     )
                 actions.extend(
                     GlitchtipActionCreateProject(
-                        organization=desired_org.name, project_name=project.name
+                        instance=instance_name,
+                        organization=desired_org.name,
+                        project_name=project.name,
                     )
                     for project in desired_org.projects
                 )
@@ -176,29 +184,46 @@ class GlitchtipService:
             # resolve PKs at planning time, avoiding per-action re-fetches at execution.
             current_org_users = glitchtip.get_organization_users(org_slug)
             current_users_by_email: dict[str, ApiUser] = {
-                u.email: u
-                for u in current_org_users
-                if u.email != ignore_user_email
+                u.email: u for u in current_org_users if u.email != ignore_user_email
+            }
+            user_actions = GlitchtipService._calculate_user_actions(
+                instance_name, desired_org, current_users_by_email
+            )
+            actions.extend(user_actions)
+            users_being_deleted = {
+                a.email
+                for a in user_actions
+                if isinstance(a, GlitchtipActionDeleteUser)
+            }
+            team_actions = GlitchtipService._calculate_team_actions(
+                instance_name,
+                desired_org,
+                org_slug,
+                glitchtip,
+                current_users_by_email,
+                users_being_deleted=users_being_deleted,
+            )
+            actions.extend(team_actions)
+            teams_being_deleted = {
+                a.team_slug
+                for a in team_actions
+                if isinstance(a, GlitchtipActionDeleteTeam)
             }
             actions.extend(
-                GlitchtipService._calculate_user_actions(
-                    desired_org, current_users_by_email
-                )
-            )
-            actions.extend(
-                GlitchtipService._calculate_team_actions(
-                    desired_org, org_slug, glitchtip, current_users_by_email
-                )
-            )
-            actions.extend(
                 GlitchtipService._calculate_project_actions(
-                    desired_org, org_slug, glitchtip
+                    instance_name,
+                    desired_org,
+                    org_slug,
+                    glitchtip,
+                    teams_being_deleted=teams_being_deleted,
                 )
             )
 
         # --- Phase 5: Delete obsolete organizations (last!) ---
         actions.extend(
-            GlitchtipActionDeleteOrganization(organization=org_name)
+            GlitchtipActionDeleteOrganization(
+                instance=instance_name, organization=org_name
+            )
             for org_name in current_org_by_name
             if org_name not in desired_org_names
         )
@@ -207,6 +232,7 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_user_actions(
+        instance_name: str,
         desired_org: GIOrganization,
         current_users_by_email: dict[str, ApiUser],
     ) -> list[_AnyAction]:
@@ -214,6 +240,7 @@ class GlitchtipService:
 
         invite_actions: list[_AnyAction] = [
             GlitchtipActionInviteUser(
+                instance=instance_name,
                 organization=desired_org.name,
                 email=email,
                 role=desired_user.role,
@@ -224,6 +251,7 @@ class GlitchtipService:
 
         delete_actions: list[_AnyAction] = [
             GlitchtipActionDeleteUser(
+                instance=instance_name,
                 organization=desired_org.name,
                 email=email,
                 pk=current_users_by_email[email].pk,
@@ -234,36 +262,44 @@ class GlitchtipService:
 
         update_actions: list[_AnyAction] = [
             GlitchtipActionUpdateUserRole(
+                instance=instance_name,
                 organization=desired_org.name,
                 email=email,
                 role=desired_user.role,
                 pk=cu.pk,
             )
             for email, desired_user in desired_by_email.items()
-            if (cu := current_users_by_email.get(email)) and cu.role != desired_user.role
+            if (cu := current_users_by_email.get(email))
+            and cu.role != desired_user.role
         ]
 
         return invite_actions + delete_actions + update_actions
 
     @staticmethod
     def _calculate_team_actions(
+        instance_name: str,
         desired_org: GIOrganization,
         org_slug: str,
         glitchtip: GlitchtipWorkspaceClient,
         current_users_by_email: dict[str, ApiUser],
+        users_being_deleted: set[str] | None = None,
     ) -> list[_AnyAction]:
         current_teams = glitchtip.get_teams(org_slug)
         current_by_slug = {t.slug: t for t in current_teams}
         desired_by_slug = {_team_slug(dt): dt for dt in desired_org.teams}
 
         create_actions: list[_AnyAction] = [
-            GlitchtipActionCreateTeam(organization=desired_org.name, team_slug=slug)
+            GlitchtipActionCreateTeam(
+                instance=instance_name, organization=desired_org.name, team_slug=slug
+            )
             for slug in desired_by_slug
             if slug not in current_by_slug
         ]
 
         delete_actions: list[_AnyAction] = [
-            GlitchtipActionDeleteTeam(organization=desired_org.name, team_slug=slug)
+            GlitchtipActionDeleteTeam(
+                instance=instance_name, organization=desired_org.name, team_slug=slug
+            )
             for slug in current_by_slug
             if slug not in desired_by_slug
         ]
@@ -274,7 +310,14 @@ class GlitchtipService:
                 continue  # Team being created — membership seeded during execution
             membership_actions.extend(
                 GlitchtipService._calculate_team_membership_actions(
-                    desired_org, slug, desired_team, org_slug, glitchtip, current_users_by_email
+                    instance_name,
+                    desired_org,
+                    slug,
+                    desired_team,
+                    org_slug,
+                    glitchtip,
+                    current_users_by_email,
+                    users_being_deleted=users_being_deleted or set(),
                 )
             )
 
@@ -282,47 +325,57 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_team_membership_actions(
+        instance_name: str,
         desired_org: GIOrganization,
         team_slug: str,
         desired_team: GlitchtipTeam,
         org_slug: str,
         glitchtip: GlitchtipWorkspaceClient,
         current_users_by_email: dict[str, ApiUser],
+        users_being_deleted: set[str] | None = None,
     ) -> list[_AnyAction]:
         current_team_users = glitchtip.get_team_users(org_slug, team_slug)
         current_emails = {u.email for u in current_team_users}
         current_team_by_email = {u.email: u for u in current_team_users}
         desired_emails = {u.email for u in desired_team.users}
+        deleted_users = users_being_deleted or set()
 
         add_actions: list[_AnyAction] = [
             GlitchtipActionAddUserToTeam(
+                instance=instance_name,
                 organization=desired_org.name,
                 team_slug=team_slug,
                 email=email,
                 # pk is known for existing org members; None for users being invited
                 # in the same reconcile run (pk resolved at execution time)
-                pk=current_users_by_email[email].pk if email in current_users_by_email else None,
+                pk=current_users_by_email[email].pk
+                if email in current_users_by_email
+                else None,
             )
             for email in desired_emails - current_emails
         ]
 
         remove_actions: list[_AnyAction] = [
             GlitchtipActionRemoveUserFromTeam(
+                instance=instance_name,
                 organization=desired_org.name,
                 team_slug=team_slug,
                 email=email,
                 pk=current_team_by_email[email].pk,
             )
             for email in current_emails - desired_emails
+            if email not in deleted_users
         ]
 
         return add_actions + remove_actions
 
     @staticmethod
     def _calculate_project_actions(
+        instance_name: str,
         desired_org: GIOrganization,
         org_slug: str,
         glitchtip: GlitchtipWorkspaceClient,
+        teams_being_deleted: set[str] | None = None,
     ) -> list[_AnyAction]:
         current_projects = glitchtip.get_projects(org_slug)
         current_by_slug = {p.slug: p for p in current_projects}
@@ -330,7 +383,9 @@ class GlitchtipService:
 
         create_actions: list[_AnyAction] = [
             GlitchtipActionCreateProject(
-                organization=desired_org.name, project_name=desired_project.name
+                instance=instance_name,
+                organization=desired_org.name,
+                project_name=desired_project.name,
             )
             for slug, desired_project in desired_by_slug.items()
             if slug not in current_by_slug
@@ -338,7 +393,9 @@ class GlitchtipService:
 
         update_actions: list[_AnyAction] = [
             GlitchtipActionUpdateProject(
-                organization=desired_org.name, project_slug=slug
+                instance=instance_name,
+                organization=desired_org.name,
+                project_slug=slug,
             )
             for slug, desired_project in desired_by_slug.items()
             if (cp := current_by_slug.get(slug))
@@ -350,7 +407,9 @@ class GlitchtipService:
 
         delete_actions: list[_AnyAction] = [
             GlitchtipActionDeleteProject(
-                organization=desired_org.name, project_slug=slug
+                instance=instance_name,
+                organization=desired_org.name,
+                project_slug=slug,
             )
             for slug in current_by_slug
             if slug not in desired_by_slug
@@ -363,7 +422,12 @@ class GlitchtipService:
                 continue  # Being created — associations handled during execution
             team_assoc_actions.extend(
                 GlitchtipService._calculate_project_team_actions(
-                    desired_org, slug, desired_project, current_project.team_slugs
+                    instance_name,
+                    desired_org,
+                    slug,
+                    desired_project,
+                    current_project.team_slugs,
+                    teams_being_deleted=teams_being_deleted or set(),
                 )
             )
 
@@ -371,16 +435,20 @@ class GlitchtipService:
 
     @staticmethod
     def _calculate_project_team_actions(
+        instance_name: str,
         desired_org: GIOrganization,
         project_slug: str,
         desired_project: GIProject,
         current_team_slugs: list[str],
+        teams_being_deleted: set[str] | None = None,
     ) -> list[_AnyAction]:
         current = set(current_team_slugs)
         desired = set(desired_project.teams)
+        deleted_teams = teams_being_deleted or set()
 
         add_actions: list[_AnyAction] = [
             GlitchtipActionAddProjectToTeam(
+                instance=instance_name,
                 organization=desired_org.name,
                 project_slug=project_slug,
                 team_slug=team_slug,
@@ -390,11 +458,13 @@ class GlitchtipService:
 
         remove_actions: list[_AnyAction] = [
             GlitchtipActionRemoveProjectFromTeam(
+                instance=instance_name,
                 organization=desired_org.name,
                 project_slug=project_slug,
                 team_slug=team_slug,
             )
             for team_slug in current - desired
+            if team_slug not in deleted_teams
         ]
 
         return add_actions + remove_actions

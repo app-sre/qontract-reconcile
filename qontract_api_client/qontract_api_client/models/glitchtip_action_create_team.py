@@ -21,17 +21,20 @@ class GlitchtipActionCreateTeam:
     """Action: Create a team in an organization.
 
     Attributes:
+        instance (str): Glitchtip instance name
         organization (str): Organization name
         team_slug (str): Team slug
         action_type (Literal['create_team'] | Unset):  Default: 'create_team'.
     """
 
+    instance: str
     organization: str
     team_slug: str
     action_type: Literal["create_team"] | Unset = "create_team"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        instance = self.instance
         organization = self.organization
 
         team_slug = self.team_slug
@@ -41,6 +44,7 @@ class GlitchtipActionCreateTeam:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
+            "instance": instance,
             "organization": organization,
             "team_slug": team_slug,
         })
@@ -52,6 +56,8 @@ class GlitchtipActionCreateTeam:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        instance = d.pop("instance")
+
         organization = d.pop("organization")
 
         team_slug = d.pop("team_slug")
@@ -63,6 +69,7 @@ class GlitchtipActionCreateTeam:
             )
 
         glitchtip_action_create_team = cls(
+            instance=instance,
             organization=organization,
             team_slug=team_slug,
             action_type=action_type,

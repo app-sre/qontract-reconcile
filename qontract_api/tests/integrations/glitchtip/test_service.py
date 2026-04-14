@@ -23,6 +23,8 @@ from qontract_api.integrations.glitchtip.schemas import (
     GlitchtipActionDeleteTeam,
     GlitchtipActionDeleteUser,
     GlitchtipActionInviteUser,
+    GlitchtipActionRemoveProjectFromTeam,
+    GlitchtipActionRemoveUserFromTeam,
     GlitchtipActionUpdateProject,
     GlitchtipActionUpdateUserRole,
 )
@@ -566,3 +568,86 @@ def test_reconcile_ignores_automation_user(
         a for a in result.actions if isinstance(a, GlitchtipActionDeleteUser)
     ]
     assert delete_user_actions == []
+
+
+def test_reconcile_delete_team_skips_remove_project_from_team(
+    service: GlitchtipService,
+    test_token: Secret,
+    test_automation_email_secret: Secret,
+    mock_glitchtip_client: MagicMock,
+) -> None:
+    """Test that remove_project_from_team is not planned when the team is being deleted.
+
+    GlitchTip auto-removes project-team associations when a team is deleted,
+    so planning an explicit remove_project_from_team would 404.
+    """
+    mock_glitchtip_client.get_teams.return_value = [Team(pk=5, slug="old-team")]
+    mock_glitchtip_client.get_projects.return_value = [
+        Project(pk=10, name="my-project", slug="my-project", team_slugs=["old-team"])
+    ]
+
+    instance = GIInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        automation_user_email=test_automation_email_secret,
+        organizations=[
+            GIOrganization(
+                name="my-org",
+                teams=[],
+                projects=[GIProject(name="my-project", slug="my-project", teams=[])],
+                users=[],
+            )
+        ],
+    )
+
+    result = service.reconcile(instances=[instance], dry_run=True)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert any(isinstance(a, GlitchtipActionDeleteTeam) for a in result.actions)
+    assert not any(
+        isinstance(a, GlitchtipActionRemoveProjectFromTeam) for a in result.actions
+    )
+
+
+def test_reconcile_delete_user_skips_remove_user_from_team(
+    service: GlitchtipService,
+    test_token: Secret,
+    test_automation_email_secret: Secret,
+    mock_glitchtip_client: MagicMock,
+) -> None:
+    """Test that remove_user_from_team is not planned when the user is being deleted.
+
+    GlitchTip auto-removes team memberships when a user is deleted from an org,
+    so planning an explicit remove_user_from_team would 404.
+    """
+    mock_glitchtip_client.get_organization_users.return_value = [
+        User(pk=7, email="leaving@example.com", orgRole="member")
+    ]
+    mock_glitchtip_client.get_teams.return_value = [Team(pk=5, slug="my-team")]
+    mock_glitchtip_client.get_team_users.return_value = [
+        User(pk=7, email="leaving@example.com", orgRole="member")
+    ]
+
+    instance = GIInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        automation_user_email=test_automation_email_secret,
+        organizations=[
+            GIOrganization(
+                name="my-org",
+                teams=[GlitchtipTeam(name="my-team", users=[])],
+                projects=[],
+                users=[],
+            )
+        ],
+    )
+
+    result = service.reconcile(instances=[instance], dry_run=True)
+
+    assert result.status == TaskStatus.SUCCESS
+    assert any(isinstance(a, GlitchtipActionDeleteUser) for a in result.actions)
+    assert not any(
+        isinstance(a, GlitchtipActionRemoveUserFromTeam) for a in result.actions
+    )

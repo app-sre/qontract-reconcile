@@ -290,9 +290,14 @@ class GlitchtipWorkspaceClient:
         return team
 
     def delete_team(self, org_slug: str, slug: str) -> None:
-        """Delete a team and clear teams cache."""
+        """Delete a team and clear teams and projects cache.
+
+        GlitchTip automatically removes project-team associations when a team
+        is deleted, so the projects cache must also be invalidated.
+        """
         self.glitchtip_api.delete_team(org_slug, slug)
         self._clear_cache(self._cache_key_teams(org_slug))
+        self._clear_cache(self._cache_key_projects(org_slug))
 
     # --- Organization users ---
 

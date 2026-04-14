@@ -21,12 +21,14 @@ class GlitchtipActionRemoveProjectFromTeam:
     """Action: Remove a project from a team.
 
     Attributes:
+        instance (str): Glitchtip instance name
         organization (str): Organization name
         project_slug (str): Project slug
         team_slug (str): Team slug
         action_type (Literal['remove_project_from_team'] | Unset):  Default: 'remove_project_from_team'.
     """
 
+    instance: str
     organization: str
     project_slug: str
     team_slug: str
@@ -36,6 +38,7 @@ class GlitchtipActionRemoveProjectFromTeam:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        instance = self.instance
         organization = self.organization
 
         project_slug = self.project_slug
@@ -47,6 +50,7 @@ class GlitchtipActionRemoveProjectFromTeam:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
+            "instance": instance,
             "organization": organization,
             "project_slug": project_slug,
             "team_slug": team_slug,
@@ -59,6 +63,8 @@ class GlitchtipActionRemoveProjectFromTeam:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        instance = d.pop("instance")
+
         organization = d.pop("organization")
 
         project_slug = d.pop("project_slug")
@@ -76,6 +82,7 @@ class GlitchtipActionRemoveProjectFromTeam:
             )
 
         glitchtip_action_remove_project_from_team = cls(
+            instance=instance,
             organization=organization,
             project_slug=project_slug,
             team_slug=team_slug,

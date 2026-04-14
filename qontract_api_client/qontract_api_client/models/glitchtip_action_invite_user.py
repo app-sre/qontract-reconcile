@@ -21,6 +21,7 @@ class GlitchtipActionInviteUser:
     """Action: Invite a user to an organization.
 
     Attributes:
+        instance (str): Glitchtip instance name
         email (str): User email
         organization (str): Organization name
         role (str): Organization role
@@ -28,6 +29,7 @@ class GlitchtipActionInviteUser:
     """
 
     email: str
+    instance: str
     organization: str
     role: str
     action_type: Literal["invite_user"] | Unset = "invite_user"
@@ -36,6 +38,7 @@ class GlitchtipActionInviteUser:
     def to_dict(self) -> dict[str, Any]:
         email = self.email
 
+        instance = self.instance
         organization = self.organization
 
         role = self.role
@@ -45,6 +48,7 @@ class GlitchtipActionInviteUser:
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
+            "instance": instance,
             "email": email,
             "organization": organization,
             "role": role,
@@ -59,6 +63,8 @@ class GlitchtipActionInviteUser:
         d = dict(src_dict)
         email = d.pop("email")
 
+        instance = d.pop("instance")
+
         organization = d.pop("organization")
 
         role = d.pop("role")
@@ -71,6 +77,7 @@ class GlitchtipActionInviteUser:
 
         glitchtip_action_invite_user = cls(
             email=email,
+            instance=instance,
             organization=organization,
             role=role,
             action_type=action_type,

@@ -214,22 +214,31 @@ def test_glitchtip_reconcile_request_with_instances() -> None:
 
 def test_action_create_organization() -> None:
     """Test GlitchtipActionCreateOrganization action_type literal."""
-    action = GlitchtipActionCreateOrganization(organization="my-org")
+    action = GlitchtipActionCreateOrganization(
+        instance="my-instance", organization="my-org"
+    )
     assert action.action_type == "create_organization"
+    assert action.instance == "my-instance"
     assert action.organization == "my-org"
 
 
 def test_action_delete_organization() -> None:
     """Test GlitchtipActionDeleteOrganization action_type literal."""
-    action = GlitchtipActionDeleteOrganization(organization="my-org")
+    action = GlitchtipActionDeleteOrganization(
+        instance="my-instance", organization="my-org"
+    )
     assert action.action_type == "delete_organization"
+    assert action.instance == "my-instance"
     assert action.organization == "my-org"
 
 
 def test_action_invite_user() -> None:
     """Test GlitchtipActionInviteUser action_type literal and fields."""
     action = GlitchtipActionInviteUser(
-        organization="my-org", email="user@example.com", role="member"
+        instance="my-instance",
+        organization="my-org",
+        email="user@example.com",
+        role="member",
     )
     assert action.action_type == "invite_user"
     assert action.email == "user@example.com"
@@ -239,7 +248,7 @@ def test_action_invite_user() -> None:
 def test_action_delete_user() -> None:
     """Test GlitchtipActionDeleteUser action_type literal."""
     action = GlitchtipActionDeleteUser(
-        organization="my-org", email="user@example.com", pk=42
+        instance="my-instance", organization="my-org", email="user@example.com", pk=42
     )
     assert action.action_type == "delete_user"
     assert action.email == "user@example.com"
@@ -249,7 +258,11 @@ def test_action_delete_user() -> None:
 def test_action_update_user_role() -> None:
     """Test GlitchtipActionUpdateUserRole action_type literal."""
     action = GlitchtipActionUpdateUserRole(
-        organization="my-org", email="user@example.com", role="admin", pk=42
+        instance="my-instance",
+        organization="my-org",
+        email="user@example.com",
+        role="admin",
+        pk=42,
     )
     assert action.action_type == "update_user_role"
     assert action.role == "admin"
@@ -258,14 +271,18 @@ def test_action_update_user_role() -> None:
 
 def test_action_create_team() -> None:
     """Test GlitchtipActionCreateTeam action_type literal."""
-    action = GlitchtipActionCreateTeam(organization="my-org", team_slug="backend")
+    action = GlitchtipActionCreateTeam(
+        instance="my-instance", organization="my-org", team_slug="backend"
+    )
     assert action.action_type == "create_team"
     assert action.team_slug == "backend"
 
 
 def test_action_delete_team() -> None:
     """Test GlitchtipActionDeleteTeam action_type literal."""
-    action = GlitchtipActionDeleteTeam(organization="my-org", team_slug="old-team")
+    action = GlitchtipActionDeleteTeam(
+        instance="my-instance", organization="my-org", team_slug="old-team"
+    )
     assert action.action_type == "delete_team"
     assert action.team_slug == "old-team"
 
@@ -273,7 +290,11 @@ def test_action_delete_team() -> None:
 def test_action_add_user_to_team() -> None:
     """Test GlitchtipActionAddUserToTeam action_type literal and optional pk."""
     action = GlitchtipActionAddUserToTeam(
-        organization="my-org", team_slug="backend", email="dev@example.com", pk=7
+        instance="my-instance",
+        organization="my-org",
+        team_slug="backend",
+        email="dev@example.com",
+        pk=7,
     )
     assert action.action_type == "add_user_to_team"
     assert action.team_slug == "backend"
@@ -284,7 +305,10 @@ def test_action_add_user_to_team() -> None:
 def test_action_add_user_to_team_pk_defaults_to_none() -> None:
     """Test GlitchtipActionAddUserToTeam pk defaults to None for newly invited users."""
     action = GlitchtipActionAddUserToTeam(
-        organization="my-org", team_slug="backend", email="new@example.com"
+        instance="my-instance",
+        organization="my-org",
+        team_slug="backend",
+        email="new@example.com",
     )
     assert action.pk is None
 
@@ -292,7 +316,11 @@ def test_action_add_user_to_team_pk_defaults_to_none() -> None:
 def test_action_remove_user_from_team() -> None:
     """Test GlitchtipActionRemoveUserFromTeam action_type literal."""
     action = GlitchtipActionRemoveUserFromTeam(
-        organization="my-org", team_slug="backend", email="dev@example.com", pk=7
+        instance="my-instance",
+        organization="my-org",
+        team_slug="backend",
+        email="dev@example.com",
+        pk=7,
     )
     assert action.action_type == "remove_user_from_team"
     assert action.team_slug == "backend"
@@ -303,7 +331,7 @@ def test_action_remove_user_from_team() -> None:
 def test_action_create_project() -> None:
     """Test GlitchtipActionCreateProject action_type literal."""
     action = GlitchtipActionCreateProject(
-        organization="my-org", project_name="api-service"
+        instance="my-instance", organization="my-org", project_name="api-service"
     )
     assert action.action_type == "create_project"
     assert action.project_name == "api-service"
@@ -312,7 +340,7 @@ def test_action_create_project() -> None:
 def test_action_update_project() -> None:
     """Test GlitchtipActionUpdateProject action_type literal."""
     action = GlitchtipActionUpdateProject(
-        organization="my-org", project_slug="api-service"
+        instance="my-instance", organization="my-org", project_slug="api-service"
     )
     assert action.action_type == "update_project"
     assert action.project_slug == "api-service"
@@ -321,7 +349,7 @@ def test_action_update_project() -> None:
 def test_action_delete_project() -> None:
     """Test GlitchtipActionDeleteProject action_type literal."""
     action = GlitchtipActionDeleteProject(
-        organization="my-org", project_slug="old-project"
+        instance="my-instance", organization="my-org", project_slug="old-project"
     )
     assert action.action_type == "delete_project"
     assert action.project_slug == "old-project"
@@ -330,7 +358,10 @@ def test_action_delete_project() -> None:
 def test_action_add_project_to_team() -> None:
     """Test GlitchtipActionAddProjectToTeam action_type literal."""
     action = GlitchtipActionAddProjectToTeam(
-        organization="my-org", project_slug="api-service", team_slug="backend"
+        instance="my-instance",
+        organization="my-org",
+        project_slug="api-service",
+        team_slug="backend",
     )
     assert action.action_type == "add_project_to_team"
     assert action.project_slug == "api-service"
@@ -340,7 +371,10 @@ def test_action_add_project_to_team() -> None:
 def test_action_remove_project_from_team() -> None:
     """Test GlitchtipActionRemoveProjectFromTeam action_type literal."""
     action = GlitchtipActionRemoveProjectFromTeam(
-        organization="my-org", project_slug="api-service", team_slug="backend"
+        instance="my-instance",
+        organization="my-org",
+        project_slug="api-service",
+        team_slug="backend",
     )
     assert action.action_type == "remove_project_from_team"
     assert action.project_slug == "api-service"
@@ -364,7 +398,11 @@ def test_glitchtip_task_result_with_actions() -> None:
     """Test GlitchtipTaskResult with populated fields."""
     result = GlitchtipTaskResult(
         status=TaskStatus.SUCCESS,
-        actions=[GlitchtipActionCreateOrganization(organization="new-org")],
+        actions=[
+            GlitchtipActionCreateOrganization(
+                instance="my-instance", organization="new-org"
+            )
+        ],
         applied_count=1,
         errors=[],
     )
