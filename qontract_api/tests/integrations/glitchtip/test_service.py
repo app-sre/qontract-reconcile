@@ -15,6 +15,7 @@ from qontract_api.integrations.glitchtip.domain import (
     GlitchtipUser,
 )
 from qontract_api.integrations.glitchtip.schemas import (
+    GlitchtipActionAddUserToTeam,
     GlitchtipActionCreateOrganization,
     GlitchtipActionCreateProject,
     GlitchtipActionCreateTeam,
@@ -329,6 +330,62 @@ def test_reconcile_creates_team(
     ]
     assert len(create_team_actions) == 1
     assert create_team_actions[0].team_slug == "backend"
+
+
+def test_reconcile_creates_team_and_adds_members_in_single_run(
+    service: GlitchtipService,
+    test_token: Secret,
+    test_automation_email_secret: Secret,
+    mock_glitchtip_client: MagicMock,
+) -> None:
+    """Test that membership actions are generated for new teams in the same run.
+
+    When a team does not exist yet, create_team and add_user_to_team actions should
+    both be emitted so a single reconcile pass is sufficient.
+    """
+    mock_glitchtip_client.get_teams.return_value = []
+    mock_glitchtip_client.get_organization_users.return_value = [
+        User(pk=42, email="alice@example.com", role="member")
+    ]
+
+    instance = GIInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        automation_user_email=test_automation_email_secret,
+        organizations=[
+            GIOrganization(
+                name="my-org",
+                teams=[
+                    GlitchtipTeam(
+                        name="backend",
+                        users=[GlitchtipUser(email="alice@example.com", role="member")],
+                    )
+                ],
+                projects=[],
+                users=[GlitchtipUser(email="alice@example.com", role="member")],
+            )
+        ],
+    )
+
+    result = service.reconcile(instances=[instance], dry_run=True)
+
+    assert result.status == TaskStatus.SUCCESS
+    create_team_actions = [
+        a for a in result.actions if isinstance(a, GlitchtipActionCreateTeam)
+    ]
+    add_member_actions = [
+        a for a in result.actions if isinstance(a, GlitchtipActionAddUserToTeam)
+    ]
+    assert len(create_team_actions) == 1
+    assert create_team_actions[0].team_slug == "backend"
+    assert len(add_member_actions) == 1
+    assert add_member_actions[0].email == "alice@example.com"
+    assert add_member_actions[0].team_slug == "backend"
+    # create_team must appear before add_user_to_team in the action list
+    create_idx = result.actions.index(create_team_actions[0])
+    add_idx = result.actions.index(add_member_actions[0])
+    assert create_idx < add_idx
 
 
 def test_reconcile_deletes_team(

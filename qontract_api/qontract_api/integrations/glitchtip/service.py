@@ -306,8 +306,12 @@ class GlitchtipService:
 
         membership_actions: list[_AnyAction] = []
         for slug, desired_team in desired_by_slug.items():
-            if slug not in current_by_slug:
-                continue  # Team being created — membership seeded during execution
+            # For new teams (not yet in current state), pass an empty member list so
+            # membership actions are generated immediately — the team will exist by
+            # execution time because create_actions run first in the returned list.
+            existing_members: list[ApiUser] | None = (
+                None if slug in current_by_slug else []
+            )
             membership_actions.extend(
                 GlitchtipService._calculate_team_membership_actions(
                     instance_name,
@@ -318,6 +322,7 @@ class GlitchtipService:
                     glitchtip,
                     current_users_by_email,
                     users_being_deleted=users_being_deleted or set(),
+                    current_team_users=existing_members,
                 )
             )
 
@@ -333,8 +338,10 @@ class GlitchtipService:
         glitchtip: GlitchtipWorkspaceClient,
         current_users_by_email: dict[str, ApiUser],
         users_being_deleted: set[str] | None = None,
+        current_team_users: list[ApiUser] | None = None,
     ) -> list[_AnyAction]:
-        current_team_users = glitchtip.get_team_users(org_slug, team_slug)
+        if current_team_users is None:
+            current_team_users = glitchtip.get_team_users(org_slug, team_slug)
         current_emails = {u.email for u in current_team_users}
         current_team_by_email = {u.email: u for u in current_team_users}
         desired_emails = {u.email for u in desired_team.users}
