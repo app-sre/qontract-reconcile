@@ -526,8 +526,12 @@ class GlitchtipService:
                     org_users = glitchtip.get_organization_users(org_slug)
                     user = next((u for u in org_users if u.email == action.email), None)
                     pk = user.pk if user else None
-                if pk is not None:
-                    glitchtip.add_user_to_team(org_slug, action.team_slug, pk)
+                if pk is None:
+                    raise RuntimeError(
+                        f"Cannot add {action.email} to team {action.team_slug}: "
+                        "user not found in organization (invite may have failed)"
+                    )
+                glitchtip.add_user_to_team(org_slug, action.team_slug, pk)
             case GlitchtipActionRemoveUserFromTeam():
                 glitchtip.remove_user_from_team(org_slug, action.team_slug, action.pk)
 

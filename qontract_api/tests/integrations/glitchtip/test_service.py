@@ -518,6 +518,58 @@ def test_reconcile_executes_actions_when_not_dry_run(
     mock_glitchtip_client.invite_user.assert_called_once()
 
 
+def test_reconcile_records_error_when_add_user_to_team_pk_unresolvable(
+    service: GlitchtipService,
+    test_token: Secret,
+    test_automation_email_secret: Secret,
+    mock_glitchtip_client: MagicMock,
+) -> None:
+    """Test that a failed invite causes add_user_to_team to record an error.
+
+    When a user is invited and added to a team in the same run, the pk is
+    resolved at execution time. If the invite failed, the user won't exist and
+    pk stays None — this must be recorded as an error, not silently skipped.
+    """
+    # Invite fails: get_organization_users returns empty list (user not found)
+    mock_glitchtip_client.get_organization_users.return_value = []
+    mock_glitchtip_client.invite_user.side_effect = RuntimeError("Invite failed")
+    mock_glitchtip_client.get_teams.return_value = [
+        Team(pk=1, slug="backend", isMember=False)
+    ]
+    mock_glitchtip_client.get_team_users.return_value = []
+
+    instance = GIInstance(
+        name="test-instance",
+        console_url="https://glitchtip.example.com",
+        token=test_token,
+        automation_user_email=test_automation_email_secret,
+        organizations=[
+            GIOrganization(
+                name="my-org",
+                teams=[
+                    GlitchtipTeam(
+                        name="backend",
+                        users=[GlitchtipUser(email="new-user@example.com", role="member")],
+                    )
+                ],
+                projects=[],
+                users=[GlitchtipUser(email="new-user@example.com", role="member")],
+            )
+        ],
+    )
+
+    result = service.reconcile(instances=[instance], dry_run=False)
+
+    assert result.status == TaskStatus.FAILED
+    # invite_user error + add_user_to_team unresolvable pk error
+    assert len(result.errors) == 2
+    assert any("Invite failed" in e for e in result.errors)
+    assert any("new-user@example.com" in e for e in result.errors)
+    # Neither action should be in applied_actions
+    assert result.applied_count == 0
+    mock_glitchtip_client.add_user_to_team.assert_not_called()
+
+
 def test_reconcile_ignores_automation_user(
     mock_glitchtip_client_factory: MagicMock,
     mock_glitchtip_client: MagicMock,
