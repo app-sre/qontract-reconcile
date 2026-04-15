@@ -23,5 +23,8 @@ reviews:
       instructions: |
         - There is no sensitive information in the test files.
           All data handled is procedural/generic and non-sensitive.
+  pre_merge_checks:
+    title:
+      mode: "off"
 chat:
   auto_reply: true
