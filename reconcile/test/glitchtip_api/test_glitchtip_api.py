@@ -12,6 +12,7 @@ from reconcile.glitchtip_api.integration import (
     DEFAULT_MEMBER_ROLE,
     GlitchtipApiIntegration,
     _get_user_role,
+    _highest_role,
 )
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     AppEscalationPolicyChannelsV1,
@@ -86,6 +87,28 @@ def make_team(
         ldapGroups=ldap_groups,
         membersOrganizationRole=members_organization_role,
     )
+
+
+# ---------------------------------------------------------------------------
+# _highest_role
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("role_a", "role_b", "expected"),
+    [
+        ("admin", "member", "admin"),
+        ("member", "admin", "admin"),
+        ("member", "member", "member"),
+        ("manager", "contributor", "manager"),
+        ("owner", "admin", "owner"),
+        # Unknown roles lose to any known role
+        ("unknown", "member", "member"),
+        ("admin", "unknown", "admin"),
+    ],
+)
+def test_highest_role(role_a: str, role_b: str, expected: str) -> None:
+    assert _highest_role(role_a, role_b) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -547,6 +570,41 @@ def test_build_desired_state_org_users_deduplicated_across_teams(
     assert isinstance(org.users, list)
     alice_entries = [u for u in org.users if u.email == f"alice@{MAIL_DOMAIN}"]
     assert len(alice_entries) == 1
+
+
+def test_build_desired_state_highest_role_wins_across_teams(
+    mocker: MockerFixture,
+) -> None:
+    """When a user appears in multiple teams with different org roles, the highest wins.
+
+    This is deterministic regardless of project/team iteration order, unlike
+    a first-team-wins approach which depends on GraphQL query ordering.
+    """
+    integration = make_integration()
+    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
+
+    alice_as_member = make_role(org_name=ORG_NAME, role_str="member", usernames=["alice"])
+    alice_as_admin = make_role(org_name=ORG_NAME, role_str="admin", usernames=["alice"])
+    team_member = make_team(name="Team Member", roles=[alice_as_member])
+    team_admin = make_team(name="Team Admin", roles=[alice_as_admin])
+
+    # Project order: member team first, admin team second
+    project_a = make_gql_project(project_name="project-a", org_name=ORG_NAME, teams=[team_member])
+    project_b = make_gql_project(project_name="project-b", org_name=ORG_NAME, teams=[team_admin])
+
+    orgs = _run_build_desired_state(integration, [project_a, project_b])
+
+    org = orgs[0]
+    alice_entries = [u for u in org.users if u.email == f"alice@{MAIL_DOMAIN}"]
+    assert len(alice_entries) == 1
+    assert alice_entries[0].role == "admin"
+
+    # Also verify order independence: admin team first, member team second
+    orgs_reversed = _run_build_desired_state(integration, [project_b, project_a])
+    org_reversed = orgs_reversed[0]
+    alice_reversed = [u for u in org_reversed.users if u.email == f"alice@{MAIL_DOMAIN}"]
+    assert len(alice_reversed) == 1
+    assert alice_reversed[0].role == "admin"
 
 
 def test_build_desired_state_empty_projects_list(mocker: MockerFixture) -> None:

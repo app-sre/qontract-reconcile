@@ -56,6 +56,22 @@ QONTRACT_INTEGRATION = "glitchtip-api"
 DEFAULT_MEMBER_ROLE = "member"
 _LDAP_CLIENT_SECRET_FIELD = "client_secret"
 
+# GlitchTip org roles ordered from lowest to highest privilege.
+# Used to deterministically resolve a user's org role when they appear in
+# multiple teams with different role assignments.
+_ROLE_PRECEDENCE: list[str] = ["member", "contributor", "manager", "admin", "owner"]
+
+
+def _highest_role(role_a: str, role_b: str) -> str:
+    """Return the higher-privilege of two GlitchTip org roles.
+
+    Unknown roles are treated as lowest privilege so they never silently
+    override a known role.
+    """
+    idx_a = _ROLE_PRECEDENCE.index(role_a) if role_a in _ROLE_PRECEDENCE else -1
+    idx_b = _ROLE_PRECEDENCE.index(role_b) if role_b in _ROLE_PRECEDENCE else -1
+    return role_a if idx_a >= idx_b else role_b
+
 
 def _get_user_role(
     organization: GlitchtipProjectV1_GlitchtipOrganizationV1, role: RoleV1
@@ -205,6 +221,16 @@ class GlitchtipApiIntegration(
                     for email, user in users_by_email.items():
                         if email not in org_users[org_name]:
                             org_users[org_name][email] = user
+                        else:
+                            # User in multiple teams — keep the highest-privilege role
+                            # to avoid non-deterministic first-team-wins assignment.
+                            best_role = _highest_role(
+                                user.role, org_users[org_name][email].role
+                            )
+                            if best_role != org_users[org_name][email].role:
+                                org_users[org_name][email] = GlitchtipUser(
+                                    email=email, role=best_role
+                                )
 
             if not project_team_slugs:
                 raise ValueError(
