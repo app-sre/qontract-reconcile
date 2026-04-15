@@ -583,14 +583,20 @@ def test_build_desired_state_highest_role_wins_across_teams(
     integration = make_integration()
     mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
-    alice_as_member = make_role(org_name=ORG_NAME, role_str="member", usernames=["alice"])
+    alice_as_member = make_role(
+        org_name=ORG_NAME, role_str="member", usernames=["alice"]
+    )
     alice_as_admin = make_role(org_name=ORG_NAME, role_str="admin", usernames=["alice"])
     team_member = make_team(name="Team Member", roles=[alice_as_member])
     team_admin = make_team(name="Team Admin", roles=[alice_as_admin])
 
     # Project order: member team first, admin team second
-    project_a = make_gql_project(project_name="project-a", org_name=ORG_NAME, teams=[team_member])
-    project_b = make_gql_project(project_name="project-b", org_name=ORG_NAME, teams=[team_admin])
+    project_a = make_gql_project(
+        project_name="project-a", org_name=ORG_NAME, teams=[team_member]
+    )
+    project_b = make_gql_project(
+        project_name="project-b", org_name=ORG_NAME, teams=[team_admin]
+    )
 
     orgs = _run_build_desired_state(integration, [project_a, project_b])
 
@@ -602,7 +608,9 @@ def test_build_desired_state_highest_role_wins_across_teams(
     # Also verify order independence: admin team first, member team second
     orgs_reversed = _run_build_desired_state(integration, [project_b, project_a])
     org_reversed = orgs_reversed[0]
-    alice_reversed = [u for u in org_reversed.users if u.email == f"alice@{MAIL_DOMAIN}"]
+    alice_reversed = [
+        u for u in org_reversed.users if u.email == f"alice@{MAIL_DOMAIN}"
+    ]
     assert len(alice_reversed) == 1
     assert alice_reversed[0].role == "admin"
 

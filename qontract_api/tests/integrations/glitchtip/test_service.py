@@ -549,7 +549,9 @@ def test_reconcile_records_error_when_add_user_to_team_pk_unresolvable(
                 teams=[
                     GlitchtipTeam(
                         name="backend",
-                        users=[GlitchtipUser(email="new-user@example.com", role="member")],
+                        users=[
+                            GlitchtipUser(email="new-user@example.com", role="member")
+                        ],
                     )
                 ],
                 projects=[],
