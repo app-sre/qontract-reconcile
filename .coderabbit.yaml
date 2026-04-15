@@ -19,10 +19,12 @@ reviews:
         the Qontract API. The code is generated using OpenAPI specifications
         and is not meant to be manually edited. Do not suggest changes to this
         code, as it may be overwritten by the code generation process.
-    - path: "**/tests/*.py"
+    - path: "**/tests/**/*.py"
       instructions: |
-        - There is no sensitive information in the test files.
-          All data handled is procedural/generic and non-sensitive.
+        - Test files are generally expected to use
+          synthetic/non-production data.
+          Continue to flag any hardcoded credentials, tokens, keys,
+          or PII if found.
   pre_merge_checks:
     title:
       mode: "off"
