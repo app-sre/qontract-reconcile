@@ -576,6 +576,12 @@
             "title": "Action Type",
             "type": "string"
           },
+          "event_throttle_rate": {
+            "default": 0,
+            "description": "Event throttle rate (0 = unlimited)",
+            "title": "Event Throttle Rate",
+            "type": "integer"
+          },
           "instance": {
             "description": "Glitchtip instance name",
             "title": "Instance",
@@ -586,10 +592,30 @@
             "title": "Organization",
             "type": "string"
           },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Project platform",
+            "title": "Platform"
+          },
           "project_name": {
             "description": "Project name",
             "title": "Project Name",
             "type": "string"
+          },
+          "teams": {
+            "description": "Team slugs to associate with the project (first team used for creation)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Teams",
+            "type": "array"
           }
         },
         "required": [
@@ -897,15 +923,38 @@
             "title": "Action Type",
             "type": "string"
           },
+          "event_throttle_rate": {
+            "default": 0,
+            "description": "Event throttle rate (0 = unlimited)",
+            "title": "Event Throttle Rate",
+            "type": "integer"
+          },
           "instance": {
             "description": "Glitchtip instance name",
             "title": "Instance",
+            "type": "string"
+          },
+          "name": {
+            "description": "Project name",
+            "title": "Name",
             "type": "string"
           },
           "organization": {
             "description": "Organization name",
             "title": "Organization",
             "type": "string"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Project platform",
+            "title": "Platform"
           },
           "project_slug": {
             "description": "Project slug",
@@ -916,7 +965,8 @@
         "required": [
           "instance",
           "organization",
-          "project_slug"
+          "project_slug",
+          "name"
         ],
         "title": "GlitchtipActionUpdateProject",
         "type": "object"

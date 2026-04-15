@@ -331,19 +331,35 @@ def test_action_remove_user_from_team() -> None:
 def test_action_create_project() -> None:
     """Test GlitchtipActionCreateProject action_type literal."""
     action = GlitchtipActionCreateProject(
-        instance="my-instance", organization="my-org", project_name="api-service"
+        instance="my-instance",
+        organization="my-org",
+        project_name="api-service",
+        platform="python",
+        event_throttle_rate=100,
+        teams=["backend", "frontend"],
     )
     assert action.action_type == "create_project"
     assert action.project_name == "api-service"
+    assert action.platform == "python"
+    assert action.event_throttle_rate == 100
+    assert action.teams == ["backend", "frontend"]
 
 
 def test_action_update_project() -> None:
     """Test GlitchtipActionUpdateProject action_type literal."""
     action = GlitchtipActionUpdateProject(
-        instance="my-instance", organization="my-org", project_slug="api-service"
+        instance="my-instance",
+        organization="my-org",
+        project_slug="api-service",
+        name="API Service",
+        platform="python",
+        event_throttle_rate=50,
     )
     assert action.action_type == "update_project"
     assert action.project_slug == "api-service"
+    assert action.name == "API Service"
+    assert action.platform == "python"
+    assert action.event_throttle_rate == 50
 
 
 def test_action_delete_project() -> None:

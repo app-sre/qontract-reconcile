@@ -107,6 +107,14 @@ class GlitchtipActionCreateProject(BaseModel, frozen=True):
     instance: str = Field(..., description="Glitchtip instance name")
     organization: str = Field(..., description="Organization name")
     project_name: str = Field(..., description="Project name")
+    platform: str | None = Field(default=None, description="Project platform")
+    event_throttle_rate: int = Field(
+        default=0, description="Event throttle rate (0 = unlimited)"
+    )
+    teams: list[str] = Field(
+        default_factory=list,
+        description="Team slugs to associate with the project (first team used for creation)",
+    )
 
 
 class GlitchtipActionUpdateProject(BaseModel, frozen=True):
@@ -116,6 +124,11 @@ class GlitchtipActionUpdateProject(BaseModel, frozen=True):
     instance: str = Field(..., description="Glitchtip instance name")
     organization: str = Field(..., description="Organization name")
     project_slug: str = Field(..., description="Project slug")
+    name: str = Field(..., description="Project name")
+    platform: str | None = Field(default=None, description="Project platform")
+    event_throttle_rate: int = Field(
+        default=0, description="Event throttle rate (0 = unlimited)"
+    )
 
 
 class GlitchtipActionDeleteProject(BaseModel, frozen=True):

@@ -386,6 +386,9 @@ class GlitchtipService:
                 instance=instance_name,
                 organization=desired_org.name,
                 project_name=desired_project.name,
+                platform=desired_project.platform,
+                event_throttle_rate=desired_project.event_throttle_rate,
+                teams=desired_project.teams,
             )
             for slug, desired_project in desired_by_slug.items()
             if slug not in current_by_slug
@@ -396,11 +399,15 @@ class GlitchtipService:
                 instance=instance_name,
                 organization=desired_org.name,
                 project_slug=slug,
+                name=desired_project.name,
+                platform=desired_project.platform,
+                event_throttle_rate=desired_project.event_throttle_rate,
             )
             for slug, desired_project in desired_by_slug.items()
             if (cp := current_by_slug.get(slug))
             and (
-                cp.platform != desired_project.platform
+                cp.name != desired_project.name
+                or cp.platform != desired_project.platform
                 or cp.event_throttle_rate != desired_project.event_throttle_rate
             )
         ]
@@ -525,7 +532,7 @@ class GlitchtipService:
                 glitchtip.remove_user_from_team(org_slug, action.team_slug, action.pk)
 
     @staticmethod
-    def _execute_project_action(  # noqa: C901
+    def _execute_project_action(
         glitchtip: GlitchtipWorkspaceClient,
         action: GlitchtipActionCreateProject
         | GlitchtipActionUpdateProject
@@ -533,53 +540,35 @@ class GlitchtipService:
         | GlitchtipActionAddProjectToTeam
         | GlitchtipActionRemoveProjectFromTeam,
         org_slug: str,
-        desired_org: GIOrganization | None,
     ) -> None:
         match action:
             case GlitchtipActionCreateProject():
-                if desired_org is None:
-                    return
-                desired_project = next(
-                    (p for p in desired_org.projects if p.name == action.project_name),
-                    None,
-                )
-                if desired_project is None:
-                    return
-                first_team = desired_project.teams[0] if desired_project.teams else None
-                if first_team is None:
+                if not action.teams:
                     logger.warning(
                         "Cannot create project without a team",
                         project=action.project_name,
                     )
                     return
                 new_project = glitchtip.create_project(
-                    org_slug, first_team, desired_project.name, desired_project.platform
+                    org_slug, action.teams[0], action.project_name, action.platform
                 )
-                if desired_project.event_throttle_rate != 0:
+                if action.event_throttle_rate != 0:
                     glitchtip.update_project(
                         org_slug,
                         new_project.slug,
-                        desired_project.name,
-                        desired_project.platform,
-                        desired_project.event_throttle_rate,
+                        action.project_name,
+                        action.platform,
+                        action.event_throttle_rate,
                     )
-                for team_slug in desired_project.teams[1:]:
+                for team_slug in action.teams[1:]:
                     glitchtip.add_project_to_team(org_slug, new_project.slug, team_slug)
             case GlitchtipActionUpdateProject():
-                if desired_org is None:
-                    return
-                desired_project = next(
-                    (p for p in desired_org.projects if p.slug == action.project_slug),
-                    None,
-                )
-                if desired_project is None:
-                    return
                 glitchtip.update_project(
                     org_slug,
                     action.project_slug,
-                    desired_project.name,
-                    desired_project.platform,
-                    desired_project.event_throttle_rate,
+                    action.name,
+                    action.platform,
+                    action.event_throttle_rate,
                 )
             case GlitchtipActionDeleteProject():
                 glitchtip.delete_project(org_slug, action.project_slug)
@@ -596,7 +585,6 @@ class GlitchtipService:
     def _execute_action(
         glitchtip: GlitchtipWorkspaceClient,
         action: _AnyAction,
-        desired_org_by_name: dict[str, GIOrganization],
         org_slug: str,
     ) -> None:
         """Execute a single reconciliation action.
@@ -604,7 +592,6 @@ class GlitchtipService:
         Args:
             glitchtip: GlitchtipWorkspaceClient
             action: Action to execute
-            desired_org_by_name: Desired organizations keyed by name (O(1) lookup)
             org_slug: Current slug for action.organization (pre-fetched by caller)
         """
         logger.info(
@@ -612,7 +599,6 @@ class GlitchtipService:
             action_type=action.action_type,
             organization=action.organization,
         )
-        desired_org = desired_org_by_name.get(action.organization)
 
         match action:
             case (
@@ -640,9 +626,7 @@ class GlitchtipService:
                 | GlitchtipActionAddProjectToTeam()
                 | GlitchtipActionRemoveProjectFromTeam()
             ):
-                GlitchtipService._execute_project_action(
-                    glitchtip, action, org_slug, desired_org
-                )
+                GlitchtipService._execute_project_action(glitchtip, action, org_slug)
 
     def reconcile(
         self,
@@ -684,7 +668,6 @@ class GlitchtipService:
 
             if not dry_run:
                 current_orgs = glitchtip.get_organizations()
-                desired_org_by_name = {o.name: o for o in instance.organizations}
                 for action in instance_actions:
                     current_org = current_orgs.get(action.organization)
                     org_slug = current_org.slug if current_org else action.organization
@@ -692,7 +675,6 @@ class GlitchtipService:
                         self._execute_action(
                             glitchtip=glitchtip,
                             action=action,
-                            desired_org_by_name=desired_org_by_name,
                             org_slug=org_slug,
                         )
                         applied_actions.append(action)

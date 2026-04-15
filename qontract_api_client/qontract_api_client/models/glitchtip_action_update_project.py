@@ -22,19 +22,27 @@ class GlitchtipActionUpdateProject:
 
     Attributes:
         instance (str): Glitchtip instance name
+        name (str): Project name
         organization (str): Organization name
         project_slug (str): Project slug
         action_type (Literal['update_project'] | Unset):  Default: 'update_project'.
+        event_throttle_rate (int | Unset): Event throttle rate (0 = unlimited) Default: 0.
+        platform (None | str | Unset): Project platform
     """
 
     instance: str
+    name: str
     organization: str
     project_slug: str
     action_type: Literal["update_project"] | Unset = "update_project"
+    event_throttle_rate: int | Unset = 0
+    platform: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         instance = self.instance
+
+        name = self.name
 
         organization = self.organization
 
@@ -42,15 +50,28 @@ class GlitchtipActionUpdateProject:
 
         action_type = self.action_type
 
+        event_throttle_rate = self.event_throttle_rate
+
+        platform: None | str | Unset
+        if isinstance(self.platform, Unset):
+            platform = UNSET
+        else:
+            platform = self.platform
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
             "instance": instance,
+            "name": name,
             "organization": organization,
             "project_slug": project_slug,
         })
         if action_type is not UNSET:
             field_dict["action_type"] = action_type
+        if event_throttle_rate is not UNSET:
+            field_dict["event_throttle_rate"] = event_throttle_rate
+        if platform is not UNSET:
+            field_dict["platform"] = platform
 
         return field_dict
 
@@ -58,6 +79,8 @@ class GlitchtipActionUpdateProject:
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
         instance = d.pop("instance")
+
+        name = d.pop("name")
 
         organization = d.pop("organization")
 
@@ -71,11 +94,25 @@ class GlitchtipActionUpdateProject:
                 f"action_type must match const 'update_project', got '{action_type}'"
             )
 
+        event_throttle_rate = d.pop("event_throttle_rate", UNSET)
+
+        def _parse_platform(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        platform = _parse_platform(d.pop("platform", UNSET))
+
         glitchtip_action_update_project = cls(
             instance=instance,
+            name=name,
             organization=organization,
             project_slug=project_slug,
             action_type=action_type,
+            event_throttle_rate=event_throttle_rate,
+            platform=platform,
         )
 
         glitchtip_action_update_project.additional_properties = d
