@@ -1,6 +1,6 @@
 # ADR-019: Merge Queue Acceleration via Optimistic Non-Overlapping Multi-Merge
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-03-03
 **Updated:** 2026-04-13
 **Authors:** @TGPSKI
