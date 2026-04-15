@@ -12,6 +12,9 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+    auto_pause_after_reviewed_commits: 0
+    ignore_usernames:
+      - red-hat-konflux
   path_instructions:
     - path: "qontract_api_client/qontract_api_client/**/*.py"
       instructions: |
