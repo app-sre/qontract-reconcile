@@ -1,5 +1,6 @@
 """Unit tests for glitchtip Celery task — focusing on event publishing."""
 
+import inspect
 from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
@@ -63,7 +64,7 @@ def mock_self() -> MagicMock:
 
 def _task_func() -> Callable:
     """Return the unwrapped task function (bypasses Celery + deduplication decorators)."""
-    return reconcile_glitchtip_task.__wrapped__.__wrapped__
+    return inspect.unwrap(reconcile_glitchtip_task)
 
 
 def _make_action(

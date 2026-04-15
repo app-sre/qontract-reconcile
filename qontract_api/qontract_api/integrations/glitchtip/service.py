@@ -596,7 +596,7 @@ class GlitchtipService:
     def _execute_action(
         glitchtip: GlitchtipWorkspaceClient,
         action: _AnyAction,
-        desired_orgs: list[GIOrganization],
+        desired_org_by_name: dict[str, GIOrganization],
         org_slug: str,
     ) -> None:
         """Execute a single reconciliation action.
@@ -604,7 +604,7 @@ class GlitchtipService:
         Args:
             glitchtip: GlitchtipWorkspaceClient
             action: Action to execute
-            desired_orgs: Desired organizations (to look up project/team details)
+            desired_org_by_name: Desired organizations keyed by name (O(1) lookup)
             org_slug: Current slug for action.organization (pre-fetched by caller)
         """
         logger.info(
@@ -612,9 +612,7 @@ class GlitchtipService:
             action_type=action.action_type,
             organization=action.organization,
         )
-        desired_org = next(
-            (o for o in desired_orgs if o.name == action.organization), None
-        )
+        desired_org = desired_org_by_name.get(action.organization)
 
         match action:
             case (
@@ -686,6 +684,7 @@ class GlitchtipService:
 
             if not dry_run:
                 current_orgs = glitchtip.get_organizations()
+                desired_org_by_name = {o.name: o for o in instance.organizations}
                 for action in instance_actions:
                     current_org = current_orgs.get(action.organization)
                     org_slug = current_org.slug if current_org else action.organization
@@ -693,7 +692,7 @@ class GlitchtipService:
                         self._execute_action(
                             glitchtip=glitchtip,
                             action=action,
-                            desired_orgs=instance.organizations,
+                            desired_org_by_name=desired_org_by_name,
                             org_slug=org_slug,
                         )
                         applied_actions.append(action)

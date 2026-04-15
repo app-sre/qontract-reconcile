@@ -39,10 +39,11 @@ def create_internal_groups_workspace_client(
         client_secret=client_secret,
     )
 
-    # Use a hash of base_url + client_id as the cache key prefix for uniqueness
+    # Hash base_url + client_id to produce a safe, unique cache key prefix.
+    # base_url may contain ':' and '/' which conflict with our key separator.
     prefix = hashlib.sha256(
         f"{secret.base_url}:{secret.client_id}".encode()
-    ).hexdigest()[:16]
+    ).hexdigest()
 
     return InternalGroupsWorkspaceClient(
         api=api,
