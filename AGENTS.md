@@ -138,7 +138,7 @@ For all external API integrations:
 
 - **Layer 1: API Client** (`qontract_utils/`) — Stateless, returns Pydantic models, handles retries/timeouts. No caching, no business logic.
 - **Layer 2: Workspace Client** (`qontract_api/`) — Uses Layer 1. Adds distributed cache (Redis) with TTL, distributed locking (double-check pattern), compute helpers.
-- **Layer 3: Service/Tasks** (`qontract_api/integrations/`) — Uses Layer 2. Pure business logic, dry-run, orchestration. No direct API calls.
+- **Layer 3: Service/Tasks** (`qontract_api/qontract_api/integrations/`) — Uses Layer 2. Pure business logic, dry-run, orchestration. No direct API calls.
 
 **Rule:** Tasks MUST use Layer 2 (workspace client), never Layer 1 directly.
 
