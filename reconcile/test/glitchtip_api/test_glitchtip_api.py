@@ -601,6 +601,7 @@ def test_build_desired_state_highest_role_wins_across_teams(
     orgs = _run_build_desired_state(integration, [project_a, project_b])
 
     org = orgs[0]
+    assert isinstance(org.users, list)
     alice_entries = [u for u in org.users if u.email == f"alice@{MAIL_DOMAIN}"]
     assert len(alice_entries) == 1
     assert alice_entries[0].role == "admin"
@@ -608,6 +609,7 @@ def test_build_desired_state_highest_role_wins_across_teams(
     # Also verify order independence: admin team first, member team second
     orgs_reversed = _run_build_desired_state(integration, [project_b, project_a])
     org_reversed = orgs_reversed[0]
+    assert isinstance(org_reversed.users, list)
     alice_reversed = [
         u for u in org_reversed.users if u.email == f"alice@{MAIL_DOMAIN}"
     ]

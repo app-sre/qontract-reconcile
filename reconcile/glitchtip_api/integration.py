@@ -224,10 +224,20 @@ class GlitchtipApiIntegration(
                         else:
                             # User in multiple teams — keep the highest-privilege role
                             # to avoid non-deterministic first-team-wins assignment.
-                            best_role = _highest_role(
-                                user.role, org_users[org_name][email].role
+                            # Treat Unset (missing) role as DEFAULT_MEMBER_ROLE.
+                            existing = org_users[org_name][email]
+                            new_role = (
+                                user.role
+                                if isinstance(user.role, str)
+                                else DEFAULT_MEMBER_ROLE
                             )
-                            if best_role != org_users[org_name][email].role:
+                            cur_role = (
+                                existing.role
+                                if isinstance(existing.role, str)
+                                else DEFAULT_MEMBER_ROLE
+                            )
+                            best_role = _highest_role(new_role, cur_role)
+                            if best_role != cur_role:
                                 org_users[org_name][email] = GlitchtipUser(
                                     email=email, role=best_role
                                 )
