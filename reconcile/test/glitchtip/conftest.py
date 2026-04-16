@@ -48,10 +48,7 @@ def fx() -> Fixtures:
 def glitchtip_server_full_api_response(
     set_httpserver_responses_based_on_fixture: Callable, fx: Fixtures
 ) -> None:
-    """Text fixture.
-
-    See reconcile/glitchtip/README.md for more details.
-    """
+    """Text fixture."""
     set_httpserver_responses_based_on_fixture(
         fx=fx,
         paths=[

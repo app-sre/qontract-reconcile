@@ -3620,34 +3620,6 @@ def change_log_tracking(
     )
 
 
-@integration.command(
-    short_help="Configure and enforce glitchtip instance configuration."
-)
-@click.option("--instance", help="Reconcile just this instance.", default=None)
-@click.pass_context
-def glitchtip(ctx: click.Context, instance: str | None) -> None:
-    import reconcile.glitchtip.integration
-
-    run_integration(reconcile.glitchtip.integration, ctx, instance)
-
-
-@integration.command(short_help="Configure Glitchtip project alerts.")
-@click.option("--instance", help="Reconcile just this instance.", default=None)
-@click.pass_context
-def glitchtip_project_alerts(ctx: click.Context, instance: str | None) -> None:
-    from reconcile.glitchtip_project_alerts.integration import (
-        GlitchtipProjectAlertsIntegration,
-        GlitchtipProjectAlertsIntegrationParams,
-    )
-
-    run_class_integration(
-        integration=GlitchtipProjectAlertsIntegration(
-            GlitchtipProjectAlertsIntegrationParams(instance=instance)
-        ),
-        ctx=ctx,
-    )
-
-
 @integration.command(short_help="Configure Glitchtip project alerts.")
 @click.option("--instance", help="Reconcile just this instance.", default=None)
 @click.pass_context
