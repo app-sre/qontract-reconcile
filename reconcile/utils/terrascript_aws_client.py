@@ -540,11 +540,11 @@ class TerrascriptClient:
                     # https://github.com/hashicorp/terraform-provider-aws/pull/20926
                     "time": {
                         "source": "hashicorp/time",
-                        "version": "0.9.1",
+                        "version": "0.13.1",
                     },
                     "random": {
                         "source": "hashicorp/random",
-                        "version": "3.4.3",
+                        "version": "3.8.1",
                     },
                     "cloudinit": {
                         "source": "hashicorp/cloudinit",
