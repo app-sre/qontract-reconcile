@@ -176,8 +176,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
   openshift-saas-deploy-change-tester
                                   Runs openshift-saas-deploy for each saas-
                                   file that changed within a bundle.
-  openshift-saas-deploy-trigger-cleaner
-                                  Clean up deployment related resources.
   openshift-saas-deploy-trigger-configs
                                   Trigger deployments when configuration
                                   changes.

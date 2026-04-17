@@ -6,9 +6,6 @@ query PipelineProviders {
     provider
     ... on PipelinesProviderTekton_v1 {
       defaults {
-        retention {
-          ...PipelineProviderRetention
-        }
         taskTemplates {
           ... on PipelinesProviderTektonObjectTemplate_v1 {
             name
@@ -60,9 +57,6 @@ query PipelineProviders {
             integrations
           }
         }
-      }
-      retention {
-        ...PipelineProviderRetention
       }
       taskTemplates {
         ... on PipelinesProviderTektonObjectTemplate_v1 {

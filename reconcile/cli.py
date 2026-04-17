@@ -1606,27 +1606,6 @@ def openshift_saas_deploy_trigger_configs(
     )
 
 
-@integration.command(short_help="Clean up deployment related resources.")
-@threaded()
-@binary(["oc", "ssh"])
-@binary_version("oc", ["version", "--client"], OC_VERSION_REGEX, OC_VERSIONS)
-@internal()
-@use_jump_host()
-@click.pass_context
-def openshift_saas_deploy_trigger_cleaner(
-    ctx: click.Context, thread_pool_size: int, internal: bool, use_jump_host: bool
-) -> None:
-    import reconcile.openshift_saas_deploy_trigger_cleaner
-
-    run_integration(
-        reconcile.openshift_saas_deploy_trigger_cleaner,
-        ctx,
-        thread_pool_size,
-        internal,
-        use_jump_host,
-    )
-
-
 @integration.command(
     short_help="Manages custom resources for Tekton based deployments."
 )

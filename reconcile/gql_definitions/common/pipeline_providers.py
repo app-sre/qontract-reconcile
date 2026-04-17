@@ -18,7 +18,6 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
 )
 
 from reconcile.gql_definitions.fragments.jumphost_common_fields import CommonJumphostFields
-from reconcile.gql_definitions.fragments.pipeline_provider_retention import PipelineProviderRetention
 from reconcile.gql_definitions.fragments.resource_limits_requirements import ResourceLimitsRequirements
 from reconcile.gql_definitions.fragments.resource_requests_requirements import ResourceRequestsRequirements
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -34,12 +33,6 @@ fragment CommonJumphostFields on ClusterJumpHost_v1 {
   identity {
     ...VaultSecret
   }
-}
-
-fragment PipelineProviderRetention on PipelinesProviderRetention_v1 {
-  days
-  minimum
-  maximum
 }
 
 fragment ResourceLimitsRequirements on ResourceLimitsRequirements_v1 {
@@ -65,9 +58,6 @@ query PipelineProviders {
     provider
     ... on PipelinesProviderTekton_v1 {
       defaults {
-        retention {
-          ...PipelineProviderRetention
-        }
         taskTemplates {
           ... on PipelinesProviderTektonObjectTemplate_v1 {
             name
@@ -119,9 +109,6 @@ query PipelineProviders {
             integrations
           }
         }
-      }
-      retention {
-        ...PipelineProviderRetention
       }
       taskTemplates {
         ... on PipelinesProviderTektonObjectTemplate_v1 {
@@ -192,7 +179,6 @@ class DeployResourcesV1(ConfiguredBaseModel):
 
 
 class PipelinesProviderTektonProviderDefaultsV1(ConfiguredBaseModel):
-    retention: PipelineProviderRetention = Field(..., alias="retention")
     task_templates: list[Union[PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1, PipelinesProviderTektonObjectTemplateV1]] = Field(..., alias="taskTemplates")
     pipeline_templates: PipelinesProviderPipelineTemplatesV1 = Field(..., alias="pipelineTemplates")
     deploy_resources: Optional[DeployResourcesV1] = Field(..., alias="deployResources")
@@ -256,7 +242,6 @@ class PipelinesProviderTektonV1_DeployResourcesV1(ConfiguredBaseModel):
 class PipelinesProviderTektonV1(PipelinesProviderV1):
     defaults: PipelinesProviderTektonProviderDefaultsV1 = Field(..., alias="defaults")
     namespace: NamespaceV1 = Field(..., alias="namespace")
-    retention: Optional[PipelineProviderRetention] = Field(..., alias="retention")
     task_templates: Optional[list[Union[PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1_PipelinesProviderTektonObjectTemplateV1, PipelinesProviderTektonV1_PipelinesProviderTektonObjectTemplateV1]]] = Field(..., alias="taskTemplates")
     pipeline_templates: Optional[PipelinesProviderTektonV1_PipelinesProviderPipelineTemplatesV1] = Field(..., alias="pipelineTemplates")
     deploy_resources: Optional[PipelinesProviderTektonV1_DeployResourcesV1] = Field(..., alias="deployResources")
