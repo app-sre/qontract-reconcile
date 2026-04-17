@@ -319,3 +319,102 @@ class AWSMskFactory(AWSDefaultResourceFactory):
                 raise ValueError(
                     f"MSK user '{user}' secret must contain only 'username' and 'password' keys!"
                 )
+
+    def find_linked_resources(
+        self, spec: ExternalResourceSpec
+    ) -> set[ExternalResourceKey]:
+        return {
+            k
+            for k, s in self.er_inventory.items()
+            if s.provision_provider == "aws"
+            and s.provider == "msk-connect"
+            and s.resource.get("msk_cluster") == spec.identifier
+            and not s.marked_to_delete
+        }
+
+
+class AWSMskConnectFactory(AWSResourceFactory):
+    def __init__(
+        self,
+        er_inventory: ExternalResourcesInventory,
+        secret_reader: SecretReaderBase,
+        vault_secrets_path: str,
+    ):
+        super().__init__(er_inventory, secret_reader)
+        self.vault_secrets_path = vault_secrets_path
+
+    def _get_msk_cluster_spec(
+        self, provisioner: str, identifier: str
+    ) -> ExternalResourceSpec:
+        return self.er_inventory.get_inventory_spec(
+            "aws", provisioner, "msk", identifier
+        )
+
+    def _get_msk_cluster_output_secret(
+        self, msk_cluster_spec: ExternalResourceSpec
+    ) -> dict[str, str]:
+        """Read the MSK cluster terraform output secret from vault."""
+        vault_path = (
+            f"{self.vault_secrets_path}"
+            f"/{msk_cluster_spec.cluster_name}"
+            f"/{msk_cluster_spec.namespace_name}"
+            f"/{msk_cluster_spec.output_resource_name}"
+        )
+        return self.secret_reader.read_all({"path": vault_path})
+
+    def _build_s3_bucket_arn(self, bucket_name: str) -> str:
+        return f"arn:aws:s3:::{bucket_name}"
+
+    def resolve(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> dict[str, Any]:
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+
+        # Resolve MSK cluster reference → bootstrap servers + VPC config
+        msk_cluster_identifier = data.pop("msk_cluster")
+        msk_cluster_spec = self._get_msk_cluster_spec(
+            spec.provisioner_name, msk_cluster_identifier
+        )
+
+        # Read bootstrap servers from MSK cluster output secret in vault
+        msk_output = self._get_msk_cluster_output_secret(msk_cluster_spec)
+        if not (bootstrap_servers := msk_output.get("bootstrap_brokers_sasl_iam", "")):
+            raise ValueError(
+                f"MSK cluster '{msk_cluster_identifier}' does not have IAM authentication enabled. "
+                f"MSK Connect requires IAM auth (bootstrap_brokers_sasl_iam). "
+                f"Enable client_authentication.sasl.iam on the MSK cluster."
+            )
+        data["kafka_cluster_bootstrap_servers"] = bootstrap_servers
+
+        # Read VPC config (subnets + security groups) from MSK cluster defaults
+        msk_data = ResourceValueResolver(
+            spec=msk_cluster_spec, identifier_as_value=True
+        ).resolve()
+        broker_node_info = msk_data["broker_node_group_info"]
+        data["vpc"] = {
+            "subnets": broker_node_info["client_subnets"],
+            "security_groups": broker_node_info["security_groups"],
+        }
+
+        # Build S3 bucket ARN from bucket name
+        if custom_plugin := data["custom_plugin"]:
+            s3_bucket = custom_plugin.pop("s3_bucket")
+            custom_plugin["s3_bucket_arn"] = self._build_s3_bucket_arn(s3_bucket)
+
+        return data
+
+    def validate(
+        self,
+        resource: ExternalResource,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> None:
+        data = resource.data
+        if not data.get("kafka_cluster_bootstrap_servers"):
+            raise ValueError(
+                "Failed to resolve kafka_cluster_bootstrap_servers from MSK cluster output."
+            )
+        if not data.get("connector_configuration"):
+            raise ValueError("connector_configuration must not be empty.")

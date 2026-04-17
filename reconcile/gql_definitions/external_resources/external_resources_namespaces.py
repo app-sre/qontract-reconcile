@@ -568,6 +568,21 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceMskConnect_v1 {
+            region
+            identifier
+            output_resource_name
+            defaults
+            annotations
+            tags
+            msk_cluster
+            service_execution_role
+            managed_by_erv2
+            delete
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
         }
       }
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
@@ -1198,9 +1213,23 @@ class NamespaceTerraformResourceMskV1(NamespaceTerraformResourceAWSV1):
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
+class NamespaceTerraformResourceMskConnectV1(NamespaceTerraformResourceAWSV1):
+    region: Optional[str] = Field(..., alias="region")
+    identifier: str = Field(..., alias="identifier")
+    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
+    defaults: str = Field(..., alias="defaults")
+    annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
+    msk_cluster: str = Field(..., alias="msk_cluster")
+    service_execution_role: str = Field(..., alias="service_execution_role")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    delete: Optional[bool] = Field(..., alias="delete")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
+
+
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     provisioner: AWSAccountV1 = Field(..., alias="provisioner")
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class CloudflareAccountV1(ConfiguredBaseModel):

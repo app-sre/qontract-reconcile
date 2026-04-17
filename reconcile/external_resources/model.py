@@ -21,6 +21,7 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     NamespaceTerraformResourceCloudWatchV1,
     NamespaceTerraformResourceElastiCacheV1,
     NamespaceTerraformResourceKMSV1,
+    NamespaceTerraformResourceMskConnectV1,
     NamespaceTerraformResourceMskV1,
     NamespaceTerraformResourceRDSProxyV1,
     NamespaceTerraformResourceRDSV1,
@@ -100,6 +101,7 @@ SUPPORTED_RESOURCE_PROVIDERS = (
 SUPPORTED_RESOURCE_TYPES = (
     NamespaceTerraformResourceRDSV1
     | NamespaceTerraformResourceMskV1
+    | NamespaceTerraformResourceMskConnectV1
     | NamespaceTerraformResourceElastiCacheV1
     | NamespaceTerraformResourceKMSV1
     | NamespaceTerraformResourceCloudWatchV1

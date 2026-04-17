@@ -486,6 +486,21 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceMskConnect_v1 {
+            region
+            identifier
+            output_resource_name
+            defaults
+            annotations
+            tags
+            msk_cluster
+            service_execution_role
+            managed_by_erv2
+            delete
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
         }
       }
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {

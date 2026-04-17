@@ -7,6 +7,7 @@ from typing import TypeVar
 from reconcile.external_resources.aws import (
     AWSDefaultResourceFactory,
     AWSElasticacheFactory,
+    AWSMskConnectFactory,
     AWSMskFactory,
     AWSRdsFactory,
     AWSResourceFactory,
@@ -99,13 +100,18 @@ class TerraformModuleProvisionDataFactory(ModuleProvisionDataFactory):
 
 
 def setup_aws_resource_factories(
-    er_inventory: ExternalResourcesInventory, secret_reader: SecretReaderBase
+    er_inventory: ExternalResourcesInventory,
+    secret_reader: SecretReaderBase,
+    vault_secrets_path: str,
 ) -> ObjectFactory[AWSResourceFactory]:
     return ObjectFactory[AWSResourceFactory](
         factories={
             "elasticache": AWSElasticacheFactory(er_inventory, secret_reader),
             "rds": AWSRdsFactory(er_inventory, secret_reader),
             "msk": AWSMskFactory(er_inventory, secret_reader),
+            "msk-connect": AWSMskConnectFactory(
+                er_inventory, secret_reader, vault_secrets_path
+            ),
         },
         default_factory=AWSDefaultResourceFactory(er_inventory, secret_reader),
     )

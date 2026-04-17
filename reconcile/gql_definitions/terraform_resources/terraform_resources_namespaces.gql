@@ -458,6 +458,14 @@ query TerraformResourcesNamespaces {
             }
             managed_by_erv2
           }
+          ... on NamespaceTerraformResourceMskConnect_v1 {
+            region
+            identifier
+            output_resource_name
+            defaults
+            annotations
+            managed_by_erv2
+          }
         }
       }
     }

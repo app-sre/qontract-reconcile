@@ -69,7 +69,7 @@ def setup_factories(
                 secret_reader=secret_reader,
                 provision_factories=provision_factories,
                 resource_factories=setup_aws_resource_factories(
-                    er_inventory, secret_reader
+                    er_inventory, secret_reader, settings.vault_secrets_path
                 ),
                 default_tags=cast("dict[str, str]", settings.default_tags),
             ),
