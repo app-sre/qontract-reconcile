@@ -1819,7 +1819,7 @@ def get_review_repos() -> list[dict[str, str]]:
     ]
 
 
-def get_repos(server: str = "", exclude_manage_permissions: bool = False) -> list[str]:
+def get_repos(server: str = "") -> list[str]:
     """Returns all repos defined under codeComponents
     Optional arguments:
     server: url of the server to return. for example: https://github.com
@@ -1832,8 +1832,6 @@ def get_repos(server: str = "", exclude_manage_permissions: bool = False) -> lis
     for a in apps:
         if a["codeComponents"] is not None:
             for c in a["codeComponents"]:
-                if exclude_manage_permissions and c.get("managePermissions") is False:
-                    continue
                 if c["url"].startswith(server):
                     repos.append(c["url"])
     return repos
