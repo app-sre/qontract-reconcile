@@ -264,17 +264,6 @@ class GitLabApi:
         except GitlabGetError:
             return None
 
-    def share_project_with_group(
-        self,
-        project: Project,
-        group_id: int,
-        access_level: int,
-        reshare: bool = False,
-    ) -> None:
-        if reshare:
-            project.unshare(group_id)
-        project.share(group_id, access_level)
-
     @staticmethod
     def _is_bot_username(username: str) -> bool:
         """
@@ -295,20 +284,6 @@ class GitLabApi:
             for m in group.members.list(iterator=True)
             if not self._is_bot_username(m.username)
         ]
-
-    def add_project_member(
-        self, repo_url: str, user: GroupMember, access: str = "maintainer"
-    ) -> None:
-        project = self.get_project(repo_url)
-        if project is None:
-            return
-        access_level = self.get_access_level(access)
-        try:
-            project.members.create({"user_id": user.id, "access_level": access_level})
-        except GitlabCreateError:
-            member = project.members.get(user.id)
-            member.access_level = access_level
-            member.save()
 
     def add_group_member(self, group: Group, username: str, access_level: int) -> None:
         gitlab_user = self.get_user(username)

@@ -495,14 +495,6 @@ def test_get_group_members(
     group.members.list.assert_called_once_with(iterator=True)
 
 
-def test_share_project_with_group_positive(
-    mocked_gitlab_api: GitLabApi,
-) -> None:
-    project = create_autospec(Project)
-    mocked_gitlab_api.share_project_with_group(project, 1111, 40)
-    project.share.assert_called_once_with(1111, 40)
-
-
 def test_get_project_maintainers(
     mocked_gitlab_api: GitLabApi,
     mocked_gl: Mock,
