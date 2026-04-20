@@ -11,6 +11,7 @@ from reconcile.external_resources.aws import (
     AWSMskFactory,
     AWSRdsFactory,
     AWSResourceFactory,
+    AWSVpcEndpointServiceFactory,
 )
 from reconcile.external_resources.cloudflare import (
     CloudflareDefaultResourceFactory,
@@ -110,6 +111,9 @@ def setup_aws_resource_factories(
             "msk": AWSMskFactory(er_inventory, secret_reader),
             "msk-connect": AWSMskConnectFactory(
                 er_inventory, secret_reader, vault_secrets_path
+            ),
+            "vpc-endpoint-service": AWSVpcEndpointServiceFactory(
+                er_inventory, secret_reader
             ),
         },
         default_factory=AWSDefaultResourceFactory(er_inventory, secret_reader),

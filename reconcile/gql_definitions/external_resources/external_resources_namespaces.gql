@@ -501,6 +501,31 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceVpcEndpointService_v1 {
+            region
+            identifier
+            openshift_service_name
+            allowed_consumer_clusters {
+              name
+              spec {
+                ... on ClusterSpecROSA_v1 {
+                  account {
+                    uid
+                    terraformUsername
+                  }
+                }
+              }
+            }
+            allowed_principal_arns
+            output_resource_name
+            annotations
+            tags
+            managed_by_erv2
+            delete
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
         }
       }
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {

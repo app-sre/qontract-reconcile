@@ -333,6 +333,32 @@ class AWSMskFactory(AWSDefaultResourceFactory):
         }
 
 
+class AWSVpcEndpointServiceFactory(AWSDefaultResourceFactory):
+    def _build_arn(self, uid: str, terraform_username: str) -> str:
+        return f"arn:aws:iam::{uid}:user/{terraform_username}"
+
+    def resolve(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> dict[str, Any]:
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+
+        cluster_arns = [
+            self._build_arn(
+                c["spec"]["account"]["uid"],
+                c["spec"]["account"]["terraformUsername"],
+            )
+            for c in data.pop("allowed_consumer_clusters", []) or []
+            if c.get("spec", {}).get("account")
+        ]
+        explicit_arns = data.pop("allowed_principal_arns", []) or []
+        data["allowed_principal_arns"] = cluster_arns + explicit_arns
+
+        return data
+
+
 class AWSMskConnectFactory(AWSResourceFactory):
     def __init__(
         self,

@@ -583,6 +583,31 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceVpcEndpointService_v1 {
+            region
+            identifier
+            openshift_service_name
+            allowed_consumer_clusters {
+              name
+              spec {
+                ... on ClusterSpecROSA_v1 {
+                  account {
+                    uid
+                    terraformUsername
+                  }
+                }
+              }
+            }
+            allowed_principal_arns
+            output_resource_name
+            annotations
+            tags
+            managed_by_erv2
+            delete
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
         }
       }
       ... on NamespaceTerraformProviderResourceCloudflare_v1 {
@@ -1227,9 +1252,41 @@ class NamespaceTerraformResourceMskConnectV1(NamespaceTerraformResourceAWSV1):
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
+class ClusterSpecV1(ConfiguredBaseModel):
+    ...
+
+
+class ClusterSpecROSAV1_AWSAccountV1(ConfiguredBaseModel):
+    uid: str = Field(..., alias="uid")
+    terraform_username: Optional[str] = Field(..., alias="terraformUsername")
+
+
+class ClusterSpecROSAV1(ClusterSpecV1):
+    account: Optional[ClusterSpecROSAV1_AWSAccountV1] = Field(..., alias="account")
+
+
+class NamespaceTerraformResourceVpcEndpointServiceV1_ClusterV1(ConfiguredBaseModel):
+    name: str = Field(..., alias="name")
+    spec: Optional[Union[ClusterSpecROSAV1, ClusterSpecV1]] = Field(..., alias="spec")
+
+
+class NamespaceTerraformResourceVpcEndpointServiceV1(NamespaceTerraformResourceAWSV1):
+    region: Optional[str] = Field(..., alias="region")
+    identifier: str = Field(..., alias="identifier")
+    openshift_service_name: str = Field(..., alias="openshift_service_name")
+    allowed_consumer_clusters: Optional[list[NamespaceTerraformResourceVpcEndpointServiceV1_ClusterV1]] = Field(..., alias="allowed_consumer_clusters")
+    allowed_principal_arns: Optional[list[str]] = Field(..., alias="allowed_principal_arns")
+    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
+    annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    delete: Optional[bool] = Field(..., alias="delete")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
+
+
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     provisioner: AWSAccountV1 = Field(..., alias="provisioner")
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class CloudflareAccountV1(ConfiguredBaseModel):
@@ -1278,7 +1335,7 @@ class AppV1(ConfiguredBaseModel):
     cost_center: Optional[str] = Field(..., alias="costCenter")
 
 
-class ClusterSpecV1(ConfiguredBaseModel):
+class NamespaceV1_ClusterV1_ClusterSpecV1(ConfiguredBaseModel):
     region: str = Field(..., alias="region")
 
 
@@ -1293,7 +1350,7 @@ class NamespaceV1_ClusterV1(ConfiguredBaseModel):
     jump_host: Optional[CommonJumphostFields] = Field(..., alias="jumpHost")
     automation_token: Optional[VaultSecret] = Field(..., alias="automationToken")
     cluster_admin_automation_token: Optional[VaultSecret] = Field(..., alias="clusterAdminAutomationToken")
-    spec: Optional[ClusterSpecV1] = Field(..., alias="spec")
+    spec: Optional[NamespaceV1_ClusterV1_ClusterSpecV1] = Field(..., alias="spec")
     internal: Optional[bool] = Field(..., alias="internal")
     disable: Optional[DisableClusterAutomationsV1] = Field(..., alias="disable")
 
