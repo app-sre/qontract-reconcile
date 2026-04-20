@@ -105,7 +105,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   messages.
   gitlab-owners                   Manages labels on gitlab merge requests
                                   based on OWNERS files schema.
-  gitlab-permissions              Manage permissions on GitLab projects.
   gitlab-projects                 Create GitLab projects.
   glitchtip                       Configure and enforce glitchtip instance
                                   configuration.

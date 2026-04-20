@@ -1267,15 +1267,6 @@ def slack_usergroups_api(
     )
 
 
-@integration.command(short_help="Manage permissions on GitLab projects.")
-@threaded()
-@click.pass_context
-def gitlab_permissions(ctx: click.Context, thread_pool_size: int) -> None:
-    import reconcile.gitlab_permissions
-
-    run_integration(reconcile.gitlab_permissions, ctx, thread_pool_size)
-
-
 @integration.command(short_help="Manage issues and merge requests on GitLab projects.")
 @click.option(
     "--wait-for-pipeline/--no-wait-for-pipeline",
