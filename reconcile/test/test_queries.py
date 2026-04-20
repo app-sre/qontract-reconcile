@@ -39,7 +39,7 @@ class TestQueries:
         self.fixture_data = deepcopy(data)
         pps = queries.get_pipelines_providers()
 
-        for k in ["retention", "taskTemplates", "pipelineTemplates", "deployResources"]:
+        for k in ["taskTemplates", "pipelineTemplates", "deployResources"]:
             assert data["pipelines_providers"][0]["defaults"][k] == pps[0][k]
 
     def test_get_pipelines_providers_mixed(self) -> None:
@@ -51,5 +51,5 @@ class TestQueries:
         for k in ["taskTemplates", "pipelineTemplates"]:
             assert data["pipelines_providers"][0]["defaults"][k] == pps[0][k]
 
-        for k in ["retention", "deployResources"]:
+        for k in ["deployResources"]:
             assert data["pipelines_providers"][0][k] == pps[0][k]

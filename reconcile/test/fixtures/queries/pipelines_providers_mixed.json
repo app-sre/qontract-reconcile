@@ -4,10 +4,6 @@
       "name": "provider1",
       "provider": "tekton",
       "defaults": {
-        "retention": {
-          "days": 7,
-          "minimum": 100
-        },
         "taskTemplates": [
           {
             "name": "openshift-saas-deploy",
@@ -55,10 +51,6 @@
           "internal": true,
           "disable": null
         }
-      },
-      "retention": {
-        "days": 99,
-        "minimum": 999
       },
       "deployResources": {
         "requests": {

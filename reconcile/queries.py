@@ -2215,10 +2215,6 @@ PIPELINES_PROVIDERS_QUERY = """
     provider
     ...on PipelinesProviderTekton_v1 {
       defaults {
-        retention {
-          days
-          minimum
-        }
         taskTemplates {
           ...on PipelinesProviderTektonObjectTemplate_v1 {
             name
@@ -2267,10 +2263,6 @@ PIPELINES_PROVIDERS_QUERY = """
             integrations
           }
         }
-      }
-      retention {
-        days
-        minimum
       }
       taskTemplates {
         ...on PipelinesProviderTektonObjectTemplate_v1 {
