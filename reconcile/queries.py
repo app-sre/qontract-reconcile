@@ -1831,9 +1831,11 @@ def get_repos(server: str = "") -> list[str]:
     repos: list[str] = []
     for a in apps:
         if a["codeComponents"] is not None:
-            for c in a["codeComponents"]:
-                if c["url"].startswith(server):
-                    repos.append(c["url"])
+            repos.extend(
+                c["url"]
+                for c in a["codeComponents"]
+                if c["url"].startswith(server)
+            )
     return repos
 
 
