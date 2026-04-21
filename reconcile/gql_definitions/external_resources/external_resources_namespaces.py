@@ -583,6 +583,26 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceVpcEndpoint_v1 {
+            identifier
+            endpoint_service_name
+            vpc {
+              vpc_id
+              region
+              subnets {
+                id
+                privacy
+              }
+            }
+            output_resource_name
+            annotations
+            tags
+            managed_by_erv2
+            delete
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
           ... on NamespaceTerraformResourceVpcEndpointService_v1 {
             region
             identifier
@@ -1252,6 +1272,29 @@ class NamespaceTerraformResourceMskConnectV1(NamespaceTerraformResourceAWSV1):
     module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
 
 
+class AWSSubnetV1(ConfiguredBaseModel):
+    q_id: str = Field(..., alias="id")
+    privacy: Optional[str] = Field(..., alias="privacy")
+
+
+class NamespaceTerraformResourceVpcEndpointV1_AWSVPCV1(ConfiguredBaseModel):
+    vpc_id: str = Field(..., alias="vpc_id")
+    region: str = Field(..., alias="region")
+    subnets: Optional[list[AWSSubnetV1]] = Field(..., alias="subnets")
+
+
+class NamespaceTerraformResourceVpcEndpointV1(NamespaceTerraformResourceAWSV1):
+    identifier: str = Field(..., alias="identifier")
+    endpoint_service_name: str = Field(..., alias="endpoint_service_name")
+    vpc: NamespaceTerraformResourceVpcEndpointV1_AWSVPCV1 = Field(..., alias="vpc")
+    output_resource_name: Optional[str] = Field(..., alias="output_resource_name")
+    annotations: Optional[str] = Field(..., alias="annotations")
+    tags: Optional[str] = Field(..., alias="tags")
+    managed_by_erv2: Optional[bool] = Field(..., alias="managed_by_erv2")
+    delete: Optional[bool] = Field(..., alias="delete")
+    module_overrides: Optional[ExternalResourcesModuleOverrides] = Field(..., alias="module_overrides")
+
+
 class ClusterSpecV1(ConfiguredBaseModel):
     ...
 
@@ -1286,7 +1329,7 @@ class NamespaceTerraformResourceVpcEndpointServiceV1(NamespaceTerraformResourceA
 
 class NamespaceTerraformProviderResourceAWSV1(NamespaceExternalResourceV1):
     provisioner: AWSAccountV1 = Field(..., alias="provisioner")
-    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
+    resources: list[Union[NamespaceTerraformResourceRDSV1, NamespaceTerraformResourceRosaAuthenticatorV1, NamespaceTerraformResourceALBV1, NamespaceTerraformResourceS3V1, NamespaceTerraformResourceElastiCacheV1, NamespaceTerraformResourceCloudWatchV1, NamespaceTerraformResourceASGV1, NamespaceTerraformResourceMskConnectV1, NamespaceTerraformResourceVpcEndpointServiceV1, NamespaceTerraformResourceRDSProxyV1, NamespaceTerraformResourceRoleV1, NamespaceTerraformResourceKMSV1, NamespaceTerraformResourceMskV1, NamespaceTerraformResourceSNSTopicV1, NamespaceTerraformResourceVpcEndpointV1, NamespaceTerraformResourceServiceAccountV1, NamespaceTerraformResourceS3SQSV1, NamespaceTerraformResourceKinesisV1, NamespaceTerraformResourceRosaAuthenticatorVPCEV1, NamespaceTerraformResourceS3CloudFrontV1, NamespaceTerraformResourceElasticSearchV1, NamespaceTerraformResourceACMV1, NamespaceTerraformResourceRoute53ZoneV1, NamespaceTerraformResourceSQSV1, NamespaceTerraformResourceDynamoDBV1, NamespaceTerraformResourceECRV1, NamespaceTerraformResourceS3CloudFrontPublicKeyV1, NamespaceTerraformResourceSecretsManagerV1, NamespaceTerraformResourceSecretsManagerServiceAccountV1, NamespaceTerraformResourceAWSV1]] = Field(..., alias="resources")
 
 
 class CloudflareAccountV1(ConfiguredBaseModel):

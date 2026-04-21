@@ -501,6 +501,26 @@ query ExternalResourcesNamespaces {
               ...ExternalResourcesModuleOverrides
             }
           }
+          ... on NamespaceTerraformResourceVpcEndpoint_v1 {
+            identifier
+            endpoint_service_name
+            vpc {
+              vpc_id
+              region
+              subnets {
+                id
+                privacy
+              }
+            }
+            output_resource_name
+            annotations
+            tags
+            managed_by_erv2
+            delete
+            module_overrides {
+              ...ExternalResourcesModuleOverrides
+            }
+          }
           ... on NamespaceTerraformResourceVpcEndpointService_v1 {
             region
             identifier

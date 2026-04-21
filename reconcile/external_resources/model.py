@@ -26,6 +26,7 @@ from reconcile.gql_definitions.external_resources.external_resources_namespaces 
     NamespaceTerraformResourceRDSProxyV1,
     NamespaceTerraformResourceRDSV1,
     NamespaceTerraformResourceVpcEndpointServiceV1,
+    NamespaceTerraformResourceVpcEndpointV1,
     NamespaceV1,
 )
 from reconcile.gql_definitions.external_resources.external_resources_settings import (
@@ -110,6 +111,7 @@ SUPPORTED_RESOURCE_TYPES = (
     | NamespaceTerraformResourceCloudflareZoneV1
     | NamespaceTerraformResourceCloudflareAccountV1
     | NamespaceTerraformResourceVpcEndpointServiceV1
+    | NamespaceTerraformResourceVpcEndpointV1
 )
 
 
