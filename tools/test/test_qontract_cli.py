@@ -243,11 +243,28 @@ def test_get_openshift_cost_optimization_report(
 def test_external_resources_get_credentials(
     mock_get_app_interface_vault_settings: Mock,
     mock_create_secret_reader: Mock,
+    mocker: MockerFixture,
 ) -> None:
-    mock_secret_read = mock_create_secret_reader.return_value.read_with_parameters
-    mock_secret_read.return_value = "expected"
-    runner = CliRunner()
+    mocker.patch("tools.qontract_cli.gql")
 
+    provisioner_account = Mock()
+    state_account = Mock()
+    mock_aws_accounts_query = mocker.patch("tools.qontract_cli.aws_accounts_query")
+    mock_aws_accounts_query.side_effect = [
+        Mock(accounts=[provisioner_account]),
+        Mock(accounts=[state_account]),
+    ]
+
+    mock_get_settings = mocker.patch("tools.qontract_cli.get_er_settings")
+    mock_get_settings.return_value.state_dynamodb_account.name = "state-account"
+
+    mock_read_all = mock_create_secret_reader.return_value.read_all_secret
+    mock_read_all.side_effect = [
+        {"aws_access_key_id": "PROV_KEY", "aws_secret_access_key": "PROV_SECRET"},
+        {"aws_access_key_id": "STATE_KEY", "aws_secret_access_key": "STATE_SECRET"},
+    ]
+
+    runner = CliRunner()
     result = runner.invoke(
         qontract_cli.external_resources,
         "--provisioner provisioner --provider elasticache --identifier i get-credentials",
@@ -255,13 +272,16 @@ def test_external_resources_get_credentials(
     )
 
     assert result.exit_code == 0
-    assert result.output == "expected\n"
-    mock_secret_read.assert_called_once_with(
-        path="app-sre/external-resources/provisioner",
-        field="credentials",
-        format=None,
-        version=None,
+    expected = (
+        "[default]\n"
+        "aws_access_key_id=PROV_KEY\n"
+        "aws_secret_access_key=PROV_SECRET\n"
+        "\n"
+        "[external-resources-state]\n"
+        "aws_access_key_id=STATE_KEY\n"
+        "aws_secret_access_key=STATE_SECRET\n"
     )
+    assert result.output == expected + "\n"
 
 
 @pytest.fixture

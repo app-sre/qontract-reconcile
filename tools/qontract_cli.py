@@ -83,6 +83,9 @@ from reconcile.gql_definitions.common.app_interface_vault_settings import (
     AppInterfaceSettingsV1,
 )
 from reconcile.gql_definitions.common.clusters import ClusterSpecROSAV1
+from reconcile.gql_definitions.external_resources.aws_accounts import (
+    query as aws_accounts_query,
+)
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
     query as glitchtip_instance_query,
 )
@@ -103,6 +106,7 @@ from reconcile.typed_queries.app_quay_repos_escalation_policies import (
     get_apps_quay_repos_escalation_policies,
 )
 from reconcile.typed_queries.clusters import get_clusters
+from reconcile.typed_queries.external_resources import get_settings as get_er_settings
 from reconcile.typed_queries.saas_files import get_saas_files
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import get_status_board
@@ -168,6 +172,7 @@ from reconcile.utils.saasherder.models import TargetSpec
 from reconcile.utils.saasherder.saasherder import SaasHerder
 from reconcile.utils.secret_reader import (
     SecretReader,
+    SecretReaderBase,
     create_secret_reader,
 )
 from reconcile.utils.semver_helper import parse_semver
@@ -4419,14 +4424,39 @@ def get_input(ctx: click.Context) -> None:
 
 
 def _get_external_resources_credentials(
-    secret_reader: SecretReader,
+    secret_reader: SecretReaderBase,
     provisioner: str,
 ) -> str:
-    return secret_reader.read_with_parameters(
-        path=f"app-sre/external-resources/{provisioner}",
-        field="credentials",
-        format=None,
-        version=None,
+    query_func = gql.get_api().query
+
+    # Fetch provisioner account credentials ([default] profile)
+    provisioner_accounts = aws_accounts_query(
+        query_func, variables={"filter": {"name": provisioner}}
+    ).accounts
+    if not provisioner_accounts:
+        raise ValueError(f"AWS account '{provisioner}' not found")
+    provisioner_token = secret_reader.read_all_secret(
+        provisioner_accounts[0].automation_token
+    )
+
+    # Fetch state account credentials ([external-resources-state] profile)
+    er_settings = get_er_settings(query_func=query_func)
+    state_account_name = er_settings.state_dynamodb_account.name
+    state_accounts = aws_accounts_query(
+        query_func, variables={"filter": {"name": state_account_name}}
+    ).accounts
+    if not state_accounts:
+        raise ValueError(f"State AWS account '{state_account_name}' not found")
+    state_token = secret_reader.read_all_secret(state_accounts[0].automation_token)
+
+    return (
+        "[default]\n"
+        f"aws_access_key_id={provisioner_token['aws_access_key_id']}\n"
+        f"aws_secret_access_key={provisioner_token['aws_secret_access_key']}\n"
+        "\n"
+        "[external-resources-state]\n"
+        f"aws_access_key_id={state_token['aws_access_key_id']}\n"
+        f"aws_secret_access_key={state_token['aws_secret_access_key']}\n"
     )
 
 
