@@ -1783,7 +1783,6 @@ CODE_COMPONENT_REPO_QUERY = """
   apps: apps_v1 {
     codeComponents {
       url
-      managePermissions
     }
   }
 }
