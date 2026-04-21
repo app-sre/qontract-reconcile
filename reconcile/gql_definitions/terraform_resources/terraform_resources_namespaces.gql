@@ -470,6 +470,10 @@ query TerraformResourcesNamespaces {
             identifier
             managed_by_erv2
           }
+          ... on NamespaceTerraformResourceVpcEndpoint_v1 {
+            identifier
+            managed_by_erv2
+          }
         }
       }
     }

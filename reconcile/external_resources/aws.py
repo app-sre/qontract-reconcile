@@ -359,6 +359,26 @@ class AWSVpcEndpointServiceFactory(AWSDefaultResourceFactory):
         return data
 
 
+class AWSVpcEndpointFactory(AWSDefaultResourceFactory):
+    def resolve(
+        self,
+        spec: ExternalResourceSpec,
+        module_conf: ExternalResourceModuleConfiguration,
+    ) -> dict[str, Any]:
+        rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
+        data = rvr.resolve()
+
+        vpc = data.pop("vpc")
+        data["vpc_id"] = vpc["vpc_id"]
+        data["subnet_ids"] = [
+            s["id"] for s in vpc.get("subnets", []) if s.get("privacy") == "private"
+        ]
+        if region := vpc.get("region"):
+            data["region"] = region
+
+        return data
+
+
 class AWSMskConnectFactory(AWSResourceFactory):
     def __init__(
         self,
