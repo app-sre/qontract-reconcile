@@ -480,7 +480,6 @@ def rebase_merge_requests(
     wait_for_pipeline: bool = False,
     users_allowed_to_label: Iterable[str] | None = None,
 ) -> None:
-    rebases = 0
     merge_requests = [
         item["mr"]
         for item in get_merge_requests(
@@ -490,13 +489,24 @@ def rebase_merge_requests(
             users_allowed_to_label=users_allowed_to_label,
         )
     ]
+
+    # Single pass: classify MRs as already-active (rebased with a running/pending
+    # pipeline from a previous run) or needs-rebase.  rebase_limit is a per-repo
+    # concurrency cap -- "at most N MRs with active pipelines" -- not a per-run burst.
+    already_active = 0
+    needs_rebase: list[ProjectMergeRequest] = []
     for mr in merge_requests:
         if is_rebased(mr, gl):
+            pipelines = gl.get_merge_request_pipelines(mr)
+            if pipelines and pipelines[0].status in {
+                PipelineStatus.RUNNING,
+                PipelineStatus.PENDING,
+            }:
+                already_active += 1
             continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
 
-        # If pipeline_timeout is None no pipeline will be canceled
         if pipeline_timeout is not None:
             timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
             if timed_out_pipelines:
@@ -510,15 +520,18 @@ def rebase_merge_requests(
         if wait_for_pipeline:
             if not pipelines:
                 continue
-            # possible statuses:
-            # running, pending, success, failed, canceled, skipped
             running_pipelines = [
                 p for p in pipelines if p.status == PipelineStatus.RUNNING
             ]
             if running_pipelines:
                 continue
 
-        if rebases < rebase_limit:
+        needs_rebase.append(mr)
+
+    remaining_budget = max(rebase_limit - already_active, 0)
+    rebases = 0
+    for mr in needs_rebase:
+        if rebases < remaining_budget:
             try:
                 logging.info(["rebase", gl.project.name, mr.iid])
                 if not dry_run:
@@ -532,7 +545,7 @@ def rebase_merge_requests(
                 "rebase",
                 gl.project.name,
                 mr.iid,
-                "rebase limit reached for this reconcile loop. will try next time",
+                f"rebase limit reached ({already_active} active, limit {rebase_limit}). will try next time",
             ])
 
 

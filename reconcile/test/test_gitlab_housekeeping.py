@@ -490,3 +490,182 @@ def test_verify_ondemend_tests_pass(
         False, merge_request, must_pass, gitlab_api, state
     )
     state.add.assert_called_once_with("a/b/1/abc", [], force=True)
+
+
+# --- rebase_merge_requests per-repo concurrency cap tests ---
+
+
+def _make_pipeline(status: str) -> Mock:
+    return create_autospec(ProjectMergeRequestPipeline, status=status)
+
+
+def _make_mr(
+    iid: int,
+    *,
+    is_rebased: bool = False,
+    pipeline_status: str | None = None,
+) -> Mock:
+    """Create a mock MR.
+
+    is_rebased: whether is_rebased() should return True for this MR.
+    pipeline_status: if set, get_merge_request_pipelines returns a pipeline
+        with this status; otherwise returns [].
+    """
+    mr = create_autospec(ProjectMergeRequest)
+    mr.iid = iid
+    mr.target_project_id = 10
+    mr.source_project_id = 10
+    mr._test_is_rebased = is_rebased
+    mr._test_pipelines = [_make_pipeline(pipeline_status)] if pipeline_status else []
+    return mr
+
+
+class TestRebaseMergeRequests:
+    """Tests for rebase_merge_requests() with per-repo concurrency cap.
+
+    rebase_limit controls the max number of MRs with active (running/pending)
+    pipelines at any time, not the number of rebases per invocation.
+    """
+
+    @staticmethod
+    def _call(
+        mocker: MockerFixture,
+        merge_requests: list[Mock],
+        rebase_limit: int,
+        *,
+        dry_run: bool = False,
+        pipeline_timeout: int | None = None,
+        wait_for_pipeline: bool = False,
+    ) -> None:
+        """Invoke rebase_merge_requests with mocked internals."""
+        mocked_gl = create_autospec(GitLabApi)
+        mocked_project = create_autospec(Project)
+        mocked_project.name = "test-project"
+        mocked_gl.project = mocked_project
+        mocked_gl.get_merge_request_pipelines.side_effect = lambda mr: (
+            mr._test_pipelines
+        )
+        mocked_state = create_autospec(State)
+
+        mocker.patch(
+            "reconcile.gitlab_housekeeping.get_merge_requests",
+            return_value=[{"mr": mr} for mr in merge_requests],
+        )
+        mocker.patch(
+            "reconcile.gitlab_housekeeping.is_rebased",
+            side_effect=lambda mr, gl: mr._test_is_rebased,
+        )
+
+        gl_h.rebase_merge_requests(
+            dry_run=dry_run,
+            gl=mocked_gl,
+            rebase_limit=rebase_limit,
+            state=mocked_state,
+            pipeline_timeout=pipeline_timeout,
+            wait_for_pipeline=wait_for_pipeline,
+        )
+
+    def test_no_active_pipelines_full_budget(self, mocker: MockerFixture) -> None:
+        """0 MRs have active pipelines, limit=2, 3 need rebase: exactly 2 rebased."""
+        mrs = [_make_mr(1), _make_mr(2), _make_mr(3)]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        assert mrs[0].rebase.call_count == 1
+        assert mrs[1].rebase.call_count == 1
+        assert mrs[2].rebase.call_count == 0
+
+    def test_active_pipelines_reduce_budget(self, mocker: MockerFixture) -> None:
+        """1 MR rebased with running pipeline, limit=2: only 1 additional rebase."""
+        mr_active = _make_mr(1, is_rebased=True, pipeline_status="running")
+        mr_needs_a = _make_mr(2)
+        mr_needs_b = _make_mr(3)
+        mrs = [mr_active, mr_needs_a, mr_needs_b]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        assert mr_active.rebase.call_count == 0
+        assert mr_needs_a.rebase.call_count == 1
+        assert mr_needs_b.rebase.call_count == 0
+
+    def test_budget_exhausted(self, mocker: MockerFixture) -> None:
+        """2 MRs with running pipelines, limit=2: 0 rebases."""
+        mr_a = _make_mr(1, is_rebased=True, pipeline_status="running")
+        mr_b = _make_mr(2, is_rebased=True, pipeline_status="pending")
+        mr_c = _make_mr(3)
+        mrs = [mr_a, mr_b, mr_c]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        assert mr_c.rebase.call_count == 0
+
+    def test_all_already_rebased(self, mocker: MockerFixture) -> None:
+        """All MRs pass is_rebased(): 0 rebases needed."""
+        mrs = [
+            _make_mr(1, is_rebased=True, pipeline_status="success"),
+            _make_mr(2, is_rebased=True, pipeline_status="success"),
+        ]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        for mr in mrs:
+            assert mr.rebase.call_count == 0
+
+    def test_dry_run_no_rebases(self, mocker: MockerFixture) -> None:
+        """In dry run, no actual rebases happen."""
+        mrs = [_make_mr(1), _make_mr(2)]
+
+        self._call(mocker, mrs, rebase_limit=2, dry_run=True)
+
+        for mr in mrs:
+            assert mr.rebase.call_count == 0
+
+    def test_mixed_states(self, mocker: MockerFixture) -> None:
+        """Mix of rebased-with-success, rebased-with-running, and not-rebased MRs.
+
+        MR1: rebased, pipeline success (not active) -> doesn't consume budget
+        MR2: rebased, pipeline running (active) -> consumes 1 from budget
+        MR3: not rebased -> rebase candidate
+        MR4: not rebased -> rebase candidate
+        With limit=2, remaining_budget = 2 - 1 = 1, so only MR3 gets rebased.
+        """
+        mrs = [
+            _make_mr(1, is_rebased=True, pipeline_status="success"),
+            _make_mr(2, is_rebased=True, pipeline_status="running"),
+            _make_mr(3),
+            _make_mr(4),
+        ]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        assert mrs[0].rebase.call_count == 0
+        assert mrs[1].rebase.call_count == 0
+        assert mrs[2].rebase.call_count == 1
+        assert mrs[3].rebase.call_count == 0
+
+    def test_backward_compatible_zero_active(self, mocker: MockerFixture) -> None:
+        """With 0 active pipelines, behaves identically to old per-run counter:
+        rebase up to N MRs."""
+        mrs = [_make_mr(i) for i in range(1, 6)]
+
+        self._call(mocker, mrs, rebase_limit=3)
+
+        rebased_count = sum(mr.rebase.call_count for mr in mrs)
+        assert rebased_count == 3
+        assert mrs[0].rebase.call_count == 1
+        assert mrs[1].rebase.call_count == 1
+        assert mrs[2].rebase.call_count == 1
+        assert mrs[3].rebase.call_count == 0
+        assert mrs[4].rebase.call_count == 0
+
+    def test_differing_limits(self, mocker: MockerFixture) -> None:
+        """Verify different limit values produce different rebase counts."""
+        for limit, expected_rebased in [(1, 1), (3, 3), (5, 5), (10, 7)]:
+            mrs = [_make_mr(i) for i in range(1, 8)]
+
+            self._call(mocker, mrs, rebase_limit=limit)
+
+            rebased_count = sum(mr.rebase.call_count for mr in mrs)
+            assert rebased_count == expected_rebased, (
+                f"limit={limit}: expected {expected_rebased} rebases, got {rebased_count}"
+            )
