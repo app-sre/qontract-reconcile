@@ -859,7 +859,7 @@ def run(
         mail_address=smtp_settings.mail_address,
         timeout=smtp_settings.timeout or DEFAULT_SMTP_TIMEOUT,
     )
-    job_image = "quay.io/app-sre/debug-container:latest"
+    job_image = "quay.io/redhat-services-prod/app-sre-tenant/container-images-master/debug-container-master:latest"
 
     sql_query_settings = settings.get("sqlQuery")
     pull_secret: dict[str, Any] = {}
