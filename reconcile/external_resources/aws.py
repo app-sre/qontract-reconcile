@@ -412,9 +412,5 @@ class AWSMskConnectFactory(AWSResourceFactory):
         module_conf: ExternalResourceModuleConfiguration,
     ) -> None:
         data = resource.data
-        if not data.get("kafka_cluster_bootstrap_servers"):
-            raise ValueError(
-                "Failed to resolve kafka_cluster_bootstrap_servers from MSK cluster output."
-            )
         if not data.get("connector_configuration"):
             raise ValueError("connector_configuration must not be empty.")
