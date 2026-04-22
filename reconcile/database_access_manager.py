@@ -629,7 +629,7 @@ def _process_db_access(
 
         job_image = (
             sql_query_settings.get("jobImage")
-            or "quay.io/app-sre/debug-container:latest"
+            or "quay.io/redhat-services-prod/app-sre-tenant/container-images-master/debug-container-master:latest"
         )
 
         managed_resources = _populate_resources(
