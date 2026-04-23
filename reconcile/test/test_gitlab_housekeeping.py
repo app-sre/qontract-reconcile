@@ -11,6 +11,7 @@ from unittest.mock import (
     patch,
 )
 
+import gitlab
 import pytest
 from gitlab import Gitlab
 from gitlab.v4.objects import (
@@ -669,3 +670,49 @@ class TestRebaseMergeRequests:
             assert rebased_count == expected_rebased, (
                 f"limit={limit}: expected {expected_rebased} rebases, got {rebased_count}"
             )
+
+    def test_rebase_failure_does_not_consume_budget(
+        self, mocker: MockerFixture
+    ) -> None:
+        """A failed rebase doesn't consume a budget slot; subsequent MRs still get tried."""
+        mr_fail = _make_mr(1)
+        mr_fail.rebase.side_effect = gitlab.exceptions.GitlabMRRebaseError
+        mr_ok_a = _make_mr(2)
+        mr_ok_b = _make_mr(3)
+        mrs = [mr_fail, mr_ok_a, mr_ok_b]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        assert mr_fail.rebase.call_count == 1
+        assert mr_ok_a.rebase.call_count == 1
+        assert mr_ok_b.rebase.call_count == 1
+
+    def test_over_committed_clamps_to_zero(self, mocker: MockerFixture) -> None:
+        """When already_active > limit, remaining_budget clamps to 0."""
+        mrs = [
+            _make_mr(1, is_rebased=True, pipeline_status="running"),
+            _make_mr(2, is_rebased=True, pipeline_status="running"),
+            _make_mr(3, is_rebased=True, pipeline_status="pending"),
+            _make_mr(4),
+            _make_mr(5),
+        ]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        assert mrs[3].rebase.call_count == 0
+        assert mrs[4].rebase.call_count == 0
+
+    def test_rebased_mr_without_pipelines_not_counted_active(
+        self, mocker: MockerFixture
+    ) -> None:
+        """A rebased MR with no pipelines doesn't count toward already_active."""
+        mr_rebased_no_pipeline = _make_mr(1, is_rebased=True)
+        mr_needs_a = _make_mr(2)
+        mr_needs_b = _make_mr(3)
+        mrs = [mr_rebased_no_pipeline, mr_needs_a, mr_needs_b]
+
+        self._call(mocker, mrs, rebase_limit=2)
+
+        assert mr_rebased_no_pipeline.rebase.call_count == 0
+        assert mr_needs_a.rebase.call_count == 1
+        assert mr_needs_b.rebase.call_count == 1
