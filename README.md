@@ -422,12 +422,6 @@ Release version are calculated from git tags of the form X.Y.Z.
 
 After the PR is merged, a CI job will be triggered that will publish the package to pypi: <https://pypi.org/project/qontract-reconcile>.
 
-## Konflux
-
-Sometimes you need dummy commit to retrigger konflux.
-
-Number of dummy commits so far: 1
-
 ## Licence
 
 [Apache License Version 2.0](LICENSE).
