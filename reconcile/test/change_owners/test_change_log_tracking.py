@@ -12,6 +12,8 @@ from gitlab.v4.objects import (
 from pytest_mock import MockerFixture
 
 from reconcile.change_owners.change_log_tracking import (
+    BUNDLE_DIFFS_OBJ,
+    PROCESSED_COMMITS_OBJ,
     ChangeLog,
     ChangeLogIntegration,
     ChangeLogIntegrationParams,
@@ -149,10 +151,8 @@ def test_change_log_tracking_with_deleted_app(
 
     integration.run(dry_run=False)
 
-    mocks["state"].add.assert_called_once_with(
-        "bundle-diffs.json",
-        expected_change_log.model_dump(),
-        force=True,
+    mocks["state"].add.assert_any_call(
+        BUNDLE_DIFFS_OBJ, expected_change_log.model_dump(), force=True
     )
 
 
@@ -180,8 +180,84 @@ def test_change_log_tracking_filters_old_commits(
 
     integration.run(dry_run=False)
 
-    mocks["state"].add.assert_called_once_with(
-        "bundle-diffs.json",
-        ChangeLog().model_dump(),
-        force=True,
+    mocks["state"].add.assert_any_call(
+        BUNDLE_DIFFS_OBJ, ChangeLog().model_dump(), force=True
+    )
+    mocks["state"].add.assert_any_call(
+        PROCESSED_COMMITS_OBJ, {COMMIT_SHA: MERGED_AT_OLD}, force=True
+    )
+
+
+def test_change_log_tracking_adds_old_commit_to_processed_map(
+    mocker: MockerFixture,
+    gql_api_builder: Callable[..., GqlApi],
+    gql_class_factory: Callable[..., ChangeTypesQueryData],
+) -> None:
+    """Old commit not yet in the processed map: fetches from GitLab, filters it, records it."""
+    mocks = setup_mocks(
+        mocker,
+        gql_api_builder,
+        gql_class_factory,
+        apps=[],
+        datafiles={},
+        commit_message="some change",
+        committed_date=MERGED_AT_OLD,
+    )
+    mocks["state"].get.side_effect = lambda key, default=None: {
+        BUNDLE_DIFFS_OBJ: {"items": []},
+        PROCESSED_COMMITS_OBJ: {},
+    }.get(key, default)
+
+    integration = ChangeLogIntegration(
+        ChangeLogIntegrationParams(
+            gitlab_project_id="test",
+            process_existing=False,
+            commit=None,
+        )
+    )
+
+    integration.run(dry_run=False)
+
+    mocks["gl"].project.commits.get.assert_called_once_with(COMMIT_SHA)
+    mocks["state"].add.assert_any_call(
+        BUNDLE_DIFFS_OBJ, ChangeLog().model_dump(), force=True
+    )
+    mocks["state"].add.assert_any_call(
+        PROCESSED_COMMITS_OBJ, {COMMIT_SHA: MERGED_AT_OLD}, force=True
+    )
+
+
+def test_change_log_tracking_skips_processed_commits_without_api_call(
+    mocker: MockerFixture,
+    gql_api_builder: Callable[..., GqlApi],
+    gql_class_factory: Callable[..., ChangeTypesQueryData],
+) -> None:
+    """Old commit already in the processed map: skipped without a GitLab API call."""
+    mocks = setup_mocks(
+        mocker,
+        gql_api_builder,
+        gql_class_factory,
+        apps=[],
+        datafiles={},
+        commit_message="some change",
+        committed_date=MERGED_AT_OLD,
+    )
+    mocks["state"].get.side_effect = lambda key, default=None: {
+        BUNDLE_DIFFS_OBJ: {"items": []},
+        PROCESSED_COMMITS_OBJ: {COMMIT_SHA: MERGED_AT_OLD},
+    }.get(key, default)
+
+    integration = ChangeLogIntegration(
+        ChangeLogIntegrationParams(
+            gitlab_project_id="test",
+            process_existing=False,
+            commit=None,
+        )
+    )
+
+    integration.run(dry_run=False)
+
+    mocks["gl"].project.commits.get.assert_not_called()
+    mocks["state"].add.assert_any_call(
+        PROCESSED_COMMITS_OBJ, {COMMIT_SHA: MERGED_AT_OLD}, force=True
     )

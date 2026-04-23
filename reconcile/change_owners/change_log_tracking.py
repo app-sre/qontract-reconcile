@@ -35,6 +35,7 @@ from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
+PROCESSED_COMMITS_OBJ = "processed-commits.json"
 DEFAULT_MERGE_COMMIT_PREFIX = "Merge branch '"
 
 
@@ -122,8 +123,14 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             defer(diff_state.cleanup)
             defer(gl.cleanup)
 
+        existing_change_log = ChangeLog()
+        # commit sha -> committed_date for commits older than lookback_days;
+        # lets normal runs skip stale commits without a GitLab API call.
+        # ignored when --process-existing rebuilds state from scratch.
+        processed_commits: dict[str, str] = {}
         if not self.params.process_existing:
             existing_change_log = ChangeLog(**integration_state.get(BUNDLE_DIFFS_OBJ))
+            processed_commits = integration_state.get(PROCESSED_COMMITS_OBJ, {})
 
         change_log = ChangeLog()
         for item in diff_state.ls():
@@ -139,13 +146,16 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     logging.debug(f"Found existing commit {commit}")
                     change_log.items.append(existing_change_log_item)
                     continue
+                if commit in processed_commits:
+                    logging.debug(f"Skipping already processed commit {commit}")
+                    continue
 
             logging.info(f"Processing commit {commit}")
             gl_commit = gl.project.commits.get(commit)
-            if self.params.process_existing:
-                cutoff = datetime.now(UTC) - timedelta(days=self.params.lookback_days)
-                if datetime.fromisoformat(gl_commit.committed_date) < cutoff:
-                    continue
+            cutoff = datetime.now(UTC) - timedelta(days=self.params.lookback_days)
+            if datetime.fromisoformat(gl_commit.committed_date) < cutoff:
+                processed_commits[commit] = gl_commit.committed_date
+                continue
             change_log_item = ChangeLogItem(
                 commit=commit,
                 merged_at=gl_commit.committed_date,
@@ -247,3 +257,4 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         )
         if not dry_run:
             integration_state.add(BUNDLE_DIFFS_OBJ, change_log.model_dump(), force=True)
+            integration_state.add(PROCESSED_COMMITS_OBJ, processed_commits, force=True)
