@@ -132,6 +132,7 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
             existing_change_log = ChangeLog(**integration_state.get(BUNDLE_DIFFS_OBJ))
             processed_commits = integration_state.get(PROCESSED_COMMITS_OBJ, {})
 
+        cutoff = datetime.now(UTC) - timedelta(days=self.params.lookback_days)
         change_log = ChangeLog()
         for item in diff_state.ls():
             key = item.lstrip("/")
@@ -147,12 +148,14 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                     change_log.items.append(existing_change_log_item)
                     continue
                 if commit in processed_commits:
-                    logging.debug(f"Skipping already processed commit {commit}")
-                    continue
+                    if datetime.fromisoformat(processed_commits[commit]) < cutoff:
+                        logging.debug(f"Skipping already processed commit {commit}")
+                        continue
+                    # lookback_days was increased — commit is now within window, re-process
+                    del processed_commits[commit]
 
             logging.info(f"Processing commit {commit}")
             gl_commit = gl.project.commits.get(commit)
-            cutoff = datetime.now(UTC) - timedelta(days=self.params.lookback_days)
             if datetime.fromisoformat(gl_commit.committed_date) < cutoff:
                 processed_commits[commit] = gl_commit.committed_date
                 continue
