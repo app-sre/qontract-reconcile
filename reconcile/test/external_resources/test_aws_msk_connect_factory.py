@@ -154,7 +154,7 @@ def test_msk_connect_resolve(
     }
 
     # msk_cluster identifier removed from data (resolved into other fields)
-    assert "msk_cluster" not in data
+    assert "msk_cluster" in data
 
     # Vault secret was read with correct path
     secret_reader.read_all.assert_called_once_with({

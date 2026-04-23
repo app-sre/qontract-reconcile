@@ -374,7 +374,7 @@ class AWSMskConnectFactory(AWSResourceFactory):
         data = rvr.resolve()
 
         # Resolve MSK cluster reference → bootstrap servers + VPC config
-        msk_cluster_identifier = data.pop("msk_cluster")
+        msk_cluster_identifier = data["msk_cluster"]
         msk_cluster_spec = self._get_msk_cluster_spec(
             spec.provisioner_name, msk_cluster_identifier
         )
