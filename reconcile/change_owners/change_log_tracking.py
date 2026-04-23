@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 
 from gitlab.v4.objects import (
     ProjectCommit,
@@ -62,6 +63,7 @@ class ChangeLogIntegrationParams(PydanticRunParams):
     gitlab_project_id: str
     process_existing: bool = False
     commit: str | None = None
+    lookback_days: int = 31
 
 
 class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationParams]):
@@ -140,6 +142,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
 
             logging.info(f"Processing commit {commit}")
             gl_commit = gl.project.commits.get(commit)
+            if self.params.process_existing:
+                cutoff = datetime.now(UTC) - timedelta(days=self.params.lookback_days)
+                if datetime.fromisoformat(gl_commit.committed_date) < cutoff:
+                    continue
             change_log_item = ChangeLogItem(
                 commit=commit,
                 merged_at=gl_commit.committed_date,
