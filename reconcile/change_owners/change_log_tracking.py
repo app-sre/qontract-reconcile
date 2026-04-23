@@ -37,6 +37,7 @@ QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
 PROCESSED_COMMITS_OBJ = "processed-commits.json"
 DEFAULT_MERGE_COMMIT_PREFIX = "Merge branch '"
+MAX_CHANGE_LOG_ITEMS = 3000
 
 
 class ChangeLogItem(BaseModel):
@@ -255,9 +256,10 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         logging.info(f"apps: {change_log.apps}")
         logging.info(f"change_types: {change_log.change_types}")
 
-        change_log.items = sorted(
-            change_log.items, key=lambda i: i.merged_at, reverse=True
-        )
+        sorted_items = sorted(change_log.items, key=lambda i: i.merged_at, reverse=True)
+        for overflow_item in sorted_items[MAX_CHANGE_LOG_ITEMS:]:
+            processed_commits[overflow_item.commit] = overflow_item.merged_at
+        change_log.items = sorted_items[:MAX_CHANGE_LOG_ITEMS]
         if not dry_run:
             integration_state.add(BUNDLE_DIFFS_OBJ, change_log.model_dump(), force=True)
             integration_state.add(PROCESSED_COMMITS_OBJ, processed_commits, force=True)
