@@ -152,8 +152,6 @@ def test_msk_connect_resolve(
         "topics": "orders",
         "s3.bucket.name": "my-data-lake",
     }
-
-    # msk_cluster identifier removed from data (resolved into other fields)
     assert "msk_cluster" in data
 
     # Vault secret was read with correct path

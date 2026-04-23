@@ -339,7 +339,7 @@ class AWSMskConnectFactory(AWSResourceFactory):
         er_inventory: ExternalResourcesInventory,
         secret_reader: SecretReaderBase,
         vault_secrets_path: str,
-    ):
+    ) -> None:
         super().__init__(er_inventory, secret_reader)
         self.vault_secrets_path = vault_secrets_path
 
@@ -372,6 +372,7 @@ class AWSMskConnectFactory(AWSResourceFactory):
     ) -> dict[str, Any]:
         rvr = ResourceValueResolver(spec=spec, identifier_as_value=True)
         data = rvr.resolve()
+        data["output_prefix"] = spec.output_prefix
 
         # Resolve MSK cluster reference → bootstrap servers + VPC config
         msk_cluster_identifier = data["msk_cluster"]
