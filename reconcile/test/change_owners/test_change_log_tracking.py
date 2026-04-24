@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from typing import Any
-from unittest.mock import create_autospec
+from unittest.mock import call, create_autospec
 
 import pytest
 from gitlab.v4.objects import (
@@ -11,6 +11,8 @@ from gitlab.v4.objects import (
 from pytest_mock import MockerFixture
 
 from reconcile.change_owners.change_log_tracking import (
+    BUNDLE_DIFFS_OBJ,
+    MINIMIZED_BUNDLE_DIFFS_OBJ,
     ChangeLog,
     ChangeLogIntegration,
     ChangeLogIntegrationParams,
@@ -139,8 +141,7 @@ def test_change_log_tracking_with_deleted_app(
 
     integration.run(dry_run=False)
 
-    mocks["state"].add.assert_called_once_with(
-        "bundle-diffs.json",
-        expected_change_log.model_dump(),
-        force=True,
-    )
+    mocks["state"].add.assert_has_calls([
+        call(BUNDLE_DIFFS_OBJ, expected_change_log.model_dump(), force=True),
+        call(MINIMIZED_BUNDLE_DIFFS_OBJ, expected_change_log.model_dump(), force=True),
+    ])

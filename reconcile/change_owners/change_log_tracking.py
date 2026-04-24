@@ -1,3 +1,4 @@
+import json
 import logging
 from collections import defaultdict
 from collections.abc import Callable
@@ -34,6 +35,8 @@ from reconcile.utils.state import init_state
 
 QONTRACT_INTEGRATION = "change-log-tracking"
 BUNDLE_DIFFS_OBJ = "bundle-diffs.json"
+MINIMIZED_BUNDLE_DIFFS_OBJ = "minimized-bundle-diffs.json"
+MINIMIZED_BUNDLE_DIFFS_SIZE_LIMIT_BYTES = 990 * 1024
 DEFAULT_MERGE_COMMIT_PREFIX = "Merge branch '"
 
 
@@ -241,3 +244,17 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
         )
         if not dry_run:
             integration_state.add(BUNDLE_DIFFS_OBJ, change_log.model_dump(), force=True)
+            minimized_items = list(change_log.items)
+            while (
+                minimized_items
+                and len(
+                    json.dumps(ChangeLog(items=minimized_items).model_dump()).encode()
+                )
+                >= MINIMIZED_BUNDLE_DIFFS_SIZE_LIMIT_BYTES
+            ):
+                minimized_items.pop()
+            integration_state.add(
+                MINIMIZED_BUNDLE_DIFFS_OBJ,
+                ChangeLog(items=minimized_items).model_dump(),
+                force=True,
+            )
