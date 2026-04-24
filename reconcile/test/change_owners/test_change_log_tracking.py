@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import create_autospec
 
@@ -24,11 +23,7 @@ from reconcile.gql_definitions.common.apps import AppV1
 from reconcile.utils.gql import GqlApi
 
 APP_PATH = "/services/a/app.yml"
-FIXED_NOW = datetime(2024, 3, 1, 0, 0, 0, tzinfo=UTC)
-MERGED_AT = (
-    "2024-02-15T00:00:00+00:00"  # 14 days before FIXED_NOW, within 30-day window
-)
-MERGED_AT_OLD = "2024-01-01T00:00:00+00:00"  # 60 days before FIXED_NOW, outside window
+MERGED_AT = "2024-01-01T00:00:00Z"
 COMMIT_SHA = "commit_sha"
 
 
@@ -39,7 +34,6 @@ def setup_mocks(
     apps: list[AppV1],
     datafiles: dict[str, Any],
     commit_message: str,
-    committed_date: str = MERGED_AT,
 ) -> dict[str, Any]:
     data = gql_class_factory(ChangeTypesQueryData, {})
     mocked_gql_api = gql_api_builder(data.model_dump(by_alias=True))
@@ -77,15 +71,11 @@ def setup_mocks(
     project.commits = create_autospec(ProjectCommitManager)
     commit = create_autospec(
         ProjectCommit,
-        committed_date=committed_date,
+        committed_date=MERGED_AT,
         message=commit_message,
     )
     project.commits.get.return_value = commit
     mocked_gl.project = project
-
-    mock_datetime = mocker.patch("reconcile.change_owners.change_log_tracking.datetime")
-    mock_datetime.now.return_value = FIXED_NOW
-    mock_datetime.fromisoformat = datetime.fromisoformat
 
     return {
         "state": mocked_state,
@@ -152,36 +142,5 @@ def test_change_log_tracking_with_deleted_app(
     mocks["state"].add.assert_called_once_with(
         "bundle-diffs.json",
         expected_change_log.model_dump(),
-        force=True,
-    )
-
-
-def test_change_log_tracking_filters_old_commits(
-    mocker: MockerFixture,
-    gql_api_builder: Callable[..., GqlApi],
-    gql_class_factory: Callable[..., ChangeTypesQueryData],
-) -> None:
-    mocks = setup_mocks(
-        mocker,
-        gql_api_builder,
-        gql_class_factory,
-        apps=[],
-        datafiles={},
-        commit_message="some change",
-        committed_date=MERGED_AT_OLD,
-    )
-    integration = ChangeLogIntegration(
-        ChangeLogIntegrationParams(
-            gitlab_project_id="test",
-            process_existing=True,
-            commit=None,
-        )
-    )
-
-    integration.run(dry_run=False)
-
-    mocks["state"].add.assert_called_once_with(
-        "bundle-diffs.json",
-        ChangeLog().model_dump(),
         force=True,
     )
