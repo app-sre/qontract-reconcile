@@ -252,7 +252,9 @@ class ChangeLogIntegration(QontractReconcileIntegration[ChangeLogIntegrationPara
                 )
                 >= MINIMIZED_BUNDLE_DIFFS_SIZE_LIMIT_BYTES
             ):
-                minimized_items.pop()
+                # drop 5 at a time to reduce re-serializations; losing a few
+                # extra entries out of ~3500 is negligible
+                del minimized_items[-5:]
             integration_state.add(
                 MINIMIZED_BUNDLE_DIFFS_OBJ,
                 ChangeLog(items=minimized_items).model_dump(),
