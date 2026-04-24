@@ -498,7 +498,6 @@ def rebase_merge_requests(
     for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
         if is_rebased(mr, gl):
-            # pipelines = gl.get_merge_request_pipelines(mr)
             if pipelines and pipelines[0].status in {
                 PipelineStatus.RUNNING,
                 PipelineStatus.PENDING,
@@ -506,8 +505,6 @@ def rebase_merge_requests(
             }:
                 already_active += 1
             continue
-
-        # pipelines = gl.get_merge_request_pipelines(mr)
 
         # If pipeline_timeout is None no pipeline will be canceled.
         if pipeline_timeout is not None:
