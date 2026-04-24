@@ -11,9 +11,9 @@ from unittest.mock import (
     patch,
 )
 
-import gitlab
 import pytest
 from gitlab import Gitlab
+from gitlab.exceptions import GitlabMRRebaseError
 from gitlab.v4.objects import (
     Project,
     ProjectCommit,
@@ -496,165 +496,196 @@ def test_verify_ondemend_tests_pass(
 # --- rebase_merge_requests per-repo concurrency cap tests ---
 
 
-def _make_pipeline(status: str) -> Mock:
-    return create_autospec(ProjectMergeRequestPipeline, status=status)
-
-
-def _make_mr(
-    iid: int,
-    *,
-    is_rebased: bool = False,
-    pipeline_status: str | None = None,
-) -> Mock:
-    """Create a mock MR.
-
-    is_rebased: whether is_rebased() should return True for this MR.
-    pipeline_status: if set, get_merge_request_pipelines returns a pipeline
-        with this status; otherwise returns [].
-    """
-    mr = create_autospec(ProjectMergeRequest)
-    mr.iid = iid
-    mr.target_project_id = 10
-    mr.source_project_id = 10
-    mr._test_is_rebased = is_rebased
-    mr._test_pipelines = [_make_pipeline(pipeline_status)] if pipeline_status else []
-    return mr
-
-
 def _call_rebase(
     mocker: MockerFixture,
+    gitlab_api: Mock,
+    state: Mock,
     merge_requests: list[Mock],
     rebase_limit: int,
     *,
+    rebased_iids: set[int] | None = None,
+    pipelines: dict[int, list] | None = None,
     dry_run: bool = False,
     pipeline_timeout: int | None = None,
     wait_for_pipeline: bool = False,
 ) -> None:
-    """Invoke rebase_merge_requests with mocked internals."""
-    mocked_gl = create_autospec(GitLabApi)
-    mocked_project = create_autospec(Project)
-    mocked_project.name = "test-project"
-    mocked_gl.project = mocked_project
-    mocked_gl.get_merge_request_pipelines.side_effect = lambda mr: mr._test_pipelines
-    mocked_state = create_autospec(State)
+    """Invoke rebase_merge_requests with standard patches.
 
+    rebased_iids: iids for which is_rebased() returns True.
+    pipelines: mapping of iid -> pipeline list for get_merge_request_pipelines().
+    """
+    rebased_set = rebased_iids or set()
+    pipelines_map = pipelines or {}
+
+    gitlab_api.get_merge_request_pipelines.side_effect = lambda mr: pipelines_map.get(
+        mr.iid, []
+    )
     mocker.patch(
         "reconcile.gitlab_housekeeping.get_merge_requests",
         return_value=[{"mr": mr} for mr in merge_requests],
     )
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
-        side_effect=lambda mr, gl: mr._test_is_rebased,
+        side_effect=lambda mr, gl: mr.iid in rebased_set,
     )
 
     gl_h.rebase_merge_requests(
         dry_run=dry_run,
-        gl=mocked_gl,
+        gl=gitlab_api,
         rebase_limit=rebase_limit,
-        state=mocked_state,
+        state=state,
         pipeline_timeout=pipeline_timeout,
         wait_for_pipeline=wait_for_pipeline,
     )
 
 
-def test_rebase_no_active_pipelines_full_budget(mocker: MockerFixture) -> None:
+def _make_rebase_mr(iid: int, project_id: int = 10) -> Mock:
+    """Create a minimal autospec MR for rebase tests."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.iid = iid
+    mr.target_project_id = project_id
+    mr.source_project_id = project_id
+    return mr
+
+
+def test_rebase_no_active_pipelines_full_budget(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """0 MRs have active pipelines, limit=2, 3 need rebase: exactly 2 rebased."""
-    mrs = [_make_mr(1), _make_mr(2), _make_mr(3)]
+    merge_requests = [_make_rebase_mr(i) for i in range(1, 4)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=2)
 
-    assert mrs[0].rebase.call_count == 1
-    assert mrs[1].rebase.call_count == 1
-    assert mrs[2].rebase.call_count == 0
+    assert merge_requests[0].rebase.call_count == 1
+    assert merge_requests[1].rebase.call_count == 1
+    assert merge_requests[2].rebase.call_count == 0
 
 
-def test_rebase_active_pipelines_reduce_budget(mocker: MockerFixture) -> None:
+def test_rebase_active_pipelines_reduce_budget(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """1 MR rebased with running pipeline, limit=2: only 1 additional rebase."""
-    mr_active = _make_mr(1, is_rebased=True, pipeline_status="running")
-    mr_needs_a = _make_mr(2)
-    mr_needs_b = _make_mr(3)
-    mrs = [mr_active, mr_needs_a, mr_needs_b]
+    running_pipeline = create_autospec(ProjectMergeRequestPipeline, status="running")
+    merge_requests = [_make_rebase_mr(1), _make_rebase_mr(2), _make_rebase_mr(3)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        rebased_iids={1},
+        pipelines={1: [running_pipeline]},
+    )
 
-    assert mr_active.rebase.call_count == 0
-    assert mr_needs_a.rebase.call_count == 1
-    assert mr_needs_b.rebase.call_count == 0
+    assert merge_requests[0].rebase.call_count == 0
+    assert merge_requests[1].rebase.call_count == 1
+    assert merge_requests[2].rebase.call_count == 0
 
 
-def test_rebase_budget_exhausted(mocker: MockerFixture) -> None:
+def test_rebase_budget_exhausted(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """2 MRs with running pipelines, limit=2: 0 rebases."""
-    mr_a = _make_mr(1, is_rebased=True, pipeline_status="running")
-    mr_b = _make_mr(2, is_rebased=True, pipeline_status="pending")
-    mr_c = _make_mr(3)
-    mrs = [mr_a, mr_b, mr_c]
+    running_pipeline = create_autospec(ProjectMergeRequestPipeline, status="running")
+    pending_pipeline = create_autospec(ProjectMergeRequestPipeline, status="pending")
+    merge_requests = [_make_rebase_mr(1), _make_rebase_mr(2), _make_rebase_mr(3)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        rebased_iids={1, 2},
+        pipelines={1: [running_pipeline], 2: [pending_pipeline]},
+    )
 
-    assert mr_c.rebase.call_count == 0
+    assert merge_requests[2].rebase.call_count == 0
 
 
-def test_rebase_all_already_rebased(mocker: MockerFixture) -> None:
+def test_rebase_all_already_rebased(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """All MRs pass is_rebased(): 0 rebases needed."""
-    mrs = [
-        _make_mr(1, is_rebased=True, pipeline_status="success"),
-        _make_mr(2, is_rebased=True, pipeline_status="success"),
-    ]
+    success_pipeline = create_autospec(ProjectMergeRequestPipeline, status="success")
+    merge_requests = [_make_rebase_mr(1), _make_rebase_mr(2)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        rebased_iids={1, 2},
+        pipelines={1: [success_pipeline], 2: [success_pipeline]},
+    )
 
-    for mr in mrs:
+    for mr in merge_requests:
         assert mr.rebase.call_count == 0
 
 
-def test_rebase_dry_run_no_rebases(mocker: MockerFixture) -> None:
+def test_rebase_dry_run_no_rebases(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """In dry run, no actual rebases happen."""
-    mrs = [_make_mr(1), _make_mr(2)]
+    merge_requests = [_make_rebase_mr(i) for i in range(1, 3)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2, dry_run=True)
+    _call_rebase(
+        mocker, gitlab_api, state, merge_requests, rebase_limit=2, dry_run=True
+    )
 
-    for mr in mrs:
+    for mr in merge_requests:
         assert mr.rebase.call_count == 0
 
 
-def test_rebase_mixed_states(mocker: MockerFixture) -> None:
+def test_rebase_mixed_states(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """Mix of rebased-with-success, rebased-with-running, and not-rebased MRs.
 
-    MR1: rebased, pipeline success (not active) -> doesn't consume budget
-    MR2: rebased, pipeline running (active) -> consumes 1 from budget
+    MR1: rebased, pipeline success -> consumes 1 from budget
+    MR2: rebased, pipeline running -> consumes 1 from budget
     MR3: not rebased -> rebase candidate
     MR4: not rebased -> rebase candidate
-    With limit=2, remaining_budget = 2 - 1 = 1, so only MR3 gets rebased.
+    With limit=2, remaining_budget = 2 - 2 = 0, so no MRs get rebased.
     """
-    mrs = [
-        _make_mr(1, is_rebased=True, pipeline_status="success"),
-        _make_mr(2, is_rebased=True, pipeline_status="running"),
-        _make_mr(3),
-        _make_mr(4),
-    ]
+    success_pipeline = create_autospec(ProjectMergeRequestPipeline, status="success")
+    running_pipeline = create_autospec(ProjectMergeRequestPipeline, status="running")
+    merge_requests = [_make_rebase_mr(i) for i in range(1, 5)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        rebased_iids={1, 2},
+        pipelines={1: [success_pipeline], 2: [running_pipeline]},
+    )
 
-    assert mrs[0].rebase.call_count == 0
-    assert mrs[1].rebase.call_count == 0
-    assert mrs[2].rebase.call_count == 1
-    assert mrs[3].rebase.call_count == 0
+    assert merge_requests[0].rebase.call_count == 0
+    assert merge_requests[1].rebase.call_count == 0
+    assert merge_requests[2].rebase.call_count == 0
+    assert merge_requests[3].rebase.call_count == 0
 
 
-def test_rebase_backward_compatible_zero_active(mocker: MockerFixture) -> None:
+def test_rebase_backward_compatible_zero_active(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """With 0 active pipelines, behaves identically to old per-run counter:
     rebase up to N MRs."""
-    mrs = [_make_mr(i) for i in range(1, 6)]
+    merge_requests = [_make_rebase_mr(i) for i in range(1, 6)]
 
-    _call_rebase(mocker, mrs, rebase_limit=3)
+    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=3)
 
-    rebased_count = sum(mr.rebase.call_count for mr in mrs)
+    rebased_count = sum(mr.rebase.call_count for mr in merge_requests)
     assert rebased_count == 3
-    assert mrs[0].rebase.call_count == 1
-    assert mrs[1].rebase.call_count == 1
-    assert mrs[2].rebase.call_count == 1
-    assert mrs[3].rebase.call_count == 0
-    assert mrs[4].rebase.call_count == 0
+    assert merge_requests[0].rebase.call_count == 1
+    assert merge_requests[1].rebase.call_count == 1
+    assert merge_requests[2].rebase.call_count == 1
+    assert merge_requests[3].rebase.call_count == 0
+    assert merge_requests[4].rebase.call_count == 0
 
 
 @pytest.mark.parametrize(
@@ -662,61 +693,134 @@ def test_rebase_backward_compatible_zero_active(mocker: MockerFixture) -> None:
     [(1, 1), (3, 3), (5, 5), (10, 7)],
 )
 def test_rebase_differing_limits(
-    mocker: MockerFixture, limit: int, expected_rebased: int
+    mocker: MockerFixture,
+    gitlab_api: Mock,
+    state: Mock,
+    limit: int,
+    expected_rebased: int,
 ) -> None:
     """Verify different limit values produce different rebase counts."""
-    mrs = [_make_mr(i) for i in range(1, 8)]
+    merge_requests = [_make_rebase_mr(i) for i in range(1, 8)]
 
-    _call_rebase(mocker, mrs, rebase_limit=limit)
+    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=limit)
 
-    rebased_count = sum(mr.rebase.call_count for mr in mrs)
+    rebased_count = sum(mr.rebase.call_count for mr in merge_requests)
     assert rebased_count == expected_rebased, (
         f"limit={limit}: expected {expected_rebased} rebases, got {rebased_count}"
     )
 
 
-def test_rebase_failure_does_not_consume_budget(mocker: MockerFixture) -> None:
+def test_rebase_failure_does_not_consume_budget(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """A failed rebase doesn't consume a budget slot; subsequent MRs still get tried."""
-    mr_fail = _make_mr(1)
-    mr_fail.rebase.side_effect = gitlab.exceptions.GitlabMRRebaseError
-    mr_ok_a = _make_mr(2)
-    mr_ok_b = _make_mr(3)
-    mrs = [mr_fail, mr_ok_a, mr_ok_b]
+    merge_requests = [_make_rebase_mr(1), _make_rebase_mr(2), _make_rebase_mr(3)]
+    merge_requests[0].rebase.side_effect = GitlabMRRebaseError
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=2)
 
-    assert mr_fail.rebase.call_count == 1
-    assert mr_ok_a.rebase.call_count == 1
-    assert mr_ok_b.rebase.call_count == 1
+    assert merge_requests[0].rebase.call_count == 1
+    assert merge_requests[1].rebase.call_count == 1
+    assert merge_requests[2].rebase.call_count == 1
 
 
-def test_rebase_over_committed_clamps_to_zero(mocker: MockerFixture) -> None:
+def test_rebase_over_committed_clamps_to_zero(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
     """When already_active > limit, remaining_budget clamps to 0."""
-    mrs = [
-        _make_mr(1, is_rebased=True, pipeline_status="running"),
-        _make_mr(2, is_rebased=True, pipeline_status="running"),
-        _make_mr(3, is_rebased=True, pipeline_status="pending"),
-        _make_mr(4),
-        _make_mr(5),
-    ]
+    running_pipeline = create_autospec(ProjectMergeRequestPipeline, status="running")
+    pending_pipeline = create_autospec(ProjectMergeRequestPipeline, status="pending")
+    merge_requests = [_make_rebase_mr(i) for i in range(1, 6)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        rebased_iids={1, 2, 3},
+        pipelines={1: [running_pipeline], 2: [running_pipeline], 3: [pending_pipeline]},
+    )
 
-    assert mrs[3].rebase.call_count == 0
-    assert mrs[4].rebase.call_count == 0
+    assert merge_requests[3].rebase.call_count == 0
+    assert merge_requests[4].rebase.call_count == 0
 
 
 def test_rebase_mr_without_pipelines_not_counted_active(
-    mocker: MockerFixture,
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
 ) -> None:
     """A rebased MR with no pipelines doesn't count toward already_active."""
-    mr_rebased_no_pipeline = _make_mr(1, is_rebased=True)
-    mr_needs_a = _make_mr(2)
-    mr_needs_b = _make_mr(3)
-    mrs = [mr_rebased_no_pipeline, mr_needs_a, mr_needs_b]
+    merge_requests = [_make_rebase_mr(1), _make_rebase_mr(2), _make_rebase_mr(3)]
 
-    _call_rebase(mocker, mrs, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        rebased_iids={1},
+    )
 
-    assert mr_rebased_no_pipeline.rebase.call_count == 0
-    assert mr_needs_a.rebase.call_count == 1
-    assert mr_needs_b.rebase.call_count == 1
+    assert merge_requests[0].rebase.call_count == 0
+    assert merge_requests[1].rebase.call_count == 1
+    assert merge_requests[2].rebase.call_count == 1
+
+
+def test_rebase_limit_independent_per_repo(mocker: MockerFixture, state: Mock) -> None:
+    """rebase_limit applies independently per repo.
+
+    Simulate 3 repos with varying states, each processed via a separate
+    rebase_merge_requests call (mirroring how run() iterates repos).
+    With limit=2 each repo should get its own budget of 2.
+
+    Repo A (project_id=10): 1 active pipeline + 3 need rebase -> 1 rebased
+    Repo B (project_id=20): 0 active pipelines + 4 need rebase -> 2 rebased
+    Repo C (project_id=30): 2 active pipelines + 2 need rebase -> 0 rebased
+    """
+    running_pipeline = create_autospec(ProjectMergeRequestPipeline, status="running")
+    pending_pipeline = create_autospec(ProjectMergeRequestPipeline, status="pending")
+
+    repo_a_merge_requests = [_make_rebase_mr(i, project_id=10) for i in range(1, 5)]
+    repo_b_merge_requests = [_make_rebase_mr(i, project_id=20) for i in range(5, 9)]
+    repo_c_merge_requests = [_make_rebase_mr(i, project_id=30) for i in range(9, 13)]
+
+    repo_configs: list[tuple[list[Mock], set[int], dict[int, list]]] = [
+        (repo_a_merge_requests, {1}, {1: [running_pipeline]}),
+        (repo_b_merge_requests, set(), {}),
+        (
+            repo_c_merge_requests,
+            {9, 10},
+            {9: [running_pipeline], 10: [pending_pipeline]},
+        ),
+    ]
+    for merge_requests, rebased_iids, pipelines in repo_configs:
+        mocked_gl = create_autospec(GitLabApi)
+        mocked_gl.project = create_autospec(Project)
+        mocked_gl.project.name = "test-project"
+        _call_rebase(
+            mocker,
+            mocked_gl,
+            state,
+            merge_requests,
+            rebase_limit=2,
+            rebased_iids=rebased_iids,
+            pipelines=pipelines,
+        )
+
+    # Repo A: 1 active eats 1 slot -> 1 rebase
+    assert repo_a_merge_requests[0].rebase.call_count == 0  # already rebased
+    assert repo_a_merge_requests[1].rebase.call_count == 1
+    assert repo_a_merge_requests[2].rebase.call_count == 0
+    assert repo_a_merge_requests[3].rebase.call_count == 0
+
+    # Repo B: 0 active -> full budget of 2
+    assert repo_b_merge_requests[0].rebase.call_count == 1
+    assert repo_b_merge_requests[1].rebase.call_count == 1
+    assert repo_b_merge_requests[2].rebase.call_count == 0
+    assert repo_b_merge_requests[3].rebase.call_count == 0
+
+    # Repo C: 2 active exhaust budget -> 0 rebases
+    assert repo_c_merge_requests[0].rebase.call_count == 0
+    assert repo_c_merge_requests[1].rebase.call_count == 0
+    assert repo_c_merge_requests[2].rebase.call_count == 0
+    assert repo_c_merge_requests[3].rebase.call_count == 0
