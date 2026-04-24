@@ -601,6 +601,8 @@ def test_rebase_budget_exhausted(
         pipelines={1: [running_pipeline], 2: [pending_pipeline]},
     )
 
+    assert merge_requests[0].rebase.call_count == 0
+    assert merge_requests[1].rebase.call_count == 0
     assert merge_requests[2].rebase.call_count == 0
 
 
