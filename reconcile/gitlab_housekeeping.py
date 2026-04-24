@@ -496,17 +496,20 @@ def rebase_merge_requests(
     already_active = 0
     needs_rebase: list[ProjectMergeRequest] = []
     for mr in merge_requests:
+        pipelines = gl.get_merge_request_pipelines(mr)
         if is_rebased(mr, gl):
-            pipelines = gl.get_merge_request_pipelines(mr)
+            # pipelines = gl.get_merge_request_pipelines(mr)
             if pipelines and pipelines[0].status in {
                 PipelineStatus.RUNNING,
                 PipelineStatus.PENDING,
+                PipelineStatus.SUCCESS,
             }:
                 already_active += 1
             continue
 
-        pipelines = gl.get_merge_request_pipelines(mr)
+        # pipelines = gl.get_merge_request_pipelines(mr)
 
+        # If pipeline_timeout is None no pipeline will be canceled.
         if pipeline_timeout is not None:
             timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
             if timed_out_pipelines:
@@ -520,6 +523,8 @@ def rebase_merge_requests(
         if wait_for_pipeline:
             if not pipelines:
                 continue
+            # possible statuses:
+            # running, pending, success, failed, canceled, skipped
             running_pipelines = [
                 p for p in pipelines if p.status == PipelineStatus.RUNNING
             ]
@@ -545,7 +550,7 @@ def rebase_merge_requests(
                 "rebase",
                 gl.project.name,
                 mr.iid,
-                f"rebase limit reached ({already_active} active, limit {rebase_limit}). will try next time",
+                f"rebase limit reached ({already_active + rebases} active/in-flight, limit {rebase_limit}). will try next time",
             ])
 
 
