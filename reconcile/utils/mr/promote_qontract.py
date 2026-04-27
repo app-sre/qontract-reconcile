@@ -69,6 +69,7 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
 
 class PromoteQontractReconcileCommercial(MergeRequestBase):
     name = "promote_qontract_reconcile"
+    project_display_name = "qontract-reconcile"
 
     def __init__(
         self, version: str, commit_sha: str, github_user_id: str | None = None
@@ -86,7 +87,7 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
         author = self.infer_author(
             github_user_id=self.github_user_id, all_users=get_users()
         )
-        return f"[{self.name}] promote qontract-reconcile to version {self.version}" + (
+        return f"[{self.name}] promote {self.project_display_name} to version {self.version}" + (
             f" by @{author}"
             if author
             else f" by {self.github_user_id}"
@@ -97,7 +98,7 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
     @property
     def description(self) -> str:
         return f"""
-promote qontract-reconcile to version {self.version}.
+promote {self.project_display_name} to version {self.version}.
 
 At the time of creating this MR, the konflux RPA most likely didn't finish yet, so this MR will likely fail first.
 Please use `/retest` once the RPA finished (that should be the case after ~5min of creating this MR).
@@ -160,6 +161,35 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             case _:
                 raise NotImplementedError(method)
 
+        gitlab_cli.update_file(
+            branch_name=self.branch,
+            file_path=path,
+            commit_message=self.description,
+            content=new_content,
+        )
+
+    def _process_file_with_json_paths(
+        self,
+        gitlab_cli: GitLabApi,
+        path: str,
+        replacements: list[tuple[str, str]],
+    ) -> None:
+        raw_file = gitlab_cli.get_raw_file(
+            project=gitlab_cli.project,
+            path=path,
+            ref=gitlab_cli.main_branch,
+        )
+        yml = create_ruamel_instance()
+        content = yml.load(raw_file)
+        for search_text, replace_text in replacements:
+            for match in parser.parse(search_text).find(content):
+                parent = match.context.value
+                key = match.path.fields[0]
+                parent[key] = replace_text
+        new_content = "---\n"
+        with StringIO() as stream:
+            yml.dump(content, stream)
+            new_content += stream.getvalue() or ""
         gitlab_cli.update_file(
             branch_name=self.branch,
             file_path=path,
@@ -234,28 +264,7 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
 
 class PromoteQontractServer(PromoteQontractReconcileCommercial):
     name = "promote_qontract_server"
-
-    @property
-    def title(self) -> str:
-        author = self.infer_author(
-            github_user_id=self.github_user_id, all_users=get_users()
-        )
-        return f"[{self.name}] promote qontract-server to version {self.version}" + (
-            f" by @{author}"
-            if author
-            else f" by {self.github_user_id}"
-            if self.github_user_id
-            else ""
-        )
-
-    @property
-    def description(self) -> str:
-        return f"""
-promote qontract-server to version {self.version}.
-
-At the time of creating this MR, the konflux RPA most likely didn't finish yet, so this MR will likely fail first.
-Please use `/retest` once the RPA finished (that should be the case after ~5min of creating this MR).
-"""
+    project_display_name = "qontract-server"
 
     def process(self, gitlab_cli: GitLabApi) -> None:
         # .env
@@ -268,21 +277,20 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         )
 
         # data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml
-        self._process_by(
-            "json_path",
+        # Both the main template and dashboard share the same file — read/write once.
+        self._process_file_with_json_paths(
             gitlab_cli=gitlab_cli,
             path="data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml",
-            search_text="$.resourceTemplates[?(@.name == 'qontract-server')].targets[?(@.name == 'app-interface-production')].ref",
-            replace_text=self.commit_sha,
-        )
-
-        # data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml (dashboard)
-        self._process_by(
-            "json_path",
-            gitlab_cli=gitlab_cli,
-            path="data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml",
-            search_text="$.resourceTemplates[?(@.name == 'qontract-server dashboard')].targets[?(@.name == 'app-sre-observability-production')].ref",
-            replace_text=self.commit_sha,
+            replacements=[
+                (
+                    "$.resourceTemplates[?(@.name == 'qontract-server')].targets[?(@.name == 'app-interface-production')].ref",
+                    self.commit_sha,
+                ),
+                (
+                    "$.resourceTemplates[?(@.name == 'qontract-server dashboard')].targets[?(@.name == 'app-sre-observability-production')].ref",
+                    self.commit_sha,
+                ),
+            ],
         )
 
         # data/services/app-interface/cicd/ci-int/saas-qontract-server-int.yaml
