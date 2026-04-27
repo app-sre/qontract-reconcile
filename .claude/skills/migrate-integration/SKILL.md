@@ -7,10 +7,12 @@ description: Migrate a reconcile/ integration to the qontract-api architecture. 
 
 Guide the migration of an existing `reconcile/` integration to the qontract-api architecture. This skill analyzes the existing integration, creates a migration plan, and generates all required code in phases.
 
-Two successful migrations serve as reference implementations:
+Successful migrations serve as reference implementations:
 
-- `slack_usergroups` -> `slack_usergroups_api`
-- `glitchtip_project_alerts` -> `glitchtip_project_alerts_api`
+- `slack_usergroups` -> `slack_usergroups_api` (Pattern 1: full server-side)
+- `glitchtip_project_alerts` -> `glitchtip_project_alerts_api` (Pattern 1: full server-side)
+- `glitchtip` -> `glitchtip_api` (Pattern 1: full server-side)
+- `ldap_users` -> `ldap_users_api` (Pattern 2: client-orchestrated)
 
 ## Input
 
@@ -86,6 +88,51 @@ Stateful integrations typically need **two endpoints**:
 
 1. A stateful workflow endpoint (e.g., `/create`) for multi-step operations
 2. A stateless diff endpoint (e.g., `/reconcile`) for ongoing reconciliation of existing resources
+
+## Client-Orchestrated vs Full Server-Side
+
+Not every integration needs a server-side service (`qontract_api/integrations/<name>/`). The decision depends on what the reconciliation **actions** target:
+
+| Criterion            | Full Server-Side (Pattern 1)                                            | Client-Orchestrated (Pattern 2)                                     |
+| -------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Actions target**   | External API (Glitchtip, Slack, AWS)                                    | App-interface-specific (MR creation, YAML manipulation)             |
+| **Server-side**      | `qontract_api/integrations/<name>/` with service, router, tasks, Celery | Only external endpoints (e.g., `/external/ldap/`, `/external/vcs/`) |
+| **Business logic**   | Server (service.py)                                                     | Client (reconcile/<name>\_api/)                                     |
+| **Async processing** | Celery task with dedup                                                  | Client runs synchronously                                           |
+| **Examples**         | glitchtip, slack-usergroups                                             | ldap-users                                                          |
+
+**Rule of thumb:** If the reconciliation action is an external API call (create org, update usergroup), use Pattern 1. If the action is app-interface-specific (create MR with YAML changes), use Pattern 2. App-interface-specific logic must NOT live in qontract_api.
+
+### Identifying Client-Orchestrated Integrations
+
+Look for these patterns in the existing integration:
+
+- Actions are GitLab MR creation (file deletions, YAML modifications)
+- No external API to reconcile against — the "current state" is read-only (e.g., LDAP user check)
+- Business logic involves app-interface file structure knowledge (path types, YAML schemas)
+- The integration's "actions" are inherently tied to the app-interface repo structure
+
+### Implementing Client-Orchestrated Integrations
+
+Client-orchestrated integrations skip Phases 2 (server-side integration) entirely:
+
+- **Phase 1**: Create shared utilities in `qontract_utils/` (API clients, Layer 1)
+- **Phase 2**: SKIP — no `qontract_api/integrations/<name>/` needed
+- **Phase 3**: Add external endpoints if needed (e.g., LDAP user check, VCS file read)
+- **Phase 4**: Create client-side integration in `reconcile/<name>_api/` with ALL business logic
+
+The client uses `QontractReconcileApiIntegration` base class and `async_run()` just like Pattern 1, but calls external endpoints directly instead of a reconciliation endpoint:
+
+```python
+class MyIntegration(QontractReconcileApiIntegration[MyParams]):
+    async def async_run(self, dry_run: bool) -> None:
+        # 1. Fetch desired state from GraphQL
+        # 2. Enrich via external endpoints (e.g., LDAP check)
+        # 3. Diff locally
+        # 4. Create MRs via VCS external endpoints (if not dry_run)
+```
+
+Reference implementation: `reconcile/ldap_users_api/` — see [ldap-users documentation](../../docs/integrations/ldap-users.md).
 
 ## Phase 0: Discovery & Analysis
 
@@ -305,10 +352,12 @@ After creating server-side routers (integration + external), regenerate the API 
 ## Phase 4: Client-Side Integration (reconcile/)
 
 > **Prerequisite:** The API client must be regenerated before starting this phase. Run after Phase 2, and again after Phase 3 if external endpoints were added:
+>
 > ```bash
 > cd qontract_api && make generate-openapi-spec
 > cd qontract_api_client && make generate-client
 > ```
+>
 > This creates typed Python client functions matching all new endpoints.
 
 Following ADR-008 (QontractReconcileApiIntegration pattern).
@@ -448,6 +497,7 @@ git commit -m "<integration-name>-api: phase N - <short description>"
 ```
 
 Examples:
+
 - `aws-account-manager-api: phase 1 - shared utilities`
 - `aws-account-manager-api: phase 2 - server-side integration`
 - `aws-account-manager-api: phase 3 - external endpoints`
