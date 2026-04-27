@@ -491,26 +491,29 @@ def rebase_merge_requests(
     ]
 
     # Single pass: classify MRs as already-active or needs-rebase.
-    # An MR counts as active when it has a running/pending/success pipeline,
-    # regardless of rebase status.  rebase_limit is a per-repo concurrency
-    # cap -- "at most N MRs with active pipelines" -- not a per-run burst.
+    # rebase_limit is a per-repo concurrency cap -- "at most N MRs with
+    # active pipelines" -- not a per-run burst.
+    # Rebased MRs count as active with running/pending/success pipelines
+    # (success = green and waiting to merge, still occupying a slot).
+    # Non-rebased MRs only count as active with running/pending pipelines
     already_active = 0
     needs_rebase: list[ProjectMergeRequest] = []
     for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
-        active_pipeline = pipelines and pipelines[0].status in {
-            PipelineStatus.RUNNING,
-            PipelineStatus.PENDING,
-            PipelineStatus.SUCCESS,
-        }
-
-        if active_pipeline:
-            already_active += 1
-
         if is_rebased(mr, gl):
+            if pipelines and pipelines[0].status in {
+                PipelineStatus.RUNNING,
+                PipelineStatus.PENDING,
+                PipelineStatus.SUCCESS,
+            }:
+                already_active += 1
             continue
 
-        if active_pipeline:
+        if pipelines and pipelines[0].status in {
+            PipelineStatus.RUNNING,
+            PipelineStatus.PENDING,
+        }:
+            already_active += 1
             continue
 
         # If pipeline_timeout is None no pipeline will be canceled.

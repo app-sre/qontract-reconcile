@@ -826,3 +826,26 @@ def test_rebase_limit_independent_per_repo(mocker: MockerFixture, state: Mock) -
     assert repo_c_merge_requests[1].rebase.call_count == 0
     assert repo_c_merge_requests[2].rebase.call_count == 0
     assert repo_c_merge_requests[3].rebase.call_count == 0
+
+
+def test_rebase_stale_success_pipeline_does_not_block_rebase(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
+    """A non-rebased MR whose previous pipeline succeeded should be eligible
+    for rebase.  A stale SUCCESS pipeline is worthless — it ran against
+    outdated code and should not permanently block the MR or consume budget."""
+    success_pipeline = create_autospec(ProjectMergeRequestPipeline, status="success")
+    merge_requests = [_make_rebase_mr(1), _make_rebase_mr(2)]
+
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        rebased_iids=set(),
+        pipelines={1: [success_pipeline]},
+    )
+
+    assert merge_requests[0].rebase.call_count == 1
+    assert merge_requests[1].rebase.call_count == 1
