@@ -4,6 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from qontract_utils.vcs.models import RepoOwners
+from qontract_utils.vcs.provider_protocol import (
+    CreateMergeRequestInput,
+    FileAction,
+    MergeRequestFile,
+)
 
 from qontract_api.cache.base import CacheBackend
 from qontract_api.config import Settings, VCSSettings
@@ -288,3 +293,85 @@ def test_gitlab_get_owners(
         "vcs:owners:https://gitlab.com/test-group/test-repo:/:main",
         RepoOwners,
     )
+
+
+def test_find_merge_request_delegates_to_api_client(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test find_merge_request delegates to the underlying API client."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+    api_client.find_merge_request.return_value = "https://gitlab.com/mr/42"
+
+    result = github_client.find_merge_request("[ldap-users] delete user alice")
+
+    assert result == "https://gitlab.com/mr/42"
+    api_client.find_merge_request.assert_called_once_with(
+        "[ldap-users] delete user alice"
+    )
+
+
+def test_find_merge_request_returns_none(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test find_merge_request returns None when no MR found."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+    api_client.find_merge_request.return_value = None
+
+    result = github_client.find_merge_request("nonexistent title")
+
+    assert result is None
+
+
+def test_create_merge_request_delegates_to_api_client(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test create_merge_request delegates to the underlying API client."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+    api_client.create_merge_request.return_value = "https://gitlab.com/mr/99"
+
+    mr_input = CreateMergeRequestInput(
+        title="Delete user",
+        description="Cleanup",
+        file_operations=[
+            MergeRequestFile(
+                path="data/users/foo.yml",
+                action=FileAction.DELETE,
+                commit_message="delete foo",
+            ),
+        ],
+    )
+
+    result = github_client.create_merge_request(mr_input)
+
+    assert result == "https://gitlab.com/mr/99"
+    api_client.create_merge_request.assert_called_once_with(mr_input)
+
+
+def test_get_file_delegates_to_api_client(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test get_file delegates to the underlying API client."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+    api_client.get_file.return_value = "file content"
+
+    result = github_client.get_file(path="data/users/alice.yml", ref="master")
+
+    assert result == "file content"
+    api_client.get_file.assert_called_once_with("data/users/alice.yml", ref="master")
+
+
+def test_get_file_returns_none_when_not_found(
+    github_client: VCSWorkspaceClient,
+    mock_provider_factory: MagicMock,
+) -> None:
+    """Test get_file returns None when file not found."""
+    api_client = mock_provider_factory.create_api_client.return_value[0]
+    api_client.get_file.return_value = None
+
+    result = github_client.get_file(path="nonexistent.yml", ref="master")
+
+    assert result is None

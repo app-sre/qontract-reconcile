@@ -11,6 +11,7 @@ from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 
 logger = structlog.get_logger(__name__)
 
@@ -148,3 +149,25 @@ class GitHubRepoApi:
         except Exception:  # noqa: BLE001
             # File not found or other error - PyGithub can raise various exceptions
             return None
+
+    def create_merge_request(self, mr_input: CreateMergeRequestInput) -> str:
+        """Create a pull request - not yet implemented for GitHub.
+
+        Args:
+            mr_input: Merge request details including file operations
+
+        Raises:
+            NotImplementedError: GitHub PR creation is not yet supported
+        """
+        raise NotImplementedError("GitHub PR creation not yet implemented")
+
+    def find_merge_request(self, title: str) -> str | None:
+        """Find an open pull request - not yet implemented for GitHub.
+
+        Args:
+            title: PR title to search for
+
+        Raises:
+            NotImplementedError: GitHub PR search is not yet supported
+        """
+        raise NotImplementedError("GitHub PR search not yet implemented")

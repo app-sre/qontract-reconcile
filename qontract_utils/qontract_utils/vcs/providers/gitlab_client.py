@@ -3,14 +3,20 @@
 import contextvars
 import time
 from dataclasses import dataclass
+from uuid import uuid4
 
 import gitlab
 import structlog
 from gitlab.v4.objects import Project
 from prometheus_client import Counter, Histogram
 
-from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+from qontract_utils.hooks import NO_RETRY_CONFIG, Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
+from qontract_utils.vcs.provider_protocol import (
+    AUTO_MERGE_LABEL,
+    CreateMergeRequestInput,
+    FileAction,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -144,3 +150,96 @@ class GitLabRepoApi:
         except Exception:  # noqa: BLE001
             # File not found or other error - python-gitlab can raise various exceptions
             return None
+
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(
+            method="find_merge_request", repo_url=self.repo_url
+        ),
+        retry_config=NO_RETRY_CONFIG,
+    )
+    def find_merge_request(self, title: str) -> str | None:
+        """Find an open merge request by title.
+
+        Args:
+            title: MR title to search for (exact match)
+
+        Returns:
+            URL of the open merge request, or None if not found
+        """
+        mrs = self._project.mergerequests.list(
+            search=title, state="opened", per_page=20
+        )
+        for mr in mrs:
+            if mr.title == title:
+                return mr.web_url
+        return None
+
+    @invoke_with_hooks(
+        lambda self: GitLabApiCallContext(
+            method="create_merge_request", repo_url=self.repo_url
+        ),
+        retry_config=NO_RETRY_CONFIG,
+    )
+    def create_merge_request(self, mr_input: CreateMergeRequestInput) -> str:
+        """Create a merge request with file changes.
+
+        Generates a unique branch name automatically. Callers should check
+        for existing MRs via ``find_merge_request(title=...)`` before calling
+        this method to avoid duplicate MR creation.
+
+        Args:
+            mr_input: Merge request details including file operations
+
+        Returns:
+            URL of the created merge request
+        """
+        branch = f"qontract-api-{uuid4().hex[:8]}"
+
+        # Create branch from target
+        self._project.branches.create({
+            "branch": branch,
+            "ref": mr_input.target_branch,
+        })
+
+        # Apply file operations
+        for file_op in mr_input.file_operations:
+            match file_op.action:
+                case FileAction.CREATE:
+                    self._project.files.create({
+                        "file_path": file_op.path,
+                        "branch": branch,
+                        "content": file_op.content,
+                        "commit_message": file_op.commit_message,
+                    })
+                case FileAction.UPDATE:
+                    file = self._project.files.get(file_path=file_op.path, ref=branch)
+                    assert file_op.content is not None, (
+                        "Content must be provided for update action"
+                    )
+                    file.content = file_op.content
+                    file.save(
+                        branch=branch,
+                        commit_message=file_op.commit_message,
+                    )
+                case FileAction.DELETE:
+                    file = self._project.files.get(file_path=file_op.path, ref=branch)
+                    file.delete(
+                        branch=branch,
+                        commit_message=file_op.commit_message,
+                    )
+
+        # Build labels, adding auto-merge label if requested
+        labels = list(mr_input.labels)
+        if mr_input.auto_merge:
+            labels.append(AUTO_MERGE_LABEL)
+
+        # Create merge request
+        mr = self._project.mergerequests.create({
+            "source_branch": branch,
+            "target_branch": mr_input.target_branch,
+            "title": mr_input.title,
+            "description": mr_input.description,
+            "labels": labels,
+        })
+
+        return mr.web_url

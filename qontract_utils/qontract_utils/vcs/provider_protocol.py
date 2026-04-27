@@ -4,10 +4,45 @@ Defines interfaces for VCS API clients and providers to enable
 extensible provider registry pattern.
 """
 
+from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any, Protocol
 
 from qontract_utils.hooks import Hooks
 from qontract_utils.vcs.models import Provider
+
+AUTO_MERGE_LABEL = "bot/automerge"
+"""Label used to trigger automatic merging of merge requests."""
+
+
+class FileAction(StrEnum):
+    """Explicit action for a file operation in a merge request."""
+
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+
+
+@dataclass(frozen=True)
+class MergeRequestFile:
+    """A file operation for a merge request."""
+
+    path: str
+    action: FileAction
+    content: str | None = None
+    commit_message: str = ""
+
+
+@dataclass(frozen=True)
+class CreateMergeRequestInput:
+    """Input for creating a merge request."""
+
+    title: str
+    description: str
+    target_branch: str = "master"
+    file_operations: list[MergeRequestFile] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
+    auto_merge: bool = False
 
 
 class VCSApiProtocol(Protocol):
@@ -29,6 +64,28 @@ class VCSApiProtocol(Protocol):
 
         Returns:
             File content as string, or None if file not found
+        """
+        ...
+
+    def create_merge_request(self, mr_input: CreateMergeRequestInput) -> str:
+        """Create a merge request with file changes.
+
+        Args:
+            mr_input: Merge request details including file operations
+
+        Returns:
+            URL of the created merge request
+        """
+        ...
+
+    def find_merge_request(self, title: str) -> str | None:
+        """Find an open merge request by title.
+
+        Args:
+            title: MR title to search for
+
+        Returns:
+            URL of the open merge request, or None if not found
         """
         ...
 

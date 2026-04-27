@@ -5,12 +5,31 @@ Provides cached access to repository OWNERS files from GitHub/GitLab.
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import Field
+from qontract_utils.events import Event
+from qontract_utils.vcs.provider_protocol import (
+    CreateMergeRequestInput,
+    FileAction,
+    MergeRequestFile,
+)
 
 from qontract_api.config import settings
-from qontract_api.dependencies import CacheDep, SecretManagerDep
-from qontract_api.external.vcs.schemas import RepoOwnersResponse, VCSProvider
+from qontract_api.dependencies import (
+    CacheDep,
+    EventManagerDep,
+    SecretManagerDep,
+    UserDep,
+)
+from qontract_api.external.vcs.schemas import (
+    CreateMergeRequestRequest,
+    CreateMergeRequestResponse,
+    FindMergeRequestParams,
+    GetFileParams,
+    GetFileResponse,
+    RepoOwnersResponse,
+    VCSProvider,
+)
 from qontract_api.external.vcs.vcs_factory import create_vcs_workspace_client
 from qontract_api.logger import get_logger
 from qontract_api.models import Secret
@@ -44,6 +63,7 @@ class VCSQueryParams(Secret):
 def get_repo_owners(
     cache: CacheDep,
     secret_manager: SecretManagerDep,
+    _user: UserDep,
     params: Annotated[
         VCSQueryParams,
         Query(description="VCS repository query parameters"),
@@ -108,3 +128,178 @@ def get_repo_owners(
         approvers=owners.approvers,
         reviewers=owners.reviewers,
     )
+
+
+@router.get(
+    "/merge-requests",
+    operation_id="vcs-find-merge-request",
+)
+def find_merge_request(
+    cache: CacheDep,
+    secret_manager: SecretManagerDep,
+    _user: UserDep,
+    params: Annotated[
+        FindMergeRequestParams,
+        Query(description="Find merge request query parameters"),
+    ],
+) -> CreateMergeRequestResponse:
+    """Find an open merge request by title.
+
+    Args:
+        params: Query parameters with repo_url, title, and token
+
+    Returns:
+        CreateMergeRequestResponse with the MR URL
+
+    Raises:
+        HTTPException: 404 if no open MR found with the given title
+    """
+    client = create_vcs_workspace_client(
+        repo_url=params.repo_url,
+        token=secret_manager.read(params),
+        cache=cache,
+        settings=settings,
+    )
+
+    if mr_url := client.find_merge_request(params.title):
+        return CreateMergeRequestResponse(url=mr_url)
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"No open merge request found with title: {params.title}",
+    )
+
+
+@router.post(
+    "/merge-requests",
+    operation_id="vcs-create-merge-request",
+    status_code=201,
+)
+def create_merge_request(
+    cache: CacheDep,
+    secret_manager: SecretManagerDep,
+    event_manager: EventManagerDep,
+    _user: UserDep,
+    request: CreateMergeRequestRequest,
+) -> CreateMergeRequestResponse:
+    """Create a merge request with file changes in a VCS repository.
+
+    Creates a new branch, applies file operations (create/update/delete),
+    and opens a merge request against the target branch.
+
+    Callers should use ``GET /merge-requests`` to check for existing MRs
+    before calling this endpoint to avoid duplicate creation.
+
+    Args:
+        request: Merge request details including repo, auth, and file operations
+
+    Returns:
+        CreateMergeRequestResponse with the URL of the created merge request
+
+    """
+    logger.info(
+        f"Creating merge request in {request.repo_url}",
+        repo_url=request.repo_url,
+        title=request.title,
+    )
+
+    client = create_vcs_workspace_client(
+        repo_url=request.repo_url,
+        token=secret_manager.read(request.token),
+        cache=cache,
+        settings=settings,
+    )
+
+    try:
+        mr_url = client.create_merge_request(
+            CreateMergeRequestInput(
+                title=request.title,
+                description=request.description,
+                target_branch=request.target_branch,
+                file_operations=[
+                    MergeRequestFile(
+                        path=op.path,
+                        action=FileAction(op.action),
+                        content=op.content,
+                        commit_message=op.commit_message,
+                    )
+                    for op in request.file_operations
+                ],
+                labels=request.labels,
+                auto_merge=request.auto_merge,
+            ),
+        )
+    except Exception as e:
+        logger.exception(
+            f"Failed to create merge request in {request.repo_url}",
+            repo_url=request.repo_url,
+            title=request.title,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create merge request",
+        ) from e
+
+    logger.info(
+        "Merge request created: %s",
+        mr_url,
+        repo_url=request.repo_url,
+        mr_url=mr_url,
+    )
+
+    if event_manager:
+        event_manager.publish_event(
+            Event(
+                source=__name__,
+                type="qontract-api.vcs.create-merge-request",
+                data={
+                    "repo_url": request.repo_url,
+                    "url": mr_url,
+                    "title": request.title,
+                },
+                datacontenttype="application/json",
+            ),
+        )
+
+    return CreateMergeRequestResponse(url=mr_url)
+
+
+@router.get(
+    "/repos/file",
+    operation_id="vcs-get-file",
+)
+def get_file(
+    cache: CacheDep,
+    secret_manager: SecretManagerDep,
+    _user: UserDep,
+    params: Annotated[
+        GetFileParams,
+        Query(description="VCS file read parameters"),
+    ],
+) -> GetFileResponse:
+    """Read a file from a VCS repository.
+
+    Args:
+        params: Query parameters with repo_url, file_path, ref, and token
+
+    Returns:
+        GetFileResponse with file content
+
+    Raises:
+        HTTPException: 404 if file not found
+    """
+    client = create_vcs_workspace_client(
+        repo_url=params.repo_url,
+        token=secret_manager.read(params),
+        cache=cache,
+        settings=settings,
+    )
+
+    if (content := client.get_file(path=params.file_path, ref=params.ref)) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File not found: {params.file_path}",
+        )
+
+    return GetFileResponse(content=content)

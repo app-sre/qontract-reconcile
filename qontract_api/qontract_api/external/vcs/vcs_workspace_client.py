@@ -2,6 +2,7 @@
 
 from qontract_utils.vcs.models import RepoOwners
 from qontract_utils.vcs.owners_parser import OwnersParser
+from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 from qontract_utils.vcs.vcs_client import VCSClient
 
 from qontract_api.cache import CacheBackend
@@ -109,6 +110,46 @@ class VCSWorkspaceClient:
             )
 
             return owners
+
+    def find_merge_request(self, title: str) -> str | None:
+        """Find an open merge request by title.
+
+        Args:
+            title: MR title to search for (exact match)
+
+        Returns:
+            URL of the open merge request, or None if not found
+
+        """
+        return self._api_client.find_merge_request(title)
+
+    def create_merge_request(self, mr_input: CreateMergeRequestInput) -> str:
+        """Create a merge request with file changes.
+
+        Delegates to the underlying VCS API client.
+
+        Args:
+            mr_input: Merge request details including file operations
+
+        Returns:
+            URL of the created merge request
+
+        """
+        return self._api_client.create_merge_request(mr_input)
+
+    def get_file(self, path: str, ref: str = "master") -> str | None:
+        """Get file content from repository.
+
+        Delegates to the underlying VCS API client (no caching).
+
+        Args:
+            path: File path relative to repository root
+            ref: Git reference (branch, tag, commit SHA)
+
+        Returns:
+            File content as string, or None if not found
+        """
+        return self._api_client.get_file(path, ref=ref)
 
     def _fetch_owners(self, owners_file: str, ref: str) -> RepoOwners:
         """Fetch OWNERS data from VCS API.

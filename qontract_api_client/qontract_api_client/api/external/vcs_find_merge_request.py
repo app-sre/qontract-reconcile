@@ -5,7 +5,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.repo_owners_response import RepoOwnersResponse
+from ...models.create_merge_request_response import CreateMergeRequestResponse
 from ...types import UNSET, Response, Unset
 
 
@@ -16,8 +16,7 @@ def _get_kwargs(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
+    title: str,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -42,15 +41,13 @@ def _get_kwargs(
 
     params["repo_url"] = repo_url
 
-    params["owners_file"] = owners_file
-
-    params["ref"] = ref
+    params["title"] = title
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v1/external/vcs/repos/owners",
+        "url": "/api/v1/external/vcs/merge-requests",
         "params": params,
     }
 
@@ -59,9 +56,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> RepoOwnersResponse:
+) -> CreateMergeRequestResponse:
     if response.status_code == 200:
-        response_200 = RepoOwnersResponse.from_dict(response.json())
+        response_200 = CreateMergeRequestResponse.from_dict(response.json())
 
         return response_200
 
@@ -70,7 +67,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[RepoOwnersResponse]:
+) -> Response[CreateMergeRequestResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -87,51 +84,35 @@ def sync_detailed(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
-) -> Response[RepoOwnersResponse]:
-    r"""Get Repo Owners
+    title: str,
+) -> Response[CreateMergeRequestResponse]:
+    """Find Merge Request
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Find an open merge request by title.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, title, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        CreateMergeRequestResponse with the MR URL
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if no open MR found with the given title
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        title (str): MR title to search for (exact match)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[RepoOwnersResponse]
+        Response[CreateMergeRequestResponse]
     """
 
     kwargs = _get_kwargs(
@@ -140,8 +121,7 @@ def sync_detailed(
         field=field,
         version=version,
         repo_url=repo_url,
-        owners_file=owners_file,
-        ref=ref,
+        title=title,
     )
 
     response = client.get_httpx_client().request(
@@ -159,51 +139,35 @@ def sync(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
-) -> RepoOwnersResponse:
-    r"""Get Repo Owners
+    title: str,
+) -> CreateMergeRequestResponse:
+    """Find Merge Request
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Find an open merge request by title.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, title, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        CreateMergeRequestResponse with the MR URL
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if no open MR found with the given title
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        title (str): MR title to search for (exact match)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        RepoOwnersResponse
+        CreateMergeRequestResponse
     """
 
     parsed = sync_detailed(
@@ -213,8 +177,7 @@ def sync(
         field=field,
         version=version,
         repo_url=repo_url,
-        owners_file=owners_file,
-        ref=ref,
+        title=title,
     ).parsed
     if parsed is None:
         raise TypeError("Expected parsed response to be not None")
@@ -229,51 +192,35 @@ async def asyncio_detailed(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
-) -> Response[RepoOwnersResponse]:
-    r"""Get Repo Owners
+    title: str,
+) -> Response[CreateMergeRequestResponse]:
+    """Find Merge Request
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Find an open merge request by title.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, title, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        CreateMergeRequestResponse with the MR URL
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if no open MR found with the given title
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        title (str): MR title to search for (exact match)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[RepoOwnersResponse]
+        Response[CreateMergeRequestResponse]
     """
 
     kwargs = _get_kwargs(
@@ -282,8 +229,7 @@ async def asyncio_detailed(
         field=field,
         version=version,
         repo_url=repo_url,
-        owners_file=owners_file,
-        ref=ref,
+        title=title,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -299,51 +245,35 @@ async def asyncio(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
-) -> RepoOwnersResponse:
-    r"""Get Repo Owners
+    title: str,
+) -> CreateMergeRequestResponse:
+    """Find Merge Request
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Find an open merge request by title.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, title, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        CreateMergeRequestResponse with the MR URL
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if no open MR found with the given title
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        title (str): MR title to search for (exact match)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        RepoOwnersResponse
+        CreateMergeRequestResponse
     """
 
     parsed = (
@@ -354,8 +284,7 @@ async def asyncio(
             field=field,
             version=version,
             repo_url=repo_url,
-            owners_file=owners_file,
-            ref=ref,
+            title=title,
         )
     ).parsed
     if parsed is None:

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from qontract_utils.hooks import Hooks
+from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
 from qontract_utils.vcs.providers.github_client import (
     GitHubApiCallContext,
     GitHubRepoApi,
@@ -185,6 +186,28 @@ def test_github_api_get_file_returns_none_on_exception(
         result = github_api.get_file("nonexistent.txt")
 
     assert result is None
+
+
+def test_github_api_create_merge_request_not_implemented(
+    github_api: GitHubRepoApi,
+    mock_github_client: MagicMock,
+) -> None:
+    """Test create_merge_request raises NotImplementedError."""
+    mr_input = CreateMergeRequestInput(
+        title="test",
+        description="",
+    )
+    with pytest.raises(NotImplementedError, match="GitHub PR creation"):
+        github_api.create_merge_request(mr_input)
+
+
+def test_github_api_find_merge_request_not_implemented(
+    github_api: GitHubRepoApi,
+    mock_github_client: MagicMock,
+) -> None:
+    """Test find_merge_request raises NotImplementedError."""
+    with pytest.raises(NotImplementedError, match="GitHub PR search"):
+        github_api.find_merge_request("some title")
 
 
 def test_github_api_call_context_immutable() -> None:

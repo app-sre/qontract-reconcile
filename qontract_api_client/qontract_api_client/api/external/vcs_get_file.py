@@ -5,7 +5,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.repo_owners_response import RepoOwnersResponse
+from ...models.get_file_response import GetFileResponse
 from ...types import UNSET, Response, Unset
 
 
@@ -16,7 +16,7 @@ def _get_kwargs(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
+    file_path: str,
     ref: str | Unset = "master",
 ) -> dict[str, Any]:
 
@@ -42,7 +42,7 @@ def _get_kwargs(
 
     params["repo_url"] = repo_url
 
-    params["owners_file"] = owners_file
+    params["file_path"] = file_path
 
     params["ref"] = ref
 
@@ -50,7 +50,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "get",
-        "url": "/api/v1/external/vcs/repos/owners",
+        "url": "/api/v1/external/vcs/repos/file",
         "params": params,
     }
 
@@ -59,9 +59,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> RepoOwnersResponse:
+) -> GetFileResponse:
     if response.status_code == 200:
-        response_200 = RepoOwnersResponse.from_dict(response.json())
+        response_200 = GetFileResponse.from_dict(response.json())
 
         return response_200
 
@@ -70,7 +70,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[RepoOwnersResponse]:
+) -> Response[GetFileResponse]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -87,51 +87,37 @@ def sync_detailed(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
+    file_path: str,
     ref: str | Unset = "master",
-) -> Response[RepoOwnersResponse]:
-    r"""Get Repo Owners
+) -> Response[GetFileResponse]:
+    """Get File
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Read a file from a VCS repository.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, file_path, ref, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        GetFileResponse with file content
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if file not found
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        file_path (str): File path in the repository
+        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[RepoOwnersResponse]
+        Response[GetFileResponse]
     """
 
     kwargs = _get_kwargs(
@@ -140,7 +126,7 @@ def sync_detailed(
         field=field,
         version=version,
         repo_url=repo_url,
-        owners_file=owners_file,
+        file_path=file_path,
         ref=ref,
     )
 
@@ -159,51 +145,37 @@ def sync(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
+    file_path: str,
     ref: str | Unset = "master",
-) -> RepoOwnersResponse:
-    r"""Get Repo Owners
+) -> GetFileResponse:
+    """Get File
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Read a file from a VCS repository.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, file_path, ref, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        GetFileResponse with file content
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if file not found
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        file_path (str): File path in the repository
+        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        RepoOwnersResponse
+        GetFileResponse
     """
 
     parsed = sync_detailed(
@@ -213,7 +185,7 @@ def sync(
         field=field,
         version=version,
         repo_url=repo_url,
-        owners_file=owners_file,
+        file_path=file_path,
         ref=ref,
     ).parsed
     if parsed is None:
@@ -229,51 +201,37 @@ async def asyncio_detailed(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
+    file_path: str,
     ref: str | Unset = "master",
-) -> Response[RepoOwnersResponse]:
-    r"""Get Repo Owners
+) -> Response[GetFileResponse]:
+    """Get File
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Read a file from a VCS repository.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, file_path, ref, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        GetFileResponse with file content
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if file not found
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        file_path (str): File path in the repository
+        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[RepoOwnersResponse]
+        Response[GetFileResponse]
     """
 
     kwargs = _get_kwargs(
@@ -282,7 +240,7 @@ async def asyncio_detailed(
         field=field,
         version=version,
         repo_url=repo_url,
-        owners_file=owners_file,
+        file_path=file_path,
         ref=ref,
     )
 
@@ -299,51 +257,37 @@ async def asyncio(
     field: None | str | Unset = UNSET,
     version: int | None | Unset = UNSET,
     repo_url: str,
-    owners_file: str | Unset = "/OWNERS",
+    file_path: str,
     ref: str | Unset = "master",
-) -> RepoOwnersResponse:
-    r"""Get Repo Owners
+) -> GetFileResponse:
+    """Get File
 
-     Get OWNERS file data from a Git repository.
-
-    Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
-    Results are cached for performance (TTL configured in settings).
+     Read a file from a VCS repository.
 
     Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
+        params: Query parameters with repo_url, file_path, ref, and token
 
     Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
+        GetFileResponse with file content
 
     Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
+        HTTPException: 404 if file not found
 
     Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
         version (int | None | Unset): Version of the secret
-        repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
-        owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
-            /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+        file_path (str): File path in the repository
+        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        RepoOwnersResponse
+        GetFileResponse
     """
 
     parsed = (
@@ -354,7 +298,7 @@ async def asyncio(
             field=field,
             version=version,
             repo_url=repo_url,
-            owners_file=owners_file,
+            file_path=file_path,
             ref=ref,
         )
     ).parsed
