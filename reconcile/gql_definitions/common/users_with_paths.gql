@@ -19,5 +19,8 @@ query UsersWithPaths {
     schedules {
       path
     }
+    sre_checkpoints {
+      path
+    }
   }
 }

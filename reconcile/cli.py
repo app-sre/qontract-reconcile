@@ -2098,6 +2098,60 @@ def ldap_users(
     )
 
 
+@integration.command(
+    short_help="Removes users which are not found in LDAP search (API)."
+)
+@click.option(
+    "--app-interface-repo-url",
+    required=True,
+    help="App-interface GitLab repository URL.",
+)
+@click.option(
+    "--infra-repo-url",
+    required=True,
+    help="Infra GitLab repository URL.",
+)
+@click.option(
+    "--infra-path",
+    multiple=True,
+    default=[
+        "ansible/hosts/host_vars/bastion.ci.int.devshift.net",
+        "ansible/hosts/group_vars/all",
+    ],
+    help="Infra YAML files to scan for user entries (repeatable).",
+)
+@click.option(
+    "--label",
+    multiple=True,
+    default=["ldap-users"],
+    help="Labels to apply to created MRs (repeatable).",
+)
+@click.pass_context
+def ldap_users_api(
+    ctx: click.Context,
+    app_interface_repo_url: str,
+    infra_repo_url: str,
+    infra_path: tuple[str, ...],
+    label: tuple[str, ...],
+) -> None:
+    from reconcile.ldap_users_api.integration import (
+        LdapUsersApiIntegration,
+        LdapUsersApiIntegrationParams,
+    )
+
+    run_class_integration(
+        integration=LdapUsersApiIntegration(
+            LdapUsersApiIntegrationParams(
+                app_interface_repo_url=app_interface_repo_url,
+                infra_repo_url=infra_repo_url,
+                infra_paths=list(infra_path),
+                labels=list(label),
+            )
+        ),
+        ctx=ctx,
+    )
+
+
 @integration.command(short_help="Manages LDAP groups based on App-Interface roles.")
 @click.option(
     "--aws-sso-namespace",

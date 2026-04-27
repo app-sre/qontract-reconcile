@@ -38,6 +38,9 @@ query UsersWithPaths {
     schedules {
       path
     }
+    sre_checkpoints {
+      path
+    }
   }
 }
 """
@@ -69,6 +72,10 @@ class ScheduleV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
 
 
+class SRECheckpointV1(ConfiguredBaseModel):
+    path: str = Field(..., alias="path")
+
+
 class UserV1(ConfiguredBaseModel):
     path: str = Field(..., alias="path")
     org_username: str = Field(..., alias="org_username")
@@ -77,6 +84,7 @@ class UserV1(ConfiguredBaseModel):
     queries: Optional[list[AppInterfaceSqlQueryV1]] = Field(..., alias="queries")
     gabi_instances: Optional[list[GabiInstanceV1]] = Field(..., alias="gabi_instances")
     schedules: Optional[list[ScheduleV1]] = Field(..., alias="schedules")
+    sre_checkpoints: Optional[list[SRECheckpointV1]] = Field(..., alias="sre_checkpoints")
 
 
 class UsersWithPathsQueryData(ConfiguredBaseModel):

@@ -58,7 +58,9 @@ def mocked_get_ldap_settings(
 ) -> MockType:
     return mocker.patch(
         "reconcile.ldap_users.get_ldap_settings",
-        return_value=LdapSettingsV1(serverUrl="serverUrl", baseDn="baseDn"),
+        return_value=LdapSettingsV1(
+            serverUrl="serverUrl", baseDn="baseDn", credentials=None
+        ),
     )
 
 

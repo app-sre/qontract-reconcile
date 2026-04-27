@@ -17,13 +17,25 @@ from pydantic import (  # noqa: F401 # pylint: disable=W0611
     Json,
 )
 
+from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
+
 
 DEFINITION = """
+fragment VaultSecret on VaultSecret_v1 {
+  path
+  field
+  version
+  format
+}
+
 query LdapSettings {
   settings: app_interface_settings_v1 {
     ldap {
       serverUrl
       baseDn
+      credentials {
+        ...VaultSecret
+      }
     }
   }
 }
@@ -39,6 +51,7 @@ class ConfiguredBaseModel(BaseModel):
 class LdapSettingsV1(ConfiguredBaseModel):
     server_url: str = Field(..., alias="serverUrl")
     base_dn: str = Field(..., alias="baseDn")
+    credentials: Optional[VaultSecret] = Field(..., alias="credentials")
 
 
 class AppInterfaceSettingsV1(ConfiguredBaseModel):
