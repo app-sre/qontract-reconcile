@@ -3,7 +3,6 @@
 from qontract_utils.vcs.models import RepoOwners
 from qontract_utils.vcs.owners_parser import OwnersParser
 from qontract_utils.vcs.provider_protocol import CreateMergeRequestInput
-from qontract_utils.vcs.vcs_client import VCSClient
 
 from qontract_api.cache import CacheBackend
 from qontract_api.config import Settings
@@ -21,7 +20,6 @@ class VCSWorkspaceClient:
         provider_factory: VCS provider factory for creating API clients
         cache: Cache backend for distributed cache
         settings: Application settings with VCS configuration
-        ref: Git reference (branch, tag, commit SHA)
 
     Example:
         >>> factory = VCSProviderFactory(registry, cache, settings, token_providers)
@@ -40,7 +38,6 @@ class VCSWorkspaceClient:
         provider_factory: VCSProviderFactory,
         cache: CacheBackend,
         settings: Settings,
-        ref: str = "master",
     ) -> None:
         """Initialize VCS workspace client.
 
@@ -49,22 +46,13 @@ class VCSWorkspaceClient:
             provider_factory: VCS provider factory (dependency injection)
             cache: Cache backend
             settings: Application settings
-            ref: Git reference
         """
         self.repo_url = repo_url
         self._cache = cache
         self._settings = settings
-        self._ref = ref
 
         # Provider factory creates API client with rate limiting
         self._api_client, provider_name = provider_factory.create_api_client(repo_url)
-
-        # VCS client with dependency injection
-        self._vcs_client = VCSClient(
-            api_client=self._api_client,
-            provider_name=provider_name,
-            ref=ref,
-        )
 
         self.provider_name = provider_name
 

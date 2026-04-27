@@ -6,11 +6,11 @@ All YAML manipulation logic stays in the client.
 """
 
 import asyncio
+import logging
 from functools import partial
 
-import logging
-
 import httpx
+from pydantic import Field
 from qontract_api_client.api.external.ldap_users_check import (
     asyncio as check_ldap_users,
 )
@@ -54,8 +54,8 @@ class LdapUsersApiIntegrationParams(PydanticRunParams):
 
     app_interface_repo_url: str
     infra_repo_url: str
-    infra_paths: list[str] = []
-    labels: list[str] = []
+    infra_paths: list[str] = Field(default_factory=list)
+    labels: list[str] = Field(default_factory=list)
 
 
 def transform_users_with_paths(users_with_paths: list[UserV1]) -> list[UserPaths]:

@@ -193,6 +193,16 @@ class GitLabRepoApi:
         Returns:
             URL of the created merge request
         """
+        # Validate file operations before creating branch to avoid stray branches
+        for file_op in mr_input.file_operations:
+            if (
+                file_op.action in (FileAction.CREATE, FileAction.UPDATE)
+                and file_op.content is None
+            ):
+                raise ValueError(
+                    f"Content is required for {file_op.action.value} action: {file_op.path}"
+                )
+
         branch = f"qontract-api-{uuid4().hex[:8]}"
 
         # Create branch from target
@@ -207,10 +217,6 @@ class GitLabRepoApi:
         for file_op in mr_input.file_operations:
             match file_op.action:
                 case FileAction.CREATE:
-                    if file_op.content is None:
-                        raise ValueError(
-                            f"Content is required for CREATE action: {file_op.path}"
-                        )
                     self._project.files.create(
                         {
                             "file_path": file_op.path,
@@ -220,10 +226,6 @@ class GitLabRepoApi:
                         }
                     )
                 case FileAction.UPDATE:
-                    if file_op.content is None:
-                        raise ValueError(
-                            f"Content is required for UPDATE action: {file_op.path}"
-                        )
                     file = self._project.files.get(file_path=file_op.path, ref=branch)
                     file.content = file_op.content
                     file.save(

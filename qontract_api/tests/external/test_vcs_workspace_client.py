@@ -57,7 +57,6 @@ def github_client(
         provider_factory=mock_provider_factory,
         cache=mock_cache,
         settings=settings,
-        ref="main",
     )
 
 
@@ -77,7 +76,6 @@ def gitlab_client(
         provider_factory=mock_provider_factory,
         cache=mock_cache,
         settings=settings,
-        ref="main",
     )
 
 
