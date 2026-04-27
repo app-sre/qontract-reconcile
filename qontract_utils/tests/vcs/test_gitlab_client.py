@@ -212,7 +212,10 @@ def test_gitlab_api_find_merge_request_found(
 
     assert result == "https://gitlab.com/group/project/-/merge_requests/42"
     mock_list.assert_called_once_with(
-        search="[ldap-users] delete user alice", state="opened", per_page=20
+        search="[ldap-users] delete user alice",
+        state="opened",
+        per_page=100,
+        iterator=True,
     )
 
 

@@ -2,7 +2,7 @@
 
 # ruff: noqa: ARG001
 from collections.abc import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from pydantic import ValidationError
@@ -71,6 +71,7 @@ def test_ldap_api_creates_connection_with_credentials(
         password="secret",
         client_strategy="SAFE_SYNC",
         receive_timeout=30,
+        raise_exceptions=True,
     )
 
 
@@ -84,6 +85,7 @@ def test_ldap_api_creates_connection_anonymous(
         password=None,
         client_strategy="SAFE_SYNC",
         receive_timeout=30,
+        raise_exceptions=True,
     )
 
 
@@ -117,12 +119,11 @@ def test_ldap_api_context_manager_start_tls(mock_ldap3: MagicMock) -> None:
         start_tls=True,
     )
     with api:
-        mock_ldap3.connection.start_tls.assert_called_once()
-        # start_tls must be called before bind
-        assert (
-            mock_ldap3.connection.start_tls.call_count
-            <= mock_ldap3.connection.bind.call_count
-        )
+        pass
+    mock_ldap3.connection.assert_has_calls(
+        [call.start_tls(), call.bind()],
+        any_order=False,
+    )
 
 
 def test_ldap_api_context_manager_no_start_tls_by_default(

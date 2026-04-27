@@ -167,7 +167,7 @@ class GitLabRepoApi:
             URL of the open merge request, or None if not found
         """
         mrs = self._project.mergerequests.list(
-            search=title, state="opened", per_page=20
+            search=title, state="opened", per_page=100, iterator=True
         )
         for mr in mrs:
             if mr.title == title:
@@ -196,26 +196,35 @@ class GitLabRepoApi:
         branch = f"qontract-api-{uuid4().hex[:8]}"
 
         # Create branch from target
-        self._project.branches.create({
-            "branch": branch,
-            "ref": mr_input.target_branch,
-        })
+        self._project.branches.create(
+            {
+                "branch": branch,
+                "ref": mr_input.target_branch,
+            }
+        )
 
         # Apply file operations
         for file_op in mr_input.file_operations:
             match file_op.action:
                 case FileAction.CREATE:
-                    self._project.files.create({
-                        "file_path": file_op.path,
-                        "branch": branch,
-                        "content": file_op.content,
-                        "commit_message": file_op.commit_message,
-                    })
-                case FileAction.UPDATE:
-                    file = self._project.files.get(file_path=file_op.path, ref=branch)
-                    assert file_op.content is not None, (
-                        "Content must be provided for update action"
+                    if file_op.content is None:
+                        raise ValueError(
+                            f"Content is required for CREATE action: {file_op.path}"
+                        )
+                    self._project.files.create(
+                        {
+                            "file_path": file_op.path,
+                            "branch": branch,
+                            "content": file_op.content,
+                            "commit_message": file_op.commit_message,
+                        }
                     )
+                case FileAction.UPDATE:
+                    if file_op.content is None:
+                        raise ValueError(
+                            f"Content is required for UPDATE action: {file_op.path}"
+                        )
+                    file = self._project.files.get(file_path=file_op.path, ref=branch)
                     file.content = file_op.content
                     file.save(
                         branch=branch,
@@ -234,12 +243,14 @@ class GitLabRepoApi:
             labels.append(AUTO_MERGE_LABEL)
 
         # Create merge request
-        mr = self._project.mergerequests.create({
-            "source_branch": branch,
-            "target_branch": mr_input.target_branch,
-            "title": mr_input.title,
-            "description": mr_input.description,
-            "labels": labels,
-        })
+        mr = self._project.mergerequests.create(
+            {
+                "source_branch": branch,
+                "target_branch": mr_input.target_branch,
+                "title": mr_input.title,
+                "description": mr_input.description,
+                "labels": labels,
+            }
+        )
 
         return mr.web_url

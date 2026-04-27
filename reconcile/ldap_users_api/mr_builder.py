@@ -28,7 +28,7 @@ def remove_user_from_gabi(raw_yaml: str, username: str) -> str:
 
     original_length = len(content["users"])
     content["users"] = [
-        user for user in content["users"] if username not in user["$ref"]
+        user for user in content["users"] if Path(user["$ref"]).stem != username
     ]
 
     if len(content["users"]) == original_length:
@@ -49,7 +49,7 @@ def remove_user_from_aws_accounts(raw_yaml: str, username: str) -> str:
     content["resetPasswords"] = [
         record
         for record in content["resetPasswords"]
-        if username not in record["user"]["$ref"]
+        if Path(record["user"]["$ref"]).stem != username
     ]
 
     if len(content["resetPasswords"]) == original_length:

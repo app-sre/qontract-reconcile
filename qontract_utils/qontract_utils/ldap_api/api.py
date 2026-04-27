@@ -9,7 +9,6 @@ from typing import Self
 
 import structlog
 from ldap3 import NONE, SAFE_SYNC, Connection, Server
-from ldap3.utils.conv import escape_filter_chars
 from ldap3.core.exceptions import (
     LDAPCommunicationError,
     LDAPMaximumRetriesError,
@@ -20,6 +19,7 @@ from ldap3.core.exceptions import (
     LDAPSocketReceiveError,
     LDAPSocketSendError,
 )
+from ldap3.utils.conv import escape_filter_chars
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, RetryConfig, invoke_with_hooks, with_hooks
@@ -161,6 +161,7 @@ class LdapApi:
             password=bind_password,
             client_strategy=SAFE_SYNC,
             receive_timeout=timeout,
+            raise_exceptions=True,
         )
 
     def __enter__(self) -> Self:

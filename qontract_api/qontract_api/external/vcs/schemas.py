@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from qontract_api.models import Secret
 
@@ -61,6 +61,19 @@ class MergeRequestFileOperation(BaseModel, frozen=True):
         description="File content (required for create/update, None for delete)",
     )
     commit_message: str = Field(..., description="Commit message for this file change")
+
+    @model_validator(mode="after")
+    def _validate_action_content(self) -> "MergeRequestFileOperation":
+        match self.action:
+            case FileAction.CREATE | FileAction.UPDATE:
+                if self.content is None:
+                    raise ValueError(
+                        f"content is required for {self.action.value} action"
+                    )
+            case FileAction.DELETE:
+                if self.content is not None:
+                    raise ValueError("content must be None for delete action")
+        return self
 
 
 class CreateMergeRequestRequest(BaseModel, frozen=True):
