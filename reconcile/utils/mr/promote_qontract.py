@@ -230,3 +230,75 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             search_text="$.taskTemplates[?(@.name == 'openshift-saas-deploy')].variables.qontract_reconcile_image_tag",
             replace_text=self.version,
         )
+
+
+class PromoteQontractServer(PromoteQontractReconcileCommercial):
+    name = "promote_qontract_server"
+
+    @property
+    def title(self) -> str:
+        author = self.infer_author(
+            github_user_id=self.github_user_id, all_users=get_users()
+        )
+        return f"[{self.name}] promote qontract-server to version {self.version}" + (
+            f" by @{author}"
+            if author
+            else f" by {self.github_user_id}"
+            if self.github_user_id
+            else ""
+        )
+
+    @property
+    def description(self) -> str:
+        return f"""
+promote qontract-server to version {self.version}.
+
+At the time of creating this MR, the konflux RPA most likely didn't finish yet, so this MR will likely fail first.
+Please use `/retest` once the RPA finished (that should be the case after ~5min of creating this MR).
+"""
+
+    def process(self, gitlab_cli: GitLabApi) -> None:
+        # .env
+        self._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".env",
+            search_text="export QONTRACT_SERVER_IMAGE_TAG=",
+            replace_text=f"export QONTRACT_SERVER_IMAGE_TAG={self.version}",
+        )
+
+        # data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml
+        self._process_by(
+            "json_path",
+            gitlab_cli=gitlab_cli,
+            path="data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml",
+            search_text="$.resourceTemplates[?(@.name == 'qontract-server')].targets[?(@.name == 'app-interface-production')].ref",
+            replace_text=self.commit_sha,
+        )
+
+        # data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml (dashboard)
+        self._process_by(
+            "json_path",
+            gitlab_cli=gitlab_cli,
+            path="data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml",
+            search_text="$.resourceTemplates[?(@.name == 'qontract-server dashboard')].targets[?(@.name == 'app-sre-observability-production')].ref",
+            replace_text=self.commit_sha,
+        )
+
+        # data/services/app-interface/cicd/ci-int/saas-qontract-server-int.yaml
+        self._process_by(
+            "json_path",
+            gitlab_cli=gitlab_cli,
+            path="data/services/app-interface/cicd/ci-int/saas-qontract-server-int.yaml",
+            search_text="$.resourceTemplates[?(@.name == 'qontract-server')].targets[?(@.name == 'app-interface-production-int')].ref",
+            replace_text=self.commit_sha,
+        )
+
+        # data/services/sre-capabilities/cicd/saas.yaml
+        self._process_by(
+            "json_path",
+            gitlab_cli=gitlab_cli,
+            path="data/services/sre-capabilities/cicd/saas.yaml",
+            search_text="$.resourceTemplates[?(@.name == 'qontract-server')].targets[?(@.name == 'sre-capabilities-production')].ref",
+            replace_text=self.commit_sha,
+        )

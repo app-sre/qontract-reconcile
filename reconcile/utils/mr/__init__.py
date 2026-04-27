@@ -17,6 +17,7 @@ from reconcile.utils.mr.ocm_upgrade_scheduler_org_updates import (
 from reconcile.utils.mr.promote_qontract import (
     PromoteQontractReconcileCommercial,
     PromoteQontractSchemas,
+    PromoteQontractServer,
 )
 from reconcile.utils.mr.user_maintenance import (
     CreateDeleteUserAppInterface,
@@ -35,6 +36,7 @@ __all__ = [
     "MergeRequestProcessingError",
     "PromoteQontractReconcileCommercial",
     "PromoteQontractSchemas",
+    "PromoteQontractServer",
     "UnknownMergeRequestTypeError",
     "init_from_sqs_message",
 ]
