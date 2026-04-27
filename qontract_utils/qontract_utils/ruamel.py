@@ -1,3 +1,6 @@
+from io import StringIO
+from typing import Any
+
 from ruamel import yaml
 
 
@@ -15,3 +18,18 @@ def create_ruamel_instance(
     ruamel_instance.width = width
 
     return ruamel_instance
+
+
+def dump_yaml(instance: yaml.YAML, content: Any) -> str:
+    """Dump YAML content to string using the given ruamel instance.
+
+    Args:
+        instance: Configured ruamel.yaml YAML instance
+        content: YAML content to serialize
+
+    Returns:
+        YAML string
+    """
+    with StringIO() as stream:
+        instance.dump(content, stream)
+        return stream.getvalue()
