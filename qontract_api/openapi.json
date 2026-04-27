@@ -114,6 +114,82 @@
         "title": "ChatResponse",
         "type": "object"
       },
+      "CreateMergeRequestRequest": {
+        "description": "Request to create a merge request in a VCS repository.",
+        "properties": {
+          "auto_merge": {
+            "default": false,
+            "description": "Whether to enable auto-merge",
+            "title": "Auto Merge",
+            "type": "boolean"
+          },
+          "description": {
+            "default": "",
+            "description": "Merge request description",
+            "title": "Description",
+            "type": "string"
+          },
+          "file_operations": {
+            "description": "File operations to include in the MR",
+            "items": {
+              "$ref": "#/components/schemas/MergeRequestFileOperation"
+            },
+            "title": "File Operations",
+            "type": "array"
+          },
+          "labels": {
+            "description": "Labels to apply to the MR",
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "repo_url": {
+            "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+            "title": "Repo Url",
+            "type": "string"
+          },
+          "target_branch": {
+            "default": "master",
+            "description": "Target branch name",
+            "title": "Target Branch",
+            "type": "string"
+          },
+          "title": {
+            "description": "Merge request title",
+            "title": "Title",
+            "type": "string"
+          },
+          "token": {
+            "$ref": "#/components/schemas/Secret",
+            "description": "Secret reference for VCS API token"
+          }
+        },
+        "required": [
+          "repo_url",
+          "token",
+          "title",
+          "file_operations"
+        ],
+        "title": "CreateMergeRequestRequest",
+        "type": "object"
+      },
+      "CreateMergeRequestResponse": {
+        "description": "Response after creating a merge request.",
+        "properties": {
+          "url": {
+            "description": "URL of the created merge request",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "CreateMergeRequestResponse",
+        "type": "object"
+      },
       "EscalationPolicyUsersResponse": {
         "description": "Response model for escalation policy users endpoint.\n\nImmutable response containing list of users in an escalation policy.\n\nAttributes:\n    users: List of users in escalation policy",
         "properties": {
@@ -128,6 +204,16 @@
         },
         "title": "EscalationPolicyUsersResponse",
         "type": "object"
+      },
+      "FileAction": {
+        "description": "File operation type for merge request file operations.",
+        "enum": [
+          "create",
+          "update",
+          "delete"
+        ],
+        "title": "FileAction",
+        "type": "string"
       },
       "GIInstance": {
         "description": "Glitchtip instance configuration with desired state.",
@@ -269,6 +355,21 @@
           "slug"
         ],
         "title": "GIProject",
+        "type": "object"
+      },
+      "GetFileResponse": {
+        "description": "Response with file content from a VCS repository.",
+        "properties": {
+          "content": {
+            "description": "File content as string",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "GetFileResponse",
         "type": "object"
       },
       "GithubOrgDesiredState": {
@@ -1764,6 +1865,63 @@
         "title": "HealthStatus",
         "type": "object"
       },
+      "LdapDirectSecret": {
+        "description": "VaultSecret reference for FreeIPA direct LDAP access.\n\nThe referenced Vault path must contain bind_dn and bind_password fields.\nNo plain credentials are transmitted via API -- only Vault path references.\n\nAttributes:\n    server_url: LDAP server URL (e.g., \"ldap://freeipa.example.com\")\n    base_dn: Base DN for LDAP searches (e.g., \"dc=example,dc=com\")\n    (inherited) secret_manager_url, path, field, version: Vault secret ref",
+        "properties": {
+          "base_dn": {
+            "description": "Base DN for LDAP searches",
+            "title": "Base Dn",
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Specific field within the secret",
+            "title": "Field"
+          },
+          "path": {
+            "description": "Path to the secret",
+            "title": "Path",
+            "type": "string"
+          },
+          "secret_manager_url": {
+            "description": "Secret Manager URL",
+            "title": "Secret Manager Url",
+            "type": "string"
+          },
+          "server_url": {
+            "description": "LDAP server URL",
+            "title": "Server Url",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version of the secret",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "secret_manager_url",
+          "path",
+          "server_url",
+          "base_dn"
+        ],
+        "title": "LdapDirectSecret",
+        "type": "object"
+      },
       "LdapGroupMember": {
         "description": "A member of an LDAP group.\n\nAttributes:\n    id: Member identifier (username or email)",
         "properties": {
@@ -1792,6 +1950,103 @@
           }
         },
         "title": "LdapGroupMembersResponse",
+        "type": "object"
+      },
+      "LdapUserStatus": {
+        "description": "Existence status of a single LDAP user.",
+        "properties": {
+          "exists": {
+            "description": "Whether the user exists in LDAP",
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "username": {
+            "description": "Username",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "exists"
+        ],
+        "title": "LdapUserStatus",
+        "type": "object"
+      },
+      "LdapUsersCheckRequest": {
+        "description": "Request to check which usernames exist in LDAP.",
+        "properties": {
+          "secret": {
+            "$ref": "#/components/schemas/LdapDirectSecret",
+            "description": "Vault secret reference for LDAP credentials"
+          },
+          "usernames": {
+            "description": "Usernames to check",
+            "items": {
+              "type": "string"
+            },
+            "title": "Usernames",
+            "type": "array"
+          }
+        },
+        "required": [
+          "usernames",
+          "secret"
+        ],
+        "title": "LdapUsersCheckRequest",
+        "type": "object"
+      },
+      "LdapUsersCheckResponse": {
+        "description": "Response with existence status per username.",
+        "properties": {
+          "users": {
+            "description": "Existence status for each requested username",
+            "items": {
+              "$ref": "#/components/schemas/LdapUserStatus"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "title": "LdapUsersCheckResponse",
+        "type": "object"
+      },
+      "MergeRequestFileOperation": {
+        "description": "A file operation within a merge request.\n\nThe ``action`` field specifies the operation: create, update, or delete.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/FileAction",
+            "description": "File operation type"
+          },
+          "commit_message": {
+            "description": "Commit message for this file change",
+            "title": "Commit Message",
+            "type": "string"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File content (required for create/update, None for delete)",
+            "title": "Content"
+          },
+          "path": {
+            "description": "File path in the repository",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "action",
+          "commit_message"
+        ],
+        "title": "MergeRequestFileOperation",
         "type": "object"
       },
       "PagerDutyUser": {
@@ -2439,7 +2694,49 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Group Members",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/ldap/users/check": {
+      "post": {
+        "description": "Check which usernames exist in LDAP (cached, FreeIPA-authenticated).\n\nQueries LDAP directly using FreeIPA service account credentials\nresolved from Vault. Results are cached for performance.\n\nArgs:\n    request: Request with usernames to check and Vault secret reference\n    cache: Cache dependency\n    secret_manager: Secret manager dependency\n\nReturns:\n    LdapUsersCheckResponse with existence status per username",
+        "operationId": "ldap-users-check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LdapUsersCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LdapUsersCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Check Users Exist",
         "tags": [
           "external"
         ]
@@ -2664,6 +2961,271 @@
         ]
       }
     },
+    "/api/v1/external/vcs/merge-requests": {
+      "get": {
+        "description": "Find an open merge request by title.\n\nArgs:\n    params: Query parameters with repo_url, title, and token\n\nReturns:\n    CreateMergeRequestResponse with the MR URL\n\nRaises:\n    HTTPException: 404 if no open MR found with the given title",
+        "operationId": "vcs-find-merge-request",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+            "in": "query",
+            "name": "repo_url",
+            "required": true,
+            "schema": {
+              "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+              "title": "Repo Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "MR title to search for (exact match)",
+            "in": "query",
+            "name": "title",
+            "required": true,
+            "schema": {
+              "description": "MR title to search for (exact match)",
+              "title": "Title",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateMergeRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Find Merge Request",
+        "tags": [
+          "external"
+        ]
+      },
+      "post": {
+        "description": "Create a merge request with file changes in a VCS repository.\n\nCreates a new branch, applies file operations (create/update/delete),\nand opens a merge request against the target branch.\n\nCallers should use ``GET /merge-requests`` to check for existing MRs\nbefore calling this endpoint to avoid duplicate creation.\n\nArgs:\n    request: Merge request details including repo, auth, and file operations\n\nReturns:\n    CreateMergeRequestResponse with the URL of the created merge request",
+        "operationId": "vcs-create-merge-request",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMergeRequestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateMergeRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Merge Request",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/vcs/repos/file": {
+      "get": {
+        "description": "Read a file from a VCS repository.\n\nArgs:\n    params: Query parameters with repo_url, file_path, ref, and token\n\nReturns:\n    GetFileResponse with file content\n\nRaises:\n    HTTPException: 404 if file not found",
+        "operationId": "vcs-get-file",
+        "parameters": [
+          {
+            "description": "Secret Manager URL",
+            "in": "query",
+            "name": "secret_manager_url",
+            "required": true,
+            "schema": {
+              "description": "Secret Manager URL",
+              "title": "Secret Manager Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Path to the secret",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Path to the secret",
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Specific field within the secret",
+            "in": "query",
+            "name": "field",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Specific field within the secret",
+              "title": "Field"
+            }
+          },
+          {
+            "description": "Version of the secret",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version of the secret",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+            "in": "query",
+            "name": "repo_url",
+            "required": true,
+            "schema": {
+              "description": "Repository URL (e.g., https://gitlab.com/group/project)",
+              "title": "Repo Url",
+              "type": "string"
+            }
+          },
+          {
+            "description": "File path in the repository",
+            "in": "query",
+            "name": "file_path",
+            "required": true,
+            "schema": {
+              "description": "File path in the repository",
+              "title": "File Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Git reference (branch, tag, SHA)",
+            "in": "query",
+            "name": "ref",
+            "required": false,
+            "schema": {
+              "default": "master",
+              "description": "Git reference (branch, tag, SHA)",
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get File",
+        "tags": [
+          "external"
+        ]
+      }
+    },
     "/api/v1/external/vcs/repos/owners": {
       "get": {
         "description": "Get OWNERS file data from a Git repository.\n\nFetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.\nResults are cached for performance (TTL configured in settings).\n\nArgs:\n    params: VCSQueryParams with repo_url, owners_file, ref, and secret reference\n\nReturns:\n    RepoOwnersResponse with provider type, approvers, and reviewers lists\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If VCS API call fails or tokens not found\n\nExample:\n    GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master\n    Response:\n    {\n        \"provider\": \"github\",\n        \"approvers\": [\"github_user1\", \"github_user2\"],\n        \"reviewers\": [\"github_user3\"]\n    }",
@@ -2775,6 +3337,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Repo Owners",
         "tags": [
           "external"

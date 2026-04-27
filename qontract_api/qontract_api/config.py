@@ -244,6 +244,11 @@ class LdapSettings(BaseModel):
         description="LDAP group members cache TTL in seconds (five minutes)",
     )
 
+    users_cache_ttl: int = Field(
+        default=6 * 60 * 60,
+        description="LDAP users check cache TTL in seconds (six hours)",
+    )
+
 
 class VaultSettings(BaseModel):
     # Vault-specific configuration

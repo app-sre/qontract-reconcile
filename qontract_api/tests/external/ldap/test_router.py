@@ -7,6 +7,9 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from qontract_api.auth import create_access_token
+from qontract_api.models import TokenData
+
 # Query params shared across tests — mirrors LdapSecret fields
 LDAP_SECRET_PARAMS = {
     "secret_manager_url": "https://vault.example.com",
@@ -18,6 +21,14 @@ LDAP_SECRET_PARAMS = {
 }
 
 LDAP_ENDPOINT = "/api/v1/external/ldap/groups/{group_name}/members"
+
+
+@pytest.fixture
+def auth_headers() -> dict[str, str]:
+    """Create authentication headers with valid JWT token."""
+    token_data = TokenData(sub="testuser")
+    test_token = create_access_token(data=token_data)
+    return {"Authorization": f"Bearer {test_token}"}
 
 
 @pytest.fixture
@@ -36,9 +47,9 @@ def api_client() -> Generator[TestClient, None, None]:
     yield TestClient(app, raise_server_exceptions=False)
 
     if hasattr(app.state, "cache"):
-        delattr(app.state, "cache")
+        del app.state.cache
     if hasattr(app.state, "secret_manager"):
-        delattr(app.state, "secret_manager")
+        del app.state.secret_manager
 
 
 @pytest.fixture
@@ -60,6 +71,7 @@ def test_get_group_members_returns_members(
     mock_factory: MagicMock,
     api_client: TestClient,
     mock_workspace_client: MagicMock,
+    auth_headers: dict[str, str],
 ) -> None:
     """Test GET /groups/{group_name}/members returns correct member list."""
     mock_factory.return_value = mock_workspace_client
@@ -67,6 +79,7 @@ def test_get_group_members_returns_members(
     response = api_client.get(
         LDAP_ENDPOINT.format(group_name="my-ldap-group"),
         params=LDAP_SECRET_PARAMS,
+        headers=auth_headers,
     )
 
     assert response.status_code == HTTPStatus.OK
@@ -84,6 +97,7 @@ def test_get_group_members_requires_cache(
     mock_factory: MagicMock,
     api_client: TestClient,
     mock_workspace_client: MagicMock,
+    auth_headers: dict[str, str],
 ) -> None:
     """Test GET /groups/{group_name}/members works with cache dependency satisfied.
 
@@ -95,6 +109,7 @@ def test_get_group_members_requires_cache(
     response = api_client.get(
         LDAP_ENDPOINT.format(group_name="another-group"),
         params=LDAP_SECRET_PARAMS,
+        headers=auth_headers,
     )
 
     assert response.status_code == HTTPStatus.OK
