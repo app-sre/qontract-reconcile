@@ -87,12 +87,15 @@ class PromoteQontractReconcileCommercial(MergeRequestBase):
         author = self.infer_author(
             github_user_id=self.github_user_id, all_users=get_users()
         )
-        return f"[{self.name}] promote {self.project_display_name} to version {self.version}" + (
-            f" by @{author}"
-            if author
-            else f" by {self.github_user_id}"
-            if self.github_user_id
-            else ""
+        return (
+            f"[{self.name}] promote {self.project_display_name} to version {self.version}"
+            + (
+                f" by @{author}"
+                if author
+                else f" by {self.github_user_id}"
+                if self.github_user_id
+                else ""
+            )
         )
 
     @property
