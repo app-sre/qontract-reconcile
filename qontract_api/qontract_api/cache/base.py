@@ -323,8 +323,12 @@ class CacheBackend(ABC):
         - DynamoDB: Conditional writes with version numbers
         - Firestore: Transactions with optimistic locking
 
+        Callers pass the same key used for cached data — the backend
+        appends a ``:lock`` internally to avoid collisions between
+        data keys and lock keys. Do NOT add a ``:lock`` suffix yourself.
+
         Args:
-            key: Lock key (backend will add :lock suffix if needed)
+            key: Cache key to lock (same key used for get/set)
             timeout: Lock timeout in seconds
 
         Yields:

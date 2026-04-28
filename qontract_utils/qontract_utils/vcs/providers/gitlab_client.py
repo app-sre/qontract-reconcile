@@ -2,9 +2,9 @@
 
 import contextlib
 import contextvars
+import secrets
 import time
 from dataclasses import dataclass
-from uuid import uuid4
 
 import gitlab
 import structlog
@@ -204,7 +204,7 @@ class GitLabRepoApi:
                     f"Content is required for {file_op.action.value} action: {file_op.path}"
                 )
 
-        branch = f"qontract-api-{uuid4().hex[:8]}"
+        branch = f"qontract-api-{secrets.token_hex(4)}"
 
         # Create branch from target
         self._project.branches.create(

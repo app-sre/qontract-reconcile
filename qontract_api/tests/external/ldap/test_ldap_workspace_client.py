@@ -61,7 +61,7 @@ def test_check_users_exist_calls_api(
 
     result = workspace_client.check_users_exist(["alice", "bob"])
 
-    assert result == [
+    assert sorted(result, key=lambda u: u.username) == [
         LdapUserStatus(username="alice", exists=True),
         LdapUserStatus(username="bob", exists=False),
     ]

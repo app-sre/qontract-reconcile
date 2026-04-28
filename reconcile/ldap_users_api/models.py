@@ -20,9 +20,10 @@ class PathSpec(BaseModel, frozen=True):
     @field_validator("path")
     @classmethod
     def prepend_data_to_path(cls, v: str) -> str:
-        if not v.startswith("data"):
-            return "data" + v
-        return v
+        normalized = v.strip()
+        if normalized == "data" or normalized.startswith("data/"):
+            return normalized
+        return f"data/{normalized.lstrip('/')}"
 
 
 class UserPaths(BaseModel, frozen=True):

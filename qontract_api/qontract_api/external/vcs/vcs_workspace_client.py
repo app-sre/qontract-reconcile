@@ -56,7 +56,7 @@ class VCSWorkspaceClient:
 
         self.provider_name = provider_name
 
-    def get_owners(self, owners_file: str, ref: str = "master") -> RepoOwners:
+    def get_owners(self, owners_file: str, ref: str) -> RepoOwners:
         """Get OWNERS data for repository path with caching.
 
         Implements two-tier caching with distributed locking:
@@ -80,8 +80,7 @@ class VCSWorkspaceClient:
             return cached_owners
 
         # Cache miss - acquire lock and fetch from API
-        lock_key = f"{cache_key}:lock"
-        with self._cache.lock(lock_key, timeout=30):
+        with self._cache.lock(cache_key, timeout=30):
             # Double-check cache after acquiring lock (another process may have updated it)
             cached_owners = self._cache.get_obj(cache_key, RepoOwners)
             if cached_owners is not None:
@@ -125,7 +124,7 @@ class VCSWorkspaceClient:
         """
         return self._api_client.create_merge_request(mr_input)
 
-    def get_file(self, path: str, ref: str = "master") -> str | None:
+    def get_file(self, path: str, ref: str) -> str | None:
         """Get file content from repository.
 
         Delegates to the underlying VCS API client (no caching).

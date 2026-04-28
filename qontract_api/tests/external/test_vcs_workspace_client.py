@@ -159,7 +159,7 @@ def test_get_owners_acquires_lock_on_cache_miss(
 
     # Verify lock was acquired
     mock_cache.lock.assert_called_once_with(
-        "vcs:owners:https://github.com/test-org/test-repo:/:main:lock",
+        "vcs:owners:https://github.com/test-org/test-repo:/:main",
         timeout=30,
     )
 

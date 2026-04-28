@@ -1,6 +1,18 @@
 """Tests for LDAP users API integration."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+from qontract_api_client.models.file_sync_delete import FileSyncDelete
+from qontract_api_client.models.file_sync_response import FileSyncResponse
+from qontract_api_client.models.file_sync_status import FileSyncStatus
+from qontract_api_client.models.ldap_users_check_response import (
+    LdapUsersCheckResponse,
+)
+from qontract_api_client.models.ldap_user_status import LdapUserStatus
 from qontract_utils.vcs import Provider
 
 from reconcile.gql_definitions.common.users_with_paths import (
@@ -14,11 +26,16 @@ from reconcile.gql_definitions.common.users_with_paths import (
 )
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.ldap_users_api.integration import (
+    LdapUsersApiIntegration,
+    LdapUsersApiIntegrationParams,
     _find_vcs_secret,
     transform_users_with_paths,
 )
 from reconcile.ldap_users_api.models import PathType
 from reconcile.typed_queries.vcs import Vcs
+
+if TYPE_CHECKING:
+    from reconcile.typed_queries.ldap_settings import LdapSettings
 
 
 def test_transform_users_with_paths() -> None:
@@ -166,3 +183,246 @@ def test_find_vcs_secret_not_found() -> None:
             vcs_instances,
             "https://gitlab.cee.redhat.com/service/app-interface",
         )
+
+
+# --- async_run tests ---
+
+_MOD = "reconcile.ldap_users_api.integration"
+_APP_REPO = "https://gitlab.example.com/service/app-interface"
+_INFRA_REPO = "https://gitlab.example.com/app-sre/infra"
+
+
+def _make_user(username: str) -> UserV1:
+    return UserV1(
+        path=f"/access/users/{username}.yml",
+        org_username=username,
+        requests=None,
+        queries=None,
+        gabi_instances=None,
+        aws_accounts=None,
+        schedules=None,
+        sre_checkpoints=None,
+    )
+
+
+def _ldap_settings() -> MagicMock:
+    settings = MagicMock()
+    settings.server_url = "ldap://freeipa.example.com"
+    settings.base_dn = "dc=example,dc=com"
+    settings.credentials = VaultSecret(
+        path="secret/ldap", field="all", version=1, format=None
+    )
+    return settings
+
+
+def _ldap_response(
+    users: dict[str, bool],
+) -> LdapUsersCheckResponse:
+    return LdapUsersCheckResponse(
+        users=[
+            LdapUserStatus(username=name, exists=exists)
+            for name, exists in users.items()
+        ]
+    )
+
+
+def _vcs_instances() -> list[Vcs]:
+    return [
+        _make_vcs("gitlab", "https://gitlab.example.com"),
+    ]
+
+
+@pytest.fixture
+def integration() -> LdapUsersApiIntegration:
+    """Create integration instance with mocked base class properties."""
+    inst = LdapUsersApiIntegration(
+        LdapUsersApiIntegrationParams(
+            app_interface_repo_url=_APP_REPO,
+            infra_repo_url=_INFRA_REPO,
+            infra_paths=["ansible/hosts/group_vars/all"],
+            labels=["ldap-users"],
+        )
+    )
+    type(inst).qontract_api_client = property(lambda self: MagicMock())
+    type(inst).secret_manager_url = property(lambda self: "https://vault.example.com")
+    return inst
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.check_ldap_users", new_callable=AsyncMock)
+async def test_async_run_safety_check_aborts_when_ldap_empty(
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    integration: LdapUsersApiIntegration,
+) -> None:
+    """If LDAP returns no existing users, abort with RuntimeError."""
+    mock_users.return_value = [_make_user("alice"), _make_user("bob")]
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+    mock_ldap.return_value = _ldap_response({"alice": False, "bob": False})
+
+    with pytest.raises(RuntimeError, match="LDAP returned empty result set"):
+        await integration.async_run(dry_run=False)
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.check_ldap_users", new_callable=AsyncMock)
+async def test_async_run_no_users_to_delete(
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    integration: LdapUsersApiIntegration,
+) -> None:
+    """If all users exist in LDAP, do nothing."""
+    mock_users.return_value = [_make_user("alice")]
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+    mock_ldap.return_value = _ldap_response({"alice": True})
+
+    await integration.async_run(dry_run=False)
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_app_interface_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.check_ldap_users", new_callable=AsyncMock)
+async def test_async_run_dry_run_does_not_call_file_sync(
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    mock_build_app: AsyncMock,
+    mock_build_infra: AsyncMock,
+    mock_file_sync: AsyncMock,
+    integration: LdapUsersApiIntegration,
+) -> None:
+    """In dry-run mode, file-sync endpoint is never called."""
+    mock_users.return_value = [_make_user("alice")]
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+    mock_ldap.return_value = _ldap_response({"alice": False, "bob": True})
+    mock_build_app.return_value = [
+        FileSyncDelete(path="data/access/users/alice.yml", commit_message="del"),
+    ]
+    mock_build_infra.return_value = []
+
+    await integration.async_run(dry_run=True)
+
+    mock_file_sync.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.vcs_file_sync", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_infra_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.build_app_interface_file_operations", new_callable=AsyncMock)
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+@patch(f"{_MOD}.check_ldap_users", new_callable=AsyncMock)
+async def test_async_run_calls_file_sync_for_deleted_user(
+    mock_ldap: AsyncMock,
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    mock_build_app: AsyncMock,
+    mock_build_infra: AsyncMock,
+    mock_file_sync: AsyncMock,
+    integration: LdapUsersApiIntegration,
+) -> None:
+    """Non-dry-run calls file-sync for users not in LDAP."""
+    mock_users.return_value = [_make_user("alice"), _make_user("bob")]
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+    mock_ldap.return_value = _ldap_response({"alice": False, "bob": True})
+    mock_build_app.return_value = [
+        FileSyncDelete(path="data/access/users/alice.yml", commit_message="del"),
+    ]
+    mock_build_infra.return_value = []
+    mock_file_sync.return_value = FileSyncResponse(
+        status=FileSyncStatus.MR_CREATED,
+        mr_url="https://gitlab.example.com/mr/1",
+    )
+
+    await integration.async_run(dry_run=False)
+
+    mock_file_sync.assert_called_once()
+    call_body = mock_file_sync.call_args.kwargs["body"]
+    assert call_body.repo_url == _APP_REPO
+    assert call_body.title == "[create_delete_user_mr] delete user alice"
+    assert len(call_body.file_operations) == 1
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+async def test_async_run_no_usernames_returns_early(
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    integration: LdapUsersApiIntegration,
+) -> None:
+    """If GraphQL returns no users, return immediately."""
+    mock_users.return_value = []
+    mock_settings.return_value = _ldap_settings()
+    mock_vcs.return_value = _vcs_instances()
+
+    await integration.async_run(dry_run=False)
+
+
+@pytest.mark.asyncio
+@patch(f"{_MOD}.get_feature_toggle_state", return_value=False)
+@patch(f"{_MOD}.get_vcs_instances")
+@patch(f"{_MOD}.get_ldap_settings")
+@patch(f"{_MOD}.get_users_with_paths")
+@patch(f"{_MOD}.gql")
+async def test_async_run_missing_ldap_credentials(
+    mock_gql: MagicMock,
+    mock_users: MagicMock,
+    mock_settings: MagicMock,
+    mock_vcs: MagicMock,
+    mock_toggle: MagicMock,
+    integration: LdapUsersApiIntegration,
+) -> None:
+    """If LDAP credentials are missing, raise RuntimeError."""
+    mock_users.return_value = [_make_user("alice")]
+    settings = MagicMock()
+    settings.credentials = None
+    mock_settings.return_value = settings
+    mock_vcs.return_value = _vcs_instances()
+
+    with pytest.raises(RuntimeError, match="LDAP credentials not found"):
+        await integration.async_run(dry_run=False)

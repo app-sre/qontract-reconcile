@@ -16,15 +16,29 @@ def test_path_type_values() -> None:
     assert len(PathType) == 7
 
 
-def test_path_spec_prepends_data() -> None:
-    """Test that PathSpec prepends 'data' to path if not already prefixed."""
-    # Path without 'data' prefix should get it prepended
-    spec = PathSpec(type=PathType.USER, path="/users/alice.yml")
-    assert spec.path == "data/users/alice.yml"
-
-    # Path with 'data' prefix should remain unchanged
-    spec_with_data = PathSpec(type=PathType.USER, path="data/users/bob.yml")
-    assert spec_with_data.path == "data/users/bob.yml"
+@pytest.mark.parametrize(
+    ("input_path", "expected"),
+    [
+        ("/users/alice.yml", "data/users/alice.yml"),
+        ("data/users/bob.yml", "data/users/bob.yml"),
+        ("data", "data"),
+        ("dataflow/thing.yml", "data/dataflow/thing.yml"),
+        ("users/foo.yml", "data/users/foo.yml"),
+        ("  /users/alice.yml  ", "data/users/alice.yml"),
+    ],
+    ids=[
+        "leading-slash",
+        "already-prefixed",
+        "bare-data",
+        "dataflow-not-data-prefix",
+        "no-leading-slash",
+        "whitespace-stripped",
+    ],
+)
+def test_path_spec_prepends_data(input_path: str, expected: str) -> None:
+    """Test that PathSpec correctly normalizes paths with data/ prefix."""
+    spec = PathSpec(type=PathType.USER, path=input_path)
+    assert spec.path == expected
 
 
 def test_user_paths_frozen() -> None:
