@@ -50,7 +50,9 @@ class LdapUsersApiIntegrationParams(PydanticRunParams):
     """Parameters for LDAP users API integration."""
 
     app_interface_repo_url: str
+    app_interface_target_branch: str = "master"
     infra_repo_url: str
+    infra_target_branch: str = "master"
     infra_paths: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
 
@@ -117,7 +119,7 @@ class LdapUsersApiIntegration(
         return QONTRACT_INTEGRATION
 
     async def _get_file_content(
-        self, *, repo_url: str, path: str, vcs_secret: Secret
+        self, *, repo_url: str, path: str, ref: str, vcs_secret: Secret
     ) -> str | None:
         """Read file content from a VCS repository via external endpoint.
 
@@ -132,6 +134,7 @@ class LdapUsersApiIntegration(
                 version=vcs_secret.version,
                 repo_url=repo_url,
                 file_path=path,
+                ref=ref,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -219,9 +222,11 @@ class LdapUsersApiIntegration(
         auto_merge: bool,
     ) -> None:
         """Create one MR per user to delete from app-interface via file-sync."""
+        target_branch = self.params.app_interface_target_branch
         get_file = partial(
             self._get_file_content,
             repo_url=self.params.app_interface_repo_url,
+            ref=target_branch,
             vcs_secret=vcs_secret,
         )
 
@@ -246,6 +251,7 @@ class LdapUsersApiIntegration(
                             token=vcs_secret,
                             title=title,
                             description=f"delete user {user.username}",
+                            target_branch=target_branch,
                             file_operations=file_ops,
                             labels=self.params.labels,
                             auto_merge=auto_merge,
@@ -282,10 +288,12 @@ class LdapUsersApiIntegration(
     ) -> None:
         """Create single MR to delete all users from infra repo via file-sync."""
         title = "[create_ssh_key_mr] delete user(s)"
+        target_branch = self.params.infra_target_branch
 
         get_file = partial(
             self._get_file_content,
             repo_url=self.params.infra_repo_url,
+            ref=target_branch,
             vcs_secret=vcs_secret,
         )
 
@@ -307,6 +315,7 @@ class LdapUsersApiIntegration(
                     token=vcs_secret,
                     title=title,
                     description="delete user(s)",
+                    target_branch=target_branch,
                     file_operations=file_ops,
                     labels=self.params.labels,
                     auto_merge=auto_merge,

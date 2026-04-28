@@ -2107,9 +2107,19 @@ def ldap_users(
     help="App-interface GitLab repository URL.",
 )
 @click.option(
+    "--app-interface-target-branch",
+    default="master",
+    help="App-interface repository target branch.",
+)
+@click.option(
     "--infra-repo-url",
     required=True,
     help="Infra GitLab repository URL.",
+)
+@click.option(
+    "--infra-target-branch",
+    default="master",
+    help="Infra repository target branch.",
 )
 @click.option(
     "--infra-path",
@@ -2130,7 +2140,9 @@ def ldap_users(
 def ldap_users_api(
     ctx: click.Context,
     app_interface_repo_url: str,
+    app_interface_target_branch: str,
     infra_repo_url: str,
+    infra_target_branch: str,
     infra_path: tuple[str, ...],
     label: tuple[str, ...],
 ) -> None:
@@ -2143,7 +2155,9 @@ def ldap_users_api(
         integration=LdapUsersApiIntegration(
             LdapUsersApiIntegrationParams(
                 app_interface_repo_url=app_interface_repo_url,
+                app_interface_target_branch=app_interface_target_branch,
                 infra_repo_url=infra_repo_url,
+                infra_target_branch=infra_target_branch,
                 infra_paths=list(infra_path),
                 labels=list(label),
             )

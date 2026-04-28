@@ -48,7 +48,7 @@ class GetFileParams(Secret):
         description="Repository URL (e.g., https://gitlab.com/group/project)",
     )
     file_path: str = Field(..., description="File path in the repository")
-    ref: str = Field(default="master", description="Git reference (branch, tag, SHA)")
+    ref: str = Field(..., description="Git reference (branch, tag, SHA)")
 
 
 class GetFileResponse(BaseModel, frozen=True):
@@ -110,7 +110,7 @@ class FileSyncRequest(BaseModel, frozen=True):
     token: Secret = Field(..., description="Secret reference for VCS API token")
     title: str = Field(..., description="Merge request title (used for deduplication)")
     description: str = Field(default="", description="Merge request description")
-    target_branch: str = Field(default="master", description="Target branch name")
+    target_branch: str = Field(..., description="Target branch name")
     file_operations: list[FileSyncFileOperation] = Field(
         ...,
         min_length=1,

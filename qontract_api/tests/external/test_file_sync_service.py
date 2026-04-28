@@ -36,6 +36,7 @@ def _request(
         token=_secret(),
         title=title,
         description="test",
+        target_branch="master",
         file_operations=file_operations,
     )
 

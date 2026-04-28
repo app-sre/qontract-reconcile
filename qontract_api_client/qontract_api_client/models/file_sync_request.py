@@ -29,22 +29,22 @@ class FileSyncRequest:
         Attributes:
             file_operations (list[FileSyncCreate | FileSyncDelete | FileSyncUpdate]): File operations to reconcile
             repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+            target_branch (str): Target branch name
             title (str): Merge request title (used for deduplication)
             token (Secret): Reference to a secret stored in a secret manager.
             auto_merge (bool | Unset): Whether to enable auto-merge Default: False.
             description (str | Unset): Merge request description Default: ''.
             labels (list[str] | Unset): Labels to apply to the MR
-            target_branch (str | Unset): Target branch name Default: 'master'.
     """
 
     file_operations: list[FileSyncCreate | FileSyncDelete | FileSyncUpdate]
     repo_url: str
+    target_branch: str
     title: str
     token: Secret
     auto_merge: bool | Unset = False
     description: str | Unset = ""
     labels: list[str] | Unset = UNSET
-    target_branch: str | Unset = "master"
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -65,6 +65,8 @@ class FileSyncRequest:
 
         repo_url = self.repo_url
 
+        target_branch = self.target_branch
+
         title = self.title
 
         token = self.token.to_dict()
@@ -77,13 +79,12 @@ class FileSyncRequest:
         if not isinstance(self.labels, Unset):
             labels = self.labels
 
-        target_branch = self.target_branch
-
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
             "file_operations": file_operations,
             "repo_url": repo_url,
+            "target_branch": target_branch,
             "title": title,
             "token": token,
         })
@@ -93,8 +94,6 @@ class FileSyncRequest:
             field_dict["description"] = description
         if labels is not UNSET:
             field_dict["labels"] = labels
-        if target_branch is not UNSET:
-            field_dict["target_branch"] = target_branch
 
         return field_dict
 
@@ -143,6 +142,8 @@ class FileSyncRequest:
 
         repo_url = d.pop("repo_url")
 
+        target_branch = d.pop("target_branch")
+
         title = d.pop("title")
 
         token = Secret.from_dict(d.pop("token"))
@@ -153,17 +154,15 @@ class FileSyncRequest:
 
         labels = cast(list[str], d.pop("labels", UNSET))
 
-        target_branch = d.pop("target_branch", UNSET)
-
         file_sync_request = cls(
             file_operations=file_operations,
             repo_url=repo_url,
+            target_branch=target_branch,
             title=title,
             token=token,
             auto_merge=auto_merge,
             description=description,
             labels=labels,
-            target_branch=target_branch,
         )
 
         file_sync_request.additional_properties = d

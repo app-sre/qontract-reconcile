@@ -50,7 +50,7 @@ class VCSQueryParams(Secret):
         description="Path to OWNERS file in the repository (e.g., /OWNERS or /path/to/OWNERS)",
     )
 
-    ref: str = Field("master", description="Git reference (branch, tag, commit SHA)")
+    ref: str = Field(..., description="Git reference (branch, tag, commit SHA)")
 
 
 @router.get(

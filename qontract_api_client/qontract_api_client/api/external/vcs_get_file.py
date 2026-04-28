@@ -17,7 +17,7 @@ def _get_kwargs(
     version: int | None | Unset = UNSET,
     repo_url: str,
     file_path: str,
-    ref: str | Unset = "master",
+    ref: str,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -88,7 +88,7 @@ def sync_detailed(
     version: int | None | Unset = UNSET,
     repo_url: str,
     file_path: str,
-    ref: str | Unset = "master",
+    ref: str,
 ) -> Response[GetFileResponse]:
     """Get File
 
@@ -101,7 +101,7 @@ def sync_detailed(
         version (int | None | Unset): Version of the secret
         repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
         file_path (str): File path in the repository
-        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -137,7 +137,7 @@ def sync(
     version: int | None | Unset = UNSET,
     repo_url: str,
     file_path: str,
-    ref: str | Unset = "master",
+    ref: str,
 ) -> GetFileResponse:
     """Get File
 
@@ -150,7 +150,7 @@ def sync(
         version (int | None | Unset): Version of the secret
         repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
         file_path (str): File path in the repository
-        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -184,7 +184,7 @@ async def asyncio_detailed(
     version: int | None | Unset = UNSET,
     repo_url: str,
     file_path: str,
-    ref: str | Unset = "master",
+    ref: str,
 ) -> Response[GetFileResponse]:
     """Get File
 
@@ -197,7 +197,7 @@ async def asyncio_detailed(
         version (int | None | Unset): Version of the secret
         repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
         file_path (str): File path in the repository
-        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -231,7 +231,7 @@ async def asyncio(
     version: int | None | Unset = UNSET,
     repo_url: str,
     file_path: str,
-    ref: str | Unset = "master",
+    ref: str,
 ) -> GetFileResponse:
     """Get File
 
@@ -244,7 +244,7 @@ async def asyncio(
         version (int | None | Unset): Version of the secret
         repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
         file_path (str): File path in the repository
-        ref (str | Unset): Git reference (branch, tag, SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

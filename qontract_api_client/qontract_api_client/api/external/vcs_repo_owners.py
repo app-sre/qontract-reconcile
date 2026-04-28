@@ -17,7 +17,7 @@ def _get_kwargs(
     version: int | None | Unset = UNSET,
     repo_url: str,
     owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
+    ref: str,
 ) -> dict[str, Any]:
 
     params: dict[str, Any] = {}
@@ -88,7 +88,7 @@ def sync_detailed(
     version: int | None | Unset = UNSET,
     repo_url: str,
     owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
+    ref: str,
 ) -> Response[RepoOwnersResponse]:
     """Get Repo Owners
 
@@ -105,7 +105,7 @@ def sync_detailed(
         repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
         owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
             /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, commit SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -141,7 +141,7 @@ def sync(
     version: int | None | Unset = UNSET,
     repo_url: str,
     owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
+    ref: str,
 ) -> RepoOwnersResponse:
     """Get Repo Owners
 
@@ -158,7 +158,7 @@ def sync(
         repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
         owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
             /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, commit SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -192,7 +192,7 @@ async def asyncio_detailed(
     version: int | None | Unset = UNSET,
     repo_url: str,
     owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
+    ref: str,
 ) -> Response[RepoOwnersResponse]:
     """Get Repo Owners
 
@@ -209,7 +209,7 @@ async def asyncio_detailed(
         repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
         owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
             /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, commit SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -243,7 +243,7 @@ async def asyncio(
     version: int | None | Unset = UNSET,
     repo_url: str,
     owners_file: str | Unset = "/OWNERS",
-    ref: str | Unset = "master",
+    ref: str,
 ) -> RepoOwnersResponse:
     """Get Repo Owners
 
@@ -260,7 +260,7 @@ async def asyncio(
         repo_url (str): Repository URL (e.g., https://github.com/owner/repo)
         owners_file (str | Unset): Path to OWNERS file in the repository (e.g., /OWNERS or
             /path/to/OWNERS) Default: '/OWNERS'.
-        ref (str | Unset): Git reference (branch, tag, commit SHA) Default: 'master'.
+        ref (str): Git reference (branch, tag, commit SHA)
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

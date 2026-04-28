@@ -245,7 +245,6 @@
             "type": "string"
           },
           "target_branch": {
-            "default": "master",
             "description": "Target branch name",
             "title": "Target Branch",
             "type": "string"
@@ -264,6 +263,7 @@
           "repo_url",
           "token",
           "title",
+          "target_branch",
           "file_operations"
         ],
         "title": "FileSyncRequest",
@@ -3171,9 +3171,8 @@
             "description": "Git reference (branch, tag, SHA)",
             "in": "query",
             "name": "ref",
-            "required": false,
+            "required": true,
             "schema": {
-              "default": "master",
               "description": "Git reference (branch, tag, SHA)",
               "title": "Ref",
               "type": "string"
@@ -3293,9 +3292,8 @@
             "description": "Git reference (branch, tag, commit SHA)",
             "in": "query",
             "name": "ref",
-            "required": false,
+            "required": true,
             "schema": {
-              "default": "master",
               "description": "Git reference (branch, tag, commit SHA)",
               "title": "Ref",
               "type": "string"
