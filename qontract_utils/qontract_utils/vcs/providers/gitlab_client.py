@@ -196,7 +196,7 @@ class GitLabRepoApi:
         # Validate file operations before creating branch to avoid stray branches
         for file_op in mr_input.file_operations:
             if (
-                file_op.action in (FileAction.CREATE, FileAction.UPDATE)
+                file_op.action in {FileAction.CREATE, FileAction.UPDATE}
                 and file_op.content is None
             ):
                 raise ValueError(
@@ -216,7 +216,7 @@ class GitLabRepoApi:
         # Apply file operations
         for file_op in mr_input.file_operations:
             match file_op.action:
-                case FileAction.CREATE:
+                case FileAction.CREATE if file_op.content is not None:
                     self._project.files.create(
                         {
                             "file_path": file_op.path,
@@ -225,7 +225,7 @@ class GitLabRepoApi:
                             "commit_message": file_op.commit_message,
                         }
                     )
-                case FileAction.UPDATE:
+                case FileAction.UPDATE if file_op.content is not None:
                     file = self._project.files.get(file_path=file_op.path, ref=branch)
                     file.content = file_op.content
                     file.save(
