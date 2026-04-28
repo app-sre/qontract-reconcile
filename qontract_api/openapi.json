@@ -190,7 +190,7 @@
         "type": "object"
       },
       "FileSyncRequest": {
-        "description": "Request to reconcile file state in a VCS repository.\n\nThe server reads current file state from the target branch,\nvalidates each operation against current state, and creates a\nmerge request if changes are needed. Deduplicates by MR title.",
+        "description": "Request to reconcile file state in a VCS repository.\n\nDeduplicates by MR title and creates a merge request with the\ngiven file operations. Relies on the VCS provider for validation.",
         "properties": {
           "auto_merge": {
             "default": false,
@@ -3189,6 +3189,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "File not found in the repository"
           }
         },
         "security": [

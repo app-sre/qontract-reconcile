@@ -107,6 +107,7 @@ def get_repo_owners(
 @router.get(
     "/repos/file",
     operation_id="vcs-get-file",
+    responses={404: {"description": "File not found in the repository"}},
 )
 def get_file(
     cache: CacheDep,

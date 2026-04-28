@@ -16,6 +16,7 @@ from qontract_api.exceptions import (
     APIError,
     api_error_handler,
     general_exception_handler,
+    not_implemented_handler,
     validation_exception_handler,
 )
 from qontract_api.health import HealthResponse, HealthResponseDep
@@ -83,6 +84,7 @@ app = FastAPI(
     # don't use add_exception_handler because of https://github.com/Kludex/starlette/discussions/2391
     exception_handlers={
         APIError: api_error_handler,
+        NotImplementedError: not_implemented_handler,
         Exception: general_exception_handler,
         RequestValidationError: validation_exception_handler,
     },

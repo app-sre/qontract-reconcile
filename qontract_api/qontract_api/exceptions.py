@@ -70,6 +70,22 @@ async def api_error_handler(  # noqa: RUF029 - FastAPI requires async exception 
     )
 
 
+async def not_implemented_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
+    request: Request, exc: NotImplementedError
+) -> JSONResponse:
+    """Handle NotImplementedError as 501 Not Implemented."""
+    request_id = getattr(request.state, "request_id", None)
+    error_detail = ErrorDetail(
+        message=str(exc) or "Not implemented",
+        type="NotImplementedError",
+        request_id=request_id,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        content=error_detail.model_dump(),
+    )
+
+
 async def general_exception_handler(  # noqa: RUF029 - FastAPI requires async exception handlers
     request: Request, exc: Exception
 ) -> JSONResponse:

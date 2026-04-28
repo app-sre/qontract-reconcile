@@ -22,9 +22,8 @@ T = TypeVar("T", bound="FileSyncRequest")
 class FileSyncRequest:
     """Request to reconcile file state in a VCS repository.
 
-    The server reads current file state from the target branch,
-    validates each operation against current state, and creates a
-    merge request if changes are needed. Deduplicates by MR title.
+    Deduplicates by MR title and creates a merge request with the
+    given file operations. Relies on the VCS provider for validation.
 
         Attributes:
             file_operations (list[FileSyncCreate | FileSyncDelete | FileSyncUpdate]): File operations to reconcile

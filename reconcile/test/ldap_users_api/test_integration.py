@@ -5,14 +5,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 import pytest
 from qontract_api_client.models.file_sync_delete import FileSyncDelete
 from qontract_api_client.models.file_sync_response import FileSyncResponse
 from qontract_api_client.models.file_sync_status import FileSyncStatus
+from qontract_api_client.models.ldap_user_status import LdapUserStatus
 from qontract_api_client.models.ldap_users_check_response import (
     LdapUsersCheckResponse,
 )
-from qontract_api_client.models.ldap_user_status import LdapUserStatus
 from qontract_utils.vcs import Provider
 
 from reconcile.gql_definitions.common.users_with_paths import (
@@ -33,9 +36,6 @@ from reconcile.ldap_users_api.integration import (
 )
 from reconcile.ldap_users_api.models import PathType
 from reconcile.typed_queries.vcs import Vcs
-
-if TYPE_CHECKING:
-    from reconcile.typed_queries.ldap_settings import LdapSettings
 
 
 def test_transform_users_with_paths() -> None:
@@ -233,7 +233,7 @@ def _vcs_instances() -> list[Vcs]:
 
 
 @pytest.fixture
-def integration() -> LdapUsersApiIntegration:
+def integration() -> Generator[LdapUsersApiIntegration, None, None]:
     """Create integration instance with mocked base class properties."""
     inst = LdapUsersApiIntegration(
         LdapUsersApiIntegrationParams(
@@ -243,9 +243,19 @@ def integration() -> LdapUsersApiIntegration:
             labels=["ldap-users"],
         )
     )
-    type(inst).qontract_api_client = property(lambda self: MagicMock())
-    type(inst).secret_manager_url = property(lambda self: "https://vault.example.com")
-    return inst
+    with (
+        patch.object(
+            type(inst),
+            "qontract_api_client",
+            new_callable=lambda: property(lambda self: MagicMock()),
+        ),
+        patch.object(
+            type(inst),
+            "secret_manager_url",
+            new_callable=lambda: property(lambda self: "https://vault.example.com"),
+        ),
+    ):
+        yield inst
 
 
 @pytest.mark.asyncio

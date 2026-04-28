@@ -27,7 +27,7 @@ def _secret() -> Secret:
 
 
 def _request(
-    file_operations: list,
+    file_operations: list[FileSyncCreate | FileSyncUpdate | FileSyncDelete],
     *,
     title: str = "test-mr",
 ) -> FileSyncRequest:

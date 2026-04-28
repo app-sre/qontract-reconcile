@@ -18,6 +18,7 @@ from qontract_api_client.api.external.ldap_users_check import (
 )
 from qontract_api_client.api.external.vcs_file_sync import asyncio as vcs_file_sync
 from qontract_api_client.api.external.vcs_get_file import asyncio as vcs_get_file
+from qontract_api_client.errors import UnexpectedStatus
 from qontract_api_client.models.file_sync_request import FileSyncRequest
 from qontract_api_client.models.file_sync_status import FileSyncStatus
 from qontract_api_client.models.ldap_direct_secret import LdapDirectSecret
@@ -138,6 +139,10 @@ class LdapUsersApiIntegration(
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
+                return None
+            raise
+        except UnexpectedStatus as e:
+            if e.status_code == 404:
                 return None
             raise
         return response.content
@@ -266,9 +271,11 @@ class LdapUsersApiIntegration(
         results = await asyncio.gather(*sync_calls, return_exceptions=True)
         for result in results:
             if isinstance(result, BaseException):
-                logger.error(f"Failed file-sync: {result}")
-                error = True
-                continue
+                if isinstance(result, Exception):
+                    logger.error(f"Failed file-sync: {result}")
+                    error = True
+                    continue
+                raise result
             match result.status:
                 case FileSyncStatus.MR_CREATED:
                     logger.info(f"MR created: {result.mr_url}")

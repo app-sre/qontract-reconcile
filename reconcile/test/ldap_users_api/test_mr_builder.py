@@ -99,11 +99,12 @@ async def test_build_gabi_modification() -> None:
     )
 
     assert len(ops) == 1
-    assert ops[0].path == "data/services/gabi/users.yml"
-    assert isinstance(ops[0].content, str)
-    assert "/access/users/alice.yml" not in ops[0].content
-    assert "/access/users/bob.yml" in ops[0].content
-    assert ops[0].commit_message == "Remove user alice"
+    op = ops[0]
+    assert isinstance(op, FileSyncUpdate)
+    assert op.path == "data/services/gabi/users.yml"
+    assert "/access/users/alice.yml" not in op.content
+    assert "/access/users/bob.yml" in op.content
+    assert op.commit_message == "Remove user alice"
     vcs_get_file.assert_called_once_with(path="data/services/gabi/users.yml")
 
 
@@ -134,7 +135,6 @@ async def test_build_mixed_operations() -> None:
 
     assert len(modify_ops) == 1
     assert modify_ops[0].path == "data/services/gabi/users.yml"
-    assert isinstance(modify_ops[0].content, str)
     assert "/access/users/bob.yml" in modify_ops[0].content
 
     vcs_get_file.assert_called_once_with(path="data/services/gabi/users.yml")
@@ -161,10 +161,11 @@ async def test_build_aws_accounts_modification() -> None:
     )
 
     assert len(ops) == 1
-    assert ops[0].path == "data/aws/accounts/account-foo.yml"
-    assert isinstance(ops[0].content, str)
-    assert "/access/users/alice.yml" not in ops[0].content
-    assert "/access/users/bob.yml" in ops[0].content
+    op = ops[0]
+    assert isinstance(op, FileSyncUpdate)
+    assert op.path == "data/aws/accounts/account-foo.yml"
+    assert "/access/users/alice.yml" not in op.content
+    assert "/access/users/bob.yml" in op.content
     vcs_get_file.assert_called_once_with(path="data/aws/accounts/account-foo.yml")
 
 
@@ -186,11 +187,12 @@ async def test_build_schedule_modification() -> None:
     )
 
     assert len(ops) == 1
-    assert ops[0].path == "data/services/schedule.yml"
-    assert isinstance(ops[0].content, str)
-    assert "/access/users/alice.yml" not in ops[0].content
-    assert "/access/users/bob.yml" in ops[0].content
-    assert "/access/users/charlie.yml" in ops[0].content
+    op = ops[0]
+    assert isinstance(op, FileSyncUpdate)
+    assert op.path == "data/services/schedule.yml"
+    assert "/access/users/alice.yml" not in op.content
+    assert "/access/users/bob.yml" in op.content
+    assert "/access/users/charlie.yml" in op.content
     vcs_get_file.assert_called_once_with(path="data/services/schedule.yml")
 
 
@@ -259,13 +261,13 @@ async def test_build_infra_operations_playbook_only() -> None:
 
     # Check bastion file
     bastion_op = next(op for op in ops if op.path == INFRA_PLAYBOOK_PATH)
-    assert isinstance(bastion_op.content, str)
+    assert isinstance(bastion_op, FileSyncUpdate)
     deleted_section = bastion_op.content.split("deleted_users:")[1]
     assert "alice" in deleted_section
 
     # Check admins file
     admins_op = next(op for op in ops if op.path == INFRA_ADMINS_PATH)
-    assert isinstance(admins_op.content, str)
+    assert isinstance(admins_op, FileSyncUpdate)
     deleted_section = admins_op.content.split("deleted_users:")[1]
     assert "alice" in deleted_section
     assert "bob" in admins_op.content.split("deleted_users:")[0]

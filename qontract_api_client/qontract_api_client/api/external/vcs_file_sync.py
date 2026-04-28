@@ -67,9 +67,8 @@ def sync_detailed(
     Args:
         body (FileSyncRequest): Request to reconcile file state in a VCS repository.
 
-            The server reads current file state from the target branch,
-            validates each operation against current state, and creates a
-            merge request if changes are needed. Deduplicates by MR title.
+            Deduplicates by MR title and creates a merge request with the
+            given file operations. Relies on the VCS provider for validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -106,9 +105,8 @@ def sync(
     Args:
         body (FileSyncRequest): Request to reconcile file state in a VCS repository.
 
-            The server reads current file state from the target branch,
-            validates each operation against current state, and creates a
-            merge request if changes are needed. Deduplicates by MR title.
+            Deduplicates by MR title and creates a merge request with the
+            given file operations. Relies on the VCS provider for validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,9 +141,8 @@ async def asyncio_detailed(
     Args:
         body (FileSyncRequest): Request to reconcile file state in a VCS repository.
 
-            The server reads current file state from the target branch,
-            validates each operation against current state, and creates a
-            merge request if changes are needed. Deduplicates by MR title.
+            Deduplicates by MR title and creates a merge request with the
+            given file operations. Relies on the VCS provider for validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -180,9 +177,8 @@ async def asyncio(
     Args:
         body (FileSyncRequest): Request to reconcile file state in a VCS repository.
 
-            The server reads current file state from the target branch,
-            validates each operation against current state, and creates a
-            merge request if changes are needed. Deduplicates by MR title.
+            Deduplicates by MR title and creates a merge request with the
+            given file operations. Relies on the VCS provider for validation.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
