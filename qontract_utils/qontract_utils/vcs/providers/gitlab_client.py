@@ -1,5 +1,6 @@
 """GitLab Repository API client with hook system for metrics and rate limiting."""
 
+import contextlib
 import contextvars
 import time
 from dataclasses import dataclass
@@ -213,46 +214,55 @@ class GitLabRepoApi:
             }
         )
 
-        # Apply file operations
-        for file_op in mr_input.file_operations:
-            match file_op.action:
-                case FileAction.CREATE if file_op.content is not None:
-                    self._project.files.create(
-                        {
-                            "file_path": file_op.path,
-                            "branch": branch,
-                            "content": file_op.content,
-                            "commit_message": file_op.commit_message,
-                        }
-                    )
-                case FileAction.UPDATE if file_op.content is not None:
-                    file = self._project.files.get(file_path=file_op.path, ref=branch)
-                    file.content = file_op.content
-                    file.save(
-                        branch=branch,
-                        commit_message=file_op.commit_message,
-                    )
-                case FileAction.DELETE:
-                    file = self._project.files.get(file_path=file_op.path, ref=branch)
-                    file.delete(
-                        branch=branch,
-                        commit_message=file_op.commit_message,
-                    )
+        try:
+            # Apply file operations
+            for file_op in mr_input.file_operations:
+                match file_op.action:
+                    case FileAction.CREATE if file_op.content is not None:
+                        self._project.files.create(
+                            {
+                                "file_path": file_op.path,
+                                "branch": branch,
+                                "content": file_op.content,
+                                "commit_message": file_op.commit_message,
+                            }
+                        )
+                    case FileAction.UPDATE if file_op.content is not None:
+                        file = self._project.files.get(
+                            file_path=file_op.path, ref=branch
+                        )
+                        file.content = file_op.content
+                        file.save(
+                            branch=branch,
+                            commit_message=file_op.commit_message,
+                        )
+                    case FileAction.DELETE:
+                        file = self._project.files.get(
+                            file_path=file_op.path, ref=branch
+                        )
+                        file.delete(
+                            branch=branch,
+                            commit_message=file_op.commit_message,
+                        )
 
-        # Build labels, adding auto-merge label if requested
-        labels = list(mr_input.labels)
-        if mr_input.auto_merge:
-            labels.append(AUTO_MERGE_LABEL)
+            # Build labels, adding auto-merge label if requested
+            labels = list(mr_input.labels)
+            if mr_input.auto_merge:
+                labels.append(AUTO_MERGE_LABEL)
 
-        # Create merge request
-        mr = self._project.mergerequests.create(
-            {
-                "source_branch": branch,
-                "target_branch": mr_input.target_branch,
-                "title": mr_input.title,
-                "description": mr_input.description,
-                "labels": labels,
-            }
-        )
+            # Create merge request
+            mr = self._project.mergerequests.create(
+                {
+                    "source_branch": branch,
+                    "target_branch": mr_input.target_branch,
+                    "title": mr_input.title,
+                    "description": mr_input.description,
+                    "labels": labels,
+                }
+            )
+        except Exception:
+            with contextlib.suppress(Exception):
+                self._project.branches.delete(branch)
+            raise
 
         return mr.web_url
