@@ -114,8 +114,83 @@
         "title": "ChatResponse",
         "type": "object"
       },
-      "CreateMergeRequestRequest": {
-        "description": "Request to create a merge request in a VCS repository.",
+      "EscalationPolicyUsersResponse": {
+        "description": "Response model for escalation policy users endpoint.\n\nImmutable response containing list of users in an escalation policy.\n\nAttributes:\n    users: List of users in escalation policy",
+        "properties": {
+          "users": {
+            "description": "List of users in the escalation policy",
+            "items": {
+              "$ref": "#/components/schemas/PagerDutyUser"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "title": "EscalationPolicyUsersResponse",
+        "type": "object"
+      },
+      "FileSyncCreate": {
+        "description": "Create a new file in the repository.",
+        "properties": {
+          "action": {
+            "const": "create",
+            "default": "create",
+            "title": "Action",
+            "type": "string"
+          },
+          "commit_message": {
+            "description": "Commit message for this change",
+            "title": "Commit Message",
+            "type": "string"
+          },
+          "content": {
+            "description": "File content",
+            "title": "Content",
+            "type": "string"
+          },
+          "path": {
+            "description": "File path in the repository",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content",
+          "commit_message"
+        ],
+        "title": "FileSyncCreate",
+        "type": "object"
+      },
+      "FileSyncDelete": {
+        "description": "Delete a file from the repository.",
+        "properties": {
+          "action": {
+            "const": "delete",
+            "default": "delete",
+            "title": "Action",
+            "type": "string"
+          },
+          "commit_message": {
+            "description": "Commit message for this change",
+            "title": "Commit Message",
+            "type": "string"
+          },
+          "path": {
+            "description": "File path in the repository",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "commit_message"
+        ],
+        "title": "FileSyncDelete",
+        "type": "object"
+      },
+      "FileSyncRequest": {
+        "description": "Request to reconcile file state in a VCS repository.\n\nThe server reads current file state from the target branch,\nvalidates each operation against current state, and creates a\nmerge request if changes are needed. Deduplicates by MR title.",
         "properties": {
           "auto_merge": {
             "default": false,
@@ -130,10 +205,29 @@
             "type": "string"
           },
           "file_operations": {
-            "description": "File operations to include in the MR",
+            "description": "File operations to reconcile",
             "items": {
-              "$ref": "#/components/schemas/MergeRequestFileOperation"
+              "discriminator": {
+                "mapping": {
+                  "create": "#/components/schemas/FileSyncCreate",
+                  "delete": "#/components/schemas/FileSyncDelete",
+                  "update": "#/components/schemas/FileSyncUpdate"
+                },
+                "propertyName": "action"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/FileSyncCreate"
+                },
+                {
+                  "$ref": "#/components/schemas/FileSyncUpdate"
+                },
+                {
+                  "$ref": "#/components/schemas/FileSyncDelete"
+                }
+              ]
             },
+            "minItems": 1,
             "title": "File Operations",
             "type": "array"
           },
@@ -157,7 +251,7 @@
             "type": "string"
           },
           "title": {
-            "description": "Merge request title",
+            "description": "Merge request title (used for deduplication)",
             "title": "Title",
             "type": "string"
           },
@@ -172,48 +266,76 @@
           "title",
           "file_operations"
         ],
-        "title": "CreateMergeRequestRequest",
+        "title": "FileSyncRequest",
         "type": "object"
       },
-      "CreateMergeRequestResponse": {
-        "description": "Response after creating a merge request.",
+      "FileSyncResponse": {
+        "description": "Response from file sync reconciliation.",
         "properties": {
-          "url": {
-            "description": "URL of the created merge request",
-            "title": "Url",
+          "mr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL of the created or existing merge request",
+            "title": "Mr Url"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FileSyncStatus",
+            "description": "Reconciliation outcome"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "FileSyncResponse",
+        "type": "object"
+      },
+      "FileSyncStatus": {
+        "description": "Outcome of a file sync reconciliation.",
+        "enum": [
+          "mr_created",
+          "mr_exists"
+        ],
+        "title": "FileSyncStatus",
+        "type": "string"
+      },
+      "FileSyncUpdate": {
+        "description": "Update an existing file in the repository.",
+        "properties": {
+          "action": {
+            "const": "update",
+            "default": "update",
+            "title": "Action",
+            "type": "string"
+          },
+          "commit_message": {
+            "description": "Commit message for this change",
+            "title": "Commit Message",
+            "type": "string"
+          },
+          "content": {
+            "description": "New file content",
+            "title": "Content",
+            "type": "string"
+          },
+          "path": {
+            "description": "File path in the repository",
+            "title": "Path",
             "type": "string"
           }
         },
         "required": [
-          "url"
+          "path",
+          "content",
+          "commit_message"
         ],
-        "title": "CreateMergeRequestResponse",
+        "title": "FileSyncUpdate",
         "type": "object"
-      },
-      "EscalationPolicyUsersResponse": {
-        "description": "Response model for escalation policy users endpoint.\n\nImmutable response containing list of users in an escalation policy.\n\nAttributes:\n    users: List of users in escalation policy",
-        "properties": {
-          "users": {
-            "description": "List of users in the escalation policy",
-            "items": {
-              "$ref": "#/components/schemas/PagerDutyUser"
-            },
-            "title": "Users",
-            "type": "array"
-          }
-        },
-        "title": "EscalationPolicyUsersResponse",
-        "type": "object"
-      },
-      "FileAction": {
-        "description": "File operation type for merge request file operations.",
-        "enum": [
-          "create",
-          "update",
-          "delete"
-        ],
-        "title": "FileAction",
-        "type": "string"
       },
       "GIInstance": {
         "description": "Glitchtip instance configuration with desired state.",
@@ -2011,44 +2133,6 @@
         "title": "LdapUsersCheckResponse",
         "type": "object"
       },
-      "MergeRequestFileOperation": {
-        "description": "A file operation within a merge request.\n\nThe ``action`` field specifies the operation: create, update, or delete.",
-        "properties": {
-          "action": {
-            "$ref": "#/components/schemas/FileAction",
-            "description": "File operation type"
-          },
-          "commit_message": {
-            "description": "Commit message for this file change",
-            "title": "Commit Message",
-            "type": "string"
-          },
-          "content": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "File content (required for create/update, None for delete)",
-            "title": "Content"
-          },
-          "path": {
-            "description": "File path in the repository",
-            "title": "Path",
-            "type": "string"
-          }
-        },
-        "required": [
-          "path",
-          "action",
-          "commit_message"
-        ],
-        "title": "MergeRequestFileOperation",
-        "type": "object"
-      },
       "PagerDutyUser": {
         "description": "PagerDuty user representation.\n\nImmutable model representing a user from PagerDuty API.\n\nAttributes:\n    username: PagerDuty username (computed from email)",
         "properties": {
@@ -2519,7 +2603,7 @@
         "type": "string"
       },
       "VCSProvider": {
-        "description": "VCS provider types.\n\nExtensible enum for supported VCS providers.",
+        "description": "VCS provider types.",
         "enum": [
           "github",
           "gitlab"
@@ -2961,133 +3045,26 @@
         ]
       }
     },
-    "/api/v1/external/vcs/merge-requests": {
-      "get": {
-        "description": "Find an open merge request by title.\n\nArgs:\n    params: Query parameters with repo_url, title, and token\n\nReturns:\n    CreateMergeRequestResponse with the MR URL\n\nRaises:\n    HTTPException: 404 if no open MR found with the given title",
-        "operationId": "vcs-find-merge-request",
-        "parameters": [
-          {
-            "description": "Secret Manager URL",
-            "in": "query",
-            "name": "secret_manager_url",
-            "required": true,
-            "schema": {
-              "description": "Secret Manager URL",
-              "title": "Secret Manager Url",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Path to the secret",
-            "in": "query",
-            "name": "path",
-            "required": true,
-            "schema": {
-              "description": "Path to the secret",
-              "title": "Path",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Specific field within the secret",
-            "in": "query",
-            "name": "field",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Specific field within the secret",
-              "title": "Field"
-            }
-          },
-          {
-            "description": "Version of the secret",
-            "in": "query",
-            "name": "version",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Version of the secret",
-              "title": "Version"
-            }
-          },
-          {
-            "description": "Repository URL (e.g., https://gitlab.com/group/project)",
-            "in": "query",
-            "name": "repo_url",
-            "required": true,
-            "schema": {
-              "description": "Repository URL (e.g., https://gitlab.com/group/project)",
-              "title": "Repo Url",
-              "type": "string"
-            }
-          },
-          {
-            "description": "MR title to search for (exact match)",
-            "in": "query",
-            "name": "title",
-            "required": true,
-            "schema": {
-              "description": "MR title to search for (exact match)",
-              "title": "Title",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateMergeRequestResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Find Merge Request",
-        "tags": [
-          "external"
-        ]
-      },
+    "/api/v1/external/vcs/file-sync": {
       "post": {
-        "description": "Create a merge request with file changes in a VCS repository.\n\nCreates a new branch, applies file operations (create/update/delete),\nand opens a merge request against the target branch.\n\nCallers should use ``GET /merge-requests`` to check for existing MRs\nbefore calling this endpoint to avoid duplicate creation.\n\nArgs:\n    request: Merge request details including repo, auth, and file operations\n\nReturns:\n    CreateMergeRequestResponse with the URL of the created merge request",
-        "operationId": "vcs-create-merge-request",
+        "description": "Reconcile file states in a VCS repository.\n\nCreates a merge request with the given file operations,\ndeduplicating by MR title. Does not read current file state \u2014\nrelies on GitLab/GitHub for validation.",
+        "operationId": "vcs-file-sync",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateMergeRequestRequest"
+                "$ref": "#/components/schemas/FileSyncRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateMergeRequestResponse"
+                  "$ref": "#/components/schemas/FileSyncResponse"
                 }
               }
             },
@@ -3099,7 +3076,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Create Merge Request",
+        "summary": "File Sync",
         "tags": [
           "external"
         ]
@@ -3107,7 +3084,7 @@
     },
     "/api/v1/external/vcs/repos/file": {
       "get": {
-        "description": "Read a file from a VCS repository.\n\nArgs:\n    params: Query parameters with repo_url, file_path, ref, and token\n\nReturns:\n    GetFileResponse with file content\n\nRaises:\n    HTTPException: 404 if file not found",
+        "description": "Read a file from a VCS repository.",
         "operationId": "vcs-get-file",
         "parameters": [
           {
@@ -3228,7 +3205,7 @@
     },
     "/api/v1/external/vcs/repos/owners": {
       "get": {
-        "description": "Get OWNERS file data from a Git repository.\n\nFetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.\nResults are cached for performance (TTL configured in settings).\n\nArgs:\n    params: VCSQueryParams with repo_url, owners_file, ref, and secret reference\n\nReturns:\n    RepoOwnersResponse with provider type, approvers, and reviewers lists\n\nRaises:\n    HTTPException:\n        - 500 Internal Server Error: If VCS API call fails or tokens not found\n\nExample:\n    GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master\n    Response:\n    {\n        \"provider\": \"github\",\n        \"approvers\": [\"github_user1\", \"github_user2\"],\n        \"reviewers\": [\"github_user3\"]\n    }",
+        "description": "Get OWNERS file data from a Git repository.\n\nFetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.\nResults are cached for performance (TTL configured in settings).",
         "operationId": "vcs-repo-owners",
         "parameters": [
           {

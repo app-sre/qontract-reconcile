@@ -3,7 +3,8 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from qontract_api_client.models.file_action import FileAction
+from qontract_api_client.models.file_sync_delete import FileSyncDelete
+from qontract_api_client.models.file_sync_update import FileSyncUpdate
 
 from reconcile.ldap_users_api.models import PathSpec, PathType, UserPaths
 from reconcile.ldap_users_api.mr_builder import (
@@ -71,7 +72,7 @@ async def test_build_delete_only_operations() -> None:
     )
 
     assert len(ops) == 2
-    assert all(op.action == FileAction.DELETE for op in ops)
+    assert all(isinstance(op, FileSyncDelete) for op in ops)
     assert {op.path for op in ops} == {
         "data/access/users/alice.yml",
         "data/access/requests/alice-request.yml",
@@ -125,8 +126,8 @@ async def test_build_mixed_operations() -> None:
     )
 
     assert len(ops) == 2
-    delete_ops = [op for op in ops if op.action == FileAction.DELETE]
-    modify_ops = [op for op in ops if op.action == FileAction.UPDATE]
+    delete_ops = [op for op in ops if isinstance(op, FileSyncDelete)]
+    modify_ops = [op for op in ops if isinstance(op, FileSyncUpdate)]
 
     assert len(delete_ops) == 1
     assert delete_ops[0].path == "data/access/users/alice.yml"

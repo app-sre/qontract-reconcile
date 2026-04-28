@@ -1,17 +1,17 @@
 """API schemas for VCS external integration."""
 
-from enum import StrEnum
+from __future__ import annotations
 
-from pydantic import BaseModel, Field, model_validator
+from enum import StrEnum
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
 
 from qontract_api.models import Secret
 
 
 class VCSProvider(StrEnum):
-    """VCS provider types.
-
-    Extensible enum for supported VCS providers.
-    """
+    """VCS provider types."""
 
     GITHUB = "github"
     GITLAB = "gitlab"
@@ -37,83 +37,6 @@ class RepoOwnersResponse(BaseModel, frozen=True):
     )
 
 
-# --- Merge Request schemas ---
-
-
-class FileAction(StrEnum):
-    """File operation type for merge request file operations."""
-
-    CREATE = "create"
-    UPDATE = "update"
-    DELETE = "delete"
-
-
-class MergeRequestFileOperation(BaseModel, frozen=True):
-    """A file operation within a merge request.
-
-    The ``action`` field specifies the operation: create, update, or delete.
-    """
-
-    path: str = Field(..., description="File path in the repository")
-    action: FileAction = Field(..., description="File operation type")
-    content: str | None = Field(
-        default=None,
-        description="File content (required for create/update, None for delete)",
-    )
-    commit_message: str = Field(..., description="Commit message for this file change")
-
-    @model_validator(mode="after")
-    def _validate_action_content(self) -> "MergeRequestFileOperation":
-        match self.action:
-            case FileAction.CREATE | FileAction.UPDATE:
-                if self.content is None:
-                    raise ValueError(
-                        f"content is required for {self.action.value} action"
-                    )
-            case FileAction.DELETE:
-                if self.content is not None:
-                    raise ValueError("content must be None for delete action")
-        return self
-
-
-class CreateMergeRequestRequest(BaseModel, frozen=True):
-    """Request to create a merge request in a VCS repository."""
-
-    repo_url: str = Field(
-        ...,
-        description="Repository URL (e.g., https://gitlab.com/group/project)",
-    )
-    token: Secret = Field(..., description="Secret reference for VCS API token")
-    title: str = Field(..., description="Merge request title")
-    description: str = Field(default="", description="Merge request description")
-    target_branch: str = Field(default="master", description="Target branch name")
-    file_operations: list[MergeRequestFileOperation] = Field(
-        ...,
-        description="File operations to include in the MR",
-    )
-    labels: list[str] = Field(
-        default_factory=list,
-        description="Labels to apply to the MR",
-    )
-    auto_merge: bool = Field(default=False, description="Whether to enable auto-merge")
-
-
-class FindMergeRequestParams(Secret):
-    """Query parameters for finding an existing merge request."""
-
-    repo_url: str = Field(
-        ...,
-        description="Repository URL (e.g., https://gitlab.com/group/project)",
-    )
-    title: str = Field(..., description="MR title to search for (exact match)")
-
-
-class CreateMergeRequestResponse(BaseModel, frozen=True):
-    """Response after creating a merge request."""
-
-    url: str = Field(..., description="URL of the created merge request")
-
-
 # --- File read schemas ---
 
 
@@ -134,4 +57,84 @@ class GetFileResponse(BaseModel, frozen=True):
     content: str = Field(
         ...,
         description="File content as string",
+    )
+
+
+# --- File sync schemas ---
+
+
+class FileSyncCreate(BaseModel, frozen=True):
+    """Create a new file in the repository."""
+
+    action: Literal["create"] = "create"
+    path: str = Field(..., description="File path in the repository")
+    content: str = Field(..., description="File content")
+    commit_message: str = Field(..., description="Commit message for this change")
+
+
+class FileSyncUpdate(BaseModel, frozen=True):
+    """Update an existing file in the repository."""
+
+    action: Literal["update"] = "update"
+    path: str = Field(..., description="File path in the repository")
+    content: str = Field(..., description="New file content")
+    commit_message: str = Field(..., description="Commit message for this change")
+
+
+class FileSyncDelete(BaseModel, frozen=True):
+    """Delete a file from the repository."""
+
+    action: Literal["delete"] = "delete"
+    path: str = Field(..., description="File path in the repository")
+    commit_message: str = Field(..., description="Commit message for this change")
+
+
+FileSyncFileOperation = Annotated[
+    FileSyncCreate | FileSyncUpdate | FileSyncDelete,
+    Field(discriminator="action"),
+]
+
+
+class FileSyncRequest(BaseModel, frozen=True):
+    """Request to reconcile file state in a VCS repository.
+
+    The server reads current file state from the target branch,
+    validates each operation against current state, and creates a
+    merge request if changes are needed. Deduplicates by MR title.
+    """
+
+    repo_url: str = Field(
+        ...,
+        description="Repository URL (e.g., https://gitlab.com/group/project)",
+    )
+    token: Secret = Field(..., description="Secret reference for VCS API token")
+    title: str = Field(..., description="Merge request title (used for deduplication)")
+    description: str = Field(default="", description="Merge request description")
+    target_branch: str = Field(default="master", description="Target branch name")
+    file_operations: list[FileSyncFileOperation] = Field(
+        ...,
+        min_length=1,
+        description="File operations to reconcile",
+    )
+    labels: list[str] = Field(
+        default_factory=list,
+        description="Labels to apply to the MR",
+    )
+    auto_merge: bool = Field(default=False, description="Whether to enable auto-merge")
+
+
+class FileSyncStatus(StrEnum):
+    """Outcome of a file sync reconciliation."""
+
+    MR_CREATED = "mr_created"
+    MR_EXISTS = "mr_exists"
+
+
+class FileSyncResponse(BaseModel, frozen=True):
+    """Response from file sync reconciliation."""
+
+    status: FileSyncStatus = Field(..., description="Reconciliation outcome")
+    mr_url: str | None = Field(
+        default=None,
+        description="URL of the created or existing merge request",
     )

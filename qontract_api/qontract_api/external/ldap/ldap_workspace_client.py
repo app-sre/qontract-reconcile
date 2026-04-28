@@ -72,7 +72,7 @@ class LdapWorkspaceClient:
         Returns:
             List of LdapUserStatus models with username and exists flag
         """
-        username_list = list(usernames)
+        username_list = set(usernames)
         if not username_list:
             return []
 

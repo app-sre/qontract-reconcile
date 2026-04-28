@@ -9,29 +9,35 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.merge_request_file_operation import MergeRequestFileOperation
+    from ..models.file_sync_create import FileSyncCreate
+    from ..models.file_sync_delete import FileSyncDelete
+    from ..models.file_sync_update import FileSyncUpdate
     from ..models.secret import Secret
 
 
-T = TypeVar("T", bound="CreateMergeRequestRequest")
+T = TypeVar("T", bound="FileSyncRequest")
 
 
 @_attrs_define
-class CreateMergeRequestRequest:
-    """Request to create a merge request in a VCS repository.
+class FileSyncRequest:
+    """Request to reconcile file state in a VCS repository.
 
-    Attributes:
-        file_operations (list[MergeRequestFileOperation]): File operations to include in the MR
-        repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
-        title (str): Merge request title
-        token (Secret): Reference to a secret stored in a secret manager.
-        auto_merge (bool | Unset): Whether to enable auto-merge Default: False.
-        description (str | Unset): Merge request description Default: ''.
-        labels (list[str] | Unset): Labels to apply to the MR
-        target_branch (str | Unset): Target branch name Default: 'master'.
+    The server reads current file state from the target branch,
+    validates each operation against current state, and creates a
+    merge request if changes are needed. Deduplicates by MR title.
+
+        Attributes:
+            file_operations (list[FileSyncCreate | FileSyncDelete | FileSyncUpdate]): File operations to reconcile
+            repo_url (str): Repository URL (e.g., https://gitlab.com/group/project)
+            title (str): Merge request title (used for deduplication)
+            token (Secret): Reference to a secret stored in a secret manager.
+            auto_merge (bool | Unset): Whether to enable auto-merge Default: False.
+            description (str | Unset): Merge request description Default: ''.
+            labels (list[str] | Unset): Labels to apply to the MR
+            target_branch (str | Unset): Target branch name Default: 'master'.
     """
 
-    file_operations: list[MergeRequestFileOperation]
+    file_operations: list[FileSyncCreate | FileSyncDelete | FileSyncUpdate]
     repo_url: str
     title: str
     token: Secret
@@ -42,9 +48,19 @@ class CreateMergeRequestRequest:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.file_sync_create import FileSyncCreate
+        from ..models.file_sync_update import FileSyncUpdate
+
         file_operations = []
         for file_operations_item_data in self.file_operations:
-            file_operations_item = file_operations_item_data.to_dict()
+            file_operations_item: dict[str, Any]
+            if isinstance(file_operations_item_data, FileSyncCreate):
+                file_operations_item = file_operations_item_data.to_dict()
+            elif isinstance(file_operations_item_data, FileSyncUpdate):
+                file_operations_item = file_operations_item_data.to_dict()
+            else:
+                file_operations_item = file_operations_item_data.to_dict()
+
             file_operations.append(file_operations_item)
 
         repo_url = self.repo_url
@@ -84,14 +100,42 @@ class CreateMergeRequestRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.merge_request_file_operation import MergeRequestFileOperation
+        from ..models.file_sync_create import FileSyncCreate
+        from ..models.file_sync_delete import FileSyncDelete
+        from ..models.file_sync_update import FileSyncUpdate
         from ..models.secret import Secret
 
         d = dict(src_dict)
         file_operations = []
         _file_operations = d.pop("file_operations")
         for file_operations_item_data in _file_operations:
-            file_operations_item = MergeRequestFileOperation.from_dict(
+
+            def _parse_file_operations_item(
+                data: object,
+            ) -> FileSyncCreate | FileSyncDelete | FileSyncUpdate:
+                try:
+                    if not isinstance(data, dict):
+                        raise TypeError()
+                    file_operations_item_type_0 = FileSyncCreate.from_dict(data)
+
+                    return file_operations_item_type_0
+                except (TypeError, ValueError, AttributeError, KeyError):
+                    pass
+                try:
+                    if not isinstance(data, dict):
+                        raise TypeError()
+                    file_operations_item_type_1 = FileSyncUpdate.from_dict(data)
+
+                    return file_operations_item_type_1
+                except (TypeError, ValueError, AttributeError, KeyError):
+                    pass
+                if not isinstance(data, dict):
+                    raise TypeError()
+                file_operations_item_type_2 = FileSyncDelete.from_dict(data)
+
+                return file_operations_item_type_2
+
+            file_operations_item = _parse_file_operations_item(
                 file_operations_item_data
             )
 
@@ -111,7 +155,7 @@ class CreateMergeRequestRequest:
 
         target_branch = d.pop("target_branch", UNSET)
 
-        create_merge_request_request = cls(
+        file_sync_request = cls(
             file_operations=file_operations,
             repo_url=repo_url,
             title=title,
@@ -122,8 +166,8 @@ class CreateMergeRequestRequest:
             target_branch=target_branch,
         )
 
-        create_merge_request_request.additional_properties = d
-        return create_merge_request_request
+        file_sync_request.additional_properties = d
+        return file_sync_request
 
     @property
     def additional_keys(self) -> list[str]:

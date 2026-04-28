@@ -20,8 +20,6 @@ class RepoOwnersResponse:
 
         Attributes:
             provider (VCSProvider): VCS provider types.
-
-                Extensible enum for supported VCS providers.
             approvers (list[str] | Unset): List of usernames who can approve changes
             reviewers (list[str] | Unset): List of usernames who can review changes
     """

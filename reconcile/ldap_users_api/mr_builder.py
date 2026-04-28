@@ -1,19 +1,26 @@
 """MR file operations builders for LDAP user cleanup.
 
 Contains both the YAML manipulation functions and the async builders
-that compose them into MergeRequestFileOperation lists.
+that compose them into file sync operation lists.
 """
 
-from collections.abc import Awaitable, Callable, Iterable
-from pathlib import Path
+from __future__ import annotations
 
-from qontract_api_client.models.file_action import FileAction
-from qontract_api_client.models.merge_request_file_operation import (
-    MergeRequestFileOperation,
-)
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from qontract_api_client.models.file_sync_create import FileSyncCreate
+from qontract_api_client.models.file_sync_delete import FileSyncDelete
+from qontract_api_client.models.file_sync_update import FileSyncUpdate
 from qontract_utils.ruamel import create_ruamel_instance, dump_yaml
 
 from reconcile.ldap_users_api.models import PathType, UserPaths
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable, Iterable
+
+# Union type matching FileSyncRequest.file_operations
+FileSyncFileOp = FileSyncCreate | FileSyncDelete | FileSyncUpdate
 
 # --- YAML manipulation functions ---
 
@@ -101,7 +108,7 @@ async def build_app_interface_file_operations(
     user: UserPaths,
     vcs_get_file: Callable[..., Awaitable[str | None]],
     commit_message: str,
-) -> list[MergeRequestFileOperation]:
+) -> list[FileSyncFileOp]:
     """Build file operations for deleting a user from app-interface.
 
     Args:
@@ -112,18 +119,16 @@ async def build_app_interface_file_operations(
     Returns:
         List of file operations (deletes + modifications)
     """
-    operations = [
-        MergeRequestFileOperation(
+    operations: list[FileSyncFileOp] = [
+        FileSyncDelete(
             path=path_spec.path,
-            action=FileAction.DELETE,
             commit_message=commit_message,
         )
         for path_spec in user.delete_file_paths
     ]
 
     for path_spec in user.modify_file_paths:
-        raw_yaml = await vcs_get_file(path=path_spec.path)
-        if raw_yaml is None:
+        if (raw_yaml := await vcs_get_file(path=path_spec.path)) is None:
             continue
 
         modifier = _YAML_MODIFIERS[path_spec.type]
@@ -131,9 +136,8 @@ async def build_app_interface_file_operations(
 
         if modified_yaml != raw_yaml:
             operations.append(
-                MergeRequestFileOperation(
+                FileSyncUpdate(
                     path=path_spec.path,
-                    action=FileAction.UPDATE,
                     content=modified_yaml,
                     commit_message=commit_message,
                 )
@@ -198,7 +202,7 @@ async def build_infra_file_operations(
     infra_paths: Iterable[str],
     vcs_get_file: Callable[..., Awaitable[str | None]],
     commit_message: str,
-) -> list[MergeRequestFileOperation]:
+) -> list[FileSyncFileOp]:
     """Build file operations for deleting users from infra repo.
 
     Processes each file in infra_paths, scanning for user lists and
@@ -214,15 +218,14 @@ async def build_infra_file_operations(
         List of file operations for files that had changes
     """
     usernames_set = set(usernames)
-    operations: list[MergeRequestFileOperation] = []
+    operations: list[FileSyncFileOp] = []
 
     for path in infra_paths:
         if raw_yaml := await vcs_get_file(path=path):
             if modified := _remove_users_from_infra_file(raw_yaml, usernames_set):
                 operations.append(
-                    MergeRequestFileOperation(
+                    FileSyncUpdate(
                         path=path,
-                        action=FileAction.UPDATE,
                         content=modified,
                         commit_message=commit_message,
                     )

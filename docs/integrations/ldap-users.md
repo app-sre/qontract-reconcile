@@ -4,7 +4,7 @@
 
 ## Description
 
-Removes users from app-interface and infra repositories when they no longer exist in LDAP (FreeIPA). This integration replaces the legacy `ldap-users` integration with a qontract-api-based architecture using the **client-orchestrated pattern** — all business logic runs in the client, with qontract-api providing external endpoints for LDAP lookups and VCS merge request creation.
+Removes users from app-interface and infra repositories when they no longer exist in LDAP (FreeIPA). This integration replaces the legacy `ldap-users` integration with a qontract-api-based architecture — LDAP-specific business logic (YAML manipulation, user path types) runs in the client, while qontract-api provides external endpoints for LDAP lookups and VCS file sync reconciliation.
 
 ## Features
 
@@ -12,7 +12,7 @@ Removes users from app-interface and infra repositories when they no longer exis
 - Safety check: abort if LDAP returns empty result set (prevents mass deletion)
 - Create per-user MRs in app-interface to delete orphaned user resources
 - Create single MR in infra repo to remove users from bastion and admin lists
-- MR deduplication by title (prevents duplicate MRs for the same user)
+- Server-side MR deduplication by title via VCS file-sync endpoint
 - Auto-merge controlled via Unleash feature toggle
 - Configurable MR labels
 
@@ -32,12 +32,12 @@ LDAP settings (server URL, base DN, credentials) are configured in `app-interfac
 
 ## Architecture
 
-**Architecture Pattern:** Client-Orchestrated (Pattern 2)
+**Architecture Pattern:** Client-side LDAP business logic + server-side VCS file-sync reconciliation
 
-Unlike server-side integrations (glitchtip, slack-usergroups), ldap-users performs app-interface-specific actions (YAML file manipulation in GitLab MRs). This logic does not belong in qontract_api.
+LDAP-specific logic (YAML manipulation, user path types) stays in the client. The VCS file-sync endpoint on qontract-api handles the reconciliation loop: reading current file state, validating operations, MR deduplication, and MR creation.
 
 ```text
-reconcile/ldap_users_api/          (client - orchestration + business logic)
+reconcile/ldap_users_api/          (client - LDAP business logic)
     │
     ├── GraphQL ──────────────────→ app-interface (users with paths)
     │
@@ -47,14 +47,10 @@ reconcile/ldap_users_api/          (client - orchestration + business logic)
     │
     ├── safety check ─────────────→ (abort if LDAP returned empty)
     │
-    ├── GET /external/vcs/merge-requests → dedup check (MR already exists?)
-    │
     ├── GET /external/vcs/repos/file ───→ read file for YAML modification
     │
-    └── POST /external/vcs/merge-requests → create deletion MRs
+    └── POST /external/vcs/file-sync ──→ reconcile file state (dedup + create MR)
 ```
-
-**No `qontract_api/integrations/ldap_users/`** — no service, router, tasks, or Celery.
 
 **Client-Side (`reconcile/ldap_users_api/`):**
 
@@ -62,19 +58,19 @@ reconcile/ldap_users_api/          (client - orchestration + business logic)
 - Fetches LDAP settings and VCS instances from App-Interface (GraphQL)
 - Checks user existence via `/external/ldap/users/check`
 - Computes diff (users in app-interface but not in LDAP)
-- Builds file operations for deletion MRs (delete files or modify YAML)
-- Creates MRs via `/external/vcs/merge-requests` with deduplication
+- Reads files for YAML modification via `/external/vcs/repos/file`
+- Builds file operations (FileSyncDelete/FileSyncUpdate)
+- Reconciles via `/external/vcs/file-sync` (handles dedup + MR creation)
 
-**Server-Side (external endpoints only):**
+**Server-Side (external endpoints):**
 
 - `POST /external/ldap/users/check` — cached LDAP user existence check (FreeIPA)
-- `GET /external/vcs/merge-requests` — find existing MR by title (deduplication)
 - `GET /external/vcs/repos/file` — read file content for YAML modification
-- `POST /external/vcs/merge-requests` — create MR with file operations
+- `POST /external/vcs/file-sync` — reconcile file state (read current, validate, dedup by title, create MR)
 
 ## API Endpoints
 
-This integration does not have its own reconciliation endpoint. It uses shared external endpoints:
+This integration uses shared external endpoints:
 
 ### Check LDAP Users
 
@@ -109,19 +105,10 @@ Content-Type: application/json
 }
 ```
 
-### Find Existing MR (Deduplication)
+### File Sync Reconciliation
 
 ```http
-GET /api/v1/external/vcs/merge-requests?repo_url=...&title=...&secret_manager_url=...&path=...&field=...
-Authorization: Bearer <JWT_TOKEN>
-```
-
-Returns 200 with MR URL if found, 404 if not.
-
-### Create Deletion MR
-
-```http
-POST /api/v1/external/vcs/merge-requests
+POST /api/v1/external/vcs/file-sync
 Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 ```
@@ -135,13 +122,24 @@ Content-Type: application/json
   "title": "[create_delete_user_mr] delete user alice",
   "description": "delete user alice",
   "file_operations": [
-    {"path": "data/users/alice.yml", "action": "delete", "commit_message": "..."},
-    {"path": "data/gabi/instance.yml", "action": "update", "content": "...", "commit_message": "..."}
+    {"action": "delete", "path": "data/users/alice.yml", "commit_message": "..."},
+    {"action": "update", "path": "data/gabi/instance.yml", "content": "...", "commit_message": "..."}
   ],
   "labels": ["ldap-users"],
   "auto_merge": false
 }
 ```
+
+**Response:**
+
+```json
+{
+  "status": "mr_created",
+  "mr_url": "https://gitlab.example.com/service/app-interface/-/merge_requests/42"
+}
+```
+
+Status values: `in_sync` (no changes needed), `mr_created` (new MR), `mr_exists` (MR already open with same title).
 
 ### Models
 
@@ -175,7 +173,7 @@ The integration scans infra YAML files for user lists with known name fields (`n
 
 - Safety check: if LDAP returns zero existing users while app-interface has users, the integration aborts with `RuntimeError` to prevent mass deletion
 - `auto_merge` defaults to `false` — controlled via Unleash feature toggle `ldap-users-api-allow-auto-merge-mrs`
-- MR deduplication: checks for existing open MRs by title before creating new ones
+- MR deduplication: file-sync endpoint checks for existing open MRs by title before creating new ones
 - Original `reconcile/ldap_users.py` remains unchanged (rollback safety)
 
 **Caching:**
@@ -267,7 +265,7 @@ qontract-reconcile ldap-users-api \
 5. Computes diff: users in app-interface but not in LDAP
 6. Safety check: abort if LDAP returns empty
 7. Dry-run: logs planned deletions and exits
-8. Non-dry-run: resolves auto-merge from Unleash toggle, creates MRs via VCS endpoints
+8. Non-dry-run: resolves auto-merge from Unleash toggle, reconciles via VCS file-sync endpoint
 
 ## Troubleshooting
 

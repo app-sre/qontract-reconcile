@@ -95,15 +95,6 @@ def sync_detailed(
      Read a file from a VCS repository.
 
     Args:
-        params: Query parameters with repo_url, file_path, ref, and token
-
-    Returns:
-        GetFileResponse with file content
-
-    Raises:
-        HTTPException: 404 if file not found
-
-    Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
@@ -153,15 +144,6 @@ def sync(
      Read a file from a VCS repository.
 
     Args:
-        params: Query parameters with repo_url, file_path, ref, and token
-
-    Returns:
-        GetFileResponse with file content
-
-    Raises:
-        HTTPException: 404 if file not found
-
-    Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
@@ -209,15 +191,6 @@ async def asyncio_detailed(
      Read a file from a VCS repository.
 
     Args:
-        params: Query parameters with repo_url, file_path, ref, and token
-
-    Returns:
-        GetFileResponse with file content
-
-    Raises:
-        HTTPException: 404 if file not found
-
-    Args:
         secret_manager_url (str): Secret Manager URL
         path (str): Path to the secret
         field (None | str | Unset): Specific field within the secret
@@ -263,15 +236,6 @@ async def asyncio(
     """Get File
 
      Read a file from a VCS repository.
-
-    Args:
-        params: Query parameters with repo_url, file_path, ref, and token
-
-    Returns:
-        GetFileResponse with file content
-
-    Raises:
-        HTTPException: 404 if file not found
 
     Args:
         secret_manager_url (str): Secret Manager URL

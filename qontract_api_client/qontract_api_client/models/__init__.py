@@ -2,10 +2,13 @@
 
 from .chat_request import ChatRequest
 from .chat_response import ChatResponse
-from .create_merge_request_request import CreateMergeRequestRequest
-from .create_merge_request_response import CreateMergeRequestResponse
 from .escalation_policy_users_response import EscalationPolicyUsersResponse
-from .file_action import FileAction
+from .file_sync_create import FileSyncCreate
+from .file_sync_delete import FileSyncDelete
+from .file_sync_request import FileSyncRequest
+from .file_sync_response import FileSyncResponse
+from .file_sync_status import FileSyncStatus
+from .file_sync_update import FileSyncUpdate
 from .get_file_response import GetFileResponse
 from .gi_instance import GIInstance
 from .gi_organization import GIOrganization
@@ -60,7 +63,6 @@ from .ldap_user_status import LdapUserStatus
 from .ldap_users_check_request import LdapUsersCheckRequest
 from .ldap_users_check_response import LdapUsersCheckResponse
 from .liveness_response_liveness import LivenessResponseLiveness
-from .merge_request_file_operation import MergeRequestFileOperation
 from .pager_duty_user import PagerDutyUser
 from .recipient_type import RecipientType
 from .repo_owners_response import RepoOwnersResponse
@@ -82,10 +84,13 @@ from .vcs_provider import VCSProvider
 __all__ = (
     "ChatRequest",
     "ChatResponse",
-    "CreateMergeRequestRequest",
-    "CreateMergeRequestResponse",
     "EscalationPolicyUsersResponse",
-    "FileAction",
+    "FileSyncCreate",
+    "FileSyncDelete",
+    "FileSyncRequest",
+    "FileSyncResponse",
+    "FileSyncStatus",
+    "FileSyncUpdate",
     "GIInstance",
     "GIOrganization",
     "GIProject",
@@ -136,7 +141,6 @@ __all__ = (
     "LdapUsersCheckRequest",
     "LdapUsersCheckResponse",
     "LivenessResponseLiveness",
-    "MergeRequestFileOperation",
     "PagerDutyUser",
     "RecipientType",
     "RepoOwnersResponse",

@@ -90,31 +90,12 @@ def sync_detailed(
     owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> Response[RepoOwnersResponse]:
-    r"""Get Repo Owners
+    """Get Repo Owners
 
      Get OWNERS file data from a Git repository.
 
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
-
-    Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
-
-    Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
-
-    Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
 
     Args:
         secret_manager_url (str): Secret Manager URL
@@ -162,31 +143,12 @@ def sync(
     owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> RepoOwnersResponse:
-    r"""Get Repo Owners
+    """Get Repo Owners
 
      Get OWNERS file data from a Git repository.
 
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
-
-    Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
-
-    Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
-
-    Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
 
     Args:
         secret_manager_url (str): Secret Manager URL
@@ -232,31 +194,12 @@ async def asyncio_detailed(
     owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> Response[RepoOwnersResponse]:
-    r"""Get Repo Owners
+    """Get Repo Owners
 
      Get OWNERS file data from a Git repository.
 
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
-
-    Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
-
-    Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
-
-    Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
 
     Args:
         secret_manager_url (str): Secret Manager URL
@@ -302,31 +245,12 @@ async def asyncio(
     owners_file: str | Unset = "/OWNERS",
     ref: str | Unset = "master",
 ) -> RepoOwnersResponse:
-    r"""Get Repo Owners
+    """Get Repo Owners
 
      Get OWNERS file data from a Git repository.
 
     Fetches OWNERS file approvers and reviewers from GitHub or GitLab repositories.
     Results are cached for performance (TTL configured in settings).
-
-    Args:
-        params: VCSQueryParams with repo_url, owners_file, ref, and secret reference
-
-    Returns:
-        RepoOwnersResponse with provider type, approvers, and reviewers lists
-
-    Raises:
-        HTTPException:
-            - 500 Internal Server Error: If VCS API call fails or tokens not found
-
-    Example:
-        GET /api/v1/external/vcs/repos/owners?url=https://github.com/openshift/osdctl&path=/&ref=master
-        Response:
-        {
-            \"provider\": \"github\",
-            \"approvers\": [\"github_user1\", \"github_user2\"],
-            \"reviewers\": [\"github_user3\"]
-        }
 
     Args:
         secret_manager_url (str): Secret Manager URL
