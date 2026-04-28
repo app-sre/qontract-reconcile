@@ -194,22 +194,17 @@ class LdapApi:
         Raises:
             LdapApiError: If the LDAP search fails
         """
-        username_list = list(usernames)
-        if not username_list:
+        if not usernames:
             return []
-
-        user_filter = "".join(f"(uid={escape_filter_chars(u)})" for u in username_list)
-        success, status, results, _ = self._connection.search(
-            self.base_dn,
-            f"(&(objectclass=person)(|{user_filter}))",
-            attributes=["uid"],
+        user_filter = "".join(f"(uid={escape_filter_chars(u)})" for u in usernames)
+        _, status, results, _ = self._connection.search(
+            self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )
 
-        if not success:
-            error_code = status.get("result") if isinstance(status, dict) else None
-            error_desc = (
-                status.get("description") if isinstance(status, dict) else str(status)
-            )
+        # status["result"] is 0 on success, non-zero on failure (e.g., server down, timeout, etc.)
+        # and should exists according to RFC 4511 search result format. If missing, treat as unknown error.
+        if (error_code := status.get("result", 99999)) != 0:
+            error_desc = status.get("description", "unknown error")
             raise LdapApiError(f"LDAP search failed (error {error_code}: {error_desc})")
 
         return [LdapUser(username=r["attributes"]["uid"][0]) for r in results]

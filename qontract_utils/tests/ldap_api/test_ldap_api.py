@@ -143,7 +143,7 @@ def test_get_users_returns_ldap_user_models(
     """Test get_users returns list of LdapUser models."""
     mock_ldap3.connection.search.return_value = (
         True,
-        {},
+        {"result": 0, "description": "success"},
         [
             {"attributes": {"uid": ["alice"]}},
             {"attributes": {"uid": ["bob"]}},
@@ -162,7 +162,12 @@ def test_get_users_builds_correct_filter(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
     """Test get_users constructs the correct LDAP filter."""
-    mock_ldap3.connection.search.return_value = (True, {}, [], None)
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
 
     with ldap_api:
         ldap_api.get_users(["alice", "bob"])
@@ -179,7 +184,12 @@ def test_get_users_escapes_special_characters(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
     """Test get_users escapes LDAP filter special characters to prevent injection."""
-    mock_ldap3.connection.search.return_value = (True, {}, [], None)
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
 
     with ldap_api:
         ldap_api.get_users(["user*", "user)(uid=*)", "user\\evil"])
@@ -249,7 +259,12 @@ def test_get_users_calls_hooks(mock_ldap3: MagicMock, ldap_api: LdapApi) -> None
     """Test get_users triggers pre/post hooks with correct context."""
     pre_hook = MagicMock()
     ldap_api._hooks = Hooks(pre_hooks=[pre_hook])
-    mock_ldap3.connection.search.return_value = (True, {}, [], None)
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
 
     with ldap_api:
         ldap_api.get_users(["alice"])
@@ -288,7 +303,12 @@ def test_get_users_retries_on_transient_error(
     # First call: transient error, second call: success
     mock_ldap3.connection.search.side_effect = [
         LDAPCommunicationError("connection reset"),
-        (True, {}, [{"attributes": {"uid": ["alice"]}}], None),
+        (
+            True,
+            {"result": 0, "description": "success"},
+            [{"attributes": {"uid": ["alice"]}}],
+            None,
+        ),
     ]
 
     with ldap_api:
@@ -321,7 +341,12 @@ def test_get_users_calls_post_hooks(mock_ldap3: MagicMock, ldap_api: LdapApi) ->
     """Test get_users triggers post hooks after API call."""
     post_hook = MagicMock()
     ldap_api._hooks = Hooks(post_hooks=[post_hook])
-    mock_ldap3.connection.search.return_value = (True, {}, [], None)
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
 
     with ldap_api:
         ldap_api.get_users(["alice"])
@@ -344,21 +369,6 @@ def test_get_users_search_failure_error_message(
     )
 
     with ldap_api, pytest.raises(LdapApiError, match="49.*invalidCredentials"):
-        ldap_api.get_users(["alice"])
-
-
-def test_get_users_search_failure_non_dict_status(
-    mock_ldap3: MagicMock, ldap_api: LdapApi
-) -> None:
-    """Test LdapApiError handles non-dict status gracefully."""
-    mock_ldap3.connection.search.return_value = (
-        False,
-        "unexpected status format",
-        [],
-        None,
-    )
-
-    with ldap_api, pytest.raises(LdapApiError, match="LDAP search failed"):
         ldap_api.get_users(["alice"])
 
 
