@@ -119,7 +119,7 @@ def fill_desired_state(
         ri.add_desired(
             cluster=provider.namespace["cluster"]["name"],
             namespace=provider.namespace["name"],
-            resource_type=probe.kind,
+            resource_type=probe.kind_and_group,
             name=probe.name,
             value=probe,
         )
