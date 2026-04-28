@@ -168,7 +168,7 @@ def test_blackbox_exporter_filling_desired_state(mocker: MockerFixture) -> None:
     add_desired_mock.assert_called_with(
         cluster="app-sre-stage-01",
         namespace="openshift-customer-monitoring",
-        resource_type="Probe",
+        resource_type="Probe.monitoring.coreos.com",
         name="blackbox-exporter-http-2xx",
         value=ANY,
     )
@@ -189,7 +189,7 @@ def test_signalfx_filling_desired_state(mocker: MockerFixture) -> None:
     add_desired_mock.assert_called_with(
         cluster="app-sre-stage-01",
         namespace="openshift-customer-monitoring",
-        resource_type="Probe",
+        resource_type="Probe.monitoring.coreos.com",
         name="signalfx-exporter-http-2xx",
         value=ANY,
     )
