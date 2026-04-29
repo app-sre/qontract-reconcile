@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 from qontract_utils.hooks import Hooks
 from qontract_utils.ldap_api.api import LdapApi, LdapApiCallContext, LdapApiError
-from qontract_utils.ldap_api.models import LdapGroupMembers, LdapUser
+from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 
 
 @pytest.fixture
@@ -126,12 +126,12 @@ def test_ldap_api_context_manager_start_tls(mock_ldap3: MagicMock) -> None:
     )
 
 
-def test_ldap_api_context_manager_no_start_tls_by_default(
+def test_ldap_api_context_manager_start_tls_by_default(
     mock_ldap3: MagicMock, ldap_api: LdapApi
 ) -> None:
-    """Test __enter__ does NOT call start_tls() by default."""
+    """Test __enter__ calls start_tls() by default."""
     with ldap_api:
-        mock_ldap3.connection.start_tls.assert_not_called()
+        mock_ldap3.connection.start_tls.assert_called_once()
 
 
 # --- get_users ---
@@ -226,7 +226,7 @@ def test_get_users_search_failure_raises_error(
         None,
     )
 
-    with ldap_api, pytest.raises(LdapApiError, match="LDAP search failed"):
+    with ldap_api, pytest.raises(LdapApiError, match="LDAP operation failed"):
         ldap_api.get_users(["alice"])
 
 
@@ -283,13 +283,16 @@ def test_ldap_user_model_frozen() -> None:
         user.username = "bob"  # type: ignore[misc]
 
 
-def test_ldap_group_members_model_frozen() -> None:
-    """Test LdapGroupMembers is immutable."""
-    group = LdapGroupMembers(
-        dn="cn=admins,dc=example,dc=com", members=frozenset({"alice"})
+def test_ldap_group_model_frozen() -> None:
+    """Test LdapGroup is immutable."""
+    group = LdapGroup(
+        cn="admins",
+        dn="cn=admins,dc=example,dc=com",
+        members=frozenset({LdapUser(username="alice")}),
     )
+    assert group.cn == "admins"
     assert group.dn == "cn=admins,dc=example,dc=com"
-    assert group.members == frozenset({"alice"})
+    assert group.members == frozenset({LdapUser(username="alice")})
     with pytest.raises(ValidationError, match="frozen"):
         group.dn = "other"  # type: ignore[misc]
 
@@ -330,7 +333,7 @@ def test_get_users_does_not_retry_on_logical_error(
         None,
     )
 
-    with ldap_api, pytest.raises(LdapApiError, match="LDAP search failed"):
+    with ldap_api, pytest.raises(LdapApiError, match="LDAP operation failed"):
         ldap_api.get_users(["alice"])
 
     # Should have been called only once (no retry)
@@ -377,3 +380,172 @@ def test_ldap_api_call_context_immutable() -> None:
     context = LdapApiCallContext(method="get_users")
     with pytest.raises(AttributeError):
         context.method = "other"  # type: ignore[misc]
+
+
+# --- get_group_members ---
+
+
+def test_get_group_members_returns_groups_with_members(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members returns LdapGroup models with CN, DN, and members."""
+    group1_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    group2_dn = "cn=devs,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "memberOf": [group1_dn, group2_dn]}},
+            {"attributes": {"uid": ["bob"], "memberOf": [group1_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([group1_dn, group2_dn])
+
+    groups_by_cn = {g.cn: g for g in result}
+    assert set(groups_by_cn) == {"admins", "devs"}
+    assert groups_by_cn["admins"].dn == group1_dn
+    assert {u.username for u in groups_by_cn["admins"].members} == {"alice", "bob"}
+    assert groups_by_cn["devs"].dn == group2_dn
+    assert {u.username for u in groups_by_cn["devs"].members} == {"alice"}
+
+
+def test_get_group_members_empty_input(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members with empty input returns empty list."""
+    with ldap_api:
+        result = ldap_api.get_group_members([])
+
+    assert result == []
+    mock_ldap3.connection.search.assert_not_called()
+
+
+def test_get_group_members_builds_correct_filter(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members constructs the correct LDAP filter."""
+    group_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.get_group_members([group_dn])
+
+    call_args = mock_ldap3.connection.search.call_args
+    assert call_args[0][0] == "dc=example,dc=com"
+    filter_str = call_args[0][1]
+    assert f"(memberOf={group_dn})" in filter_str
+
+
+def test_get_group_members_search_failure_raises_error(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members raises LdapApiError on search failure."""
+    mock_ldap3.connection.search.return_value = (
+        False,
+        {"result": 53, "description": "Server Unwilling to Perform"},
+        [],
+        None,
+    )
+
+    with ldap_api, pytest.raises(LdapApiError, match="LDAP operation failed"):
+        ldap_api.get_group_members(["cn=admins,ou=groups,dc=example,dc=com"])
+
+
+def test_get_group_members_ignores_unrelated_memberships(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members only includes requested groups, not all memberOf values."""
+    requested_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    other_dn = "cn=other,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "memberOf": [requested_dn, other_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([requested_dn])
+
+    assert len(result) == 1
+    assert result[0].cn == "admins"
+    assert result[0].dn == requested_dn
+
+
+def test_get_group_members_calls_hooks(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members triggers hooks with correct context."""
+    pre_hook = MagicMock()
+    ldap_api._hooks = Hooks(pre_hooks=[pre_hook])
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    with ldap_api:
+        ldap_api.get_group_members(["cn=admins,ou=groups,dc=example,dc=com"])
+
+    pre_hook.assert_called_once()
+    context = pre_hook.call_args[0][0]
+    assert isinstance(context, LdapApiCallContext)
+    assert context.method == "get_group_members"
+
+
+def test_get_group_members_retries_on_transient_error(
+    mock_ldap3: MagicMock, ldap_api: LdapApi, enable_retry: None
+) -> None:
+    """Test get_group_members retries on transient network errors."""
+    from ldap3.core.exceptions import LDAPCommunicationError
+
+    group_dn = "cn=admins,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.side_effect = [
+        LDAPCommunicationError("connection reset"),
+        (
+            True,
+            {"result": 0, "description": "success"},
+            [{"attributes": {"uid": ["alice"], "memberOf": [group_dn]}}],
+            None,
+        ),
+    ]
+
+    with ldap_api:
+        result = ldap_api.get_group_members([group_dn])
+
+    assert len(result) == 1
+    assert result[0].cn == "admins"
+    assert mock_ldap3.connection.search.call_count == 2
+
+
+def test_get_group_members_members_are_ldap_user_models(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members returns LdapUser instances as members."""
+    group_dn = "cn=team,ou=groups,dc=example,dc=com"
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [
+            {"attributes": {"uid": ["alice"], "memberOf": [group_dn]}},
+        ],
+        None,
+    )
+
+    with ldap_api:
+        result = ldap_api.get_group_members([group_dn])
+
+    member = next(iter(result[0].members))
+    assert isinstance(member, LdapUser)
+    assert member.username == "alice"

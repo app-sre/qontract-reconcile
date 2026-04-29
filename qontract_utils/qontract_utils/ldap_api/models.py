@@ -13,13 +13,14 @@ class LdapUser(BaseModel, frozen=True):
     username: str
 
 
-class LdapGroupMembers(BaseModel, frozen=True):
-    """Members of an LDAP group returned by get_group_members.
+class LdapGroup(BaseModel, frozen=True):
+    """An LDAP group returned by get_group_members.
 
     Attributes:
         dn: Full distinguished name of the group
-        members: Set of member usernames (uid attribute values)
+        members: Set of member LDAP users
     """
 
+    cn: str
     dn: str
-    members: frozenset[str]
+    members: frozenset[LdapUser]

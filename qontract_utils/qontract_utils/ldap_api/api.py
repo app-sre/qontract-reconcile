@@ -3,6 +3,7 @@
 import contextvars
 import time
 import types
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Self
@@ -20,10 +21,11 @@ from ldap3.core.exceptions import (
     LDAPSocketSendError,
 )
 from ldap3.utils.conv import escape_filter_chars
+from ldap3.utils.dn import parse_dn
 from prometheus_client import Counter, Histogram
 
 from qontract_utils.hooks import Hooks, RetryConfig, invoke_with_hooks, with_hooks
-from qontract_utils.ldap_api.models import LdapUser
+from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 
 logger = structlog.get_logger(__name__)
@@ -149,7 +151,7 @@ class LdapApi:
         bind_dn: str | None = None,
         bind_password: str | None = None,
         *,
-        start_tls: bool = False,
+        start_tls: bool = True,
         timeout: int = _DEFAULT_TIMEOUT,
         hooks: Hooks | None = None,  # noqa: ARG002 - Handled by @with_hooks decorator
     ) -> None:
@@ -178,6 +180,15 @@ class LdapApi:
     ) -> None:
         self._connection.unbind()
 
+    @staticmethod
+    def _check_ldap_response(status: dict) -> None:
+        """Check LDAP response status and raise LdapApiError on failure."""
+        if (error_code := status.get("result", 99999)) != 0:
+            error_desc = status.get("description", "unknown error")
+            raise LdapApiError(
+                f"LDAP operation failed (error {error_code}: {error_desc})"
+            )
+
     @invoke_with_hooks(
         lambda: LdapApiCallContext(method="get_users"),
         retry_config=_LDAP_RETRY_CONFIG,
@@ -200,11 +211,45 @@ class LdapApi:
         _, status, results, _ = self._connection.search(
             self.base_dn, f"(&(objectclass=person)(|{user_filter}))", attributes=["uid"]
         )
-
-        # status["result"] is 0 on success, non-zero on failure (e.g., server down, timeout, etc.)
-        # and should exists according to RFC 4511 search result format. If missing, treat as unknown error.
-        if (error_code := status.get("result", 99999)) != 0:
-            error_desc = status.get("description", "unknown error")
-            raise LdapApiError(f"LDAP search failed (error {error_code}: {error_desc})")
+        self._check_ldap_response(status)
 
         return [LdapUser(username=r["attributes"]["uid"][0]) for r in results]
+
+    @invoke_with_hooks(
+        lambda: LdapApiCallContext(method="get_group_members"),
+        retry_config=_LDAP_RETRY_CONFIG,
+    )
+    def get_group_members(self, groups_dns: Iterable[str]) -> list[LdapGroup]:
+        """Get members of the specified LDAP groups.
+
+        Attention: groups_dns must be full DNs (e.g., "cn=group1,ou=groups,dc=example,dc=com") as returned by the LDAP "memberOf" attribute.
+        """
+        if not groups_dns:
+            return []
+
+        group_filter = (
+            f"(|{''.join([f'(memberOf={dn})' for dn in sorted(groups_dns)])})"
+        )
+
+        _, status, users, _ = self._connection.search(
+            self.base_dn,
+            group_filter,
+            attributes=["uid", "memberOf"],
+        )
+
+        self._check_ldap_response(status)
+
+        groups_and_members: dict[str, set[str]] = defaultdict(set[str])
+        for u in users:
+            uid = u["attributes"]["uid"][0]
+            for group in set(u["attributes"]["memberOf"]).intersection(groups_dns):
+                groups_and_members[group].add(uid)
+
+        return [
+            LdapGroup(
+                cn=parse_dn(dn)[0][1],
+                dn=dn,
+                members=frozenset(LdapUser(username=uid) for uid in members),
+            )
+            for dn, members in groups_and_members.items()
+        ]

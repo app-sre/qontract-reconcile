@@ -3,8 +3,13 @@ from abc import (
     abstractmethod,
 )
 
+from qontract_utils.ldap_api import LdapApi
+
+from reconcile.typed_queries.app_interface_vault_settings import (
+    get_app_interface_vault_settings,
+)
 from reconcile.typed_queries.ldap_settings import get_ldap_settings
-from reconcile.utils.ldap_client import LdapClient
+from reconcile.utils.secret_reader import create_secret_reader
 
 
 class GroupMemberProvider(ABC):
@@ -24,20 +29,18 @@ class LdapGroupMemberProvider(GroupMemberProvider):
     Resolve group members using the LDAP groups.
     """
 
-    def __init__(self, ldap_client: LdapClient, group_base_dn: str):
+    def __init__(self, ldap_client: LdapApi, group_base_dn: str) -> None:
         self.ldap_client = ldap_client
         self.group_base_dn = group_base_dn
 
     def resolve_groups(self, group_ids: set[str]) -> dict[str, set[str]]:
-        group_dn_mapping = {f"cn={cn},{self.group_base_dn}": cn for cn in group_ids}
-        if len(group_ids) == 0:
+        if not group_ids:
             return {}
         with self.ldap_client as lc:
-            groups_members_by_dn = lc.get_group_members(set(group_dn_mapping.keys()))
-        return {
-            group_dn_mapping[dn]: members
-            for dn, members in groups_members_by_dn.items()
-        }
+            groups = lc.get_group_members({
+                f"cn={cn},{self.group_base_dn}" for cn in group_ids
+            })
+        return {group.cn: {user.username for user in group.members} for group in groups}
 
 
 def init_ldap_group_member_provider(group_base_dn: str) -> LdapGroupMemberProvider:
@@ -51,12 +54,20 @@ def init_ldap_group_member_provider(group_base_dn: str) -> LdapGroupMemberProvid
     """
 
     settings = get_ldap_settings()
+    vault_settings = get_app_interface_vault_settings()
+    secret_reader = create_secret_reader(use_vault=vault_settings.vault)
+    bind_dn = None
+    bind_password = None
+    if settings.credentials:
+        ldap_credentials = secret_reader.read_all_secret(settings.credentials)
+        bind_dn = ldap_credentials.get("bind_dn")
+        bind_password = ldap_credentials.get("bind_password")
     return LdapGroupMemberProvider(
-        LdapClient.from_params(
+        LdapApi(
             server_url=settings.server_url,
-            user=None,
-            password=None,
             base_dn=settings.base_dn,
+            bind_dn=bind_dn,
+            bind_password=bind_password,
         ),
         group_base_dn,
     )
