@@ -508,6 +508,7 @@ def _call_rebase(
     dry_run: bool = False,
     pipeline_timeout: int | None = None,
     wait_for_pipeline: bool = False,
+    use_active_cap: bool = True,
 ) -> None:
     """Invoke rebase_merge_requests with standard patches.
 
@@ -536,6 +537,7 @@ def _call_rebase(
         state=state,
         pipeline_timeout=pipeline_timeout,
         wait_for_pipeline=wait_for_pipeline,
+        use_active_cap=use_active_cap,
     )
 
 
@@ -554,7 +556,13 @@ def test_rebase_no_active_pipelines_full_budget(
     """0 MRs have active pipelines, limit=2, 3 need rebase: exactly 2 rebased."""
     merge_requests = [_make_rebase_mr(i) for i in range(1, 4)]
 
-    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+    )
 
     assert merge_requests[0].rebase.call_count == 1
     assert merge_requests[1].rebase.call_count == 1
@@ -634,7 +642,12 @@ def test_rebase_dry_run_no_rebases(
     merge_requests = [_make_rebase_mr(i) for i in range(1, 3)]
 
     _call_rebase(
-        mocker, gitlab_api, state, merge_requests, rebase_limit=2, dry_run=True
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        dry_run=True,
     )
 
     for mr in merge_requests:
@@ -679,7 +692,13 @@ def test_rebase_backward_compatible_zero_active(
     rebase up to N MRs."""
     merge_requests = [_make_rebase_mr(i) for i in range(1, 6)]
 
-    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=3)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=3,
+    )
 
     rebased_count = sum(mr.rebase.call_count for mr in merge_requests)
     assert rebased_count == 3
@@ -704,7 +723,13 @@ def test_rebase_differing_limits(
     """Verify different limit values produce different rebase counts."""
     merge_requests = [_make_rebase_mr(i) for i in range(1, 8)]
 
-    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=limit)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=limit,
+    )
 
     rebased_count = sum(mr.rebase.call_count for mr in merge_requests)
     assert rebased_count == expected_rebased, (
@@ -719,7 +744,13 @@ def test_rebase_failure_does_not_consume_budget(
     merge_requests = [_make_rebase_mr(1), _make_rebase_mr(2), _make_rebase_mr(3)]
     merge_requests[0].rebase.side_effect = GitlabMRRebaseError
 
-    _call_rebase(mocker, gitlab_api, state, merge_requests, rebase_limit=2)
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+    )
 
     assert merge_requests[0].rebase.call_count == 1
     assert merge_requests[1].rebase.call_count == 1
@@ -849,3 +880,28 @@ def test_rebase_stale_success_pipeline_does_not_block_rebase(
 
     assert merge_requests[0].rebase.call_count == 1
     assert merge_requests[1].rebase.call_count == 1
+
+
+# --- rebase_merge_requests top-K strategy tests ---
+
+
+def test_top_k_only_considers_first_k_mrs(
+    mocker: MockerFixture, gitlab_api: Mock, state: Mock
+) -> None:
+    """Top-K slices the queue to first K MRs; MRs beyond K are never rebased."""
+    merge_requests = [_make_rebase_mr(i) for i in range(1, 6)]
+
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        merge_requests,
+        rebase_limit=2,
+        use_active_cap=False,
+    )
+
+    assert merge_requests[0].rebase.call_count == 1
+    assert merge_requests[1].rebase.call_count == 1
+    assert merge_requests[2].rebase.call_count == 0
+    assert merge_requests[3].rebase.call_count == 0
+    assert merge_requests[4].rebase.call_count == 0
