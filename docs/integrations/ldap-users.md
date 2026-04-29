@@ -87,7 +87,7 @@ Content-Type: application/json
   "usernames": ["alice", "bob"],
   "secret": {
     "secret_manager_url": "https://vault.example.com",
-    "path": "app-sre/creds/app-sre-ldap-ipa",
+    "path": "secret/data/path/to/ldap-credentials",
     "server_url": "ldap://freeipa.example.com",
     "base_dn": "dc=example,dc=com"
   }
@@ -192,7 +192,7 @@ The integration scans infra YAML files for user lists with known name fields (`n
 
 **Vault Secrets:**
 
-- LDAP credentials: `app-sre/creds/app-sre-ldap-ipa` (contains `bind_dn` and `bind_password`)
+- LDAP credentials: `secret/data/path/to/ldap-credentials` (contains `bind_dn` and `bind_password`)
 - VCS tokens: resolved from app-interface VCS instances via GraphQL
 
 **External APIs:**
@@ -221,7 +221,7 @@ ldap:
   serverUrl: "ldap://freeipa.example.com"
   baseDn: "dc=example,dc=com"
   credentials:
-    path: "app-sre/creds/app-sre-ldap-ipa"
+    path: "secret/data/path/to/ldap-credentials"
     field: "all"
 ```
 

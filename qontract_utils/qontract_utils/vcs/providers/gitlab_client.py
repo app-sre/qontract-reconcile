@@ -258,6 +258,7 @@ class GitLabRepoApi:
                     "title": mr_input.title,
                     "description": mr_input.description,
                     "labels": labels,
+                    "remove_source_branch": True,
                 }
             )
         except Exception:
