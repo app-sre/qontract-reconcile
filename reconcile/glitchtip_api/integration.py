@@ -6,9 +6,6 @@ import sys
 from collections import defaultdict
 from collections.abc import Callable
 
-from qontract_api_client.api.external.ldap_group_members import (
-    asyncio as get_ldap_group_members,
-)
 from qontract_api_client.api.integrations.glitchtip import (
     asyncio as reconcile_glitchtip,
 )
@@ -39,14 +36,7 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
 from reconcile.gql_definitions.glitchtip.glitchtip_project import (
     query as glitchtip_project_query,
 )
-from reconcile.gql_definitions.ldap_groups.settings import (
-    query as ldap_groups_settings_query,
-)
 from reconcile.utils import gql
-from reconcile.utils.exceptions import (
-    AppInterfaceLdapGroupsSettingsError,
-    AppInterfaceSettingsError,
-)
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileApiIntegration,
@@ -54,7 +44,6 @@ from reconcile.utils.runtime.integration import (
 
 QONTRACT_INTEGRATION = "glitchtip-api"
 DEFAULT_MEMBER_ROLE = "member"
-_LDAP_CLIENT_SECRET_FIELD = "client_secret"
 
 # GlitchTip org roles ordered from lowest to highest privilege.
 # Used to deterministically resolve a user's org role when they appear in
@@ -98,44 +87,13 @@ class GlitchtipApiIntegration(
     def get_glitchtip_projects(self, query_func: Callable) -> list[GlitchtipProjectV1]:
         return glitchtip_project_query(query_func=query_func).glitchtip_projects or []
 
-    async def _get_ldap_member_ids(
-        self,
-        group_name: str,
-        ldap_cred_path: str,
-        ldap_cred_version: int | None,
-        ldap_api_url: str,
-        ldap_token_url: str,
-        ldap_client_id: str,
-    ) -> list[str]:
-        """Fetch LDAP group member IDs via qontract-api external endpoint."""
-        response = await get_ldap_group_members(
-            client=self.qontract_api_client,
-            group_name=group_name,
-            secret_manager_url=self.secret_manager_url,
-            path=ldap_cred_path,
-            field=_LDAP_CLIENT_SECRET_FIELD,
-            version=ldap_cred_version,
-            base_url=ldap_api_url,
-            token_url=ldap_token_url,
-            client_id=ldap_client_id,
-        )
-        return [m.id for m in (response.members or [])]
-
     @staticmethod
     def _build_team_users(
         glitchtip_team: GlitchtipTeamV1,
         organization: GlitchtipProjectV1_GlitchtipOrganizationV1,
         mail_domain: str,
-        ldap_members: dict[str, list[str]],
     ) -> dict[str, GlitchtipUser]:
-        """Build email→GlitchtipUser map for a team (roles take precedence over LDAP).
-
-        Args:
-            glitchtip_team: Team definition from GQL
-            organization: Parent organization (for role lookup)
-            mail_domain: Domain appended to usernames to form email addresses
-            ldap_members: Pre-fetched cache of group name → member ID list
-        """
+        """Build email->GlitchtipUser map for a team from role assignments."""
         users_by_email: dict[str, GlitchtipUser] = {}
 
         for role in glitchtip_team.roles:
@@ -144,60 +102,16 @@ class GlitchtipApiIntegration(
                 email = f"{user.org_username}@{mail_domain}"
                 users_by_email[email] = GlitchtipUser(email=email, role=role_str)
 
-        if glitchtip_team.ldap_groups:
-            member_role = (
-                glitchtip_team.members_organization_role or DEFAULT_MEMBER_ROLE
-            )
-            for group in glitchtip_team.ldap_groups:
-                for member_id in ldap_members.get(group, []):
-                    email = f"{member_id}@{mail_domain}"
-                    if email not in users_by_email:
-                        users_by_email[email] = GlitchtipUser(
-                            email=email, role=member_role
-                        )
-
         return users_by_email
 
     async def _build_desired_state(
         self,
         glitchtip_projects: list[GlitchtipProjectV1],
         mail_domain: str,
-        ldap_api_url: str,
-        ldap_token_url: str,
-        ldap_client_id: str,
-        ldap_cred_path: str,
-        ldap_cred_version: int | None,
     ) -> list[GIOrganization]:
         org_teams: dict[str, dict[str, GlitchtipTeam]] = defaultdict(dict)
         org_projects: dict[str, list[GIProject]] = defaultdict(list)
         org_users: dict[str, dict[str, GlitchtipUser]] = defaultdict(dict)
-
-        # Pre-fetch all unique LDAP groups concurrently to avoid redundant API calls
-        # when the same group appears across multiple teams.
-        all_ldap_groups = {
-            group
-            for proj in glitchtip_projects
-            for team in proj.teams
-            for group in (team.ldap_groups or [])
-        }
-        if all_ldap_groups:
-            ordered_groups = sorted(all_ldap_groups)
-            member_lists = await asyncio.gather(*[
-                self._get_ldap_member_ids(
-                    group_name=group,
-                    ldap_cred_path=ldap_cred_path,
-                    ldap_cred_version=ldap_cred_version,
-                    ldap_api_url=ldap_api_url,
-                    ldap_token_url=ldap_token_url,
-                    ldap_client_id=ldap_client_id,
-                )
-                for group in ordered_groups
-            ])
-            ldap_members: dict[str, list[str]] = dict(
-                zip(ordered_groups, member_lists, strict=True)
-            )
-        else:
-            ldap_members = {}
 
         for proj in glitchtip_projects:
             org_name = proj.organization.name
@@ -212,7 +126,6 @@ class GlitchtipApiIntegration(
                         glitchtip_team=glitchtip_team,
                         organization=proj.organization,
                         mail_domain=mail_domain,
-                        ldap_members=ldap_members,
                     )
                     org_teams[org_name][team_slug] = GlitchtipTeam(
                         name=glitchtip_team.name,
@@ -278,31 +191,6 @@ class GlitchtipApiIntegration(
         ).instances
         glitchtip_projects = self.get_glitchtip_projects(query_func=gqlapi.query)
 
-        ldap_settings_data = ldap_groups_settings_query(gqlapi.query)
-        if not ldap_settings_data.settings:
-            raise AppInterfaceSettingsError("No app-interface settings found.")
-        if not ldap_settings_data.settings[0].ldap_groups:
-            raise AppInterfaceLdapGroupsSettingsError(
-                "No app-interface ldap-groups settings found."
-            )
-        ldap_settings = ldap_settings_data.settings[0].ldap_groups
-        ldap_credentials = self.secret_reader.read_all_secret(ldap_settings.credentials)
-        missing = [
-            k
-            for k in ("api_url", "issuer_url", "client_id")
-            if not ldap_credentials.get(k)
-        ]
-        if missing:
-            raise ValueError(
-                f"Missing required LDAP credential fields in secret "
-                f"'{ldap_settings.credentials.path}': {missing}"
-            )
-        ldap_api_url: str = ldap_credentials["api_url"]
-        ldap_token_url: str = ldap_credentials["issuer_url"]
-        ldap_client_id: str = ldap_credentials["client_id"]
-        ldap_cred_path: str = ldap_settings.credentials.path
-        ldap_cred_version: int | None = ldap_settings.credentials.version
-
         projects_by_instance: dict[str, list[GlitchtipProjectV1]] = defaultdict(list)
         for proj in glitchtip_projects:
             projects_by_instance[proj.organization.instance.name].append(proj)
@@ -317,11 +205,6 @@ class GlitchtipApiIntegration(
             self._build_desired_state(
                 glitchtip_projects=projects_by_instance[inst.name],
                 mail_domain=inst.mail_domain or "redhat.com",
-                ldap_api_url=ldap_api_url,
-                ldap_token_url=ldap_token_url,
-                ldap_client_id=ldap_client_id,
-                ldap_cred_path=ldap_cred_path,
-                ldap_cred_version=ldap_cred_version,
             )
             for inst in filtered_instances
         ])

@@ -57,8 +57,6 @@ from .health_response_components import HealthResponseComponents
 from .health_status import HealthStatus
 from .http_validation_error import HTTPValidationError
 from .ldap_direct_secret import LdapDirectSecret
-from .ldap_group_member import LdapGroupMember
-from .ldap_group_members_response import LdapGroupMembersResponse
 from .ldap_user_status import LdapUserStatus
 from .ldap_users_check_request import LdapUsersCheckRequest
 from .ldap_users_check_response import LdapUsersCheckResponse
@@ -135,8 +133,6 @@ __all__ = (
     "HealthResponseComponents",
     "HealthStatus",
     "LdapDirectSecret",
-    "LdapGroupMember",
-    "LdapGroupMembersResponse",
     "LdapUserStatus",
     "LdapUsersCheckRequest",
     "LdapUsersCheckResponse",

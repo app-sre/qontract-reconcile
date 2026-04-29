@@ -239,11 +239,6 @@ class GlitchtipSettings(BaseModel):
 class LdapSettings(BaseModel):
     """LDAP external integration configuration."""
 
-    groups_cache_ttl: int = Field(
-        default=5 * 60,
-        description="LDAP group members cache TTL in seconds (five minutes)",
-    )
-
     users_cache_ttl: int = Field(
         default=6 * 60 * 60,
         description="LDAP users check cache TTL in seconds (six hours)",

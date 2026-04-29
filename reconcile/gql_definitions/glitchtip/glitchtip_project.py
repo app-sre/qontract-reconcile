@@ -60,8 +60,6 @@ query Projects {
           org_username
         }
       }
-      ldapGroups
-      membersOrganizationRole
     }
     organization {
       name
@@ -143,8 +141,6 @@ class RoleV1(ConfiguredBaseModel):
 class GlitchtipTeamV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     roles: list[RoleV1] = Field(..., alias="roles")
-    ldap_groups: Optional[list[str]] = Field(..., alias="ldapGroups")
-    members_organization_role: Optional[str] = Field(..., alias="membersOrganizationRole")
 
 
 class GlitchtipInstanceV1(ConfiguredBaseModel):

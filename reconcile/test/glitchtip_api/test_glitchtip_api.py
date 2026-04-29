@@ -3,7 +3,6 @@
 import asyncio
 
 import pytest
-from pytest_mock import MockerFixture
 from qontract_api_client.models.gi_organization import GIOrganization
 from qontract_api_client.models.glitchtip_user import GlitchtipUser
 from qontract_utils.glitchtip_api import slugify
@@ -33,11 +32,6 @@ from reconcile.gql_definitions.glitchtip.glitchtip_project import (
 # ---------------------------------------------------------------------------
 
 MAIL_DOMAIN = "example.com"
-LDAP_API_URL = "https://ldap.example.com"
-LDAP_TOKEN_URL = "https://ldap.example.com/token"
-LDAP_CLIENT_ID = "test-client-id"
-LDAP_CRED_PATH = "secret/ldap/creds"
-LDAP_CRED_VERSION: int | None = None
 
 ORG_NAME = "my-org"
 INSTANCE_NAME = "glitchtip-dev"
@@ -78,14 +72,10 @@ def make_role(
 def make_team(
     name: str,
     roles: list[RoleV1] | None = None,
-    ldap_groups: list[str] | None = None,
-    members_organization_role: str | None = None,
 ) -> GlitchtipTeamV1:
     return GlitchtipTeamV1(
         name=name,
         roles=roles or [],
-        ldapGroups=ldap_groups,
-        membersOrganizationRole=members_organization_role,
     )
 
 
@@ -179,14 +169,12 @@ def test_get_user_role_first_matching_org_wins() -> None:
 def _run_build_team_users(
     glitchtip_team: GlitchtipTeamV1,
     organization: GlitchtipProjectV1_GlitchtipOrganizationV1,
-    ldap_members: dict[str, list[str]] | None = None,
 ) -> dict[str, GlitchtipUser]:
-    """Helper to call the (now sync) _build_team_users static method."""
+    """Helper to call the _build_team_users static method."""
     return GlitchtipApiIntegration._build_team_users(
         glitchtip_team=glitchtip_team,
         organization=organization,
         mail_domain=MAIL_DOMAIN,
-        ldap_members=ldap_members or {},
     )
 
 
@@ -233,93 +221,6 @@ def test_build_team_users_role_not_matching_org_uses_default() -> None:
     }
 
 
-def test_build_team_users_from_ldap() -> None:
-    """Members from the pre-fetched ldap_members cache are added with the team's role."""
-    org = make_organization(ORG_NAME)
-    team = make_team(
-        name="infra-team",
-        roles=[],
-        ldap_groups=["ldap-group-a"],
-        members_organization_role="contributor",
-    )
-
-    result = _run_build_team_users(
-        team, org, ldap_members={"ldap-group-a": ["user1", "user2"]}
-    )
-
-    assert result == {
-        f"user1@{MAIL_DOMAIN}": GlitchtipUser(
-            email=f"user1@{MAIL_DOMAIN}", role="contributor"
-        ),
-        f"user2@{MAIL_DOMAIN}": GlitchtipUser(
-            email=f"user2@{MAIL_DOMAIN}", role="contributor"
-        ),
-    }
-
-
-def test_build_team_users_ldap_no_members_org_role_uses_default() -> None:
-    """When members_organization_role is None, LDAP members get DEFAULT_MEMBER_ROLE."""
-    org = make_organization(ORG_NAME)
-    team = make_team(
-        name="ops-team",
-        roles=[],
-        ldap_groups=["some-group"],
-        members_organization_role=None,
-    )
-
-    result = _run_build_team_users(
-        team, org, ldap_members={"some-group": ["ldap-user"]}
-    )
-
-    assert result == {
-        f"ldap-user@{MAIL_DOMAIN}": GlitchtipUser(
-            email=f"ldap-user@{MAIL_DOMAIN}", role=DEFAULT_MEMBER_ROLE
-        ),
-    }
-
-
-def test_build_team_users_roles_take_precedence_over_ldap() -> None:
-    """When a user appears in both roles and LDAP, the role entry wins."""
-    org = make_organization(ORG_NAME)
-    team = make_team(
-        name="mixed-team",
-        roles=[make_role(org_name=ORG_NAME, role_str="admin", usernames=["alice"])],
-        ldap_groups=["some-group"],
-        members_organization_role="member",
-    )
-
-    # "alice" is also in LDAP, but should keep her role-defined "admin" role
-    result = _run_build_team_users(
-        team, org, ldap_members={"some-group": ["alice", "ldap-only-user"]}
-    )
-
-    assert result[f"alice@{MAIL_DOMAIN}"].role == "admin"
-    assert result[f"ldap-only-user@{MAIL_DOMAIN}"].role == DEFAULT_MEMBER_ROLE
-
-
-def test_build_team_users_multiple_ldap_groups() -> None:
-    """Members from multiple LDAP groups are merged together."""
-    org = make_organization(ORG_NAME)
-    team = make_team(
-        name="multi-ldap-team",
-        roles=[],
-        ldap_groups=["group-a", "group-b"],
-        members_organization_role="member",
-    )
-
-    result = _run_build_team_users(
-        team,
-        org,
-        ldap_members={"group-a": ["user-a1", "user-a2"], "group-b": ["user-b1"]},
-    )
-
-    assert set(result.keys()) == {
-        f"user-a1@{MAIL_DOMAIN}",
-        f"user-a2@{MAIL_DOMAIN}",
-        f"user-b1@{MAIL_DOMAIN}",
-    }
-
-
 # ---------------------------------------------------------------------------
 # _build_desired_state
 # ---------------------------------------------------------------------------
@@ -334,11 +235,6 @@ def _run_build_desired_state(
         integration._build_desired_state(
             glitchtip_projects=glitchtip_projects,
             mail_domain=MAIL_DOMAIN,
-            ldap_api_url=LDAP_API_URL,
-            ldap_token_url=LDAP_TOKEN_URL,
-            ldap_client_id=LDAP_CLIENT_ID,
-            ldap_cred_path=LDAP_CRED_PATH,
-            ldap_cred_version=LDAP_CRED_VERSION,
         )
     )
 
@@ -373,10 +269,9 @@ def make_gql_project(
     )
 
 
-def test_build_desired_state_basic(mocker: MockerFixture) -> None:
+def test_build_desired_state_basic() -> None:
     """One org with one project and one team produces correct GIOrganization."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     team = make_team(
         name="Alpha Team",
@@ -422,10 +317,9 @@ def test_build_desired_state_basic(mocker: MockerFixture) -> None:
     assert org.users[0].email == f"alice@{MAIL_DOMAIN}"
 
 
-def test_build_desired_state_uses_project_id_as_slug(mocker: MockerFixture) -> None:
+def test_build_desired_state_uses_project_id_as_slug() -> None:
     """When project_id is set, it is used as the project slug instead of slugify(name)."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     project = make_gql_project(
         project_name="my project",
@@ -440,12 +334,9 @@ def test_build_desired_state_uses_project_id_as_slug(mocker: MockerFixture) -> N
     assert orgs[0].projects[0].slug == "custom-slug-123"
 
 
-def test_build_desired_state_event_throttle_rate_defaults_to_zero(
-    mocker: MockerFixture,
-) -> None:
+def test_build_desired_state_event_throttle_rate_defaults_to_zero() -> None:
     """When event_throttle_rate is None in GQL data, the GIProject gets rate=0."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     project = make_gql_project(
         project_name="no-throttle-project",
@@ -460,10 +351,9 @@ def test_build_desired_state_event_throttle_rate_defaults_to_zero(
     assert orgs[0].projects[0].event_throttle_rate == 0
 
 
-def test_build_desired_state_deduplicates_teams(mocker: MockerFixture) -> None:
+def test_build_desired_state_deduplicates_teams() -> None:
     """Two projects that share a team name produce only one team entry in the org."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     shared_team = make_team(
         name="Shared Team",
@@ -497,10 +387,9 @@ def test_build_desired_state_deduplicates_teams(mocker: MockerFixture) -> None:
     assert org.projects[1].teams == [team_slug]
 
 
-def test_build_desired_state_multiple_orgs(mocker: MockerFixture) -> None:
+def test_build_desired_state_multiple_orgs() -> None:
     """Projects in different orgs produce separate GIOrganization entries."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     project_org1 = make_gql_project(
         project_name="project-org1",
@@ -520,12 +409,9 @@ def test_build_desired_state_multiple_orgs(mocker: MockerFixture) -> None:
     assert org_names == {"org-1", "org-2"}
 
 
-def test_build_desired_state_raises_for_project_without_teams(
-    mocker: MockerFixture,
-) -> None:
+def test_build_desired_state_raises_for_project_without_teams() -> None:
     """A project with no teams raises ValueError immediately."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     project = make_gql_project(
         project_name="no-team-project",
@@ -537,12 +423,9 @@ def test_build_desired_state_raises_for_project_without_teams(
         _run_build_desired_state(integration, [project])
 
 
-def test_build_desired_state_org_users_deduplicated_across_teams(
-    mocker: MockerFixture,
-) -> None:
+def test_build_desired_state_org_users_deduplicated_across_teams() -> None:
     """A user in two teams within the same org appears once in org.users."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     alice_role_team_a = make_role(
         org_name=ORG_NAME, role_str="admin", usernames=["alice"]
@@ -572,16 +455,13 @@ def test_build_desired_state_org_users_deduplicated_across_teams(
     assert len(alice_entries) == 1
 
 
-def test_build_desired_state_highest_role_wins_across_teams(
-    mocker: MockerFixture,
-) -> None:
+def test_build_desired_state_highest_role_wins_across_teams() -> None:
     """When a user appears in multiple teams with different org roles, the highest wins.
 
     This is deterministic regardless of project/team iteration order, unlike
     a first-team-wins approach which depends on GraphQL query ordering.
     """
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     alice_as_member = make_role(
         org_name=ORG_NAME, role_str="member", usernames=["alice"]
@@ -617,22 +497,18 @@ def test_build_desired_state_highest_role_wins_across_teams(
     assert alice_reversed[0].role == "admin"
 
 
-def test_build_desired_state_empty_projects_list(mocker: MockerFixture) -> None:
+def test_build_desired_state_empty_projects_list() -> None:
     """An empty project list produces an empty GIOrganization list."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     orgs = _run_build_desired_state(integration, [])
 
     assert orgs == []
 
 
-def test_build_desired_state_team_slug_used_in_project_teams(
-    mocker: MockerFixture,
-) -> None:
+def test_build_desired_state_team_slug_used_in_project_teams() -> None:
     """Team slugs (derived from team names) are correctly referenced in project teams list."""
     integration = make_integration()
-    mocker.patch.object(integration, "_get_ldap_member_ids", return_value=[])
 
     team = make_team(name="My Backend Team")
     project = make_gql_project(
@@ -646,36 +522,3 @@ def test_build_desired_state_team_slug_used_in_project_teams(
     assert isinstance(orgs[0].projects, list)
     gi_project = orgs[0].projects[0]
     assert gi_project.teams == ["my-backend-team"]
-
-
-def test_build_desired_state_ldap_group_fetched_once_across_teams(
-    mocker: MockerFixture,
-) -> None:
-    """A shared LDAP group referenced by multiple teams is fetched only once."""
-    integration = make_integration()
-    mock_get_ldap = mocker.patch.object(
-        integration, "_get_ldap_member_ids", return_value=["shared-user"]
-    )
-
-    shared_group = "shared-ldap-group"
-    team_a = make_team(name="Team A", ldap_groups=[shared_group])
-    team_b = make_team(name="Team B", ldap_groups=[shared_group])
-
-    project_a = make_gql_project(
-        project_name="project-a", org_name=ORG_NAME, teams=[team_a]
-    )
-    project_b = make_gql_project(
-        project_name="project-b", org_name=ORG_NAME, teams=[team_b]
-    )
-
-    orgs = _run_build_desired_state(integration, [project_a, project_b])
-
-    # The group should be fetched exactly once despite appearing in two teams
-    assert mock_get_ldap.call_count == 1
-    assert mock_get_ldap.call_args.kwargs["group_name"] == shared_group
-
-    # Both teams should still receive the members
-    org = orgs[0]
-    assert isinstance(org.teams, list)
-    team_user_emails = {user.email for team in org.teams for user in (team.users or [])}
-    assert f"shared-user@{MAIL_DOMAIN}" in team_user_emails

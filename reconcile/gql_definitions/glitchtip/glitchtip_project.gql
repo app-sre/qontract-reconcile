@@ -20,8 +20,6 @@ query Projects {
           org_username
         }
       }
-      ldapGroups
-      membersOrganizationRole
     }
     organization {
       name
