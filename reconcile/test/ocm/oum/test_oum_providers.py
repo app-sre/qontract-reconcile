@@ -1,6 +1,5 @@
 import pytest
 from pytest_mock import MockerFixture
-
 from qontract_utils.ldap_api import LdapApi
 from qontract_utils.ldap_api.models import LdapGroup, LdapUser
 
