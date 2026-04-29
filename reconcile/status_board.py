@@ -13,11 +13,12 @@ from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
 from reconcile.typed_queries.slo_documents import get_slo_documents
 from reconcile.typed_queries.status_board import (
-    get_selected_app_names,
+    get_selected_app_metadata,
     get_status_board,
 )
 from reconcile.utils.differ import diff_mappings
 from reconcile.utils.ocm.status_board import (
+    ApplicationMetadataSpec,
     ApplicationOCMSpec,
     BaseOCMSpec,
     ServiceMetadataSpec,
@@ -31,6 +32,7 @@ from reconcile.utils.ocm.status_board import (
     get_application_services,
     get_managed_products,
     get_product_applications,
+    update_application,
     update_service,
 )
 from reconcile.utils.ocm_base_client import (
@@ -122,6 +124,7 @@ class Product(AbstractStatusBoard):
 class Application(AbstractStatusBoard):
     product: Product
     services: list["Service"] | None = None
+    metadata: ApplicationMetadataSpec
 
     def create(self, ocm: OCMBaseClient) -> None:
         if self.product.id:
@@ -131,9 +134,11 @@ class Application(AbstractStatusBoard):
             logging.warning("Missing product id for application")
 
     def update(self, ocm: OCMBaseClient) -> None:
-        err_msg = "Called update on StatusBoardHandler that doesn't have update method"
-        logging.error(err_msg)
-        raise UpdateNotSupportedError(err_msg)
+        if not self.id:
+            logging.error(f'Trying to update Application "{self.name}" without id')
+            return
+        spec = self.to_ocm_spec()
+        update_application(ocm, self.id, spec)
 
     def delete(self, ocm: OCMBaseClient) -> None:
         if not self.id:
@@ -150,11 +155,21 @@ class Application(AbstractStatusBoard):
             "name": self.name,
             "fullname": self.fullname,
             "product": {"id": product_id},
+            "metadata": self.metadata,
         }
 
     @staticmethod
     def get_priority() -> int:
         return 1
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Application):
+            return NotImplemented
+        return (
+            self.name == other.name
+            and self.fullname == other.fullname
+            and self.metadata == other.metadata
+        )
 
 
 class Service(AbstractStatusBoard):
@@ -248,12 +263,14 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         return QONTRACT_INTEGRATION
 
     @staticmethod
-    def get_product_apps(sb: StatusBoardV1) -> dict[str, set[str]]:
+    def get_product_apps(
+        sb: StatusBoardV1,
+    ) -> dict[str, dict[str, ApplicationMetadataSpec]]:
         global_selectors = (
             sb.global_app_selectors.exclude or [] if sb.global_app_selectors else []
         )
         return {
-            p.product_environment.product.name: get_selected_app_names(
+            p.product_environment.product.name: get_selected_app_metadata(
                 global_selectors, p
             )
             for p in sb.products
@@ -287,7 +304,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
     @staticmethod
     def desired_abstract_status_board_map(
-        desired_product_apps: Mapping[str, set[str]],
+        desired_product_apps: Mapping[str, dict[str, ApplicationMetadataSpec]],
         slodocs: list[SLODocumentV1],
     ) -> dict[str, AbstractStatusBoard]:
         """
@@ -299,7 +316,10 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
         desired_abstract_status_board_map: dict[str, AbstractStatusBoard] = {}
         for product_name, apps in desired_product_apps.items():
             product = Product(
-                id=None, name=product_name, fullname=product_name, applications=[]
+                id=None,
+                name=product_name,
+                fullname=product_name,
+                applications=[],
             )
             desired_abstract_status_board_map[product_name] = product
             for a in apps:
@@ -310,6 +330,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
                     fullname=key,
                     services=[],
                     product=product,
+                    metadata=apps[a],
                 )
         for slodoc in slodocs:
             products = [
@@ -398,6 +419,18 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             for o in diff_result.delete.values()
         )
 
+        # Handle Applications that need updates (metadata changes)
+        applications_to_update = [
+            a.desired
+            for _, a in diff_result.change.items()
+            if isinstance(a.desired, Application)
+        ]
+
+        return_list.extend(
+            StatusBoardHandler(action=Action.update, status_board_object=a)
+            for a in applications_to_update
+        )
+
         services_to_update = [
             s.desired
             for _, s in diff_result.change.items()
@@ -445,7 +478,9 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
             ocm_api = init_ocm_base_client(sb.ocm, self.secret_reader)
 
             # Desired state
-            desired_product_apps: dict[str, set[str]] = self.get_product_apps(sb)
+            desired_product_apps: dict[str, dict[str, ApplicationMetadataSpec]] = (
+                self.get_product_apps(sb)
+            )
             desired_abstract_status_board_map = self.desired_abstract_status_board_map(
                 desired_product_apps, slodocs
             )
