@@ -227,9 +227,7 @@ class LdapApi:
         if not groups_dns:
             return []
 
-        group_filter = (
-            f"(|{''.join([f'(memberOf={dn})' for dn in sorted(groups_dns)])})"
-        )
+        group_filter = f"(|{''.join([f'(memberOf={escape_filter_chars(dn)})' for dn in sorted(groups_dns)])})"
 
         _, status, users, _ = self._connection.search(
             self.base_dn,

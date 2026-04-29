@@ -549,3 +549,24 @@ def test_get_group_members_members_are_ldap_user_models(
     member = next(iter(result[0].members))
     assert isinstance(member, LdapUser)
     assert member.username == "alice"
+
+
+def test_get_group_members_escapes_special_characters(
+    mock_ldap3: MagicMock, ldap_api: LdapApi
+) -> None:
+    """Test get_group_members escapes LDAP filter special characters in DNs."""
+    mock_ldap3.connection.search.return_value = (
+        True,
+        {"result": 0, "description": "success"},
+        [],
+        None,
+    )
+
+    dn_with_parens = "cn=group(test),ou=groups,dc=example,dc=com"
+    with ldap_api:
+        ldap_api.get_group_members([dn_with_parens])
+
+    filter_str = mock_ldap3.connection.search.call_args[0][1]
+    assert f"(memberOf={dn_with_parens})" not in filter_str
+    assert "\\28" in filter_str  # ( -> \28
+    assert "\\29" in filter_str  # ) -> \29
