@@ -204,57 +204,57 @@ def test_quay_mirror_session(mocker: MockerFixture) -> None:
     mocked_request.Session.return_value.close.assert_called_once_with()
 
 
-@patch("reconcile.utils.gql.get_api", autospec=True)
-@patch("reconcile.queries.get_app_interface_settings", return_value={})
-class TestRunErrorHandling:
-    def _make_mirror(
-        self, mock_gql: Mock, mock_settings: Mock
-    ) -> tuple[QuayMirror, MagicMock]:
-        qm = QuayMirror(dry_run=True, compare_tags=False)
-        mock_skopeo: MagicMock = MagicMock()
-        qm.skopeo_cli = mock_skopeo
-        qm.push_creds = {}
-        return qm, mock_skopeo
+@pytest.fixture()
+def quay_mirror_instance(mocker: MockerFixture) -> tuple[QuayMirror, MagicMock]:
+    mocker.patch("reconcile.utils.gql.get_api", autospec=True)
+    mocker.patch("reconcile.queries.get_app_interface_settings", return_value={})
+    qm = QuayMirror(dry_run=True, compare_tags=False)
+    mock_skopeo: MagicMock = MagicMock()
+    qm.skopeo_cli = mock_skopeo
+    qm.push_creds = {}
+    return qm, mock_skopeo
 
-    def test_run_succeeds_with_no_errors(
-        self, mock_gql: Mock, mock_settings: Mock, mocker: MockerFixture
-    ) -> None:
-        qm, _ = self._make_mirror(mock_gql, mock_settings)
-        org = OrgKey(instance="quay.io", org_name="test-org")
-        task = {
+
+def test_run_succeeds_with_no_errors(
+    quay_mirror_instance: tuple[QuayMirror, MagicMock], mocker: MockerFixture
+) -> None:
+    qm, _ = quay_mirror_instance
+    org = OrgKey(instance="quay.io", org_name="test-org")
+    task = {
+        "mirror_url": "docker.io/foo:1",
+        "mirror_creds": None,
+        "image_url": "quay.io/test-org/foo:1",
+    }
+    mocker.patch.object(qm, "process_sync_tasks", return_value={org: [task]})
+    qm.push_creds[org] = "user:token"
+
+    qm.run()  # should not raise
+
+
+def test_run_raises_exception_group_on_skopeo_error(
+    quay_mirror_instance: tuple[QuayMirror, MagicMock], mocker: MockerFixture
+) -> None:
+    qm, mock_skopeo = quay_mirror_instance
+    org = OrgKey(instance="quay.io", org_name="test-org")
+    tasks = [
+        {
             "mirror_url": "docker.io/foo:1",
             "mirror_creds": None,
             "image_url": "quay.io/test-org/foo:1",
-        }
-        mocker.patch.object(qm, "process_sync_tasks", return_value={org: [task]})
-        qm.push_creds[org] = "user:token"
+        },
+        {
+            "mirror_url": "docker.io/foo:2",
+            "mirror_creds": None,
+            "image_url": "quay.io/test-org/foo:2",
+        },
+    ]
+    mocker.patch.object(qm, "process_sync_tasks", return_value={org: tasks})
+    qm.push_creds[org] = "user:token"
+    mock_skopeo.copy.side_effect = [SkopeoCmdError("exit code: 1"), None]
 
-        qm.run()  # should not raise
+    with pytest.raises(ExceptionGroup) as exc_info:
+        qm.run()
 
-    def test_run_raises_exception_group_on_skopeo_error(
-        self, mock_gql: Mock, mock_settings: Mock, mocker: MockerFixture
-    ) -> None:
-        qm, mock_skopeo = self._make_mirror(mock_gql, mock_settings)
-        org = OrgKey(instance="quay.io", org_name="test-org")
-        tasks = [
-            {
-                "mirror_url": "docker.io/foo:1",
-                "mirror_creds": None,
-                "image_url": "quay.io/test-org/foo:1",
-            },
-            {
-                "mirror_url": "docker.io/foo:2",
-                "mirror_creds": None,
-                "image_url": "quay.io/test-org/foo:2",
-            },
-        ]
-        mocker.patch.object(qm, "process_sync_tasks", return_value={org: tasks})
-        qm.push_creds[org] = "user:token"
-        mock_skopeo.copy.side_effect = [SkopeoCmdError("exit code: 1"), None]
-
-        with pytest.raises(ExceptionGroup) as exc_info:
-            qm.run()
-
-        assert mock_skopeo.copy.call_count == 2
-        assert len(exc_info.value.exceptions) == 1
-        assert isinstance(exc_info.value.exceptions[0], SkopeoCmdError)
+    assert mock_skopeo.copy.call_count == 2
+    assert len(exc_info.value.exceptions) == 1
+    assert isinstance(exc_info.value.exceptions[0], SkopeoCmdError)
