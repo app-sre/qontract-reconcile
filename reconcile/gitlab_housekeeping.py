@@ -482,22 +482,93 @@ def rebase_merge_requests(
     users_allowed_to_label: Iterable[str] | None = None,
     use_active_cap: bool = False,
 ) -> None:
+    if use_active_cap:
+        return _rebase_merge_requests_active_cap(
+            dry_run=dry_run,
+            gl=gl,
+            rebase_limit=rebase_limit,
+            state=state,
+            pipeline_timeout=pipeline_timeout,
+            wait_for_pipeline=wait_for_pipeline,
+            users_allowed_to_label=users_allowed_to_label,
+        )
 
-    all_items = get_merge_requests(
-        dry_run=dry_run,
-        gl=gl,
-        state=state,
-        users_allowed_to_label=users_allowed_to_label,
-    )
-    # top-k: only evaluate the first rebase_limit MRs in priority order
-    if not use_active_cap:
-        all_items = all_items[:rebase_limit]
+    # top-k: only evaluate the first rebase_limit MRs in priority order.
+    # The queue is already sorted by priority, so slicing to K guarantees
+    # at most K MRs are rebased across all runs.
+    merge_requests = [
+        item["mr"]
+        for item in get_merge_requests(
+            dry_run=dry_run,
+            gl=gl,
+            state=state,
+            users_allowed_to_label=users_allowed_to_label,
+        )[:rebase_limit]
+    ]
 
-    merge_requests = [item["mr"] for item in all_items]
+    for mr in merge_requests:
+        if is_rebased(mr, gl):
+            continue
+
+        pipelines = gl.get_merge_request_pipelines(mr)
+
+        # If pipeline_timeout is None no pipeline will be canceled.
+        if pipeline_timeout is not None:
+            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
+            if timed_out_pipelines:
+                clean_pipelines(
+                    dry_run=dry_run,
+                    gl=gl,
+                    fork_project_id=mr.source_project_id,
+                    pipelines=timed_out_pipelines,
+                )
+
+        if wait_for_pipeline:
+            if not pipelines:
+                continue
+            # possible statuses:
+            # running, pending, success, failed, canceled, skipped
+            running_pipelines = [
+                p for p in pipelines if p.status == PipelineStatus.RUNNING
+            ]
+            if running_pipelines:
+                continue
+
+        try:
+            logging.info(["rebase", gl.project.name, mr.iid])
+            if not dry_run:
+                mr.rebase()
+                rebased_merge_requests.labels(mr.target_project_id).inc()
+        except gitlab.exceptions.GitlabMRRebaseError as e:
+            logging.error(f"unable to rebase {mr.iid}: {e}")
+
+
+def _rebase_merge_requests_active_cap(
+    dry_run: bool,
+    gl: GitLabApi,
+    rebase_limit: int,
+    state: State,
+    pipeline_timeout: int | None = None,
+    wait_for_pipeline: bool = False,
+    users_allowed_to_label: Iterable[str] | None = None,
+) -> None:
+    """Active-cap strategy: scan the full queue, count MRs with active
+    pipelines, and only rebase up to (rebase_limit - already_active)
+    additional MRs.  This treats rebase_limit as a per-repo concurrency cap
+    on in-flight pipelines rather than a visibility window."""
+    merge_requests = [
+        item["mr"]
+        for item in get_merge_requests(
+            dry_run=dry_run,
+            gl=gl,
+            state=state,
+            users_allowed_to_label=users_allowed_to_label,
+        )
+    ]
 
     # Single pass: classify MRs as already-active or needs-rebase.
-    # active-cap treats rebase_limit as a per-repo concurrency cap --
-    # "at most N MRs with active pipelines" -- not a per-run burst.
+    # rebase_limit is a per-repo concurrency cap -- "at most N MRs with
+    # active pipelines" -- not a per-run burst.
     # Rebased MRs count as active with running/pending/success pipelines
     # (success = green and waiting to merge, still occupying a slot).
     # Non-rebased MRs only count as active with running/pending pipelines
@@ -506,28 +577,18 @@ def rebase_merge_requests(
     for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
         if is_rebased(mr, gl):
-            if (
-                use_active_cap
-                and pipelines
-                and pipelines[0].status
-                in {
-                    PipelineStatus.RUNNING,
-                    PipelineStatus.PENDING,
-                    PipelineStatus.SUCCESS,
-                }
-            ):
+            if pipelines and pipelines[0].status in {
+                PipelineStatus.RUNNING,
+                PipelineStatus.PENDING,
+                PipelineStatus.SUCCESS,
+            }:
                 already_active += 1
             continue
 
-        if (
-            use_active_cap
-            and pipelines
-            and pipelines[0].status
-            in {
-                PipelineStatus.RUNNING,
-                PipelineStatus.PENDING,
-            }
-        ):
+        if pipelines and pipelines[0].status in {
+            PipelineStatus.RUNNING,
+            PipelineStatus.PENDING,
+        }:
             already_active += 1
             continue
 
@@ -555,9 +616,7 @@ def rebase_merge_requests(
 
         needs_rebase.append(mr)
 
-    remaining_budget = (
-        max(rebase_limit - already_active, 0) if use_active_cap else len(needs_rebase)
-    )
+    remaining_budget = max(rebase_limit - already_active, 0)
     rebases = 0
     for mr in needs_rebase:
         if rebases < remaining_budget:
@@ -716,6 +775,9 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
     repos = [r for r in repos if is_in_shard(r["url"])]
     app_sre_usernames: Set[str] = set()
+    use_active_cap = get_feature_toggle_state(
+        "gitlab-housekeeping-rebase-active-cap", default=False
+    )
     state = init_state(QONTRACT_INTEGRATION)
 
     for repo in repos:
@@ -759,9 +821,6 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             ]
             reload_toggle = ReloadToggle(reload=False)
             rebase = hk.get("rebase")
-            use_active_cap = get_feature_toggle_state(
-                "gitlab-housekeeping-rebase-active-cap", default=False
-            )
             must_pass = hk.get("must_pass")
             try:
                 merge_merge_requests(
