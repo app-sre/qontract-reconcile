@@ -3,17 +3,20 @@ from __future__ import annotations
 import os
 import tempfile
 from typing import TYPE_CHECKING
-from unittest.mock import create_autospec, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 import requests
+from sretoolbox.container.skopeo import SkopeoCmdError
 
 from reconcile.quay_mirror import (
     CONTROL_FILE_NAME,
     OrgKey,
     QuayMirror,
     queries,
+    run,
 )
+from reconcile.status import ExitCodes
 from reconcile.utils.quay_mirror import sync_tag
 
 from .fixtures import Fixtures
@@ -201,3 +204,75 @@ def test_quay_mirror_session(mocker: MockerFixture) -> None:
         assert quay_mirror.session == mocked_request.Session.return_value
 
     mocked_request.Session.return_value.close.assert_called_once_with()
+
+
+@patch("reconcile.utils.gql.get_api", autospec=True)
+@patch("reconcile.queries.get_app_interface_settings", return_value={})
+class TestRunErrorHandling:
+    def _make_mirror(self, mock_gql: Mock, mock_settings: Mock) -> tuple[QuayMirror, MagicMock]:
+        qm = QuayMirror(dry_run=True, compare_tags=False)
+        mock_skopeo: MagicMock = MagicMock()
+        qm.skopeo_cli = mock_skopeo
+        qm.push_creds = {}
+        return qm, mock_skopeo
+
+    def test_run_returns_false_on_success(
+        self, mock_gql: Mock, mock_settings: Mock, mocker: MockerFixture
+    ) -> None:
+        qm, _ = self._make_mirror(mock_gql, mock_settings)
+        org = OrgKey(instance="quay.io", org_name="test-org")
+        task = {"mirror_url": "docker.io/foo:1", "mirror_creds": None, "image_url": "quay.io/test-org/foo:1"}
+        mocker.patch.object(qm, "process_sync_tasks", return_value={org: [task]})
+        qm.push_creds[org] = "user:token"
+
+        assert qm.run() is False
+
+    def test_run_returns_true_on_skopeo_error(
+        self, mock_gql: Mock, mock_settings: Mock, mocker: MockerFixture
+    ) -> None:
+        qm, mock_skopeo = self._make_mirror(mock_gql, mock_settings)
+        org = OrgKey(instance="quay.io", org_name="test-org")
+        tasks = [
+            {"mirror_url": "docker.io/foo:1", "mirror_creds": None, "image_url": "quay.io/test-org/foo:1"},
+            {"mirror_url": "docker.io/foo:2", "mirror_creds": None, "image_url": "quay.io/test-org/foo:2"},
+        ]
+        mocker.patch.object(qm, "process_sync_tasks", return_value={org: tasks})
+        qm.push_creds[org] = "user:token"
+        mock_skopeo.copy.side_effect = [SkopeoCmdError("exit code: 1"), None]
+
+        assert qm.run() is True
+        assert mock_skopeo.copy.call_count == 2
+
+    def test_module_run_exits_on_error(
+        self, mock_gql: Mock, mock_settings: Mock, mocker: MockerFixture
+    ) -> None:
+        mocker.patch("reconcile.quay_mirror.requests")
+        mocker.patch.object(QuayMirror, "run", return_value=True)
+        mocker.patch.object(QuayMirror, "_get_push_creds", return_value={})
+
+        with pytest.raises(SystemExit) as exc_info:
+            run(
+                dry_run=True,
+                control_file_dir=None,
+                compare_tags=False,
+                compare_tags_interval=86400,
+                repository_urls=None,
+                exclude_repository_urls=None,
+            )
+        assert exc_info.value.code == ExitCodes.ERROR
+
+    def test_module_run_no_exit_on_success(
+        self, mock_gql: Mock, mock_settings: Mock, mocker: MockerFixture
+    ) -> None:
+        mocker.patch("reconcile.quay_mirror.requests")
+        mocker.patch.object(QuayMirror, "run", return_value=False)
+        mocker.patch.object(QuayMirror, "_get_push_creds", return_value={})
+
+        run(
+            dry_run=True,
+            control_file_dir=None,
+            compare_tags=False,
+            compare_tags_interval=86400,
+            repository_urls=None,
+            exclude_repository_urls=None,
+        )
