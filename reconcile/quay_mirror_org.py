@@ -74,6 +74,7 @@ class QuayMirrorOrg:
         self.quay_api_store.cleanup()
 
     def run(self) -> None:
+        errors: list[Exception] = []
         sync_tasks = self.process_sync_tasks()
         for org, data in sync_tasks.items():
             for item in data:
@@ -86,9 +87,13 @@ class QuayMirrorOrg:
                     )
                 except SkopeoCmdError as details:
                     _LOG.error("skopeo command error message: '%s'", details)
+                    errors.append(details)
 
         if self.is_compare_tags and not self.dry_run:
             record_timestamp(self.control_file_path)
+
+        if errors:
+            raise ExceptionGroup("skopeo copy failures", errors)
 
     def process_org_mirrors(self) -> dict[OrgKey, list[dict[str, Any]]]:
         """It collects the list of repositories in the upstream org from an API

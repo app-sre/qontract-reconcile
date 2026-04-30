@@ -61,6 +61,7 @@ class QuayMirror:
         self.session.close()
 
     def run(self) -> None:
+        errors: list[Exception] = []
         gql_result = gql_gcp_repos.query(query_func=self.gqlapi.query)
         processed_repos = self.process_repos_to_sync(gql_result)
         sync_tasks = self.process_sync_tasks(processed_repos)
@@ -79,6 +80,10 @@ class QuayMirror:
                 )
             except SkopeoCmdError as details:
                 logging.error("[%s]", details)
+                errors.append(details)
+
+        if errors:
+            raise ExceptionGroup("skopeo copy failures", errors)
 
     # processes the GQL repos to come up with a list of items that need to be synced
     def process_repos_to_sync(
