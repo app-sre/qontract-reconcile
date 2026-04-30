@@ -142,7 +142,7 @@ def gcp_mirror_instance(
 def test_run_succeeds_with_no_errors(
     gcp_mirror_instance: tuple[QuayMirror, MagicMock], mocker: MockerFixture
 ) -> None:
-    qm, _ = gcp_mirror_instance
+    qm, mock_skopeo = gcp_mirror_instance
     tasks = [
         SyncTask(
             source_url="docker.io/foo:1",
@@ -152,7 +152,14 @@ def test_run_succeeds_with_no_errors(
     ]
     mocker.patch.object(qm, "process_sync_tasks", return_value=tasks)
 
-    qm.run()  # should not raise
+    qm.run()
+
+    mock_skopeo.copy.assert_called_once_with(
+        src_image="docker.io/foo:1",
+        src_creds=None,
+        dst_image=f"gcr.io/{TEST_PROJECT_NAME}/foo:1",
+        dest_creds="user:token",
+    )
 
 
 def test_run_raises_exception_group_on_skopeo_error(

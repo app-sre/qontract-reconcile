@@ -117,10 +117,12 @@ def test_run_succeeds_with_no_errors(
     quay_mirror_org_instance: tuple[QuayMirrorOrg, MagicMock],
     mocker: MockerFixture,
 ) -> None:
-    qm, _ = quay_mirror_org_instance
+    qm, mock_skopeo = quay_mirror_org_instance
     mocker.patch.object(qm, "process_sync_tasks", return_value={})
 
     qm.run()
+
+    mock_skopeo.copy.assert_not_called()
 
 
 def test_run_raises_exception_group_on_skopeo_error(
