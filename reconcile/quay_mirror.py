@@ -126,8 +126,8 @@ class QuayMirror:
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.session.close()
 
-    def run(self) -> bool:
-        error = False
+    def run(self) -> None:
+        errors: list[Exception] = []
         sync_tasks = self.process_sync_tasks()
         for org, data in sync_tasks.items():
             for item in data:
@@ -140,12 +140,13 @@ class QuayMirror:
                     )
                 except SkopeoCmdError as details:
                     _LOG.error("skopeo command error message: '%s'", details)
-                    error = True
+                    errors.append(details)
 
         if self.is_compare_tags and not self.dry_run:
             record_timestamp(self.control_file_path)
 
-        return error
+        if errors:
+            raise ExceptionGroup("skopeo copy failures", errors)
 
     @classmethod
     def process_repos_query(
@@ -402,9 +403,7 @@ def run(
         repository_urls,
         exclude_repository_urls,
     ) as quay_mirror:
-        error = quay_mirror.run()
-    if error:
-        sys.exit(ExitCodes.ERROR)
+        quay_mirror.run()
 
 
 def early_exit_desired_state(*args: Any, **kwargs: Any) -> dict[str, Any]:
