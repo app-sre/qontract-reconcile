@@ -571,7 +571,6 @@ def _rebase_merge_requests_active_cap(
     # active pipelines" -- not a per-run burst.
     # Rebased MRs count as active with running/pending/success pipelines
     # (success = green and waiting to merge, still occupying a slot).
-    # Non-rebased MRs only count as active with running/pending pipelines
     already_active = 0
     needs_rebase: list[ProjectMergeRequest] = []
     for mr in merge_requests:
@@ -583,13 +582,6 @@ def _rebase_merge_requests_active_cap(
                 PipelineStatus.SUCCESS,
             }:
                 already_active += 1
-            continue
-
-        if pipelines and pipelines[0].status in {
-            PipelineStatus.RUNNING,
-            PipelineStatus.PENDING,
-        }:
-            already_active += 1
             continue
 
         # If pipeline_timeout is None no pipeline will be canceled.
@@ -637,6 +629,7 @@ def _rebase_merge_requests_active_cap(
                 mr.iid,
                 f"rebase limit reached ({already_active + rebases} active/in-flight, limit {rebase_limit}). will try next time",
             ])
+            break
 
 
 # TODO: this retry is catching all exceptions, which isn't good. _log_exceptions is
