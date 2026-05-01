@@ -459,13 +459,15 @@ def run(
                     approval_body=DecisionCommand.APPROVED.value,
                 )
             )
+            mr_author = gl.get_merge_request_author_username(merge_request)
             change_decisions = apply_decisions_to_changes(
                 changes,
                 approver_decisions,
                 {
                     gl.user.username,
-                    gl.get_merge_request_author_username(merge_request),
+                    mr_author,
                 },
+                mr_author=mr_author,
             )
             hold = any(d.is_held() for d in change_decisions)
             approved = all(
