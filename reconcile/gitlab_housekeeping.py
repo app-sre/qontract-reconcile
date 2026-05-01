@@ -614,13 +614,14 @@ def _rebase_merge_requests_active_cap(
         if rebases < remaining_budget:
             try:
                 logging.info(["rebase", gl.project.name, mr.iid])
+                rebases += 1
                 if not dry_run:
                     mr.rebase()
-                    rebases += 1
                     rebased_merge_requests.labels(mr.target_project_id).inc()
             except gitlab.exceptions.GitlabMRRebaseError as e:
                 # Failed rebases don't consume budget — the MR has no
                 # in-flight pipeline, so we should try the next candidate.
+                rebases -= 1
                 logging.error(f"unable to rebase {mr.iid}: {e}")
         else:
             logging.info([
