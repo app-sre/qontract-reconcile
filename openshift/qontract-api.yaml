@@ -123,7 +123,7 @@ objects:
                   path: /health/ready
                   port: ${{QAPI_APP_PORT}}
                 periodSeconds: 60
-                timeoutSeconds: 5
+                timeoutSeconds: 10
               livenessProbe:
                 httpGet:
                   path: /health/live
