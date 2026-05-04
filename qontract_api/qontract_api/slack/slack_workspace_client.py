@@ -291,9 +291,15 @@ class SlackWorkspaceClient:
         channel_name_by_id = {
             channel.id: channel.name for channel in self.get_channels().values()
         }
-        org_username_by_id = {
-            user.id: user.org_username for user in self.get_users().values()
-        }
+        # Build lookup covering both workspace IDs (U...) and enterprise IDs (W...).
+        # usergroups_list returns workspace-level U... IDs in ug.users, but user.id
+        # returns the enterprise W... ID for Enterprise Grid users. Without both keys,
+        # Enterprise Grid users are silently dropped from current state every reconcile.
+        org_username_by_id: dict[str, str] = {}
+        for user in self.get_users().values():
+            org_username_by_id[user.pk] = user.org_username
+            if user.enterprise_user:
+                org_username_by_id[user.enterprise_user.id] = user.org_username
 
         return [
             SlackUsergroup(

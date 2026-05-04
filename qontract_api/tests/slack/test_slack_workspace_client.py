@@ -8,8 +8,10 @@ from qontract_utils.slack_api import (
     ChatPostMessageResponse,
     SlackApiError,
     SlackChannel,
+    SlackEnterpriseUser,
     SlackUser,
     SlackUsergroup,
+    SlackUsergroupPrefs,
     SlackUserProfile,
 )
 
@@ -692,3 +694,47 @@ def test_chat_post_message_propagates_slack_api_error(
         )
 
     assert exc_info.value.response["error"] == "channel_not_found"
+
+
+def test_get_slack_usergroups_enterprise_grid_user_resolved(
+    client: SlackWorkspaceClient,
+    mock_cache: MagicMock,
+) -> None:
+    """Enterprise Grid users must appear in current state.
+
+    usergroups_list returns workspace U... IDs in ug.users, but user.id returns
+    the enterprise W... ID when enterprise_user is set. Without a dual-keyed lookup,
+    Enterprise Grid users are silently dropped from current state every reconcile cycle,
+    causing an infinite loop where the same users appear in users_to_add on every run.
+    """
+    enterprise_user = SlackEnterpriseUser(id="W_ENTERPRISE")
+    user = SlackUser(
+        id="U_WORKSPACE",
+        name="testuser",
+        deleted=False,
+        profile=SlackUserProfile(email="testuser@example.com"),
+        enterprise_user=enterprise_user,
+    )
+    # usergroups_list returns workspace-level U... IDs
+    ug = SlackUsergroup(
+        id="UG1",
+        handle="oncall",
+        users=["U_WORKSPACE"],
+        prefs=SlackUsergroupPrefs(channels=[]),
+    )
+
+    def get_obj_side_effect(cache_key: str, *_args: Any, **_kwargs: Any) -> Any:
+        if "usergroups" in cache_key:
+            return CachedUsergroups(items=[ug])
+        if "users" in cache_key:
+            return CachedUsers(items=[user])
+        if "channels" in cache_key:
+            return CachedChannels(items=[])
+        return None
+
+    mock_cache.get_obj.side_effect = get_obj_side_effect
+
+    result = client.get_slack_usergroups(["oncall"])
+
+    assert len(result) == 1
+    assert result[0].config.users == ["testuser"]
