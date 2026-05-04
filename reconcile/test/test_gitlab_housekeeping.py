@@ -26,6 +26,7 @@ from gitlab.v4.objects import (
 from pytest_mock import MockerFixture
 
 import reconcile.gitlab_housekeeping as gl_h
+from reconcile.gitlab_housekeeping import RebaseStrategy
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.secret_reader import SecretReader
@@ -508,7 +509,7 @@ def _call_rebase(
     dry_run: bool = False,
     pipeline_timeout: int | None = None,
     wait_for_pipeline: bool = False,
-    use_active_cap: bool = True,
+    strategy: RebaseStrategy = RebaseStrategy.ACTIVE_CAP,
 ) -> None:
     """Invoke rebase_merge_requests with standard patches.
 
@@ -537,7 +538,7 @@ def _call_rebase(
         state=state,
         pipeline_timeout=pipeline_timeout,
         wait_for_pipeline=wait_for_pipeline,
-        use_active_cap=use_active_cap,
+        strategy=strategy,
     )
 
 
@@ -897,7 +898,7 @@ def test_top_k_only_considers_first_k_mrs(
         state,
         merge_requests,
         rebase_limit=2,
-        use_active_cap=False,
+        strategy=RebaseStrategy.TOP_K,
     )
 
     assert merge_requests[0].rebase.call_count == 1
