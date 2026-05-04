@@ -224,13 +224,22 @@ def _apply_decision_to_diff(
             if not ctx.disabled
         )
         if not is_approver:
-            for d in approver_decisions:
-                is_author_hold = d.approver_name == mr_author and d.command == DecisionCommand.HOLD
+            for decision in approver_decisions:
+                is_author_hold = (
+                    decision.approver_name == mr_author
+                    and decision.command == DecisionCommand.HOLD
+                )
                 is_owner_cancel = (
-                    d.command == DecisionCommand.CANCEL_HOLD
-                    and d.approver_name != mr_author
-                    and any(ctx.includes_approver(d.approver_name) for ctx in diff.coverage if not ctx.disabled)
+                    decision.command == DecisionCommand.CANCEL_HOLD
+                    and decision.approver_name != mr_author
+                    and any(
+                        ctx.includes_approver(decision.approver_name)
+                        for ctx in diff.coverage
+                        if not ctx.disabled
+                    )
                 )
                 if is_author_hold or is_owner_cancel:
-                    change_decision.apply_context_decision("mr-author", d.command)
+                    change_decision.apply_context_decision(
+                        "mr-author", decision.command
+                    )
     return change_decision
