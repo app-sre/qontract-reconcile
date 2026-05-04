@@ -114,6 +114,28 @@ def get_feature_toggle_state(
     )
 
 
+def get_feature_variant(
+    feature_name: str, context: dict | None = None, default_variant: str = ""
+) -> str:
+    """Return the variant payload value for a feature toggle.
+
+    If Unleash is unavailable or the toggle has no variant configured,
+    returns *default_variant*.
+    """
+    api_url = os.environ.get("UNLEASH_API_URL")
+    client_access_token = os.environ.get("UNLEASH_CLIENT_ACCESS_TOKEN")
+    if not (api_url and client_access_token):
+        return default_variant
+
+    c = _get_unleash_api_client(api_url, client_access_token)
+    variant = c.get_variant(feature_name, context=context or {})
+    if variant and variant.get("enabled"):
+        payload = variant.get("payload", {})
+        if payload:
+            return payload.get("value", default_variant)
+    return default_variant
+
+
 def get_feature_toggles(api_url: str, client_access_token: str) -> Mapping[str, str]:
     c = _get_unleash_api_client(api_url, client_access_token)
 
