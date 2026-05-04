@@ -60,8 +60,12 @@ def init_ldap_group_member_provider(group_base_dn: str) -> LdapGroupMemberProvid
     bind_password = None
     if settings.credentials:
         ldap_credentials = secret_reader.read_all_secret(settings.credentials)
-        bind_dn = ldap_credentials.get("bind_dn")
-        bind_password = ldap_credentials.get("bind_password")
+        if "bind_dn" not in ldap_credentials or "bind_password" not in ldap_credentials:
+            raise ValueError(
+                "LDAP credentials must contain 'bind_dn' and 'bind_password'"
+            )
+        bind_dn = ldap_credentials["bind_dn"]
+        bind_password = ldap_credentials["bind_password"]
     return LdapGroupMemberProvider(
         LdapApi(
             server_url=settings.server_url,

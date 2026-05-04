@@ -4,7 +4,7 @@ import contextvars
 import time
 import types
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from typing import Self
 
@@ -31,6 +31,7 @@ from qontract_utils.metrics import DEFAULT_BUCKETS_EXTERNAL_API
 logger = structlog.get_logger(__name__)
 
 _DEFAULT_TIMEOUT = 30
+_UNKNOWN_LDAP_ERROR = 99999
 
 # Prometheus metrics
 ldap_request = Counter(
@@ -116,6 +117,16 @@ _LDAP_RETRY_CONFIG = RetryConfig(
 )
 
 
+def _get_cn_from_dn(dn: str) -> str:
+    """Extract CN value from a DN string."""
+    rdn = parse_dn(dn)[0]
+    if rdn[0].lower() != "cn":
+        raise LdapApiError(
+            f"Expected CN as first RDN component, got {rdn[0]!r} in {dn!r}"
+        )
+    return rdn[1]
+
+
 @with_hooks(
     hooks=Hooks(
         pre_hooks=[_metrics_hook, _request_log_hook, _latency_start_hook],
@@ -183,7 +194,7 @@ class LdapApi:
     @staticmethod
     def _check_ldap_response(status: dict) -> None:
         """Check LDAP response status and raise LdapApiError on failure."""
-        if (error_code := status.get("result", 99999)) != 0:
+        if (error_code := status.get("result", _UNKNOWN_LDAP_ERROR)) != 0:
             error_desc = status.get("description", "unknown error")
             raise LdapApiError(
                 f"LDAP operation failed (error {error_code}: {error_desc})"
@@ -219,7 +230,7 @@ class LdapApi:
         lambda: LdapApiCallContext(method="get_group_members"),
         retry_config=_LDAP_RETRY_CONFIG,
     )
-    def get_group_members(self, groups_dns: Iterable[str]) -> list[LdapGroup]:
+    def get_group_members(self, groups_dns: Collection[str]) -> list[LdapGroup]:
         """Get members of the specified LDAP groups.
 
         Attention: groups_dns must be full DNs (e.g., "cn=group1,ou=groups,dc=example,dc=com") as returned by the LDAP "memberOf" attribute.
@@ -245,7 +256,7 @@ class LdapApi:
 
         return [
             LdapGroup(
-                cn=parse_dn(dn)[0][1],
+                cn=_get_cn_from_dn(dn),
                 dn=dn,
                 members=frozenset(LdapUser(username=uid) for uid in members),
             )
