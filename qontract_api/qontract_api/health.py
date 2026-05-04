@@ -60,22 +60,6 @@ def check_cache_health(cache: CacheBackend | None) -> HealthStatus:
         return HealthStatus(status="unhealthy", message=f"Cache check failed: {e}")
 
 
-def check_worker_health() -> HealthStatus:
-    """Check background worker health.
-
-    Returns:
-        HealthStatus with
-          current cache health
-    """
-    # avoid circular imports
-    from qontract_api.tasks.health import health_check  # noqa: PLC0415
-
-    try:
-        return health_check.delay().wait(timeout=5)
-    except Exception as e:  # noqa: BLE001
-        return HealthStatus(status="unhealthy", message=f"Worker check failed: {e}")
-
-
 def get_health_status(cache: CacheOptionalDep) -> HealthResponse:
     """Get overall health status including all components.
 
@@ -89,7 +73,6 @@ def get_health_status(cache: CacheOptionalDep) -> HealthResponse:
 
     # Check cache
     components["cache"] = check_cache_health(cache)
-    components["worker"] = check_worker_health()
 
     # Determine overall status
     component_statuses = [c.status for c in components.values()]
