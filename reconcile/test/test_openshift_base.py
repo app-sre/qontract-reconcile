@@ -880,18 +880,6 @@ def test_is_namespace_deleted_empty() -> None:
     assert sut.is_namespace_deleted({}) is False
 
 
-def test_user_has_cluster_access(mocker: MockerFixture) -> None:
-    mocker.patch.object(
-        sut, "determine_user_keys_for_access", return_value=["org_username"]
-    )
-    user = OpenshiftBaseUser(org_username="user_org", github_username="user_github")
-    cluster = OpenshiftBaseCluster(
-        name="cluster", auth=[OpenshiftBaseAuthService(service="oidc")]
-    )
-    assert sut.user_has_cluster_access(user, cluster, ["user_org"])
-    assert not sut.user_has_cluster_access(user, cluster, ["another_user"])
-
-
 @pytest.fixture
 def apply_options() -> sut.ApplyOptions:
     options = sut.ApplyOptions(

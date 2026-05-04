@@ -2,14 +2,9 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import (
-    BaseModel,
-    Json,
-)
 from pytest_mock import MockerFixture
 
 from reconcile.slack_base import (
-    get_slackapi,
     slackapi_from_permissions,
     slackapi_from_slack_workspace,
 )
@@ -166,32 +161,3 @@ def test_permissions_workspace(
 
     assert slack_api.channel is None
     assert slack_api.config.get_method_config("users.list") == {"limit": 123}
-
-
-class ClientGlobalConfig(BaseModel):
-    max_retries: int | None = None
-    timeout: int | None = None
-
-
-class ClientMethodConfig(BaseModel):
-    name: str
-    args: Json
-
-
-class ClientConfig(BaseModel):
-    q_global: ClientGlobalConfig | None = None
-    methods: list[ClientMethodConfig] | None = None
-
-
-def test_get_slackapi() -> None:
-    slack_api = get_slackapi(
-        "workspace",
-        "token",
-        client_config=ClientConfig(
-            q_global=ClientGlobalConfig(max_retries=1, timeout=4),
-            methods=[ClientMethodConfig(name="users.list", args='{"limit":1000}')],
-        ),
-        init_usergroups=False,
-    )
-    assert slack_api.channel is None
-    assert slack_api.config.get_method_config("users.list") == {"limit": 1000}

@@ -108,22 +108,6 @@ class HasService(Protocol):
     service: str
 
 
-class HasNameAndAuthService(Protocol):
-    """A cluster name & auth protocol."""
-
-    name: str
-
-    @property
-    def auth(self) -> Sequence[HasService]: ...
-
-
-class HasOrgAndGithubUsername(Protocol):
-    """An org and github username protocol."""
-
-    org_username: str
-    github_username: str
-
-
 class ClusterMap(Protocol):
     """An OCMap protocol."""
 
@@ -1577,16 +1561,6 @@ def determine_user_keys_for_access(
 
 def is_namespace_deleted(namespace_info: Mapping) -> bool:
     return bool(namespace_info.get("delete"))
-
-
-def user_has_cluster_access(
-    user: HasOrgAndGithubUsername,
-    cluster: HasNameAndAuthService,
-    cluster_users: Sequence[str],
-) -> bool:
-    """Check user has access to cluster."""
-    userkeys = determine_user_keys_for_access(cluster.name, cluster.auth)
-    return any(getattr(user, userkey) in cluster_users for userkey in userkeys)
 
 
 def get_namespace_type_overrides(namespace: Mapping) -> dict[str, str]:

@@ -6,7 +6,6 @@ import os
 from typing import (
     TYPE_CHECKING,
     Any,
-    Protocol,
 )
 
 from slack_sdk import WebClient
@@ -65,28 +64,6 @@ class ServerErrorRetryHandler(RetryHandler):
         error: Exception | None = None,
     ) -> bool:
         return response is not None and response.status_code >= 500
-
-
-class HasClientGlobalConfig(Protocol):
-    max_retries: int | None
-    timeout: int | None
-
-    def model_dump(self) -> dict[str, int | None]: ...
-
-
-class HasClientMethodConfig(Protocol):
-    name: str
-    args: Any
-
-    def model_dump(self) -> dict[str, str]: ...
-
-
-class HasClientConfig(Protocol):
-    @property
-    def q_global(self) -> HasClientGlobalConfig | None: ...
-
-    @property
-    def methods(self) -> Sequence[HasClientMethodConfig] | None: ...
 
 
 class SlackApiConfig:
@@ -152,24 +129,6 @@ class SlackApiConfig:
             args = json.loads(method["args"])
             config.set_method_config(method["name"], args)
 
-        return config
-
-    @classmethod
-    def from_client_config(cls, config_data: HasClientConfig) -> SlackApiConfig:
-        """Initiate a SlackApiConfig instance via user-defined config class (e.g. GQL class).
-
-        The config class must implement the `HasClientConfig` protocol.
-        """
-        kwargs: dict[str, int] = {}
-        if config_data.q_global:
-            if config_data.q_global.max_retries:
-                kwargs["max_retries"] = config_data.q_global.max_retries
-            if config_data.q_global.timeout:
-                kwargs["timeout"] = config_data.q_global.timeout
-        config = cls(**kwargs)
-        if config_data.methods:
-            for method in config_data.methods:
-                config.set_method_config(method.name, method.args)
         return config
 
 
@@ -279,20 +238,6 @@ class SlackApi:
                 case _:
                     raise
 
-    def describe_usergroup(
-        self, handle: str
-    ) -> tuple[dict[str, str], dict[str, str], str]:
-        usergroup = self.get_usergroup(handle)
-        description = usergroup["description"]
-
-        user_ids: list[str] = usergroup.get("users", [])
-        users = self.get_users_by_ids(user_ids)
-
-        channel_ids = usergroup["prefs"]["channels"]
-        channels = self.get_channels_by_ids(channel_ids)
-
-        return users, channels, description
-
     def join_channel(self) -> None:
         """
         Join a given channel if not already a member, will join self.channel
@@ -340,33 +285,6 @@ class SlackApi:
         if len(usergroup) != 1:
             raise UsergroupNotFoundError(handle)
         return usergroup[0]
-
-    def create_usergroup(self, handle: str) -> str:
-        slack_request.labels("usergroups.create", "POST").inc()
-
-        response = self._sc.usergroups_create(name=handle, handle=handle)
-        # Invalidate the usergroups list cache
-        self._user_groups_initialized = False
-        return response["usergroup"]["id"]
-
-    def update_usergroup(
-        self, id: str, channels_list: Sequence[str], description: str
-    ) -> None:
-        """
-        Update an existing usergroup.
-
-        :param id: encoded usergroup ID
-        :param channels_list: encoded channel IDs that the usergroup uses by
-        default
-        :param description: short description of the usergroup
-        :raises slack_sdk.errors.SlackApiError: if unsuccessful response from
-        Slack API
-        """
-        slack_request.labels("usergroups.update", "POST").inc()
-
-        self._sc.usergroups_update(
-            usergroup=id, channels=channels_list, description=description
-        )
 
     def update_usergroup_users(self, id: str, users_list: Sequence[str]) -> None:
         """
@@ -441,15 +359,6 @@ class SlackApi:
         if email := user["profile"].get("email"):
             return email.split("@")[0]
         return None
-
-    def get_active_users_by_names(self, user_names: Iterable[str]) -> dict[str, str]:
-        return {
-            k: name
-            for k, v in self._get("users").items()
-            if not v["deleted"]
-            and (name := self.extract_name_from_user(v))
-            and name in user_names
-        }
 
     def get_users_by_ids(self, users_ids: Iterable[str]) -> dict[str, str]:
         users = self._get("users")

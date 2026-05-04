@@ -219,8 +219,6 @@ OpenShift templates can be found [here](/openshift/qontract-reconcile.yaml). In 
                                   Manages Prometheus Probe resources for
                                   signalfx exporter
   skupper-network                 Manages Skupper Networks.
-  slack-usergroups                Manage Slack User Groups (channels and
-                                  users).
   sql-query                       Runs SQL Queries against app-interface RDS
                                   resources.
   status-board-exporter           Export Product and Application informnation

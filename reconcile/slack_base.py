@@ -7,7 +7,6 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
 )
 from reconcile.utils.slack_api import (
-    HasClientConfig,
     SlackApi,
     SlackApiConfig,
 )
@@ -95,27 +94,4 @@ def slackapi_from_permissions(
         api_config=api_config,
     )
 
-    return api
-
-
-def get_slackapi(
-    workspace_name: str,
-    token: str,
-    client_config: HasClientConfig | None = None,
-    init_usergroups: bool = True,
-    channel: str | None = None,
-) -> SlackApi:
-    """Initiate a SlackApi instance."""
-    if client_config:
-        api_config = SlackApiConfig.from_client_config(client_config)
-    else:
-        api_config = SlackApiConfig()
-
-    api = SlackApi(
-        workspace_name,
-        token=token,
-        channel=channel,
-        init_usergroups=init_usergroups,
-        api_config=api_config,
-    )
     return api
