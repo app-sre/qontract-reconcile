@@ -116,7 +116,7 @@ class RebaseStrategy(StrEnum):
 
 
 REBASE_STRATEGY_TOGGLE = "gitlab-housekeeping-rebase-strategy"
-DEFAULT_REBASE_STRATEGY = RebaseStrategy.ACTIVE_CAP
+DEFAULT_REBASE_STRATEGY = RebaseStrategy.OLD_BURST
 
 
 def get_rebase_strategy() -> RebaseStrategy:
@@ -526,6 +526,52 @@ def rebase_merge_requests(
     )
 
 
+def _cancel_timed_out_pipelines(
+    dry_run: bool,
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    pipelines: list,
+    pipeline_timeout: int | None,
+) -> None:
+    """Cancel pipelines that have exceeded the timeout threshold."""
+    if pipeline_timeout is None:
+        return
+    timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
+    if timed_out_pipelines:
+        clean_pipelines(
+            dry_run=dry_run,
+            gl=gl,
+            fork_project_id=mr.source_project_id,
+            pipelines=timed_out_pipelines,
+        )
+
+
+def _should_skip_for_running_pipeline(pipelines: list, wait_for_pipeline: bool) -> bool:
+    """Return True if the MR should be skipped because a pipeline is still running."""
+    if not wait_for_pipeline:
+        return False
+    if not pipelines:
+        return True
+    return any(p.status == PipelineStatus.RUNNING for p in pipelines)
+
+
+def _try_rebase(
+    dry_run: bool,
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+) -> bool:
+    """Attempt to rebase an MR. Returns True on success, False on failure."""
+    try:
+        logging.info(["rebase", gl.project.name, mr.iid])
+        if not dry_run:
+            mr.rebase()
+            rebased_merge_requests.labels(mr.target_project_id).inc()
+        return True
+    except gitlab.exceptions.GitlabMRRebaseError as e:
+        logging.error(f"unable to rebase {mr.iid}: {e}")
+        return False
+
+
 def _rebase_merge_requests_top_k(
     dry_run: bool,
     gl: GitLabApi,
@@ -553,36 +599,12 @@ def _rebase_merge_requests_top_k(
             continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
+        _cancel_timed_out_pipelines(dry_run, gl, mr, pipelines, pipeline_timeout)
 
-        # If pipeline_timeout is None no pipeline will be canceled.
-        if pipeline_timeout is not None:
-            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
-            if timed_out_pipelines:
-                clean_pipelines(
-                    dry_run=dry_run,
-                    gl=gl,
-                    fork_project_id=mr.source_project_id,
-                    pipelines=timed_out_pipelines,
-                )
+        if _should_skip_for_running_pipeline(pipelines, wait_for_pipeline):
+            continue
 
-        if wait_for_pipeline:
-            if not pipelines:
-                continue
-            # possible statuses:
-            # running, pending, success, failed, canceled, skipped
-            running_pipelines = [
-                p for p in pipelines if p.status == PipelineStatus.RUNNING
-            ]
-            if running_pipelines:
-                continue
-
-        try:
-            logging.info(["rebase", gl.project.name, mr.iid])
-            if not dry_run:
-                mr.rebase()
-                rebased_merge_requests.labels(mr.target_project_id).inc()
-        except gitlab.exceptions.GitlabMRRebaseError as e:
-            logging.error(f"unable to rebase {mr.iid}: {e}")
+        _try_rebase(dry_run, gl, mr)
 
 
 def _rebase_merge_requests_active_cap(
@@ -626,27 +648,10 @@ def _rebase_merge_requests_active_cap(
                 already_active += 1
             continue
 
-        # If pipeline_timeout is None no pipeline will be canceled.
-        if pipeline_timeout is not None:
-            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
-            if timed_out_pipelines:
-                clean_pipelines(
-                    dry_run=dry_run,
-                    gl=gl,
-                    fork_project_id=mr.source_project_id,
-                    pipelines=timed_out_pipelines,
-                )
+        _cancel_timed_out_pipelines(dry_run, gl, mr, pipelines, pipeline_timeout)
 
-        if wait_for_pipeline:
-            if not pipelines:
-                continue
-            # possible statuses:
-            # running, pending, success, failed, canceled, skipped
-            running_pipelines = [
-                p for p in pipelines if p.status == PipelineStatus.RUNNING
-            ]
-            if running_pipelines:
-                continue
+        if _should_skip_for_running_pipeline(pipelines, wait_for_pipeline):
+            continue
 
         needs_rebase.append(mr)
 
@@ -654,17 +659,8 @@ def _rebase_merge_requests_active_cap(
     rebases = 0
     for mr in needs_rebase:
         if rebases < remaining_budget:
-            try:
-                logging.info(["rebase", gl.project.name, mr.iid])
+            if _try_rebase(dry_run, gl, mr):
                 rebases += 1
-                if not dry_run:
-                    mr.rebase()
-                    rebased_merge_requests.labels(mr.target_project_id).inc()
-            except gitlab.exceptions.GitlabMRRebaseError as e:
-                # Failed rebases don't consume budget — the MR has no
-                # in-flight pipeline, so we should try the next candidate.
-                rebases -= 1
-                logging.error(f"unable to rebase {mr.iid}: {e}")
         else:
             logging.info([
                 "rebase",
@@ -702,36 +698,14 @@ def _rebase_merge_requests_old_burst(
             continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
+        _cancel_timed_out_pipelines(dry_run, gl, mr, pipelines, pipeline_timeout)
 
-        # If pipeline_timeout is None no pipeline will be canceled.
-        if pipeline_timeout is not None:
-            timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
-            if timed_out_pipelines:
-                clean_pipelines(
-                    dry_run=dry_run,
-                    gl=gl,
-                    fork_project_id=mr.source_project_id,
-                    pipelines=timed_out_pipelines,
-                )
-
-        if wait_for_pipeline:
-            if not pipelines:
-                continue
-            running_pipelines = [
-                p for p in pipelines if p.status == PipelineStatus.RUNNING
-            ]
-            if running_pipelines:
-                continue
+        if _should_skip_for_running_pipeline(pipelines, wait_for_pipeline):
+            continue
 
         if rebases < rebase_limit:
-            try:
-                logging.info(["rebase", gl.project.name, mr.iid])
-                if not dry_run:
-                    mr.rebase()
-                    rebases += 1
-                    rebased_merge_requests.labels(mr.target_project_id).inc()
-            except gitlab.exceptions.GitlabMRRebaseError as e:
-                logging.error(f"unable to rebase {mr.iid}: {e}")
+            if _try_rebase(dry_run, gl, mr):
+                rebases += 1
         else:
             logging.info([
                 "rebase",

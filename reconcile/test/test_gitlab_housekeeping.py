@@ -24,6 +24,7 @@ from gitlab.v4.objects import (
     ProjectMergeRequestResourceLabelEvent,
 )
 from pytest_mock import MockerFixture
+from UnleashClient import UnleashClient
 
 import reconcile.gitlab_housekeeping as gl_h
 from reconcile.gitlab_housekeeping import RebaseStrategy
@@ -494,7 +495,7 @@ def test_verify_ondemend_tests_pass(
     state.add.assert_called_once_with("a/b/1/abc", [], force=True)
 
 
-# --- rebase_merge_requests per-repo concurrency cap tests ---
+# --- rebase_merge_requests active-cap tests ---
 
 
 def _call_rebase(
@@ -906,3 +907,68 @@ def test_top_k_only_considers_first_k_mrs(
     assert merge_requests[2].rebase.call_count == 0
     assert merge_requests[3].rebase.call_count == 0
     assert merge_requests[4].rebase.call_count == 0
+
+
+# --- get_rebase_strategy tests ---
+
+
+@pytest.fixture
+def unleash_client(monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture) -> Mock:
+    """Set Unleash env vars and patch _get_unleash_api_client, returning the mock client."""
+    monkeypatch.setenv("UNLEASH_API_URL", "http://fake")
+    monkeypatch.setenv("UNLEASH_CLIENT_ACCESS_TOKEN", "fake")
+    mock_client = create_autospec(UnleashClient)
+    mocker.patch(
+        "reconcile.utils.unleash.client._get_unleash_api_client",
+        return_value=mock_client,
+    )
+    return mock_client
+
+
+def test_get_rebase_strategy_no_unleash_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without UNLEASH_API_URL / UNLEASH_CLIENT_ACCESS_TOKEN, falls back to OLD_BURST."""
+    monkeypatch.delenv("UNLEASH_API_URL", raising=False)
+    monkeypatch.delenv("UNLEASH_CLIENT_ACCESS_TOKEN", raising=False)
+    assert gl_h.get_rebase_strategy() == RebaseStrategy.OLD_BURST
+
+
+def test_get_rebase_strategy_toggle_enabled_no_variant(
+    unleash_client: Mock,
+) -> None:
+    """Toggle enabled but no variant configured → no payload → falls back to OLD_BURST."""
+    unleash_client.get_variant.return_value = {"name": "disabled", "enabled": True}
+    assert gl_h.get_rebase_strategy() == RebaseStrategy.OLD_BURST
+
+
+def test_get_rebase_strategy_toggle_enabled_unknown_variant(
+    unleash_client: Mock,
+) -> None:
+    """Toggle enabled with unrecognized variant value → logs warning, falls back to OLD_BURST."""
+    unleash_client.get_variant.return_value = {
+        "name": "bogus",
+        "enabled": True,
+        "payload": {"type": "string", "value": "bogus-strategy"},
+    }
+    assert gl_h.get_rebase_strategy() == RebaseStrategy.OLD_BURST
+
+
+@pytest.mark.parametrize(
+    ("variant_value", "expected_strategy"),
+    [
+        ("active-cap", RebaseStrategy.ACTIVE_CAP),
+        ("top-k", RebaseStrategy.TOP_K),
+        ("old-burst", RebaseStrategy.OLD_BURST),
+    ],
+)
+def test_get_rebase_strategy_toggle_enabled_valid_variant(
+    unleash_client: Mock,
+    variant_value: str,
+    expected_strategy: RebaseStrategy,
+) -> None:
+    """Toggle enabled with a valid variant value → returns matching RebaseStrategy."""
+    unleash_client.get_variant.return_value = {
+        "name": variant_value,
+        "enabled": True,
+        "payload": {"type": "string", "value": variant_value},
+    }
+    assert gl_h.get_rebase_strategy() == expected_strategy
