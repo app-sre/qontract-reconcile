@@ -14,14 +14,17 @@ from qontract_api_client.models.github_owners_task_result import GithubOwnersTas
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
 from qontract_utils.exceptions import IntegrationError
-
-from reconcile.github_owners_api import (
+from reconcile.github_owners_api import (  # type: ignore[import-untyped]
     GithubOwnersIntegration,
     GithubOwnersIntegrationParams,
 )
-from reconcile.gql_definitions.common.github_orgs import GithubOrgV1
-from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
-from reconcile.gql_definitions.github_owners_api.roles import (
+from reconcile.gql_definitions.common.github_orgs import (
+    GithubOrgV1,  # type: ignore[import-untyped]
+)
+from reconcile.gql_definitions.fragments.vault_secret import (
+    VaultSecret,  # type: ignore[import-untyped]
+)
+from reconcile.gql_definitions.github_owners_api.roles import (  # type: ignore[import-untyped]
     BotV1,
     PermissionGithubOrgTeamV1,
     PermissionGithubOrgV1,
