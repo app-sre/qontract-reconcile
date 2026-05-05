@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from qontract_utils.aws_api_typed.dynamodb import AWSApiDynamoDB
+from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient
@@ -24,3 +25,8 @@ def test_aws_api_typed_dynamodb_boto3_client_returns_client(
     aws_api_dynamodb: AWSApiDynamoDB, dynamodb_client: DynamoDBClient
 ) -> None:
     assert isinstance(aws_api_dynamodb.boto3_client, type(dynamodb_client))
+
+
+def test_hooks_accepted_in_constructor(dynamodb_client: DynamoDBClient) -> None:
+    api = AWSApiDynamoDB(client=dynamodb_client, hooks=Hooks())
+    assert api.client == dynamodb_client

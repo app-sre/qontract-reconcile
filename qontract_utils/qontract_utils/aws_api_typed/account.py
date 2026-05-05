@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
 if TYPE_CHECKING:
     from mypy_boto3_account import AccountClient
     from mypy_boto3_account.type_defs import AlternateContactTypeDef
@@ -27,10 +30,16 @@ class Region(BaseModel):
 log = logging.getLogger(__name__)
 
 
+@with_hooks(hooks=AWS_DEFAULT_HOOKS)
 class AWSApiAccount:
-    def __init__(self, client: AccountClient) -> None:
+    _hooks: Hooks
+
+    def __init__(self, client: AccountClient, hooks: Hooks | None = None) -> None:  # noqa: ARG002
         self.client = client
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="set_security_contact", service="account")
+    )
     def set_security_contact(
         self, name: str, title: str, email: str, phone_number: str
     ) -> None:
@@ -56,6 +65,9 @@ class AWSApiAccount:
             ):
                 raise
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="get_security_contact", service="account")
+    )
     def get_security_contact(self) -> AlternateContactTypeDef | None:
         """Get the security contact for the account."""
         try:
@@ -66,6 +78,9 @@ class AWSApiAccount:
             log.warning("Security contact not set.")
             return None
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="list_regions", service="account")
+    )
     def list_regions(self) -> list[Region]:
         """List all regions in the account."""
         regions = []
@@ -84,10 +99,16 @@ class AWSApiAccount:
                 regions.append(Region(name=region["RegionName"], status=status))
         return regions
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="enable_region", service="account")
+    )
     def enable_region(self, region: str) -> None:
         """Enable a region in the account."""
         self.client.enable_region(RegionName=region)
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="disable_region", service="account")
+    )
     def disable_region(self, region: str) -> None:
         """Disable a region in the account."""
         self.client.disable_region(RegionName=region)

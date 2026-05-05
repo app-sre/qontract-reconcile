@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.s3 import AWSApiS3
+from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -42,3 +44,12 @@ def test_aws_api_typed_iam_create_bucket_other_region(
     s3_client.create_bucket.assert_called_once_with(
         Bucket="bucket", CreateBucketConfiguration={"LocationConstraint": "us-east-2"}
     )
+
+
+def test_hooks_fire_on_method_call(s3_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiS3(client=s3_client, hooks=Hooks(pre_hooks=[contexts.append]))
+    api.create_bucket("bucket", "us-east-1")
+    assert len(contexts) == 1
+    assert contexts[0].method == "create_bucket"
+    assert contexts[0].service == "s3"

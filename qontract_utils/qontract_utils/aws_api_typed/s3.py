@@ -2,14 +2,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
+@with_hooks(hooks=AWS_DEFAULT_HOOKS)
 class AWSApiS3:
-    def __init__(self, client: S3Client) -> None:
+    _hooks: Hooks
+
+    def __init__(self, client: S3Client, hooks: Hooks | None = None) -> None:  # noqa: ARG002
         self.client = client
 
+    @invoke_with_hooks(lambda: AWSApiCallContext(method="create_bucket", service="s3"))
     def create_bucket(self, name: str, region: str) -> str:
         """Create an S3 bucket without any ACLs therefore the creator will be the owner and returns the ARN."""
         bucket_kwargs = {}

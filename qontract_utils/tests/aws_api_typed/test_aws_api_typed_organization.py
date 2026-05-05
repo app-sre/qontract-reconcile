@@ -4,11 +4,13 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.organization import (
     AWSAccountCreationError,
     AWSAccountNotFoundError,
     AWSApiOrganizations,
 )
+from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
     from mypy_boto3_organizations import OrganizationsClient
@@ -206,3 +208,24 @@ def test_aws_api_typed_organizations_untag_resource(
     organization_client.untag_resource.assert_called_once_with(
         ResourceId="resource_id", TagKeys=["key"]
     )
+
+
+def test_hooks_fire_on_method_call(
+    organization_client: MagicMock,
+) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiOrganizations(
+        client=organization_client, hooks=Hooks(pre_hooks=[contexts.append])
+    )
+    organization_client.describe_account.return_value = {
+        "Account": {
+            "Name": "name",
+            "Id": "id",
+            "Email": "email",
+            "Status": "ACTIVE",
+        }
+    }
+    api.describe_account("id")
+    assert len(contexts) == 1
+    assert contexts[0].method == "describe_account"
+    assert contexts[0].service == "organizations"

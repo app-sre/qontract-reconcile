@@ -4,7 +4,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.sts import AWSApiSts
+from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -59,3 +61,21 @@ def test_aws_api_typed_sts_get_session_token(
     assert credentials.secret_access_key == "secret_access_key"
     assert credentials.session_token == "session_token"
     assert credentials.expiration == now
+
+
+def test_hooks_fire_on_method_call(sts_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiSts(client=sts_client, hooks=Hooks(pre_hooks=[contexts.append]))
+    now = datetime.now(tz=UTC)
+    sts_client.assume_role.return_value = {
+        "Credentials": {
+            "AccessKeyId": "id",
+            "SecretAccessKey": "secret",
+            "SessionToken": "token",
+            "Expiration": now,
+        }
+    }
+    api.assume_role("123456", "role")
+    assert len(contexts) == 1
+    assert contexts[0].method == "assume_role"
+    assert contexts[0].service == "sts"

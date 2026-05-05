@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
+from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
@@ -74,8 +77,11 @@ class AWSAccountNotFoundError(Exception):
     """Exception raised when the account cannot be found in the specified OU."""
 
 
+@with_hooks(hooks=AWS_DEFAULT_HOOKS)
 class AWSApiOrganizations:
-    def __init__(self, client: OrganizationsClient) -> None:
+    _hooks: Hooks
+
+    def __init__(self, client: OrganizationsClient, hooks: Hooks | None = None) -> None:  # noqa: ARG002
         self.client = client
         self.get_organizational_units_tree = functools.lru_cache(maxsize=None)(
             self._get_organizational_units_tree
@@ -96,6 +102,9 @@ class AWSApiOrganizations:
                 self.get_organizational_units_tree(root=ou)
         return root
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="create_account", service="organizations")
+    )
     def create_account(
         self, email: str, name: str, *, access_to_billing: bool = True
     ) -> AWSAccountStatus:
@@ -112,6 +121,11 @@ class AWSApiOrganizations:
             )
         return status
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(
+            method="describe_create_account_status", service="organizations"
+        )
+    )
     def describe_create_account_status(
         self, create_account_request_id: str
     ) -> AWSAccountStatus:
@@ -121,6 +135,9 @@ class AWSApiOrganizations:
         )
         return AWSAccountStatus(**resp["CreateAccountStatus"])
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="get_ou", service="organizations")
+    )
     def get_ou(self, uid: str) -> str:
         """Return the organizational unit ID of an account."""
         resp = self.client.list_parents(ChildId=uid)
@@ -129,6 +146,9 @@ class AWSApiOrganizations:
                 return p["Id"]
         raise AWSAccountNotFoundError(f"Account {uid} not found!")
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="move_account", service="organizations")
+    )
     def move_account(self, uid: str, destination_parent_id: str) -> None:
         """Move an account to a different organizational unit."""
         source_parent_id = self.get_ou(uid=uid)
@@ -140,11 +160,17 @@ class AWSApiOrganizations:
             DestinationParentId=destination_parent_id,
         )
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="describe_account", service="organizations")
+    )
     def describe_account(self, uid: str) -> AWSAccount:
         """Return the status of an account."""
         resp = self.client.describe_account(AccountId=uid)
         return AWSAccount(**resp["Account"])
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="tag_resource", service="organizations")
+    )
     def tag_resource(self, resource_id: str, tags: Mapping[str, str]) -> None:
         """Tag a resource."""
         self.client.tag_resource(
@@ -152,6 +178,9 @@ class AWSApiOrganizations:
             Tags=[{"Key": k, "Value": v} for k, v in tags.items()],
         )
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="untag_resource", service="organizations")
+    )
     def untag_resource(self, resource_id: str, tag_keys: Iterable[str]) -> None:
         """Untag a resource."""
         self.client.untag_resource(ResourceId=resource_id, TagKeys=list(tag_keys))
