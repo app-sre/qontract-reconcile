@@ -69,15 +69,16 @@ def test_generator_post_hooks_fire_after_exhaustion() -> None:
 
 
 def test_generator_post_hooks_fire_on_close() -> None:
-    """Post-hooks fire even if generator is closed before exhaustion."""
+    """Post-hooks fire on close, error-hooks must not (GeneratorExit is not an Exception)."""
     execution_order: list[str] = []
-
-    def post_hook() -> None:
-        execution_order.append("post")
 
     class TestApi:
         def __init__(self) -> None:
-            self._hooks = Hooks(post_hooks=[post_hook], retry_config=NO_RETRY_CONFIG)
+            self._hooks = Hooks(
+                post_hooks=[lambda: execution_order.append("post")],
+                error_hooks=[lambda: execution_order.append("error")],
+                retry_config=NO_RETRY_CONFIG,
+            )
 
         @invoke_with_hooks()
         def items(self) -> Generator[int, None, None]:
@@ -90,6 +91,7 @@ def test_generator_post_hooks_fire_on_close() -> None:
     next(gen)
     gen.close()
     assert "post" in execution_order
+    assert "error" not in execution_order
 
 
 def test_generator_error_hooks_fire_on_exception() -> None:

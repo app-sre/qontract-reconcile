@@ -504,7 +504,7 @@ class InvokeWithHooksMethod:
 
             try:
                 yield from self.func(*prepend_args, *args, **kwargs)
-            except:
+            except Exception:
                 for hook in hooks.error_hooks:
                     hook(*hook_args)
                 raise
@@ -561,8 +561,7 @@ class InvokeWithHooksMethod:
 
                         # Execute method - no yield, just return!
                         return self.func(*prepend_args, *args, **kwargs)
-            except:
-                # Error hooks
+            except Exception:
                 for hook in hooks.error_hooks:
                     hook(*hook_args)
                 raise
