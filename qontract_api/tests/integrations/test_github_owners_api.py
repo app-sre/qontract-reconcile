@@ -14,7 +14,6 @@ from qontract_api_client.models.github_owners_task_result import GithubOwnersTas
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
 from qontract_utils.exceptions import IntegrationError
-
 from reconcile.github_owners_api import (
     GithubOwnersIntegration,
     GithubOwnersIntegrationParams,
@@ -38,7 +37,7 @@ def make_integration(org_name: str | None = None) -> GithubOwnersIntegration:
         GithubOwnersIntegrationParams(org_name=org_name)
     )
     # Patch secret_manager_url to avoid reading config in tests
-    type(integration).secret_manager_url = property(lambda self: SECRET_MANAGER_URL)
+    type(integration).secret_manager_url = property(lambda _: SECRET_MANAGER_URL)
     return integration
 
 
@@ -452,7 +451,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=lambda: property(lambda _: MagicMock()),
             ),
         ):
             mock_gql.get_api.return_value = MagicMock()
@@ -491,7 +490,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=lambda: property(lambda _: MagicMock()),
             ),
         ):
             mock_gql.get_api.return_value = MagicMock()
@@ -533,7 +532,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=lambda: property(lambda _: MagicMock()),
             ),
             pytest.raises(IntegrationError),
         ):
@@ -575,7 +574,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=lambda: property(lambda _: MagicMock()),
             ),
             pytest.raises(IntegrationError),
         ):
