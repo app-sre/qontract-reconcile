@@ -537,6 +537,48 @@ def test_mr_author_hold_coexists_with_approval(
     assert change_decision[0].is_held()
 
 
+def test_mr_author_hold_as_approver_uses_normal_context(
+    saas_file_changetype: ChangeTypeV1,
+) -> None:
+    """
+    When the MR author is already a change owner, /hold is applied through the
+    normal approver path (context = the change-type context) and NOT through
+    the special "mr-author" context.
+    """
+    change = build_bundle_datafile_change(
+        path="/my/file.yml",
+        schema="/my/schema.yml",
+        old_content={"foo": "bar"},
+        new_content={"foo": "baz"},
+    )
+    assert change and len(change.diff_coverage) == 1
+    change.diff_coverage[0].coverage = [
+        ChangeTypeContext(
+            change_type_processor=change_type_to_processor(saas_file_changetype),
+            context="team-context",
+            origin="",
+            approvers=[
+                Approver(org_username=MR_AUTHOR, tag_on_merge_requests=False),
+                Approver(org_username=APPROVER_USER, tag_on_merge_requests=False),
+            ],
+            context_file=change.fileref,
+        )
+    ]
+
+    change_decision = apply_decisions_to_changes(
+        approver_decisions=[
+            Decision(approver_name=MR_AUTHOR, command=DecisionCommand.HOLD),
+        ],
+        changes=[change],
+        auto_approver_usernames=set(),
+        mr_author=MR_AUTHOR,
+    )
+
+    assert change_decision[0].is_held()
+    assert "team-context" in change_decision[0].hold
+    assert "mr-author" not in change_decision[0].hold
+
+
 def test_change_owner_can_unhold_author_hold(
     change_with_coverage: BundleFileChange,
 ) -> None:
