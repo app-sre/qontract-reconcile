@@ -513,7 +513,7 @@ def rebase_merge_requests(
         RebaseStrategy.TOP_K: _rebase_merge_requests_top_k,
         RebaseStrategy.OLD_BURST: _rebase_merge_requests_old_burst,
     }
-    logging.info(f"rebase strategy: {strategy.value}")
+
     fn = dispatch[strategy]
     fn(
         dry_run=dry_run,
