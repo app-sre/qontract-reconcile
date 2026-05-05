@@ -14,6 +14,7 @@ from qontract_api_client.models.github_owners_task_result import GithubOwnersTas
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.task_status import TaskStatus
 from qontract_utils.exceptions import IntegrationError
+
 from reconcile.github_owners_api import (
     GithubOwnersIntegration,
     GithubOwnersIntegrationParams,
