@@ -92,4 +92,4 @@ class AWSApiLogs:
         Returns:
             The normalized ARN without the trailing ":*".
         """
-        return arn.rstrip(":*")
+        return arn.removesuffix(":*")
