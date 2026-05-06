@@ -1,6 +1,6 @@
 """Tests for the github-owners-api client-side integration."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 from qontract_api_client.models.github_org_desired_state import GithubOrgDesiredState
@@ -33,13 +33,14 @@ from reconcile.gql_definitions.github_owners_api.roles import (
 SECRET_MANAGER_URL = "https://vault.example.com"
 
 
-def make_integration(org_name: str | None = None) -> GithubOwnersIntegration:
-    integration = GithubOwnersIntegration(
-        GithubOwnersIntegrationParams(org_name=org_name)
-    )
-    # Patch secret_manager_url to avoid reading config in tests
-    type(integration).secret_manager_url = property(lambda self: SECRET_MANAGER_URL)
-    return integration
+class _TestableIntegration(GithubOwnersIntegration):
+    @property
+    def secret_manager_url(self) -> str:
+        return SECRET_MANAGER_URL
+
+
+def make_integration(org_name: str | None = None) -> _TestableIntegration:
+    return _TestableIntegration(GithubOwnersIntegrationParams(org_name=org_name))
 
 
 def make_vault_secret(
@@ -452,7 +453,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=PropertyMock,
             ),
         ):
             mock_gql.get_api.return_value = MagicMock()
@@ -491,7 +492,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=PropertyMock,
             ),
         ):
             mock_gql.get_api.return_value = MagicMock()
@@ -533,7 +534,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=PropertyMock,
             ),
             pytest.raises(IntegrationError),
         ):
@@ -575,7 +576,7 @@ class TestAsyncRun:
             patch.object(
                 type(integration),
                 "qontract_api_client",
-                new_callable=lambda: property(lambda self: MagicMock()),
+                new_callable=PropertyMock,
             ),
             pytest.raises(IntegrationError),
         ):
