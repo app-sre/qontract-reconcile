@@ -108,7 +108,6 @@ def _make_provision(identifier: str) -> ExternalResourceProvision:
         module_provision_data=TerraformModuleProvisionData(
             tf_state_bucket="bucket",
             tf_state_region="us-east-1",
-            tf_state_dynamodb_table="table",
             tf_state_key=f"aws/test/msk-connect/{identifier}/terraform.tfstate",
         ),
     )

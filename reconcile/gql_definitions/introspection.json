@@ -50744,18 +50744,6 @@
                             "deprecationReason": null
                         },
                         {
-                            "name": "tf_state_dynamodb_table",
-                            "description": null,
-                            "args": [],
-                            "type": {
-                                "kind": "SCALAR",
-                                "name": "String",
-                                "ofType": null
-                            },
-                            "isDeprecated": false,
-                            "deprecationReason": null
-                        },
-                        {
                             "name": "tf_state_region",
                             "description": null,
                             "args": [],

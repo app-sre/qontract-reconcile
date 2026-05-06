@@ -423,7 +423,6 @@ class TerraformModuleProvisionData(ModuleProvisionData):
 
     tf_state_bucket: str
     tf_state_region: str
-    tf_state_dynamodb_table: str
     tf_state_key: str
 
 

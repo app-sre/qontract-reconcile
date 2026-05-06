@@ -141,7 +141,6 @@ def test_create_cloudflare_external_resource(
             module_provision_data=TerraformModuleProvisionData(
                 tf_state_bucket=settings.tf_state_bucket,
                 tf_state_region=settings.tf_state_region,
-                tf_state_dynamodb_table=settings.tf_state_dynamodb_table,
                 tf_state_key="cloudflare/test-cf-account/zone/test-zone/terraform.tfstate",
             ),
         ),

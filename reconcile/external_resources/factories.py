@@ -94,7 +94,6 @@ class TerraformModuleProvisionDataFactory(ModuleProvisionDataFactory):
         return TerraformModuleProvisionData(
             tf_state_bucket=self.settings.tf_state_bucket,
             tf_state_region=self.settings.tf_state_region,
-            tf_state_dynamodb_table=self.settings.tf_state_dynamodb_table,
             tf_state_key=key.state_path + "/terraform.tfstate",
         )
 

@@ -211,7 +211,6 @@ def test_er_external_resource_export(
             "module_provision_data": {
                 "tf_state_bucket": "tf_state_bucket",
                 "tf_state_region": "tf_state_region",
-                "tf_state_dynamodb_table": "tf_state_dynamodb_table",
                 "tf_state_key": "aws/test/rds/test-rds/terraform.tfstate",
             },
         },
@@ -242,7 +241,6 @@ def test_er_external_resource_export(
     "identifier": "test-rds",
     "module_provision_data": {
       "tf_state_bucket": "tf_state_bucket",
-      "tf_state_dynamodb_table": "tf_state_dynamodb_table",
       "tf_state_key": "aws/test/rds/test-rds/terraform.tfstate",
       "tf_state_region": "tf_state_region"
     },
