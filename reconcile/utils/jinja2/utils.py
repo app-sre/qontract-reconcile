@@ -217,7 +217,11 @@ def lookup_graphql_query_results(
     **kwargs: dict[str, Any],
 ) -> list[Any]:
     cache = cache or Jinja2TemplateCache()
-    cache_key = (query, json.dumps(kwargs, sort_keys=True))
+    try:
+        kwargs_key = json.dumps(kwargs, sort_keys=True)
+    except TypeError:
+        kwargs_key = str(sorted((k, repr(v)) for k, v in kwargs.items()))
+    cache_key = (query, kwargs_key)
 
     def _fetch() -> list[Any]:
         gqlapi = gql.get_api()
