@@ -712,7 +712,9 @@ def fetch_desired_state(
     cache: Jinja2TemplateCache | None = None,
 ) -> None:
     try:
-        openshift_resource = fetch_openshift_resource(resource, parent, settings, cache=cache)
+        openshift_resource = fetch_openshift_resource(
+            resource, parent, settings, cache=cache
+        )
     except (
         FetchResourceError,
         FetchSecretError,
@@ -819,7 +821,14 @@ def fetch_data(
         override_managed_types=overrides,
         cluster_scope_resource_validation=True,
     )
-    threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri, settings=settings, cache=cache)
+    threaded.run(
+        fetch_states,
+        state_specs,
+        thread_pool_size,
+        ri=ri,
+        settings=settings,
+        cache=cache,
+    )
 
     return oc_map, ri
 

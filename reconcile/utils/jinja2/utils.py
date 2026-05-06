@@ -188,13 +188,25 @@ def lookup_github_file_content(
     cache = cache or Jinja2TemplateCache()
     if tvars is not None:
         repo = process_jinja2_template(
-            body=repo, vars=tvars, settings=settings, secret_reader=secret_reader, cache=cache
+            body=repo,
+            vars=tvars,
+            settings=settings,
+            secret_reader=secret_reader,
+            cache=cache,
         )
         path = process_jinja2_template(
-            body=path, vars=tvars, settings=settings, secret_reader=secret_reader, cache=cache
+            body=path,
+            vars=tvars,
+            settings=settings,
+            secret_reader=secret_reader,
+            cache=cache,
         )
         ref = process_jinja2_template(
-            body=ref, vars=tvars, settings=settings, secret_reader=secret_reader, cache=cache
+            body=ref,
+            vars=tvars,
+            settings=settings,
+            secret_reader=secret_reader,
+            cache=cache,
         )
     return _fetch_github_file_content(repo, path, ref, cache)
 
@@ -290,14 +302,26 @@ def lookup_secret(
     cache = cache or Jinja2TemplateCache()
     if tvars is not None:
         path = process_jinja2_template(
-            body=path, vars=tvars, settings=settings, secret_reader=secret_reader, cache=cache
+            body=path,
+            vars=tvars,
+            settings=settings,
+            secret_reader=secret_reader,
+            cache=cache,
         )
         key = process_jinja2_template(
-            body=key, vars=tvars, settings=settings, secret_reader=secret_reader, cache=cache
+            body=key,
+            vars=tvars,
+            settings=settings,
+            secret_reader=secret_reader,
+            cache=cache,
         )
         if version and not isinstance(version, int):
             version = process_jinja2_template(
-                body=version, vars=tvars, settings=settings, secret_reader=secret_reader, cache=cache
+                body=version,
+                vars=tvars,
+                settings=settings,
+                secret_reader=secret_reader,
+                cache=cache,
             )
     if not secret_reader:
         secret_reader = SecretReader(settings)
