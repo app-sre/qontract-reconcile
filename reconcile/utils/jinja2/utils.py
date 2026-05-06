@@ -1,5 +1,7 @@
 import datetime
+import json
 import os
+import threading
 from collections.abc import Mapping
 from functools import cache
 from typing import Any, Self
@@ -37,7 +39,6 @@ from reconcile.utils.secret_reader import (
     SecretReaderBase,
 )
 from reconcile.utils.sloth import generate_sloth_rules
-from reconcile.utils.vault import SecretFieldNotFoundError
 
 
 class Jinja2TemplateError(Exception):
@@ -111,6 +112,36 @@ def init_github() -> Github:
     return Github(token, base_url=GH_BASE_URL)
 
 
+def _get_or_create_lock(
+    locks: dict[Any, threading.Lock],
+    meta_lock: threading.Lock,
+    key: Any,
+) -> threading.Lock:
+    with meta_lock:
+        if key not in locks:
+            locks[key] = threading.Lock()
+        return locks[key]
+
+
+_github_cache: dict[tuple[str, str, str], str] = {}
+_github_locks: dict[tuple[str, str, str], threading.Lock] = {}
+_github_locks_lock: threading.Lock = threading.Lock()
+
+
+def _fetch_github_file_content(repo: str, path: str, ref: str) -> str:
+    cache_key = (repo, path, ref)
+    with _get_or_create_lock(_github_locks, _github_locks_lock, cache_key):
+        if cache_key not in _github_cache:
+            gh = init_github()
+            content = GithubRepositoryApi.get_raw_file(
+                repo=gh.get_repo(repo),
+                path=path,
+                ref=ref,
+            )
+            _github_cache[cache_key] = content.decode("utf-8")
+    return _github_cache[cache_key]
+
+
 def lookup_github_file_content(
     repo: str,
     path: str,
@@ -129,22 +160,29 @@ def lookup_github_file_content(
         ref = process_jinja2_template(
             body=ref, vars=tvars, settings=settings, secret_reader=secret_reader
         )
+    return _fetch_github_file_content(repo, path, ref)
 
-    gh = init_github()
-    content = GithubRepositoryApi.get_raw_file(
-        repo=gh.get_repo(repo),
-        path=path,
-        ref=ref,
-    )
-    return content.decode("utf-8")
+
+_query_cache: dict[tuple[str, str], list[Any]] = {}
+_query_locks: dict[tuple[str, str], threading.Lock] = {}
+_query_locks_lock: threading.Lock = threading.Lock()
 
 
 def lookup_graphql_query_results(query: str, **kwargs: dict[str, Any]) -> list[Any]:
-    gqlapi = gql.get_api()
-    resource = gqlapi.get_resource(query)["content"]
-    rendered_resource = jinja2.Template(resource).render(**kwargs)
-    results = next(iter(gqlapi.query(rendered_resource).values()))
-    return results
+    cache_key = (query, json.dumps(kwargs, sort_keys=True))
+    with _get_or_create_lock(_query_locks, _query_locks_lock, cache_key):
+        if cache_key not in _query_cache:
+            gqlapi = gql.get_api()
+            resource = gqlapi.get_resource(query)["content"]
+            rendered_resource = jinja2.Template(resource).render(**kwargs)
+            results = next(iter(gqlapi.query(rendered_resource).values()))
+            _query_cache[cache_key] = results
+    return _query_cache[cache_key]
+
+
+_s3_cache: dict[tuple[str, str, str, str | None], str] = {}
+_s3_locks: dict[tuple[str, str, str, str | None], threading.Lock] = {}
+_s3_locks_lock: threading.Lock = threading.Lock()
 
 
 def lookup_s3_object(
@@ -153,18 +191,26 @@ def lookup_s3_object(
     path: str,
     region_name: str | None = None,
 ) -> str:
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts(name=account_name)
-    if not accounts:
-        raise Exception(f"aws account not found: {account_name}")
+    cache_key = (account_name, bucket_name, path, region_name)
+    with _get_or_create_lock(_s3_locks, _s3_locks_lock, cache_key):
+        if cache_key not in _s3_cache:
+            settings = queries.get_app_interface_settings()
+            accounts = queries.get_aws_accounts(name=account_name)
+            if not accounts:
+                raise Exception(f"aws account not found: {account_name}")
+            with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
+                _s3_cache[cache_key] = aws_api.get_s3_object_content(
+                    account_name,
+                    bucket_name,
+                    path,
+                    region_name=region_name,
+                )
+    return _s3_cache[cache_key]
 
-    with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
-        return aws_api.get_s3_object_content(
-            account_name,
-            bucket_name,
-            path,
-            region_name=region_name,
-        )
+
+_s3_ls_cache: dict[tuple[str, str, str, str | None], list[str]] = {}
+_s3_ls_locks: dict[tuple[str, str, str, str | None], threading.Lock] = {}
+_s3_ls_locks_lock: threading.Lock = threading.Lock()
 
 
 def list_s3_objects(
@@ -173,21 +219,40 @@ def list_s3_objects(
     path: str,
     region_name: str | None = None,
 ) -> list[str]:
-    settings = queries.get_app_interface_settings()
-    accounts = queries.get_aws_accounts(name=account_name)
-    if not accounts:
-        raise Exception(f"aws account not found: {account_name}")
+    cache_key = (account_name, bucket_name, path, region_name)
+    with _get_or_create_lock(_s3_ls_locks, _s3_ls_locks_lock, cache_key):
+        if cache_key not in _s3_ls_cache:
+            settings = queries.get_app_interface_settings()
+            accounts = queries.get_aws_accounts(name=account_name)
+            if not accounts:
+                raise Exception(f"aws account not found: {account_name}")
+            with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
+                _s3_ls_cache[cache_key] = aws_api.list_s3_objects(
+                    account_name,
+                    bucket_name,
+                    path,
+                    region_name=region_name,
+                )
+    return _s3_ls_cache[cache_key]
 
-    with AWSApi(1, accounts, settings=settings, init_users=False) as aws_api:
-        return aws_api.list_s3_objects(
-            account_name,
-            bucket_name,
-            path,
-            region_name=region_name,
-        )
+
+# Caches all keys for a (path, version) in one read_all call.
+# None sentinel means the path was not found; used to avoid re-fetching on cache hit.
+# Keys within the same path are resolved locally without additional API calls.
+_vault_path_cache: dict[tuple[str, str | None], dict[str, str] | None] = {}
+_vault_path_locks: dict[tuple[str, str | None], threading.Lock] = {}
+_vault_locks_lock: threading.Lock = threading.Lock()
 
 
 @retry()
+def _vault_read_all(
+    secret_reader: SecretReaderBase,
+    path: str,
+    version: str | None,
+) -> dict[str, str]:
+    return secret_reader.read_all({"path": path, "field": "", "version": version})
+
+
 def lookup_secret(
     path: str,
     key: str,
@@ -208,17 +273,32 @@ def lookup_secret(
             version = process_jinja2_template(
                 body=version, vars=tvars, settings=settings, secret_reader=secret_reader
             )
-    secret = {"path": path, "field": key, "version": version}
-    try:
-        if not secret_reader:
-            secret_reader = SecretReader(settings)
-        return secret_reader.read(secret)
-    except (SecretNotFoundError, SecretFieldNotFoundError) as e:
+    if not secret_reader:
+        secret_reader = SecretReader(settings)
+    # Normalize "LATEST" to None — both mean "current version" in Vault KV v2,
+    # sharing a single cache entry avoids a redundant Vault read.
+    if version is not None and str(version).upper() == "LATEST":
+        version = None
+    cache_key = (path, str(version) if version is not None else None)
+    with _get_or_create_lock(_vault_path_locks, _vault_locks_lock, cache_key):
+        if cache_key not in _vault_path_cache:
+            try:
+                fetched = _vault_read_all(secret_reader, path, version)
+                _vault_path_cache[cache_key] = fetched
+            except SecretNotFoundError:
+                _vault_path_cache[cache_key] = None
+            except Exception as e:
+                raise FetchSecretError(e) from e
+    secret_data = _vault_path_cache[cache_key]
+    if secret_data is None:
         if allow_not_found:
             return None
-        raise FetchSecretError(e) from None
-    except Exception as e:
-        raise FetchSecretError(e) from e
+        raise FetchSecretError(f"secret not found: {path}")
+    if key not in secret_data:
+        if allow_not_found:
+            return None
+        raise FetchSecretError(f"secret field not found: {path}/{key}")
+    return secret_data[key]
 
 
 def process_jinja2_template(
