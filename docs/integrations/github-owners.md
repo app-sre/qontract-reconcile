@@ -31,8 +31,7 @@ The GitHub org's API token is looked up from the corresponding `githuborg_v1` en
 $schema: /access/role-1.yml
 name: my-team-admins
 permissions:
-  - $schema: /access/permission-github-org-team-1.yml
-    service: github-org-team
+  - service: github-org-team
     org: my-github-org
     team: my-team
     role: owner
@@ -246,8 +245,7 @@ Roles with GitHub org owner permissions are defined using `PermissionGithubOrgTe
 $schema: /access/role-1.yml
 name: my-admins
 permissions:
-  - $schema: /access/permission-github-org-team-1.yml
-    service: github-org-team
+  - service: github-org-team
     org: my-github-org   # must match githuborg_v1 name
     team: my-team
     role: owner
