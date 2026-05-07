@@ -13,7 +13,6 @@ gh_api:
 state:
 - items:
   - user1
-  - user2
   params:
     org: org_a
     service: github-org

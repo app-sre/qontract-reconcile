@@ -53,11 +53,8 @@ ROLES_QUERY = """
       github_username
     }
     permissions {
-      service
-      ...on PermissionGithubOrg_v1 {
-        org
-      }
       ...on PermissionGithubOrgTeam_v1 {
+        service
         org
         team
       }
@@ -144,8 +141,8 @@ def get_org_and_teams(
 
 
 @retry()
-def get_members(unit: Organization | Team) -> list[str]:
-    return [member.login for member in unit.get_members()]
+def get_members(team: Team) -> list[str]:
+    return [member.login for member in team.get_members()]
 
 
 class GHApiStore:
@@ -178,24 +175,17 @@ def fetch_current_state(gh_api_store: GHApiStore) -> AggregatedList:
     state = AggregatedList()
 
     for org_name in gh_api_store.orgs():
+        managed_teams = gh_api_store.managed_teams(org_name)
+        if not managed_teams:
+            continue
+
         g = gh_api_store.github(org_name)
         raw_gh_api = gh_api_store.raw_github_api(org_name)
-        managed_teams = gh_api_store.managed_teams(org_name)
-        # if 'managedTeams' is not specified
-        # we manage all teams
-        is_managed = managed_teams is None or len(managed_teams) == 0
-
         org, teams = get_org_and_teams(g, org_name)
-
-        org_members = None
-        if is_managed:
-            org_members = get_members(org)
-            org_members.extend(raw_gh_api.org_invitations(org_name))
-            org_members = [m.lower() for m in org_members]
 
         all_team_members = []
         for team in teams:
-            if not is_managed and team.name not in (managed_teams or []):
+            if team.name not in managed_teams:
                 continue
 
             members = get_members(team)
@@ -209,13 +199,9 @@ def fetch_current_state(gh_api_store: GHApiStore) -> AggregatedList:
             )
         all_team_members = list(set(all_team_members))
 
-        members = org_members or all_team_members
         state.add(
-            {
-                "service": "github-org",
-                "org": org_name,
-            },
-            members,
+            {"service": "github-org", "org": org_name},
+            all_team_members,
         )
 
     return state
@@ -229,7 +215,7 @@ def fetch_desired_state(infer_clusters: bool = True) -> AggregatedList:
     for role in roles:
         permissions = list(
             filter(
-                lambda p: p.get("service") in {"github-org", "github-org-team"},
+                lambda p: p.get("service") == "github-org-team",
                 role["permissions"],
             )
         )
@@ -244,17 +230,14 @@ def fetch_desired_state(infer_clusters: bool = True) -> AggregatedList:
         members = [m.lower() for m in user_members + bot_members]
 
         for permission in permissions:
-            if permission["service"] == "github-org":
-                state.add(permission, members)
-            elif permission["service"] == "github-org-team":
-                state.add(permission, members)
-                state.add(
-                    {
-                        "service": "github-org",
-                        "org": permission["org"],
-                    },
-                    members,
-                )
+            state.add(permission, members)
+            state.add(
+                {
+                    "service": "github-org",
+                    "org": permission["org"],
+                },
+                members,
+            )
 
     if not infer_clusters:
         return state
@@ -343,11 +326,6 @@ class RunnerAction:
                     logging.info([label, member, org, team])
                     gh_user = g.get_user(member)
                     gh_team.remove_membership(gh_user)
-
-                # members = gh_team.get_members()
-                # if len(list(members)) == 0:
-                #     logging.info(["del_team", org, team])
-                #     gh_team.delete()
 
         return action
 

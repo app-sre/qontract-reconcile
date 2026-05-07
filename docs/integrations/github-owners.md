@@ -4,7 +4,7 @@
 
 ## Description
 
-The `github-owners` integration ensures that GitHub organization admin (owner) membership reflects the desired state declared in App-Interface. It reads roles with `github-org` or `github-org-team` owner permissions and adds any missing users or bots to the corresponding GitHub organizations. Owner removal is intentionally not supported — removing org admins requires explicit manual review.
+The `github-owners` integration ensures that GitHub organization admin (owner) membership reflects the desired state declared in App-Interface. It reads roles with `github-org-team` owner permissions and adds any missing users or bots to the corresponding GitHub organizations. Owner removal is intentionally not supported — removing org admins requires explicit manual review.
 
 ## Features
 
@@ -19,7 +19,7 @@ The `github-owners` integration ensures that GitHub organization admin (owner) m
 
 Desired state is derived from `roles_v1` in App-Interface. A user or bot becomes a desired owner of a GitHub org when:
 
-1. They are a member of a role that has a `PermissionGithubOrg_v1` or `PermissionGithubOrgTeam_v1` permission with `role: owner`
+1. They are a member of a role that has a `PermissionGithubOrgTeam_v1` permission with `role: owner`
 2. The role is not expired (no `expirationDate`, or `expirationDate` is in the future)
 3. The user has a `github_username` set on their profile
 
@@ -31,9 +31,9 @@ The GitHub org's API token is looked up from the corresponding `githuborg_v1` en
 $schema: /access/role-1.yml
 name: my-team-admins
 permissions:
-  - $schema: /access/permission-github-org-1.yml
-    service: github-org
+  - service: github-org-team
     org: my-github-org
+    team: my-team
     role: owner
 users:
   - $ref: /teams/my-team/users/alice.yml
@@ -238,16 +238,16 @@ Authorization: Bearer <JWT_TOKEN>
 
 **App-Interface Schema:**
 
-Roles with GitHub org owner permissions are defined using `PermissionGithubOrg_v1` or `PermissionGithubOrgTeam_v1`:
+Roles with GitHub org owner permissions are defined using `PermissionGithubOrgTeam_v1`:
 
 ```yaml
 # Role granting GitHub org ownership
 $schema: /access/role-1.yml
 name: my-admins
 permissions:
-  - $schema: /access/permission-github-org-1.yml
-    service: github-org
+  - service: github-org-team
     org: my-github-org   # must match githuborg_v1 name
+    team: my-team
     role: owner
 users:
   - $ref: /teams/.../users/alice.yml

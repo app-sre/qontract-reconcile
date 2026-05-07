@@ -45,7 +45,6 @@ from reconcile.gql_definitions.common.github_orgs import GithubOrgV1
 from reconcile.gql_definitions.common.github_orgs import query as github_orgs_query
 from reconcile.gql_definitions.github_owners_api.roles import (
     PermissionGithubOrgTeamV1,
-    PermissionGithubOrgV1,
     RoleV1,
 )
 from reconcile.gql_definitions.github_owners_api.roles import query as roles_query
@@ -70,7 +69,7 @@ class GithubOwnersIntegration(
     """Manage GitHub organization owner membership via qontract-api.
 
     This integration:
-    1. Queries App-Interface for roles with github-org/github-org-team owner permissions
+    1. Queries App-Interface for roles with github-org-team owner permissions
     2. Filters expired roles
     3. Queries App-Interface for GitHub org configs (to get API tokens)
     4. Compiles the desired owner state per org
@@ -103,7 +102,7 @@ class GithubOwnersIntegration(
     ) -> list[GithubOrgDesiredState]:
         """Compile the desired owner state from roles and org configs.
 
-        Groups all github-org and github-org-team owner permissions by org,
+        Groups all github-org-team owner permissions by org,
         collects all users and bots with those permissions, and matches them
         to the org's GitHub API token.
 
@@ -120,9 +119,7 @@ class GithubOwnersIntegration(
 
         for role in roles:
             for permission in role.permissions or []:
-                if not isinstance(
-                    permission, (PermissionGithubOrgV1, PermissionGithubOrgTeamV1)
-                ):
+                if not isinstance(permission, PermissionGithubOrgTeamV1):
                     continue
                 if permission.role != "owner":
                     continue

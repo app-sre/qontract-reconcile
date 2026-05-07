@@ -24,7 +24,6 @@ from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
 from reconcile.gql_definitions.github_owners_api.roles import (
     BotV1,
     PermissionGithubOrgTeamV1,
-    PermissionGithubOrgV1,
     PermissionV1,
     RoleV1,
     UserV1,
@@ -74,10 +73,6 @@ def make_role(
     )
 
 
-def make_github_org_permission(org: str, role: str = "owner") -> PermissionGithubOrgV1:
-    return PermissionGithubOrgV1(service="github-org", org=org, role=role)
-
-
 def make_github_org_team_permission(
     org: str, role: str = "owner"
 ) -> PermissionGithubOrgTeamV1:
@@ -95,7 +90,7 @@ class TestCompileDesiredState:
         roles = [
             make_role(
                 users=["Alice"],
-                permissions=[make_github_org_permission("my-org")],
+                permissions=[make_github_org_team_permission("my-org")],
             )
         ]
         github_orgs = {"my-org": make_github_org("my-org")}
@@ -111,7 +106,7 @@ class TestCompileDesiredState:
         roles = [
             make_role(
                 users=["Charlie", "Alice", "BOB"],
-                permissions=[make_github_org_permission("my-org")],
+                permissions=[make_github_org_team_permission("my-org")],
             )
         ]
         github_orgs = {"my-org": make_github_org("my-org")}
@@ -126,7 +121,7 @@ class TestCompileDesiredState:
             make_role(
                 users=["alice"],
                 bots=["bot-user"],
-                permissions=[make_github_org_permission("my-org")],
+                permissions=[make_github_org_team_permission("my-org")],
             )
         ]
         github_orgs = {"my-org": make_github_org("my-org")}
@@ -140,7 +135,7 @@ class TestCompileDesiredState:
         integration = make_integration()
         role = make_role(
             users=["alice"],
-            permissions=[make_github_org_permission("my-org")],
+            permissions=[make_github_org_team_permission("my-org")],
         )
         # Add a bot with no github_username
         role.bots.append(BotV1(github_username=None))
@@ -169,7 +164,7 @@ class TestCompileDesiredState:
         roles = [
             make_role(
                 users=["alice"],
-                permissions=[make_github_org_permission("my-org", role="member")],
+                permissions=[make_github_org_team_permission("my-org", role="member")],
             )
         ]
         github_orgs = {"my-org": make_github_org("my-org")}
@@ -183,7 +178,7 @@ class TestCompileDesiredState:
         roles = [
             make_role(
                 users=["alice"],
-                permissions=[PermissionV1(service="openshift-rolebinding")],
+                permissions=[PermissionV1()],
             )
         ]
         github_orgs = {"my-org": make_github_org("my-org")}
@@ -198,8 +193,8 @@ class TestCompileDesiredState:
             make_role(
                 users=["alice"],
                 permissions=[
-                    make_github_org_permission("org-a"),
-                    make_github_org_permission("org-b"),
+                    make_github_org_team_permission("org-a"),
+                    make_github_org_team_permission("org-b"),
                 ],
             )
         ]
@@ -222,7 +217,7 @@ class TestCompileDesiredState:
         roles = [
             make_role(
                 users=["alice"],
-                permissions=[make_github_org_permission("unknown-org")],
+                permissions=[make_github_org_team_permission("unknown-org")],
             )
         ]
 
@@ -236,7 +231,7 @@ class TestCompileDesiredState:
         roles = [
             make_role(
                 users=["alice"],
-                permissions=[make_github_org_permission("my-org")],
+                permissions=[make_github_org_team_permission("my-org")],
             )
         ]
         github_orgs = {
@@ -256,12 +251,12 @@ class TestCompileDesiredState:
             make_role(
                 name="role-a",
                 users=["alice"],
-                permissions=[make_github_org_permission("my-org")],
+                permissions=[make_github_org_team_permission("my-org")],
             ),
             make_role(
                 name="role-b",
                 users=["bob"],
-                permissions=[make_github_org_permission("my-org")],
+                permissions=[make_github_org_team_permission("my-org")],
             ),
         ]
         github_orgs = {"my-org": make_github_org("my-org")}
@@ -277,8 +272,8 @@ class TestCompileDesiredState:
             make_role(
                 users=["alice"],
                 permissions=[
-                    make_github_org_permission("org-a"),
-                    make_github_org_permission("org-b"),
+                    make_github_org_team_permission("org-a"),
+                    make_github_org_team_permission("org-b"),
                 ],
             )
         ]

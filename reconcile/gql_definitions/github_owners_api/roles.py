@@ -29,12 +29,8 @@ query GithubOwnersApiRoles {
       github_username
     }
     permissions {
-      service
-      ... on PermissionGithubOrg_v1 {
-        org
-        role
-      }
       ... on PermissionGithubOrgTeam_v1 {
+        service
         org
         role
       }
@@ -60,15 +56,11 @@ class BotV1(ConfiguredBaseModel):
 
 
 class PermissionV1(ConfiguredBaseModel):
-    service: str = Field(..., alias="service")
-
-
-class PermissionGithubOrgV1(PermissionV1):
-    org: str = Field(..., alias="org")
-    role: Optional[str] = Field(..., alias="role")
+    ...
 
 
 class PermissionGithubOrgTeamV1(PermissionV1):
+    service: str = Field(..., alias="service")
     org: str = Field(..., alias="org")
     role: Optional[str] = Field(..., alias="role")
 
@@ -77,7 +69,7 @@ class RoleV1(ConfiguredBaseModel):
     name: str = Field(..., alias="name")
     users: list[UserV1] = Field(..., alias="users")
     bots: list[BotV1] = Field(..., alias="bots")
-    permissions: Optional[list[Union[PermissionGithubOrgV1, PermissionGithubOrgTeamV1, PermissionV1]]] = Field(..., alias="permissions")
+    permissions: Optional[list[Union[PermissionGithubOrgTeamV1, PermissionV1]]] = Field(..., alias="permissions")
     expiration_date: Optional[str] = Field(..., alias="expirationDate")
 
 
