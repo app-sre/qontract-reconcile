@@ -214,7 +214,7 @@ def lookup_github_file_content(
 def lookup_graphql_query_results(
     query: str,
     cache: Jinja2TemplateCache | None = None,
-    **kwargs: dict[str, Any],
+    **kwargs: Any,
 ) -> list[Any]:
     cache = cache or Jinja2TemplateCache()
     try:
