@@ -708,8 +708,8 @@ def fetch_desired_state(
     resource: Mapping[str, Any],
     parent: Mapping[str, Any],
     privileged: bool,
+    cache: Jinja2TemplateCache,
     settings: Mapping[str, Any] | None = None,
-    cache: Jinja2TemplateCache | None = None,
 ) -> None:
     try:
         openshift_resource = fetch_openshift_resource(
@@ -762,8 +762,8 @@ def fetch_desired_state(
 def fetch_states(
     spec: ob.StateSpec,
     ri: ResourceInventory,
+    cache: Jinja2TemplateCache,
     settings: Mapping[str, Any] | None = None,
-    cache: Jinja2TemplateCache | None = None,
 ) -> None:
     try:
         if isinstance(spec, ob.CurrentStateSpec):
@@ -784,8 +784,8 @@ def fetch_states(
                 spec.resource,
                 spec.parent,
                 spec.privileged,
-                settings,
                 cache=cache,
+                settings=settings,
             )
 
     except StatusCodeError as e:
@@ -798,9 +798,9 @@ def fetch_data(
     thread_pool_size: int,
     internal: bool | None,
     use_jump_host: bool,
+    cache: Jinja2TemplateCache,
     init_api_resources: bool = False,
     overrides: Iterable[str] | None = None,
-    cache: Jinja2TemplateCache | None = None,
 ) -> tuple[OC_Map, ResourceInventory]:
     ri = ResourceInventory()
     settings = queries.get_app_interface_settings()

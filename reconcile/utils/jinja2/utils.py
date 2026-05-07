@@ -112,9 +112,6 @@ def init_github() -> Github:
     return Github(token, base_url=GH_BASE_URL)
 
 
-_MISSING: Any = object()
-
-
 class Jinja2TemplateCache:
     """Scoped cache for Jinja2 template external lookups (vault, github, s3, query).
 
@@ -147,12 +144,6 @@ class Jinja2TemplateCache:
             if key not in locks:
                 locks[key] = threading.Lock()
             return locks[key]
-
-    def get(self, namespace: str, key: Any) -> Any:
-        return self._stores[namespace].get(key, _MISSING)
-
-    def set(self, namespace: str, key: Any, value: Any) -> None:
-        self._stores[namespace][key] = value
 
     def get_or_set(self, namespace: str, key: Any, compute: Callable[[], Any]) -> Any:
         with self._lock_for(namespace, key):

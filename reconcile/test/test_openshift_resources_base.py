@@ -235,7 +235,7 @@ def test_fetch_states(
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template")
     current_state_spec.oc.get_items = lambda kind, **kwargs: [tmpl1]  # type: ignore[method-assign]
-    orb.fetch_states(ri=ri, spec=current_state_spec)
+    orb.fetch_states(ri=ri, spec=current_state_spec, cache=orb.Jinja2TemplateCache())
     _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 1
     assert "tmpl1" in resource["current"]
@@ -246,7 +246,7 @@ def test_fetch_states_unknown_kind(current_state_spec: CurrentStateSpec) -> None
     current_state_spec.kind = "UnknownKind"
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "UnknownKind")
-    orb.fetch_states(ri=ri, spec=current_state_spec)
+    orb.fetch_states(ri=ri, spec=current_state_spec, cache=orb.Jinja2TemplateCache())
     _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 0
 
@@ -257,7 +257,7 @@ def test_fetch_states_oc_error(current_state_spec: CurrentStateSpec) -> None:
     )
     ri = ResourceInventory()
     ri.initialize_resource_type("cs1", "ns1", "Template")
-    orb.fetch_states(ri=ri, spec=current_state_spec)
+    orb.fetch_states(ri=ri, spec=current_state_spec, cache=orb.Jinja2TemplateCache())
     assert ri.has_error_registered("cs1")
     _, _, _, resource = next(iter(ri))
     assert len(resource["current"]) == 0
