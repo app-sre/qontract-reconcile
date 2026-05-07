@@ -299,9 +299,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
         return metrics
 
     @staticmethod
-    def _resolve_elasticache_engine(
-        reported_engine: str, engine_version: str
-    ) -> str:
+    def _resolve_elasticache_engine(reported_engine: str, engine_version: str) -> str:
         """Resolve the actual ElastiCache engine from reported metric labels.
 
         The aws-resources-exporter may still label Valkey-backed replication

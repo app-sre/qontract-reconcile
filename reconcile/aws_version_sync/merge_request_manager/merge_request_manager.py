@@ -99,9 +99,11 @@ class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
             "account_id": provisioner_uid,
             "resource_provider": resource_provider,
             "resource_identifier": resource_identifier,
-            "resource_engine": resource_engine,
         }):
-            if mr.mr_info.resource_engine_version == resource_engine_version:
+            if (
+                mr.mr_info.resource_engine_version == resource_engine_version
+                and mr.mr_info.resource_engine == resource_engine
+            ):
                 # an MR for this external resource already exists
                 return None
             logging.info(
