@@ -356,7 +356,7 @@ def test_sentry_init_called_when_dsn_provided() -> None:
 
         assert call_args.kwargs["dsn"] == "https://example@sentry.io/123"
         assert call_args.kwargs["send_default_pii"] is True
-        assert call_args.kwargs["enable_logs"] is True
+        assert call_args.kwargs["enable_logs"] is False
         assert call_args.kwargs["ignore_errors"] == [ConnectionError]
 
         root_logger.handlers.clear()

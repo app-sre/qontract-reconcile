@@ -117,8 +117,8 @@ def setup_logging(
             # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
             # Sensitive headers are automatically filtered by Sentry.
             send_default_pii=True,
-            # Enable logs to be sent to Sentry
-            enable_logs=True,
+            # Don't send logs to Sentry
+            enable_logs=False,
             ignore_errors=[ConnectionError],
             integrations=[
                 LoggingIntegration(event_level=sentry_event_level),
