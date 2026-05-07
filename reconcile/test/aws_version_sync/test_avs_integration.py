@@ -627,3 +627,25 @@ def test_external_resources_resource_engine_version_string(
     er: ExternalResource, expected: str
 ) -> None:
     assert er.resource_engine_version_string == expected
+
+
+@pytest.mark.parametrize(
+    "reported_engine,engine_version,expected_engine",
+    [
+        ("redis", "6.2", "redis"),
+        ("redis", "7.1", "redis"),
+        ("redis", "7.2", "valkey"),
+        ("redis", "7.3", "valkey"),
+        ("redis", "8.0", "valkey"),
+        ("valkey", "7.2", "valkey"),
+        ("valkey", "8.0", "valkey"),
+        ("redis", "invalid-version", "redis"),
+    ],
+)
+def test_resolve_elasticache_engine(
+    reported_engine: str,
+    engine_version: str,
+    expected_engine: str,
+) -> None:
+    result = AVSIntegration._resolve_elasticache_engine(reported_engine, engine_version)
+    assert result == expected_engine

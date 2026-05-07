@@ -134,6 +134,7 @@ class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
             resource_provider=resource_provider,
             resource_identifier=resource_identifier,
             resource_engine_version=resource_engine_version,
+            resource_engine=resource_engine,
         )
 
         description = self._renderer.render_description(

@@ -148,7 +148,7 @@ def test_renderer_render_title() -> None:
 
 
 @pytest.mark.parametrize(
-    "current_content, provider, provisioner_ref, resource_provider, resource_identifier, resource_engine_version,expected",
+    "current_content, provider, provisioner_ref, resource_provider, resource_identifier, resource_engine_version, resource_engine, expected",
     [
         pytest.param(
             dedent(
@@ -170,6 +170,7 @@ def test_renderer_render_title() -> None:
             "rds",
             "rds-1",
             "15.1",
+            None,
             dedent(
                 """
                 ---
@@ -211,6 +212,7 @@ def test_renderer_render_title() -> None:
             "rds",
             "rds-1",
             "15.1",
+            None,
             dedent(
                 """
                 ---
@@ -260,6 +262,7 @@ def test_renderer_render_title() -> None:
             "rds",
             "rds-1",
             "15.1",
+            None,
             dedent(
                 """
                 ---
@@ -312,6 +315,7 @@ def test_renderer_render_title() -> None:
             "rds",
             "rds-1",
             "15.1",
+            None,
             dedent(
                 """
                 ---
@@ -370,6 +374,7 @@ def test_renderer_render_title() -> None:
             "rds",
             "rds-1",
             "15.1",
+            None,
             dedent(
                 """
                 ---
@@ -428,6 +433,7 @@ def test_renderer_render_title() -> None:
             "elasticache",
             "elasticache-stage-1",
             "6.1",
+            None,
             dedent(
                 """
                 ---
@@ -448,7 +454,92 @@ def test_renderer_render_title() -> None:
                       engine_version: '6.1'
                 """
             ),
-            id="ec-update",
+            id="ec-update-no-engine",
+        ),
+        pytest.param(
+            dedent(
+                """
+                ---
+                externalResources:
+                - provider: aws
+                  provisioner:
+                    $ref: account-1
+                  resources:
+                  - provider: elasticache
+                    identifier: elasticache-prod-1
+                    defaults: /path/to/defaults/file.yml
+                    output_resource_name: elasticache-prod-1
+                """
+            ),
+            "aws",
+            "account-1",
+            "elasticache",
+            "elasticache-prod-1",
+            "7.2",
+            "valkey",
+            dedent(
+                """
+                ---
+                externalResources:
+                - provider: aws
+                  provisioner:
+                    $ref: account-1
+                  resources:
+                  - provider: elasticache
+                    identifier: elasticache-prod-1
+                    defaults: /path/to/defaults/file.yml
+                    output_resource_name: elasticache-prod-1
+                    overrides:
+                      engine_version: '7.2'
+                      engine: valkey
+                """
+            ),
+            id="ec-update-with-engine-valkey",
+        ),
+        pytest.param(
+            dedent(
+                """
+                ---
+                externalResources:
+                - provider: aws
+                  provisioner:
+                    $ref: account-1
+                  resources:
+                  - provider: elasticache
+                    identifier: elasticache-prod-1
+                    defaults: /path/to/defaults/file.yml
+                    output_resource_name: elasticache-prod-1
+                    overrides:
+                      engine: redis
+                      engine_version: '6.2'
+                      apply_immediately: true
+                """
+            ),
+            "aws",
+            "account-1",
+            "elasticache",
+            "elasticache-prod-1",
+            "7.2",
+            "valkey",
+            dedent(
+                """
+                ---
+                externalResources:
+                - provider: aws
+                  provisioner:
+                    $ref: account-1
+                  resources:
+                  - provider: elasticache
+                    identifier: elasticache-prod-1
+                    defaults: /path/to/defaults/file.yml
+                    output_resource_name: elasticache-prod-1
+                    overrides:
+                      engine: valkey
+                      engine_version: '7.2'
+                      apply_immediately: true
+                """
+            ),
+            id="ec-engine-upgrade-redis-to-valkey",
         ),
         pytest.param(
             dedent(
@@ -470,6 +561,7 @@ def test_renderer_render_title() -> None:
             "rds",
             "rds-1",
             "15.1",
+            None,
             "",
             marks=pytest.mark.xfail(strict=True, raises=RuntimeError),
             id="instance-not-found-should-not-happen",
@@ -483,6 +575,7 @@ def test_renderer_render_merge_request_content(
     resource_provider: str,
     resource_identifier: str,
     resource_engine_version: str,
+    resource_engine: str | None,
     expected: str,
 ) -> None:
     renderer = Renderer()
@@ -493,5 +586,6 @@ def test_renderer_render_merge_request_content(
         resource_provider=resource_provider,
         resource_identifier=resource_identifier,
         resource_engine_version=resource_engine_version,
+        resource_engine=resource_engine,
     )
     assert new.strip("\n") == expected.strip("\n")
