@@ -9,12 +9,8 @@ query GithubOwnersApiRoles {
       github_username
     }
     permissions {
-      service
-      ... on PermissionGithubOrg_v1 {
-        org
-        role
-      }
       ... on PermissionGithubOrgTeam_v1 {
+        service
         org
         role
       }

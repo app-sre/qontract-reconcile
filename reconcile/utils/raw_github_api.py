@@ -67,15 +67,6 @@ class RawGithubApi:
 
         return result
 
-    def org_invitations(self, org: str) -> list[str]:
-        invitations = self.query(f"/orgs/{org}/invitations")
-
-        return [
-            login
-            for login in (invitation.get("login") for invitation in invitations)
-            if login is not None
-        ]
-
     def team_invitations(self, org_id: str | int, team_id: str | int) -> list[str]:
         invitations = self.query(f"/organizations/{org_id}/team/{team_id}/invitations")
 

@@ -3,7 +3,7 @@ from typing import Any
 from unittest.mock import patch
 
 from github import NamedUser
-from github.Organization import Organization
+from github.Team import Team
 from pytest_mock import MockerFixture
 
 from reconcile import github_org
@@ -19,10 +19,6 @@ fxt = Fixtures("github_org")
 
 
 class RawGithubApiMock:
-    @staticmethod
-    def org_invitations(org_name: str) -> list:
-        return []
-
     @staticmethod
     def team_invitations(org_id: str, team_id: str) -> list:
         return []
@@ -60,9 +56,6 @@ class GithubMock:
             @property
             def name(self) -> str:
                 return self.spec_team["name"]
-
-        def get_members(self) -> Iterable[dict]:
-            return map(AttrDict, self.spec_org["members"])
 
         def get_teams(self) -> Iterable[GithubTeamMock]:
             return map(self.GithubTeamMock, self.spec_org["teams"])
@@ -135,16 +128,35 @@ class TestGithubOrg:
     def test_get_members(self, mocker: MockerFixture) -> None:
         member_a = mocker.create_autospec(NamedUser, login="a")
         member_b = mocker.create_autospec(NamedUser, login="b")
-        org = mocker.create_autospec(Organization)
-        org.get_members.return_value = [member_a, member_b]
+        team = mocker.create_autospec(Team)
+        team.get_members.return_value = [member_a, member_b]
 
-        assert github_org.get_members(org) == ["a", "b"]
+        assert github_org.get_members(team) == ["a", "b"]
 
     def test_get_org_teams(self, mocker: MockerFixture) -> None:
-        org = mocker.create_autospec(Organization)
+        org = mocker.create_autospec(github_org.Organization)
         org.get_teams.return_value = ["teams"]
         gh = mocker.create_autospec(github_org.Github)
         gh.get_organization.return_value = org
 
         _, teams = github_org.get_org_and_teams(gh, "org")
         assert teams == ["teams"]
+
+    def test_fetch_current_state_skips_org_without_managed_teams(self) -> None:
+        with (
+            patch("reconcile.github_org.RawGithubApi") as m_rga,
+            patch("reconcile.github_org.Github") as m_gh,
+        ):
+            m_gh.return_value = GithubMock({})
+            m_rga.return_value = RawGithubApiMock()
+
+            # Temporarily clear managed_teams for org_a
+            orig = config.get_config()["github"]["org_a"].get("managed_teams")
+            config.get_config()["github"]["org_a"]["managed_teams"] = None
+
+            gh_api_store = github_org.GHApiStore(config.get_config())
+            current_state = github_org.fetch_current_state(gh_api_store).dump()
+
+            config.get_config()["github"]["org_a"]["managed_teams"] = orig
+
+        assert current_state == []

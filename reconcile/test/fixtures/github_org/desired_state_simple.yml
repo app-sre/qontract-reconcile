@@ -7,8 +7,6 @@ gql_response:
     expirationDate: null
     permissions:
     - org: org_a
-      service: github-org
-    - org: org_a
       team: team1
       service: github-org-team
 
