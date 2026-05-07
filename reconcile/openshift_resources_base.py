@@ -1,4 +1,5 @@
 import base64
+import functools
 import hashlib
 import itertools
 import json
@@ -45,6 +46,7 @@ from reconcile.utils.defer import defer
 from reconcile.utils.exceptions import FetchResourceError
 from reconcile.utils.jinja2.utils import (
     FetchSecretError,
+    Jinja2TemplateCache,
     process_extracurlyjinja2_template,
     process_jinja2_template,
 )
@@ -513,6 +515,7 @@ def fetch_openshift_resource(
     parent: Mapping[str, Any],
     settings: Mapping | None = None,
     skip_validation: bool = False,
+    cache: Jinja2TemplateCache | None = None,
 ) -> OR:
     provider = resource["provider"]
     if provider == "resource":
@@ -553,9 +556,9 @@ def fetch_openshift_resource(
         tt = resource["type"]
         tt = "jinja2" if tt is None else tt
         if tt == "jinja2":
-            tfunc = process_jinja2_template
+            tfunc = functools.partial(process_jinja2_template, cache=cache)
         elif tt == "extracurlyjinja2":
-            tfunc = process_extracurlyjinja2_template
+            tfunc = functools.partial(process_extracurlyjinja2_template, cache=cache)
         else:
             raise UnknownTemplateTypeError(tt)
         try:
@@ -629,9 +632,9 @@ def fetch_openshift_resource(
             tfunc = None
             tv = None
         elif tt == "resource-template-jinja2":
-            tfunc = process_jinja2_template
+            tfunc = functools.partial(process_jinja2_template, cache=cache)
         elif tt == "resource-template-extracurlyjinja2":
-            tfunc = process_extracurlyjinja2_template
+            tfunc = functools.partial(process_extracurlyjinja2_template, cache=cache)
         else:
             raise UnknownTemplateTypeError(tt)
         try:
@@ -705,10 +708,13 @@ def fetch_desired_state(
     resource: Mapping[str, Any],
     parent: Mapping[str, Any],
     privileged: bool,
+    cache: Jinja2TemplateCache,
     settings: Mapping[str, Any] | None = None,
 ) -> None:
     try:
-        openshift_resource = fetch_openshift_resource(resource, parent, settings)
+        openshift_resource = fetch_openshift_resource(
+            resource, parent, settings, cache=cache
+        )
     except (
         FetchResourceError,
         FetchSecretError,
@@ -756,6 +762,7 @@ def fetch_desired_state(
 def fetch_states(
     spec: ob.StateSpec,
     ri: ResourceInventory,
+    cache: Jinja2TemplateCache,
     settings: Mapping[str, Any] | None = None,
 ) -> None:
     try:
@@ -777,7 +784,8 @@ def fetch_states(
                 spec.resource,
                 spec.parent,
                 spec.privileged,
-                settings,
+                cache=cache,
+                settings=settings,
             )
 
     except StatusCodeError as e:
@@ -790,6 +798,7 @@ def fetch_data(
     thread_pool_size: int,
     internal: bool | None,
     use_jump_host: bool,
+    cache: Jinja2TemplateCache,
     init_api_resources: bool = False,
     overrides: Iterable[str] | None = None,
 ) -> tuple[OC_Map, ResourceInventory]:
@@ -812,7 +821,14 @@ def fetch_data(
         override_managed_types=overrides,
         cluster_scope_resource_validation=True,
     )
-    threaded.run(fetch_states, state_specs, thread_pool_size, ri=ri, settings=settings)
+    threaded.run(
+        fetch_states,
+        state_specs,
+        thread_pool_size,
+        ri=ri,
+        settings=settings,
+        cache=cache,
+    )
 
     return oc_map, ri
 
@@ -953,6 +969,7 @@ def run(
         use_jump_host,
         init_api_resources=init_api_resources,
         overrides=overrides,
+        cache=Jinja2TemplateCache(),
     )
     if defer:
         defer(oc_map.cleanup)
@@ -1241,7 +1258,7 @@ def early_exit_monkey_patch() -> Generator:
     ) as mocks:
         # mock lookup_secret
         mocks["lookup_secret"].side_effect = (
-            lambda path, key, version=None, tvars=None, allow_not_found=False, settings=None, secret_reader=None: (
+            lambda path, key, version=None, tvars=None, allow_not_found=False, settings=None, secret_reader=None, cache=None: (
                 f"vault({path}, {key}, {version}"
             )
         )
@@ -1251,7 +1268,7 @@ def early_exit_monkey_patch() -> Generator:
 
         # mock lookup_github_file_content
         mocks["lookup_github_file_content"].side_effect = (
-            lambda repo, path, ref, tvars=None, settings=None, secret_reader=None: (
+            lambda repo, path, ref, tvars=None, settings=None, secret_reader=None, cache=None: (
                 f"github({repo}, {path}, {ref})"
             )
         )
@@ -1267,7 +1284,7 @@ def early_exit_monkey_patch() -> Generator:
 
         # mock lookup_s3_object
         mocks["lookup_s3_object"].side_effect = (
-            lambda account_name, bucket_name, path, region_name=None: (
+            lambda account_name, bucket_name, path, region_name=None, cache=None: (
                 f"lookup_s3_object({account_name}, {bucket_name}, {path}, {region_name})"
             )
         )
@@ -1277,7 +1294,7 @@ def early_exit_monkey_patch() -> Generator:
 
         # mock list_s3_objects
         mocks["list_s3_objects"].side_effect = (
-            lambda account_name, bucket_name, path, region_name=None: (
+            lambda account_name, bucket_name, path, region_name=None, cache=None: (
                 f"list_s3_objects({account_name}, {bucket_name}, {path}, {region_name})"
             )
         )
