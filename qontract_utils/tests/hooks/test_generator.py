@@ -206,3 +206,22 @@ def test_generator_hook_execution_order() -> None:
     result = list(TestApi().items())
     assert result == ["a", "b"]
     assert execution_order == ["pre", "yield_1", "yield_2", "post"]
+
+
+def test_generator_rejects_retry_config() -> None:
+    """Generator methods must reject retry_config at decoration time."""
+    from qontract_utils.hooks import RetryConfig
+
+    with pytest.raises(ValueError, match="Retry is not supported for generator method"):
+
+        class TestApi:
+            def __init__(self) -> None:
+                self._hooks = Hooks(
+                    retry_config=RetryConfig(on=Exception, attempts=3),
+                )
+
+            @invoke_with_hooks()
+            def items(self) -> Iterator[int]:
+                yield 1
+
+        TestApi().items()

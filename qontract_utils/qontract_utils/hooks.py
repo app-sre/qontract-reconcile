@@ -472,6 +472,14 @@ class InvokeWithHooksMethod:
     ) -> Callable[..., Any]:
         """Create wrapper function with hooks and retry support."""
         if inspect.isgeneratorfunction(self.func):
+            effective_retry = self.retry_config or hooks.retry_config
+            if effective_retry is not None and effective_retry is not NO_RETRY_CONFIG:
+                msg = (
+                    f"Retry is not supported for generator method "
+                    f"{callable_name!r}. Remove retry_config or refactor the "
+                    "method to return a materialized result."
+                )
+                raise ValueError(msg)
             return self._create_generator_wrapper(hooks, instance, prepend_args)
         return self._create_sync_wrapper(hooks, instance, callable_name, prepend_args)
 
