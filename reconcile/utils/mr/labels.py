@@ -7,6 +7,8 @@ DO_NOT_MERGE_HOLD = "do-not-merge/hold"
 DO_NOT_MERGE_PENDING_REVIEW = "do-not-merge/pending-review"
 HOLD = "bot/hold"
 LGTM = "lgtm"
+MERGE_ERROR = "merge-error"
+MERGE_ERROR_PIPELINE = "merge-error/pipeline"
 SAAS_FILE_UPDATE = "saas-file-update"
 NEEDS_REBASE = "needs-rebase"
 SELF_SERVICEABLE = "self-serviceable"
@@ -26,5 +28,7 @@ def change_owner_label(label: str) -> str:
 SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = change_owner_label(
     "show-self-serviceable-in-review-queue"
 )
+
+
 # aws-version-sync
 AVS = "AVS"

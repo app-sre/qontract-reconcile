@@ -48,6 +48,8 @@ from reconcile.utils.mr.labels import (
     DO_NOT_MERGE_PENDING_REVIEW,
     HOLD,
     LGTM,
+    MERGE_ERROR,
+    MERGE_ERROR_PIPELINE,
     NEEDS_REBASE,
     ONBOARDING,
     SAAS_FILE_UPDATE,
@@ -74,6 +76,8 @@ HOLD_LABELS = [
     DO_NOT_MERGE_PENDING_REVIEW,
     NEEDS_REBASE,
 ]
+
+DLQ_LABELS = {MERGE_ERROR, MERGE_ERROR_PIPELINE}
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -207,6 +211,28 @@ def clean_pipelines(
                 logging.error(
                     f"unable to cancel {p.web_url} - error message {err.error_message}"
                 )
+
+
+PIPELINE_FAILURE_STATUSES = {
+    PipelineStatus.FAILED,
+    PipelineStatus.CANCELED,
+    PipelineStatus.SKIPPED,
+}
+
+
+def check_pipeline_health(
+    pipelines: list[ProjectMergeRequestPipeline],
+    consecutive_failure_limit: int = 3,
+) -> bool:
+    """Return True if MR is healthy (should stay in queue).
+
+    Return False if last `consecutive_failure_limit` pipelines all
+    ended in a non-success terminal state (failed, canceled, skipped).
+    """
+    recent = pipelines[:consecutive_failure_limit]
+    if len(recent) < consecutive_failure_limit:
+        return True
+    return not all(p.status in PIPELINE_FAILURE_STATUSES for p in recent)
 
 
 def verify_on_demand_tests(
@@ -755,6 +781,12 @@ def merge_merge_requests(
 
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
+
+        dlq_labels = DLQ_LABELS & set(mr.labels)
+        if dlq_labels:
+            logging.info(["skip merge", list(dlq_labels), gl.project.name, mr.iid])
+            continue
+
         if rebase and not is_rebased(mr, gl):
             continue
 
@@ -819,6 +851,10 @@ def merge_merge_requests(
                 merges += 1
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
+            except gitlab.exceptions.GitlabOperationError as e:
+                logging.error(f"unable to merge {mr.iid}: {e}")
+                if not dry_run:
+                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
 
 
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
