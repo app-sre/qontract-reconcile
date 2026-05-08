@@ -857,6 +857,41 @@ def merge_merge_requests(
                     gl.add_label_to_merge_request(mr, MERGE_ERROR)
 
 
+def run_pipeline_healthcheck(
+    dry_run: bool,
+    gl: GitLabApi,
+    project_merge_requests: list[ProjectMergeRequest],
+    consecutive_failure_limit: int = 3,
+) -> None:
+    """Check pipeline health for queue-eligible MRs. Apply/remove
+    merge-error/pipeline label based on consecutive failure count."""
+    for mr in project_merge_requests:
+        if mr.draft:
+            continue
+
+        if mr.merge_status in {
+            MRStatus.CANNOT_BE_MERGED,
+            MRStatus.CANNOT_BE_MERGED_RECHECK,
+        }:
+            continue
+
+        pipelines = gl.get_merge_request_pipelines(mr)
+        if not pipelines:
+            continue
+
+        has_pipeline_error = MERGE_ERROR_PIPELINE in set(mr.labels)
+        is_healthy = check_pipeline_health(pipelines, consecutive_failure_limit)
+
+        if not is_healthy and not has_pipeline_error:
+            logging.warning(["add_label", MERGE_ERROR_PIPELINE, gl.project.name, mr.iid])
+            if not dry_run:
+                gl.add_label_to_merge_request(mr, MERGE_ERROR_PIPELINE)
+        elif is_healthy and has_pipeline_error:
+            logging.info(["remove_label", MERGE_ERROR_PIPELINE, gl.project.name, mr.iid])
+            if not dry_run:
+                gl.remove_label(mr, MERGE_ERROR_PIPELINE)
+
+
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
     return {u.username for u in gl.get_app_sre_group_users()}
 
@@ -931,6 +966,13 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             project_merge_requests = [
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
+            consecutive_failure_limit = hk.get("consecutive_failure_limit") or 3
+            run_pipeline_healthcheck(
+                dry_run=dry_run,
+                gl=gl,
+                project_merge_requests=project_merge_requests,
+                consecutive_failure_limit=consecutive_failure_limit,
+            )
             reload_toggle = ReloadToggle(reload=False)
             rebase = hk.get("rebase")
             must_pass = hk.get("must_pass")
