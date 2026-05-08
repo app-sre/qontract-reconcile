@@ -55,6 +55,20 @@ QONTRACT_INTEGRATION = "aws-version-sync"
 ELASTICACHE_VALKEY_MIN_VERSION = semver.VersionInfo(major=7, minor=2, patch=0)
 
 
+def elasticache_engine_version_consistent(
+    engine: str, version: semver.VersionInfo
+) -> bool:
+    """Return True if engine and version are a valid ElastiCache combination.
+
+    Valkey requires >= 7.2; Redis must be < 7.2.  During in-place upgrades the
+    exporter may briefly emit a transitional state where these don't match.
+    """
+    is_valkey_version = version >= ELASTICACHE_VALKEY_MIN_VERSION
+    if engine == "valkey" and not is_valkey_version:
+        return False
+    return not (engine != "valkey" and is_valkey_version)
+
+
 class AVSIntegrationParams(PydanticRunParams):
     prometheus_timeout: int = 10
     supported_providers: set[str]
@@ -298,24 +312,6 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 )
         return metrics
 
-    @staticmethod
-    def _resolve_elasticache_engine(reported_engine: str, engine_version: str) -> str:
-        """Resolve the actual ElastiCache engine from reported metric labels.
-
-        The aws-resources-exporter may still label Valkey-backed replication
-        groups as 'redis' because the metric name predates the Valkey fork.
-        AWS ElastiCache Valkey starts at version 7.2; any version >= 7.2 on an
-        ElastiCache cluster is Valkey regardless of what the metric label says.
-        """
-        try:
-            version = parse_semver(engine_version, optional_minor_and_patch=True)
-        except ValueError:
-            return reported_engine
-
-        if version >= ELASTICACHE_VALKEY_MIN_VERSION:
-            return "valkey"
-        return reported_engine
-
     def _fetch_elasticache_metrics(
         self,
         cluster: ClusterV1,
@@ -341,9 +337,6 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
 
         for m in elasticache_metrics:
             try:
-                engine = self._resolve_elasticache_engine(
-                    m["engine"], m["engine_version"]
-                )
                 metrics.append(
                     ExternalResource(
                         provider="aws",
@@ -358,7 +351,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                             ),
                             m["replication_group_id"],
                         ),
-                        resource_engine=engine,
+                        resource_engine=m["engine"],
                         resource_engine_version=m["engine_version"],
                     )
                 )
@@ -473,6 +466,21 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                 == app_interface_resource.resource_engine
             ):
                 # do not downgrade the version
+                continue
+            if (
+                aws_resource.resource_provider == SupportedResourceProvider.ELASTICACHE
+                and not elasticache_engine_version_consistent(
+                    aws_resource.resource_engine,
+                    aws_resource.resource_engine_version,
+                )
+            ):
+                logging.warning(
+                    "Skipping %s: engine=%s with version %s is inconsistent "
+                    "(likely mid-upgrade). Will retry next reconcile cycle.",
+                    aws_resource.resource_identifier,
+                    aws_resource.resource_engine,
+                    aws_resource.resource_engine_version,
+                )
                 continue
             # make mypy happy
             assert app_interface_resource.namespace_file
