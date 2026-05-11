@@ -214,9 +214,7 @@ def clean_pipelines(
 
 
 PIPELINE_FAILURE_STATUSES = {
-    PipelineStatus.FAILED,
-    PipelineStatus.CANCELED,
-    PipelineStatus.SKIPPED,
+    PipelineStatus.FAILED
 }
 
 
@@ -623,6 +621,9 @@ def _rebase_merge_requests_top_k(
     ]
 
     for mr in merge_requests:
+        if DLQ_LABELS & set(mr.labels):
+            continue
+
         if is_rebased(mr, gl):
             continue
 
@@ -666,6 +667,9 @@ def _rebase_merge_requests_active_cap(
     already_active = 0
     needs_rebase: list[ProjectMergeRequest] = []
     for mr in merge_requests:
+        if DLQ_LABELS & set(mr.labels):
+            continue
+
         pipelines = gl.get_merge_request_pipelines(mr)
         if is_rebased(mr, gl):
             if pipelines and pipelines[0].status in {
@@ -722,6 +726,9 @@ def _rebase_merge_requests_old_burst(
         )
     ]
     for mr in merge_requests:
+        if DLQ_LABELS & set(mr.labels):
+            continue
+
         if is_rebased(mr, gl):
             continue
 
