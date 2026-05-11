@@ -989,6 +989,7 @@ def test_merge_applies_merge_error_label_on_operation_error(
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: ProjectMergeRequestPipeline,
 ) -> None:
+    """GitlabOperationError on merge applies the merge-error label."""
     mocked_gl = create_autospec(GitLabApi)
     project.squash_option = "never"
     mocked_gl.project = project
@@ -1029,6 +1030,7 @@ def test_merge_does_not_label_on_closed_error(
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: ProjectMergeRequestPipeline,
 ) -> None:
+    """GitlabMRClosedError on merge does not apply merge-error label."""
     mocked_gl = create_autospec(GitLabApi)
     project.squash_option = "never"
     mocked_gl.project = project
@@ -1065,6 +1067,7 @@ def test_merge_error_label_not_applied_in_dry_run(
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: ProjectMergeRequestPipeline,
 ) -> None:
+    """Dry-run mode does not attempt merge or apply any labels."""
     mocked_gl = create_autospec(GitLabApi)
     project.squash_option = "never"
     mocked_gl.project = project
@@ -1095,30 +1098,36 @@ def test_merge_error_label_not_applied_in_dry_run(
 
 
 def _make_pipelines(statuses: list[str]) -> list[ProjectMergeRequestPipeline]:
+    """Create a list of mock pipelines from status strings."""
     return [create_autospec(ProjectMergeRequestPipeline, status=s) for s in statuses]
 
 
 def test_check_pipeline_health_all_failures() -> None:
+    """Three consecutive failed pipelines marks MR as unhealthy."""
     pipelines = _make_pipelines(["failed", "failed", "failed"])
     assert gl_h.check_pipeline_health(pipelines) is False
 
 
 def test_check_pipeline_health_all_canceled_is_healthy() -> None:
+    """Canceled pipelines are not counted as failures."""
     pipelines = _make_pipelines(["canceled", "canceled", "canceled"])
     assert gl_h.check_pipeline_health(pipelines) is True
 
 
 def test_check_pipeline_health_canceled_and_skipped_not_counted() -> None:
+    """A mix of failed, canceled, and skipped is still considered healthy."""
     pipelines = _make_pipelines(["failed", "canceled", "skipped"])
     assert gl_h.check_pipeline_health(pipelines) is True
 
 
 def test_check_pipeline_health_mixed_with_success() -> None:
+    """A successful pipeline in the window breaks the failure streak."""
     pipelines = _make_pipelines(["failed", "failed", "success"])
     assert gl_h.check_pipeline_health(pipelines) is True
 
 
 def test_check_pipeline_health_insufficient_history() -> None:
+    """Fewer pipelines than the limit is treated as healthy."""
     pipelines = _make_pipelines(["failed", "failed"])
     assert gl_h.check_pipeline_health(pipelines) is True
 
@@ -1128,6 +1137,7 @@ def _make_healthcheck_mr(
     merge_status: str = "can_be_merged",
     draft: bool = False,
 ) -> Mock:
+    """Create a minimal mock MR for healthcheck tests."""
     mr = create_autospec(ProjectMergeRequest)
     mr.labels = labels
     mr.merge_status = merge_status
@@ -1140,6 +1150,7 @@ def _make_healthcheck_mr(
 def test_pipeline_error_label_applied_on_consecutive_failures(
     project: Project,
 ) -> None:
+    """Consecutive pipeline failures apply merge-error/pipeline label."""
     mr = _make_healthcheck_mr(labels=["lgtm"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1165,6 +1176,7 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
 def test_pipeline_error_label_auto_removed_on_recovery(
     project: Project,
 ) -> None:
+    """A successful pipeline removes the merge-error/pipeline label."""
     mr = _make_healthcheck_mr(labels=["lgtm", "merge-error/pipeline"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1188,6 +1200,7 @@ def test_pipeline_error_label_auto_removed_on_recovery(
 def test_merge_error_label_not_auto_removed(
     project: Project,
 ) -> None:
+    """The merge-error label is never auto-removed by the healthcheck."""
     mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1211,6 +1224,7 @@ def test_merge_error_label_not_auto_removed(
 def test_configurable_failure_limit(
     project: Project,
 ) -> None:
+    """The consecutive failure threshold is respected when set to a custom value."""
     mr_3_failures = _make_healthcheck_mr(labels=["lgtm"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1254,14 +1268,46 @@ def test_configurable_failure_limit(
     )
 
 
-def test_merge_error_label_skipped_in_merge_loop(
+def test_already_labeled_mr_with_ongoing_failures_no_api_calls(
+    project: Project,
+) -> None:
+    """An MR that already has merge-error/pipeline and is still failing
+    should not trigger any label mutations on a subsequent healthcheck run."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "merge-error/pipeline"])
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+    ])
+
+    gl_h.run_pipeline_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "dlq_label",
+    ["merge-error", "merge-error/pipeline"],
+)
+def test_dlq_mr_skipped_cleanly_with_no_side_effects(
     state: Mock,
     project: Project,
     can_be_merged_merge_request: Mock,
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     success_merge_request_pipeline: ProjectMergeRequestPipeline,
+    dlq_label: str,
 ) -> None:
-    can_be_merged_merge_request.labels = ["lgtm", "merge-error"]
+    """An MR that already has a DLQ label should pass through the merge loop
+    without any merge attempts, label mutations, or pipeline fetches."""
+    can_be_merged_merge_request.labels = ["lgtm", dlq_label]
     mocked_gl = create_autospec(GitLabApi)
     project.squash_option = "never"
     mocked_gl.project = project
@@ -1288,42 +1334,8 @@ def test_merge_error_label_skipped_in_merge_loop(
     )
 
     can_be_merged_merge_request.merge.assert_not_called()
-
-
-def test_pipeline_error_label_skipped_in_merge_loop(
-    state: Mock,
-    project: Project,
-    can_be_merged_merge_request: Mock,
-    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
-    success_merge_request_pipeline: ProjectMergeRequestPipeline,
-) -> None:
-    can_be_merged_merge_request.labels = ["lgtm", "merge-error/pipeline"]
-    mocked_gl = create_autospec(GitLabApi)
-    project.squash_option = "never"
-    mocked_gl.project = project
-    mocked_gl.get_merge_request_label_events.return_value = [
-        add_lgtm_merge_request_resource_label_event
-    ]
-    mocked_gl.get_merge_request_pipelines.return_value = [
-        success_merge_request_pipeline
-    ]
-
-    gl_h.merge_merge_requests(
-        dry_run=False,
-        gl=mocked_gl,
-        project_merge_requests=[can_be_merged_merge_request],
-        reload_toggle=gl_h.ReloadToggle(reload=False),
-        merge_limit=1,
-        rebase=False,
-        app_sre_usernames=set(),
-        state=state,
-        pipeline_timeout=None,
-        insist=False,
-        wait_for_pipeline=False,
-        users_allowed_to_label=None,
-    )
-
-    can_be_merged_merge_request.merge.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -1336,6 +1348,7 @@ def test_dlq_labels_visible_in_queue(
     add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
     dlq_label: str,
 ) -> None:
+    """DLQ'd MRs pass through preprocessing and remain visible in the queue."""
     mr = create_autospec(ProjectMergeRequest)
     mr.merge_status = "can_be_merged"
     mr.draft = False
