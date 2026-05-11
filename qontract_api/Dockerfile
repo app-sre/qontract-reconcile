@@ -1,6 +1,6 @@
 #
 # Base image with defaults for all stages
-FROM registry.access.redhat.com/ubi9-minimal@sha256:ecd4751c45e076b4e1e8d37ac0b1b9c7271930c094d1bcc5e6a4d6954c6b2289 AS base
+FROM registry.access.redhat.com/ubi9-minimal@sha256:fe9e574f04371b333ed4e21d30d984f6b7fcd1046e579f5ddab4816c0c8e231d AS base
 
 COPY LICENSE /licenses/
 
@@ -36,7 +36,7 @@ WORKDIR ${APP_ROOT}/src
 #
 # Builder image
 #
-FROM registry.access.redhat.com/ubi9/python-312-minimal@sha256:ecacdd63283ed3083ddd33c02ab5112d4dbf1fbf2508317bf4d4f6d7d913d2f1 AS builder
+FROM registry.access.redhat.com/ubi9/python-312-minimal@sha256:df1c6dcb266a265011595fa1f149b3add42b66d8ac0e7f4244d5b64ef04c7fe1 AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.7@sha256:240fb85ab0f263ef12f492d8476aa3a2e4e1e333f7d67fbdd923d00a506a516a /uv /bin/uv
 
 ENV APP_ROOT=/opt/app-root
