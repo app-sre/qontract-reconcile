@@ -219,9 +219,7 @@ def clean_pipelines(
                 )
 
 
-PIPELINE_FAILURE_STATUSES = {
-    PipelineStatus.FAILED
-}
+PIPELINE_FAILURE_STATUSES = {PipelineStatus.FAILED}
 
 
 def check_pipeline_health(
@@ -899,14 +897,24 @@ def run_pipeline_healthcheck(
         is_healthy = check_pipeline_health(pipelines, consecutive_failure_limit)
 
         if not is_healthy and not has_pipeline_error:
-            logging.warning(["add_label", MERGE_ERROR_PIPELINE, gl.project.name, mr.iid])
+            logging.warning([
+                "add_label",
+                MERGE_ERROR_PIPELINE,
+                gl.project.name,
+                mr.iid,
+            ])
             if not dry_run:
                 gl.add_label_to_merge_request(mr, MERGE_ERROR_PIPELINE)
                 dead_lettered_merge_requests.labels(
                     project_id=mr.target_project_id, reason="pipeline"
                 ).inc()
         elif is_healthy and has_pipeline_error:
-            logging.info(["remove_label", MERGE_ERROR_PIPELINE, gl.project.name, mr.iid])
+            logging.info([
+                "remove_label",
+                MERGE_ERROR_PIPELINE,
+                gl.project.name,
+                mr.iid,
+            ])
             if not dry_run:
                 gl.remove_label(mr, MERGE_ERROR_PIPELINE)
 

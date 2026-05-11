@@ -13,9 +13,9 @@ from unittest.mock import (
 
 import pytest
 from gitlab import Gitlab
-from gitlab.exceptions import GitlabMRRebaseError
 from gitlab.exceptions import (
     GitlabMRClosedError,
+    GitlabMRRebaseError,
     GitlabOperationError,
 )
 from gitlab.v4.objects import (
@@ -204,6 +204,7 @@ def can_be_merged_merge_request() -> Mock:
     mr.labels = ["lgtm"]
     mr.iid = 1
     mr.target_project_id = 3
+    mr.squash = False
     mr.author = {"username": "user"}
     return mr
 
@@ -547,12 +548,15 @@ def _call_rebase(
     )
 
 
-def _make_rebase_mr(iid: int, project_id: int = 10) -> Mock:
+def _make_rebase_mr(
+    iid: int, project_id: int = 10, labels: list[str] | None = None
+) -> Mock:
     """Create a minimal autospec MR for rebase tests."""
     mr = create_autospec(ProjectMergeRequest)
     mr.iid = iid
     mr.target_project_id = project_id
     mr.source_project_id = project_id
+    mr.labels = labels or []
     return mr
 
 
@@ -976,6 +980,8 @@ def test_get_rebase_strategy_toggle_enabled_valid_variant(
         "payload": {"type": "string", "value": variant_value},
     }
     assert gl_h.get_rebase_strategy() == expected_strategy
+
+
 def test_merge_applies_merge_error_label_on_operation_error(
     state: Mock,
     project: Project,
@@ -992,7 +998,9 @@ def test_merge_applies_merge_error_label_on_operation_error(
     mocked_gl.get_merge_request_pipelines.return_value = [
         success_merge_request_pipeline
     ]
-    can_be_merged_merge_request.merge.side_effect = GitlabOperationError("branch missing")
+    can_be_merged_merge_request.merge.side_effect = GitlabOperationError(
+        "branch missing"
+    )
 
     gl_h.merge_merge_requests(
         dry_run=False,
@@ -1087,9 +1095,7 @@ def test_merge_error_label_not_applied_in_dry_run(
 
 
 def _make_pipelines(statuses: list[str]) -> list[ProjectMergeRequestPipeline]:
-    return [
-        create_autospec(ProjectMergeRequestPipeline, status=s) for s in statuses
-    ]
+    return [create_autospec(ProjectMergeRequestPipeline, status=s) for s in statuses]
 
 
 def test_check_pipeline_health_all_failures() -> None:
@@ -1097,14 +1103,14 @@ def test_check_pipeline_health_all_failures() -> None:
     assert gl_h.check_pipeline_health(pipelines) is False
 
 
-def test_check_pipeline_health_all_canceled() -> None:
+def test_check_pipeline_health_all_canceled_is_healthy() -> None:
     pipelines = _make_pipelines(["canceled", "canceled", "canceled"])
-    assert gl_h.check_pipeline_health(pipelines) is False
+    assert gl_h.check_pipeline_health(pipelines) is True
 
 
-def test_check_pipeline_health_mixed_failure_types() -> None:
+def test_check_pipeline_health_canceled_and_skipped_not_counted() -> None:
     pipelines = _make_pipelines(["failed", "canceled", "skipped"])
-    assert gl_h.check_pipeline_health(pipelines) is False
+    assert gl_h.check_pipeline_health(pipelines) is True
 
 
 def test_check_pipeline_health_mixed_with_success() -> None:
@@ -1127,6 +1133,7 @@ def _make_healthcheck_mr(
     mr.merge_status = merge_status
     mr.draft = draft
     mr.iid = 1
+    mr.target_project_id = 1
     return mr
 
 
@@ -1136,9 +1143,11 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
     mr = _make_healthcheck_mr(labels=["lgtm"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(
-        ["failed", "failed", "failed"]
-    )
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+    ])
 
     gl_h.run_pipeline_healthcheck(
         dry_run=False,
@@ -1159,9 +1168,11 @@ def test_pipeline_error_label_auto_removed_on_recovery(
     mr = _make_healthcheck_mr(labels=["lgtm", "merge-error/pipeline"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(
-        ["success", "failed", "failed"]
-    )
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "failed",
+        "failed",
+    ])
 
     gl_h.run_pipeline_healthcheck(
         dry_run=False,
@@ -1180,9 +1191,11 @@ def test_merge_error_label_not_auto_removed(
     mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(
-        ["success", "success", "success"]
-    )
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "success",
+        "success",
+    ])
 
     gl_h.run_pipeline_healthcheck(
         dry_run=False,
@@ -1201,9 +1214,13 @@ def test_configurable_failure_limit(
     mr_3_failures = _make_healthcheck_mr(labels=["lgtm"])
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
-    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(
-        ["failed", "failed", "failed", "success", "success"]
-    )
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+        "success",
+        "success",
+    ])
 
     gl_h.run_pipeline_healthcheck(
         dry_run=False,
@@ -1217,9 +1234,13 @@ def test_configurable_failure_limit(
     mr_5_failures = _make_healthcheck_mr(labels=["lgtm"])
     mocked_gl.reset_mock()
     mocked_gl.project = project
-    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines(
-        ["failed", "failed", "failed", "failed", "failed"]
-    )
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+        "failed",
+        "failed",
+    ])
 
     gl_h.run_pipeline_healthcheck(
         dry_run=False,
