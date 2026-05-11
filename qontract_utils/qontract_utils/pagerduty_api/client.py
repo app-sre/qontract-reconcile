@@ -10,6 +10,8 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+# import httpxyz before pagerduty to ensure httpxyz is overridding the httpx used by pagerduty
+import httpxyz
 import structlog
 from pagerduty import RestApiV2Client
 from prometheus_client import Counter, Histogram

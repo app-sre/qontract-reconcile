@@ -44,6 +44,9 @@ dev = [
 name = "pagerduty"
 requires-dist = ["httpxyz>=0.31"]
 
+[tool.ruff.lint.pyflakes]
+allowed-unused-imports = ["httpxyz"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
