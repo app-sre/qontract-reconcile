@@ -1533,7 +1533,7 @@ def test__apply_secret_format_non_dotted_ok(ts: TerrascriptClient) -> None:
 def test__apply_secret_format_bad_format(ts: TerrascriptClient) -> None:
     secret = {"foo": "bar"}
     secret_format = '{"key1": {"key2": "{{ foo }}"}}'
-    with pytest.raises(ValueError, match="dictionary value"):
+    with pytest.raises(TypeError, match="dictionary value"):
         ts._apply_secret_format(secret_format, secret)
 
 

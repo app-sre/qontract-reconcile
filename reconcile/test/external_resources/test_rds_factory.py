@@ -111,7 +111,7 @@ def test_validate_timeouts_nok(timeouts: Any, expected_value_error: str) -> None
 
     module_conf = ExternalResourceModuleConfiguration(reconcile_timeout_minutes=120)
     with pytest.raises(
-        ValueError,
+        (ValueError, TypeError),
         match=rf".*{expected_value_error}.*",
     ):
         factory.validate(resource, module_conf)

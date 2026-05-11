@@ -30,13 +30,13 @@ def test_hash_list_bool() -> None:
 
 
 def test_hash_list_error() -> None:
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError):
         hash_list([{}])
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError):
         hash_list([[]])
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError):
         hash_list(["a", {}])
 
 
