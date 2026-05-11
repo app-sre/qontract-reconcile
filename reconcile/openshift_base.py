@@ -18,17 +18,14 @@ from typing import (
 )
 
 import yaml
-from qontract_utils.differ import DiffPair
+from qontract_utils.differ import DiffPair, diff_mappings
 from sretoolbox.utils import (
     retry,
     threaded,
 )
 
 from reconcile import queries
-from reconcile.utils import (
-    differ,
-    metrics,
-)
+from reconcile.utils import metrics
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.oc import (
     POD_RECYCLE_SUPPORTED_OWNER_KINDS,
@@ -1075,7 +1072,7 @@ def _realize_resource_data_3way_diff(
             current=data["current"][k],
         )
 
-    diff_result = differ.diff_mappings(
+    diff_result = diff_mappings(
         data["current"], data["desired"], equal=three_way_diff_using_hash
     )
 
