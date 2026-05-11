@@ -9,6 +9,7 @@ dependencies = [
     "botocore==1.34.94",
     "cloudevents==1.12.0",
     "faststream[redis]==0.6.6",
+    "httpxyz==0.31.2",
     "hvac==2.4.0",
     "ldap3>=2.9.1,<2.10.0",
     "pagerduty==6.1.0",

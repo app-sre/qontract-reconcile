@@ -11,7 +11,7 @@ import logging
 from functools import partial
 from typing import TYPE_CHECKING
 
-import httpx
+import httpxyz
 from pydantic import Field
 from qontract_api_client.api.external.ldap_users_check import (
     asyncio as check_ldap_users,
@@ -137,7 +137,7 @@ class LdapUsersApiIntegration(
                 file_path=path,
                 ref=ref,
             )
-        except httpx.HTTPStatusError as e:
+        except httpxyz.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return None
             raise

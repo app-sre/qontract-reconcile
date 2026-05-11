@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Self
 
-import httpx
+import httpxyz
 import structlog
 from prometheus_client import Counter, Histogram
 
@@ -123,11 +123,11 @@ def parse_link_header(link_header: str) -> dict[str, dict[str, str]]:
     return result
 
 
-def get_next_url(response: httpx.Response) -> str | None:
+def get_next_url(response: httpxyz.Response) -> str | None:
     """Get next page URL from Link header if it has results.
 
     Args:
-        response: httpx response with Link header
+        response: httpxyz response with Link header
 
     Returns:
         Next page URL if available, None otherwise
@@ -190,11 +190,11 @@ class GlitchtipApi:
                 Built-in hooks (metrics, logging, latency) are automatically included.
         """
         self.host = host.rstrip("/")
-        self._client = httpx.Client(
+        self._client = httpxyz.Client(
             base_url=self.host,
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout,
-            transport=httpx.HTTPTransport(retries=max_retries),
+            transport=httpxyz.HTTPTransport(retries=max_retries),
         )
 
     def _list(
@@ -801,7 +801,7 @@ class GlitchtipApi:
         )
 
     def close(self) -> None:
-        """Close the underlying httpx client."""
+        """Close the underlying httpxyz client."""
         self._client.close()
 
     def __enter__(self) -> Self:
