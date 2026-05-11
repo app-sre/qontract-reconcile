@@ -5,6 +5,7 @@ from typing import TypedDict
 
 import jinja2
 from pydantic import BaseModel
+from qontract_utils.differ import diff_any_iterables
 
 from reconcile.endpoints_discovery.merge_request import Renderer, create_parser
 from reconcile.endpoints_discovery.merge_request_manager import (
@@ -29,7 +30,6 @@ from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import diff_any_iterables
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.extended_early_exit import (
     ExtendedEarlyExitRunnerResult,

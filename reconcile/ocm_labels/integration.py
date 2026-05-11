@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from deepdiff import DeepHash
 from pydantic import field_validator
+from qontract_utils.differ import diff_mappings
 
 from reconcile.aus.aus_label_source import (
     init_aus_cluster_label_source,
@@ -21,7 +22,6 @@ from reconcile.gql_definitions.ocm_labels.organizations import (
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.helpers import flatten
 from reconcile.utils.ocm.clusters import discover_clusters_for_organizations

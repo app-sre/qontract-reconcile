@@ -18,6 +18,7 @@ from typing import (
 )
 
 import yaml
+from qontract_utils.differ import DiffPair
 from sretoolbox.utils import (
     retry,
     threaded,
@@ -29,7 +30,6 @@ from reconcile.utils import (
     metrics,
 )
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
-from reconcile.utils.differ import DiffPair
 from reconcile.utils.oc import (
     POD_RECYCLE_SUPPORTED_OWNER_KINDS,
     AmbiguousResourceTypeError,

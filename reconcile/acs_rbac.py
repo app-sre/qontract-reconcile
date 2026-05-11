@@ -7,15 +7,15 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from qontract_utils.differ import (
+    DiffPair,
+    diff_iterables,
+)
 
 from reconcile.gql_definitions.acs.acs_rbac import OidcPermissionAcsV1
 from reconcile.gql_definitions.acs.acs_rbac import query as acs_rbac_query
 from reconcile.utils import gql
 from reconcile.utils.acs.rbac import AcsRbacApi, Group, RbacResources
-from reconcile.utils.differ import (
-    DiffPair,
-    diff_iterables,
-)
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,

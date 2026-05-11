@@ -2,13 +2,14 @@ import logging
 import sys
 from datetime import datetime, timedelta
 
+from qontract_utils.differ import diff_iterables
+
 from reconcile.slack_base import slackapi_from_queries
 from reconcile.statuspage.atlassian import AtlassianStatusPageProvider
 from reconcile.statuspage.integration import get_binding_state, get_status_pages
 from reconcile.statuspage.page import StatusMaintenance
 from reconcile.statuspage.state import S3ComponentBindingState
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.differ import diff_iterables
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,

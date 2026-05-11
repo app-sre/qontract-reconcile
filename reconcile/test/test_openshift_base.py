@@ -8,16 +8,16 @@ import yaml
 from kubernetes.dynamic import Resource
 from pydantic import BaseModel
 from pytest_mock import MockerFixture
+from qontract_utils.differ import (
+    DiffPair,
+    DiffResult,
+)
 from sretoolbox.utils.datatransformation import deep_merge
 
 import reconcile.openshift_base as sut
 import reconcile.utils.openshift_resource as resource
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils import oc
-from reconcile.utils.differ import (
-    DiffPair,
-    DiffResult,
-)
 from reconcile.utils.semver_helper import make_semver
 
 fxt = Fixtures("namespaces")

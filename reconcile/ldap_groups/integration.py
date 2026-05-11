@@ -7,6 +7,8 @@ from collections.abc import (
 )
 from typing import Any
 
+from qontract_utils.differ import diff_iterables
+
 from reconcile.gql_definitions.ldap_groups.roles import RoleV1
 from reconcile.gql_definitions.ldap_groups.roles import query as roles_query
 from reconcile.gql_definitions.ldap_groups.settings import LdapGroupsSettingsV1
@@ -14,7 +16,6 @@ from reconcile.gql_definitions.ldap_groups.settings import query as settings_que
 from reconcile.utils import gql
 from reconcile.utils.aws_helper import unique_sso_aws_accounts
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import diff_iterables
 from reconcile.utils.exceptions import (
     AppInterfaceLdapGroupsSettingsError,
     AppInterfaceSettingsError,

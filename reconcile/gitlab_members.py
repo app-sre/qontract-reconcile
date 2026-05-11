@@ -7,6 +7,7 @@ from gitlab.v4.objects import (
     GroupMember,
 )
 from pydantic import BaseModel
+from qontract_utils.differ import diff_mappings
 
 from reconcile import queries
 from reconcile.gql_definitions.common.pagerduty_instances import (
@@ -26,7 +27,6 @@ from reconcile.gql_definitions.gitlab_members.permissions import (
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.exceptions import AppInterfaceSettingsError
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.pagerduty_api import (

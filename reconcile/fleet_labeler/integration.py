@@ -5,6 +5,7 @@ from typing import Any
 
 import yaml
 from pydantic import BaseModel
+from qontract_utils.differ import diff_mappings
 from ruamel.yaml.compat import StringIO
 
 from reconcile.fleet_labeler.dependencies import Dependencies
@@ -25,7 +26,6 @@ from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
     FleetSubscriptionLabelTemplateV1,
 )
 from reconcile.typed_queries.fleet_labels import get_fleet_label_specs
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.jinja2.utils import process_jinja2_template
 from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (

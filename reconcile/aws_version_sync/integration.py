@@ -8,6 +8,7 @@ from typing import Any
 
 import semver
 from pydantic import BaseModel, ValidationError, field_validator, model_validator
+from qontract_utils.differ import diff_iterables
 
 from reconcile.aws_version_sync.merge_request_manager.merge_request import (
     Renderer,
@@ -40,7 +41,6 @@ from reconcile.typed_queries.github_orgs import get_github_orgs
 from reconcile.typed_queries.gitlab_instances import get_gitlab_instances
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import diff_iterables
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,

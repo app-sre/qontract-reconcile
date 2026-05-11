@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Any, Self
 
 from pydantic import BaseModel, Field, SerializeAsAny, model_validator
+from qontract_utils.differ import diff_mappings
 
 from reconcile import queries
 from reconcile.gql_definitions.common.clusters import (
@@ -16,7 +17,6 @@ from reconcile.gql_definitions.common.clusters import (
     ClusterV1,
 )
 from reconcile.typed_queries.clusters import get_clusters
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.json import json_dumps
 from reconcile.utils.ocm import (

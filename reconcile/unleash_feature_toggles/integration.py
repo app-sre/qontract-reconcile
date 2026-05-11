@@ -2,6 +2,8 @@ import logging
 from collections.abc import Callable, Iterable, Sequence, ValuesView
 from typing import Any
 
+from qontract_utils.differ import DiffPair, diff_any_iterables, diff_mappings
+
 from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
     FeatureToggleUnleashV1,
     UnleashInstanceV1,
@@ -11,7 +13,6 @@ from reconcile.gql_definitions.unleash_feature_toggles.feature_toggles import (
     query as unleash_instances_query,
 )
 from reconcile.utils import gql
-from reconcile.utils.differ import DiffPair, diff_any_iterables, diff_mappings
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,
