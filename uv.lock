@@ -2284,7 +2284,7 @@ requires-dist = [
     { name = "botocore", specifier = "==1.34.94" },
     { name = "cloudevents", specifier = "==1.12.0" },
     { name = "faststream", extras = ["redis"], specifier = "==0.6.6" },
-    { name = "httpxyz", specifier = ">=0.31.2" },
+    { name = "httpxyz", specifier = "==0.31.2" },
     { name = "hvac", specifier = "==2.4.0" },
     { name = "ldap3", specifier = ">=2.9.1,<2.10.0" },
     { name = "pagerduty", specifier = "==6.1.0" },

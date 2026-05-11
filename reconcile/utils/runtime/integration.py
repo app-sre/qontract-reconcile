@@ -14,7 +14,7 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-from httpx import Response
+import httpxyz
 from pydantic import BaseModel
 from qontract_api_client.client import AuthenticatedClient
 
@@ -254,7 +254,7 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
     def name(self) -> str: ...
 
     @staticmethod
-    async def _raise_on_4xx_5xx(response: Response) -> None:
+    async def _raise_on_4xx_5xx(response: httpxyz.Response) -> None:
         response.raise_for_status()
 
     @property
