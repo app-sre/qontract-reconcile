@@ -57,7 +57,7 @@ class InternalGroupsApi:
             self._client.token = self._fetch_token()
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         pass
 
     @retry(exceptions=(TokenExpiredError,), max_attempts=2)
