@@ -1,7 +1,7 @@
 import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any
 
 from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
@@ -12,8 +12,6 @@ from reconcile.utils.merge_request_manager.parser import (
     ParserVersionError,
 )
 from reconcile.utils.vcs import VCS
-
-T = TypeVar("T", bound=BaseModel)
 
 
 @dataclass
