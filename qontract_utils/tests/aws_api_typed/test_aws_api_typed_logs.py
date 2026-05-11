@@ -3,7 +3,9 @@ from unittest.mock import MagicMock, create_autospec
 import pytest
 from botocore.exceptions import ClientError
 from mypy_boto3_logs import CloudWatchLogsClient, DescribeLogGroupsPaginator
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.logs import AWSApiLogs
+from qontract_utils.hooks import Hooks
 
 
 @pytest.fixture
@@ -168,3 +170,13 @@ def test_delete_tags(
         resourceArn=expected_arn,
         tagKeys=tags,
     )
+
+
+def test_hooks_fire_on_method_call(mock_logs_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiLogs(client=mock_logs_client, hooks=Hooks(pre_hooks=[contexts.append]))
+    mock_logs_client.delete_log_group.return_value = None
+    api.delete_log_group("my-log-group")
+    assert len(contexts) == 1
+    assert contexts[0].method == "delete_log_group"
+    assert contexts[0].service == "logs"

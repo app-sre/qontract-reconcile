@@ -8,7 +8,9 @@ from mypy_boto3_cloudformation import (
     StackUpdateCompleteWaiter,
 )
 from mypy_boto3_cloudformation.waiter import ChangeSetCreateCompleteWaiter
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
+from qontract_utils.hooks import Hooks
 
 
 @pytest.fixture
@@ -199,3 +201,17 @@ def test_get_template_body_with_json(
     mock_cloudformation_client.get_template.assert_called_once_with(
         StackName="test-stack"
     )
+
+
+def test_hooks_fire_on_method_call(mock_cloudformation_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiCloudFormation(
+        client=mock_cloudformation_client, hooks=Hooks(pre_hooks=[contexts.append])
+    )
+    mock_cloudformation_client.get_template.return_value = {
+        "TemplateBody": "Resources: {}"
+    }
+    api.get_template_body("stack")
+    assert len(contexts) == 1
+    assert contexts[0].method == "get_template_body"
+    assert contexts[0].service == "cloudformation"

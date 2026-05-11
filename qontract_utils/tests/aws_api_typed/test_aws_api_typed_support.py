@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.support import AWSApiSupport, SupportPlan
+from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -107,3 +109,15 @@ def test_aws_api_typed_support_get_support_level(
     }
 
     assert aws_api_support.get_support_level() == expected_support_level
+
+
+def test_hooks_fire_on_method_call(support_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiSupport(client=support_client, hooks=Hooks(pre_hooks=[contexts.append]))
+    support_client.describe_cases.return_value = {
+        "cases": [{"caseId": "id", "subject": "s", "status": "open"}]
+    }
+    api.describe_case("id")
+    assert len(contexts) == 1
+    assert contexts[0].method == "describe_case"
+    assert contexts[0].service == "support"

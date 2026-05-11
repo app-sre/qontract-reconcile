@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
+from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
 if TYPE_CHECKING:
     from mypy_boto3_service_quotas import ServiceQuotasClient
     from mypy_boto3_service_quotas.literals import RequestStatusType
@@ -42,10 +45,18 @@ class AWSResourceAlreadyExistsError(Exception):
     """Raised when quota increase request already exists."""
 
 
+@with_hooks(hooks=AWS_DEFAULT_HOOKS)
 class AWSApiServiceQuotas:
-    def __init__(self, client: ServiceQuotasClient) -> None:
+    _hooks: Hooks
+
+    def __init__(self, client: ServiceQuotasClient, hooks: Hooks | None = None) -> None:  # noqa: ARG002
         self.client = client
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(
+            method="get_requested_service_quota_change", service="service-quotas"
+        )
+    )
     def get_requested_service_quota_change(
         self, request_id: str
     ) -> AWSRequestedServiceQuotaChange:
@@ -53,6 +64,11 @@ class AWSApiServiceQuotas:
         req = self.client.get_requested_service_quota_change(RequestId=request_id)
         return AWSRequestedServiceQuotaChange(**req["RequestedQuota"])
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(
+            method="request_service_quota_change", service="service-quotas"
+        )
+    )
     def request_service_quota_change(
         self, service_code: str, quota_code: str, desired_value: float
     ) -> AWSRequestedServiceQuotaChange:
@@ -69,6 +85,9 @@ class AWSApiServiceQuotas:
                 f"Service quota increase request {service_code=}, {quota_code=} already exists."
             ) from None
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="get_service_quota", service="service-quotas")
+    )
     def get_service_quota(self, service_code: str, quota_code: str) -> AWSQuota:
         """Return the current value of the service quota."""
         try:

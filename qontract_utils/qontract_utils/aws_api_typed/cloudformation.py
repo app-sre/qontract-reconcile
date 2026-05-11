@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
 from qontract_utils.json_utils import json_dumps
 
 if TYPE_CHECKING:
@@ -13,10 +15,20 @@ if TYPE_CHECKING:
     )
 
 
+@with_hooks(hooks=AWS_DEFAULT_HOOKS)
 class AWSApiCloudFormation:
-    def __init__(self, client: CloudFormationClient) -> None:
+    _hooks: Hooks
+
+    def __init__(
+        self,
+        client: CloudFormationClient,
+        hooks: Hooks | None = None,  # noqa: ARG002
+    ) -> None:
         self.client = client
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="create_stack", service="cloudformation")
+    )
     def create_stack(
         self,
         stack_name: str,
@@ -60,6 +72,9 @@ class AWSApiCloudFormation:
         self.client.get_waiter("stack_create_complete").wait(StackName=stack_name)
         return response["StackId"]
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="update_stack", service="cloudformation")
+    )
     def update_stack(
         self,
         stack_name: str,
@@ -92,6 +107,9 @@ class AWSApiCloudFormation:
         self.client.get_waiter("stack_update_complete").wait(StackName=stack_name)
         return response["StackId"]
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="get_stack", service="cloudformation")
+    )
     def get_stack(self, stack_name: str) -> StackTypeDef | None:
         """Retrieve information about a CloudFormation stack by its name.
 
@@ -112,6 +130,9 @@ class AWSApiCloudFormation:
                 return None
             raise
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="get_template_body", service="cloudformation")
+    )
     def get_template_body(self, stack_name: str) -> str:
         """
         Retrieve the CloudFormation template body for a specified stack.

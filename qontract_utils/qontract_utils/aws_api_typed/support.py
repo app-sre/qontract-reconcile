@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
+from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
 if TYPE_CHECKING:
     from mypy_boto3_support import SupportClient
 
@@ -31,10 +34,16 @@ SEVERITY_LEVEL_SUPPORT_PLANS = [
 ]
 
 
+@with_hooks(hooks=AWS_DEFAULT_HOOKS)
 class AWSApiSupport:
-    def __init__(self, client: SupportClient) -> None:
+    _hooks: Hooks
+
+    def __init__(self, client: SupportClient, hooks: Hooks | None = None) -> None:  # noqa: ARG002
         self.client = client
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="create_case", service="support")
+    )
     def create_case(
         self,
         subject: str,
@@ -57,11 +66,17 @@ class AWSApiSupport:
         )
         return case["caseId"]
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="describe_case", service="support")
+    )
     def describe_case(self, case_id: str) -> AWSCase:
         """Return the status of a support case."""
         case = self.client.describe_cases(caseIdList=[case_id])["cases"][0]
         return AWSCase(**case)
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="get_support_level", service="support")
+    )
     def get_support_level(self) -> SupportPlan:
         """Return the support level of the account."""
         try:

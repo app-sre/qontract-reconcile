@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 import botocore
 from pydantic import BaseModel, Field
 
+from qontract_utils.aws_api_typed._hooks import AWS_DEFAULT_HOOKS, AWSApiCallContext
+from qontract_utils.hooks import Hooks, invoke_with_hooks, with_hooks
+
 if TYPE_CHECKING:
     from mypy_boto3_iam import IAMClient
 
@@ -25,10 +28,16 @@ class AWSEntityAlreadyExistsError(Exception):
     """Raised when the user already exists in IAM."""
 
 
+@with_hooks(hooks=AWS_DEFAULT_HOOKS)
 class AWSApiIam:
-    def __init__(self, client: IAMClient) -> None:
+    _hooks: Hooks
+
+    def __init__(self, client: IAMClient, hooks: Hooks | None = None) -> None:  # noqa: ARG002
         self.client = client
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="create_access_key", service="iam")
+    )
     def create_access_key(self, user_name: str) -> AWSAccessKey:
         """Create an access key for a given user."""
         credentials = self.client.create_access_key(
@@ -36,6 +45,7 @@ class AWSApiIam:
         )
         return AWSAccessKey(**credentials["AccessKey"])
 
+    @invoke_with_hooks(lambda: AWSApiCallContext(method="create_user", service="iam"))
     def create_user(self, user_name: str) -> AWSUser:
         """Create a new IAM user."""
         try:
@@ -48,6 +58,9 @@ class AWSApiIam:
                 ) from e
             raise
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="attach_user_policy", service="iam")
+    )
     def attach_user_policy(self, user_name: str, policy_arn: str) -> None:
         """Attach a policy to a user."""
         self.client.attach_user_policy(
@@ -55,10 +68,16 @@ class AWSApiIam:
             PolicyArn=policy_arn,
         )
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="get_account_alias", service="iam")
+    )
     def get_account_alias(self) -> str:
         """Get the account alias."""
         return self.client.list_account_aliases()["AccountAliases"][0]
 
+    @invoke_with_hooks(
+        lambda: AWSApiCallContext(method="set_account_alias", service="iam")
+    )
     def set_account_alias(self, account_alias: str) -> None:
         """Set the account alias."""
         try:

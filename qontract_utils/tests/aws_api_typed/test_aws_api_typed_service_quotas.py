@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.service_quotas import AWSApiServiceQuotas
+from qontract_utils.hooks import Hooks
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -86,3 +88,23 @@ def test_aws_api_typed_service_quotas_get_service_quota(
     assert quota.quota_code == "quota_code"
     assert quota.quota_name == "quota_name"
     assert quota.value == 100.0
+
+
+def test_hooks_fire_on_method_call(service_quotas_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiServiceQuotas(
+        client=service_quotas_client, hooks=Hooks(pre_hooks=[contexts.append])
+    )
+    service_quotas_client.get_service_quota.return_value = {
+        "Quota": {
+            "ServiceCode": "sc",
+            "ServiceName": "sn",
+            "QuotaCode": "qc",
+            "QuotaName": "qn",
+            "Value": 1.0,
+        }
+    }
+    api.get_service_quota("sc", "qc")
+    assert len(contexts) == 1
+    assert contexts[0].method == "get_service_quota"
+    assert contexts[0].service == "service-quotas"

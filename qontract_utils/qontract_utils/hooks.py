@@ -470,17 +470,66 @@ class InvokeWithHooksMethod:
         callable_name: str,
         prepend_args: tuple[Any, ...] = (),
     ) -> Callable[..., Any]:
-        """Create wrapper function with hooks and retry support.
+        """Create wrapper function with hooks and retry support."""
+        if inspect.isgeneratorfunction(self.func):
+            effective_retry = self.retry_config or hooks.retry_config
+            if effective_retry is not None and effective_retry is not NO_RETRY_CONFIG:
+                msg = (
+                    f"Retry is not supported for generator method "
+                    f"{callable_name!r}. Remove retry_config or refactor the "
+                    "method to return a materialized result."
+                )
+                raise ValueError(msg)
+            return self._create_generator_wrapper(hooks, instance, prepend_args)
+        return self._create_sync_wrapper(hooks, instance, callable_name, prepend_args)
 
-        Args:
-            hooks: Hook configuration to use
-            instance: Instance for context factory (None for standalone functions)
-            callable_name: Name for stamina logging
-            prepend_args: Arguments to prepend to function call (e.g., instance for methods)
+    def _create_generator_wrapper(
+        self,
+        hooks: Hooks,
+        instance: Any | None,
+        prepend_args: tuple[Any, ...] = (),
+    ) -> Callable[..., Any]:
+        """Create wrapper for generator functions.
 
-        Returns:
-            Wrapper function that executes hooks and retries
+        Uses yield from so pre/post/error hooks fire around actual iteration,
+        not around generator object creation. No retry support — stamina's
+        retry_context cannot wrap yield boundaries.
         """
+
+        @functools.wraps(self.func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            if self.context_factory is not None:
+                context = _build_context_from_args(
+                    self.context_factory, instance, self.func, args, kwargs
+                )
+            else:
+                context = None
+
+            hook_args = (context,) if context is not None else ()
+
+            for hook in hooks.pre_hooks:
+                hook(*hook_args)
+
+            try:
+                yield from self.func(*prepend_args, *args, **kwargs)
+            except Exception:
+                for hook in hooks.error_hooks:
+                    hook(*hook_args)
+                raise
+            finally:
+                for hook in hooks.post_hooks:
+                    hook(*hook_args)
+
+        return wrapper
+
+    def _create_sync_wrapper(
+        self,
+        hooks: Hooks,
+        instance: Any | None,
+        callable_name: str,
+        prepend_args: tuple[Any, ...] = (),
+    ) -> Callable[..., Any]:
+        """Create wrapper for regular (non-generator) functions."""
 
         @functools.wraps(self.func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -520,8 +569,7 @@ class InvokeWithHooksMethod:
 
                         # Execute method - no yield, just return!
                         return self.func(*prepend_args, *args, **kwargs)
-            except:
-                # Error hooks
+            except Exception:
                 for hook in hooks.error_hooks:
                     hook(*hook_args)
                 raise

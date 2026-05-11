@@ -4,7 +4,9 @@ import botocore
 import pytest
 from mypy_boto3_account import AccountClient
 from pytest_mock import MockerFixture
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.account import AWSApiAccount, OptStatus, Region
+from qontract_utils.hooks import Hooks
 
 
 @pytest.fixture
@@ -189,3 +191,12 @@ def test_aws_api_typed_account_disable_region(
 ) -> None:
     aws_api_account.disable_region("region")
     account_client.disable_region.assert_called_once_with(RegionName="region")
+
+
+def test_hooks_fire_on_method_call(account_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiAccount(client=account_client, hooks=Hooks(pre_hooks=[contexts.append]))
+    api.enable_region("us-east-1")
+    assert len(contexts) == 1
+    assert contexts[0].method == "enable_region"
+    assert contexts[0].service == "account"

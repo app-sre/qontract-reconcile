@@ -5,7 +5,9 @@ import pytest
 from mypy_boto3_iam import IAMClient
 from mypy_boto3_iam.type_defs import ListAccountAliasesResponseTypeDef
 from pytest_mock import MockerFixture
+from qontract_utils.aws_api_typed._hooks import AWSApiCallContext
 from qontract_utils.aws_api_typed.iam import AWSApiIam
+from qontract_utils.hooks import Hooks
 
 
 @pytest.fixture
@@ -153,3 +155,15 @@ def test_aws_api_typed_iam_get_account_alias(
 ) -> None:
     iam_client.list_account_aliases.return_value = {"AccountAliases": ["account_alias"]}
     assert aws_api_iam.get_account_alias() == "account_alias"
+
+
+def test_hooks_fire_on_method_call(iam_client: MagicMock) -> None:
+    contexts: list[AWSApiCallContext] = []
+    api = AWSApiIam(client=iam_client, hooks=Hooks(pre_hooks=[contexts.append]))
+    iam_client.create_access_key.return_value = {
+        "AccessKey": {"AccessKeyId": "id", "SecretAccessKey": "secret"}
+    }
+    api.create_access_key("user")
+    assert len(contexts) == 1
+    assert contexts[0].method == "create_access_key"
+    assert contexts[0].service == "iam"
