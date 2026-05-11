@@ -917,6 +917,41 @@ def test_top_k_only_considers_first_k_mrs(
     assert merge_requests[4].rebase.call_count == 0
 
 
+@pytest.mark.parametrize(
+    ("dlq_label", "strategy"),
+    [
+        ("merge-error", RebaseStrategy.ACTIVE_CAP),
+        ("merge-error/pipeline", RebaseStrategy.ACTIVE_CAP),
+        ("merge-error", RebaseStrategy.TOP_K),
+        ("merge-error/pipeline", RebaseStrategy.TOP_K),
+        ("merge-error", RebaseStrategy.OLD_BURST),
+        ("merge-error/pipeline", RebaseStrategy.OLD_BURST),
+    ],
+)
+def test_dlq_mr_skipped_in_rebase(
+    mocker: MockerFixture,
+    gitlab_api: Mock,
+    state: Mock,
+    dlq_label: str,
+    strategy: RebaseStrategy,
+) -> None:
+    """An MR with a DLQ label is never rebased, regardless of strategy."""
+    dlq_mr = _make_rebase_mr(1, labels=[dlq_label])
+    normal_mr = _make_rebase_mr(2)
+
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        [dlq_mr, normal_mr],
+        rebase_limit=2,
+        strategy=strategy,
+    )
+
+    assert dlq_mr.rebase.call_count == 0
+    assert normal_mr.rebase.call_count == 1
+
+
 # --- get_rebase_strategy tests ---
 
 

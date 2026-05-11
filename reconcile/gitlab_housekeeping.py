@@ -993,13 +993,22 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             project_merge_requests = [
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
-            consecutive_failure_limit = hk.get("consecutive_failure_limit") or 3
-            run_pipeline_healthcheck(
-                dry_run=dry_run,
-                gl=gl,
-                project_merge_requests=project_merge_requests,
-                consecutive_failure_limit=consecutive_failure_limit,
-            )
+            raw_limit = hk.get("consecutive_failure_limit")
+            try:
+                consecutive_failure_limit = max(1, int(raw_limit))
+            except (TypeError, ValueError):
+                consecutive_failure_limit = 3
+            try:
+                run_pipeline_healthcheck(
+                    dry_run=dry_run,
+                    gl=gl,
+                    project_merge_requests=project_merge_requests,
+                    consecutive_failure_limit=consecutive_failure_limit,
+                )
+            except Exception:
+                logging.exception(
+                    "pipeline healthcheck failed, continuing with merge/rebase"
+                )
             reload_toggle = ReloadToggle(reload=False)
             rebase = hk.get("rebase")
             must_pass = hk.get("must_pass")
