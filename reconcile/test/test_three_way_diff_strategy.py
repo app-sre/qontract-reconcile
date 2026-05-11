@@ -16,8 +16,7 @@ fxt = Fixtures("openshift_resource")
 
 @pytest.fixture
 def deployment() -> Generator[dict[str, Any], None, None]:
-    resource = fxt.get_anymarkup("deployment.yml")
-    yield resource
+    yield fxt.get_anymarkup("deployment.yml")
 
 
 def test_3wpd_change_current_not_in_desired_should_not_apply(

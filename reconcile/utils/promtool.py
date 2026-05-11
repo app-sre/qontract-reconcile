@@ -1,3 +1,4 @@
+import contextlib
 import copy
 import os
 import subprocess
@@ -91,8 +92,6 @@ def _run_yaml_spec_cmd(cmd: list[str], yaml_spec: Mapping) -> CommandExecutionRe
 
 
 def _cleanup(paths: Iterable[str]) -> None:
-    try:
+    with contextlib.suppress(Exception):
         for path in paths:
             os.unlink(path)
-    except Exception:
-        pass

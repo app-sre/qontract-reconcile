@@ -47,10 +47,7 @@ class Parser[T: BaseModel]:
         return self._find_by_regex(self.compiled_regexes[name], content)
 
     def _data_from_description(self, description: str) -> dict[str, str]:
-        return {
-            k: self._find_by_name(k, description)
-            for k, v in self.compiled_regexes.items()
-        }
+        return {k: self._find_by_name(k, description) for k in self.compiled_regexes}
 
     def parse(self, description: str) -> T:
         """Parse the description of an MR"""

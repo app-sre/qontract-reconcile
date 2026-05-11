@@ -400,7 +400,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
         services_to_update = [
             s.desired
-            for _, s in diff_result.change.items()
+            for s in diff_result.change.values()
             if isinstance(s.desired, Service)
         ]
 

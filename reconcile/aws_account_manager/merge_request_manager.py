@@ -84,7 +84,7 @@ class MergeRequestManager:
     ) -> None:
         """Open new MR (if not already present) for an AWS account and remove the account request file."""
         if self._merge_request_already_exists(account_tmpl_file_path):
-            return None
+            return
 
         try:
             self._vcs.get_file_content_from_app_interface_ref(
@@ -98,7 +98,7 @@ class MergeRequestManager:
             return
         except GitlabGetError as e:
             if e.response_code != 404:
-                raise e
+                raise
 
         logging.info("Open MR for %s", account_tmpl_file_path)
         mr_labels = [AWS_MGR]

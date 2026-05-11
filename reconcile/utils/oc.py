@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from functools import cache, wraps
 from subprocess import Popen
 from threading import Lock
-from typing import TYPE_CHECKING, Any, TextIO, cast
+from typing import TYPE_CHECKING, Any, Self, TextIO, cast
 
 import urllib3
 from kubernetes.client import (
@@ -319,10 +319,10 @@ class OCCli:
                 insecure_skip_tls_verify=insecure_skip_tls_verify,
             )
 
-    def __enter__(self) -> OCCli:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.cleanup()
 
     def _init_old_without_types(
@@ -666,7 +666,7 @@ class OCCli:
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return False
-            raise e
+            raise
         return True
 
     def _use_oc_project(self, namespace: str) -> bool:
@@ -685,7 +685,7 @@ class OCCli:
             self._run(cmd)
         except StatusCodeError as e:
             if "AlreadyExists" not in str(e):
-                raise e
+                raise
 
         # This return will be removed by the last decorator
         resource = OR({"kind": "Namespace", "metadata": {"name": namespace}}, "", "")
@@ -709,7 +709,7 @@ class OCCli:
         except StatusCodeError as e:
             if "NotFound" in str(e):
                 return None
-            raise e
+            raise
 
     def create_group(self, group: str) -> None:
         if self.get_group_if_exists(group) is not None:
@@ -1384,10 +1384,10 @@ class OCNative(OCCli):
             kind = PROJECT_KIND if self.is_kind_supported(PROJECT_KIND) else "Namespace"
             self.projects = {p["metadata"]["name"] for p in self.get_all(kind)["items"]}
 
-    def __enter__(self) -> OCNative:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.cleanup()
 
     def cleanup(self) -> None:
@@ -1685,10 +1685,10 @@ class OC_Map:  # noqa: N801
         else:
             raise KeyError("expected one of clusters or namespaces.")
 
-    def __enter__(self) -> OC_Map:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.cleanup()
 
     def set_jh_ports(self, jh: MutableMapping[str, str | int]) -> None:
@@ -1705,11 +1705,11 @@ class OC_Map:  # noqa: N801
     def init_oc_client(self, cluster_info: Mapping[str, Any], privileged: bool) -> None:
         cluster = cluster_info["name"]
         if not privileged and self.oc_map.get(cluster):
-            return None
+            return
         if privileged and self.privileged_oc_map.get(cluster):
-            return None
+            return
         if self.cluster_disabled(cluster_info):
-            return None
+            return
         if self.internal is not None:
             # integration is executed with `--internal` or `--external`
             # filter out non matching clusters

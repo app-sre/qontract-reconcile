@@ -268,14 +268,14 @@ def test_create_targets_for_namespace_selector(
                 "parameters": '{"FOO": "BAR"}',
             },
         ),
-        namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(**{
-            "jsonPathSelectors": {
+        namespace_selector=SaasResourceTemplateTargetNamespaceSelectorV1(
+            jsonPathSelectors={
                 "include": [
                     'namespace[?@.app.name="example"]',
                 ],
                 "exclude": [],
             }
-        }),
+        ),
     )
     assert len(items) == 2
     assert items[0].namespace.name == "example-01"  # type: ignore

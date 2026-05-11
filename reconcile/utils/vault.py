@@ -128,7 +128,7 @@ class VaultClient:
         self._closed = False
 
         authenticated = False
-        for _ in range(0, 3):
+        for _ in range(3):
             try:
                 self._refresh_client_auth()
                 authenticated = self._client.is_authenticated()
@@ -149,7 +149,7 @@ class VaultClient:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.close()
 
     def close(self) -> None:

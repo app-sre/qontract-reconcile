@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Self
 from unittest.mock import (
     MagicMock,
     patch,
@@ -44,11 +44,11 @@ class QuayApiMock(QuayApi):
         self.team_members: dict[str, Any] = {}
         self.list_team_members_response = list_team_members_response
 
-    def __enter__(self) -> "QuayApiMock":
+    def __enter__(self) -> Self:
         # Context manager support
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         # Context manager cleanup - do nothing since we're using a mock session
         pass
 

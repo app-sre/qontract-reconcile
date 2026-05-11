@@ -1,16 +1,10 @@
 import operator
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import (
-    TypeVar,
-)
 
 import pytest
 
 from reconcile.utils.grouping import group_by
-
-ElementType = TypeVar("ElementType")
-KeyType = TypeVar("KeyType")
 
 
 @dataclass
@@ -43,7 +37,7 @@ class Fruit:
         ),
     ],
 )
-def test_group_by(
+def test_group_by[ElementType, KeyType](
     iterable: Iterable[ElementType],
     key: Callable[[ElementType], KeyType],
     expected: dict[KeyType, list[ElementType]],

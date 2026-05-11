@@ -147,7 +147,7 @@ class MergeRequestManager(MergeRequestManagerBase[TemplateInfo]):
                     "MR already exists and has the same result hash. Skipping: %s",
                     mr.raw.attributes.get("web_url", "NO_WEBURL"),
                 )
-                return None
+                return
             else:
                 logging.info(
                     "Collection Hash changed. Closing: %s",

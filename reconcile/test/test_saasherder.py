@@ -265,10 +265,9 @@ class TestSaasFileValid(TestCase):
 
     def test_check_saas_file_upstream_used_with_image(self) -> None:
         self.saas_file.resource_templates[0].targets[0].images = [
-            SaasResourceTemplateTargetImageV1(**{
-                "name": "image",
-                "org": {"name": "org", "instance": {"url": "url"}},
-            })
+            SaasResourceTemplateTargetImageV1(
+                name="image", org={"name": "org", "instance": {"url": "url"}}
+            )
         ]
         saasherder = SaasHerder(
             [self.saas_file],
@@ -288,10 +287,9 @@ class TestSaasFileValid(TestCase):
             0
         ].ref = "2637b6c41bda7731b1bcaaf18b4a50d7c5e63e30"
         self.saas_file.resource_templates[0].targets[0].images = [
-            SaasResourceTemplateTargetImageV1(**{
-                "name": "image",
-                "org": {"name": "org", "instance": {"url": "url"}},
-            })
+            SaasResourceTemplateTargetImageV1(
+                name="image", org={"name": "org", "instance": {"url": "url"}}
+            )
         ]
         saasherder = SaasHerder(
             [self.saas_file],

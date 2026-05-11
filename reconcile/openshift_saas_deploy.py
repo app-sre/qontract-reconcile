@@ -44,7 +44,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 def _saas_file_tekton_pipeline_name(saas_file: SaasFile) -> str:
     if not isinstance(saas_file.pipelines_provider, PipelinesProviderTektonV1):
-        raise ValueError(
+        raise TypeError(
             f"Unsupported pipelines_provider: {saas_file.pipelines_provider}"
         )
     pipeline_template_name = (
@@ -61,7 +61,7 @@ def compose_console_url(
     saas_file: SaasFile, env_name: str, *, pipeline_name: str
 ) -> str:
     if not isinstance(saas_file.pipelines_provider, PipelinesProviderTektonV1):
-        raise ValueError(
+        raise TypeError(
             f"Unsupported pipelines_provider: {saas_file.pipelines_provider}"
         )
     pipelines_provider = saas_file.pipelines_provider
@@ -81,7 +81,7 @@ def compose_grafana_logs_url(
     grafana_saas_deploy_url: str,
 ) -> str:
     if not isinstance(saas_file.pipelines_provider, PipelinesProviderTektonV1):
-        raise ValueError(
+        raise TypeError(
             f"Unsupported pipelines_provider: {saas_file.pipelines_provider}"
         )
     pipelines_provider = saas_file.pipelines_provider

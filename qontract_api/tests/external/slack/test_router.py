@@ -45,9 +45,9 @@ def api_client() -> Generator[TestClient, None, None]:
     yield TestClient(app, raise_server_exceptions=False)
 
     if hasattr(app.state, "cache"):
-        delattr(app.state, "cache")
+        del app.state.cache
     if hasattr(app.state, "secret_manager"):
-        delattr(app.state, "secret_manager")
+        del app.state.secret_manager
 
 
 @patch("qontract_api.external.slack.router.create_slack_workspace_client")

@@ -1,6 +1,5 @@
 import logging
 from typing import (
-    Any,
     Self,
 )
 
@@ -44,7 +43,7 @@ class DeadMansSnitchApi:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         self.session.close()
 
     def get_snitches(self, tags: list[str]) -> list[Snitch]:

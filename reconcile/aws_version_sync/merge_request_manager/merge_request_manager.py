@@ -103,7 +103,7 @@ class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
         }):
             if mr.mr_info.resource_engine_version == resource_engine_version:
                 # an MR for this external resource already exists
-                return None
+                return
             logging.info(
                 "Found an outdated MR for '%s' - closing it.", resource_identifier
             )
@@ -113,7 +113,7 @@ class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
             # don't open a new MR right now, because the deletion of the old MRs could be
             # disabled. In this case, we would end up with multiple open MRs for the
             # same external resource.
-            return None
+            return
 
         try:
             content = self._vcs.get_file_content_from_app_interface_ref(
@@ -125,8 +125,8 @@ class MergeRequestManager(MergeRequestManagerBase[AVSInfo]):
                     "The file %s does not exist anylonger. Most likely qontract-server data not in synch. This should resolve soon on its own.",
                     namespace_file,
                 )
-                return None
-            raise e
+                return
+            raise
         content = self._renderer.render_merge_request_content(
             current_content=content,
             provider=provider,

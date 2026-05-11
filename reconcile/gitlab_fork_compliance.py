@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Any, Self
+from typing import Self
 
 from gitlab import GitlabGetError
 from gitlab.const import MAINTAINER_ACCESS
@@ -54,7 +54,7 @@ class GitlabForkCompliance:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.gl_cli.cleanup()
         if hasattr(self, "src") and self.src is not None:
             self.src.cleanup()

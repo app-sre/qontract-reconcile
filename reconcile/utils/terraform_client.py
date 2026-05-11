@@ -525,7 +525,7 @@ class TerraformClient:
             # because we don't (currently) have a way
             # to clasify it (secret names are free text)
             if type == self.OUTPUT_TYPE_SECRETS and (
-                k.startswith(enc_pass_pfx) or k.startswith(console_urls_pfx)
+                k.startswith((enc_pass_pfx, console_urls_pfx))
             ):
                 continue
 

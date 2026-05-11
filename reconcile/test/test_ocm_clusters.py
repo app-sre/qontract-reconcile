@@ -112,7 +112,7 @@ def ocm_osd_cluster_spec() -> Generator[OCMSpec, None, None]:
             autoscale=None,
         )
     ]
-    obj = OCMSpec(
+    yield OCMSpec(
         spec=spec,
         machinePools=machine_pools,
         network=n,
@@ -122,7 +122,6 @@ def ocm_osd_cluster_spec() -> Generator[OCMSpec, None, None]:
         path=None,
         elbFQDN="",
     )
-    yield obj
 
 
 @pytest.fixture

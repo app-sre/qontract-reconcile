@@ -185,8 +185,8 @@ def test_er_inventory_delete_flag(
 def test_er_external_resource_export(
     er_inventory: ExternalResourcesInventory,
 ) -> None:
-    item = ExternalResource(**{
-        "data": {
+    item = ExternalResource(
+        data={
             "identifier": "test-rds",
             "output_prefix": "test-rds-rds",
             "timeouts": {"create": "55m", "update": "55m", "delete": "55m"},
@@ -200,7 +200,7 @@ def test_er_external_resource_export(
             },
             "region": "us-east-1",
         },
-        "provision": {
+        provision={
             "provision_provider": "aws",
             "provisioner": "test",
             "provider": "rds",
@@ -214,7 +214,7 @@ def test_er_external_resource_export(
                 "tf_state_key": "aws/test/rds/test-rds/terraform.tfstate",
             },
         },
-    })
+    )
     assert item is not None
     assert (
         item.export(indent=2)  # indent for readability in test

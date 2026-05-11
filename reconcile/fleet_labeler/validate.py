@@ -27,7 +27,6 @@ def _validate_unique_ocm_managed_label_combo(spec: FleetLabelsSpecV1) -> None:
     competing.
     """
     # TODO: implement
-    pass
 
 
 def _validate_match_labels(spec: FleetLabelsSpecV1) -> None:

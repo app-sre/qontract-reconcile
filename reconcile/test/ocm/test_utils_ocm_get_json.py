@@ -20,7 +20,7 @@ def buid_ocm_item_page(page: int, items: list[Any], total: int) -> dict[str, Any
 
 def build_paged_ocm_response(nr_of_items: int, page_size: int) -> list[dict[str, Any]]:
     paged_responses = []
-    item_range = range(0, nr_of_items)
+    item_range = range(nr_of_items)
     page_nr = 0
     for page_nr, page in enumerate([
         item_range[i : i + page_size] for i in range(0, nr_of_items, page_size)

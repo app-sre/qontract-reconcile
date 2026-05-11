@@ -6,7 +6,9 @@ from collections import defaultdict
 from collections.abc import (
     MutableMapping,
     Sequence,
-    Set,
+)
+from collections.abc import (
+    Set as AbstractSet,
 )
 from dataclasses import (
     dataclass,
@@ -233,7 +235,7 @@ class PathExpression:
     CTX_FILE_PATH_VAR_NAME = "ctx_file_path"
     SUPPORTED_VARS = {CTX_FILE_PATH_VAR_NAME}
 
-    def __init__(self, jsonpath_expression: str):
+    def __init__(self, jsonpath_expression: str) -> None:
         self.jsonpath_expression = jsonpath_expression
         self.parsed_jsonpath = None
         if "{{" in jsonpath_expression:
@@ -370,7 +372,7 @@ class ContextExpansion:
     def expand_from_file_ref(
         self,
         file_ref: FileRef,
-        expansion_trail: Set[tuple[str, FileRef]],
+        expansion_trail: AbstractSet[tuple[str, FileRef]],
     ) -> list["ResolvedContext"]:
         old_data, new_data = self.file_diff_resolver.lookup_file_diff(file_ref)
         return self.expand(
@@ -385,7 +387,7 @@ class ContextExpansion:
     def expand(
         self,
         change: FileChange,
-        expansion_trail: Set[tuple[str, FileRef]],
+        expansion_trail: AbstractSet[tuple[str, FileRef]],
     ) -> list["ResolvedContext"]:
         """
         Find context based on the `self.context`, lookup the file diff for
@@ -500,7 +502,7 @@ class ChangeTypeProcessor:
     def find_context_file_refs(
         self,
         change: FileChange,
-        expansion_trail: Set[tuple[str, FileRef]],
+        expansion_trail: AbstractSet[tuple[str, FileRef]],
     ) -> list[ResolvedContext]:
         """
         ChangeTypeV1 are attached to bundle files, react to changes within
@@ -674,7 +676,7 @@ class ChangeTypeProcessor:
                 if path_expression not in expressions:
                     expressions.append(path_expression)
         else:
-            raise ValueError(
+            raise TypeError(
                 f"{type(detector)} is not a supported change detection provider within ChangeTypes"
             )
 
@@ -844,7 +846,7 @@ class ChangeTypeContext:
     context_file: FileRef
     approvers: list[Approver]
     approver_reachability: list[ApproverReachability] | None = None
-    change_owner_labels: set[str] | None = None
+    change_owner_labels: AbstractSet[str] | None = None
 
     @property
     def disabled(self) -> bool:

@@ -126,7 +126,7 @@ class EndpointsDiscoveryIntegration(
         """Sharding (per cluster) is not supported for this integration.
 
         An application can have endpoints in multiple clusters and this may cause merge conflicts."""
-        return None
+        return
 
     def get_apps(
         self,

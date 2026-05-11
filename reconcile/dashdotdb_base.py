@@ -54,7 +54,7 @@ class DashdotdbBase:
 
     def _get_token(self) -> None:
         if self.dry_run:
-            return None
+            return
 
         params = {"scope": self.scope}
         endpoint = f"{self.dashdotdb_url}/api/v1/token"
@@ -73,12 +73,12 @@ class DashdotdbBase:
                 self.scope,
                 details,
             )
-            return None
+            return
         self.dashdotdb_token = response.text.replace('"', "").strip()
 
     def _close_token(self) -> None:
         if self.dry_run:
-            return None
+            return
 
         params = {"scope": self.scope}
         endpoint = f"{self.dashdotdb_url}/api/v1/token/{self.dashdotdb_token}"

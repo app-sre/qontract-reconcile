@@ -46,7 +46,7 @@ class FieldOption(BaseModel):
 
     name: str
 
-    def __eq__(self, value: Any) -> bool:
+    def __eq__(self, value: object) -> bool:
         """Compare the field option with a string value."""
         if isinstance(value, str):
             return self.name == value
@@ -64,7 +64,7 @@ class CustomFieldOption(BaseModel):
 
     value: str
 
-    def __eq__(self, value: Any) -> bool:
+    def __eq__(self, value: object) -> bool:
         """Compare the custom field option with a string value."""
         if isinstance(value, str):
             return self.value == value

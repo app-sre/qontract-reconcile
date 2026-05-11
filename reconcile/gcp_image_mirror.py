@@ -3,7 +3,7 @@ import logging
 import os
 import tempfile
 import time
-from typing import Any, Self
+from typing import Self
 
 import requests
 from pydantic import BaseModel
@@ -57,7 +57,7 @@ class QuayMirror:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         self.session.close()
 
     def run(self) -> None:

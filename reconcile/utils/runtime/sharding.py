@@ -91,7 +91,7 @@ class StaticShardingStrategy:
                 shard_name_suffix=f"-{s}" if shards > 1 else "",
                 extra_args=integration_managed.spec.extra_args or "",
             )
-            for s in range(0, shards)
+            for s in range(shards)
         ]
 
     @staticmethod
@@ -106,7 +106,7 @@ class StaticShardingStrategy:
         if isinstance(sub_sharding, StaticSubShardingV1):
             num_shards = sub_sharding.shards
         shards: list[ShardSpec] = []
-        for s in range(0, num_shards):
+        for s in range(num_shards):
             new_shard = copy.deepcopy(base_shard)
             if new_shard.shard_spec_overrides and isinstance(
                 new_shard.shard_spec_overrides, OpenshiftClusterShardSpecOverrideV1

@@ -23,7 +23,7 @@ class OpenMergeRequest[T: BaseModel]:
 
 
 class MergeRequestManagerBase[T: BaseModel]:
-    """ """
+    """Base class for managing merge requests. It provides housekeeping functionality to close MRs with bad description format, wrong version or merge conflicts. It also provides a method to check if a MR with the expected data already exists."""
 
     def __init__(self, vcs: VCS, parser: Parser, mr_label: str):
         self._vcs = vcs

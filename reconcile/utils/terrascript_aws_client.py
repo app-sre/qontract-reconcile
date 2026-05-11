@@ -596,7 +596,7 @@ class TerrascriptClient:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.cleanup()
 
     def cleanup(self) -> None:
@@ -5976,15 +5976,15 @@ class TerrascriptClient:
         parsed_data = json.loads(rendered_data)
 
         if not isinstance(parsed_data, dict):
-            raise ValueError("secret_format must be a dictionary")
+            raise TypeError("secret_format must be a dictionary")
 
         # validate secret is a dict[str, str]
         for k, v in parsed_data.items():
             if not isinstance(k, str):
-                raise ValueError(f"key '{k}' is not a string")
+                raise TypeError(f"key '{k}' is not a string")
 
             if not isinstance(v, str):
-                raise ValueError(f"dictionary value '{v}' under '{k}' is not a string")
+                raise TypeError(f"dictionary value '{v}' under '{k}' is not a string")
 
         return parsed_data
 

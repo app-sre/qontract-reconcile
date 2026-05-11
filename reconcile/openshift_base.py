@@ -442,7 +442,7 @@ def apply(
         oc = oc_map.get_cluster(cluster, privileged)
     except OCLogMsg as ex:
         logging.log(level=ex.log_level, msg=ex.message)
-        return None
+        return
     if not dry_run:
         annotated = resource.annotate()
         # skip if namespace does not exist (as it will soon)
@@ -629,7 +629,7 @@ def delete(
             oc.delete(namespace, resource_type, name)
     except OCLogMsg as ex:
         logging.log(level=ex.log_level, msg=ex.message)
-        return None
+        return
 
 
 def check_unused_resource_types(ri: ResourceInventory) -> None:

@@ -175,14 +175,14 @@ def test_calculate_diff_create_cluster_upgrade_all_gates_agreed(
 ) -> None:
     get_version_gates_mock = mocker.patch("reconcile.aus.base.get_version_gates")
     get_version_gates_mock.return_value = [
-        OCMVersionGate(**{
-            "kind": "VersionGate",
-            "id": "gate_id",
-            "version_raw_id_prefix": "4.12",
-            "label": "api.openshift.com/some-gate",
-            "value": "4.12",
-            "sts_only": False,
-        })
+        OCMVersionGate(
+            kind="VersionGate",
+            id="gate_id",
+            version_raw_id_prefix="4.12",
+            label="api.openshift.com/some-gate",
+            value="4.12",
+            sts_only=False,
+        )
     ]
     get_version_agreement_mock = mocker.patch(
         "reconcile.aus.base.get_version_agreement"
@@ -236,14 +236,14 @@ def test_calculate_diff_create_control_plane_upgrade_all_gates_agreed(
 ) -> None:
     get_version_gates_mock = mocker.patch("reconcile.aus.base.get_version_gates")
     get_version_gates_mock.return_value = [
-        OCMVersionGate(**{
-            "kind": "VersionGate",
-            "id": "gate_id",
-            "version_raw_id_prefix": "4.12",
-            "label": "api.openshift.com/some-gate",
-            "value": "4.12",
-            "sts_only": False,
-        })
+        OCMVersionGate(
+            kind="VersionGate",
+            id="gate_id",
+            version_raw_id_prefix="4.12",
+            label="api.openshift.com/some-gate",
+            value="4.12",
+            sts_only=False,
+        )
     ]
     get_version_agreement_mock = mocker.patch(
         "reconcile.aus.base.get_version_agreement"

@@ -38,7 +38,7 @@ class SQSGateway:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *ext: Any) -> None:
+    def __exit__(self, *ext: object) -> None:
         self.cleanup()
 
     def cleanup(self) -> None:

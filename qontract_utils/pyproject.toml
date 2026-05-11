@@ -108,6 +108,7 @@ ignore = [
     "PLR6301", # Method could be function/classmethod/staticmethod (pytest uses instance methods)
     "PT012",   # pytest.raises with multiple statements (acceptable pattern)
     "RUF043",  # Regex metacharacters in pytest.raises match (intentional in tests)
+    "RUF069",  # Unreliable floating point equality comparison
     "S105",    # Possible hardcoded password assigned (test fixtures)
     "S106",    # Possible hardcoded password (test fixtures use hardcoded values)
     "SLF001",  # Private member access (testing internal state)

@@ -156,7 +156,7 @@ def test_ls_when_that_are_more_than_1000_keys(
 ) -> None:
     expected = []
     # Putting more than 1000 keys
-    for i in range(0, 1010):
+    for i in range(1010):
         key = f"/some-file-{i}"
         expected.append(key)
 

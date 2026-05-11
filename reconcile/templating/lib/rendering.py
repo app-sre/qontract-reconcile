@@ -68,23 +68,21 @@ class Renderer(ABC):
                 secret_reader=self.secret_reader,
                 template_render_options=self.template_render_options,
             )
-        except Jinja2TemplateError as e:
-            logging.error(f"Error rendering template {self.template.name}: {e}")
-            raise e
+        except Jinja2TemplateError:
+            logging.exception(f"Error rendering template {self.template.name}")
+            raise
 
     @abstractmethod
     def render_output(self) -> str:
         """
         Implementation of a renderer is required and should return the entire rendered file as a string.
         """
-        pass
 
     @abstractmethod
     def target_exist(self) -> bool:
         """
         if target (file or patch block) already exists.
         """
-        pass
 
     def render_target_path(self) -> str:
         return self._render_template(self.template.target_path).strip()

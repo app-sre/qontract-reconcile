@@ -68,7 +68,7 @@ class FilePersistence(ABC):
         return self
 
     @abstractmethod
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         pass
 
     def write(self, output: TemplateOutput) -> None:
@@ -109,7 +109,7 @@ class LocalFilePersistence(FilePersistence):
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(output.content, encoding="utf-8")
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         if self.dry_run:
             return
         self.flush()
@@ -140,7 +140,7 @@ class PersistenceTransaction(FilePersistence):
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         if not self.dry_run and self.output_cache:
             for output in self.output_cache.values():
                 self.persistence.write(output)
@@ -165,7 +165,7 @@ class ClonedRepoGitlabPersistence(FilePersistence):
     def read(self, path: str) -> str | None:
         return self._read_local_file(join_path(self.local_path, path))
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         if self.result is None:
             raise ValueError("ClonedRepoGitlabPersistence.result not set!")
         self.result.outputs = self.outputs
