@@ -6376,36 +6376,44 @@ class TerrascriptClient:
             )
 
         # Prepare all resource arguments from default file
-        pool_args = common_values.get("user_pool_properties", None)
-        pool_client_args = common_values.get("user_pool_client_properties", None)
-        cognito_resource_server_args = common_values.get(
+        pool_args: Any = common_values.get("user_pool_properties", None)
+        pool_client_args: Any = common_values.get("user_pool_client_properties", None)
+        cognito_resource_server_args: Any = common_values.get(
             "cognito_resource_server_properties", None
         )
-        pool_client_service_account_common_args = common_values.get(
+        pool_client_service_account_common_args: Any = common_values.get(
             "pool_client_service_account_common_properties", None
         )
-        rest_api_args = common_values.get("rest_api_properties", None)
-        gateway_authorizer_args = common_values.get(
+        rest_api_args: Any = common_values.get("rest_api_properties", None)
+        gateway_authorizer_args: Any = common_values.get(
             "gateway_authorizer_properties", None
         )
-        gateway_method_proxy_any_args = common_values.get(
+        gateway_method_proxy_any_args: Any = common_values.get(
             "gateway_method_proxy_any_properties", None
         )
-        gateway_method_get_args = common_values.get(
+        gateway_method_get_args: Any = common_values.get(
             "gateway_method_get_properties", None
         )
-        gateway_method_get_response_args = common_values.get(
+        gateway_method_get_response_args: Any = common_values.get(
             "gateway_method_get_response_properties", None
         )
-        gateway_method_auth_get_response_args = common_values.get(
+        gateway_method_auth_get_response_args: Any = common_values.get(
             "gateway_method_auth_get_response_properties", None
         )
-        integration_proxy_args = common_values.get("integration_proxy_properties", None)
-        integration_token_args = common_values.get("integration_token_properties", None)
-        integration_auth_args = common_values.get("integration_auth_properties", None)
-        waf_acl_args = common_values.get("waf_acl_properties", None)
-        lb_target_group_args = common_values.get("lb_target_group_properties", None)
-        lb_args = common_values.get("lb_properties", None)
+        integration_proxy_args: Any = common_values.get(
+            "integration_proxy_properties", None
+        )
+        integration_token_args: Any = common_values.get(
+            "integration_token_properties", None
+        )
+        integration_auth_args: Any = common_values.get(
+            "integration_auth_properties", None
+        )
+        waf_acl_args: Any = common_values.get("waf_acl_properties", None)
+        lb_target_group_args: Any = common_values.get(
+            "lb_target_group_properties", None
+        )
+        lb_args: Any = common_values.get("lb_properties", None)
 
         # USER POOL
         cognito_user_pool_resource = aws_cognito_user_pool(
@@ -7152,10 +7160,10 @@ class TerrascriptClient:
         vpc_id = common_values.get("vpc_id")
         subnet_ids = common_values.get("subnet_ids")
         assert subnet_ids is not None  # make mypy happy
-        vpce_security_group_rule_common_args = common_values.get(
+        vpce_security_group_rule_common_args: Any = common_values.get(
             "vpce_security_group_rule_common_properties", None
         )
-        vpc_endpoint_args = common_values.get("vpc_endpoint_properties", None)
+        vpc_endpoint_args: Any = common_values.get("vpc_endpoint_properties", None)
 
         # VPC ENDPOINT NETWORK MODULE SECTION
         # SG
