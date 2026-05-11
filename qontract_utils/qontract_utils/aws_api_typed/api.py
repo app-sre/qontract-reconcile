@@ -3,21 +3,12 @@ from __future__ import annotations
 import textwrap
 from abc import ABC, abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Self, TypeVar
+from typing import TYPE_CHECKING, Self
 
 from boto3 import Session
 from botocore.config import Config
 from pydantic import BaseModel
 
-import qontract_utils.aws_api_typed.account
-import qontract_utils.aws_api_typed.cloudformation
-import qontract_utils.aws_api_typed.dynamodb
-import qontract_utils.aws_api_typed.iam
-import qontract_utils.aws_api_typed.organization
-import qontract_utils.aws_api_typed.s3
-import qontract_utils.aws_api_typed.service_quotas
-import qontract_utils.aws_api_typed.sts
-import qontract_utils.aws_api_typed.support
 from qontract_utils.aws_api_typed.account import AWSApiAccount
 from qontract_utils.aws_api_typed.cloudformation import AWSApiCloudFormation
 from qontract_utils.aws_api_typed.dynamodb import AWSApiDynamoDB
@@ -31,20 +22,6 @@ from qontract_utils.aws_api_typed.support import AWSApiSupport
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
-
-SubApi = TypeVar(
-    "SubApi",
-    AWSApiAccount,
-    AWSApiCloudFormation,
-    AWSApiDynamoDB,
-    AWSApiLogs,
-    AWSApiIam,
-    AWSApiOrganizations,
-    AWSApiS3,
-    AWSApiServiceQuotas,
-    AWSApiSts,
-    AWSApiSupport,
-)
 
 DEFAULT_CONFIG = Config(
     retries={
@@ -173,94 +150,75 @@ class AWSApi:
             client.close()
         self._session_clients = []
 
-    def _init_sub_api(self, api_cls: type[SubApi]) -> SubApi:  # noqa: C901
-        """Return a new or cached sub api client."""
-        match api_cls:
-            case qontract_utils.aws_api_typed.account.AWSApiAccount:
-                client = self.session.client("account", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.cloudformation.AWSApiCloudFormation:
-                client = self.session.client("cloudformation", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.dynamodb.AWSApiDynamoDB:
-                client = self.session.client("dynamodb", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.iam.AWSApiIam:
-                client = self.session.client("iam", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.logs.AWSApiLogs:
-                client = self.session.client("logs", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.organization.AWSApiOrganizations:
-                client = self.session.client("organizations", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.s3.AWSApiS3:
-                client = self.session.client("s3", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.service_quotas.AWSApiServiceQuotas:
-                client = self.session.client("service-quotas", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.sts.AWSApiSts:
-                client = self.session.client("sts", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case qontract_utils.aws_api_typed.support.AWSApiSupport:
-                client = self.session.client("support", config=DEFAULT_CONFIG)
-                api = api_cls(client)
-            case _:
-                raise ValueError(f"Unknown API class: {api_cls}")
-
-        self._session_clients.append(client)
-        return api
-
     @cached_property
     def account(self) -> AWSApiAccount:
-        """Return an AWS Account Api client"""
-        return self._init_sub_api(AWSApiAccount)
+        """Return an AWS Account Api client."""
+        client = self.session.client("account", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiAccount(client)
 
     @cached_property
     def cloudformation(self) -> AWSApiCloudFormation:
-        """Return an AWS CloudFormation Api client"""
-        return self._init_sub_api(AWSApiCloudFormation)
+        """Return an AWS CloudFormation Api client."""
+        client = self.session.client("cloudformation", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiCloudFormation(client)
 
     @cached_property
     def dynamodb(self) -> AWSApiDynamoDB:
-        """Return an AWS DynamoDB Api client"""
-        return self._init_sub_api(AWSApiDynamoDB)
+        """Return an AWS DynamoDB Api client."""
+        client = self.session.client("dynamodb", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiDynamoDB(client)
 
     @cached_property
     def iam(self) -> AWSApiIam:
         """Return an AWS IAM Api client."""
-        return self._init_sub_api(AWSApiIam)
+        client = self.session.client("iam", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiIam(client)
 
     @cached_property
     def logs(self) -> AWSApiLogs:
         """Return an AWS Logs Api client."""
-        return self._init_sub_api(AWSApiLogs)
+        client = self.session.client("logs", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiLogs(client)
 
     @cached_property
     def organizations(self) -> AWSApiOrganizations:
         """Return an AWS Organizations Api client."""
-        return self._init_sub_api(AWSApiOrganizations)
+        client = self.session.client("organizations", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiOrganizations(client)
 
     @cached_property
     def s3(self) -> AWSApiS3:
         """Return an AWS S3 Api client."""
-        return self._init_sub_api(AWSApiS3)
+        client = self.session.client("s3", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiS3(client)
 
     @cached_property
     def service_quotas(self) -> AWSApiServiceQuotas:
         """Return an AWS Service Quotas Api client."""
-        return self._init_sub_api(AWSApiServiceQuotas)
+        client = self.session.client("service-quotas", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiServiceQuotas(client)
 
     @cached_property
     def sts(self) -> AWSApiSts:
         """Return an AWS STS Api client."""
-        return self._init_sub_api(AWSApiSts)
+        client = self.session.client("sts", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiSts(client)
 
     @cached_property
     def support(self) -> AWSApiSupport:
         """Return an AWS Support Api client."""
-        return self._init_sub_api(AWSApiSupport)
+        client = self.session.client("support", config=DEFAULT_CONFIG)
+        self._session_clients.append(client)
+        return AWSApiSupport(client)
 
     def assume_role(self, account_id: str, role: str) -> AWSApi:
         """Return a new AWSApi with the assumed role."""

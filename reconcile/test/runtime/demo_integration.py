@@ -1,6 +1,6 @@
 QONTRACT_INTEGRATION = "demo-integration"
 
-run_calls = []
+run_calls: list[dict[str, object]] = []
 
 
 def run(dry_run: bool, some_arg: int) -> None:
