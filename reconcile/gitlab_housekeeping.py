@@ -114,6 +114,12 @@ gitlab_token_expiration = Gauge(
     labelnames=["name"],
 )
 
+dead_lettered_merge_requests = Counter(
+    name="qontract_reconcile_dead_lettered_merge_requests_total",
+    documentation="Number of merge requests moved to the dead letter queue",
+    labelnames=["project_id", "reason"],
+)
+
 
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
@@ -862,6 +868,9 @@ def merge_merge_requests(
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 if not dry_run:
                     gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                    dead_lettered_merge_requests.labels(
+                        project_id=mr.target_project_id, reason="merge_error"
+                    ).inc()
 
 
 def run_pipeline_healthcheck(
@@ -893,6 +902,9 @@ def run_pipeline_healthcheck(
             logging.warning(["add_label", MERGE_ERROR_PIPELINE, gl.project.name, mr.iid])
             if not dry_run:
                 gl.add_label_to_merge_request(mr, MERGE_ERROR_PIPELINE)
+                dead_lettered_merge_requests.labels(
+                    project_id=mr.target_project_id, reason="pipeline"
+                ).inc()
         elif is_healthy and has_pipeline_error:
             logging.info(["remove_label", MERGE_ERROR_PIPELINE, gl.project.name, mr.iid])
             if not dry_run:
