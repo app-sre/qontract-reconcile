@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpxyz
 import pytest
 from qontract_utils.glitchtip_api import (
     GlitchtipApi,
@@ -51,7 +51,11 @@ def test_organization_model() -> None:
 def test_project_model() -> None:
     """Test Project model validation."""
     project = Project.model_validate(
-        {"id": 2, "name": "my-project", "slug": "my-project"}
+        {
+            "id": 2,
+            "name": "my-project",
+            "slug": "my-project",
+        }
     )
     assert project.pk == 2
     assert project.name == "my-project"
@@ -262,7 +266,7 @@ def test_parse_link_header_empty() -> None:
 
 def test_get_next_url_with_results() -> None:
     """Test _get_next_url returns URL when next page has results."""
-    response = MagicMock(spec=httpx.Response)
+    response = MagicMock(spec=httpxyz.Response)
     response.headers = {
         "Link": '<https://example.com/next>; rel="next"; results="true"'
     }
@@ -272,7 +276,7 @@ def test_get_next_url_with_results() -> None:
 
 def test_get_next_url_without_results() -> None:
     """Test _get_next_url returns None when next page has no results."""
-    response = MagicMock(spec=httpx.Response)
+    response = MagicMock(spec=httpxyz.Response)
     response.headers = {
         "Link": '<https://example.com/next>; rel="next"; results="false"'
     }
@@ -282,7 +286,7 @@ def test_get_next_url_without_results() -> None:
 
 def test_get_next_url_no_link_header() -> None:
     """Test _get_next_url returns None when no Link header."""
-    response = MagicMock(spec=httpx.Response)
+    response = MagicMock(spec=httpxyz.Response)
     response.headers = {}
     url = get_next_url(response)
     assert url is None
@@ -293,14 +297,14 @@ def test_get_next_url_no_link_header() -> None:
 
 @pytest.fixture
 def mock_httpx_client() -> MagicMock:
-    """Mock httpx.Client."""
-    return MagicMock(spec=httpx.Client)
+    """Mock httpxyz.Client."""
+    return MagicMock(spec=httpxyz.Client)
 
 
 @pytest.fixture
 def glitchtip_api(mock_httpx_client: MagicMock) -> GlitchtipApi:
     """Create GlitchtipApi instance with mocked httpx client."""
-    with patch("qontract_utils.glitchtip_api.client.httpx.Client") as mock_cls:
+    with patch("qontract_utils.glitchtip_api.client.httpxyz.Client") as mock_cls:
         mock_cls.return_value = mock_httpx_client
         return GlitchtipApi(
             host="https://glitchtip.example.com",
@@ -309,8 +313,8 @@ def glitchtip_api(mock_httpx_client: MagicMock) -> GlitchtipApi:
 
 
 def _make_response(data: list | dict, link: str = "") -> MagicMock:
-    """Create a mock httpx.Response."""
-    response = MagicMock(spec=httpx.Response)
+    """Create a mock httpxyz.Response."""
+    response = MagicMock(spec=httpxyz.Response)
     response.json.return_value = data
     response.headers = {"Link": link} if link else {}
     return response
@@ -318,7 +322,7 @@ def _make_response(data: list | dict, link: str = "") -> MagicMock:
 
 def test_glitchtip_api_host_stripped() -> None:
     """Test that trailing slash is stripped from host."""
-    with patch("qontract_utils.glitchtip_api.client.httpx.Client"):
+    with patch("qontract_utils.glitchtip_api.client.httpxyz.Client"):
         api = GlitchtipApi(host="https://glitchtip.example.com/", token="token")
     assert api.host == "https://glitchtip.example.com"
 
@@ -542,7 +546,7 @@ def test_delete_project_alert(
     glitchtip_api: GlitchtipApi, mock_httpx_client: MagicMock
 ) -> None:
     """Test delete_project_alert() DELETEs the alert."""
-    mock_httpx_client.delete.return_value = MagicMock(spec=httpx.Response)
+    mock_httpx_client.delete.return_value = MagicMock(spec=httpxyz.Response)
 
     glitchtip_api.delete_project_alert("my-org", "my-project", 42)
 
@@ -553,7 +557,7 @@ def test_delete_project_alert(
 
 def test_context_manager(mock_httpx_client: MagicMock) -> None:
     """Test GlitchtipApi works as context manager."""
-    with patch("qontract_utils.glitchtip_api.client.httpx.Client") as mock_cls:
+    with patch("qontract_utils.glitchtip_api.client.httpxyz.Client") as mock_cls:
         mock_cls.return_value = mock_httpx_client
         with GlitchtipApi(host="https://glitchtip.example.com", token="token") as api:
             assert api is not None

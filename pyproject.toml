@@ -106,6 +106,11 @@ dev = [
     "types-toml",
 ]
 
+# required for qontract_utils
+[[tool.uv.dependency-metadata]]
+name = "pagerduty"
+requires-dist = ["httpxyz>=0.31"]
+
 [project.scripts]
 app-interface-metrics-exporter = "tools.app_interface_metrics_exporter:main"
 app-interface-reporter = "tools.app_interface_reporter:main"

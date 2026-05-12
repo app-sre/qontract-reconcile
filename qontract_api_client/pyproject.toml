@@ -5,7 +5,7 @@ description = "Auto-generated client for qontract-api"
 authors = [{ name = "Red Hat App-SRE Team", email = "sd-app-sre@redhat.com" }]
 license = { text = "Apache 2.0" }
 requires-python = ">=3.12"
-dependencies = ["httpx", "attrs", "python-dateutil"]
+dependencies = ["httpxyz", "attrs", "python-dateutil"]
 
 [dependency-groups]
 dev = [
