@@ -1,7 +1,6 @@
+import tomllib
 from collections.abc import Mapping
 from typing import Any
-
-import toml
 
 _config: dict = {}
 
@@ -25,7 +24,8 @@ def init(config: dict) -> dict:
 
 
 def init_from_toml(configfile: str) -> dict:
-    return init(toml.load(configfile))
+    with open(configfile, "rb") as f:
+        return init(tomllib.load(f))
 
 
 def read(secret: Mapping[str, Any]) -> str:
