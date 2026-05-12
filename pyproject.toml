@@ -212,7 +212,6 @@ extend-select = [
     "DTZ",
 ]
 ignore = [
-
     "N811",    # Constant `xxx` imported as non-constant `xxx`
     "N817",    # CamelCase `xxx` imported as acronym `xxx`
     "PLR0904", # Too many public methods
