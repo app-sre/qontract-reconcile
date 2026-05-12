@@ -49,9 +49,9 @@ from reconcile.utils.mr.labels import (
     HOLD,
     LGTM,
     MERGE_ERROR,
-    MERGE_ERROR_PIPELINE,
     NEEDS_REBASE,
     ONBOARDING,
+    PIPELINE_ERROR,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     prioritized_approval_label,
@@ -77,7 +77,7 @@ HOLD_LABELS = [
     NEEDS_REBASE,
 ]
 
-DLQ_LABELS = {MERGE_ERROR, MERGE_ERROR_PIPELINE}
+DLQ_LABELS = {MERGE_ERROR, PIPELINE_ERROR}
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -793,9 +793,8 @@ def merge_merge_requests(
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
 
-        dlq_labels = DLQ_LABELS & set(mr.labels)
-        if dlq_labels:
-            logging.info(["skip merge", list(dlq_labels), gl.project.name, mr.iid])
+        if merge_request["error"]:
+            logging.info(["skip merge", gl.project.name, mr.iid])
             continue
 
         if rebase and not is_rebased(mr, gl):
@@ -878,7 +877,7 @@ def run_pipeline_healthcheck(
     consecutive_failure_limit: int = 3,
 ) -> None:
     """Check pipeline health for queue-eligible MRs. Apply/remove
-    merge-error/pipeline label based on consecutive failure count."""
+    pipeline-error label based on consecutive failure count."""
     for mr in project_merge_requests:
         if mr.draft:
             continue
@@ -893,30 +892,30 @@ def run_pipeline_healthcheck(
         if not pipelines:
             continue
 
-        has_pipeline_error = MERGE_ERROR_PIPELINE in set(mr.labels)
+        has_pipeline_error = PIPELINE_ERROR in set(mr.labels)
         is_healthy = check_pipeline_health(pipelines, consecutive_failure_limit)
 
         if not is_healthy and not has_pipeline_error:
             logging.warning([
                 "add_label",
-                MERGE_ERROR_PIPELINE,
+                PIPELINE_ERROR,
                 gl.project.name,
                 mr.iid,
             ])
             if not dry_run:
-                gl.add_label_to_merge_request(mr, MERGE_ERROR_PIPELINE)
+                gl.add_label_to_merge_request(mr, PIPELINE_ERROR)
                 dead_lettered_merge_requests.labels(
                     project_id=mr.target_project_id, reason="pipeline"
                 ).inc()
         elif is_healthy and has_pipeline_error:
             logging.info([
                 "remove_label",
-                MERGE_ERROR_PIPELINE,
+                PIPELINE_ERROR,
                 gl.project.name,
                 mr.iid,
             ])
             if not dry_run:
-                gl.remove_label(mr, MERGE_ERROR_PIPELINE)
+                gl.remove_label(mr, PIPELINE_ERROR)
 
 
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
