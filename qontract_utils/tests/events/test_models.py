@@ -1,9 +1,18 @@
-from cloudevents.pydantic.v2.event import CloudEvent
+from pydantic import BaseModel
 from qontract_utils.events import Event
 
 
-def test_event_is_cloud_event_subclass() -> None:
-    assert issubclass(Event, CloudEvent)
+def test_event_is_pydantic_model() -> None:
+    assert issubclass(Event, BaseModel)
+
+
+def test_event_defaults() -> None:
+    event = Event(source="s", type="t")
+    assert event.specversion == "1.0"
+    assert event.id
+    assert event.time is not None
+    assert event.data is None
+    assert event.datacontenttype is None
 
 
 def test_event_creation() -> None:
@@ -12,8 +21,8 @@ def test_event_creation() -> None:
         type="test.event.created",
         data={"key": "value"},
     )
-    assert event["source"] == "test-source"
-    assert event["type"] == "test.event.created"
+    assert event.source == "test-source"
+    assert event.type == "test.event.created"
     assert event.data == {"key": "value"}
 
 
@@ -24,7 +33,7 @@ def test_event_data_content_type() -> None:
         data={"foo": "bar"},
         datacontenttype="application/json",
     )
-    assert event["datacontenttype"] == "application/json"
+    assert event.datacontenttype == "application/json"
 
 
 def test_event_with_complex_data() -> None:
@@ -57,6 +66,6 @@ def test_event_json_roundtrip() -> None:
     )
     json_str = event.model_dump_json()
     restored = Event.model_validate_json(json_str)
-    assert restored["source"] == event["source"]
-    assert restored["type"] == event["type"]
+    assert restored.source == event.source
+    assert restored.type == event.type
     assert restored.data == event.data
