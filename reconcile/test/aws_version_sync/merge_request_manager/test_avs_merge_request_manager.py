@@ -129,7 +129,6 @@ def test_merge_request_manager_create_avs_merge_request_renderer_called(
         resource_provider="resource_provider",
         resource_identifier="resource_identifier",
         resource_engine_version="42.1",
-        resource_engine="resource_engine",
     )
     renderer_mock.render_title.assert_called()
     vcs_mock.open_app_interface_merge_request.assert_called_once()

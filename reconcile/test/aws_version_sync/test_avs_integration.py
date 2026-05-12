@@ -14,7 +14,6 @@ from reconcile.aws_version_sync.integration import (
     AVSIntegrationParams,
     ExternalResource,
     ExternalResourceProvisioner,
-    elasticache_engine_version_consistent,
 )
 from reconcile.aws_version_sync.merge_request_manager.merge_request_manager import (
     MergeRequestManager,
@@ -28,7 +27,6 @@ from reconcile.gql_definitions.aws_version_sync.namespaces import NamespaceV1
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.secret_reader import SecretReader
-from reconcile.utils.semver_helper import parse_semver
 
 
 @pytest.fixture
@@ -493,26 +491,6 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         resource_engine="redis",
         resource_engine_version="13.1",
     )
-    ec_mid_upgrade_aws = ExternalResource(
-        namespace_file=None,
-        provider="aws",
-        provisioner=ExternalResourceProvisioner(uid="version_update", path=None),
-        resource_provider="elasticache",
-        resource_identifier="ec-mid-upgrade",
-        resource_engine="redis",
-        resource_engine_version="7.2",
-    )
-    ec_mid_upgrade_ai = ExternalResource(
-        namespace_file="/version_update_ai-namespace-file.yml",
-        provider="aws",
-        provisioner=ExternalResourceProvisioner(
-            uid="version_update", path="version_update.yml"
-        ),
-        resource_provider="elasticache",
-        resource_identifier="ec-mid-upgrade",
-        resource_engine="redis",
-        resource_engine_version="6.2",
-    )
     external_resources_aws = [
         no_change_aws,
         version_update_aws,
@@ -521,7 +499,6 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         ec_version_update_aws,
         ec_engine_update_aws,
         ec_engine_and_version_update_aws,
-        ec_mid_upgrade_aws,
     ]
 
     external_resources_app_interface = [
@@ -533,7 +510,6 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         ec_version_update_ai,
         ec_engine_update_ai,
         ec_engine_and_version_update_ai,
-        ec_mid_upgrade_ai,
     ]
     # randomize the order of the external resources
     random.shuffle(external_resources_aws)
@@ -544,7 +520,7 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         external_resources_aws=external_resources_aws,
         external_resources_app_interface=external_resources_app_interface,
     )
-    assert merge_request_manager_mock.create_merge_request.call_count == 4
+    assert merge_request_manager_mock.create_merge_request.call_count == 2
     merge_request_manager_mock.create_merge_request.assert_has_calls(
         [
             mocker.call(
@@ -569,30 +545,6 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
                     resource_identifier=ec_version_update_ai.resource_identifier,
                     resource_engine=ec_version_update_ai.resource_engine,
                     resource_engine_version=ec_version_update_aws.resource_engine_version_string,
-                )
-            ),
-            mocker.call(
-                MrData(
-                    namespace_file=ec_engine_and_version_update_ai.namespace_file,
-                    provider=ec_engine_and_version_update_ai.provider,
-                    provisioner_ref=ec_engine_and_version_update_ai.provisioner.path,
-                    provisioner_uid=ec_engine_and_version_update_ai.provisioner.uid,
-                    resource_provider=ec_engine_and_version_update_ai.resource_provider,
-                    resource_identifier=ec_engine_and_version_update_ai.resource_identifier,
-                    resource_engine=ec_engine_and_version_update_aws.resource_engine,
-                    resource_engine_version=ec_engine_and_version_update_aws.resource_engine_version_string,
-                )
-            ),
-            mocker.call(
-                MrData(
-                    namespace_file=ec_engine_update_ai.namespace_file,
-                    provider=ec_engine_update_ai.provider,
-                    provisioner_ref=ec_engine_update_ai.provisioner.path,
-                    provisioner_uid=ec_engine_update_ai.provisioner.uid,
-                    resource_provider=ec_engine_update_ai.resource_provider,
-                    resource_identifier=ec_engine_update_ai.resource_identifier,
-                    resource_engine=ec_engine_update_aws.resource_engine,
-                    resource_engine_version=ec_engine_update_aws.resource_engine_version_string,
                 )
             ),
         ],
@@ -651,25 +603,3 @@ def test_external_resources_resource_engine_version_string(
     er: ExternalResource, expected: str
 ) -> None:
     assert er.resource_engine_version_string == expected
-
-
-@pytest.mark.parametrize(
-    "engine,version,expected",
-    [
-        ("redis", "6.2", True),
-        ("redis", "7.1", True),
-        ("redis", "7.2", False),
-        ("redis", "8.0", False),
-        ("valkey", "7.2", True),
-        ("valkey", "8.0", True),
-        ("valkey", "6.2", False),
-        ("valkey", "7.1", False),
-    ],
-)
-def test_elasticache_engine_version_consistent(
-    engine: str,
-    version: str,
-    expected: bool,
-) -> None:
-    v = parse_semver(version, optional_minor_and_patch=True)
-    assert elasticache_engine_version_consistent(engine, v) == expected

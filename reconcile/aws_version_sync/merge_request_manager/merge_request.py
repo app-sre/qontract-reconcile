@@ -116,7 +116,6 @@ class Renderer:
         resource_provider: str,
         resource_identifier: str,
         resource_engine_version: str,
-        resource_engine: str | None = None,
     ) -> str:
         """Render the content of an MR for AVS based on the current content of a namespace file."""
         yml = create_ruamel_instance(explicit_start=True)
@@ -129,9 +128,8 @@ class Renderer:
             resource_identifier,
         )
         overrides = resource.setdefault("overrides", {})
+        # ensure that the engine version is always a string
         overrides["engine_version"] = f"{resource_engine_version}"
-        if resource_engine:
-            overrides["engine"] = resource_engine
         with StringIO() as stream:
             yml.dump(content, stream)
             return stream.getvalue()

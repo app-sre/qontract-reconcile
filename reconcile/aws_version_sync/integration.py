@@ -52,22 +52,6 @@ from reconcile.utils.vcs import VCS
 
 QONTRACT_INTEGRATION = "aws-version-sync"
 
-ELASTICACHE_VALKEY_MIN_VERSION = semver.VersionInfo(major=7, minor=2, patch=0)
-
-
-def elasticache_engine_version_consistent(
-    engine: str, version: semver.VersionInfo
-) -> bool:
-    """Return True if engine and version are a valid ElastiCache combination.
-
-    Valkey requires >= 7.2; Redis must be < 7.2.  During in-place upgrades the
-    exporter may briefly emit a transitional state where these don't match.
-    """
-    is_valkey_version = version >= ELASTICACHE_VALKEY_MIN_VERSION
-    if engine == "valkey" and not is_valkey_version:
-        return False
-    return not (engine != "valkey" and is_valkey_version)
-
 
 class AVSIntegrationParams(PydanticRunParams):
     prometheus_timeout: int = 10
@@ -344,6 +328,7 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
                             uid=m["aws_account_id"]
                         ),
                         resource_provider=SupportedResourceProvider.ELASTICACHE,
+                        # replication_group_id != resource_identifier!
                         resource_identifier=elasticache_replication_group_id_to_identifier.get(
                             (
                                 m["aws_account_id"],
@@ -462,25 +447,10 @@ class AVSIntegration(QontractReconcileIntegration[AVSIntegrationParams]):
             if (
                 aws_resource.resource_engine_version
                 <= app_interface_resource.resource_engine_version
-                and aws_resource.resource_engine
-                == app_interface_resource.resource_engine
+                or aws_resource.resource_engine
+                != app_interface_resource.resource_engine
             ):
-                # do not downgrade the version
-                continue
-            if (
-                aws_resource.resource_provider == SupportedResourceProvider.ELASTICACHE
-                and not elasticache_engine_version_consistent(
-                    aws_resource.resource_engine,
-                    aws_resource.resource_engine_version,
-                )
-            ):
-                logging.warning(
-                    "Skipping %s: engine=%s with version %s is inconsistent "
-                    "(likely mid-upgrade). Will retry next reconcile cycle.",
-                    aws_resource.resource_identifier,
-                    aws_resource.resource_engine,
-                    aws_resource.resource_engine_version,
-                )
+                # do not downgrade the version or change engine
                 continue
             # make mypy happy
             assert app_interface_resource.namespace_file
