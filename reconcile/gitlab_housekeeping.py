@@ -114,10 +114,10 @@ gitlab_token_expiration = Gauge(
     labelnames=["name"],
 )
 
-dead_lettered_merge_requests = Counter(
-    name="qontract_reconcile_dead_lettered_merge_requests_total",
-    documentation="Number of merge requests moved to the dead letter queue",
-    labelnames=["project_id", "reason"],
+merge_requests_error = Gauge(
+    name="qontract_reconcile_merge_requests_error",
+    documentation="Number of merge requests stuck in an error state.",
+    labelnames=["project_id"],
 )
 
 
@@ -614,18 +614,20 @@ def _rebase_merge_requests_top_k(
 ) -> None:
     """Top-k strategy: only evaluate the first rebase_limit MRs in priority
     order.  The queue is already sorted by priority, so slicing to K
-    guarantees at most K MRs are rebased across all runs."""
-    merge_requests = get_merge_requests(
-        dry_run=dry_run,
-        gl=gl,
-        state=state,
-        users_allowed_to_label=users_allowed_to_label,
-    )[:rebase_limit]
+    guarantees at most K MRs are rebased across all runs.
+    Error MRs are filtered before slicing so they don't consume slots."""
+    merge_requests = [
+        item for item in get_merge_requests(
+            dry_run=dry_run,
+            gl=gl,
+            state=state,
+            users_allowed_to_label=users_allowed_to_label,
+        )
+        if not item["error"]
+    ][:rebase_limit]
 
     for item in merge_requests:
         mr = item["mr"]
-        if item["error"]:
-            continue
 
         if is_rebased(mr, gl):
             continue
@@ -784,6 +786,9 @@ def merge_merge_requests(
         must_pass=must_pass,
     )
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
+    merge_requests_error.labels(gl.project.id).set(
+        sum(1 for item in merge_requests if item["error"])
+    )
 
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
@@ -860,9 +865,6 @@ def merge_merge_requests(
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 if not dry_run:
                     gl.add_label_to_merge_request(mr, MERGE_ERROR)
-                    dead_lettered_merge_requests.labels(
-                        project_id=mr.target_project_id, reason="merge_error"
-                    ).inc()
 
 
 def run_pipeline_healthcheck(
@@ -899,9 +901,6 @@ def run_pipeline_healthcheck(
             ])
             if not dry_run:
                 gl.add_label_to_merge_request(mr, PIPELINE_ERROR)
-                dead_lettered_merge_requests.labels(
-                    project_id=mr.target_project_id, reason="pipeline"
-                ).inc()
         elif is_healthy and has_pipeline_error:
             logging.info([
                 "remove_label",
@@ -991,6 +990,9 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             try:
                 consecutive_failure_limit = max(1, int(raw_limit))
             except (TypeError, ValueError):
+                logging.warning(
+                    f"invalid consecutive_failure_limit {raw_limit!r}, defaulting to 3"
+                )
                 consecutive_failure_limit = 3
             try:
                 run_pipeline_healthcheck(
