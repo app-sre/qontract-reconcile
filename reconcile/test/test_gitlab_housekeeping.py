@@ -1329,6 +1329,30 @@ def test_already_labeled_mr_with_ongoing_failures_no_api_calls(
     mocked_gl.remove_label.assert_not_called()
 
 
+def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
+    """MRs that fail is_good_to_merge are skipped by the healthcheck."""
+    mrs: list[ProjectMergeRequest] = [
+        _make_healthcheck_mr(labels=[]),
+        _make_healthcheck_mr(labels=["lgtm", "do-not-merge/hold"]),
+    ]
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+    ])
+    gl_h.run_pipeline_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=mrs,
+        consecutive_failure_limit=3,
+    )
+    mocked_gl.get_merge_request_pipelines.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "error_label",
     ["merge-error", "pipeline-error"],

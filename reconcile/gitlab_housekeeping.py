@@ -890,6 +890,9 @@ def run_pipeline_healthcheck(
         }:
             continue
 
+        if not is_good_to_merge(mr.labels):
+            continue
+
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
             continue
