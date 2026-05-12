@@ -3,10 +3,7 @@ from collections.abc import (
     Iterable,
     Mapping,
 )
-from typing import (
-    Any,
-    TypeVar,
-)
+from typing import Any
 from urllib.parse import urljoin
 
 import anymarkup
@@ -36,11 +33,7 @@ def prom_get(
     return [r["metric"] for r in response.json()["data"]["result"]]
 
 
-Key = TypeVar("Key")
-T = TypeVar("T")
-
-
-def uniquify(key: Callable[[T], Key], items: Iterable[T]) -> list[T]:
+def uniquify[T, Key](key: Callable[[T], Key], items: Iterable[T]) -> list[T]:
     return list({key(item): item for item in items}.values())
 
 

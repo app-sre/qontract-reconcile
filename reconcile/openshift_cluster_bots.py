@@ -230,7 +230,7 @@ def create_cluster_bots(
                     )
     except subprocess.CalledProcessError as e:
         logging.error(e.stderr)
-        raise e
+        raise
 
     return token, admin_token
 

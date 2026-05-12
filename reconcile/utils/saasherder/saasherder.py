@@ -18,7 +18,7 @@ from collections.abc import (
 from contextlib import suppress
 from datetime import datetime, timedelta
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 
 import yaml
 from github import (
@@ -178,7 +178,7 @@ class SaasHerder:
             "validate_planned_data", default=True
         )
 
-    def __enter__(self) -> "SaasHerder":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
@@ -793,7 +793,7 @@ class SaasHerder:
                 repo = github.get_repo(repo_info.name)
                 directory = repo.get_contents(path, commit_sha)
                 if isinstance(directory, ContentFile):
-                    raise Exception(f"Path {path} and sha {commit_sha} is a file!")
+                    raise TypeError(f"Path {path} and sha {commit_sha} is a file!")
                 for f in directory:
                     file_path = os.path.join(path, f.name)
                     raw_file = GithubRepositoryApi.get_raw_file(

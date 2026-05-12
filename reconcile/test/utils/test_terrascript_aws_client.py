@@ -587,33 +587,29 @@ def s3_default_spec() -> ExternalResourceSpec:
 def expected_s3_default_bucket() -> aws_s3_bucket:
     return aws_s3_bucket(
         "s3-bucket",
-        **{
-            "bucket": "s3-bucket",
-            "versioning": {"enabled": True},
-            "tags": {
-                "managed_by_integration": "",
-                "cluster": "c",
-                "namespace": "n",
-                "environment": "e",
-                "app": "app",
-            },
-            "lifecycle": {"ignore_changes": ["grant"]},
-            "lifecycle_rule": [
-                {
-                    "id": "expire_noncurrent_versions",
-                    "enabled": True,
-                    "noncurrent_version_expiration": {"days": 30},
-                    "expiration": {"expired_object_delete_marker": True},
-                    "abort_incomplete_multipart_upload_days": 3,
-                }
-            ],
-            "server_side_encryption_configuration": {
-                "rule": {
-                    "apply_server_side_encryption_by_default": {
-                        "sse_algorithm": "AES256"
-                    }
-                }
-            },
+        bucket="s3-bucket",
+        versioning={"enabled": True},
+        tags={
+            "managed_by_integration": "",
+            "cluster": "c",
+            "namespace": "n",
+            "environment": "e",
+            "app": "app",
+        },
+        lifecycle={"ignore_changes": ["grant"]},
+        lifecycle_rule=[
+            {
+                "id": "expire_noncurrent_versions",
+                "enabled": True,
+                "noncurrent_version_expiration": {"days": 30},
+                "expiration": {"expired_object_delete_marker": True},
+                "abort_incomplete_multipart_upload_days": 3,
+            }
+        ],
+        server_side_encryption_configuration={
+            "rule": {
+                "apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}
+            }
         },
     )
 
@@ -643,31 +639,27 @@ def s3_spec_with_noncurrent_version_expiration() -> ExternalResourceSpec:
 def expected_with_noncurrent_version_expiration() -> aws_s3_bucket:
     return aws_s3_bucket(
         "s3-bucket",
-        **{
-            "bucket": "s3-bucket",
-            "versioning": {"enabled": True},
-            "tags": {
-                "managed_by_integration": "",
-                "cluster": "c",
-                "namespace": "n",
-                "environment": "e",
-                "app": "app",
-            },
-            "lifecycle": {"ignore_changes": ["grant"]},
-            "lifecycle_rule": [
-                {
-                    "id": "some-rule",
-                    "enabled": True,
-                    "noncurrent_version_expiration": {"days": 1},
-                }
-            ],
-            "server_side_encryption_configuration": {
-                "rule": {
-                    "apply_server_side_encryption_by_default": {
-                        "sse_algorithm": "AES256"
-                    }
-                }
-            },
+        bucket="s3-bucket",
+        versioning={"enabled": True},
+        tags={
+            "managed_by_integration": "",
+            "cluster": "c",
+            "namespace": "n",
+            "environment": "e",
+            "app": "app",
+        },
+        lifecycle={"ignore_changes": ["grant"]},
+        lifecycle_rule=[
+            {
+                "id": "some-rule",
+                "enabled": True,
+                "noncurrent_version_expiration": {"days": 1},
+            }
+        ],
+        server_side_encryption_configuration={
+            "rule": {
+                "apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}
+            }
         },
     )
 
@@ -699,11 +691,9 @@ def s3_spec_with_bucket_policy() -> ExternalResourceSpec:
 def expected_s3_bucket_policy() -> aws_s3_bucket_policy:
     return aws_s3_bucket_policy(
         "s3-bucket",
-        **{
-            "bucket": "s3-bucket",
-            "policy": "some-bucket-policy",
-            "depends_on": ["aws_s3_bucket.s3-bucket"],
-        },
+        bucket="s3-bucket",
+        policy="some-bucket-policy",
+        depends_on=["aws_s3_bucket.s3-bucket"],
     )
 
 
@@ -741,35 +731,31 @@ def s3_spec_with_bucket_policy_and_region() -> ExternalResourceSpec:
 def expected_s3_bucket_with_region() -> aws_s3_bucket:
     return aws_s3_bucket(
         "s3-bucket",
-        **{
-            "bucket": "s3-bucket",
-            "versioning": {"enabled": True},
-            "tags": {
-                "managed_by_integration": "",
-                "cluster": "c",
-                "namespace": "n",
-                "environment": "e",
-                "app": "app",
-            },
-            "lifecycle": {"ignore_changes": ["grant"]},
-            "lifecycle_rule": [
-                {
-                    "id": "expire_noncurrent_versions",
-                    "enabled": True,
-                    "noncurrent_version_expiration": {"days": 30},
-                    "expiration": {"expired_object_delete_marker": True},
-                    "abort_incomplete_multipart_upload_days": 3,
-                }
-            ],
-            "server_side_encryption_configuration": {
-                "rule": {
-                    "apply_server_side_encryption_by_default": {
-                        "sse_algorithm": "AES256"
-                    }
-                }
-            },
-            "provider": "aws.us-west-2",
+        bucket="s3-bucket",
+        versioning={"enabled": True},
+        tags={
+            "managed_by_integration": "",
+            "cluster": "c",
+            "namespace": "n",
+            "environment": "e",
+            "app": "app",
         },
+        lifecycle={"ignore_changes": ["grant"]},
+        lifecycle_rule=[
+            {
+                "id": "expire_noncurrent_versions",
+                "enabled": True,
+                "noncurrent_version_expiration": {"days": 30},
+                "expiration": {"expired_object_delete_marker": True},
+                "abort_incomplete_multipart_upload_days": 3,
+            }
+        ],
+        server_side_encryption_configuration={
+            "rule": {
+                "apply_server_side_encryption_by_default": {"sse_algorithm": "AES256"}
+            }
+        },
+        provider="aws.us-west-2",
     )
 
 
@@ -777,12 +763,10 @@ def expected_s3_bucket_with_region() -> aws_s3_bucket:
 def expected_s3_bucket_policy_with_region() -> aws_s3_bucket_policy:
     return aws_s3_bucket_policy(
         "s3-bucket",
-        **{
-            "bucket": "s3-bucket",
-            "policy": "some-bucket-policy",
-            "depends_on": ["aws_s3_bucket.s3-bucket"],
-            "provider": "aws.us-west-2",
-        },
+        bucket="s3-bucket",
+        policy="some-bucket-policy",
+        depends_on=["aws_s3_bucket.s3-bucket"],
+        provider="aws.us-west-2",
     )
 
 
@@ -829,16 +813,14 @@ def s3_spec_with_event_notifications() -> ExternalResourceSpec:
 def expected_s3_bucket_notification() -> aws_s3_bucket_notification:
     return aws_s3_bucket_notification(
         "s3-bucket-event-notifications",
-        **{
-            "bucket": "${aws_s3_bucket.s3-bucket.id}",
-            "queue": [
-                {
-                    "id": "test-sqs",
-                    "queue_arn": "${data.aws_sqs_queue.test-sqs.arn}",
-                    "events": ["s3:ObjectCreated:*"],
-                }
-            ],
-        },
+        bucket="${aws_s3_bucket.s3-bucket.id}",
+        queue=[
+            {
+                "id": "test-sqs",
+                "queue_arn": "${data.aws_sqs_queue.test-sqs.arn}",
+                "events": ["s3:ObjectCreated:*"],
+            }
+        ],
     )
 
 
@@ -1000,22 +982,20 @@ def alb_spec() -> ExternalResourceSpec:
 def expected_alb_resource() -> aws_lb:
     return aws_lb(
         "alb-resource",
-        **{
-            "depends_on": ["aws_security_group.alb-resource"],
-            "internal": False,
-            "ip_address_type": "ipv4",
-            "load_balancer_type": "application",
-            "name": "alb-resource",
-            "provider": "aws.us-east-1",
-            "security_groups": ["${aws_security_group.alb-resource.id}"],
-            "subnets": ["subnet-id-1", "subnet-id-2"],
-            "tags": {
-                "managed_by_integration": "terraform_resources",
-                "cluster": "c",
-                "namespace": "n",
-                "environment": "e",
-                "app": "app",
-            },
+        depends_on=["aws_security_group.alb-resource"],
+        internal=False,
+        ip_address_type="ipv4",
+        load_balancer_type="application",
+        name="alb-resource",
+        provider="aws.us-east-1",
+        security_groups=["${aws_security_group.alb-resource.id}"],
+        subnets=["subnet-id-1", "subnet-id-2"],
+        tags={
+            "managed_by_integration": "terraform_resources",
+            "cluster": "c",
+            "namespace": "n",
+            "environment": "e",
+            "app": "app",
         },
     )
 
@@ -1553,7 +1533,7 @@ def test__apply_secret_format_non_dotted_ok(ts: TerrascriptClient) -> None:
 def test__apply_secret_format_bad_format(ts: TerrascriptClient) -> None:
     secret = {"foo": "bar"}
     secret_format = '{"key1": {"key2": "{{ foo }}"}}'
-    with pytest.raises(ValueError, match="dictionary value"):
+    with pytest.raises(TypeError, match="dictionary value"):
         ts._apply_secret_format(secret_format, secret)
 
 
@@ -1596,10 +1576,8 @@ def kinesis_spec_with_policy_and_region() -> ExternalResourceSpec:
 def expected_kinesis_resource_policy() -> aws_kinesis_resource_policy:
     return aws_kinesis_resource_policy(
         "kinesis-stream-policy",
-        **{
-            "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
-            "policy": '{"Version":"2012-10-17","Statement":[]}',
-        },
+        resource_arn="${aws_kinesis_stream.kinesis-stream.arn}",
+        policy='{"Version":"2012-10-17","Statement":[]}',
     )
 
 
@@ -1607,11 +1585,9 @@ def expected_kinesis_resource_policy() -> aws_kinesis_resource_policy:
 def expected_kinesis_resource_policy_with_region() -> aws_kinesis_resource_policy:
     return aws_kinesis_resource_policy(
         "kinesis-stream-policy",
-        **{
-            "resource_arn": "${aws_kinesis_stream.kinesis-stream.arn}",
-            "policy": '{"Version":"2012-10-17","Statement":[]}',
-            "provider": "aws.us-west-2",
-        },
+        resource_arn="${aws_kinesis_stream.kinesis-stream.arn}",
+        policy='{"Version":"2012-10-17","Statement":[]}',
+        provider="aws.us-west-2",
     )
 
 

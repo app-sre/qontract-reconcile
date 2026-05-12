@@ -121,26 +121,26 @@ VERSION_GATE_4_13_STS_ID = "ec6fa2a0-d1ea-11ed-aefd-0a580a800209"
 
 @pytest.fixture
 def version_gate_4_12_ocp() -> OCMVersionGate:
-    return OCMVersionGate(**{
-        "kind": "VersionGate",
-        "id": VERSION_GATE_4_12_OCP_ID,
-        "version_raw_id_prefix": "4.12",
-        "label": ocp_gate_handler.GATE_LABEL,
-        "value": "4.12",
-        "sts_only": False,
-    })
+    return OCMVersionGate(
+        kind="VersionGate",
+        id=VERSION_GATE_4_12_OCP_ID,
+        version_raw_id_prefix="4.12",
+        label=ocp_gate_handler.GATE_LABEL,
+        value="4.12",
+        sts_only=False,
+    )
 
 
 @pytest.fixture
 def version_gate_4_13_ocp() -> OCMVersionGate:
-    return OCMVersionGate(**{
-        "kind": "VersionGate",
-        "id": VERSION_GATE_4_13_OCP_ID,
-        "version_raw_id_prefix": "4.13",
-        "label": ocp_gate_handler.GATE_LABEL,
-        "value": "4.13",
-        "sts_only": False,
-    })
+    return OCMVersionGate(
+        kind="VersionGate",
+        id=VERSION_GATE_4_13_OCP_ID,
+        version_raw_id_prefix="4.13",
+        label=ocp_gate_handler.GATE_LABEL,
+        value="4.13",
+        sts_only=False,
+    )
 
 
 @pytest.fixture

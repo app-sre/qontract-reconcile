@@ -69,7 +69,7 @@ class QuayMirrorOrg:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         self.session.close()
         self.quay_api_store.cleanup()
 

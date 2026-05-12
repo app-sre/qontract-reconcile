@@ -75,12 +75,12 @@ class MergeRequestManager(MergeRequestManagerBase[Info]):
 
         if self._merge_request_already_exists({"account": data.account}):
             logging.info("MR already exists for %s", data.account)
-            return None
+            return
 
         try:
             self._vcs.get_file_content_from_app_interface_ref(file_path=data.path)
             # the file exists, nothing to do
-            return None
+            return
         except GitlabGetError as e:
             if e.response_code != 404:
                 raise

@@ -18,18 +18,15 @@ from typing import (
 )
 
 import yaml
+from qontract_utils.differ import DiffPair, diff_mappings
 from sretoolbox.utils import (
     retry,
     threaded,
 )
 
 from reconcile import queries
-from reconcile.utils import (
-    differ,
-    metrics,
-)
+from reconcile.utils import metrics
 from reconcile.utils.constants import DEFAULT_THREAD_POOL_SIZE
-from reconcile.utils.differ import DiffPair
 from reconcile.utils.oc import (
     POD_RECYCLE_SUPPORTED_OWNER_KINDS,
     AmbiguousResourceTypeError,
@@ -442,7 +439,7 @@ def apply(
         oc = oc_map.get_cluster(cluster, privileged)
     except OCLogMsg as ex:
         logging.log(level=ex.log_level, msg=ex.message)
-        return None
+        return
     if not dry_run:
         annotated = resource.annotate()
         # skip if namespace does not exist (as it will soon)
@@ -629,7 +626,7 @@ def delete(
             oc.delete(namespace, resource_type, name)
     except OCLogMsg as ex:
         logging.log(level=ex.log_level, msg=ex.message)
-        return None
+        return
 
 
 def check_unused_resource_types(ri: ResourceInventory) -> None:
@@ -1075,7 +1072,7 @@ def _realize_resource_data_3way_diff(
             current=data["current"][k],
         )
 
-    diff_result = differ.diff_mappings(
+    diff_result = diff_mappings(
         data["current"], data["desired"], equal=three_way_diff_using_hash
     )
 

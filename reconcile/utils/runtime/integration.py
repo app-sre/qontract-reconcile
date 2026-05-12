@@ -9,6 +9,7 @@ from types import ModuleType
 from typing import (
     Any,
     Optional,
+    Self,
     TypeVar,
 )
 from urllib.parse import urlparse
@@ -121,9 +122,7 @@ class PydanticRunParams(RunParams, BaseModel):
     This enables validation based on type hints and pydantic advanced validation.
     """
 
-    def copy_and_update(
-        self: PydanticRunParamsSelfTypeVar, update: dict[str, Any]
-    ) -> PydanticRunParamsSelfTypeVar:
+    def copy_and_update(self, update: dict[str, Any]) -> Self:
         return self.model_copy(update=update)
 
     def get(self, field: str) -> Any:
@@ -222,9 +221,7 @@ class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
             return bool(shard_arg_value)
         return False
 
-    def build_integration_instance_for_shard(
-        self: IntegrationClassTypeVar, shard: str
-    ) -> IntegrationClassTypeVar:
+    def build_integration_instance_for_shard(self, shard: str) -> Self:
         """
         Create an instegration instance for a specific shard, by patching the run parameters.
         If the integration does not support sharded runs, it raises an exception.

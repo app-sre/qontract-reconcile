@@ -28,10 +28,10 @@ class BearerTokenAuth(requests.auth.AuthBase):
     def __init__(self, token: str):
         self.token = token
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self.token == getattr(other, "token", None)
 
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: object) -> bool:
         return not self == other
 
     def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
@@ -68,7 +68,7 @@ class ApiBase:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         self.cleanup()
 
     def cleanup(self) -> None:

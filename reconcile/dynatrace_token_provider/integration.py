@@ -120,10 +120,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
         for label in ocm_cluster.labels:
             if not label.startswith(DTP_V3_PREFIX):
                 continue
-            if not (
-                label.endswith(DTP_V3_TENANT_SUFFIX)
-                or label.endswith(DTP_V3_SPEC_SUFFIX)
-            ):
+            if not (label.endswith((DTP_V3_TENANT_SUFFIX, DTP_V3_SPEC_SUFFIX))):
                 logging.warning(
                     f"[Bad DTPv3 label key] {label=} {ocm_cluster.id=} {ocm_cluster.subscription_id=}"
                 )
@@ -532,7 +529,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
             if "Not Found" in e.args[0]:
                 syncset = None
             else:
-                raise e
+                raise
         return syncset
 
     def get_manifest(self, ocm_client: OCMClient, cluster: Cluster) -> dict[str, Any]:
@@ -542,7 +539,7 @@ class DynatraceTokenProviderIntegration(QontractReconcileIntegration[NoParams]):
             if "Not Found" in e.args[0]:
                 manifest = None
             else:
-                raise e
+                raise
         return manifest
 
     def get_secrets_from_data(

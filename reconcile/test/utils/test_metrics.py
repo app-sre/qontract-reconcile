@@ -512,12 +512,12 @@ def test_error_rate_metric_set_exception_fail() -> None:
         try:
             with DemoErrorRateMetricSet("field"):
                 raise Exception("boom")
-        except Exception:
+        except Exception:  # noqa: S110
             pass
         try:
             with DemoErrorRateMetricSet("field"):
                 raise Exception("boom")
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     assert root.get_metric_value(DemoCounter, field="field") == 2

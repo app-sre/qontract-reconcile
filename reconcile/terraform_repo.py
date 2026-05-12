@@ -7,6 +7,10 @@ from pydantic import (
     BaseModel,
     ValidationError,
 )
+from qontract_utils.differ import (
+    DiffResult,
+    diff_iterables,
+)
 
 from reconcile import queries
 from reconcile.gql_definitions.fragments.vault_secret import VaultSecret
@@ -17,10 +21,6 @@ from reconcile.gql_definitions.terraform_repo.terraform_repo import (
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import (
-    DiffResult,
-    diff_iterables,
-)
 from reconcile.utils.exceptions import ParameterError
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.runtime.integration import (

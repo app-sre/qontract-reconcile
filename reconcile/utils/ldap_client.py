@@ -1,6 +1,6 @@
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import Any, Self
+from typing import Self
 
 from ldap3 import (
     ALL,
@@ -12,8 +12,6 @@ from ldap3 import (
 
 class LdapClientError(Exception):
     """Raised when an LDAP client operation fails."""
-
-    pass
 
 
 class LdapClient:
@@ -32,7 +30,7 @@ class LdapClient:
         self.connection.bind()
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         self.connection.unbind()
 
     def get_users(self, uids: Iterable[str]) -> set[str]:

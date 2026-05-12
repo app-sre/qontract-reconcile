@@ -2,6 +2,8 @@ import logging
 from collections.abc import Callable
 from typing import cast
 
+from qontract_utils.differ import diff_iterables
+
 import reconcile.gql_definitions.acs.acs_policies as gql_acs_policies
 from reconcile.gql_definitions.acs.acs_policies import (
     AcsPolicyConditionsV1,
@@ -9,7 +11,6 @@ from reconcile.gql_definitions.acs.acs_policies import (
 )
 from reconcile.utils import gql
 from reconcile.utils.acs.policies import AcsPolicyApi, Policy, PolicyCondition, Scope
-from reconcile.utils.differ import diff_iterables
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,

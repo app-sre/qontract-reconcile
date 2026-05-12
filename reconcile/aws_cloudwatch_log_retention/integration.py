@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from qontract_utils.aws_api_typed.api import AWSApi, AWSStaticCredentials
+from qontract_utils.differ import diff_mappings
 
 from reconcile.gql_definitions.aws_cloudwatch_log_retention.aws_accounts import (
     AWSAccountCleanupOptionCloudWatchV1,
@@ -23,7 +24,6 @@ from reconcile.typed_queries.aws_cloudwatch_log_retention.aws_accounts import (
 from reconcile.typed_queries.external_resources import get_settings
 from reconcile.utils import gql
 from reconcile.utils.datetime_util import utc_now
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.secret_reader import create_secret_reader
 from reconcile.utils.state import init_state
 

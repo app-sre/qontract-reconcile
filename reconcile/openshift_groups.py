@@ -50,10 +50,10 @@ def get_cluster_state(
     group_name = group_items["group_name"]
     try:
         group = oc.get_group_if_exists(group_name)
-    except Exception as e:
+    except Exception:
         msg = f"could not get group state for cluster/group combination: {cluster}/{group_name}"
         logging.error(msg)
-        raise e
+        raise
     if group is None:
         return []
     return [
@@ -240,7 +240,7 @@ def act(diff: Mapping[str, str | None], oc_map: ClusterMap) -> None:
     oc = oc_map.get(cluster)
     if isinstance(oc, OCLogMsg):
         logging.log(level=oc.log_level, msg=oc.message)
-        return None
+        return
 
     if action == "create_group":
         assert group  # make mypy happy

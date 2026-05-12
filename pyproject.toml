@@ -85,7 +85,7 @@ dev = [
     "pytest-mock==3.15.1",
     "qenerate==0.9.1",
     "responses==0.25.0",
-    "ruff==0.14.13",
+    "ruff==0.15.12",
     "smtpdfix==0.5.3",
     "snakeviz==2.2.2",
     "testslide==2.7.1",
@@ -235,8 +235,23 @@ ignore = [
     # Review later
     "FURB101", # Replace `open` with `pathlib.Path`
     "FURB103", # Replace `open` with `pathlib.Path`
+    "TRY002",  # Create your own exception class instead of raising `Exception`
+    "BLE001",  # Do not catch blind exception: `Exception`
+    "LOG015",  # call on root logger
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"reconcile/test/**" = [
+    "PLC0415", # Import not at top level (lazy imports in tests)
+    "PLR2004", # Magic value in comparison (acceptable in tests)
+    "PLR6301", # Method could be function/classmethod/staticmethod (pytest uses instance methods)
+    "PT012",   # pytest.raises with multiple statements (acceptable pattern)
+    "RUF043",  # Regex metacharacters in pytest.raises match (intentional in tests)
+    "RUF069",  # Unreliable floating point equality comparison
+    "S105",    # Possible hardcoded password assigned (test fixtures)
+    "S106",    # Possible hardcoded password (test fixtures use hardcoded values)
+    "SLF001",  # Private member access (testing internal state)
+]
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
 

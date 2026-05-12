@@ -38,7 +38,7 @@ def cluster_ocm_spec() -> Generator[OCMSpec, None, None]:
         initial_version=None,
         fips=False,
     )
-    obj = OCMSpec(
+    yield OCMSpec(
         spec=spec,
         network=n,
         path=None,
@@ -47,7 +47,6 @@ def cluster_ocm_spec() -> Generator[OCMSpec, None, None]:
         consoleUrl="console-url",
         elbFQDN="elb-fqdn",
     )
-    yield obj
 
 
 @pytest.fixture

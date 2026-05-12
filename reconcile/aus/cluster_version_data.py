@@ -19,7 +19,7 @@ class WorkloadHistory(BaseModel):
     soak_days: float = 0.0
     reporting: list[str] = Field(default_factory=list)
 
-    def __eq__(self, value: Any) -> bool:
+    def __eq__(self, value: object) -> bool:
         if isinstance(value, WorkloadHistory):
             return super().__eq__(value)
 

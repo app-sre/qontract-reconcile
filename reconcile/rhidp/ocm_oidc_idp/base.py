@@ -6,6 +6,7 @@ from collections.abc import (
 )
 
 from pydantic import BaseModel
+from qontract_utils.differ import diff_iterables
 
 from reconcile.rhidp.common import (
     Cluster,
@@ -17,7 +18,6 @@ from reconcile.rhidp.ocm_oidc_idp.metrics import (
     RhIdpOCMOidcIdpReconcileErrorCounter,
 )
 from reconcile.utils import metrics
-from reconcile.utils.differ import diff_iterables
 from reconcile.utils.keycloak import SSOClient
 from reconcile.utils.ocm.base import (
     OCMOIdentityProvider,

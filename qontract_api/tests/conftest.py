@@ -35,7 +35,7 @@ def client() -> Generator[TestClient, None, None]:
 
     # Ensure no cache is set
     if hasattr(app.state, "cache"):
-        delattr(app.state, "cache")
+        del app.state.cache
 
     # raise_server_exceptions=False allows testing error responses (401, 404, etc.)
     # instead of raising exceptions in tests
@@ -43,7 +43,7 @@ def client() -> Generator[TestClient, None, None]:
 
     # Cleanup
     if hasattr(app.state, "cache"):
-        delattr(app.state, "cache")
+        del app.state.cache
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def client_with_cache() -> Generator[TestClient, None, None]:
 
     # Cleanup
     if hasattr(app.state, "cache"):
-        delattr(app.state, "cache")
+        del app.state.cache
 
 
 @pytest.fixture
@@ -86,4 +86,4 @@ def mock_cache() -> Generator[Mock, None, None]:
 
     # Cleanup
     if hasattr(app.state, "cache"):
-        delattr(app.state, "cache")
+        del app.state.cache

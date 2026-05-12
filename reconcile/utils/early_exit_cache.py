@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import Any, Self
+from typing import Self
 
 from deepdiff import DeepHash
 from pydantic import BaseModel, ConfigDict
@@ -158,7 +158,7 @@ class EarlyExitCache:
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         self.cleanup()
 
     def cleanup(self) -> None:

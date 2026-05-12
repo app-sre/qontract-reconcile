@@ -203,20 +203,20 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
     - collect_state collects from 2), 3), 4)
     """
     state = collect_state(saas_files)
-    expected = State(**{
-        "saas_file_path": "/path.yml",
-        "saas_file_name": "saas-file-name",
-        "saas_file_deploy_resources": {
+    expected = State(
+        saas_file_path="/path.yml",
+        saas_file_name="saas-file-name",
+        saas_file_deploy_resources={
             "requests": {"cpu": "1500m", "memory": "700Mi"},
             "limits": {"cpu": "2000m", "memory": "1Gi"},
         },
-        "resource_template_name": "tmpl",
-        "namespace": "namespace",
-        "environment": "env-name",
-        "cluster": "cluster",
-        "url": "https://github.com/some-org/some-repo.git",
-        "ref": "master",
-        "parameters": {
+        resource_template_name="tmpl",
+        namespace="namespace",
+        environment="env-name",
+        cluster="cluster",
+        url="https://github.com/some-org/some-repo.git",
+        ref="master",
+        parameters={
             "SAAS_DEFAULT_1": "target",
             "SAAS_DEFAULT_2": "saas",
             "ENV_DEFAULT_1": "target",
@@ -225,7 +225,7 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
             "TMPL_DEFAULT_2": "tmpl",
             "TARGET": "target",
         },
-        "secret_parameters": {
+        secret_parameters={
             "target_default": {
                 "field": "target_field",
                 "path": "target_path",
@@ -270,19 +270,19 @@ def test_collect_state(saas_files: list[SaasFile]) -> None:
                 "format": None,
             },
         },
-        "upstream": {
+        upstream={
             "instance": {"name": "ci", "serverUrl": "https://ci.example.net"},
             "name": "job-name",
         },
-        "saas_file_definitions": {
+        saas_file_definitions={
             "managed_resource_types": ["Deployment"],
             "image_patterns": ["quay.io/some-org"],
             "use_channel_in_image_tag": False,
         },
-        "disable": None,
-        "delete": None,
-        "target_path": None,
-    })
+        disable=None,
+        delete=None,
+        target_path=None,
+    )
     assert state == [expected]
 
 

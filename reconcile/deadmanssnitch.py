@@ -1,6 +1,7 @@
 import logging
 
 from pydantic import BaseModel
+from qontract_utils.differ import diff_mappings
 
 from reconcile.gql_definitions.common.clusters_with_dms import ClusterV1
 from reconcile.typed_queries.app_interface_deadmanssnitch_settings import (
@@ -11,7 +12,6 @@ from reconcile.utils.deadmanssnitch_api import (
     DeadMansSnitchApi,
     Snitch,
 )
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,

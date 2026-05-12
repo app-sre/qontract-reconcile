@@ -127,7 +127,7 @@ class MergeRequestManager(MergeRequestManagerBase[EPDInfo]):
                 logging.info(
                     f"Found an open MR for {INTEGRATION} and it's up-to-date - doing nothing."
                 )
-                return None
+                return
             logging.info(f"Found an outdated MR for {INTEGRATION} - closing it.")
             self._vcs.close_app_interface_mr(
                 mr.raw, "Closing this MR because it's outdated."
@@ -135,10 +135,10 @@ class MergeRequestManager(MergeRequestManagerBase[EPDInfo]):
             # don't open a new MR right now, because the deletion of the old MRs could be
             # disabled. In this case, we would end up with multiple open MRs for the
             # same external resource.
-            return None
+            return
 
         if not apps:
-            return None
+            return
 
         endpoints_discovery_mr = EndpointsDiscoveryMR(
             title=self._renderer.render_title(),
@@ -156,8 +156,8 @@ class MergeRequestManager(MergeRequestManagerBase[EPDInfo]):
                         "The file %s does not exist anylonger. Most likely qontract-server data not in synch. This should resolve soon on its own.",
                         app.path,
                     )
-                    return None
-                raise e
+                    return
+                raise
             content = self._renderer.render_merge_request_content(
                 current_content=content,
                 endpoints_to_add=[item.data for item in app.endpoints_to_add],

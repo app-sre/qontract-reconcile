@@ -87,12 +87,7 @@ def test_extended_early_exit_run_miss_or_expired(
     warning_log_output = "some-warning-output"
     error_log_output = "some-error-output"
     expected_log_output = (
-        "\n".join([
-            info_log_output,
-            warning_log_output,
-            error_log_output,
-        ])
-        + "\n"
+        f"{info_log_output}\n{warning_log_output}\n{error_log_output}\n"
     )
 
     def runner_side_effect(**_: Any) -> ExtendedEarlyExitRunnerResult:

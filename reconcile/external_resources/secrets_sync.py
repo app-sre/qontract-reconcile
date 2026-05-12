@@ -7,6 +7,7 @@ from hashlib import shake_128
 from typing import Any
 
 from pydantic import BaseModel
+from qontract_utils.differ import diff_mappings
 from sretoolbox.utils import threaded
 
 from reconcile.external_resources.meta import (
@@ -24,7 +25,6 @@ from reconcile.external_resources.model import (
 from reconcile.openshift_base import ApplyOptions, apply_action
 from reconcile.typed_queries.clusters_minimal import get_clusters_minimal
 from reconcile.utils.datetime_util import to_utc_seconds_iso_format, utc_now
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.external_resource_spec import (
     ExternalResourceSpec,
 )

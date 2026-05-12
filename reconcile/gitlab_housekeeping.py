@@ -1,7 +1,9 @@
 import logging
 from collections.abc import (
     Iterable,
-    Set,
+)
+from collections.abc import (
+    Set as AbstractSet,
 )
 from contextlib import suppress
 from dataclasses import dataclass
@@ -730,7 +732,7 @@ def merge_merge_requests(
     reload_toggle: ReloadToggle,
     merge_limit: int,
     rebase: bool,
-    app_sre_usernames: Set[str],
+    app_sre_usernames: AbstractSet[str],
     state: State,
     pipeline_timeout: int | None = None,
     insist: bool = False,
@@ -850,7 +852,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
         publish_access_token_expiration_metrics(gl)
     repos = queries.get_repos_gitlab_housekeeping(server=instance["url"])
     repos = [r for r in repos if is_in_shard(r["url"])]
-    app_sre_usernames: Set[str] = set()
+    app_sre_usernames: set[str] = set()
     rebase_strategy = get_rebase_strategy()
     state = init_state(QONTRACT_INTEGRATION)
 

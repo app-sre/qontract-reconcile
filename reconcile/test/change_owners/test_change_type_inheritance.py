@@ -202,13 +202,13 @@ def change_list_equals(
         if isinstance(d, JsonPathChangeDetector):
             return (d.change_schema, d.json_path_selectors)
         else:
-            raise ValueError(f"unknown change detector type: {type(d)}")
+            raise TypeError(f"unknown change detector type: {type(d)}")
 
     def change_to_tuple(c: ChangeTypeChangeDetectorV1) -> Any:
         if isinstance(c, ChangeTypeChangeDetectorJsonPathProviderV1):
             return (c.change_schema, c.json_path_selectors)
         else:
-            raise ValueError(f"unknown change type change: {type(c)}")
+            raise TypeError(f"unknown change type change: {type(c)}")
 
     a = [detector_to_tuple(d) for d in a]
     b = [change_to_tuple(d) for d in b]

@@ -189,11 +189,11 @@ class OCConnectionParameters:
 
             try:
                 jumphost_key = secret_reader.read_secret(cluster.jump_host.identity)
-            except SecretNotFoundError as e:
+            except SecretNotFoundError:
                 logging.error(
                     f"[{cluster.name}] jumphost secret {cluster.jump_host.identity} not found"
                 )
-                raise e
+                raise
 
         return OCConnectionParameters(
             cluster_name=cluster.name,

@@ -435,7 +435,7 @@ def test_terraform_generic_secret_output_format_not_a_dict(
     }
     spec.secret = resource_secret
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         spec.build_oc_secret("int", "1.0")
 
 
@@ -452,7 +452,7 @@ def test_terraform_generic_secret_output_format_not_str_keys(
     }
     spec.secret = resource_secret
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         spec.build_oc_secret("int", "1.0")
 
 
@@ -469,7 +469,7 @@ def test_terraform_generic_secret_output_format_not_str_val(
     }
     spec.secret = resource_secret
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         spec.build_oc_secret("int", "1.0")
 
 

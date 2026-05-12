@@ -2,6 +2,7 @@ import base64
 import os
 from pathlib import Path
 from types import TracebackType
+from typing import Self
 from urllib.parse import urlparse
 
 from github import Commit, Github, GithubException, UnknownObjectException
@@ -43,7 +44,7 @@ class GithubRepositoryApi:
             git_cli = Github(token, base_url=GH_BASE_URL, timeout=timeout)
         self._repo = git_cli.get_repo(repo)
 
-    def __enter__(self) -> "GithubRepositoryApi":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
@@ -109,8 +110,7 @@ class GithubRepositoryApi:
             # https://github.com/PyGithub/PyGithub/issues/3179
             if e.status == 404:
                 return None
-            else:
-                raise e
+            raise
         except UnknownObjectException:
             return None
 

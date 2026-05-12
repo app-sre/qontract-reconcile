@@ -95,7 +95,7 @@ class MergeRequestManagerV2:
                         )
                         has_error = True
                         break
-                    raise e
+                    raise
             content_by_path[sub.target_file_path] = (
                 self._renderer.render_merge_request_content(
                     subscriber=sub,

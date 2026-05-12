@@ -35,18 +35,18 @@ class OutputFormatProcessor:
                     f"secret key {key} is longer than {SECRET_MAX_KEY_LENGTH} chars"
                 )
         else:
-            raise ValueError(f"secret key '{key}' is not a string")
+            raise TypeError(f"secret key '{key}' is not a string")
 
     def validate_k8s_secret_data(self, data: Any) -> None:
         if isinstance(data, dict):
             for k, v in data.items():
                 self.validate_k8s_secret_key(k)
                 if not isinstance(v, str):
-                    raise ValueError(
+                    raise TypeError(
                         f"dictionary value '{v}' under '{k}' is not a string"
                     )
         else:
-            raise ValueError("k8s secret data must be a dictionary")
+            raise TypeError("k8s secret data must be a dictionary")
 
 
 @dataclass
@@ -85,11 +85,11 @@ class ExternalResourceSpec:
     provisioner: Mapping[str, Any]
     resource: MutableMapping[str, Any]
     namespace: Mapping[str, Any]
-    secret: Mapping[str, str] = field(init=False, default_factory=lambda: {})
+    secret: Mapping[str, str] = field(init=False, default_factory=dict)
     # Metadata is used for processing data that shuold not be included in the secret data
     # e.g: ERV2 adds a updated_at attribute that acts as optimistic lock.
     metadata: MutableMapping[str, Any] = field(
-        init=False, compare=False, repr=False, hash=False, default_factory=lambda: {}
+        init=False, compare=False, repr=False, hash=False, default_factory=dict
     )
 
     @property

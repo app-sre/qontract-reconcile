@@ -1,12 +1,7 @@
 import operator
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any, TypeVar
-
-T = TypeVar("T")
-Current = TypeVar("Current")
-Desired = TypeVar("Desired")
-Key = TypeVar("Key")
+from typing import Any
 
 
 @dataclass(frozen=True, eq=True)
@@ -27,7 +22,7 @@ def _default_key(item: Any) -> Any:
     return item
 
 
-def diff_mappings(
+def diff_mappings[Key, Current, Desired](
     current: Mapping[Key, Current],
     desired: Mapping[Key, Desired],
     equal: Callable[[Current, Desired], bool] = operator.eq,
@@ -75,7 +70,7 @@ def diff_mappings(
     )
 
 
-def diff_any_iterables(
+def diff_any_iterables[Key, Current, Desired](
     current: Iterable[Current],
     desired: Iterable[Desired],
     current_key: Callable[[Current], Key] = _default_key,
@@ -137,7 +132,7 @@ def diff_any_iterables(
     )
 
 
-def diff_iterables(
+def diff_iterables[Key, T](
     current: Iterable[T],
     desired: Iterable[T],
     key: Callable[[T], Key] = _default_key,

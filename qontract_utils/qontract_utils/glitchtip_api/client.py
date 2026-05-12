@@ -8,7 +8,7 @@ rate limiting via hooks (ADR-006).
 import contextvars
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 import httpx
 import structlog
@@ -804,7 +804,7 @@ class GlitchtipApi:
         """Close the underlying httpx client."""
         self._client.close()
 
-    def __enter__(self) -> "GlitchtipApi":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *args: object) -> None:

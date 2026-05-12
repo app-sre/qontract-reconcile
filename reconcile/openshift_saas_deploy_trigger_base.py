@@ -313,7 +313,7 @@ def _pipeline_exists(
     oc = oc_map.get(tkn_cluster_name)
     if isinstance(oc, OCLogMsg):
         logging.error(oc.message)
-        raise RuntimeError(f"No OC client for {tkn_cluster_name}: {oc.message}")
+        raise TypeError(f"No OC client for {tkn_cluster_name}: {oc.message}")
     return bool(
         oc.get(
             namespace=tkn_namespace_name,

@@ -39,7 +39,7 @@ def cluster_ocm_spec() -> Iterator[OCMSpec]:
         initial_version="4.10.0",
         hypershift=False,
     )
-    obj = OCMSpec(
+    yield OCMSpec(
         spec=spec,
         network=n,
         domain="0000.p1.openshiftapps.com",
@@ -48,7 +48,6 @@ def cluster_ocm_spec() -> Iterator[OCMSpec]:
         elbFQDN="elb.apps.cluster.0000.p1.openshiftapps.com",
         path=None,
     )
-    yield obj
 
 
 def test_all_attributes_missing(cluster_ocm_spec: OCMSpec) -> None:

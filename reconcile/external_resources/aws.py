@@ -228,7 +228,7 @@ class AWSRdsFactory(AWSDefaultResourceFactory):
             return
 
         if not isinstance(timeouts, dict):
-            raise ValueError(
+            raise TypeError(
                 "Timeouts must be a dictionary with 'create', 'update' and/or 'delete' keys."
             )
 

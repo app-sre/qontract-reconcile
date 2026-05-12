@@ -3,6 +3,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from deepdiff import DeepHash
+from qontract_utils.differ import diff_mappings
 
 from reconcile.gql_definitions.cluster_auth_rhidp.clusters import (
     ClusterAuthRHIDPV1,
@@ -22,7 +23,6 @@ from reconcile.rhidp.common import (
 )
 from reconcile.utils import gql
 from reconcile.utils.defer import defer
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.disabled_integrations import integration_is_enabled
 from reconcile.utils.ocm.clusters import discover_clusters_for_organizations
 from reconcile.utils.ocm.label_sources import ClusterRef, LabelState

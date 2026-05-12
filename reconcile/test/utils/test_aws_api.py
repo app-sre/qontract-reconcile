@@ -54,8 +54,7 @@ def aws_api(accounts: list[dict], mocker: MockerFixture) -> AWSApi:
 @pytest.fixture
 def iam_client() -> Generator[IAMClient]:
     with mock_aws():
-        iam_client = boto3.client("iam")
-        yield iam_client
+        yield boto3.client("iam")
 
 
 def test_get_user_key_list(aws_api: AWSApi, iam_client: IAMClient) -> None:
@@ -160,8 +159,7 @@ def test_filter_amis_state(aws_api: AWSApi) -> None:
 @pytest.fixture
 def route53_client() -> Generator[Route53Client]:
     with mock_aws():
-        route53_client = boto3.client("route53")
-        yield route53_client
+        yield boto3.client("route53")
 
 
 def test_get_hosted_zone_id(aws_api: AWSApi) -> None:

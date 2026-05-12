@@ -1,5 +1,5 @@
 from collections import UserDict, namedtuple
-from typing import Any, TypedDict
+from typing import Any, Self, TypedDict
 
 from reconcile import queries
 from reconcile.utils.quay_api import QuayApi
@@ -27,10 +27,10 @@ class QuayApiStore(UserDict[OrgKey, OrgInfo]):
         for org_info in self.data.values():
             org_info["api"].cleanup()
 
-    def __enter__(self) -> "QuayApiStore":
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         self.cleanup()
 
 

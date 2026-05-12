@@ -69,7 +69,7 @@ class IntegrationRunConfiguration:
 
     def main_bundle_desired_state(self) -> dict[str, Any] | None:
         if not isinstance(self.integration, QontractReconcileIntegration):
-            raise RuntimeError(
+            raise TypeError(
                 "main_bundle_desired_state is only available for QontractReconcileIntegration"
             )
         self.switch_to_main_bundle()
@@ -77,7 +77,7 @@ class IntegrationRunConfiguration:
 
     def comparison_bundle_desired_state(self) -> dict[str, Any] | None:
         if not isinstance(self.integration, QontractReconcileIntegration):
-            raise RuntimeError(
+            raise TypeError(
                 "comparison_bundle_desired_state is only available for QontractReconcileIntegration"
             )
         self.switch_to_comparison_bundle()
@@ -127,10 +127,9 @@ def get_desired_state_diff(
         previous_desired_state = run_cfg.comparison_bundle_desired_state()
         if previous_desired_state is None:
             return None
-    except Exception as e:
+    except Exception:
         logging.exception(
             f"Failed to fetch desired state for comparison bundle {run_cfg.early_exit_compare_sha}",
-            e,
         )
         return None
 

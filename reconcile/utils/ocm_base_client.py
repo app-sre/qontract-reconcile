@@ -7,6 +7,7 @@ from types import TracebackType
 from typing import (
     Any,
     Protocol,
+    Self,
 )
 
 from pydantic import BaseModel
@@ -118,9 +119,9 @@ class OCMBaseClient:
         )
         try:
             r.raise_for_status()
-        except Exception as e:
+        except Exception:
             logging.error(r.text)
-            raise e
+            raise
         if r.status_code == codes.no_content:
             return {}
         return r.json()
@@ -140,9 +141,9 @@ class OCMBaseClient:
         )
         try:
             r.raise_for_status()
-        except Exception as e:
+        except Exception:
             logging.error(r.text)
-            raise e
+            raise
 
     def delete(self, api_path: str) -> None:
         ocm_request.labels(verb="DELETE", client_id=self._access_token_client_id).inc()
@@ -156,7 +157,7 @@ class OCMBaseClient:
     def close(self) -> None:
         self._session.close()
 
-    def __enter__(self) -> "OCMBaseClient":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

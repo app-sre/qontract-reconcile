@@ -8,6 +8,7 @@ from enum import Enum
 from itertools import chain
 
 from pydantic import BaseModel
+from qontract_utils.differ import diff_mappings
 
 from reconcile.gql_definitions.slo_documents.slo_documents import SLODocumentV1
 from reconcile.gql_definitions.status_board.status_board import StatusBoardV1
@@ -16,7 +17,6 @@ from reconcile.typed_queries.status_board import (
     get_selected_app_names,
     get_status_board,
 )
-from reconcile.utils.differ import diff_mappings
 from reconcile.utils.ocm.status_board import (
     ApplicationOCMSpec,
     BaseOCMSpec,
@@ -400,7 +400,7 @@ class StatusBoardExporterIntegration(QontractReconcileIntegration):
 
         services_to_update = [
             s.desired
-            for _, s in diff_result.change.items()
+            for s in diff_result.change.values()
             if isinstance(s.desired, Service)
         ]
 

@@ -144,7 +144,7 @@ class AppInterfaceRepo:
         datafiles = []
         for root, _, files in os.walk(self.data_dir()):
             for file in files:
-                if file.endswith(".yml") or file.endswith(".yaml"):
+                if file.endswith((".yml", ".yaml")):
                     filepath = os.path.join(root, file)
                     with open(filepath, encoding="locale") as f:
                         parsed_yaml = yaml.safe_load(f)

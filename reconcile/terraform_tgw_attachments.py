@@ -214,7 +214,7 @@ def _build_desired_state_tgw_connection(
             f"{peer_connection.name}_{peer_connection.account.name}-{tgw['tgw_id']}"
         )
         requester = _build_requester(peer_connection, tgw)
-        item = DesiredStateItem(
+        yield DesiredStateItem(
             connection_provider=TGW_CONNECTION_PROVIDER,
             connection_name=connection_name,
             infra_acount_name=peer_connection.account.name,
@@ -222,7 +222,6 @@ def _build_desired_state_tgw_connection(
             accepter=accepter,
             deleted=peer_connection.delete or False,
         )
-        yield item
 
 
 def _is_private_hosted_control_plane(cluster_info: ClusterV1) -> bool:

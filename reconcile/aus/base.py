@@ -208,11 +208,10 @@ class AdvancedUpgradeSchedulerBaseIntegration(
                 envs_org_upgrade_specs[ocm_env.name] = self.get_ocm_env_upgrade_specs(
                     ocm_env=ocm_env
                 )
-            except Exception as e:
+            except Exception:
                 logging.exception(
-                    "Failed to get org upgrade specs for OCM environment %s. Skipping. %s",
+                    "Failed to get org upgrade specs for OCM environment %s. Skipping.",
                     ocm_env.name,
-                    e,
                 )
                 metrics.inc_counter(
                     AUSOCMEnvironmentError(

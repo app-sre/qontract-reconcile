@@ -94,7 +94,7 @@ class ClusterAddonUpgradeSpec(ClusterUpgradeSpec):
         return any(
             re.search(b, v)
             for b in self.blocked_versions
-            if b.startswith(f"{addon_id}/") or b.startswith(f"^{addon_id}/")
+            if b.startswith((f"{addon_id}/", f"^{addon_id}/"))
         )
 
     def get_available_upgrades(self) -> list[str]:

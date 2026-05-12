@@ -12,6 +12,7 @@ from collections.abc import (
 from types import TracebackType
 from typing import (
     Any,
+    Self,
     TypeVar,
 )
 
@@ -265,7 +266,7 @@ class MetricsContainer:
         elif issubclass(metric_class, GaugeMetric):
             metrics = mc._gauges.get(metric_class, {})
         else:
-            raise ValueError(f"Unknown metric class {metric_class}")
+            raise TypeError(f"Unknown metric class {metric_class}")
 
         def match_labels_predicate(metric: BaseMetric, **match_labels: Any) -> bool:
             for key, value in match_labels.items():
@@ -528,18 +529,16 @@ class ErrorRateMetricSet:
     failed if an exception is raised of if the `fail` method is called.
     """
 
-    def __init__(
-        self: ERMS, counter: CounterMetric, error_counter: CounterMetric
-    ) -> None:
+    def __init__(self, counter: CounterMetric, error_counter: CounterMetric) -> None:
         self._counter = counter
         self._error_counter = error_counter
         self._errors: list[BaseException] = []
 
-    def __enter__(self: ERMS) -> ERMS:
+    def __enter__(self) -> Self:
         inc_counter(self._counter)
         return self
 
-    def fail(self: ERMS, error: BaseException) -> None:
+    def fail(self, error: BaseException) -> None:
         """
         Mark the context as failed and record it as an event
         that increases the error counter.
@@ -547,21 +546,21 @@ class ErrorRateMetricSet:
         self._errors.append(error)
 
     @property
-    def failed(self: ERMS) -> bool:
+    def failed(self) -> bool:
         """
         Returns True if the context manager was marked as failed.
         """
         return bool(self._errors)
 
     @property
-    def errors(self: ERMS) -> list[BaseException]:
+    def errors(self) -> list[BaseException]:
         """
         Return the list of errors that caused the context manager to fail.
         """
         return self._errors
 
     def __exit__(
-        self: ERMS,
+        self,
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: TracebackType | None,

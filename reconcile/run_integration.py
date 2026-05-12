@@ -297,8 +297,8 @@ def main() -> None:
                     handler=_push_gateway_basic_auth_handler,
                     grouping_key=grouping_key,
                 )
-            except PushgatewayBadConfigError as err:
-                LOG.exception(f"Error pushing to PushGateway: {err}")
+            except PushgatewayBadConfigError:
+                LOG.exception("Error pushing to PushGateway:")
                 return_code = ExitCodes.ERROR
 
         if RUN_ONCE:

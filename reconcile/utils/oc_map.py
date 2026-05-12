@@ -79,11 +79,11 @@ class OCMap:
         cluster = connection_parameters.cluster_name
         privileged = connection_parameters.is_cluster_admin
         if not privileged and self._oc_map.get(cluster):
-            return None
+            return
         if privileged and self._privileged_oc_map.get(cluster):
-            return None
+            return
         if self._is_cluster_disabled(connection_parameters):
-            return None
+            return
         if self._internal is not None:
             # integration is executed with `--internal` or `--external`
             # filter out non matching clusters

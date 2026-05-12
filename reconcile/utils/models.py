@@ -271,16 +271,16 @@ def data_default_none(
                         match sub_field["type"]:
                             case "str":
                                 if not isinstance(sub_data, str):
-                                    raise ValueError()
+                                    raise TypeError()
                             case "int":
                                 if not isinstance(sub_data, int):
-                                    raise ValueError()
+                                    raise TypeError()
                             case "bool":
                                 if not isinstance(sub_data, bool):
-                                    raise ValueError()
+                                    raise TypeError()
                             case "model":
                                 if not isinstance(sub_data, dict):
-                                    raise ValueError()
+                                    raise TypeError()
                                 # Validate the dict can be instantiated as the model
                                 sub_field["cls"].model_validate(sub_data)
                                 if isinstance(data, MutableMapping):
@@ -288,7 +288,7 @@ def data_default_none(
 
                         # If we get here, this union variant matched successfully
                         return data
-                    except (ValidationError, ValueError):
+                    except (ValidationError, TypeError):
                         # This variant didn't match, try the next one
                         continue
 
@@ -331,7 +331,7 @@ class CSV(UserList[str]):
         )
 
     @classmethod
-    def _validate(cls, __input_value: str, _: Any) -> list[str]:
+    def _validate(cls, __input_value: str, _: Any) -> list[str]:  # noqa: PYI063
         return [] if not __input_value else __input_value.split(",")
 
 

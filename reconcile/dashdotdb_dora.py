@@ -251,7 +251,7 @@ class DashdotdbDORA(DashdotdbBase):
     def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
         self.gl.cleanup()
         for gh in self._gh_apis.values():
             gh.cleanup()

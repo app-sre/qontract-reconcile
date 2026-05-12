@@ -102,11 +102,10 @@ class AdvancedUpgradeServiceIntegration(OCMClusterUpgradeSchedulerOrgIntegration
                         inheritance_network=inheritance_network,
                     )
                 )
-            except Exception as e:
+            except Exception:
                 logging.exception(
-                    "Failed to get org upgrade specs for OCM environment %s. Skipping. %s",
+                    "Failed to get org upgrade specs for OCM environment %s. Skipping",
                     ocm_env.name,
-                    e,
                 )
                 metrics.inc_counter(
                     AUSOCMEnvironmentError(

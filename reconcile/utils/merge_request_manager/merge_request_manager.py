@@ -1,7 +1,7 @@
 import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any
 
 from gitlab.v4.objects import ProjectMergeRequest
 from pydantic import BaseModel
@@ -13,8 +13,6 @@ from reconcile.utils.merge_request_manager.parser import (
 )
 from reconcile.utils.vcs import VCS
 
-T = TypeVar("T", bound=BaseModel)
-
 
 @dataclass
 class OpenMergeRequest[T: BaseModel]:
@@ -23,7 +21,7 @@ class OpenMergeRequest[T: BaseModel]:
 
 
 class MergeRequestManagerBase[T: BaseModel]:
-    """ """
+    """Base class for managing merge requests. It provides housekeeping functionality to close MRs with bad description format, wrong version or merge conflicts. It also provides a method to check if a MR with the expected data already exists."""
 
     def __init__(self, vcs: VCS, parser: Parser, mr_label: str):
         self._vcs = vcs

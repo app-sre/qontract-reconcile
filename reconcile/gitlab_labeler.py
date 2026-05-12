@@ -1,9 +1,6 @@
 import logging
 import os
-from collections.abc import (
-    Iterable,
-    Set,
-)
+from collections.abc import Iterable
 
 from reconcile import queries
 from reconcile.gitlab_housekeeping import (
@@ -80,7 +77,7 @@ def guess_onboarding_status(
 
 def guess_labels(
     project_labels: Iterable[str], changed_paths: Iterable[str]
-) -> Set[str]:
+) -> set[str]:
     """
     Guess labels returns a list of labels from the project labels
     that contain parts of the changed paths.
