@@ -2,8 +2,12 @@ from OpenSSL import crypto
 
 
 def certificate_matches_host(certificate: bytes, host: str) -> bool:
-    common_name = get_certificate_common_name(certificate)
-    return host.endswith(common_name.replace("*.", ""))
+    if not (cn := get_certificate_common_name(certificate)):
+        return False
+    if cn.startswith("*."):
+        domain = cn.removeprefix("*.")
+        return host != domain and host.endswith(f".{domain}")
+    return host == cn
 
 
 def get_certificate_common_name(certificate: bytes) -> str:
