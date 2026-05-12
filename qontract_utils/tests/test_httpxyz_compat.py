@@ -76,7 +76,7 @@ def test_httpxyz_compat_registration(
 
 
 @pytest.mark.skipif(
-    subprocess.run(  # noqa: S603, PLW1510
+    subprocess.run(  # noqa: PLW1510
         [sys.executable, "-c", "import httpx"],
         capture_output=True,
     ).returncode
