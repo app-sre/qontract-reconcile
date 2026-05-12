@@ -1205,9 +1205,7 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
         consecutive_failure_limit=3,
     )
 
-    mocked_gl.add_label_to_merge_request.assert_called_once_with(
-        mr, "pipeline-error"
-    )
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "pipeline-error")
     mocked_gl.remove_label.assert_not_called()
 
 

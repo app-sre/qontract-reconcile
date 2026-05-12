@@ -617,7 +617,8 @@ def _rebase_merge_requests_top_k(
     guarantees at most K MRs are rebased across all runs.
     Error MRs are filtered before slicing so they don't consume slots."""
     merge_requests = [
-        item for item in get_merge_requests(
+        item
+        for item in get_merge_requests(
             dry_run=dry_run,
             gl=gl,
             state=state,
@@ -654,12 +655,16 @@ def _rebase_merge_requests_active_cap(
     pipelines, and only rebase up to (rebase_limit - already_active)
     additional MRs.  This treats rebase_limit as a per-repo concurrency cap
     on in-flight pipelines rather than a visibility window."""
-    merge_requests = get_merge_requests(
-        dry_run=dry_run,
-        gl=gl,
-        state=state,
-        users_allowed_to_label=users_allowed_to_label,
-    )
+    merge_requests = [
+        item
+        for item in get_merge_requests(
+            dry_run=dry_run,
+            gl=gl,
+            state=state,
+            users_allowed_to_label=users_allowed_to_label,
+        )
+        if not item["error"]
+    ]
 
     # Single pass: classify MRs as already-active or needs-rebase.
     # rebase_limit is a per-repo concurrency cap -- "at most N MRs with
@@ -670,8 +675,6 @@ def _rebase_merge_requests_active_cap(
     needs_rebase: list[ProjectMergeRequest] = []
     for item in merge_requests:
         mr = item["mr"]
-        if item["error"]:
-            continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
         if is_rebased(mr, gl):
@@ -719,16 +722,18 @@ def _rebase_merge_requests_old_burst(
     MRs that are not already rebased.  This is a simple per-run burst
     counter — it does not consider active pipelines."""
     rebases = 0
-    merge_requests = get_merge_requests(
-        dry_run=dry_run,
-        gl=gl,
-        state=state,
-        users_allowed_to_label=users_allowed_to_label,
-    )
+    merge_requests = [
+        item
+        for item in get_merge_requests(
+            dry_run=dry_run,
+            gl=gl,
+            state=state,
+            users_allowed_to_label=users_allowed_to_label,
+        )
+        if not item["error"]
+    ]
     for item in merge_requests:
         mr = item["mr"]
-        if item["error"]:
-            continue
 
         if is_rebased(mr, gl):
             continue
@@ -987,6 +992,8 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
             raw_limit = hk.get("consecutive_failure_limit")
+            if raw_limit is None:
+                consecutive_failure_limit = 3
             try:
                 consecutive_failure_limit = max(1, int(raw_limit))
             except (TypeError, ValueError):
