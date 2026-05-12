@@ -37,7 +37,7 @@ dev = [
     "pytest==9.0.2",
     "rich==14.3.1",
     "ruff==0.15.12",
-    "types-cachetools==6.2.0.20251022",
+    "types-cachetools==7.0.0.20260503",
     "types-hvac==2.4.0.20251115",
 ]
 
