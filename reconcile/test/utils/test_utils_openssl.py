@@ -54,7 +54,7 @@ def test_get_certificate_common_name_invalid_pem() -> None:
     ("host", "expected"),
     [
         ("example.com", True),
-        ("sub.example.com", True),
+        ("sub.example.com", False),
         ("other.com", False),
         ("notexample.com", False),
     ],
@@ -70,7 +70,7 @@ def test_certificate_matches_host_exact(
     [
         ("foo.example.com", True),
         ("bar.example.com", True),
-        ("example.com", True),
+        ("example.com", False),
         ("foo.other.com", False),
         ("other.com", False),
     ],

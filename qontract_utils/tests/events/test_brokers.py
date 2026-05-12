@@ -32,6 +32,7 @@ def test_run_without_context_raises(broker: RedisBroker) -> None:
     coro = AsyncMock()()
     with pytest.raises(RuntimeError, match="Broker is not connected"):
         broker._run(coro)
+    coro.close()
 
 
 def test_enter_creates_loop_and_connects(
@@ -91,6 +92,7 @@ def test_run_with_closed_loop_raises(broker: RedisBroker) -> None:
     coro = AsyncMock()()
     with pytest.raises(RuntimeError, match="Broker is not connected"):
         broker._run(coro)
+    coro.close()
 
 
 def test_exit_closes_loop_even_on_stop_error(
