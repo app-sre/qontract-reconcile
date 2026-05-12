@@ -34,7 +34,7 @@ dev = [
     "pytest-cov==7.0.0",
     "pytest-mock==3.15.1",
     "pytest==9.0.2",
-    "rich==14.3.1",
+    "rich==15.0.0",
     "ruff==0.15.12",
     "types-cachetools==7.0.0.20260503",
     "types-hvac==2.4.0.20251115",

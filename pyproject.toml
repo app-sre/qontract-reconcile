@@ -46,7 +46,7 @@ dependencies = [
     "python-gitlab==6.0.0",
     "requests-oauthlib~=2.0",
     "requests~=2.32",
-    "rich==14.3.1",
+    "rich==15.0.0",
     "ruamel.yaml>=0.17.22,<0.18.0",
     "semver~=3.0",
     "sendgrid>=6.4.8,<6.5.0",
