@@ -566,15 +566,6 @@ wheels = [
 ]
 
 [[package]]
-name = "decorator"
-version = "5.2.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/43/fa/6d96a0978d19e17b68d634497769987b16c8f4cd0a7a05048bec693caa6b/decorator-5.2.1.tar.gz", hash = "sha256:65f266143752f734b0a7cc83c46f4618af75b8c5911b00ccb61d0ac9b6da0360", size = 56711, upload-time = "2025-02-24T04:41:34.073Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4e/8c/f3147f5c4b73e7550fe5f9352eaa956ae838d5c51eb58e7a25b9f3e2643b/decorator-5.2.1-py3-none-any.whl", hash = "sha256:d316bb415a2d9e2d2b3abcc4084c6502fc09240e292cd76a76afc106a1c8e04a", size = 9190, upload-time = "2025-02-24T04:41:32.565Z" },
-]
-
-[[package]]
 name = "deepdiff"
 version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -975,17 +966,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/6d/86/08646239a313f8951
 wheels = [
     { url = "https://files.pythonhosted.org/packages/35/5a/73ecb3d82f8615f32ccdadeb9356726d6cae3a4bbc840b437ceb95708063/jsonpath_ng-1.7.0-py3-none-any.whl", hash = "sha256:f3d7f9e848cba1b6da28c55b1c26ff915dc9e0b1ba7e752a53d6da8d5cbd00b6", size = 30105, upload-time = "2024-11-20T17:58:30.418Z" },
 ]
-
-[[package]]
-name = "jsonpath-rw"
-version = "1.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "decorator" },
-    { name = "ply" },
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/71/7c/45001b1f19af8c4478489fbae4fc657b21c4c669d7a5a036a86882581d85/jsonpath-rw-1.4.0.tar.gz", hash = "sha256:05c471281c45ae113f6103d1268ec7a4831a2e96aa80de45edc89b11fac4fbec", size = 13814, upload-time = "2015-04-19T01:47:15.06Z" }
 
 [[package]]
 name = "jsonpointer"
@@ -2094,7 +2074,6 @@ dependencies = [
     { name = "jira" },
     { name = "jsonpatch" },
     { name = "jsonpath-ng" },
-    { name = "jsonpath-rw" },
     { name = "jsonpointer" },
     { name = "kubernetes" },
     { name = "ldap3" },
@@ -2186,7 +2165,6 @@ requires-dist = [
     { name = "jira", specifier = "==3.10.5" },
     { name = "jsonpatch", specifier = "~=1.33" },
     { name = "jsonpath-ng", specifier = "==1.7.0" },
-    { name = "jsonpath-rw", specifier = ">=1.4.0,<1.5.0" },
     { name = "jsonpointer", specifier = "~=2.4" },
     { name = "kubernetes", specifier = "==32.0.1" },
     { name = "ldap3", specifier = ">=2.9.1,<2.10.0" },
