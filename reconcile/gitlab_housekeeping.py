@@ -77,7 +77,7 @@ HOLD_LABELS = [
     NEEDS_REBASE,
 ]
 
-DLQ_LABELS = {MERGE_ERROR, PIPELINE_ERROR}
+ERROR_LABELS = {MERGE_ERROR, PIPELINE_ERROR}
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -520,6 +520,7 @@ def preprocess_merge_requests(
             "priority": f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}",
             "approved_at": approved_at,
             "approved_by": approved_by,
+            "error": bool(ERROR_LABELS & labels),
         }
         results.append(item)
 
@@ -614,18 +615,16 @@ def _rebase_merge_requests_top_k(
     """Top-k strategy: only evaluate the first rebase_limit MRs in priority
     order.  The queue is already sorted by priority, so slicing to K
     guarantees at most K MRs are rebased across all runs."""
-    merge_requests = [
-        item["mr"]
-        for item in get_merge_requests(
-            dry_run=dry_run,
-            gl=gl,
-            state=state,
-            users_allowed_to_label=users_allowed_to_label,
-        )[:rebase_limit]
-    ]
+    merge_requests = get_merge_requests(
+        dry_run=dry_run,
+        gl=gl,
+        state=state,
+        users_allowed_to_label=users_allowed_to_label,
+    )[:rebase_limit]
 
-    for mr in merge_requests:
-        if DLQ_LABELS & set(mr.labels):
+    for item in merge_requests:
+        mr = item["mr"]
+        if item["error"]:
             continue
 
         if is_rebased(mr, gl):
@@ -653,15 +652,12 @@ def _rebase_merge_requests_active_cap(
     pipelines, and only rebase up to (rebase_limit - already_active)
     additional MRs.  This treats rebase_limit as a per-repo concurrency cap
     on in-flight pipelines rather than a visibility window."""
-    merge_requests = [
-        item["mr"]
-        for item in get_merge_requests(
-            dry_run=dry_run,
-            gl=gl,
-            state=state,
-            users_allowed_to_label=users_allowed_to_label,
-        )
-    ]
+    merge_requests = get_merge_requests(
+        dry_run=dry_run,
+        gl=gl,
+        state=state,
+        users_allowed_to_label=users_allowed_to_label,
+    )
 
     # Single pass: classify MRs as already-active or needs-rebase.
     # rebase_limit is a per-repo concurrency cap -- "at most N MRs with
@@ -670,8 +666,9 @@ def _rebase_merge_requests_active_cap(
     # (success = green and waiting to merge, still occupying a slot).
     already_active = 0
     needs_rebase: list[ProjectMergeRequest] = []
-    for mr in merge_requests:
-        if DLQ_LABELS & set(mr.labels):
+    for item in merge_requests:
+        mr = item["mr"]
+        if item["error"]:
             continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
@@ -720,17 +717,15 @@ def _rebase_merge_requests_old_burst(
     MRs that are not already rebased.  This is a simple per-run burst
     counter — it does not consider active pipelines."""
     rebases = 0
-    merge_requests = [
-        item["mr"]
-        for item in get_merge_requests(
-            dry_run=dry_run,
-            gl=gl,
-            state=state,
-            users_allowed_to_label=users_allowed_to_label,
-        )
-    ]
-    for mr in merge_requests:
-        if DLQ_LABELS & set(mr.labels):
+    merge_requests = get_merge_requests(
+        dry_run=dry_run,
+        gl=gl,
+        state=state,
+        users_allowed_to_label=users_allowed_to_label,
+    )
+    for item in merge_requests:
+        mr = item["mr"]
+        if item["error"]:
             continue
 
         if is_rebased(mr, gl):
