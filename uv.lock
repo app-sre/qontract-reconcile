@@ -2095,7 +2095,6 @@ dependencies = [
     { name = "sshtunnel" },
     { name = "tabulate" },
     { name = "terrascript" },
-    { name = "toml" },
     { name = "unleashclient" },
     { name = "urllib3" },
     { name = "yamllint" },
@@ -2135,7 +2134,6 @@ dev = [
     { name = "types-requests" },
     { name = "types-requests-oauthlib" },
     { name = "types-tabulate" },
-    { name = "types-toml" },
 ]
 
 [package.metadata]
@@ -2184,7 +2182,6 @@ requires-dist = [
     { name = "sshtunnel", specifier = ">=0.4.0" },
     { name = "tabulate", specifier = ">=0.8.6,<0.9.0" },
     { name = "terrascript", specifier = "==0.9.0" },
-    { name = "toml", specifier = ">=0.10.0,<0.11.0" },
     { name = "unleashclient", specifier = "~=5.11" },
     { name = "urllib3", specifier = "~=2.2" },
     { name = "yamllint", specifier = "==1.34.0" },
@@ -2222,7 +2219,6 @@ dev = [
     { name = "types-requests" },
     { name = "types-requests-oauthlib" },
     { name = "types-tabulate" },
-    { name = "types-toml" },
 ]
 
 [[package]]
@@ -2962,15 +2958,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/11/af/c100d86897d3fdb010d8f813569fa80355b5cb553f51080e37d4f3c451bb/types_tabulate-0.10.0.20260508.tar.gz", hash = "sha256:8e51f159e8b24976849706ae2ed1dc9adba8ebbd080b17e494ebb66a8cc92c74", size = 8395, upload-time = "2026-05-08T04:47:58.921Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/36/443b700f54a585cf8ed4e76d8ad08b12df6914f8782a2788ecd0d8491519/types_tabulate-0.10.0.20260508-py3-none-any.whl", hash = "sha256:b1e1a2d0456fbd655a71690b09a7aaeffdf2978d32049184ea436492aa51d20a", size = 8137, upload-time = "2026-05-08T04:47:57.872Z" },
-]
-
-[[package]]
-name = "types-toml"
-version = "0.10.8.20260508"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/95/3d/df34d25e9d1fbbda6af6033bb13cf228a11d838d11bea93a05840d43d98d/types_toml-0.10.8.20260508.tar.gz", hash = "sha256:93aaa72365bd9bc8c2ce1ca3502b0470d8d428376bada020e1a4956b8b82fdda", size = 9380, upload-time = "2026-05-08T04:46:58.555Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/51/e1/cb6b12945b2d0ae8f93bfab320be81a8f5bb8b6e1384744ca05c9a6909c0/types_toml-0.10.8.20260508-py3-none-any.whl", hash = "sha256:144d615419051493ab1e5e71b6477f7c56fadc78f0856407775e75c8e2916140", size = 9662, upload-time = "2026-05-08T04:46:57.709Z" },
 ]
 
 [[package]]

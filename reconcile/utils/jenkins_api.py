@@ -1,9 +1,9 @@
 import logging
+import tomllib
 from collections.abc import Mapping
 from typing import Any, NotRequired, Self, TypedDict
 
 import requests
-import toml
 import yaml
 from sretoolbox.utils import retry
 
@@ -29,7 +29,7 @@ class JenkinsApi:
         ssl_verify: bool = True,
     ) -> Self:
         token_config = secret_reader.read(secret)
-        config = toml.loads(token_config)
+        config = tomllib.loads(token_config)
         return cls(
             config["jenkins"]["url"],
             config["jenkins"]["user"],
