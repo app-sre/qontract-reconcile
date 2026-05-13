@@ -441,9 +441,8 @@ class TestAsyncRun:
                 "reconcile.github_owners_api.reconcile_github_owners",
                 new=AsyncMock(return_value=task_response),
             ),
-            patch(
-                "reconcile.github_owners_api.github_owners_task_status",
-                new=AsyncMock(return_value=task_result),
+            patch.object(
+                integration, "poll_task_status", new=AsyncMock(return_value=task_result)
             ),
             patch.object(
                 type(integration),
@@ -481,9 +480,7 @@ class TestAsyncRun:
                 "reconcile.github_owners_api.reconcile_github_owners",
                 new=AsyncMock(return_value=task_response),
             ),
-            patch(
-                "reconcile.github_owners_api.github_owners_task_status"
-            ) as mock_status,
+            patch.object(integration, "poll_task_status") as mock_status,
             patch.object(
                 type(integration),
                 "qontract_api_client",
@@ -522,9 +519,8 @@ class TestAsyncRun:
                 "reconcile.github_owners_api.reconcile_github_owners",
                 new=AsyncMock(return_value=task_response),
             ),
-            patch(
-                "reconcile.github_owners_api.github_owners_task_status",
-                new=AsyncMock(return_value=task_result),
+            patch.object(
+                integration, "poll_task_status", new=AsyncMock(return_value=task_result)
             ),
             patch.object(
                 type(integration),
@@ -564,9 +560,8 @@ class TestAsyncRun:
                 "reconcile.github_owners_api.reconcile_github_owners",
                 new=AsyncMock(return_value=task_response),
             ),
-            patch(
-                "reconcile.github_owners_api.github_owners_task_status",
-                new=AsyncMock(return_value=task_result),
+            patch.object(
+                integration, "poll_task_status", new=AsyncMock(return_value=task_result)
             ),
             patch.object(
                 type(integration),
