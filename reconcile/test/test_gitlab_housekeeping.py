@@ -1198,7 +1198,7 @@ def test_pipeline_error_label_applied_on_consecutive_failures(
         "failed",
     ])
 
-    gl_h.run_pipeline_healthcheck(
+    gl_h.run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1222,7 +1222,7 @@ def test_pipeline_error_label_auto_removed_on_recovery(
         "failed",
     ])
 
-    gl_h.run_pipeline_healthcheck(
+    gl_h.run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1233,20 +1233,30 @@ def test_pipeline_error_label_auto_removed_on_recovery(
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
-def test_merge_error_label_not_auto_removed(
+def test_merge_error_label_not_removed_without_new_commits(
     project: Project,
 ) -> None:
-    """The merge-error label is never auto-removed by the healthcheck."""
+    """merge-error stays when no commits have been pushed since the label."""
     mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
+    label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    label_event.action = "add"
+    label_event.label = {"name": "merge-error"}
+    label_event.created_at = "2025-06-01T12:00:00.0Z"
+
+    commit = Mock()
+    commit.created_at = "2025-06-01T11:00:00.0Z"
+    mr.commits.return_value = iter([commit])
+
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [label_event]
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
         "success",
         "success",
         "success",
     ])
 
-    gl_h.run_pipeline_healthcheck(
+    gl_h.run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1254,6 +1264,40 @@ def test_merge_error_label_not_auto_removed(
     )
 
     mocked_gl.remove_label.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_merge_error_label_removed_on_new_commits(
+    project: Project,
+) -> None:
+    """merge-error is removed when new commits arrive after the label."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
+    label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    label_event.action = "add"
+    label_event.label = {"name": "merge-error"}
+    label_event.created_at = "2025-06-01T12:00:00.0Z"
+
+    commit = Mock()
+    commit.created_at = "2025-06-01T13:00:00.0Z"
+    mr.commits.return_value = iter([commit])
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [label_event]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "success",
+        "success",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.remove_label.assert_called_once_with(mr, "merge-error")
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
@@ -1272,7 +1316,7 @@ def test_configurable_failure_limit(
         "success",
     ])
 
-    gl_h.run_pipeline_healthcheck(
+    gl_h.run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr_3_failures],
@@ -1292,7 +1336,7 @@ def test_configurable_failure_limit(
         "failed",
     ])
 
-    gl_h.run_pipeline_healthcheck(
+    gl_h.run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr_5_failures],
@@ -1318,7 +1362,7 @@ def test_already_labeled_mr_with_ongoing_failures_no_api_calls(
         "failed",
     ])
 
-    gl_h.run_pipeline_healthcheck(
+    gl_h.run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[mr],
@@ -1342,7 +1386,7 @@ def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
         "failed",
         "failed",
     ])
-    gl_h.run_pipeline_healthcheck(
+    gl_h.run_error_healthcheck(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=mrs,

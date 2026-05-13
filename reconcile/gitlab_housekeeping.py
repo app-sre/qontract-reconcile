@@ -617,7 +617,7 @@ def _rebase_merge_requests_top_k(
     guarantees at most K MRs are rebased across all runs.
     Error MRs are filtered before slicing so they don't consume slots."""
     merge_requests = [
-        item
+        item["mr"]
         for item in get_merge_requests(
             dry_run=dry_run,
             gl=gl,
@@ -627,9 +627,7 @@ def _rebase_merge_requests_top_k(
         if not item["error"]
     ][:rebase_limit]
 
-    for item in merge_requests:
-        mr = item["mr"]
-
+    for mr in merge_requests:
         if is_rebased(mr, gl):
             continue
 
@@ -656,7 +654,7 @@ def _rebase_merge_requests_active_cap(
     additional MRs.  This treats rebase_limit as a per-repo concurrency cap
     on in-flight pipelines rather than a visibility window."""
     merge_requests = [
-        item
+        item["mr"]
         for item in get_merge_requests(
             dry_run=dry_run,
             gl=gl,
@@ -673,9 +671,7 @@ def _rebase_merge_requests_active_cap(
     # (success = green and waiting to merge, still occupying a slot).
     already_active = 0
     needs_rebase: list[ProjectMergeRequest] = []
-    for item in merge_requests:
-        mr = item["mr"]
-
+    for mr in merge_requests:
         pipelines = gl.get_merge_request_pipelines(mr)
         if is_rebased(mr, gl):
             if pipelines and pipelines[0].status in {
@@ -723,7 +719,7 @@ def _rebase_merge_requests_old_burst(
     counter — it does not consider active pipelines."""
     rebases = 0
     merge_requests = [
-        item
+        item["mr"]
         for item in get_merge_requests(
             dry_run=dry_run,
             gl=gl,
@@ -732,9 +728,7 @@ def _rebase_merge_requests_old_burst(
         )
         if not item["error"]
     ]
-    for item in merge_requests:
-        mr = item["mr"]
-
+    for mr in merge_requests:
         if is_rebased(mr, gl):
             continue
 
@@ -872,14 +866,15 @@ def merge_merge_requests(
                     gl.add_label_to_merge_request(mr, MERGE_ERROR)
 
 
-def run_pipeline_healthcheck(
+def run_error_healthcheck(
     dry_run: bool,
     gl: GitLabApi,
     project_merge_requests: list[ProjectMergeRequest],
     consecutive_failure_limit: int = 3,
 ) -> None:
-    """Check pipeline health for queue-eligible MRs. Apply/remove
-    pipeline-error label based on consecutive failure count."""
+    """Check error labels for queue-eligible MRs. Apply/remove
+    pipeline-error based on consecutive failure count, and remove
+    merge-error if new commits have been pushed since the label was applied."""
     for mr in project_merge_requests:
         if mr.draft:
             continue
@@ -897,7 +892,9 @@ def run_pipeline_healthcheck(
         if not pipelines:
             continue
 
-        has_pipeline_error = PIPELINE_ERROR in set(mr.labels)
+        labels = set(mr.labels)
+
+        has_pipeline_error = PIPELINE_ERROR in labels
         is_healthy = check_pipeline_health(pipelines, consecutive_failure_limit)
 
         if not is_healthy and not has_pipeline_error:
@@ -918,6 +915,32 @@ def run_pipeline_healthcheck(
             ])
             if not dry_run:
                 gl.remove_label(mr, PIPELINE_ERROR)
+
+        if MERGE_ERROR in labels:
+            label_events = gl.get_merge_request_label_events(mr)
+            merge_error_added_at = None
+            for event in reversed(label_events):
+                if (
+                    event.action == "add"
+                    and event.label
+                    and event.label["name"] == MERGE_ERROR
+                ):
+                    merge_error_added_at = event.created_at
+                    break
+            if merge_error_added_at and any(
+                from_utc_iso_format(c.created_at)
+                > from_utc_iso_format(merge_error_added_at)
+                for c in mr.commits()
+            ):
+                logging.info([
+                    "remove_label",
+                    MERGE_ERROR,
+                    gl.project.name,
+                    mr.iid,
+                    "new commits after merge-error label",
+                ])
+                if not dry_run:
+                    gl.remove_label(mr, MERGE_ERROR)
 
 
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
@@ -961,6 +984,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
         days_interval = hk.get("days_interval") or default_days_interval
         enable_closing = hk.get("enable_closing") or default_enable_closing
         limit = hk.get("limit") or default_limit
+        merge_limit = hk.get("merge_limit") or limit
         pipeline_timeout = hk.get("pipeline_timeout")
         labels_allowed = hk.get("labels_allowed")
         users_allowed_to_label = (
@@ -994,18 +1018,9 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             project_merge_requests = [
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
-            raw_limit = hk.get("consecutive_failure_limit")
-            if raw_limit is None:
-                consecutive_failure_limit = 3
+            consecutive_failure_limit = hk.get("consecutive_failure_limit") or 3
             try:
-                consecutive_failure_limit = max(1, int(raw_limit))
-            except (TypeError, ValueError):
-                logging.warning(
-                    f"invalid consecutive_failure_limit {raw_limit!r}, defaulting to 3"
-                )
-                consecutive_failure_limit = 3
-            try:
-                run_pipeline_healthcheck(
+                run_error_healthcheck(
                     dry_run=dry_run,
                     gl=gl,
                     project_merge_requests=project_merge_requests,
@@ -1013,7 +1028,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                 )
             except Exception:
                 logging.exception(
-                    "pipeline healthcheck failed, continuing with merge/rebase"
+                    "error healthcheck failed, continuing with merge/rebase"
                 )
             reload_toggle = ReloadToggle(reload=False)
             rebase = hk.get("rebase")
@@ -1024,7 +1039,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     gl=gl,
                     project_merge_requests=project_merge_requests,
                     reload_toggle=reload_toggle,
-                    merge_limit=limit,
+                    merge_limit=merge_limit,
                     rebase=rebase,
                     app_sre_usernames=app_sre_usernames,
                     state=state,
@@ -1043,7 +1058,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     gl=gl,
                     project_merge_requests=project_merge_requests,
                     reload_toggle=reload_toggle,
-                    merge_limit=limit,
+                    merge_limit=merge_limit,
                     rebase=rebase,
                     app_sre_usernames=app_sre_usernames,
                     state=state,

@@ -2313,6 +2313,7 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
         "approved_at",
         "approved_span_minutes",
         "approved_by",
+        "error",
         "labels",
     ]
     merge_queue_data = []
@@ -2329,6 +2330,7 @@ def app_interface_merge_queue(ctx: click.Context) -> None:
             ).total_seconds()
             / 60,
             "approved_by": mr["approved_by"],
+            "error": mr["error"],
             "labels": ", ".join(mr["mr"].labels),
         }
         merge_queue_data.append(item)
