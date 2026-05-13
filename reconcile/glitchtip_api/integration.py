@@ -9,9 +9,7 @@ from collections.abc import Callable
 from qontract_api_client.api.integrations.glitchtip import (
     asyncio as reconcile_glitchtip,
 )
-from qontract_api_client.api.integrations.glitchtip_task_status import (
-    asyncio as glitchtip_task_status,
-)
+from qontract_api_client.models import GlitchtipTaskResult
 from qontract_api_client.models.gi_instance import GIInstance
 from qontract_api_client.models.gi_organization import GIOrganization
 from qontract_api_client.models.gi_project import GIProject
@@ -249,10 +247,9 @@ class GlitchtipApiIntegration(
             # and change events will be automatically published via the events framework.
             return
 
-        task_result = await glitchtip_task_status(
-            client=self.qontract_api_client, task_id=task.id, timeout=300
+        task_result = await self.poll_task_status(
+            status_url=task.status_url, result_type=GlitchtipTaskResult
         )
-
         if task_result.status == TaskStatus.PENDING:
             logging.error("Glitchtip task did not complete within the timeout period")
             sys.exit(1)

@@ -45,13 +45,11 @@ from qontract_api_client.api.integrations.slack_usergroups import (
 from qontract_api_client.api.integrations.slack_usergroups import (
     asyncio as reconcile_slack_usergroups,
 )
-from qontract_api_client.api.integrations.slack_usergroups_task_status import (
-    asyncio as slack_usergroups_task_status,
-)
 from qontract_api_client.models import (
     SlackUsergroupActionCreate,
     SlackUsergroupActionUpdateMetadata,
     SlackUsergroupActionUpdateUsers,
+    SlackUsergroupsTaskResult,
 )
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.slack_usergroup import SlackUsergroup
@@ -668,8 +666,8 @@ class SlackUsergroupsIntegration(
             return
 
         # wait for task completion and get the action list
-        task_result = await slack_usergroups_task_status(
-            client=self.qontract_api_client, task_id=task.id, timeout=300
+        task_result = await self.poll_task_status(
+            status_url=task.status_url, result_type=SlackUsergroupsTaskResult
         )
         if task_result.status == TaskStatus.PENDING:
             logging.error("Task did not complete within the timeout period")

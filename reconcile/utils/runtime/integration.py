@@ -3,12 +3,13 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import ModuleType
 from typing import (
     Any,
     Optional,
+    Protocol,
     Self,
     TypeVar,
 )
@@ -240,6 +241,13 @@ class QontractReconcileIntegration[RunParamsTypeVar: RunParams](ABC):
         )
 
 
+class FromDict(Protocol):
+    """Protocol for generated API client models with from_dict classmethod."""
+
+    @classmethod
+    def from_dict(cls, src_dict: Mapping[str, Any]) -> Self: ...
+
+
 class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
     """
     The base class for all integrations using the Qontract API.
@@ -255,7 +263,8 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
 
     @staticmethod
     async def _raise_on_4xx_5xx(response: httpxyz.Response) -> None:
-        response.raise_for_status()
+        if response.status_code != 409:
+            response.raise_for_status()
 
     @property
     def qontract_api_client(self) -> AuthenticatedClient:
@@ -299,6 +308,25 @@ class QontractReconcileApiIntegration[RunParamsTypeVar: RunParams](ABC):
             vault_settings = get_app_interface_vault_settings()
             self._secret_reader = create_secret_reader(use_vault=vault_settings.vault)
         return self._secret_reader
+
+    async def poll_task_status[T: FromDict](
+        self,
+        status_url: str,
+        result_type: type[T],
+        *,
+        timeout: int = 300,
+    ) -> T:
+        """Follow a status_url to poll task completion.
+
+        Uses the status_url returned by POST endpoints to retrieve task results
+        without requiring the caller to know about task IDs or URL construction.
+        """
+        response = await self.qontract_api_client.get_async_httpx_client().request(
+            method="get",
+            url=status_url,
+            params={"timeout": timeout},
+        )
+        return result_type.from_dict(response.json())
 
     @abstractmethod
     async def async_run(self, dry_run: bool) -> None:

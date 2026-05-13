@@ -28,9 +28,7 @@ from qontract_api_client.api.integrations.github_owners import (
 from qontract_api_client.api.integrations.github_owners import (
     asyncio as reconcile_github_owners,
 )
-from qontract_api_client.api.integrations.github_owners_task_status import (
-    asyncio as github_owners_task_status,
-)
+from qontract_api_client.models import GithubOwnersTaskResult
 from qontract_api_client.models.github_org_desired_state import (
     GithubOrgDesiredState,
 )
@@ -202,10 +200,9 @@ class GithubOwnersIntegration(
             return
 
         # Wait for task completion and log actions
-        task_result = await github_owners_task_status(
-            client=self.qontract_api_client, task_id=task.id, timeout=300
+        task_result = await self.poll_task_status(
+            status_url=task.status_url, result_type=GithubOwnersTaskResult
         )
-
         if task_result.status == TaskStatus.PENDING:
             raise IntegrationError(
                 "github-owners-api: task did not complete within the timeout period"
