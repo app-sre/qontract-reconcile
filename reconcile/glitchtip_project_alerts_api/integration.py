@@ -14,7 +14,7 @@ from qontract_api_client.api.integrations.glitchtip_project_alerts import (
     asyncio as reconcile_glitchtip_project_alerts,
 )
 from qontract_api_client.api.integrations.glitchtip_project_alerts_task_status import (
-    asyncio as glitchtip_project_alerts_task_status,
+    GlitchtipProjectAlertsTaskResult,
 )
 from qontract_api_client.models.glitchtip_instance import GlitchtipInstance
 from qontract_api_client.models.glitchtip_organization import GlitchtipOrganization
@@ -311,8 +311,8 @@ class GlitchtipProjectAlertsIntegration(
             # and change events will be automatically published via the events framework.
             return
 
-        task_result = await glitchtip_project_alerts_task_status(
-            client=self.qontract_api_client, task_id=task.id, timeout=300
+        task_result = await self.poll_task_status(
+            status_url=task.status_url, result_type=GlitchtipProjectAlertsTaskResult
         )
 
         if task_result.status == TaskStatus.PENDING:
