@@ -24,6 +24,7 @@ from gitlab.v4.objects import (
     ProjectCommitManager,
     ProjectIssue,
     ProjectMergeRequest,
+    ProjectMergeRequestNoteManager,
     ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
 )
@@ -1233,19 +1234,20 @@ def test_pipeline_error_label_auto_removed_on_recovery(
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
-def test_merge_error_label_not_removed_without_new_commits(
+def test_merge_error_label_not_removed_without_new_notes(
     project: Project,
 ) -> None:
-    """merge-error stays when no commits have been pushed since the label."""
+    """merge-error stays when no notes have been posted since the label."""
     mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
     label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
     label_event.action = "add"
     label_event.label = {"name": "merge-error"}
     label_event.created_at = "2025-06-01T12:00:00.0Z"
 
-    commit = Mock()
-    commit.created_at = "2025-06-01T11:00:00.0Z"
-    mr.commits.return_value = iter([commit])
+    note = Mock()
+    note.created_at = "2025-06-01T11:00:00.0Z"
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    mr.notes.list.return_value = [note]
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
@@ -1267,19 +1269,20 @@ def test_merge_error_label_not_removed_without_new_commits(
     mocked_gl.add_label_to_merge_request.assert_not_called()
 
 
-def test_merge_error_label_removed_on_new_commits(
+def test_merge_error_label_removed_on_new_notes(
     project: Project,
 ) -> None:
-    """merge-error is removed when new commits arrive after the label."""
+    """merge-error is removed when new notes are posted after the label."""
     mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
     label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
     label_event.action = "add"
     label_event.label = {"name": "merge-error"}
     label_event.created_at = "2025-06-01T12:00:00.0Z"
 
-    commit = Mock()
-    commit.created_at = "2025-06-01T13:00:00.0Z"
-    mr.commits.return_value = iter([commit])
+    note = Mock()
+    note.created_at = "2025-06-01T13:00:00.0Z"
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    mr.notes.list.return_value = [note]
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project

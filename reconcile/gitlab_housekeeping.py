@@ -874,7 +874,7 @@ def run_error_healthcheck(
 ) -> None:
     """Check error labels for queue-eligible MRs. Apply/remove
     pipeline-error based on consecutive failure count, and remove
-    merge-error if new commits have been pushed since the label was applied."""
+    merge-error if any new notes have been posted since the label was applied."""
     for mr in project_merge_requests:
         if mr.draft:
             continue
@@ -927,20 +927,26 @@ def run_error_healthcheck(
                 ):
                     merge_error_added_at = event.created_at
                     break
-            if merge_error_added_at and any(
-                from_utc_iso_format(c.created_at)
-                > from_utc_iso_format(merge_error_added_at)
-                for c in mr.commits()
-            ):
-                logging.info([
-                    "remove_label",
-                    MERGE_ERROR,
-                    gl.project.name,
-                    mr.iid,
-                    "new commits after merge-error label",
-                ])
-                if not dry_run:
-                    gl.remove_label(mr, MERGE_ERROR)
+
+            if merge_error_added_at:
+                latest_notes = mr.notes.list(
+                    order_by="created_at", sort="desc", per_page=1
+                )
+                if any(
+                    from_utc_iso_format(note.created_at)
+                    > from_utc_iso_format(merge_error_added_at)
+                    and not (note.system and MERGE_ERROR in note.body)
+                    for note in latest_notes
+                ):
+                    logging.info([
+                        "remove_label",
+                        MERGE_ERROR,
+                        gl.project.name,
+                        mr.iid,
+                        "new notes after merge-error label",
+                    ])
+                    if not dry_run:
+                        gl.remove_label(mr, MERGE_ERROR)
 
 
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
