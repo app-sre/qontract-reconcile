@@ -16,7 +16,6 @@ from gitlab import Gitlab
 from gitlab.exceptions import (
     GitlabMRClosedError,
     GitlabMRRebaseError,
-    GitlabOperationError,
 )
 from gitlab.v4.objects import (
     Project,
@@ -532,7 +531,7 @@ def _call_rebase(
     mocker.patch(
         "reconcile.gitlab_housekeeping.get_merge_requests",
         return_value=[
-            {"mr": mr, "error": bool(gl_h.ERROR_LABELS & set(mr.labels))}
+            {"mr": mr, "error": any(label in gl_h.ERROR_LABELS for label in mr.labels)}
             for mr in merge_requests
         ],
     )
@@ -1021,47 +1020,6 @@ def test_get_rebase_strategy_toggle_enabled_valid_variant(
     assert gl_h.get_rebase_strategy() == expected_strategy
 
 
-def test_merge_applies_merge_error_label_on_operation_error(
-    state: Mock,
-    project: Project,
-    can_be_merged_merge_request: Mock,
-    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
-    success_merge_request_pipeline: ProjectMergeRequestPipeline,
-) -> None:
-    """GitlabOperationError on merge applies the merge-error label."""
-    mocked_gl = create_autospec(GitLabApi)
-    project.squash_option = "never"
-    mocked_gl.project = project
-    mocked_gl.get_merge_request_label_events.return_value = [
-        add_lgtm_merge_request_resource_label_event
-    ]
-    mocked_gl.get_merge_request_pipelines.return_value = [
-        success_merge_request_pipeline
-    ]
-    can_be_merged_merge_request.merge.side_effect = GitlabOperationError(
-        "branch missing"
-    )
-
-    gl_h.merge_merge_requests(
-        dry_run=False,
-        gl=mocked_gl,
-        project_merge_requests=[can_be_merged_merge_request],
-        reload_toggle=gl_h.ReloadToggle(reload=False),
-        merge_limit=1,
-        rebase=False,
-        app_sre_usernames=set(),
-        state=state,
-        pipeline_timeout=None,
-        insist=False,
-        wait_for_pipeline=False,
-        users_allowed_to_label=None,
-    )
-
-    mocked_gl.add_label_to_merge_request.assert_called_once_with(
-        can_be_merged_merge_request, "merge-error"
-    )
-
-
 def test_merge_applies_merge_error_label_on_closed_error(
     state: Mock,
     project: Project,
@@ -1285,11 +1243,13 @@ def test_merge_error_label_removed_on_new_notes(
     note.created_at = "2025-06-01T13:00:00.0Z"
     note.system = False
     note.body = "I fixed the issue, please retry"
+    note.author = {"username": "human-user"}
     mr.notes = create_autospec(ProjectMergeRequestNoteManager)
     mr.notes.list.return_value = [note]
 
     mocked_gl = create_autospec(GitLabApi)
     mocked_gl.project = project
+    mocked_gl.user = Mock(username="bot-user")
     mocked_gl.get_merge_request_label_events.return_value = [label_event]
     mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
         "success",
@@ -1609,6 +1569,7 @@ class TestMergeErrorCycleEndToEnd:
         human_note.created_at = "2025-06-01T12:00:00.0Z"
         human_note.system = False
         human_note.body = "I fixed the approval, please retry"
+        human_note.author = {"username": "developer"}
         mr.notes.list.return_value = [human_note]
 
         gl_h.run_error_healthcheck(
@@ -1664,6 +1625,7 @@ class TestMergeErrorCycleEndToEnd:
         human_note_2.created_at = "2025-06-01T15:00:00.0Z"
         human_note_2.system = False
         human_note_2.body = "Fixed for real this time"
+        human_note_2.author = {"username": "developer"}
         mr.notes.list.return_value = [human_note_2]
 
         gl_h.run_error_healthcheck(
@@ -1765,3 +1727,36 @@ class TestMergeErrorCycleEndToEnd:
         )
 
         gl.remove_label.assert_not_called()
+
+
+def test_bot_note_does_not_clear_merge_error(project: Project) -> None:
+    """Bot-authored notes (Build success, etc.) should not trigger
+    merge-error removal."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
+    label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    label_event.action = "add"
+    label_event.label = {"name": "merge-error"}
+    label_event.created_at = "2025-06-01T12:00:00.0Z"
+    bot_note = Mock()
+    bot_note.created_at = "2025-06-01T13:00:00.0Z"
+    bot_note.system = False
+    bot_note.body = "Build success, build url: https://ci.example.com/123"
+    bot_note.author = {"username": "devtools-bot"}
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    mr.notes.list.return_value = [bot_note]
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.user = Mock(username="devtools-bot")
+    mocked_gl.get_merge_request_label_events.return_value = [label_event]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "success",
+        "success",
+    ])
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+    mocked_gl.remove_label.assert_not_called()

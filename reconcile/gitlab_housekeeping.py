@@ -77,7 +77,7 @@ HOLD_LABELS = [
     NEEDS_REBASE,
 ]
 
-ERROR_LABELS = {MERGE_ERROR, PIPELINE_ERROR}
+ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR]
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -231,10 +231,12 @@ def check_pipeline_health(
     Return False if last `consecutive_failure_limit` pipelines all
     ended in a non-success terminal state (FAILED).
     """
-    recent = pipelines[:consecutive_failure_limit]
-    if len(recent) < consecutive_failure_limit:
+    pipeline_failure_window = pipelines[:consecutive_failure_limit]
+    if len(pipeline_failure_window) < consecutive_failure_limit:
         return True
-    return not all(p.status in PIPELINE_FAILURE_STATUSES for p in recent)
+    return not all(
+        p.status in PIPELINE_FAILURE_STATUSES for p in pipeline_failure_window
+    )
 
 
 def verify_on_demand_tests(
@@ -520,7 +522,7 @@ def preprocess_merge_requests(
             "priority": f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}",
             "approved_at": approved_at,
             "approved_by": approved_by,
-            "error": bool(ERROR_LABELS & labels),
+            "error": any(label in ERROR_LABELS for label in labels),
         }
         results.append(item)
 
@@ -858,11 +860,8 @@ def merge_merge_requests(
                     # other merge requests need to be rebased first after this one merged, so terminate
                     return
                 merges += 1
-            except (
-                gitlab.exceptions.GitlabMRClosedError,
-                gitlab.exceptions.GitlabOperationError,
-            ) as e:
-                logging.error(f"unable to merge ({type(e).__name__}) {mr.iid}: {e}")
+            except gitlab.exceptions.GitlabMRClosedError as e:
+                logging.error(f"unable to merge {mr.iid}: {e}")
                 if not dry_run:
                     gl.add_label_to_merge_request(mr, MERGE_ERROR)
 
@@ -936,7 +935,8 @@ def run_error_healthcheck(
                 if any(
                     from_utc_iso_format(note.created_at)
                     > from_utc_iso_format(merge_error_added_at)
-                    and not (note.system and MERGE_ERROR in note.body)
+                    and not note.system
+                    and note.author["username"] != gl.user.username
                     for note in latest_notes
                 ):
                     logging.info([
@@ -974,6 +974,8 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
 def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     default_days_interval = 15
     default_limit = 8
+    default_merge_limit = 8
+    default_consecutive_failure_limit = 3
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
@@ -991,8 +993,12 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
         days_interval = hk.get("days_interval") or default_days_interval
         enable_closing = hk.get("enable_closing") or default_enable_closing
         limit = hk.get("limit") or default_limit
-        merge_limit = hk.get("merge_limit") or limit
+        merge_limit = hk.get("merge_limit") or default_merge_limit
+        consecutive_failure_limit = (
+            hk.get("consecutive_failure_limit") or default_consecutive_failure_limit
+        )
         pipeline_timeout = hk.get("pipeline_timeout")
+
         labels_allowed = hk.get("labels_allowed")
         users_allowed_to_label = (
             None
@@ -1025,7 +1031,6 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             project_merge_requests = [
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
-            consecutive_failure_limit = hk.get("consecutive_failure_limit") or 3
             try:
                 run_error_healthcheck(
                     dry_run=dry_run,
