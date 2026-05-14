@@ -520,7 +520,7 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
         external_resources_aws=external_resources_aws,
         external_resources_app_interface=external_resources_app_interface,
     )
-    assert merge_request_manager_mock.create_merge_request.call_count == 4
+    assert merge_request_manager_mock.create_merge_request.call_count == 2
     merge_request_manager_mock.create_merge_request.assert_has_calls(
         [
             mocker.call(
@@ -545,30 +545,6 @@ def test_avs_reconcile(mocker: MockerFixture, intg: AVSIntegration) -> None:
                     resource_identifier=ec_version_update_ai.resource_identifier,
                     resource_engine=ec_version_update_ai.resource_engine,
                     resource_engine_version=ec_version_update_aws.resource_engine_version_string,
-                )
-            ),
-            mocker.call(
-                MrData(
-                    namespace_file=ec_engine_and_version_update_ai.namespace_file,
-                    provider=ec_engine_and_version_update_ai.provider,
-                    provisioner_ref=ec_engine_and_version_update_ai.provisioner.path,
-                    provisioner_uid=ec_engine_and_version_update_ai.provisioner.uid,
-                    resource_provider=ec_engine_and_version_update_ai.resource_provider,
-                    resource_identifier=ec_engine_and_version_update_ai.resource_identifier,
-                    resource_engine=ec_engine_and_version_update_aws.resource_engine,
-                    resource_engine_version=ec_engine_and_version_update_aws.resource_engine_version_string,
-                )
-            ),
-            mocker.call(
-                MrData(
-                    namespace_file=ec_engine_update_ai.namespace_file,
-                    provider=ec_engine_update_ai.provider,
-                    provisioner_ref=ec_engine_update_ai.provisioner.path,
-                    provisioner_uid=ec_engine_update_ai.provisioner.uid,
-                    resource_provider=ec_engine_update_ai.resource_provider,
-                    resource_identifier=ec_engine_update_ai.resource_identifier,
-                    resource_engine=ec_engine_update_aws.resource_engine,
-                    resource_engine_version=ec_engine_update_aws.resource_engine_version_string,
                 )
             ),
         ],
@@ -627,3 +603,53 @@ def test_external_resources_resource_engine_version_string(
     er: ExternalResource, expected: str
 ) -> None:
     assert er.resource_engine_version_string == expected
+
+
+def test_avs_reconcile_skip_engine_change(
+    mocker: MockerFixture, intg: AVSIntegration
+) -> None:
+    """Engine changes (e.g. redis→valkey) should be skipped, even if the version is higher."""
+    merge_request_manager_mock = mocker.create_autospec(spec=MergeRequestManager)
+    engine_only_aws = ExternalResource(
+        namespace_file=None,
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(uid="acc", path=None),
+        resource_provider="elasticache",
+        resource_identifier="ec-engine-only",
+        resource_engine="valkey",
+        resource_engine_version="7.2",
+    )
+    engine_only_ai = ExternalResource(
+        namespace_file="/ns.yml",
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(uid="acc", path="acc.yml"),
+        resource_provider="elasticache",
+        resource_identifier="ec-engine-only",
+        resource_engine="redis",
+        resource_engine_version="7.2",
+    )
+    engine_and_version_aws = ExternalResource(
+        namespace_file=None,
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(uid="acc", path=None),
+        resource_provider="elasticache",
+        resource_identifier="ec-engine-and-ver",
+        resource_engine="valkey",
+        resource_engine_version="8.0",
+    )
+    engine_and_version_ai = ExternalResource(
+        namespace_file="/ns.yml",
+        provider="aws",
+        provisioner=ExternalResourceProvisioner(uid="acc", path="acc.yml"),
+        resource_provider="elasticache",
+        resource_identifier="ec-engine-and-ver",
+        resource_engine="redis",
+        resource_engine_version="6.2",
+    )
+
+    intg.reconcile(
+        merge_request_manager=merge_request_manager_mock,
+        external_resources_aws=[engine_only_aws, engine_and_version_aws],
+        external_resources_app_interface=[engine_only_ai, engine_and_version_ai],
+    )
+    merge_request_manager_mock.create_merge_request.assert_not_called()
