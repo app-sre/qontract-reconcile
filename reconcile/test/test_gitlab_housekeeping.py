@@ -1597,9 +1597,7 @@ class TestMergeErrorCycleEndToEnd:
         gl.reset_mock()
 
         # --- Step 3 & 4: Human comments → healthcheck removes merge-error ---
-        merge_error_label_event = create_autospec(
-            ProjectMergeRequestResourceLabelEvent
-        )
+        merge_error_label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
         merge_error_label_event.action = "add"
         merge_error_label_event.label = {"name": "merge-error"}
         merge_error_label_event.created_at = "2025-06-01T11:00:00.0Z"
@@ -1745,9 +1743,7 @@ class TestMergeErrorCycleEndToEnd:
         when the label is added) does not trigger removal of the label."""
         mr.labels = ["lgtm", "merge-error"]
 
-        merge_error_label_event = create_autospec(
-            ProjectMergeRequestResourceLabelEvent
-        )
+        merge_error_label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
         merge_error_label_event.action = "add"
         merge_error_label_event.label = {"name": "merge-error"}
         merge_error_label_event.created_at = "2025-06-01T11:00:00.0Z"
