@@ -859,9 +859,11 @@ def merge_merge_requests(
                     return
                 merges += 1
             except gitlab.exceptions.GitlabMRClosedError as e:
-                logging.error(f"unable to merge {mr.iid}: {e}")
+                logging.error(f"unable to merge ({type(e).__name__}) {mr.iid}: {e}")
+                if not dry_run:
+                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
             except gitlab.exceptions.GitlabOperationError as e:
-                logging.error(f"unable to merge {mr.iid}: {e}")
+                logging.error(f"unable to merge ({type(e).__name__}) {mr.iid}: {e}")
                 if not dry_run:
                     gl.add_label_to_merge_request(mr, MERGE_ERROR)
 
