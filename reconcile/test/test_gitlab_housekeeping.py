@@ -13,13 +13,17 @@ from unittest.mock import (
 
 import pytest
 from gitlab import Gitlab
-from gitlab.exceptions import GitlabMRRebaseError
+from gitlab.exceptions import (
+    GitlabMRClosedError,
+    GitlabMRRebaseError,
+)
 from gitlab.v4.objects import (
     Project,
     ProjectCommit,
     ProjectCommitManager,
     ProjectIssue,
     ProjectMergeRequest,
+    ProjectMergeRequestNoteManager,
     ProjectMergeRequestPipeline,
     ProjectMergeRequestResourceLabelEvent,
 )
@@ -200,6 +204,7 @@ def can_be_merged_merge_request() -> Mock:
     mr.labels = ["lgtm"]
     mr.iid = 1
     mr.target_project_id = 3
+    mr.squash = False
     mr.author = {"username": "user"}
     return mr
 
@@ -525,7 +530,10 @@ def _call_rebase(
     )
     mocker.patch(
         "reconcile.gitlab_housekeeping.get_merge_requests",
-        return_value=[{"mr": mr} for mr in merge_requests],
+        return_value=[
+            {"mr": mr, "error": any(label in gl_h.ERROR_LABELS for label in mr.labels)}
+            for mr in merge_requests
+        ],
     )
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
@@ -543,12 +551,15 @@ def _call_rebase(
     )
 
 
-def _make_rebase_mr(iid: int, project_id: int = 10) -> Mock:
+def _make_rebase_mr(
+    iid: int, project_id: int = 10, labels: list[str] | None = None
+) -> Mock:
     """Create a minimal autospec MR for rebase tests."""
     mr = create_autospec(ProjectMergeRequest)
     mr.iid = iid
     mr.target_project_id = project_id
     mr.source_project_id = project_id
+    mr.labels = labels or []
     return mr
 
 
@@ -909,6 +920,41 @@ def test_top_k_only_considers_first_k_mrs(
     assert merge_requests[4].rebase.call_count == 0
 
 
+@pytest.mark.parametrize(
+    ("error_label", "strategy"),
+    [
+        ("merge-error", RebaseStrategy.ACTIVE_CAP),
+        ("pipeline-error", RebaseStrategy.ACTIVE_CAP),
+        ("merge-error", RebaseStrategy.TOP_K),
+        ("pipeline-error", RebaseStrategy.TOP_K),
+        ("merge-error", RebaseStrategy.OLD_BURST),
+        ("pipeline-error", RebaseStrategy.OLD_BURST),
+    ],
+)
+def test_error_mr_skipped_in_rebase(
+    mocker: MockerFixture,
+    gitlab_api: Mock,
+    state: Mock,
+    error_label: str,
+    strategy: RebaseStrategy,
+) -> None:
+    """An MR with an error label is never rebased, regardless of strategy."""
+    error_mr = _make_rebase_mr(1, labels=[error_label])
+    normal_mr = _make_rebase_mr(2)
+
+    _call_rebase(
+        mocker,
+        gitlab_api,
+        state,
+        [error_mr, normal_mr],
+        rebase_limit=2,
+        strategy=strategy,
+    )
+
+    assert error_mr.rebase.call_count == 0
+    assert normal_mr.rebase.call_count == 1
+
+
 # --- get_rebase_strategy tests ---
 
 
@@ -972,3 +1018,745 @@ def test_get_rebase_strategy_toggle_enabled_valid_variant(
         "payload": {"type": "string", "value": variant_value},
     }
     assert gl_h.get_rebase_strategy() == expected_strategy
+
+
+def test_merge_applies_merge_error_label_on_closed_error(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+) -> None:
+    """GitlabMRClosedError on merge applies merge-error label silently (no note)."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        success_merge_request_pipeline
+    ]
+    can_be_merged_merge_request.merge.side_effect = GitlabMRClosedError("MR closed")
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(
+        can_be_merged_merge_request, "merge-error"
+    )
+
+
+def test_merge_error_label_not_applied_in_dry_run(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+) -> None:
+    """Dry-run mode does not attempt merge or apply any labels."""
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        success_merge_request_pipeline
+    ]
+
+    gl_h.merge_merge_requests(
+        dry_run=True,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+    )
+
+    can_be_merged_merge_request.merge.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def _make_pipelines(statuses: list[str]) -> list[ProjectMergeRequestPipeline]:
+    """Create a list of mock pipelines from status strings."""
+    return [create_autospec(ProjectMergeRequestPipeline, status=s) for s in statuses]
+
+
+def test_check_pipeline_health_all_failures() -> None:
+    """Three consecutive failed pipelines marks MR as unhealthy."""
+    pipelines = _make_pipelines(["failed", "failed", "failed"])
+    assert gl_h.check_pipeline_health(pipelines) is False
+
+
+def test_check_pipeline_health_all_canceled_is_healthy() -> None:
+    """Canceled pipelines are not counted as failures."""
+    pipelines = _make_pipelines(["canceled", "canceled", "canceled"])
+    assert gl_h.check_pipeline_health(pipelines) is True
+
+
+def test_check_pipeline_health_canceled_and_skipped_not_counted() -> None:
+    """A mix of failed, canceled, and skipped is still considered healthy."""
+    pipelines = _make_pipelines(["failed", "canceled", "skipped"])
+    assert gl_h.check_pipeline_health(pipelines) is True
+
+
+def test_check_pipeline_health_mixed_with_success() -> None:
+    """A successful pipeline in the window breaks the failure streak."""
+    pipelines = _make_pipelines(["failed", "failed", "success"])
+    assert gl_h.check_pipeline_health(pipelines) is True
+
+
+def test_check_pipeline_health_insufficient_history() -> None:
+    """Fewer pipelines than the limit is treated as healthy."""
+    pipelines = _make_pipelines(["failed", "failed"])
+    assert gl_h.check_pipeline_health(pipelines) is True
+
+
+def _make_healthcheck_mr(
+    labels: list[str],
+    merge_status: str = "can_be_merged",
+    draft: bool = False,
+) -> Mock:
+    """Create a minimal mock MR for healthcheck tests."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.labels = labels
+    mr.merge_status = merge_status
+    mr.draft = draft
+    mr.iid = 1
+    mr.target_project_id = 1
+    return mr
+
+
+def test_pipeline_error_label_applied_on_consecutive_failures(
+    project: Project,
+) -> None:
+    """Consecutive pipeline failures apply pipeline-error label."""
+    mr = _make_healthcheck_mr(labels=["lgtm"])
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "pipeline-error")
+    mocked_gl.remove_label.assert_not_called()
+
+
+def test_pipeline_error_label_auto_removed_on_recovery(
+    project: Project,
+) -> None:
+    """A successful pipeline removes the pipeline-error label."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "pipeline-error"])
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "failed",
+        "failed",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.remove_label.assert_called_once_with(mr, "pipeline-error")
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_merge_error_label_not_removed_without_new_notes(
+    project: Project,
+) -> None:
+    """merge-error stays when no notes have been posted since the label."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
+    label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    label_event.action = "add"
+    label_event.label = {"name": "merge-error"}
+    label_event.created_at = "2025-06-01T12:00:00.0Z"
+
+    note = Mock()
+    note.created_at = "2025-06-01T11:00:00.0Z"
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    mr.notes.list.return_value = [note]
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [label_event]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "success",
+        "success",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.remove_label.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_merge_error_label_removed_on_new_notes(
+    project: Project,
+) -> None:
+    """merge-error is removed when new notes are posted after the label."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
+    label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    label_event.action = "add"
+    label_event.label = {"name": "merge-error"}
+    label_event.created_at = "2025-06-01T12:00:00.0Z"
+
+    note = Mock()
+    note.created_at = "2025-06-01T13:00:00.0Z"
+    note.system = False
+    note.body = "I fixed the issue, please retry"
+    note.author = {"username": "human-user"}
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    mr.notes.list.return_value = [note]
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.user = Mock(username="bot-user")
+    mocked_gl.get_merge_request_label_events.return_value = [label_event]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "success",
+        "success",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.remove_label.assert_called_once_with(mr, "merge-error")
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_configurable_failure_limit(
+    project: Project,
+) -> None:
+    """The consecutive failure threshold is respected when set to a custom value."""
+    mr_3_failures = _make_healthcheck_mr(labels=["lgtm"])
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+        "success",
+        "success",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr_3_failures],
+        consecutive_failure_limit=5,
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+    mr_5_failures = _make_healthcheck_mr(labels=["lgtm"])
+    mocked_gl.reset_mock()
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+        "failed",
+        "failed",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr_5_failures],
+        consecutive_failure_limit=5,
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(
+        mr_5_failures, "pipeline-error"
+    )
+
+
+def test_already_labeled_mr_with_ongoing_failures_no_api_calls(
+    project: Project,
+) -> None:
+    """An MR that already has pipeline-error and is still failing
+    should not trigger any label mutations on a subsequent healthcheck run."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "pipeline-error"])
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+    ])
+
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+
+
+def test_healthcheck_skips_non_queue_eligible_mrs(project: Project) -> None:
+    """MRs that fail is_good_to_merge are skipped by the healthcheck."""
+    mrs: list[ProjectMergeRequest] = [
+        _make_healthcheck_mr(labels=[]),
+        _make_healthcheck_mr(labels=["lgtm", "do-not-merge/hold"]),
+    ]
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "failed",
+        "failed",
+        "failed",
+    ])
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=mrs,
+        consecutive_failure_limit=3,
+    )
+    mocked_gl.get_merge_request_pipelines.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error_label",
+    ["merge-error", "pipeline-error"],
+)
+def test_error_mr_skipped_cleanly_with_no_side_effects(
+    state: Mock,
+    project: Project,
+    can_be_merged_merge_request: Mock,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    success_merge_request_pipeline: ProjectMergeRequestPipeline,
+    error_label: str,
+) -> None:
+    """An MR with an error label should pass through the merge loop
+    without any merge attempts, label mutations, or pipeline fetches."""
+    can_be_merged_merge_request.labels = ["lgtm", error_label]
+    mocked_gl = create_autospec(GitLabApi)
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+    mocked_gl.get_merge_request_pipelines.return_value = [
+        success_merge_request_pipeline
+    ]
+
+    gl_h.merge_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[can_be_merged_merge_request],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=1,
+        rebase=False,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=None,
+        insist=False,
+        wait_for_pipeline=False,
+        users_allowed_to_label=None,
+    )
+
+    can_be_merged_merge_request.merge.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+    mocked_gl.remove_label.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error_label",
+    ["merge-error", "pipeline-error"],
+)
+def test_error_labels_visible_in_queue(
+    state: Mock,
+    project: Project,
+    add_lgtm_merge_request_resource_label_event: ProjectMergeRequestResourceLabelEvent,
+    error_label: str,
+) -> None:
+    """MRs with error labels pass through preprocessing with error=True."""
+    mr = create_autospec(ProjectMergeRequest)
+    mr.merge_status = "can_be_merged"
+    mr.draft = False
+    mr.commits.return_value = [create_autospec(ProjectCommit)]
+    mr.labels = ["lgtm", error_label]
+    mr.iid = 1
+
+    assert gl_h.is_good_to_merge(mr.labels) is True
+
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_label_events.return_value = [
+        add_lgtm_merge_request_resource_label_event
+    ]
+
+    results = gl_h.preprocess_merge_requests(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        state=state,
+        users_allowed_to_label=None,
+    )
+
+    assert len(results) == 1
+    assert results[0]["mr"] is mr
+    assert results[0]["error"] is True
+
+
+class TestMergeErrorCycleEndToEnd:
+    """End-to-end test for the silent merge-error label flow.
+
+    Validates the full cycle:
+      1. MR fails to merge (GitlabMRClosedError) → merge-error applied silently
+      2. MR with merge-error is skipped by merge queue
+      3. Human comments on MR
+      4. Healthcheck detects new note → removes merge-error
+      5. MR re-enters merge queue → fails again → merge-error re-applied
+      6. Human comments again → healthcheck removes → merge succeeds
+    """
+
+    @pytest.fixture
+    def gl(self, project: Project) -> Mock:
+        mocked_gl = create_autospec(GitLabApi)
+        project.squash_option = "never"
+        project.id = "some-id"
+        mocked_gl.project = project
+        mocked_gl.user = Mock(username="bot-user")
+        return mocked_gl
+
+    @pytest.fixture
+    def mr(self) -> Mock:
+        mr = create_autospec(ProjectMergeRequest)
+        mr.merge_status = "can_be_merged"
+        mr.draft = False
+        mr.commits.return_value = [create_autospec(ProjectCommit)]
+        mr.labels = ["lgtm"]
+        mr.iid = 42
+        mr.target_project_id = 3
+        mr.source_project_id = 3
+        mr.squash = False
+        mr.author = {"username": "developer"}
+        mr.state = "opened"
+        mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+        return mr
+
+    @pytest.fixture
+    def lgtm_label_event(self) -> ProjectMergeRequestResourceLabelEvent:
+        event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+        event.action = "add"
+        event.label = {"name": "lgtm"}
+        event.user = {"username": "reviewer"}
+        event.created_at = "2025-06-01T10:00:00.0Z"
+        return event
+
+    @pytest.fixture
+    def success_pipeline(self) -> ProjectMergeRequestPipeline:
+        return create_autospec(ProjectMergeRequestPipeline, status="success")
+
+    def test_full_merge_error_cycle(
+        self,
+        state: Mock,
+        gl: Mock,
+        mr: Mock,
+        lgtm_label_event: ProjectMergeRequestResourceLabelEvent,
+        success_pipeline: ProjectMergeRequestPipeline,
+    ) -> None:
+        """Simulate the complete merge-error lifecycle through 6 steps."""
+        gl.get_merge_request_label_events.return_value = [lgtm_label_event]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+
+        # --- Step 1: MR fails to merge → merge-error applied silently ---
+        mr.merge.side_effect = GitlabMRClosedError("MR was closed")
+
+        gl_h.merge_merge_requests(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            reload_toggle=gl_h.ReloadToggle(reload=False),
+            merge_limit=1,
+            rebase=False,
+            app_sre_usernames=set(),
+            state=state,
+            pipeline_timeout=None,
+            insist=False,
+            wait_for_pipeline=False,
+            users_allowed_to_label=None,
+        )
+
+        gl.add_label_to_merge_request.assert_called_once_with(mr, "merge-error")
+        gl.add_comment_to_merge_request.assert_not_called()
+        gl.reset_mock()
+        mr.merge.reset_mock()
+
+        # --- Step 2: MR with merge-error is skipped by merge queue ---
+        mr.labels = ["lgtm", "merge-error"]
+        gl.get_merge_request_label_events.return_value = [lgtm_label_event]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+
+        gl_h.merge_merge_requests(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            reload_toggle=gl_h.ReloadToggle(reload=False),
+            merge_limit=1,
+            rebase=False,
+            app_sre_usernames=set(),
+            state=state,
+            pipeline_timeout=None,
+            insist=False,
+            wait_for_pipeline=False,
+            users_allowed_to_label=None,
+        )
+
+        mr.merge.assert_not_called()
+        gl.reset_mock()
+
+        # --- Step 3 & 4: Human comments → healthcheck removes merge-error ---
+        merge_error_label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+        merge_error_label_event.action = "add"
+        merge_error_label_event.label = {"name": "merge-error"}
+        merge_error_label_event.created_at = "2025-06-01T11:00:00.0Z"
+
+        gl.get_merge_request_label_events.return_value = [merge_error_label_event]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+
+        human_note = Mock()
+        human_note.created_at = "2025-06-01T12:00:00.0Z"
+        human_note.system = False
+        human_note.body = "I fixed the approval, please retry"
+        human_note.author = {"username": "developer"}
+        mr.notes.list.return_value = [human_note]
+
+        gl_h.run_error_healthcheck(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            consecutive_failure_limit=3,
+        )
+
+        gl.remove_label.assert_called_once_with(mr, "merge-error")
+        gl.reset_mock()
+
+        # --- Step 5: MR re-enters queue, fails again → merge-error re-applied ---
+        mr.labels = ["lgtm"]
+        mr.merge.reset_mock()
+        mr.merge.side_effect = GitlabMRClosedError("MR was closed again")
+        gl.get_merge_request_label_events.return_value = [lgtm_label_event]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+
+        gl_h.merge_merge_requests(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            reload_toggle=gl_h.ReloadToggle(reload=False),
+            merge_limit=1,
+            rebase=False,
+            app_sre_usernames=set(),
+            state=state,
+            pipeline_timeout=None,
+            insist=False,
+            wait_for_pipeline=False,
+            users_allowed_to_label=None,
+        )
+
+        gl.add_label_to_merge_request.assert_called_once_with(mr, "merge-error")
+        gl.add_comment_to_merge_request.assert_not_called()
+        gl.reset_mock()
+
+        # --- Step 6: Human comments again → healthcheck removes → merge succeeds ---
+        mr.labels = ["lgtm", "merge-error"]
+
+        merge_error_label_event_2 = create_autospec(
+            ProjectMergeRequestResourceLabelEvent
+        )
+        merge_error_label_event_2.action = "add"
+        merge_error_label_event_2.label = {"name": "merge-error"}
+        merge_error_label_event_2.created_at = "2025-06-01T14:00:00.0Z"
+
+        gl.get_merge_request_label_events.return_value = [merge_error_label_event_2]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+
+        human_note_2 = Mock()
+        human_note_2.created_at = "2025-06-01T15:00:00.0Z"
+        human_note_2.system = False
+        human_note_2.body = "Fixed for real this time"
+        human_note_2.author = {"username": "developer"}
+        mr.notes.list.return_value = [human_note_2]
+
+        gl_h.run_error_healthcheck(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            consecutive_failure_limit=3,
+        )
+
+        gl.remove_label.assert_called_once_with(mr, "merge-error")
+        gl.reset_mock()
+
+        # MR re-enters queue and merges successfully
+        mr.labels = ["lgtm"]
+        mr.merge.reset_mock()
+        mr.merge.side_effect = None
+        gl.get_merge_request_label_events.return_value = [lgtm_label_event]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+
+        gl_h.merge_merge_requests(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            reload_toggle=gl_h.ReloadToggle(reload=False),
+            merge_limit=1,
+            rebase=False,
+            app_sre_usernames=set(),
+            state=state,
+            pipeline_timeout=None,
+            insist=False,
+            wait_for_pipeline=False,
+            users_allowed_to_label=None,
+        )
+
+        mr.merge.assert_called_once_with(squash=False)
+        gl.add_label_to_merge_request.assert_not_called()
+
+    def test_no_loop_risk_bot_never_creates_notes(
+        self,
+        state: Mock,
+        gl: Mock,
+        mr: Mock,
+        lgtm_label_event: ProjectMergeRequestResourceLabelEvent,
+        success_pipeline: ProjectMergeRequestPipeline,
+    ) -> None:
+        """Verify the bot never creates notes during the merge-error flow,
+        ensuring no infinite loop is possible."""
+        gl.get_merge_request_label_events.return_value = [lgtm_label_event]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+        mr.merge.side_effect = GitlabMRClosedError("MR was closed")
+
+        gl_h.merge_merge_requests(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            reload_toggle=gl_h.ReloadToggle(reload=False),
+            merge_limit=1,
+            rebase=False,
+            app_sre_usernames=set(),
+            state=state,
+            pipeline_timeout=None,
+            insist=False,
+            wait_for_pipeline=False,
+            users_allowed_to_label=None,
+        )
+
+        gl.add_comment_to_merge_request.assert_not_called()
+        mr.notes.create.assert_not_called()
+
+    def test_system_note_does_not_trigger_recheck(
+        self,
+        gl: Mock,
+        mr: Mock,
+        success_pipeline: ProjectMergeRequestPipeline,
+    ) -> None:
+        """A system note containing 'merge-error' (auto-generated by GitLab
+        when the label is added) does not trigger removal of the label."""
+        mr.labels = ["lgtm", "merge-error"]
+
+        merge_error_label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+        merge_error_label_event.action = "add"
+        merge_error_label_event.label = {"name": "merge-error"}
+        merge_error_label_event.created_at = "2025-06-01T11:00:00.0Z"
+
+        gl.get_merge_request_label_events.return_value = [merge_error_label_event]
+        gl.get_merge_request_pipelines.return_value = [success_pipeline]
+
+        system_note = Mock()
+        system_note.created_at = "2025-06-01T11:00:01.0Z"
+        system_note.system = True
+        system_note.body = "added ~merge-error label"
+        mr.notes.list.return_value = [system_note]
+
+        gl_h.run_error_healthcheck(
+            dry_run=False,
+            gl=gl,
+            project_merge_requests=[mr],
+            consecutive_failure_limit=3,
+        )
+
+        gl.remove_label.assert_not_called()
+
+
+def test_bot_note_does_not_clear_merge_error(project: Project) -> None:
+    """Bot-authored notes (Build success, etc.) should not trigger
+    merge-error removal."""
+    mr = _make_healthcheck_mr(labels=["lgtm", "merge-error"])
+    label_event = create_autospec(ProjectMergeRequestResourceLabelEvent)
+    label_event.action = "add"
+    label_event.label = {"name": "merge-error"}
+    label_event.created_at = "2025-06-01T12:00:00.0Z"
+    bot_note = Mock()
+    bot_note.created_at = "2025-06-01T13:00:00.0Z"
+    bot_note.system = False
+    bot_note.body = "Build success, build url: https://ci.example.com/123"
+    bot_note.author = {"username": "devtools-bot"}
+    mr.notes = create_autospec(ProjectMergeRequestNoteManager)
+    mr.notes.list.return_value = [bot_note]
+    mocked_gl = create_autospec(GitLabApi)
+    mocked_gl.project = project
+    mocked_gl.user = Mock(username="devtools-bot")
+    mocked_gl.get_merge_request_label_events.return_value = [label_event]
+    mocked_gl.get_merge_request_pipelines.return_value = _make_pipelines([
+        "success",
+        "success",
+        "success",
+    ])
+    gl_h.run_error_healthcheck(
+        dry_run=False,
+        gl=mocked_gl,
+        project_merge_requests=[mr],
+        consecutive_failure_limit=3,
+    )
+    mocked_gl.remove_label.assert_not_called()

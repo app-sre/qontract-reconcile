@@ -48,8 +48,10 @@ from reconcile.utils.mr.labels import (
     DO_NOT_MERGE_PENDING_REVIEW,
     HOLD,
     LGTM,
+    MERGE_ERROR,
     NEEDS_REBASE,
     ONBOARDING,
+    PIPELINE_ERROR,
     SAAS_FILE_UPDATE,
     SELF_SERVICEABLE,
     prioritized_approval_label,
@@ -74,6 +76,8 @@ HOLD_LABELS = [
     DO_NOT_MERGE_PENDING_REVIEW,
     NEEDS_REBASE,
 ]
+
+ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR]
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -108,6 +112,12 @@ gitlab_token_expiration = Gauge(
     name="qontract_reconcile_gitlab_token_expiration_days",
     documentation="Time until personal access tokens expire",
     labelnames=["name"],
+)
+
+merge_requests_error = Gauge(
+    name="qontract_reconcile_merge_requests_error",
+    documentation="Number of merge requests stuck in an error state.",
+    labelnames=["project_id"],
 )
 
 
@@ -207,6 +217,26 @@ def clean_pipelines(
                 logging.error(
                     f"unable to cancel {p.web_url} - error message {err.error_message}"
                 )
+
+
+PIPELINE_FAILURE_STATUSES = {PipelineStatus.FAILED}
+
+
+def check_pipeline_health(
+    pipelines: list[ProjectMergeRequestPipeline],
+    consecutive_failure_limit: int = 3,
+) -> bool:
+    """Return True if MR is healthy (should stay in queue).
+
+    Return False if last `consecutive_failure_limit` pipelines all
+    ended in a non-success terminal state (FAILED).
+    """
+    pipeline_failure_window = pipelines[:consecutive_failure_limit]
+    if len(pipeline_failure_window) < consecutive_failure_limit:
+        return True
+    return not all(
+        p.status in PIPELINE_FAILURE_STATUSES for p in pipeline_failure_window
+    )
 
 
 def verify_on_demand_tests(
@@ -492,6 +522,7 @@ def preprocess_merge_requests(
             "priority": f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}",
             "approved_at": approved_at,
             "approved_by": approved_by,
+            "error": any(label in ERROR_LABELS for label in labels),
         }
         results.append(item)
 
@@ -585,7 +616,8 @@ def _rebase_merge_requests_top_k(
 ) -> None:
     """Top-k strategy: only evaluate the first rebase_limit MRs in priority
     order.  The queue is already sorted by priority, so slicing to K
-    guarantees at most K MRs are rebased across all runs."""
+    guarantees at most K MRs are rebased across all runs.
+    Error MRs are filtered before slicing so they don't consume slots."""
     merge_requests = [
         item["mr"]
         for item in get_merge_requests(
@@ -593,8 +625,9 @@ def _rebase_merge_requests_top_k(
             gl=gl,
             state=state,
             users_allowed_to_label=users_allowed_to_label,
-        )[:rebase_limit]
-    ]
+        )
+        if not item["error"]
+    ][:rebase_limit]
 
     for mr in merge_requests:
         if is_rebased(mr, gl):
@@ -630,6 +663,7 @@ def _rebase_merge_requests_active_cap(
             state=state,
             users_allowed_to_label=users_allowed_to_label,
         )
+        if not item["error"]
     ]
 
     # Single pass: classify MRs as already-active or needs-rebase.
@@ -694,6 +728,7 @@ def _rebase_merge_requests_old_burst(
             state=state,
             users_allowed_to_label=users_allowed_to_label,
         )
+        if not item["error"]
     ]
     for mr in merge_requests:
         if is_rebased(mr, gl):
@@ -752,9 +787,17 @@ def merge_merge_requests(
         must_pass=must_pass,
     )
     merge_requests_waiting.labels(gl.project.id).set(len(merge_requests))
+    merge_requests_error.labels(gl.project.id).set(
+        sum(1 for item in merge_requests if item["error"])
+    )
 
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
+
+        if merge_request["error"]:
+            logging.info(["skip merge", gl.project.name, mr.iid])
+            continue
+
         if rebase and not is_rebased(mr, gl):
             continue
 
@@ -819,6 +862,92 @@ def merge_merge_requests(
                 merges += 1
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
+                if not dry_run:
+                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
+
+
+def run_error_healthcheck(
+    dry_run: bool,
+    gl: GitLabApi,
+    project_merge_requests: list[ProjectMergeRequest],
+    consecutive_failure_limit: int = 3,
+) -> None:
+    """Check error labels for queue-eligible MRs. Apply/remove
+    pipeline-error based on consecutive failure count, and remove
+    merge-error if any new notes have been posted since the label was applied."""
+    for mr in project_merge_requests:
+        if mr.draft:
+            continue
+
+        if mr.merge_status in {
+            MRStatus.CANNOT_BE_MERGED,
+            MRStatus.CANNOT_BE_MERGED_RECHECK,
+        }:
+            continue
+
+        if not is_good_to_merge(mr.labels):
+            continue
+
+        pipelines = gl.get_merge_request_pipelines(mr)
+        if not pipelines:
+            continue
+
+        labels = set(mr.labels)
+
+        has_pipeline_error = PIPELINE_ERROR in labels
+        is_healthy = check_pipeline_health(pipelines, consecutive_failure_limit)
+
+        if not is_healthy and not has_pipeline_error:
+            logging.warning([
+                "add_label",
+                PIPELINE_ERROR,
+                gl.project.name,
+                mr.iid,
+            ])
+            if not dry_run:
+                gl.add_label_to_merge_request(mr, PIPELINE_ERROR)
+        elif is_healthy and has_pipeline_error:
+            logging.info([
+                "remove_label",
+                PIPELINE_ERROR,
+                gl.project.name,
+                mr.iid,
+            ])
+            if not dry_run:
+                gl.remove_label(mr, PIPELINE_ERROR)
+
+        if MERGE_ERROR in labels:
+            label_events = gl.get_merge_request_label_events(mr)
+            merge_error_added_at = None
+            for event in reversed(label_events):
+                if (
+                    event.action == "add"
+                    and event.label
+                    and event.label["name"] == MERGE_ERROR
+                ):
+                    merge_error_added_at = event.created_at
+                    break
+
+            if merge_error_added_at:
+                latest_notes = mr.notes.list(
+                    order_by="created_at", sort="desc", per_page=1
+                )
+                if any(
+                    from_utc_iso_format(note.created_at)
+                    > from_utc_iso_format(merge_error_added_at)
+                    and not note.system
+                    and note.author["username"] != gl.user.username
+                    for note in latest_notes
+                ):
+                    logging.info([
+                        "remove_label",
+                        MERGE_ERROR,
+                        gl.project.name,
+                        mr.iid,
+                        "new notes after merge-error label",
+                    ])
+                    if not dry_run:
+                        gl.remove_label(mr, MERGE_ERROR)
 
 
 def get_app_sre_usernames(gl: GitLabApi) -> set[str]:
@@ -845,6 +974,8 @@ def publish_access_token_expiration_metrics(gl: GitLabApi) -> None:
 def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     default_days_interval = 15
     default_limit = 8
+    default_merge_limit = 8
+    default_consecutive_failure_limit = 3
     default_enable_closing = False
     instance = queries.get_gitlab_instance()
     settings = queries.get_app_interface_settings()
@@ -862,7 +993,12 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
         days_interval = hk.get("days_interval") or default_days_interval
         enable_closing = hk.get("enable_closing") or default_enable_closing
         limit = hk.get("limit") or default_limit
+        merge_limit = hk.get("merge_limit") or default_merge_limit
+        consecutive_failure_limit = (
+            hk.get("consecutive_failure_limit") or default_consecutive_failure_limit
+        )
         pipeline_timeout = hk.get("pipeline_timeout")
+
         labels_allowed = hk.get("labels_allowed")
         users_allowed_to_label = (
             None
@@ -895,6 +1031,17 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
             project_merge_requests = [
                 mr for mr in opened_merge_requests if mr.state == MRState.OPENED
             ]
+            try:
+                run_error_healthcheck(
+                    dry_run=dry_run,
+                    gl=gl,
+                    project_merge_requests=project_merge_requests,
+                    consecutive_failure_limit=consecutive_failure_limit,
+                )
+            except Exception:
+                logging.exception(
+                    "error healthcheck failed, continuing with merge/rebase"
+                )
             reload_toggle = ReloadToggle(reload=False)
             rebase = hk.get("rebase")
             must_pass = hk.get("must_pass")
@@ -904,7 +1051,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     gl=gl,
                     project_merge_requests=project_merge_requests,
                     reload_toggle=reload_toggle,
-                    merge_limit=limit,
+                    merge_limit=merge_limit,
                     rebase=rebase,
                     app_sre_usernames=app_sre_usernames,
                     state=state,
@@ -923,7 +1070,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     gl=gl,
                     project_merge_requests=project_merge_requests,
                     reload_toggle=reload_toggle,
-                    merge_limit=limit,
+                    merge_limit=merge_limit,
                     rebase=rebase,
                     app_sre_usernames=app_sre_usernames,
                     state=state,

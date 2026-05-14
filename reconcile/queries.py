@@ -1756,8 +1756,10 @@ APPS_QUERY = """
         rebase
         days_interval
         limit
+        merge_limit
         enable_closing
         pipeline_timeout
+        consecutive_failure_limit
         labels_allowed {
           role {
             users {
