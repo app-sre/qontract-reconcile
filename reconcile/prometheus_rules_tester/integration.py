@@ -47,6 +47,7 @@ NAMESPACE_NAMES = frozenset([
 ])
 DEFAULT_PROMTOOL_VERSION = "3.2.1"
 
+
 class TestContent(BaseModel):
     test_path: str
     test: dict
@@ -145,8 +146,7 @@ def get_rules_and_tests(
     iterable: list[RuleToFetch] = []
     for namespace in namespace_with_prom_rules:
         prom_rules = [
-            r for r in namespace["openshiftResources"]
-            if r["provider"] in PROVIDERS
+            r for r in namespace["openshiftResources"] if r["provider"] in PROVIDERS
         ]
         iterable.extend(
             RuleToFetch(
