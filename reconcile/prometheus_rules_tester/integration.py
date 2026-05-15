@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+import time
 from collections import defaultdict
 from collections.abc import (
     Iterable,
@@ -47,7 +48,6 @@ NAMESPACE_NAMES = frozenset([
 ])
 DEFAULT_PROMTOOL_VERSION = "3.2.1"
 
-
 class TestContent(BaseModel):
     test_path: str
     test: dict
@@ -62,6 +62,7 @@ class Test(BaseModel):
     tests: list[TestContent] | None = None
     result: CommandExecutionResult | None = None
     promtool_version: str
+    content_hash: str
 
 
 class RuleToFetch(BaseModel):
@@ -113,6 +114,9 @@ def fetch_rule_and_tests(
             )
         )
 
+    content = (rule_body, [t.test for t in tests], promtool_version)
+    content_hash = str(DeepHash(content)[content])
+
     return Test(
         cluster_name=rule.namespace["cluster"]["name"],
         namespace_name=rule.namespace["name"],
@@ -121,6 +125,7 @@ def fetch_rule_and_tests(
         rule_length=rule_length,
         tests=tests,
         promtool_version=promtool_version,
+        content_hash=content_hash,
     )
 
 
@@ -141,7 +146,8 @@ def get_rules_and_tests(
     iterable: list[RuleToFetch] = []
     for namespace in namespace_with_prom_rules:
         prom_rules = [
-            r for r in namespace["openshiftResources"] if r["provider"] in PROVIDERS
+            r for r in namespace["openshiftResources"]
+            if r["provider"] in PROVIDERS
         ]
         iterable.extend(
             RuleToFetch(
@@ -245,12 +251,31 @@ def check_rules_and_tests(
         thread_pool_size=thread_pool_size,
         cluster_names=cluster_names,
     )
+
+    groups: dict[str, list[Test]] = defaultdict(list)
+    for test in tests:
+        groups[test.content_hash].append(test)
+
+    representatives = [group[0] for group in groups.values()]
+    logging.info(
+        f"dedup: {len(tests)} rules → {len(representatives)} unique "
+        f"({len(tests) - len(representatives)} skipped)"
+    )
+
+    t0 = time.monotonic()
     threaded.run(
         func=run_test,
-        iterable=tests,
+        iterable=representatives,
         thread_pool_size=thread_pool_size,
         alerting_services=alerting_services,
     )
+    logging.info(
+        f"run_test ({len(representatives)} unique rules) took {time.monotonic() - t0:.2f}s"
+    )
+
+    for group in groups.values():
+        for duplicate in group[1:]:
+            duplicate.result = group[0].result
 
     failed_tests = [test for test in tests if not test.result]
 
