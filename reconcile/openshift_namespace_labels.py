@@ -44,6 +44,7 @@ MANAGED = "managed"
 CURRENT = "current"
 CHANGED = "changed"
 UPDATED_MANAGED = "updated-managed"
+PRIVILEGED = "privileged"
 
 Labels = dict[str, str | None]
 LabelKeys = list[str]
@@ -269,6 +270,12 @@ def get_desired(
             cluster=cluster, namespace=ns_name, type=DESIRED, labels=ns.labels
         )
 
+        # Track if this namespace requires cluster-admin privileges
+        if ns.cluster_admin:
+            inventory.set(
+                cluster=cluster, namespace=ns_name, type=PRIVILEGED, labels=True
+            )
+
     for cluster, ns_name in to_be_ignored:
         # Log only a warning here and do not report errors nor fail the
         # integration.
@@ -304,13 +311,13 @@ def get_managed(inventory: LabelInventory, state: State) -> None:
 
 
 def lookup_namespaces(
-    cluster: str, oc_map: OCMap
+    cluster: str, oc_map: OCMap, privileged: bool = False
 ) -> tuple[str, list[dict[str, Any]] | None]:
     """
     Retrieve all namespaces from the given cluster
     """
     try:
-        oc = oc_map.get(cluster)
+        oc = oc_map.get(cluster, privileged=privileged)
         if isinstance(oc, OCLogMsg):
             # cluster is not reachable (may be used --internal / --external ?)
             _LOG.debug(f"Skipping not-handled cluster: {cluster}")
@@ -340,9 +347,29 @@ def get_current(
     reachable namespaces. Only namespaces already registered in the inventory
     will be updated. This avoids registering unhandled namespaces.
     """
-    results = threaded.run(
-        lookup_namespaces, oc_map.clusters(), thread_pool_size, oc_map=oc_map
-    )
+    # Determine which clusters need privileged access
+    privileged_clusters = set()
+    for cluster, ns_name, types in inventory:
+        if types.get(PRIVILEGED):
+            privileged_clusters.add(cluster)
+
+    # Look up namespaces with appropriate privileges
+    unprivileged_clusters = [c for c in oc_map.clusters() if c not in privileged_clusters]
+    privileged_clusters_list = list(privileged_clusters)
+
+    # Fetch from unprivileged clusters
+    unprivileged_results = threaded.run(
+        lookup_namespaces, unprivileged_clusters, thread_pool_size,
+        oc_map=oc_map, privileged=False
+    ) if unprivileged_clusters else []
+
+    # Fetch from privileged clusters
+    privileged_results = threaded.run(
+        lookup_namespaces, privileged_clusters_list, thread_pool_size,
+        oc_map=oc_map, privileged=True
+    ) if privileged_clusters_list else []
+
+    results = unprivileged_results + privileged_results
 
     for cluster, ns_list in results:
         if ns_list is None:
@@ -371,9 +398,10 @@ def label(
     changed = types.get(CHANGED, {})
     if changed:
         prefix = "[dry-run] " if dry_run else ""
+        privileged = types.get(PRIVILEGED, False)
         _LOG.info(prefix + f"Updating labels on {cluster}/{namespace}: {changed}")
         if not dry_run:
-            oc = oc_map.get(cluster)
+            oc = oc_map.get(cluster, privileged=privileged)
             if isinstance(oc, OCLogMsg):
                 logging.log(level=oc.log_level, msg=oc.message)
                 return
