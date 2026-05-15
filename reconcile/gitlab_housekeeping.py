@@ -79,6 +79,8 @@ HOLD_LABELS = [
 
 ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR]
 
+TENANT_LABEL_PREFIX = "tenant-"
+
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
 SQUASH_OPTION_ALWAYS = "always"
@@ -120,6 +122,25 @@ merge_requests_error = Gauge(
     labelnames=["project_id"],
 )
 
+optimistic_merges = Counter(
+    name="qontract_reconcile_optimistic_merges_total",
+    documentation="MRs merged via the optimistic non-overlapping path",
+    labelnames=["project_id"],
+)
+
+optimistic_merge_rejected = Counter(
+    name="qontract_reconcile_optimistic_merge_rejected_total",
+    documentation="MRs skipped during optimistic merge attempt",
+    labelnames=["project_id", "reason"],
+)
+
+merge_batch_size_histogram = Histogram(
+    name="qontract_reconcile_merge_batch_size",
+    documentation="Number of MRs merged per loop iteration",
+    labelnames=["project_id"],
+    buckets=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, float("inf")),
+)
+
 
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
@@ -155,6 +176,18 @@ class ReloadToggle:
     """A class to toggle the reload of merge requests."""
 
     reload: bool = False
+
+
+def get_tenant_labels(mr: ProjectMergeRequest) -> set[str]:
+    return {label for label in mr.labels if label.startswith(TENANT_LABEL_PREFIX)}
+
+
+def is_eligible_for_optimistic_merge(mr: ProjectMergeRequest) -> bool:
+    return bool(get_tenant_labels(mr))
+
+
+def has_overlapping_labels(mr_labels: set[str], merged_labels: set[str]) -> bool:
+    return bool(mr_labels & merged_labels)
 
 
 def _log_exception(ex: Exception) -> None:
