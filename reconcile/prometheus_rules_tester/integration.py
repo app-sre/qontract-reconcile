@@ -1,7 +1,6 @@
 import json
 import logging
 import sys
-import time
 from collections import defaultdict
 from collections.abc import (
     Iterable,
@@ -257,20 +256,12 @@ def check_rules_and_tests(
         groups[test.content_hash].append(test)
 
     representatives = [group[0] for group in groups.values()]
-    logging.info(
-        f"dedup: {len(tests)} rules → {len(representatives)} unique "
-        f"({len(tests) - len(representatives)} skipped)"
-    )
 
-    t0 = time.monotonic()
     threaded.run(
         func=run_test,
         iterable=representatives,
         thread_pool_size=thread_pool_size,
         alerting_services=alerting_services,
-    )
-    logging.info(
-        f"run_test ({len(representatives)} unique rules) took {time.monotonic() - t0:.2f}s"
     )
 
     for group in groups.values():
