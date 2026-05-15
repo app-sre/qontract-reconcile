@@ -61,6 +61,8 @@ from .ldap_user_status import LdapUserStatus
 from .ldap_users_check_request import LdapUsersCheckRequest
 from .ldap_users_check_response import LdapUsersCheckResponse
 from .liveness_response_liveness import LivenessResponseLiveness
+from .notification_add_user import NotificationAddUser
+from .notification_remove_user import NotificationRemoveUser
 from .pager_duty_user import PagerDutyUser
 from .recipient_type import RecipientType
 from .repo_owners_response import RepoOwnersResponse
@@ -137,6 +139,8 @@ __all__ = (
     "LdapUsersCheckRequest",
     "LdapUsersCheckResponse",
     "LivenessResponseLiveness",
+    "NotificationAddUser",
+    "NotificationRemoveUser",
     "PagerDutyUser",
     "RecipientType",
     "RepoOwnersResponse",

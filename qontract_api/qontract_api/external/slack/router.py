@@ -1,10 +1,10 @@
 """FastAPI router for Slack external API endpoints.
 
-Provides a POST endpoint for sending chat messages via Slack.
+Provides a POST endpoint for sending chat messages or DMs via Slack.
 """
 
 from fastapi import APIRouter, HTTPException, status
-from qontract_utils.slack_api import SlackApiError
+from qontract_utils.slack_api import SlackApiError, UserNotFoundError
 
 from qontract_api.config import settings
 from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep
@@ -30,19 +30,21 @@ def post_chat(
     cache: CacheDep,
     secret_manager: SecretManagerDep,
 ) -> ChatResponse:
-    """Post a message to a Slack channel.
+    """Post a message to a Slack channel or send a DM to a user.
 
-    Sends a chat message to the specified channel in the given workspace.
-    Supports threaded replies via thread_ts.
+    Exactly one of `channel` or `user` must be set in the request:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
 
     Args:
-        request: Chat request with channel, text, and credentials
+        request: Chat request with channel/user, text, and credentials
 
     Returns:
         ChatResponse with ts, channel, and optional thread_ts
 
     Raises:
         HTTPException:
+            - 404 Not Found: Channel or user not found
             - 502 Bad Gateway: If Slack API call fails
     """
     client = create_slack_workspace_client(
@@ -54,23 +56,31 @@ def post_chat(
     )
 
     try:
-        result = client.chat_post_message(
-            channel=request.channel,
-            text=request.text,
-            thread_ts=request.thread_ts,
-            icon_emoji=request.icon_emoji,
-            icon_url=request.icon_url,
-            username=request.username,
-        )
-    except ValueError as e:
+        if request.user:
+            result = client.send_dm(
+                org_username=request.user,
+                text=request.text,
+            )
+        else:
+            assert request.channel  # guaranteed by model_validator
+            result = client.chat_post_message(
+                channel=request.channel,
+                text=request.text,
+                thread_ts=request.thread_ts,
+                icon_emoji=request.icon_emoji,
+                icon_url=request.icon_url,
+                username=request.username,
+            )
+    except (ValueError, UserNotFoundError) as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         ) from e
     except SlackApiError as e:
+        target = request.user or request.channel
         logger.exception(
-            f"Slack API error posting to {request.channel}",
-            channel=request.channel,
+            f"Slack API error posting to {target}",
+            target=target,
             workspace=request.workspace_name,
         )
         raise HTTPException(
@@ -78,9 +88,10 @@ def post_chat(
             detail=f"Slack API error: {e}",
         ) from e
 
+    target = request.user or request.channel
     logger.info(
-        f"Posted message to {request.channel}",
-        channel=request.channel,
+        f"Posted message to {target}",
+        target=target,
         workspace=request.workspace_name,
         ts=result.ts,
     )

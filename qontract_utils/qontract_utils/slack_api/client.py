@@ -363,6 +363,16 @@ class SlackApi:
 
     @invoke_with_hooks(
         lambda self: SlackApiCallContext(
+            method="conversations.open", verb="POST", workspace=self.workspace_name
+        )
+    )
+    def conversations_open(self, *, user_ids: list[str]) -> str:
+        """Open a DM channel with user(s). Returns the DM channel ID."""
+        response = self._sc.conversations_open(users=user_ids)
+        return response["channel"]["id"]
+
+    @invoke_with_hooks(
+        lambda self: SlackApiCallContext(
             method="conversations.list", verb="GET", workspace=self.workspace_name
         )
     )

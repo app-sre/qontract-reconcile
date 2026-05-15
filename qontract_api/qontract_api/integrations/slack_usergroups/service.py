@@ -147,7 +147,6 @@ class SlackUsergroupsService:
             )
             for add in diffs.add.values()
         ]
-        # TODO delete usergroup if empty?
         for handle, change in diffs.change.items():
             if change.current.config.users != change.desired.config.users:
                 logger.debug(
@@ -166,6 +165,7 @@ class SlackUsergroupsService:
                             set(change.current.config.users)
                             - set(change.desired.config.users)
                         ),
+                        notifications=change.desired.config.notifications,
                     )
                 )
             if (

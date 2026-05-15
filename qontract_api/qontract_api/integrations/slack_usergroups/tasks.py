@@ -12,17 +12,52 @@ from qontract_utils.events import Event
 from qontract_api.cache.factory import get_cache
 from qontract_api.config import settings
 from qontract_api.event_manager import get_event_manager
+from qontract_api.event_manager._base import EventManager
 from qontract_api.integrations.slack_usergroups.schemas import (
+    SlackUsergroupActionUpdateUsers,
     SlackUsergroupsTaskResult,
 )
 from qontract_api.integrations.slack_usergroups.service import SlackUsergroupsService
 from qontract_api.logger import get_logger
 from qontract_api.models import TaskStatus
 from qontract_api.secret_manager._factory import get_secret_manager
-from qontract_api.slack.domain import SlackWorkspace
+from qontract_api.slack.domain import (
+    NotificationAddUser,
+    NotificationRemoveUser,
+    SlackWorkspace,
+)
 from qontract_api.tasks import celery_app, deduplicated_task
 
 logger = get_logger(__name__)
+
+_DM_NOTIFICATION_EVENT_TYPE = "qontract-api.slack-usergroups.dm-notification"
+
+
+def _publish_dm_notifications(
+    event_manager: EventManager,
+    action: SlackUsergroupActionUpdateUsers,
+) -> None:
+    """Publish DM notification events for usergroup membership changes."""
+    for notification in action.notifications:
+        match notification:
+            case NotificationAddUser(message=msg) if action.users_to_add:
+                users = action.users_to_add
+            case NotificationRemoveUser(message=msg) if action.users_to_remove:
+                users = action.users_to_remove
+            case _:
+                continue
+        event_manager.publish_event(
+            Event(
+                source=__name__,
+                type=_DM_NOTIFICATION_EVENT_TYPE,
+                data={
+                    "usergroup": action.usergroup,
+                    "users": users,
+                    "message": msg,
+                },
+                datacontenttype="application/json",
+            )
+        )
 
 
 def generate_lock_key(_self: Task, workspaces: list[SlackWorkspace], **_: Any) -> str:
@@ -108,6 +143,11 @@ def reconcile_slack_usergroups_task(
                         datacontenttype="application/json",
                     )
                 )
+                if (
+                    isinstance(action, SlackUsergroupActionUpdateUsers)
+                    and action.notifications
+                ):
+                    _publish_dm_notifications(event_manager, action)
 
             for error in result.errors:
                 event_manager.publish_event(

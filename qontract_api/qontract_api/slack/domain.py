@@ -1,8 +1,30 @@
 """Pydantic domain models for Slack usergroups reconciliation."""
 
+from typing import Annotated, Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 from qontract_api.models import Secret
+
+
+class NotificationAddUser(BaseModel, frozen=True):
+    """Notify users when they are added to the usergroup."""
+
+    action: Literal["add-user"] = "add-user"
+    message: str = Field(..., description="DM message to send to added users")
+
+
+class NotificationRemoveUser(BaseModel, frozen=True):
+    """Notify users when they are removed from the usergroup."""
+
+    action: Literal["remove-user"] = "remove-user"
+    message: str = Field(..., description="DM message to send to removed users")
+
+
+UsergroupNotification = Annotated[
+    NotificationAddUser | NotificationRemoveUser,
+    Field(discriminator="action"),
+]
 
 
 class SlackUsergroupConfig(BaseModel, frozen=True):
@@ -16,6 +38,10 @@ class SlackUsergroupConfig(BaseModel, frozen=True):
     channels: list[str] = Field(
         [],
         description="List of channel names (e.g., #general, team-channel)",
+    )
+    notifications: list[UsergroupNotification] = Field(
+        default_factory=list,
+        description="Notification actions triggered on membership changes",
     )
 
     @field_validator("users", "channels", mode="after")

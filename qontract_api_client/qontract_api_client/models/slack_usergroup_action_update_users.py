@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     TypeVar,
@@ -12,6 +13,11 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
+
+if TYPE_CHECKING:
+    from ..models.notification_add_user import NotificationAddUser
+    from ..models.notification_remove_user import NotificationRemoveUser
+
 
 T = TypeVar("T", bound="SlackUsergroupActionUpdateUsers")
 
@@ -27,6 +33,8 @@ class SlackUsergroupActionUpdateUsers:
         users_to_remove (list[str]): List of users to remove
         workspace (str): Workspace name
         action_type (Literal['update_users'] | Unset):  Default: 'update_users'.
+        notifications (list[NotificationAddUser | NotificationRemoveUser] | Unset): Notification actions triggered on
+            membership changes
     """
 
     usergroup: str
@@ -35,9 +43,12 @@ class SlackUsergroupActionUpdateUsers:
     users_to_remove: list[str]
     workspace: str
     action_type: Literal["update_users"] | Unset = "update_users"
+    notifications: list[NotificationAddUser | NotificationRemoveUser] | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        from ..models.notification_add_user import NotificationAddUser
+
         usergroup = self.usergroup
 
         users = self.users
@@ -50,6 +61,18 @@ class SlackUsergroupActionUpdateUsers:
 
         action_type = self.action_type
 
+        notifications: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.notifications, Unset):
+            notifications = []
+            for notifications_item_data in self.notifications:
+                notifications_item: dict[str, Any]
+                if isinstance(notifications_item_data, NotificationAddUser):
+                    notifications_item = notifications_item_data.to_dict()
+                else:
+                    notifications_item = notifications_item_data.to_dict()
+
+                notifications.append(notifications_item)
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update({
@@ -61,11 +84,16 @@ class SlackUsergroupActionUpdateUsers:
         })
         if action_type is not UNSET:
             field_dict["action_type"] = action_type
+        if notifications is not UNSET:
+            field_dict["notifications"] = notifications
 
         return field_dict
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.notification_add_user import NotificationAddUser
+        from ..models.notification_remove_user import NotificationRemoveUser
+
         d = dict(src_dict)
         usergroup = d.pop("usergroup")
 
@@ -83,6 +111,35 @@ class SlackUsergroupActionUpdateUsers:
                 f"action_type must match const 'update_users', got '{action_type}'"
             )
 
+        _notifications = d.pop("notifications", UNSET)
+        notifications: list[NotificationAddUser | NotificationRemoveUser] | Unset = (
+            UNSET
+        )
+        if _notifications is not UNSET:
+            notifications = []
+            for notifications_item_data in _notifications:
+
+                def _parse_notifications_item(
+                    data: object,
+                ) -> NotificationAddUser | NotificationRemoveUser:
+                    try:
+                        if not isinstance(data, dict):
+                            raise TypeError()
+                        notifications_item_type_0 = NotificationAddUser.from_dict(data)
+
+                        return notifications_item_type_0
+                    except (TypeError, ValueError, AttributeError, KeyError):
+                        pass
+                    if not isinstance(data, dict):
+                        raise TypeError()
+                    notifications_item_type_1 = NotificationRemoveUser.from_dict(data)
+
+                    return notifications_item_type_1
+
+                notifications_item = _parse_notifications_item(notifications_item_data)
+
+                notifications.append(notifications_item)
+
         slack_usergroup_action_update_users = cls(
             usergroup=usergroup,
             users=users,
@@ -90,6 +147,7 @@ class SlackUsergroupActionUpdateUsers:
             users_to_remove=users_to_remove,
             workspace=workspace,
             action_type=action_type,
+            notifications=notifications,
         )
 
         slack_usergroup_action_update_users.additional_properties = d
