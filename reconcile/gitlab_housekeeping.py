@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import (
     Iterable,
 )
@@ -640,6 +641,41 @@ def _try_rebase(
         return False
 
 
+REBASE_POLL_TIMEOUT = 30
+REBASE_POLL_INTERVAL = 1.0
+
+
+def _wait_for_rebase(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    timeout: int = REBASE_POLL_TIMEOUT,
+    poll_interval: float = REBASE_POLL_INTERVAL,
+) -> ProjectMergeRequest:
+    """Poll until an asynchronous rebase completes.
+
+    GitLab's rebase API is async — it enqueues a Sidekiq job and returns
+    immediately.  The caller must poll ``rebase_in_progress`` before
+    attempting to merge, otherwise the merge races against the rebase.
+
+    Returns the refreshed MR object.
+    Raises ``GitlabMRRebaseError`` on timeout or server-reported failure.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        time.sleep(poll_interval)
+        mr = gl.project.mergerequests.get(mr.iid, include_rebase_in_progress=True)
+        if not mr.rebase_in_progress:
+            if mr.merge_error:
+                raise gitlab.exceptions.GitlabMRRebaseError(
+                    f"rebase failed for {mr.iid}: {mr.merge_error}"
+                )
+            return mr
+
+    raise gitlab.exceptions.GitlabMRRebaseError(
+        f"rebase timed out for {mr.iid} after {timeout}s"
+    )
+
+
 def _rebase_merge_requests_top_k(
     dry_run: bool,
     gl: GitLabApi,
@@ -900,6 +936,7 @@ def merge_merge_requests(
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
                 if first_merge_done and rebase:
                     mr.rebase(skip_ci=True)
+                    mr = _wait_for_rebase(gl, mr)
 
                 mr.merge(squash=squash)
                 labels = mr.labels

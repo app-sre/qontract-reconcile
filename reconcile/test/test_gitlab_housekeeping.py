@@ -1887,6 +1887,10 @@ def _call_merge(
         "reconcile.gitlab_housekeeping.is_rebased",
         side_effect=lambda mr, gl: mr.iid in rebased_set,
     )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping._wait_for_rebase",
+        side_effect=lambda gl, mr, **kw: mr,
+    )
 
     mocked_gl = create_autospec(GitLabApi)
     project = create_autospec(Project)
@@ -2309,3 +2313,60 @@ def test_multi_merge_disabled_single_merge_on_rebase(
     mr1.merge.assert_called_once()
     mr2.merge.assert_not_called()
     mr2.rebase.assert_not_called()
+
+
+class TestWaitForRebase:
+    @staticmethod
+    def _make_mr(*, rebase_in_progress: bool, merge_error: str | None = None) -> Mock:
+        mr = create_autospec(ProjectMergeRequest)
+        mr.iid = 42
+        mr.rebase_in_progress = rebase_in_progress
+        mr.merge_error = merge_error
+        return mr
+
+    @staticmethod
+    def _make_gl() -> Mock:
+        gl = create_autospec(GitLabApi)
+        project = create_autospec(Project)
+        project.mergerequests = MagicMock()
+        gl.project = project
+        return gl
+
+    def test_completes_immediately(self) -> None:
+        done_mr = self._make_mr(rebase_in_progress=False)
+        gl = self._make_gl()
+        gl.project.mergerequests.get.return_value = done_mr
+
+        result = gl_h._wait_for_rebase(gl, done_mr, timeout=5, poll_interval=0)
+
+        assert result is done_mr
+
+    def test_completes_after_polling(self) -> None:
+        in_progress = self._make_mr(rebase_in_progress=True)
+        done = self._make_mr(rebase_in_progress=False)
+        gl = self._make_gl()
+        gl.project.mergerequests.get.side_effect = [in_progress, in_progress, done]
+
+        result = gl_h._wait_for_rebase(gl, in_progress, timeout=10, poll_interval=0)
+
+        assert result is done
+        assert gl.project.mergerequests.get.call_count == 3
+
+    def test_raises_on_merge_error(self) -> None:
+        failed = self._make_mr(
+            rebase_in_progress=False,
+            merge_error="Rebase failed. Please rebase locally",
+        )
+        gl = self._make_gl()
+        gl.project.mergerequests.get.return_value = failed
+
+        with pytest.raises(GitlabMRRebaseError, match="rebase failed"):
+            gl_h._wait_for_rebase(gl, failed, timeout=5, poll_interval=0)
+
+    def test_raises_on_timeout(self) -> None:
+        stuck = self._make_mr(rebase_in_progress=True)
+        gl = self._make_gl()
+        gl.project.mergerequests.get.return_value = stuck
+
+        with pytest.raises(GitlabMRRebaseError, match="timed out"):
+            gl_h._wait_for_rebase(gl, stuck, timeout=0, poll_interval=0)
