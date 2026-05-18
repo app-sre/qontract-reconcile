@@ -865,7 +865,6 @@ def merge_merge_requests(
                     pipelines=timed_out_pipelines,
                 )
 
-        # If pipeline is still running
         if wait_for_pipeline:
             running_pipelines = [
                 p for p in pipelines if p.status == PipelineStatus.RUNNING
@@ -904,8 +903,10 @@ def merge_merge_requests(
                 time_to_merge.labels(
                     project_id=mr.target_project_id, priority=merge_request["priority"]
                 ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
-                if first_merge_done:
-                    optimistic_merges.labels(project_id=mr.target_project_id).inc()
+                if first_merge_done and rebase:
+                    optimistic_merges.labels(
+                        project_id=mr.target_project_id
+                    ).inc()
 
                 merged_labels.update(get_tenant_labels(mr))
                 first_merge_done = True
