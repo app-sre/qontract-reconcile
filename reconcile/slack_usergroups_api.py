@@ -429,7 +429,7 @@ class SlackUsergroupsIntegration(
         )
 
         # Create config and usergroup
-        notifications = []
+        notifications: list[NotificationAddUser | NotificationRemoveUser] = []
         for n in permission.notifications or []:
             match n.action:
                 case "addUser":
