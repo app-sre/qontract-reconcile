@@ -54824,7 +54824,8 @@
                         "FIELD_DEFINITION",
                         "ARGUMENT_DEFINITION",
                         "INPUT_FIELD_DEFINITION",
-                        "ENUM_VALUE"
+                        "ENUM_VALUE",
+                        "DIRECTIVE_DEFINITION"
                     ],
                     "args": [
                         {
