@@ -2,12 +2,19 @@
   "components": {
     "schemas": {
       "ChatRequest": {
-        "description": "Request model for posting a Slack message.\n\nImmutable model with all fields required to send a chat message.\n\nAttributes:\n    workspace_name: Slack workspace name\n    channel: Channel name to post to\n    text: Message text\n    thread_ts: Optional thread timestamp for replies\n    icon_emoji: Emoji to use as the message icon\n    icon_url: URL to an image to use as the message icon\n    username: Bot username to display\n    secret: Secret reference for Slack bot token",
+        "description": "Request model for posting a Slack message or DM.\n\nExactly one of `channel` or `user` must be set:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username",
         "properties": {
           "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Channel name to post to (e.g., 'sd-app-sre-reconcile')",
-            "title": "Channel",
-            "type": "string"
+            "title": "Channel"
           },
           "icon_emoji": {
             "anyOf": [
@@ -54,6 +61,18 @@
             "description": "Optional thread timestamp for replies",
             "title": "Thread Ts"
           },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "org_username to send a DM to (e.g., 'jsmith@redhat.com')",
+            "title": "User"
+          },
           "username": {
             "anyOf": [
               {
@@ -74,7 +93,6 @@
         },
         "required": [
           "workspace_name",
-          "channel",
           "text",
           "secret"
         ],
@@ -2103,6 +2121,48 @@
         "title": "LdapUsersCheckResponse",
         "type": "object"
       },
+      "NotificationAddUser": {
+        "description": "Notify users when they are added to the usergroup.",
+        "properties": {
+          "action": {
+            "const": "add-user",
+            "default": "add-user",
+            "title": "Action",
+            "type": "string"
+          },
+          "message": {
+            "description": "DM message to send to added users",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "NotificationAddUser",
+        "type": "object"
+      },
+      "NotificationRemoveUser": {
+        "description": "Notify users when they are removed from the usergroup.",
+        "properties": {
+          "action": {
+            "const": "remove-user",
+            "default": "remove-user",
+            "title": "Action",
+            "type": "string"
+          },
+          "message": {
+            "description": "DM message to send to removed users",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "NotificationRemoveUser",
+        "type": "object"
+      },
       "PagerDutyUser": {
         "description": "PagerDuty user representation.\n\nImmutable model representing a user from PagerDuty API.\n\nAttributes:\n    username: PagerDuty username (computed from email)",
         "properties": {
@@ -2330,6 +2390,28 @@
             "title": "Action Type",
             "type": "string"
           },
+          "notifications": {
+            "description": "Notification actions triggered on membership changes",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add-user": "#/components/schemas/NotificationAddUser",
+                  "remove-user": "#/components/schemas/NotificationRemoveUser"
+                },
+                "propertyName": "action"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/NotificationAddUser"
+                },
+                {
+                  "$ref": "#/components/schemas/NotificationRemoveUser"
+                }
+              ]
+            },
+            "title": "Notifications",
+            "type": "array"
+          },
           "usergroup": {
             "description": "Usergroup handle/name",
             "title": "Usergroup",
@@ -2392,6 +2474,28 @@
             "description": "Usergroup description",
             "title": "Description",
             "type": "string"
+          },
+          "notifications": {
+            "description": "Notification actions triggered on membership changes",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "add-user": "#/components/schemas/NotificationAddUser",
+                  "remove-user": "#/components/schemas/NotificationRemoveUser"
+                },
+                "propertyName": "action"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/NotificationAddUser"
+                },
+                {
+                  "$ref": "#/components/schemas/NotificationRemoveUser"
+                }
+              ]
+            },
+            "title": "Notifications",
+            "type": "array"
           },
           "users": {
             "default": [],
@@ -2851,7 +2955,7 @@
     },
     "/api/v1/external/slack/chat": {
       "post": {
-        "description": "Post a message to a Slack channel.\n\nSends a chat message to the specified channel in the given workspace.\nSupports threaded replies via thread_ts.\n\nArgs:\n    request: Chat request with channel, text, and credentials\n\nReturns:\n    ChatResponse with ts, channel, and optional thread_ts\n\nRaises:\n    HTTPException:\n        - 502 Bad Gateway: If Slack API call fails",
+        "description": "Post a message to a Slack channel or send a DM to a user.\n\nExactly one of `channel` or `user` must be set in the request:\n- `channel`: post to a Slack channel by name\n- `user`: send a DM to a user by org_username\n\nArgs:\n    request: Chat request with channel/user, text, and credentials\n\nReturns:\n    ChatResponse with ts, channel, and optional thread_ts\n\nRaises:\n    HTTPException:\n        - 404 Not Found: Channel or user not found\n        - 502 Bad Gateway: If Slack API call fails",
         "operationId": "slack-chat-post-message",
         "requestBody": {
           "content": {

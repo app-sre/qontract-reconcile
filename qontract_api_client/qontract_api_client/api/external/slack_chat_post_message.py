@@ -58,35 +58,29 @@ def sync_detailed(
 ) -> Response[ChatResponse]:
     """Post Chat
 
-     Post a message to a Slack channel.
+     Post a message to a Slack channel or send a DM to a user.
 
-    Sends a chat message to the specified channel in the given workspace.
-    Supports threaded replies via thread_ts.
+    Exactly one of `channel` or `user` must be set in the request:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
 
     Args:
-        request: Chat request with channel, text, and credentials
+        request: Chat request with channel/user, text, and credentials
 
     Returns:
         ChatResponse with ts, channel, and optional thread_ts
 
     Raises:
         HTTPException:
+            - 404 Not Found: Channel or user not found
             - 502 Bad Gateway: If Slack API call fails
 
     Args:
-        body (ChatRequest): Request model for posting a Slack message.
+        body (ChatRequest): Request model for posting a Slack message or DM.
 
-            Immutable model with all fields required to send a chat message.
-
-            Attributes:
-                workspace_name: Slack workspace name
-                channel: Channel name to post to
-                text: Message text
-                thread_ts: Optional thread timestamp for replies
-                icon_emoji: Emoji to use as the message icon
-                icon_url: URL to an image to use as the message icon
-                username: Bot username to display
-                secret: Secret reference for Slack bot token
+            Exactly one of `channel` or `user` must be set:
+            - `channel`: post to a Slack channel by name
+            - `user`: send a DM to a user by org_username
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,35 +108,29 @@ def sync(
 ) -> ChatResponse:
     """Post Chat
 
-     Post a message to a Slack channel.
+     Post a message to a Slack channel or send a DM to a user.
 
-    Sends a chat message to the specified channel in the given workspace.
-    Supports threaded replies via thread_ts.
+    Exactly one of `channel` or `user` must be set in the request:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
 
     Args:
-        request: Chat request with channel, text, and credentials
+        request: Chat request with channel/user, text, and credentials
 
     Returns:
         ChatResponse with ts, channel, and optional thread_ts
 
     Raises:
         HTTPException:
+            - 404 Not Found: Channel or user not found
             - 502 Bad Gateway: If Slack API call fails
 
     Args:
-        body (ChatRequest): Request model for posting a Slack message.
+        body (ChatRequest): Request model for posting a Slack message or DM.
 
-            Immutable model with all fields required to send a chat message.
-
-            Attributes:
-                workspace_name: Slack workspace name
-                channel: Channel name to post to
-                text: Message text
-                thread_ts: Optional thread timestamp for replies
-                icon_emoji: Emoji to use as the message icon
-                icon_url: URL to an image to use as the message icon
-                username: Bot username to display
-                secret: Secret reference for Slack bot token
+            Exactly one of `channel` or `user` must be set:
+            - `channel`: post to a Slack channel by name
+            - `user`: send a DM to a user by org_username
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,35 +156,29 @@ async def asyncio_detailed(
 ) -> Response[ChatResponse]:
     """Post Chat
 
-     Post a message to a Slack channel.
+     Post a message to a Slack channel or send a DM to a user.
 
-    Sends a chat message to the specified channel in the given workspace.
-    Supports threaded replies via thread_ts.
+    Exactly one of `channel` or `user` must be set in the request:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
 
     Args:
-        request: Chat request with channel, text, and credentials
+        request: Chat request with channel/user, text, and credentials
 
     Returns:
         ChatResponse with ts, channel, and optional thread_ts
 
     Raises:
         HTTPException:
+            - 404 Not Found: Channel or user not found
             - 502 Bad Gateway: If Slack API call fails
 
     Args:
-        body (ChatRequest): Request model for posting a Slack message.
+        body (ChatRequest): Request model for posting a Slack message or DM.
 
-            Immutable model with all fields required to send a chat message.
-
-            Attributes:
-                workspace_name: Slack workspace name
-                channel: Channel name to post to
-                text: Message text
-                thread_ts: Optional thread timestamp for replies
-                icon_emoji: Emoji to use as the message icon
-                icon_url: URL to an image to use as the message icon
-                username: Bot username to display
-                secret: Secret reference for Slack bot token
+            Exactly one of `channel` or `user` must be set:
+            - `channel`: post to a Slack channel by name
+            - `user`: send a DM to a user by org_username
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -222,35 +204,29 @@ async def asyncio(
 ) -> ChatResponse:
     """Post Chat
 
-     Post a message to a Slack channel.
+     Post a message to a Slack channel or send a DM to a user.
 
-    Sends a chat message to the specified channel in the given workspace.
-    Supports threaded replies via thread_ts.
+    Exactly one of `channel` or `user` must be set in the request:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
 
     Args:
-        request: Chat request with channel, text, and credentials
+        request: Chat request with channel/user, text, and credentials
 
     Returns:
         ChatResponse with ts, channel, and optional thread_ts
 
     Raises:
         HTTPException:
+            - 404 Not Found: Channel or user not found
             - 502 Bad Gateway: If Slack API call fails
 
     Args:
-        body (ChatRequest): Request model for posting a Slack message.
+        body (ChatRequest): Request model for posting a Slack message or DM.
 
-            Immutable model with all fields required to send a chat message.
-
-            Attributes:
-                workspace_name: Slack workspace name
-                channel: Channel name to post to
-                text: Message text
-                thread_ts: Optional thread timestamp for replies
-                icon_emoji: Emoji to use as the message icon
-                icon_url: URL to an image to use as the message icon
-                username: Bot username to display
-                secret: Secret reference for Slack bot token
+            Exactly one of `channel` or `user` must be set:
+            - `channel`: post to a Slack channel by name
+            - `user`: send a DM to a user by org_username
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -44,6 +44,10 @@ query SlackUsergroupApiPermission {
       channels
       description
       handle
+      notifications {
+        action
+        message
+      }
       ownersFromRepos
       skip
       pagerduty {
@@ -98,6 +102,11 @@ class PermissionV1(ConfiguredBaseModel):
     service: str = Field(..., alias="service")
 
 
+class SlackUsergroupNotificationV1(ConfiguredBaseModel):
+    action: str = Field(..., alias="action")
+    message: str = Field(..., alias="message")
+
+
 class PagerDutyInstanceV1(ConfiguredBaseModel):
     token: VaultSecret = Field(..., alias="token")
 
@@ -140,6 +149,7 @@ class PermissionSlackUsergroupV1(PermissionV1):
     channels: list[str] = Field(..., alias="channels")
     description: str = Field(..., alias="description")
     handle: str = Field(..., alias="handle")
+    notifications: Optional[list[SlackUsergroupNotificationV1]] = Field(..., alias="notifications")
     owners_from_repos: Optional[list[str]] = Field(..., alias="ownersFromRepos")
     skip: Optional[bool] = Field(..., alias="skip")
     pagerduty: Optional[list[PagerDutyTargetV1]] = Field(..., alias="pagerduty")

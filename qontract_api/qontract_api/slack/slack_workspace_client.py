@@ -13,7 +13,12 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel, Field
-from qontract_utils.slack_api import ChatPostMessageResponse, SlackApi, SlackApiError
+from qontract_utils.slack_api import (
+    ChatPostMessageResponse,
+    SlackApi,
+    SlackApiError,
+    UserNotFoundError,
+)
 from qontract_utils.slack_api import SlackChannel as SlackChannelAPI
 from qontract_utils.slack_api import SlackUser as SlackUserAPI
 from qontract_utils.slack_api import SlackUsergroup as SlackUsergroupAPI
@@ -321,7 +326,9 @@ class SlackWorkspaceClient:
             for ug in usergroups
         ]
 
-    def clean_slack_usergroups(self, usergroups: Iterable) -> list:
+    def clean_slack_usergroups(
+        self, usergroups: Iterable[SlackUsergroup]
+    ) -> list[SlackUsergroup]:
         """Clean usergroups by removing non-existing users/channels (efficient batch operation).
 
         Args:
@@ -349,6 +356,7 @@ class SlackWorkspaceClient:
                         for name in ug.config.channels
                         if name.lstrip("#") in valid_channel_names
                     ],
+                    notifications=ug.config.notifications,
                 ),
             )
             for ug in usergroups
@@ -506,6 +514,24 @@ class SlackWorkspaceClient:
             icon_url=icon_url,
             username=username,
         )
+
+    def _resolve_user_id(self, org_username: str) -> str:
+        """Resolve org_username to Slack user ID via cached users."""
+        for user in self.get_users().values():
+            if user.org_username == org_username:
+                return user.id
+        raise UserNotFoundError(f"User '{org_username}' not found")
+
+    def send_dm(
+        self,
+        *,
+        org_username: str,
+        text: str,
+    ) -> ChatPostMessageResponse:
+        """Send a DM to a user by org_username."""
+        user_id = self._resolve_user_id(org_username)
+        dm_channel_id = self.slack_api.conversations_open(user_ids=[user_id])
+        return self.slack_api.chat_post_message(channel_id=dm_channel_id, text=text)
 
     def _resolve_channel_id(self, channel_name: str) -> str:
         """Resolve a channel name to its ID.

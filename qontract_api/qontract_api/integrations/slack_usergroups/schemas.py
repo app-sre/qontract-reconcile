@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from qontract_api.models import TaskResult, TaskStatus
-from qontract_api.slack.domain import SlackWorkspace
+from qontract_api.slack.domain import SlackWorkspace, UsergroupNotification
 
 _USERS_TRUNCATE_THRESHOLD = 30
 
@@ -63,6 +63,10 @@ class SlackUsergroupActionUpdateUsers(BaseModel, frozen=True):
     users: list[str] = Field(..., description="List of users after update")
     users_to_add: list[str] = Field(..., description="List of users to add")
     users_to_remove: list[str] = Field(..., description="List of users to remove")
+    notifications: list[UsergroupNotification] = Field(
+        default_factory=list,
+        description="Notification actions triggered on membership changes",
+    )
 
     @field_validator("users", mode="after")
     @classmethod

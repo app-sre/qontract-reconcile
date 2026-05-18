@@ -1,33 +1,31 @@
 """API schemas for Slack external chat endpoint."""
 
-from pydantic import BaseModel, Field
+from typing import Self
+
+from pydantic import BaseModel, Field, model_validator
 
 from qontract_api.models import Secret
 
 
 class ChatRequest(BaseModel, frozen=True):
-    """Request model for posting a Slack message.
+    """Request model for posting a Slack message or DM.
 
-    Immutable model with all fields required to send a chat message.
-
-    Attributes:
-        workspace_name: Slack workspace name
-        channel: Channel name to post to
-        text: Message text
-        thread_ts: Optional thread timestamp for replies
-        icon_emoji: Emoji to use as the message icon
-        icon_url: URL to an image to use as the message icon
-        username: Bot username to display
-        secret: Secret reference for Slack bot token
+    Exactly one of `channel` or `user` must be set:
+    - `channel`: post to a Slack channel by name
+    - `user`: send a DM to a user by org_username
     """
 
     workspace_name: str = Field(
         ...,
         description="Slack workspace name",
     )
-    channel: str = Field(
-        ...,
+    channel: str | None = Field(
+        default=None,
         description="Channel name to post to (e.g., 'sd-app-sre-reconcile')",
+    )
+    user: str | None = Field(
+        default=None,
+        description="org_username to send a DM to (e.g., 'jsmith@redhat.com')",
     )
     text: str = Field(
         ...,
@@ -53,6 +51,13 @@ class ChatRequest(BaseModel, frozen=True):
         ...,
         description="Secret reference for Slack bot token",
     )
+
+    @model_validator(mode="after")
+    def validate_target(self) -> Self:
+        """Exactly one of 'channel' or 'user' must be set."""
+        if bool(self.channel) == bool(self.user):
+            raise ValueError("Exactly one of 'channel' or 'user' must be set")
+        return self
 
 
 class ChatResponse(BaseModel, frozen=True):

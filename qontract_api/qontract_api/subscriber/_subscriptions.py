@@ -10,7 +10,7 @@ from qontract_api.config import settings
 from qontract_api.logger import get_logger
 
 from ._base import broker
-from ._client import post_to_slack
+from ._client import post_to_slack, send_dm
 from ._formatters import format_event
 from ._metrics import (
     event_processing_duration,
@@ -45,8 +45,12 @@ async def event_handler(event: Event) -> None:
     start_time = time.perf_counter()
 
     try:
-        message = format_event(event)
-        await post_to_slack(message)
+        match event.type:
+            case "qontract-api.slack-usergroups.dm-notification":
+                await _handle_dm_notifications(event)
+            case _:
+                message = format_event(event)
+                await post_to_slack(message)
         events_posted.labels(event_type=event.type).inc()
         logger.info(
             "Event posted to Slack",
@@ -69,3 +73,21 @@ async def event_handler(event: Event) -> None:
     finally:
         duration = time.perf_counter() - start_time
         event_processing_duration.labels(event_type=event.type).observe(duration)
+
+
+async def _handle_dm_notifications(event: Event) -> None:
+    """Send DM notifications to users."""
+    users: list[str] = event.data["users"]
+    message: str = event.data["message"]
+    usergroup: str = event.data["usergroup"]
+
+    for org_username in users:
+        try:
+            await send_dm(org_username=org_username, text=message)
+            logger.info("DM sent", org_username=org_username, usergroup=usergroup)
+        except Exception:
+            logger.exception(
+                "Failed to send DM",
+                org_username=org_username,
+                usergroup=usergroup,
+            )

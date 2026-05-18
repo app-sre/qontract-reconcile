@@ -7,6 +7,10 @@ query SlackUsergroupApiPermission {
       channels
       description
       handle
+      notifications {
+        action
+        message
+      }
       ownersFromRepos
       skip
       pagerduty {

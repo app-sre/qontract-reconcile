@@ -51,6 +51,8 @@ from qontract_api_client.models import (
     SlackUsergroupActionUpdateUsers,
     SlackUsergroupsTaskResult,
 )
+from qontract_api_client.models.notification_add_user import NotificationAddUser
+from qontract_api_client.models.notification_remove_user import NotificationRemoveUser
 from qontract_api_client.models.secret import Secret
 from qontract_api_client.models.slack_usergroup import SlackUsergroup
 from qontract_api_client.models.slack_usergroup_config import SlackUsergroupConfig
@@ -427,10 +429,21 @@ class SlackUsergroupsIntegration(
         )
 
         # Create config and usergroup
+        notifications: list[NotificationAddUser | NotificationRemoveUser] = []
+        for n in permission.notifications or []:
+            match n.action:
+                case "addUser":
+                    notifications.append(NotificationAddUser(message=n.message))
+                case "removeUser":
+                    notifications.append(NotificationRemoveUser(message=n.message))
+                case _:
+                    raise ValueError(f"Unknown notification action: {n.action!r}")
+
         config = SlackUsergroupConfig(
             description=permission.description or "",
             users=sorted(users),
             channels=sorted(set(permission.channels or [])),
+            notifications=notifications,
         )
         usergroup = SlackUsergroup(handle=usergroup_handle, config=config)
 
