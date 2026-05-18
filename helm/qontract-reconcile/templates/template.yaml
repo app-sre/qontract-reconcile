@@ -217,21 +217,12 @@ objects:
               {{- if $logs.slack }}
               <store>
                 @type slack
-                {{- if $logs.govSlack }}
                 {{- if $integration.trigger }}
                 webhook_url ${SLACK_TRIGGERS_WEBHOOK_URL}
                 channel ${SLACK_CHANNEL_TRIGGER}
                 {{- else }}
                 webhook_url ${SLACK_WEBHOOK_URL}
                 channel ${SLACK_CHANNEL}
-                {{- end }}
-                {{- else }}
-                webhook_url ${SLACK_WEBHOOK_URL}
-                {{- if $integration.trigger }}
-                channel ${SLACK_CHANNEL_TRIGGER}
-                {{- else }}
-                channel ${SLACK_CHANNEL}
-                {{- end }}
                 {{- end }}
                 icon_emoji ${SLACK_ICON_EMOJI}
                 username sd-app-sre-bot
