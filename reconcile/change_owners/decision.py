@@ -136,6 +136,7 @@ def apply_decisions_to_changes(
     changes: Iterable[BundleFileChange],
     approver_decisions: Iterable[Decision],
     auto_approver_usernames: set[str],
+    mr_author: str = "",
 ) -> list[ChangeDecision]:
     """
     Apply and aggregate approver decisions to changes. Each diff of a
@@ -150,6 +151,7 @@ def apply_decisions_to_changes(
             d,
             approver_decisions,
             auto_approver_usernames,
+            mr_author,
         )
         for c in changes
         for d in c.diff_coverage
@@ -161,6 +163,7 @@ def _apply_decision_to_diff(
     diff: DiffCoverage,
     approver_decisions: Iterable[Decision],
     auto_approver_usernames: set[str],
+    mr_author: str = "",
 ) -> ChangeDecision:
     approvers_decisions_by_name = {
         d.approver_name: d.command for d in approver_decisions
@@ -176,7 +179,7 @@ def _apply_decision_to_diff(
         change_decision.coverable_by_fragment_decisions = True
         fragment_decisions = [
             _apply_decision_to_diff(
-                c, fragment, approver_decisions, auto_approver_usernames
+                c, fragment, approver_decisions, auto_approver_usernames, mr_author
             )
             for fragment in diff.diff_fragments
         ]
@@ -211,4 +214,32 @@ def _apply_decision_to_diff(
             if change_type_context.includes_approver(decision.approver_name):
                 change_decision.apply_decision(change_type_context, decision.command)
 
+    # The MR author can /hold their own MR even if they are not a change owner.
+    # Only /hold is honored from the author -- /hold cancel from the author is
+    # ignored so that only a change owner can release the hold.
+    if mr_author:
+        is_approver = any(
+            ctx.includes_approver(mr_author)
+            for ctx in diff.coverage
+            if not ctx.disabled
+        )
+        if not is_approver:
+            for decision in approver_decisions:
+                is_author_hold = (
+                    decision.approver_name == mr_author
+                    and decision.command == DecisionCommand.HOLD
+                )
+                is_owner_cancel = (
+                    decision.command == DecisionCommand.CANCEL_HOLD
+                    and decision.approver_name != mr_author
+                    and any(
+                        ctx.includes_approver(decision.approver_name)
+                        for ctx in diff.coverage
+                        if not ctx.disabled
+                    )
+                )
+                if is_author_hold or is_owner_cancel:
+                    change_decision.apply_context_decision(
+                        "mr-author", decision.command
+                    )
     return change_decision
