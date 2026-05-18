@@ -2091,9 +2091,7 @@ def test_multi_merge_optimistic_merge_rejected_handled(
 
     mr1.merge.assert_called_once()
     mr2.merge.assert_called_once()
-    mocked_gl.add_label_to_merge_request.assert_called_once_with(
-        mr2, gl_h.MERGE_ERROR
-    )
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(mr2, gl_h.MERGE_ERROR)
 
 
 def test_multi_merge_running_pipeline_skipped_after_first_merge(
