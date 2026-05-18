@@ -50,16 +50,21 @@ def cached_users() -> CachedUsers:
     )
 
 
+@pytest.mark.parametrize(
+    ("org_username", "expected_id"),
+    [("alice", "U1"), ("bob", "U2")],
+)
 def test_resolve_user_id_found(
     client: SlackWorkspaceClient,
     mock_cache: MagicMock,
     cached_users: CachedUsers,
+    org_username: str,
+    expected_id: str,
 ) -> None:
     """Test _resolve_user_id returns user ID for known org_username."""
     mock_cache.get_obj.return_value = cached_users
 
-    assert client._resolve_user_id("alice") == "U1"
-    assert client._resolve_user_id("bob") == "U2"
+    assert client._resolve_user_id(org_username) == expected_id
 
 
 def test_resolve_user_id_not_found(
