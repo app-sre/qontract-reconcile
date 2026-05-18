@@ -144,6 +144,7 @@ merge_batch_size_histogram = Histogram(
 
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
+    ACTIVE_CAP_MULTI_MERGE = "active-cap-multi-merge"
     TOP_K = "top-k"
     OLD_BURST = "old-burst"
 
@@ -576,6 +577,7 @@ def rebase_merge_requests(
 ) -> None:
     dispatch = {
         RebaseStrategy.ACTIVE_CAP: _rebase_merge_requests_active_cap,
+        RebaseStrategy.ACTIVE_CAP_MULTI_MERGE: _rebase_merge_requests_active_cap,
         RebaseStrategy.TOP_K: _rebase_merge_requests_top_k,
         RebaseStrategy.OLD_BURST: _rebase_merge_requests_old_burst,
     }
@@ -807,6 +809,7 @@ def merge_merge_requests(
     wait_for_pipeline: bool = False,
     users_allowed_to_label: Iterable[str] | None = None,
     must_pass: Iterable[str] | None = None,
+    multi_merge: bool = False,
 ) -> None:
     merges = 0
     if reload_toggle.reload:
@@ -836,6 +839,8 @@ def merge_merge_requests(
 
         if rebase:
             if first_merge_done:
+                if not multi_merge:
+                    break
                 if not is_eligible_for_optimistic_merge(mr):
                     optimistic_merge_rejected.labels(
                         project_id=mr.target_project_id, reason="ineligible"
@@ -1047,6 +1052,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     repos = [r for r in repos if is_in_shard(r["url"])]
     app_sre_usernames: set[str] = set()
     rebase_strategy = get_rebase_strategy()
+    multi_merge = rebase_strategy == RebaseStrategy.ACTIVE_CAP_MULTI_MERGE
     state = init_state(QONTRACT_INTEGRATION)
 
     for repo in repos:
@@ -1122,6 +1128,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
+                    multi_merge=multi_merge,
                 )
             except Exception:
                 logging.error(
@@ -1141,6 +1148,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
+                    multi_merge=multi_merge,
                 )
             if rebase:
                 rebase_merge_requests(

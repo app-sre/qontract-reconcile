@@ -1873,6 +1873,7 @@ def _call_merge(
     pipelines_by_iid: dict[int, list] | None = None,
     rebased_iids: set[int] | None = None,
     dry_run: bool = False,
+    multi_merge: bool = True,
 ) -> Mock:
     """Call merge_merge_requests with mocked preprocessing and is_rebased."""
     rebased_set = rebased_iids or set()
@@ -1912,6 +1913,7 @@ def _call_merge(
         insist=insist,
         wait_for_pipeline=wait_for_pipeline,
         users_allowed_to_label=None,
+        multi_merge=multi_merge,
     )
 
     return mocked_gl
@@ -2117,6 +2119,32 @@ def test_multi_merge_running_pipeline_skipped_after_first_merge(
     mr2.merge.assert_not_called()
 
 
+def test_multi_merge_insist_skipped_after_first_merge(
+    mocker: MockerFixture,
+) -> None:
+    """With insist=True, running pipelines after the first merge are skipped
+    instead of raising InsistOnPipelineError (which would reset multi-merge state)."""
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        insist=True,
+        wait_for_pipeline=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_running_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+
+
 def test_multi_merge_insist_only_before_first_merge(
     mocker: MockerFixture,
 ) -> None:
@@ -2154,6 +2182,7 @@ def test_multi_merge_insist_only_before_first_merge(
             insist=True,
             wait_for_pipeline=True,
             users_allowed_to_label=None,
+            multi_merge=True,
         )
 
     mr1.merge.assert_not_called()
@@ -2257,3 +2286,28 @@ def test_multi_merge_rebase_false_unchanged(
     mr1.rebase.assert_not_called()
     mr2.rebase.assert_not_called()
     mr3.rebase.assert_not_called()
+
+
+def test_multi_merge_disabled_single_merge_on_rebase(
+    mocker: MockerFixture,
+) -> None:
+    """When multi_merge=False and rebase=True, only the first MR merges."""
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        multi_merge=False,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
