@@ -824,6 +824,9 @@ def merge_merge_requests(
         sum(1 for item in merge_requests if item["error"])
     )
 
+    merged_labels: set[str] = set()
+    first_merge_done = False
+
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
 
@@ -831,8 +834,21 @@ def merge_merge_requests(
             logging.info(["skip merge", gl.project.name, mr.iid])
             continue
 
-        if rebase and not is_rebased(mr, gl):
-            continue
+        if rebase:
+            if first_merge_done:
+                if not is_eligible_for_optimistic_merge(mr):
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id, reason="ineligible"
+                    ).inc()
+                    continue
+                mr_labels = get_tenant_labels(mr)
+                if has_overlapping_labels(mr_labels, merged_labels):
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id, reason="overlap"
+                    ).inc()
+                    continue
+            elif not is_rebased(mr, gl):
+                continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
@@ -849,20 +865,16 @@ def merge_merge_requests(
                     pipelines=timed_out_pipelines,
                 )
 
+        # If pipeline is still running
         if wait_for_pipeline:
-            # possible statuses:
-            # running, pending, success, failed, canceled, skipped
             running_pipelines = [
                 p for p in pipelines if p.status == PipelineStatus.RUNNING
             ]
             if running_pipelines:
-                if insist:
-                    # This raise causes the method to restart due to the usage of
-                    # retry(). The purpose of this is to wait for the pipeline to
-                    # finish. This will cause merge requests to be queried again, which
-                    # for now is being considered a feature because a higher priority
-                    # merge request could have become available since we've been waiting
-                    # for this pipeline to complete.
+                if not first_merge_done and insist:
+                    # Retry only before the first merge — the @retry decorator
+                    # resets all local state, which would discard multi-merge
+                    # progress.
                     reload_toggle.reload = True
                     raise InsistOnPipelineError(
                         f"Pipelines for merge request in project '{gl.project.name}' have not completed yet: {mr.iid}"
@@ -877,6 +889,9 @@ def merge_merge_requests(
         if not dry_run and merges < merge_limit:
             try:
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
+                if first_merge_done and rebase:
+                    mr.rebase(skip_ci=True)
+
                 mr.merge(squash=squash)
                 labels = mr.labels
                 merged_merge_requests.labels(
@@ -889,14 +904,27 @@ def merge_merge_requests(
                 time_to_merge.labels(
                     project_id=mr.target_project_id, priority=merge_request["priority"]
                 ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
-                if rebase:
-                    # other merge requests need to be rebased first after this one merged, so terminate
-                    return
+                if first_merge_done:
+                    optimistic_merges.labels(project_id=mr.target_project_id).inc()
+
+                merged_labels.update(get_tenant_labels(mr))
+                first_merge_done = True
                 merges += 1
+            except gitlab.exceptions.GitlabMRRebaseError as e:
+                logging.warning(f"optimistic rebase failed for {mr.iid}: {e}")
+                optimistic_merge_rejected.labels(
+                    project_id=mr.target_project_id, reason="rebase_failed"
+                ).inc()
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
                 if not dry_run:
                     gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                if first_merge_done:
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id, reason="merge_rejected"
+                    ).inc()
+
+    merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
 
 
 def run_error_healthcheck(
