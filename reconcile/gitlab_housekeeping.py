@@ -890,7 +890,10 @@ def merge_merge_requests(
             continue
 
         logging.info(["merge", gl.project.name, mr.iid])
-        if not dry_run and merges < merge_limit:
+        if merges >= merge_limit:
+            continue
+
+        if not dry_run:
             try:
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
                 if first_merge_done and rebase:
@@ -912,23 +915,24 @@ def merge_merge_requests(
                     optimistic_merges.labels(
                         project_id=mr.target_project_id
                     ).inc()
-
-                merged_labels.update(get_tenant_labels(mr))
-                first_merge_done = True
-                merges += 1
             except gitlab.exceptions.GitlabMRRebaseError as e:
                 logging.warning(f"optimistic rebase failed for {mr.iid}: {e}")
                 optimistic_merge_rejected.labels(
                     project_id=mr.target_project_id, reason="rebase_failed"
                 ).inc()
+                continue
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
-                if not dry_run:
-                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                gl.add_label_to_merge_request(mr, MERGE_ERROR)
                 if first_merge_done:
                     optimistic_merge_rejected.labels(
                         project_id=mr.target_project_id, reason="merge_rejected"
                     ).inc()
+                continue
+
+        merged_labels.update(get_tenant_labels(mr))
+        first_merge_done = True
+        merges += 1
 
     merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
 
