@@ -429,16 +429,21 @@ class SlackUsergroupsIntegration(
         )
 
         # Create config and usergroup
+        notifications = []
+        for n in permission.notifications or []:
+            match n.action:
+                case "addUser":
+                    notifications.append(NotificationAddUser(message=n.message))
+                case "removeUser":
+                    notifications.append(NotificationRemoveUser(message=n.message))
+                case _:
+                    raise ValueError(f"Unknown notification action: {n.action!r}")
+
         config = SlackUsergroupConfig(
             description=permission.description or "",
             users=sorted(users),
             channels=sorted(set(permission.channels or [])),
-            notifications=[
-                NotificationAddUser(message=n.message)
-                if n.action == "addUser"
-                else NotificationRemoveUser(message=n.message)
-                for n in permission.notifications or []
-            ],
+            notifications=notifications,
         )
         usergroup = SlackUsergroup(handle=usergroup_handle, config=config)
 

@@ -19,7 +19,7 @@ def dm_notification_event() -> Event:
         type="qontract-api.slack-usergroups.dm-notification",
         data={
             "usergroup": "oncall-team",
-            "users": ["alice@example.com", "bob@example.com"],
+            "users": ["alice", "bob"],
             "message": "You have been added to @oncall-team.",
         },
     )
@@ -36,11 +36,11 @@ async def test_handle_dm_notifications_sends_dm_per_user(
 
     assert mock_send_dm.call_count == 2
     mock_send_dm.assert_any_call(
-        org_username="alice@example.com",
+        org_username="alice",
         text="You have been added to @oncall-team.",
     )
     mock_send_dm.assert_any_call(
-        org_username="bob@example.com",
+        org_username="bob",
         text="You have been added to @oncall-team.",
     )
 

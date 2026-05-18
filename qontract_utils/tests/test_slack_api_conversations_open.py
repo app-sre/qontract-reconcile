@@ -1,7 +1,5 @@
 """Tests for SlackApi.conversations_open method."""
 
-# ruff: noqa: ARG001
-
 from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
@@ -17,7 +15,16 @@ def mock_webclient() -> Generator[MagicMock, None, None]:
         yield mock_client
 
 
-def test_conversations_open_returns_channel_id(mock_webclient: MagicMock) -> None:
+@pytest.mark.parametrize(
+    ("user_ids", "expected_channel_id"),
+    [
+        (["U12345"], "D0123ABC"),
+        (["U1", "U2"], "G0123ABC"),
+    ],
+    ids=["single-user-dm", "multi-user-group-dm"],
+)
+@pytest.mark.usefixtures("mock_webclient")
+def test_conversations_open(user_ids: list[str], expected_channel_id: str) -> None:
     """Test conversations_open returns the DM channel ID."""
     api = SlackApi(
         slack_api_url="https://slack.com/api/",
@@ -27,29 +34,10 @@ def test_conversations_open_returns_channel_id(mock_webclient: MagicMock) -> Non
         max_retries=5,
     )
     api._sc.conversations_open = MagicMock(  # type: ignore[method-assign]
-        return_value={"channel": {"id": "D0123ABC"}}
+        return_value={"channel": {"id": expected_channel_id}}
     )
 
-    result = api.conversations_open(user_ids=["U12345"])
+    result = api.conversations_open(user_ids=user_ids)
 
-    assert result == "D0123ABC"
-    api._sc.conversations_open.assert_called_once_with(users=["U12345"])
-
-
-def test_conversations_open_multiple_users(mock_webclient: MagicMock) -> None:
-    """Test conversations_open with multiple user IDs (group DM)."""
-    api = SlackApi(
-        slack_api_url="https://slack.com/api/",
-        workspace_name="test-workspace",
-        token="xoxb-test-token",
-        timeout=30,
-        max_retries=5,
-    )
-    api._sc.conversations_open = MagicMock(  # type: ignore[method-assign]
-        return_value={"channel": {"id": "G0123ABC"}}
-    )
-
-    result = api.conversations_open(user_ids=["U1", "U2"])
-
-    assert result == "G0123ABC"
-    api._sc.conversations_open.assert_called_once_with(users=["U1", "U2"])
+    assert result == expected_channel_id
+    api._sc.conversations_open.assert_called_once_with(users=user_ids)
