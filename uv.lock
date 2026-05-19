@@ -2180,7 +2180,7 @@ requires-dist = [
     { name = "terrascript", specifier = "==0.9.0" },
     { name = "unleashclient", specifier = "~=5.11" },
     { name = "urllib3", specifier = "~=2.2" },
-    { name = "yamllint", specifier = "==1.34.0" },
+    { name = "yamllint", specifier = "==1.38.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -3146,15 +3146,15 @@ wheels = [
 
 [[package]]
 name = "yamllint"
-version = "1.34.0"
+version = "1.38.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pathspec" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/91/1c/9e9c7be901a58c82ab437e3e36f0dd0f5ed76687b1ddff9a9519d7c5875d/yamllint-1.34.0.tar.gz", hash = "sha256:7f0a6a41e8aab3904878da4ae34b6248b6bc74634e0d3a90f0fb2d7e723a3d4f", size = 134022, upload-time = "2024-02-06T09:02:21.357Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/a0/8fc2d68e132cf918f18273fdc8a1b8432b60d75ac12fdae4b0ef5c9d2e8d/yamllint-1.38.0.tar.gz", hash = "sha256:09e5f29531daab93366bb061e76019d5e91691ef0a40328f04c927387d1d364d", size = 142446, upload-time = "2026-01-13T07:47:53.276Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/5c/cba47ee4f249928f73d6e5bbd9cd947fd36c6858a7b3e389819973f89ab7/yamllint-1.34.0-py3-none-any.whl", hash = "sha256:33b813f6ff2ffad2e57a288281098392b85f7463ce1f3d5cd45aa848b916a806", size = 66726, upload-time = "2024-02-06T09:02:18.581Z" },
+    { url = "https://files.pythonhosted.org/packages/05/92/aed08e68de6e6a3d7c2328ce7388072cd6affc26e2917197430b646aed02/yamllint-1.38.0-py3-none-any.whl", hash = "sha256:fc394a5b3be980a4062607b8fdddc0843f4fa394152b6da21722f5d59013c220", size = 68940, upload-time = "2026-01-13T07:47:51.343Z" },
 ]
 
 [[package]]
