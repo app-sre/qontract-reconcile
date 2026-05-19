@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from ruamel import yaml
+from qontract_utils.ruamel import create_ruamel_instance, dump_yaml
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
@@ -27,6 +27,7 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
         return f"ocm upgrade scheduler org updates for {self.updates_info['name']}"
 
     def process(self, gitlab_cli: GitLabApi) -> None:
+        yml = create_ruamel_instance(explicit_start=True)
         changes = False
         ocm_path = self.updates_info["path"]
         ocm_name = self.updates_info["name"]
@@ -36,7 +37,7 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
             path=ocm_path,
             ref=gitlab_cli.main_branch,
         )
-        content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
+        content = yml.load(raw_file)
         upgrade_policy_clusters = content["upgradePolicyClusters"]
 
         for update in self.updates_info["updates"]:
@@ -77,10 +78,7 @@ class CreateOCMUpgradeSchedulerOrgUpdates(MergeRequestBase):
         if not changes:
             self.cancel("OCM Upgrade schedules are up to date. Nothing to do.")
 
-        yaml.explicit_start = True  # type: ignore[attr-defined]
-        new_content = yaml.dump(
-            content, Dumper=yaml.RoundTripDumper, explicit_start=True
-        )
+        new_content = dump_yaml(yml, content)
 
         msg = f"update {ocm_name} upgrade policy clusters"
         gitlab_cli.update_file(

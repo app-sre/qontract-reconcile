@@ -1,8 +1,11 @@
 from pathlib import Path
 
 from jinja2 import Template
-from qontract_utils.ruamel import PreservedScalarString
-from ruamel import yaml
+from qontract_utils.ruamel import (
+    PreservedScalarString,
+    create_ruamel_instance,
+    dump_yaml,
+)
 
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi
@@ -36,19 +39,19 @@ class CreateDeleteAwsAccessKey(MergeRequestBase):
         return f"delete {self.account} access key {self.key}"
 
     def process(self, gitlab_cli: GitLabApi) -> None:
+        yml = create_ruamel_instance(explicit_start=True)
         # add key to deleteKeys list to be picked up by aws-iam-keys
         raw_file = gitlab_cli.get_raw_file(
             project=gitlab_cli.project,
             path=self.path,
             ref=gitlab_cli.main_branch,
         )
-        content = yaml.load(raw_file, Loader=yaml.RoundTripLoader)
+        content = yml.load(raw_file)
 
         content.setdefault("deleteKeys", [])
         content["deleteKeys"].append(self.key)
 
-        new_content = "---\n"
-        new_content += yaml.dump(content, Dumper=yaml.RoundTripDumper)
+        new_content = dump_yaml(yml, content)
 
         msg = "Add key to deleteKeys list to be picked up by aws-iam-keys"
         gitlab_cli.update_file(
