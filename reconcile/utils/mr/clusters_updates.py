@@ -1,17 +1,13 @@
 from collections.abc import Mapping
-from io import StringIO
 from typing import Any
 
-from ruamel.yaml import YAML
+from qontract_utils.ruamel import create_ruamel_instance, dump_yaml
 
 from reconcile.change_owners.decision import DecisionCommand
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 
-yaml = YAML()
-yaml.explicit_start = True
-# Lets prevent line wraps
-yaml.width = 4096
+yaml = create_ruamel_instance(explicit_start=True)
 
 
 class CreateClustersUpdates(MergeRequestBase):
@@ -61,9 +57,7 @@ class CreateClustersUpdates(MergeRequestBase):
             # content.update(cluster_updates) :(
             content.update(cluster_updates["root"])
 
-            with StringIO() as stream:
-                yaml.dump(content, stream)
-                new_content = stream.getvalue()
+            new_content = dump_yaml(yaml, content)
 
             msg = f"update cluster {cluster_name} spec fields"
             gitlab_cli.update_file(

@@ -1,11 +1,11 @@
 import re
 import string
+from io import StringIO
 
 from pydantic import BaseModel
-from ruamel.yaml.compat import StringIO
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.utils.merge_request_manager.parser import Parser
-from reconcile.utils.ruamel import create_ruamel_instance
 
 PROMOTION_DATA_SEPARATOR = (
     "**AVS DATA - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"

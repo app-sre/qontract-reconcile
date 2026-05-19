@@ -1,86 +1,84 @@
-from io import StringIO
-from unittest import TestCase
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import create_autospec
 
+import pytest
 from gitlab.v4.objects import Project
+from qontract_utils.ruamel import dump_yaml
 
 import reconcile.utils.mr.clusters_updates as sut
 from reconcile.test.fixtures import Fixtures
 from reconcile.utils.gitlab_api import GitLabApi
+from reconcile.utils.mr.base import CancelMergeRequestError
 
 fxt = Fixtures("clusters")
 
 
-@patch.object(sut.CreateClustersUpdates, "cancel")
-class TestProcess(TestCase):
-    def setUp(self) -> None:
-        self.clusters = [fxt.get_anymarkup("cluster1.yml")]
-        self.raw_clusters = fxt.get("cluster1.yml")
+@pytest.fixture
+def raw_clusters() -> bytes:
+    return fxt.get("cluster1.yml").encode()
 
-    def test_no_changes(self, cancel: MagicMock) -> None:
-        cli = create_autospec(GitLabApi)
-        c = sut.CreateClustersUpdates({})
-        c.branch = "abranch"
+
+def test_no_changes() -> None:
+    cli = create_autospec(GitLabApi)
+    c = sut.CreateClustersUpdates({})
+    c.branch = "abranch"
+
+    with pytest.raises(CancelMergeRequestError):
         c.process(cli)
-        cancel.assert_called_once()
 
-        cli.get_raw_file.assert_not_called()
+    cli.get_raw_file.assert_not_called()
 
-    def test_changes_to_spec(self, cancel: MagicMock) -> None:
-        cli = create_autospec(GitLabApi)
-        cli.project = create_autospec(Project)
-        cli.get_raw_file.return_value = self.raw_clusters.encode()
-        c = sut.CreateClustersUpdates({
-            "cluster1": {"spec": {"id": "42"}, "root": {}, "path": "/a/path"}
-        })
-        c.branch = "abranch"
-        c.process(cli)
-        self.clusters[0]["spec"]["id"] = "42"
 
-        with StringIO() as stream:
-            sut.yaml.dump(self.clusters[0], stream)
-            content = stream.getvalue()
+def test_changes_to_spec(raw_clusters: bytes) -> None:
+    cli = create_autospec(GitLabApi)
+    cli.project = create_autospec(Project)
+    cli.get_raw_file.return_value = raw_clusters
+    c = sut.CreateClustersUpdates({
+        "cluster1": {"spec": {"id": "42"}, "root": {}, "path": "/a/path"}
+    })
+    c.branch = "abranch"
+    c.process(cli)
 
-        cli.update_file.assert_called_once_with(
-            branch_name="abranch",
-            file_path="/a/path",
-            commit_message="update cluster cluster1 spec fields",
-            content=content,
-        )
-        cli.get_raw_file.assert_called_once_with(
-            project=cli.project,
-            path="/a/path",
-            ref=cli.main_branch,
-        )
-        cancel.assert_not_called()
+    expected = sut.yaml.load(raw_clusters)
+    expected["spec"]["id"] = "42"
 
-    def test_changes_to_root(self, cancel: MagicMock) -> None:
-        cli = create_autospec(GitLabApi)
-        cli.project = create_autospec(Project)
-        cli.get_raw_file.return_value = self.raw_clusters.encode()
-        c = sut.CreateClustersUpdates({
-            "cluster1": {
-                "spec": {},
-                "root": {"prometheusUrl": "aprometheusurl"},
-                "path": "/a/path",
-            }
-        })
-        c.branch = "abranch"
-        c.process(cli)
-        self.clusters[0]["prometheusUrl"] = "aprometheusurl"
+    cli.update_file.assert_called_once_with(
+        branch_name="abranch",
+        file_path="/a/path",
+        commit_message="update cluster cluster1 spec fields",
+        content=dump_yaml(sut.yaml, expected),
+    )
+    cli.get_raw_file.assert_called_once_with(
+        project=cli.project,
+        path="/a/path",
+        ref=cli.main_branch,
+    )
 
-        with StringIO() as stream:
-            sut.yaml.dump(self.clusters[0], stream)
-            content = stream.getvalue()
-        cli.update_file.assert_called_once_with(
-            branch_name="abranch",
-            file_path="/a/path",
-            commit_message="update cluster cluster1 spec fields",
-            content=content,
-        )
-        cli.get_raw_file.assert_called_once_with(
-            project=cli.project,
-            path="/a/path",
-            ref=cli.main_branch,
-        )
-        cancel.assert_not_called()
+
+def test_changes_to_root(raw_clusters: bytes) -> None:
+    cli = create_autospec(GitLabApi)
+    cli.project = create_autospec(Project)
+    cli.get_raw_file.return_value = raw_clusters
+    c = sut.CreateClustersUpdates({
+        "cluster1": {
+            "spec": {},
+            "root": {"prometheusUrl": "aprometheusurl"},
+            "path": "/a/path",
+        }
+    })
+    c.branch = "abranch"
+    c.process(cli)
+
+    expected = sut.yaml.load(raw_clusters)
+    expected["prometheusUrl"] = "aprometheusurl"
+
+    cli.update_file.assert_called_once_with(
+        branch_name="abranch",
+        file_path="/a/path",
+        commit_message="update cluster cluster1 spec fields",
+        content=dump_yaml(sut.yaml, expected),
+    )
+    cli.get_raw_file.assert_called_once_with(
+        project=cli.project,
+        path="/a/path",
+        ref=cli.main_branch,
+    )

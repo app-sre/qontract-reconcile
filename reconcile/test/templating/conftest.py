@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
+from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.test.fixtures import Fixtures
@@ -25,6 +26,11 @@ def get_fixture(fxt: Fixtures, gql_class_factory: Callable) -> Callable:
         }
 
     return _f
+
+
+@pytest.fixture
+def ruaml_instance() -> yaml.YAML:
+    return create_ruamel_instance(explicit_start=True)
 
 
 @pytest.fixture

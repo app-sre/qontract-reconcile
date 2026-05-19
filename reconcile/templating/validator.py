@@ -3,7 +3,7 @@ from collections.abc import Callable
 from difflib import context_diff
 
 from pydantic import BaseModel
-from ruamel import yaml
+from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.templates import (
     TemplateTestV1,
@@ -13,7 +13,6 @@ from reconcile.gql_definitions.templating.templates import (
 from reconcile.templating.lib.rendering import Renderer, TemplateData, create_renderer
 from reconcile.utils import gql
 from reconcile.utils.jinja2.utils import TemplateRenderOptions
-from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     QontractReconcileIntegration,
 )

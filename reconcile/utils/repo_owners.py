@@ -3,7 +3,7 @@ import os
 import pathlib
 from collections.abc import Iterable, Mapping
 
-from ruamel import yaml
+from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
@@ -115,14 +115,15 @@ class RepoOwners:
         else:
             owner_files = [{"path": "OWNERS"}]
 
+        yml = create_ruamel_instance()
         for owner_file in owner_files:
             raw_owners = self._git_cli.get_file(path=owner_file["path"], ref=self._ref)
             if not raw_owners:
                 _LOG.warning(f"{self._git_cli!s}:{owner_file['path']} not found")
                 continue
             try:
-                owners = yaml.safe_load(raw_owners)
-            except yaml.parser.ParserError:
+                owners = yml.load(raw_owners)
+            except yaml.YAMLError:
                 owners = None
             if owners is None:
                 _LOG.warning(
@@ -174,7 +175,8 @@ class RepoOwners:
         if raw_aliases is None:
             return {}
 
-        aliases = yaml.safe_load(raw_aliases)
+        yml = create_ruamel_instance()
+        aliases = yml.load(raw_aliases)
         if aliases is None:
             return {}
 

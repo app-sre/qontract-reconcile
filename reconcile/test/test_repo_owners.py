@@ -1,5 +1,7 @@
 from unittest.mock import create_autospec
 
+import pytest
+
 from reconcile.utils.github_api import GithubRepositoryApi
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.repo_owners import RepoOwners
@@ -59,3 +61,68 @@ def test_repo_owners_subpath_closest() -> None:
         "approvers": ["root_approver"],
         "reviewers": ["root_reviewer"],
     }
+
+
+def test_get_owners_map_parses_yaml() -> None:
+    cli = create_autospec(GitLabApi)
+    cli.get_repository_tree.return_value = [{"name": "OWNERS", "path": "OWNERS"}]
+    cli.get_file.side_effect = lambda path, ref: {
+        "OWNERS": "approvers:\n- user1\nreviewers:\n- user2\n",
+        "OWNERS_ALIASES": None,
+    }[path]
+
+    owners = RepoOwners(cli, ref="main")
+    result = owners.owners_map
+
+    assert "." in result
+    assert result["."]["approvers"] == {"user1"}
+    assert result["."]["reviewers"] == {"user2"}
+
+
+def test_get_owners_map_handles_invalid_yaml() -> None:
+    cli = create_autospec(GitLabApi)
+    cli.get_repository_tree.return_value = [{"name": "OWNERS", "path": "OWNERS"}]
+    cli.get_file.side_effect = lambda path, ref: {
+        "OWNERS": ":\n  - :\n  invalid: [",
+        "OWNERS_ALIASES": None,
+    }[path]
+
+    owners = RepoOwners(cli, ref="main")
+    result = owners.owners_map
+    assert result == {}
+
+
+def test_get_owners_map_resolves_aliases() -> None:
+    cli = create_autospec(GitLabApi)
+    cli.get_repository_tree.return_value = [{"name": "OWNERS", "path": "OWNERS"}]
+    cli.get_file.side_effect = lambda path, ref: {
+        "OWNERS": "approvers:\n- team-a\nreviewers: []\n",
+        "OWNERS_ALIASES": "aliases:\n  team-a:\n  - alice\n  - bob\n",
+    }[path]
+
+    owners = RepoOwners(cli, ref="main")
+    result = owners.owners_map
+
+    assert result["."]["approvers"] == {"alice", "bob"}
+
+
+@pytest.mark.parametrize(
+    "raw_content",
+    [
+        None,
+        "null",
+        "not-a-dict",
+        "42",
+    ],
+)
+def test_get_owners_map_skips_invalid_content(raw_content: str | None) -> None:
+    cli = create_autospec(GitLabApi)
+    cli.get_repository_tree.return_value = [{"name": "OWNERS", "path": "OWNERS"}]
+    cli.get_file.side_effect = lambda path, ref: {
+        "OWNERS": raw_content,
+        "OWNERS_ALIASES": None,
+    }[path]
+
+    owners = RepoOwners(cli, ref="main")
+    result = owners.owners_map
+    assert result == {}

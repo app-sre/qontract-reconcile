@@ -1,11 +1,12 @@
 import hashlib
 from collections.abc import Mapping
 from copy import deepcopy
+from io import StringIO
 from typing import Any
 
 from jsonpath_ng.exceptions import JsonPathParserError
 from jsonpath_ng.ext import parser
-from ruamel.yaml.compat import StringIO
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.gql_definitions.common.saas_files import (
     SaasResourceTemplateTargetNamespaceSelectorV1,
@@ -18,7 +19,6 @@ from reconcile.saas_auto_promotions_manager.merge_request_manager.open_merge_req
 )
 from reconcile.saas_auto_promotions_manager.meta import QONTRACT_INTEGRATION_VERSION
 from reconcile.saas_auto_promotions_manager.subscriber import Subscriber
-from reconcile.utils.ruamel import create_ruamel_instance
 
 PROMOTION_DATA_SEPARATOR = (
     "**SAPM Data - DO NOT MANUALLY CHANGE ANYTHING BELOW THIS LINE**"
