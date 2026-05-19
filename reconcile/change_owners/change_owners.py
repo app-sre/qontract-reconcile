@@ -446,9 +446,10 @@ def run(
                 c.username for c in comments if c.body.strip() == "/ok-to-test"
             }
 
+            mr_author = gl.get_merge_request_author_username(merge_request)
             change_admitted = is_change_admitted(
                 changes,
-                gl.get_merge_request_author_username(merge_request),
+                mr_author,
                 ok_to_test_approvers,
             )
             approver_decisions = get_approver_decisions_from_mr_comments(
@@ -464,8 +465,9 @@ def run(
                 approver_decisions,
                 {
                     gl.user.username,
-                    gl.get_merge_request_author_username(merge_request),
+                    mr_author,
                 },
+                mr_author=mr_author,
             )
             hold = any(d.is_held() for d in change_decisions)
             approved = all(
