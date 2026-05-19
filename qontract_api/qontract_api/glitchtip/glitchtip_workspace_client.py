@@ -334,9 +334,15 @@ class GlitchtipWorkspaceClient:
         return user
 
     def delete_user(self, org_slug: str, pk: int) -> None:
-        """Delete a user and clear organization users cache."""
+        """Delete a user and clear organization and team users caches.
+
+        GlitchTip automatically removes the user from all teams when deleted from
+        an org, so all team user caches must be invalidated too.
+        """
         self.glitchtip_api.delete_user(org_slug, pk)
         self._clear_cache(self._cache_key_org_users(org_slug))
+        for team in self.get_teams(org_slug):
+            self._clear_cache(self._cache_key_team_users(org_slug, team.slug))
 
     def update_user_role(self, org_slug: str, pk: int, role: str) -> User:
         """Update user role and clear organization users cache."""
