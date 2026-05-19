@@ -3,8 +3,7 @@ from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
-from qontract_utils.ruamel import create_ruamel_instance
-from ruamel import yaml
+from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.test.fixtures import Fixtures

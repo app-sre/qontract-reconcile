@@ -11,6 +11,7 @@ from textwrap import indent
 from typing import Any
 
 import jinja2
+from qontract_utils.ruamel import create_ruamel_instance
 from sretoolbox.container.image import Image
 
 from reconcile import (
@@ -33,7 +34,6 @@ from reconcile.utils.openshift_resource import (
     OpenshiftResource,
     ResourceInventory,
 )
-from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import (
     SecretReaderBase,
     create_secret_reader,

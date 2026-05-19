@@ -1,10 +1,11 @@
+from io import StringIO
+
 from jsonpath_ng.ext import parser
-from ruamel.yaml.compat import StringIO
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.typed_queries.users import get_users
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
-from reconcile.utils.ruamel import create_ruamel_instance
 
 
 class PromoteQontractSchemas(MergeRequestBase):

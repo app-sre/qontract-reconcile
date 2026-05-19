@@ -4,8 +4,7 @@ from io import StringIO
 from typing import Any, NotRequired, TypedDict
 
 import yaml
-
-from reconcile.utils.ruamel import create_ruamel_instance
+from qontract_utils.ruamel import create_ruamel_instance
 
 
 class PrometheusRule(TypedDict):

@@ -6,6 +6,7 @@ from typing import TypedDict
 import jinja2
 from pydantic import BaseModel
 from qontract_utils.differ import diff_any_iterables
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.endpoints_discovery.merge_request import Renderer, create_parser
 from reconcile.endpoints_discovery.merge_request_manager import (
@@ -36,7 +37,6 @@ from reconcile.utils.extended_early_exit import (
     extended_early_exit_run,
 )
 from reconcile.utils.oc_map import OCMap, init_oc_map_from_namespaces
-from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,

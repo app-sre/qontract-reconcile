@@ -5,6 +5,7 @@ from io import StringIO
 from typing import Any, Protocol
 
 from pydantic import BaseModel
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.utils.jinja2.utils import (
     Jinja2TemplateError,
@@ -12,7 +13,6 @@ from reconcile.utils.jinja2.utils import (
     process_jinja2_template,
 )
 from reconcile.utils.jsonpath import parse_jsonpath
-from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReaderBase
 
 

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Self
 
-from ruamel import yaml
+from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
@@ -34,7 +34,6 @@ from reconcile.utils.git import checkout, clone
 from reconcile.utils.gql import GqlApi
 from reconcile.utils.jinja2.utils import TemplateRenderOptions, process_jinja2_template
 from reconcile.utils.json import json_dumps
-from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     PydanticRunParams,
     QontractReconcileIntegration,

@@ -1,12 +1,13 @@
 import logging
 from collections import defaultdict
 from collections.abc import Iterable
+from io import StringIO
 from typing import Any
 
 import yaml
 from pydantic import BaseModel
 from qontract_utils.differ import diff_mappings
-from ruamel.yaml.compat import StringIO
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.fleet_labeler.dependencies import Dependencies
 from reconcile.fleet_labeler.merge_request import YamlCluster
@@ -27,7 +28,6 @@ from reconcile.gql_definitions.fleet_labeler.fleet_labels import (
 )
 from reconcile.typed_queries.fleet_labels import get_fleet_label_specs
 from reconcile.utils.jinja2.utils import process_jinja2_template
-from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.runtime.integration import (
     NoParams,
     QontractReconcileIntegration,

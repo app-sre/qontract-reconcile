@@ -5,11 +5,11 @@ from io import StringIO
 from pathlib import Path
 
 from pydantic import BaseModel, field_validator
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.utils.gitlab_api import GitLabApi
 from reconcile.utils.mr.base import MergeRequestBase
 from reconcile.utils.mr.labels import AUTO_MERGE
-from reconcile.utils.ruamel import create_ruamel_instance
 
 log = logging.getLogger(__name__)
 

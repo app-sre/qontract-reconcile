@@ -1,11 +1,11 @@
 import re
 import string
+from io import StringIO
 
 from pydantic import BaseModel
-from ruamel.yaml.compat import StringIO
+from qontract_utils.ruamel import create_ruamel_instance
 
 from reconcile.utils.merge_request_manager.parser import Parser
-from reconcile.utils.ruamel import create_ruamel_instance
 
 VERSION = "1.0.0"
 INTEGRATION = "endpoints-discovery"

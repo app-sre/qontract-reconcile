@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 import pytest
-from ruamel import yaml
+from qontract_utils.ruamel import yaml
 
 from reconcile.gql_definitions.templating.templates import TemplateTestV1, TemplateV1
 from reconcile.templating.validator import TemplateValidatorIntegration

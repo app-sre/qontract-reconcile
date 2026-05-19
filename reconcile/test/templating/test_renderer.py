@@ -7,8 +7,7 @@ from unittest.mock import ANY, MagicMock, call
 import pytest
 from gitlab import GitlabGetError
 from pytest_mock import MockerFixture
-from qontract_utils.ruamel import create_ruamel_instance
-from ruamel import yaml
+from qontract_utils.ruamel import create_ruamel_instance, yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
     TemplateCollectionV1,
