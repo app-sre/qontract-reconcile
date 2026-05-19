@@ -2863,6 +2863,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Escalation Policy Users",
         "tags": [
           "external"
@@ -2954,6 +2959,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Schedule Users",
         "tags": [
           "external"
