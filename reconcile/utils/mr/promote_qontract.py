@@ -266,6 +266,20 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
         )
 
 
+class PromoteQontractValidator(PromoteQontractReconcileCommercial):
+    name = "promote_qontract_validator"
+    project_display_name = "qontract-validator"
+
+    def process(self, gitlab_cli: GitLabApi) -> None:
+        self._process_by(
+            "line_search",
+            gitlab_cli=gitlab_cli,
+            path=".env",
+            search_text="export VALIDATOR_IMAGE_TAG=",
+            replace_text=f"export VALIDATOR_IMAGE_TAG={self.version}",
+        )
+
+
 class PromoteQontractServer(PromoteQontractReconcileCommercial):
     name = "promote_qontract_server"
     project_display_name = "qontract-server"
