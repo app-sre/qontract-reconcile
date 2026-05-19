@@ -2170,7 +2170,7 @@ requires-dist = [
     { name = "requests-oauthlib", specifier = "~=2.0" },
     { name = "rich", specifier = "==15.0.0" },
     { name = "semver", specifier = "~=3.0" },
-    { name = "sendgrid", specifier = ">=6.4.8,<6.5.0" },
+    { name = "sendgrid", specifier = "==6.12.5" },
     { name = "sentry-sdk", specifier = "~=2.0" },
     { name = "setuptools", specifier = "==80.8.0" },
     { name = "slack-sdk", specifier = ">=3.10,<4.0" },
@@ -2461,15 +2461,16 @@ wheels = [
 
 [[package]]
 name = "sendgrid"
-version = "6.4.8"
+version = "6.12.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "cryptography" },
     { name = "python-http-client" },
-    { name = "starkbank-ecdsa" },
+    { name = "werkzeug" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/51/52/58c3056c8ebebffb1e286a6e87f5c82ba7945bcc550b498bc3d1ce31f38f/sendgrid-6.4.8.tar.gz", hash = "sha256:4c04a660d25448d8d64092a8b0e4aa6eb18d70f358219ce45895a8067f967833", size = 47431, upload-time = "2020-12-02T20:07:50.477Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/fa/f718b2b953f99c1f0085811598ac7e31ccbd4229a81ec2a5290be868187a/sendgrid-6.12.5.tar.gz", hash = "sha256:ea9aae30cd55c332e266bccd11185159482edfc07c149b6cd15cf08869fabdb7", size = 50310, upload-time = "2025-09-19T06:23:09.229Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/ed/3a489fec8e16610e673b7243474e2dae0893b1f4e53af9a17e39e6e356cd/sendgrid-6.4.8-py3-none-any.whl", hash = "sha256:850d37a45ce96a24435061a1e3333faf9a2d31fc6287b496867c8eee7a2486c7", size = 73547, upload-time = "2020-12-02T20:07:48.888Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/55/b3c3880a77082e8f7374954e0074aafafaa9bc78bdf9c8f5a92c2e7afc6a/sendgrid-6.12.5-py3-none-any.whl", hash = "sha256:96f92cc91634bf552fdb766b904bbb53968018da7ae41fdac4d1090dc0311ca8", size = 102173, upload-time = "2025-09-19T06:23:07.93Z" },
 ]
 
 [[package]]
@@ -2584,15 +2585,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/80/bd/b2f71ae14368a066f103d182f25bbc6c3bf4aa695889f3ed3cba026d6f36/stamina-26.1.0.tar.gz", hash = "sha256:0214d05fdf5102c518194a4aac7520ce53cf660550ae3b940701aad88cf50c17", size = 568171, upload-time = "2026-04-13T17:44:31.012Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1d/f0/1ff90a1d1dd02de23feafdf9dffaecef3958348be5c192df56670ccb4f86/stamina-26.1.0-py3-none-any.whl", hash = "sha256:62e06829bec87c06d4cafde520b32a6097d1017c378a9eb63253c5bf5ebbbb88", size = 18508, upload-time = "2026-04-13T17:44:29.545Z" },
-]
-
-[[package]]
-name = "starkbank-ecdsa"
-version = "2.3.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c2/90/1a9e28c73a7cef965c6811ff129a20ddd6bec1fc438a99d938261314e913/starkbank_ecdsa-2.3.1.tar.gz", hash = "sha256:712315c87ba7966a963f6f939a773f7a7a15cdc056ece097a30c0a9d393ee513", size = 20588, upload-time = "2026-04-23T20:59:57.736Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/f3/6d0a27fe51ba9cca11a1d5f44616ba384c1326ab704d74e4367839a67219/starkbank_ecdsa-2.3.1-py3-none-any.whl", hash = "sha256:c6dcb0caeb5d7d181c3ef0a6b0185df700d4fa5d5e5669b40bc6d20816aa25a8", size = 22067, upload-time = "2026-04-23T20:59:56.556Z" },
 ]
 
 [[package]]
