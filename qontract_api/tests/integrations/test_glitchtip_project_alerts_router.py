@@ -121,7 +121,7 @@ def test_post_reconcile_requires_auth(
         json=sample_reconcile_request.model_dump(),
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_post_reconcile_invalid_request_body(
