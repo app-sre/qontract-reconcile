@@ -563,7 +563,7 @@ wheels = [
 
 [[package]]
 name = "dateparser"
-version = "1.1.8"
+version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-dateutil" },
@@ -571,9 +571,9 @@ dependencies = [
     { name = "regex" },
     { name = "tzlocal" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7e/16/e95f1d2f8014bac38e00d037e192222e52de7db7c71268ed3b2e12d4893c/dateparser-1.1.8.tar.gz", hash = "sha256:86b8b7517efcc558f085a142cdb7620f0921543fcabdb538c8a4c4001d8178e3", size = 296595, upload-time = "2023-03-23T14:02:06.413Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/2d/a0ccdb78788064fa0dc901b8524e50615c42be1d78b78d646d0b28d09180/dateparser-1.4.0.tar.gz", hash = "sha256:97a21840d5ecdf7630c584f673338a5afac5dfe84f647baf4d7e8df98f9354a4", size = 321512, upload-time = "2026-03-26T09:56:10.292Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7a/bf/457ed5be028fb235f8f5ad40b5ddbf67023e0017090ea324d0fe6239a73c/dateparser-1.1.8-py2.py3-none-any.whl", hash = "sha256:070b29b5bbf4b1ec2cd51c96ea040dc68a614de703910a91ad1abba18f9f379f", size = 293797, upload-time = "2023-03-23T14:02:04.091Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/0b/3c3bb7cbe757279e693a0be6049048012f794d01f81099609ecd53b899f0/dateparser-1.4.0-py3-none-any.whl", hash = "sha256:7902b8e85d603494bf70a5a0b1decdddb2270b9c6e6b2bc8a57b93476c0df378", size = 300379, upload-time = "2026-03-26T09:56:08.409Z" },
 ]
 
 [[package]]
@@ -2140,7 +2140,7 @@ requires-dist = [
     { name = "botocore", specifier = "==1.43.10" },
     { name = "click", specifier = ">=7.0,<9.0" },
     { name = "croniter", specifier = "==6.2.2" },
-    { name = "dateparser", specifier = "~=1.1.7" },
+    { name = "dateparser", specifier = "==1.4.0" },
     { name = "deepdiff", specifier = "==9.1.0" },
     { name = "dnspython", specifier = "~=2.1" },
     { name = "dt", specifier = "==1.1.73" },
