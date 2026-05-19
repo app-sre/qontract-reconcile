@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from pathlib import Path
 
-from ruamel.yaml.scalarstring import PreservedScalarString
+from qontract_utils.ruamel import PreservedScalarString
 
 from reconcile.utils.datetime_util import utc_now
 from reconcile.utils.gitlab_api import GitLabApi

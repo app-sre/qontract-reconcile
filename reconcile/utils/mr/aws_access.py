@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from jinja2 import Template
+from qontract_utils.ruamel import PreservedScalarString
 from ruamel import yaml
-from ruamel.yaml.scalarstring import PreservedScalarString
 
 from reconcile.utils.constants import PROJ_ROOT
 from reconcile.utils.gitlab_api import GitLabApi

@@ -1,7 +1,16 @@
 from io import StringIO
 from typing import Any
 
+from ruamel.yaml.scalarstring import PreservedScalarString
+
 from ruamel import yaml
+
+__all__ = [
+    "PreservedScalarString",
+    "create_ruamel_instance",
+    "dump_yaml",
+    "yaml",
+]
 
 
 def create_ruamel_instance(
