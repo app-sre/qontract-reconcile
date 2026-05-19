@@ -116,13 +116,13 @@ def test_post_reconcile_requires_auth(
     client: TestClient,
     sample_reconcile_request: GlitchtipReconcileRequest,
 ) -> None:
-    """Test POST /reconcile requires authentication and returns 403 without it."""
+    """Test POST /reconcile requires authentication and returns 401 without it."""
     response = client.post(
         "/api/v1/integrations/glitchtip/reconcile",
         json=sample_reconcile_request.model_dump(),
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_post_reconcile_invalid_body(

@@ -10,9 +10,9 @@ from qontract_api.models import TokenData
 
 
 def test_protected_endpoint_without_token(client: TestClient) -> None:
-    """Test protected endpoint returns 403 without token."""
+    """Test protected endpoint returns 401 without token."""
     response = client.get("/api/protected")
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_protected_endpoint_with_invalid_token(client: TestClient) -> None:

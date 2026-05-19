@@ -89,7 +89,7 @@ class MissingARNError(Exception):
     pass
 
 
-KeyStatus = Literal["Active", "Inactive"]
+KeyStatus = Literal["Active", "Expired", "Inactive"]
 
 GOVCLOUD_PARTITION = "aws-us-gov"
 

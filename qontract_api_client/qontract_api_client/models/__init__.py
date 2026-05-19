@@ -79,6 +79,7 @@ from .slack_usergroups_task_result import SlackUsergroupsTaskResult
 from .slack_workspace import SlackWorkspace
 from .task_status import TaskStatus
 from .validation_error import ValidationError
+from .validation_error_context import ValidationErrorContext
 from .vcs_provider import VCSProvider
 
 __all__ = (
@@ -158,4 +159,5 @@ __all__ = (
     "TaskStatus",
     "VCSProvider",
     "ValidationError",
+    "ValidationErrorContext",
 )

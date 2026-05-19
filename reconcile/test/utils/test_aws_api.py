@@ -194,9 +194,10 @@ def test_get_hosted_zone_record_sets_exists(
     record_set = cast(
         "ResourceRecordSetTypeDef",
         {
-            "Name": zone_name,
-            "Type": "NS",
-            "ResourceRecords": [{"Value": "ns"}],
+            "Name": f"app.{zone_name}",
+            "Type": "A",
+            "TTL": 300,
+            "ResourceRecords": [{"Value": "1.2.3.4"}],
         },
     )
     change_batch = cast(

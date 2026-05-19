@@ -132,7 +132,7 @@ def test_post_reconcile_requires_auth(
         json=sample_reconcile_request.model_dump(),
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_post_reconcile_invalid_request_body(
@@ -283,7 +283,7 @@ def test_get_task_status_requires_auth(client: TestClient) -> None:
         "/api/v1/integrations/slack-usergroups/reconcile/task-123",
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_get_task_status_validates_timeout_range(

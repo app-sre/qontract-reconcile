@@ -152,7 +152,7 @@ def test_post_chat_requires_auth(
         json=chat_request,
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_post_chat_invalid_request_body(
