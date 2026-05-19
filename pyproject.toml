@@ -304,5 +304,6 @@ module = [
     "sendgrid.*",
     "sshtunnel.*",
     "terrascript.*",
+    "yamllint.*",
 ]
 ignore_missing_imports = true

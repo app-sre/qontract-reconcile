@@ -4,8 +4,8 @@ import sys
 
 import click
 from qontract_utils.ruamel import create_ruamel_instance
-from yamllint import linter  # type: ignore
-from yamllint.config import YamlLintConfig  # type: ignore
+from yamllint import linter
+from yamllint.config import YamlLintConfig
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.templating.validator import TemplateDiff, TemplateValidatorIntegration
