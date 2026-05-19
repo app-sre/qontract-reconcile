@@ -45,6 +45,11 @@ objects:
               secretKeyRef:
                 key: slack.webhook_url
                 name: app-interface
+          - name: SLACK_TRIGGERS_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                key: slack.triggers_url
+                name: app-interface
           - name: SLACK_CHANNEL
             value: ${SLACK_CHANNEL}
           - name: SLACK_ICON_EMOJI
