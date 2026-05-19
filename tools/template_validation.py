@@ -3,13 +3,13 @@ import os.path
 import sys
 
 import click
+from qontract_utils.ruamel import create_ruamel_instance
 from yamllint import linter  # type: ignore
 from yamllint.config import YamlLintConfig  # type: ignore
 
 from reconcile.gql_definitions.templating.templates import TemplateV1
 from reconcile.templating.validator import TemplateDiff, TemplateValidatorIntegration
 from reconcile.utils.models import data_default_none
-from reconcile.utils.ruamel import create_ruamel_instance
 
 
 def load_clean_yaml(path: str) -> dict:
