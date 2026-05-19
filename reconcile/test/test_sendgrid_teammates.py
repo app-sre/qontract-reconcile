@@ -1,5 +1,4 @@
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,6 +10,9 @@ from reconcile.sendgrid_teammates import (
     fetch_desired_state,
     raise_if_error,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @pytest.fixture
