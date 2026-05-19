@@ -18,6 +18,7 @@ from reconcile.utils.mr.promote_qontract import (
     PromoteQontractReconcileCommercial,
     PromoteQontractSchemas,
     PromoteQontractServer,
+    PromoteQontractValidator,
 )
 from reconcile.utils.mr.user_maintenance import (
     CreateDeleteUserAppInterface,
@@ -37,6 +38,7 @@ __all__ = [
     "PromoteQontractReconcileCommercial",
     "PromoteQontractSchemas",
     "PromoteQontractServer",
+    "PromoteQontractValidator",
     "UnknownMergeRequestTypeError",
     "init_from_sqs_message",
 ]
