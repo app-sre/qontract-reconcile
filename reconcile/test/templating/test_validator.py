@@ -5,7 +5,6 @@ from ruamel import yaml
 
 from reconcile.gql_definitions.templating.templates import TemplateTestV1, TemplateV1
 from reconcile.templating.validator import TemplateValidatorIntegration
-from reconcile.utils.ruamel import create_ruamel_instance
 
 
 @pytest.fixture
@@ -34,11 +33,6 @@ def simple_template_test(gql_class_factory: Callable) -> TemplateTestV1:
             "expectedTargetPath": "/foo/bar.yml",
         },
     )
-
-
-@pytest.fixture
-def ruaml_instance() -> yaml.YAML:
-    return create_ruamel_instance(explicit_start=True)
 
 
 def test_validate_template(

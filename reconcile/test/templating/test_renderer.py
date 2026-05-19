@@ -7,6 +7,7 @@ from unittest.mock import ANY, MagicMock, call
 import pytest
 from gitlab import GitlabGetError
 from pytest_mock import MockerFixture
+from qontract_utils.ruamel import create_ruamel_instance
 from ruamel import yaml
 
 from reconcile.gql_definitions.templating.template_collection import (
@@ -29,7 +30,6 @@ from reconcile.templating.renderer import (
     unpack_static_variables,
 )
 from reconcile.utils.jinja2.utils import Jinja2TemplateError
-from reconcile.utils.ruamel import create_ruamel_instance
 from reconcile.utils.secret_reader import SecretReader
 from reconcile.utils.vcs import VCS
 
@@ -117,11 +117,6 @@ def template_collection(
 @pytest.fixture
 def local_file_persistence(tmp_path: Path) -> LocalFilePersistence:
     return LocalFilePersistence(False, str(tmp_path))
-
-
-@pytest.fixture
-def ruaml_instance() -> yaml.YAML:
-    return yaml.YAML()
 
 
 @pytest.fixture
