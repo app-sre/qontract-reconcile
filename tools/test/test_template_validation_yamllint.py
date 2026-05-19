@@ -1,23 +1,42 @@
+import pytest
 from yamllint import linter
 from yamllint.config import YamlLintConfig
 
 
-def test_yamllint_valid_yaml() -> None:
-    config = YamlLintConfig("extends: default")
-    problems = list(linter.run("---\nkey: value\n", config, ""))
-    assert not problems
-
-
-def test_yamllint_invalid_yaml() -> None:
-    config = YamlLintConfig("extends: default")
-    problems = list(linter.run("key: value\nkey: duplicate\n", config, ""))
-    assert any("duplication" in p.desc for p in problems)
-
-
-def test_yamllint_config_from_content() -> None:
-    config = YamlLintConfig("rules:\n  line-length:\n    max: 10\n")
-    problems = list(linter.run("key: this is a very long value\n", config, ""))
-    assert any("line too long" in p.desc for p in problems)
+@pytest.mark.parametrize(
+    "yaml_input, config_text, expected_problem",
+    [
+        pytest.param(
+            "---\nkey: value\n",
+            "extends: default",
+            None,
+            id="valid-yaml",
+        ),
+        pytest.param(
+            "key: value\nkey: duplicate\n",
+            "extends: default",
+            "duplication",
+            id="duplicate-key",
+        ),
+        pytest.param(
+            "key: this is a very long value\n",
+            "rules:\n  line-length:\n    max: 10\n",
+            "line too long",
+            id="line-too-long",
+        ),
+    ],
+)
+def test_yamllint_linting(
+    yaml_input: str,
+    config_text: str,
+    expected_problem: str | None,
+) -> None:
+    config = YamlLintConfig(config_text)
+    problems = list(linter.run(yaml_input, config, ""))
+    if expected_problem is None:
+        assert not problems
+    else:
+        assert any(expected_problem in p.desc for p in problems)
 
 
 def test_lint_problem_attributes() -> None:
