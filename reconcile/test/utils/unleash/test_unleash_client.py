@@ -207,65 +207,52 @@ def test_get_feature_toggle_state_with_enable_cluster_strategy(
 
 
 def test_get_feature_variant_env_missing() -> None:
-    assert not get_feature_variant("foo")
+    assert get_feature_variant("foo") == ""  # noqa: PLC1901
 
 
 def test_get_feature_variant_env_missing_custom_default() -> None:
     assert get_feature_variant("foo", default_variant="fallback") == "fallback"
 
 
-def test_get_feature_variant_disabled(
+@pytest.mark.parametrize(
+    ("variant_response", "expected"),
+    [
+        pytest.param(
+            {"name": "disabled", "enabled": False},
+            "",
+            id="disabled",
+        ),
+        pytest.param(
+            {
+                "name": "variant-a",
+                "enabled": True,
+                "payload": {"type": "string", "value": "my-value"},
+            },
+            "my-value",
+            id="enabled-with-payload",
+        ),
+        pytest.param(
+            {"name": "variant-b", "enabled": True},
+            "",
+            id="enabled-no-payload",
+        ),
+        pytest.param(
+            {"name": "variant-c", "enabled": True, "payload": {}},
+            "",
+            id="enabled-empty-payload",
+        ),
+    ],
+)
+def test_get_feature_variant(
     monkeypatch: pytest.MonkeyPatch,
     mock_unleash_client: MagicMock,
+    variant_response: dict,
+    expected: str,
 ) -> None:
     monkeypatch.setenv("UNLEASH_API_URL", "https://u/api")
     monkeypatch.setenv("UNLEASH_CLIENT_ACCESS_TOKEN", "token")
-    mock_unleash_client.return_value.get_variant.return_value = {
-        "name": "disabled",
-        "enabled": False,
-    }
-    assert not get_feature_variant("feat")
-
-
-def test_get_feature_variant_enabled_with_payload(
-    monkeypatch: pytest.MonkeyPatch,
-    mock_unleash_client: MagicMock,
-) -> None:
-    monkeypatch.setenv("UNLEASH_API_URL", "https://u/api")
-    monkeypatch.setenv("UNLEASH_CLIENT_ACCESS_TOKEN", "token")
-    mock_unleash_client.return_value.get_variant.return_value = {
-        "name": "variant-a",
-        "enabled": True,
-        "payload": {"type": "string", "value": "my-value"},
-    }
-    assert get_feature_variant("feat") == "my-value"
-
-
-def test_get_feature_variant_enabled_no_payload(
-    monkeypatch: pytest.MonkeyPatch,
-    mock_unleash_client: MagicMock,
-) -> None:
-    monkeypatch.setenv("UNLEASH_API_URL", "https://u/api")
-    monkeypatch.setenv("UNLEASH_CLIENT_ACCESS_TOKEN", "token")
-    mock_unleash_client.return_value.get_variant.return_value = {
-        "name": "variant-b",
-        "enabled": True,
-    }
-    assert not get_feature_variant("feat")
-
-
-def test_get_feature_variant_enabled_empty_payload(
-    monkeypatch: pytest.MonkeyPatch,
-    mock_unleash_client: MagicMock,
-) -> None:
-    monkeypatch.setenv("UNLEASH_API_URL", "https://u/api")
-    monkeypatch.setenv("UNLEASH_CLIENT_ACCESS_TOKEN", "token")
-    mock_unleash_client.return_value.get_variant.return_value = {
-        "name": "variant-c",
-        "enabled": True,
-        "payload": {},
-    }
-    assert not get_feature_variant("feat")
+    mock_unleash_client.return_value.get_variant.return_value = variant_response
+    assert get_feature_variant("feat") == expected  # noqa: PLC1901
 
 
 def test_get_feature_variant_with_context(
