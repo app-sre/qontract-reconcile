@@ -42,7 +42,7 @@ dependencies = [
     "pyjwt~=2.7",
     "pyOpenSSL~=26.2",
     "pypd>=1.1.0,<1.2.0",
-    "python-gitlab==6.0.0",
+    "python-gitlab==8.3.0",
     "requests-oauthlib~=2.0",
     "requests~=2.32",
     "rich==15.0.0",
