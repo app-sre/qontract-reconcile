@@ -77,7 +77,7 @@ def _build_response(
 def sync_detailed(
     policy_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     secret_manager_url: str,
     path: str,
     field: None | str | Unset = UNSET,
@@ -144,7 +144,7 @@ def sync_detailed(
 def sync(
     policy_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     secret_manager_url: str,
     path: str,
     field: None | str | Unset = UNSET,
@@ -209,7 +209,7 @@ def sync(
 async def asyncio_detailed(
     policy_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     secret_manager_url: str,
     path: str,
     field: None | str | Unset = UNSET,
@@ -274,7 +274,7 @@ async def asyncio_detailed(
 async def asyncio(
     policy_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     secret_manager_url: str,
     path: str,
     field: None | str | Unset = UNSET,

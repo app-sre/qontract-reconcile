@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from qontract_api.config import settings
-from qontract_api.dependencies import CacheDep, SecretManagerDep
+from qontract_api.dependencies import CacheDep, SecretManagerDep, UserDep
 from qontract_api.external.pagerduty.pagerduty_factory import (
     create_pagerduty_workspace_client,
 )
@@ -36,6 +36,7 @@ def get_schedule_users(
     schedule_id: str,
     cache: CacheDep,
     secret_manager: SecretManagerDep,
+    _user: UserDep,
     secret: Annotated[
         Secret,
         Query(description="PagerDuty secret reference"),
@@ -94,6 +95,7 @@ def get_escalation_policy_users(
     policy_id: str,
     cache: CacheDep,
     secret_manager: SecretManagerDep,
+    _user: UserDep,
     secret: Annotated[
         Secret,
         Query(description="PagerDuty secret reference"),
