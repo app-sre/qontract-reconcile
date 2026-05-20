@@ -242,7 +242,9 @@ def success_merge_request_pipeline() -> ProjectMergeRequestPipeline:
         ("default_off", False, False),
     ],
 )
+@pytest.mark.parametrize("rebase", [False, True])
 def test_merge_merge_requests(
+    mocker: MockerFixture,
     state: Mock,
     project: Project,
     can_be_merged_merge_request: Mock,
@@ -251,6 +253,7 @@ def test_merge_merge_requests(
     project_squash_option: str,
     merge_request_squash: bool,
     expected_squash: bool,
+    rebase: bool,
 ) -> None:
     mocked_gl = create_autospec(GitLabApi)
     project.squash_option = project_squash_option
@@ -263,13 +266,19 @@ def test_merge_merge_requests(
     ]
     can_be_merged_merge_request.squash = merge_request_squash
 
+    if rebase:
+        mocker.patch(
+            "reconcile.gitlab_housekeeping.is_rebased",
+            return_value=True,
+        )
+
     gl_h.merge_merge_requests(
         dry_run=False,
         gl=mocked_gl,
         project_merge_requests=[can_be_merged_merge_request],
         reload_toggle=gl_h.ReloadToggle(reload=False),
         merge_limit=1,
-        rebase=False,
+        rebase=rebase,
         app_sre_usernames=set(),
         state=state,
         pipeline_timeout=None,
@@ -1760,3 +1769,604 @@ def test_bot_note_does_not_clear_merge_error(project: Project) -> None:
         consecutive_failure_limit=3,
     )
     mocked_gl.remove_label.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("labels", "expected"),
+    [
+        (["lgtm", "tenant-foo", "tenant-bar"], {"tenant-foo", "tenant-bar"}),
+        (["lgtm"], set()),
+        ([], set()),
+        (["tenant-a"], {"tenant-a"}),
+        (["tenant-foo", "tenant-foo"], {"tenant-foo"}),
+    ],
+)
+def test_get_tenant_labels(labels: list[str], expected: set[str]) -> None:
+    mr = create_autospec(ProjectMergeRequest)
+    mr.labels = labels
+    assert gl_h.get_tenant_labels(mr) == expected
+
+
+@pytest.mark.parametrize(
+    ("labels", "expected"),
+    [
+        (["tenant-foo"], True),
+        (["lgtm", "tenant-bar"], True),
+        (["lgtm"], False),
+        ([], False),
+    ],
+)
+def test_is_eligible_for_optimistic_merge(labels: list[str], expected: bool) -> None:
+    mr = create_autospec(ProjectMergeRequest)
+    mr.labels = labels
+    assert gl_h.is_eligible_for_optimistic_merge(mr) is expected
+
+
+@pytest.mark.parametrize(
+    ("mr_labels", "merged_labels", "expected"),
+    [
+        ({"tenant-foo"}, {"tenant-foo"}, True),
+        ({"tenant-foo"}, {"tenant-bar"}, False),
+        ({"tenant-foo", "tenant-bar"}, {"tenant-bar"}, True),
+        (set(), {"tenant-foo"}, False),
+        ({"tenant-foo"}, set(), False),
+        (set(), set(), False),
+    ],
+)
+def test_has_overlapping_labels(
+    mr_labels: set[str], merged_labels: set[str], expected: bool
+) -> None:
+    assert gl_h.has_overlapping_labels(mr_labels, merged_labels) is expected
+
+
+# --- multi-merge integration tests ---
+
+
+def _make_merge_mr(
+    iid: int,
+    labels: list[str],
+    *,
+    target_project_id: int = 3,
+    source_project_id: int = 3,
+    squash: bool = False,
+    author: str = "user",
+) -> Mock:
+    mr = create_autospec(ProjectMergeRequest)
+    mr.iid = iid
+    mr.labels = labels
+    mr.target_project_id = target_project_id
+    mr.source_project_id = source_project_id
+    mr.squash = squash
+    mr.author = {"username": author}
+    mr.merge_status = "can_be_merged"
+    mr.draft = False
+    mr.commits.return_value = [create_autospec(ProjectCommit)]
+    mr.sha = f"sha-{iid}"
+    mr.target_branch = "master"
+    return mr
+
+
+def _make_merge_item(
+    mr: Mock,
+    *,
+    error: bool = False,
+) -> dict:
+    return {
+        "mr": mr,
+        "label_priority": 0,
+        "priority": "0 - approved",
+        "approved_at": "2025-01-01T00:00:00.0Z",
+        "approved_by": "user",
+        "error": error,
+    }
+
+
+def _call_merge(
+    mocker: MockerFixture,
+    items: list[dict],
+    *,
+    rebase: bool = True,
+    merge_limit: int = 10,
+    insist: bool = False,
+    wait_for_pipeline: bool = False,
+    pipeline_timeout: int | None = None,
+    pipelines_by_iid: dict[int, list] | None = None,
+    rebased_iids: set[int] | None = None,
+    dry_run: bool = False,
+    multi_merge: bool = True,
+) -> Mock:
+    """Call merge_merge_requests with mocked preprocessing and is_rebased."""
+    rebased_set = rebased_iids or set()
+    pipelines_map = pipelines_by_iid or {}
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.preprocess_merge_requests",
+        return_value=items,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        side_effect=lambda mr, gl: mr.iid in rebased_set,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping._wait_for_rebase",
+        side_effect=lambda gl, mr, **kw: mr,
+    )
+
+    mocked_gl = create_autospec(GitLabApi)
+    project = create_autospec(Project)
+    project.id = "proj-1"
+    project.name = "test-project"
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.side_effect = lambda mr: pipelines_map.get(
+        mr.iid, []
+    )
+
+    state = create_autospec(State)
+
+    gl_h.merge_merge_requests(
+        dry_run=dry_run,
+        gl=mocked_gl,
+        project_merge_requests=[],
+        reload_toggle=gl_h.ReloadToggle(reload=False),
+        merge_limit=merge_limit,
+        rebase=rebase,
+        app_sre_usernames=set(),
+        state=state,
+        pipeline_timeout=pipeline_timeout,
+        insist=insist,
+        wait_for_pipeline=wait_for_pipeline,
+        users_allowed_to_label=None,
+        multi_merge=multi_merge,
+    )
+
+    return mocked_gl
+
+
+def _success_pipeline() -> Mock:
+    return create_autospec(ProjectMergeRequestPipeline, status="success")
+
+
+def _running_pipeline() -> Mock:
+    return create_autospec(ProjectMergeRequestPipeline, status="running")
+
+
+def test_multi_merge_two_non_overlapping_tenants(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_called_once()
+    mr1.rebase.assert_not_called()
+    mr2.rebase.assert_called_once_with(skip_ci=True)
+
+
+def test_multi_merge_overlapping_tenants_serialized(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-foo"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+
+
+def test_multi_merge_no_tenant_labels_falls_back_serial(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+
+
+def test_multi_merge_three_mrs_partial_overlap(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    mr3 = _make_merge_mr(12, ["approved", "tenant-foo"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+            12: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_called_once()
+    mr3.merge.assert_not_called()
+
+
+def test_multi_merge_respects_merge_limit(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    mr3 = _make_merge_mr(12, ["approved", "tenant-baz"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        merge_limit=2,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+            12: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_called_once()
+    mr3.merge.assert_not_called()
+
+
+def test_multi_merge_skip_ci_rebase_failure_handled(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    mr2.rebase.side_effect = GitlabMRRebaseError("rebase conflict")
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    mocked_gl = _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+    mocked_gl.add_label_to_merge_request.assert_not_called()
+
+
+def test_multi_merge_optimistic_merge_rejected_handled(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    mr2.merge.side_effect = GitlabMRClosedError("MR was closed")
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    mocked_gl = _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_called_once()
+    mocked_gl.add_label_to_merge_request.assert_called_once_with(mr2, gl_h.MERGE_ERROR)
+
+
+def test_multi_merge_running_pipeline_skipped_after_first_merge(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        wait_for_pipeline=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_running_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+
+
+def test_multi_merge_insist_skipped_after_first_merge(
+    mocker: MockerFixture,
+) -> None:
+    """With insist=True, running pipelines after the first merge are skipped
+    instead of raising InsistOnPipelineError (which would reset multi-merge state)."""
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        insist=True,
+        wait_for_pipeline=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_running_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+
+
+def test_multi_merge_insist_only_before_first_merge(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    items = [_make_merge_item(mr1)]
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.preprocess_merge_requests",
+        return_value=items,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+
+    mocked_gl = create_autospec(GitLabApi)
+    project = create_autospec(Project)
+    project.id = "proj-1"
+    project.name = "test-project"
+    project.squash_option = "never"
+    mocked_gl.project = project
+    mocked_gl.get_merge_request_pipelines.return_value = [_running_pipeline()]
+
+    with pytest.raises(gl_h.InsistOnPipelineError):
+        gl_h.merge_merge_requests(
+            dry_run=False,
+            gl=mocked_gl,
+            project_merge_requests=[],
+            reload_toggle=gl_h.ReloadToggle(reload=False),
+            merge_limit=10,
+            rebase=True,
+            app_sre_usernames=set(),
+            state=create_autospec(State),
+            pipeline_timeout=None,
+            insist=True,
+            wait_for_pipeline=True,
+            users_allowed_to_label=None,
+            multi_merge=True,
+        )
+
+    mr1.merge.assert_not_called()
+
+
+def test_multi_merge_multi_tenant_mr_naturally_serialized(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-foo", "tenant-bar", "tenant-baz"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+
+
+def test_multi_merge_error_mr_skipped(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo", "merge-error"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1, error=True), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={11},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_not_called()
+    mr2.merge.assert_called_once()
+    mr2.rebase.assert_not_called()
+
+
+def test_multi_merge_batch_size_histogram_observed(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    mr3 = _make_merge_mr(12, ["approved", "tenant-baz"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
+
+    observe_mock = mocker.patch.object(
+        gl_h.merge_batch_size_histogram, "labels", return_value=Mock()
+    )
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+            12: [_success_pipeline()],
+        },
+    )
+
+    observe_mock.assert_called_once_with(project_id="proj-1")
+    observe_mock.return_value.observe.assert_called_once_with(3)
+
+
+def test_multi_merge_rebase_false_unchanged(
+    mocker: MockerFixture,
+) -> None:
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    mr3 = _make_merge_mr(12, ["approved"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2), _make_merge_item(mr3)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=False,
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+            12: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_called_once()
+    mr3.merge.assert_called_once()
+    mr1.rebase.assert_not_called()
+    mr2.rebase.assert_not_called()
+    mr3.rebase.assert_not_called()
+
+
+def test_multi_merge_disabled_single_merge_on_rebase(
+    mocker: MockerFixture,
+) -> None:
+    """When multi_merge=False and rebase=True, only the first MR merges."""
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar"])
+    items = [_make_merge_item(mr1), _make_merge_item(mr2)]
+
+    _call_merge(
+        mocker,
+        items,
+        rebase=True,
+        multi_merge=False,
+        rebased_iids={10},
+        pipelines_by_iid={
+            10: [_success_pipeline()],
+            11: [_success_pipeline()],
+        },
+    )
+
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+    mr2.rebase.assert_not_called()
+
+
+class TestWaitForRebase:
+    @staticmethod
+    def _make_mr(*, rebase_in_progress: bool, merge_error: str | None = None) -> Mock:
+        mr = create_autospec(ProjectMergeRequest)
+        mr.iid = 42
+        mr.rebase_in_progress = rebase_in_progress
+        mr.merge_error = merge_error
+        return mr
+
+    @staticmethod
+    def _make_gl() -> Mock:
+        gl = create_autospec(GitLabApi)
+        project = create_autospec(Project)
+        project.mergerequests = MagicMock()
+        gl.project = project
+        return gl
+
+    def test_completes_immediately(self) -> None:
+        done_mr = self._make_mr(rebase_in_progress=False)
+        gl = self._make_gl()
+        gl.project.mergerequests.get.return_value = done_mr
+
+        result = gl_h._wait_for_rebase(gl, done_mr, timeout=5, poll_interval=0)
+
+        assert result is done_mr
+
+    def test_completes_after_polling(self) -> None:
+        in_progress = self._make_mr(rebase_in_progress=True)
+        done = self._make_mr(rebase_in_progress=False)
+        gl = self._make_gl()
+        gl.project.mergerequests.get.side_effect = [in_progress, in_progress, done]
+
+        result = gl_h._wait_for_rebase(gl, in_progress, timeout=10, poll_interval=0)
+
+        assert result is done
+        assert gl.project.mergerequests.get.call_count == 3
+
+    def test_raises_on_merge_error(self) -> None:
+        failed = self._make_mr(
+            rebase_in_progress=False,
+            merge_error="Rebase failed. Please rebase locally",
+        )
+        gl = self._make_gl()
+        gl.project.mergerequests.get.return_value = failed
+
+        with pytest.raises(GitlabMRRebaseError, match="rebase failed"):
+            gl_h._wait_for_rebase(gl, failed, timeout=5, poll_interval=0)
+
+    def test_raises_on_timeout(self) -> None:
+        stuck = self._make_mr(rebase_in_progress=True)
+        gl = self._make_gl()
+        gl.project.mergerequests.get.return_value = stuck
+
+        with pytest.raises(GitlabMRRebaseError, match="timed out"):
+            gl_h._wait_for_rebase(gl, stuck, timeout=0, poll_interval=0)

@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import (
     Iterable,
 )
@@ -79,6 +80,8 @@ HOLD_LABELS = [
 
 ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR]
 
+TENANT_LABEL_PREFIX = "tenant-"
+
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
 SQUASH_OPTION_ALWAYS = "always"
@@ -120,9 +123,29 @@ merge_requests_error = Gauge(
     labelnames=["project_id"],
 )
 
+optimistic_merges = Counter(
+    name="qontract_reconcile_optimistic_merges_total",
+    documentation="MRs merged via the optimistic non-overlapping path",
+    labelnames=["project_id"],
+)
+
+optimistic_merge_rejected = Counter(
+    name="qontract_reconcile_optimistic_merge_rejected_total",
+    documentation="MRs skipped during optimistic merge attempt",
+    labelnames=["project_id", "reason"],
+)
+
+merge_batch_size_histogram = Histogram(
+    name="qontract_reconcile_merge_batch_size",
+    documentation="Number of MRs merged per loop iteration",
+    labelnames=["project_id"],
+    buckets=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, float("inf")),
+)
+
 
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
+    ACTIVE_CAP_MULTI_MERGE = "active-cap-multi-merge"
     TOP_K = "top-k"
     OLD_BURST = "old-burst"
 
@@ -155,6 +178,18 @@ class ReloadToggle:
     """A class to toggle the reload of merge requests."""
 
     reload: bool = False
+
+
+def get_tenant_labels(mr: ProjectMergeRequest) -> set[str]:
+    return {label for label in mr.labels if label.startswith(TENANT_LABEL_PREFIX)}
+
+
+def is_eligible_for_optimistic_merge(mr: ProjectMergeRequest) -> bool:
+    return bool(get_tenant_labels(mr))
+
+
+def has_overlapping_labels(mr_labels: set[str], merged_labels: set[str]) -> bool:
+    return bool(mr_labels & merged_labels)
 
 
 def _log_exception(ex: Exception) -> None:
@@ -543,6 +578,7 @@ def rebase_merge_requests(
 ) -> None:
     dispatch = {
         RebaseStrategy.ACTIVE_CAP: _rebase_merge_requests_active_cap,
+        RebaseStrategy.ACTIVE_CAP_MULTI_MERGE: _rebase_merge_requests_active_cap,
         RebaseStrategy.TOP_K: _rebase_merge_requests_top_k,
         RebaseStrategy.OLD_BURST: _rebase_merge_requests_old_burst,
     }
@@ -603,6 +639,41 @@ def _try_rebase(
     except gitlab.exceptions.GitlabMRRebaseError as e:
         logging.error(f"unable to rebase {mr.iid}: {e}")
         return False
+
+
+REBASE_POLL_TIMEOUT = 30
+REBASE_POLL_INTERVAL = 1.0
+
+
+def _wait_for_rebase(
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+    timeout: int = REBASE_POLL_TIMEOUT,
+    poll_interval: float = REBASE_POLL_INTERVAL,
+) -> ProjectMergeRequest:
+    """Poll until an asynchronous rebase completes.
+
+    GitLab's rebase API is async — it enqueues a Sidekiq job and returns
+    immediately.  The caller must poll ``rebase_in_progress`` before
+    attempting to merge, otherwise the merge races against the rebase.
+
+    Returns the refreshed MR object.
+    Raises ``GitlabMRRebaseError`` on timeout or server-reported failure.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        time.sleep(poll_interval)
+        mr = gl.project.mergerequests.get(mr.iid, include_rebase_in_progress=True)
+        if not mr.rebase_in_progress:
+            if mr.merge_error:
+                raise gitlab.exceptions.GitlabMRRebaseError(
+                    f"rebase failed for {mr.iid}: {mr.merge_error}"
+                )
+            return mr
+
+    raise gitlab.exceptions.GitlabMRRebaseError(
+        f"rebase timed out for {mr.iid} after {timeout}s"
+    )
 
 
 def _rebase_merge_requests_top_k(
@@ -774,6 +845,7 @@ def merge_merge_requests(
     wait_for_pipeline: bool = False,
     users_allowed_to_label: Iterable[str] | None = None,
     must_pass: Iterable[str] | None = None,
+    multi_merge: bool = False,
 ) -> None:
     merges = 0
     if reload_toggle.reload:
@@ -791,6 +863,9 @@ def merge_merge_requests(
         sum(1 for item in merge_requests if item["error"])
     )
 
+    merged_labels: set[str] = set()
+    first_merge_done = False
+
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
 
@@ -798,8 +873,23 @@ def merge_merge_requests(
             logging.info(["skip merge", gl.project.name, mr.iid])
             continue
 
-        if rebase and not is_rebased(mr, gl):
-            continue
+        if rebase:
+            if first_merge_done:
+                if not multi_merge:
+                    break
+                if not is_eligible_for_optimistic_merge(mr):
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id, reason="ineligible"
+                    ).inc()
+                    continue
+                mr_labels = get_tenant_labels(mr)
+                if has_overlapping_labels(mr_labels, merged_labels):
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id, reason="overlap"
+                    ).inc()
+                    continue
+            elif not is_rebased(mr, gl):
+                continue
 
         pipelines = gl.get_merge_request_pipelines(mr)
         if not pipelines:
@@ -823,13 +913,10 @@ def merge_merge_requests(
                 p for p in pipelines if p.status == PipelineStatus.RUNNING
             ]
             if running_pipelines:
-                if insist:
-                    # This raise causes the method to restart due to the usage of
-                    # retry(). The purpose of this is to wait for the pipeline to
-                    # finish. This will cause merge requests to be queried again, which
-                    # for now is being considered a feature because a higher priority
-                    # merge request could have become available since we've been waiting
-                    # for this pipeline to complete.
+                if not first_merge_done and insist:
+                    # Retry only before the first merge — the @retry decorator
+                    # resets all local state, which would discard multi-merge
+                    # progress.
                     reload_toggle.reload = True
                     raise InsistOnPipelineError(
                         f"Pipelines for merge request in project '{gl.project.name}' have not completed yet: {mr.iid}"
@@ -841,9 +928,16 @@ def merge_merge_requests(
             continue
 
         logging.info(["merge", gl.project.name, mr.iid])
-        if not dry_run and merges < merge_limit:
+        if merges >= merge_limit:
+            continue
+
+        if not dry_run:
             try:
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
+                if first_merge_done and rebase:
+                    mr.rebase(skip_ci=True)
+                    mr = _wait_for_rebase(gl, mr)
+
                 mr.merge(squash=squash)
                 labels = mr.labels
                 merged_merge_requests.labels(
@@ -856,14 +950,28 @@ def merge_merge_requests(
                 time_to_merge.labels(
                     project_id=mr.target_project_id, priority=merge_request["priority"]
                 ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
-                if rebase:
-                    # other merge requests need to be rebased first after this one merged, so terminate
-                    return
-                merges += 1
+                if first_merge_done and rebase:
+                    optimistic_merges.labels(project_id=mr.target_project_id).inc()
+            except gitlab.exceptions.GitlabMRRebaseError as e:
+                logging.warning(f"optimistic rebase failed for {mr.iid}: {e}")
+                optimistic_merge_rejected.labels(
+                    project_id=mr.target_project_id, reason="rebase_failed"
+                ).inc()
+                continue
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
-                if not dry_run:
-                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                if first_merge_done:
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id, reason="merge_rejected"
+                    ).inc()
+                continue
+
+        merged_labels.update(get_tenant_labels(mr))
+        first_merge_done = True
+        merges += 1
+
+    merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
 
 
 def run_error_healthcheck(
@@ -985,6 +1093,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     repos = [r for r in repos if is_in_shard(r["url"])]
     app_sre_usernames: set[str] = set()
     rebase_strategy = get_rebase_strategy()
+    multi_merge = rebase_strategy == RebaseStrategy.ACTIVE_CAP_MULTI_MERGE
     state = init_state(QONTRACT_INTEGRATION)
 
     for repo in repos:
@@ -1060,6 +1169,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
+                    multi_merge=multi_merge,
                 )
             except Exception:
                 logging.error(
@@ -1079,6 +1189,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
+                    multi_merge=multi_merge,
                 )
             if rebase:
                 rebase_merge_requests(
