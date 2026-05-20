@@ -1,9 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 import requests
 from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
-from pytest_httpserver import HTTPServer
-from pytest_mock import MockerFixture
+
+if TYPE_CHECKING:
+    from graphql import ExecutionResult
+    from pytest_httpserver import HTTPServer
+    from pytest_mock import MockerFixture
 
 from reconcile.utils.gql import (
     GqlApi,
@@ -138,10 +145,12 @@ def test_client_execute_with_get_execution_result(
         session, graphql_server.url_for("/graphql")
     )
     client = Client(transport=transport)
-    result = client.execute(gql(SIMPLE_QUERY), get_execution_result=True)
-    assert hasattr(result, "formatted")
-    assert "data" in result.formatted
-    assert result.formatted["data"]["__typename"] == "Query"
+    result: ExecutionResult = client.execute(
+        gql(SIMPLE_QUERY), get_execution_result=True
+    )
+    formatted = result.formatted
+    assert formatted["data"] is not None
+    assert formatted["data"]["__typename"] == "Query"
 
 
 def test_client_execute_returns_data_dict(graphql_server: HTTPServer) -> None:
