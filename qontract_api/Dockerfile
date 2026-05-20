@@ -37,7 +37,7 @@ WORKDIR ${APP_ROOT}/src
 # Builder image
 #
 FROM registry.access.redhat.com/ubi9/python-312-minimal:9.8-1777554822@sha256:6bffc78910c5843cbfc1c33dd98c574b52c9a02ad539e45b11814d45a7e88f3f AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.11.13@sha256:841c8e6fe30a8b07b4478d12d0c608cba6de66102d29d65d1cc423af86051563 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.15@sha256:e590846f4776907b254ac0f44b5b380347af5d90d668138ca7938d1b0c2f98d3 /uv /bin/uv
 
 ENV APP_ROOT=/opt/app-root
 ENV \
@@ -63,7 +63,7 @@ RUN cd qontract_api && uv sync --frozen --no-group dev
 # Test image
 #
 FROM base AS test
-COPY --from=ghcr.io/astral-sh/uv:0.11.13@sha256:841c8e6fe30a8b07b4478d12d0c608cba6de66102d29d65d1cc423af86051563 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.15@sha256:e590846f4776907b254ac0f44b5b380347af5d90d668138ca7938d1b0c2f98d3 /uv /bin/uv
 
 USER root
 # install dependencies
@@ -96,7 +96,7 @@ COPY --from=test $TESTFLAG $TESTFLAG
 # Dev image with debugpy
 #
 FROM prod AS debug
-COPY --from=ghcr.io/astral-sh/uv:0.11.13@sha256:841c8e6fe30a8b07b4478d12d0c608cba6de66102d29d65d1cc423af86051563 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.15@sha256:e590846f4776907b254ac0f44b5b380347af5d90d668138ca7938d1b0c2f98d3 /uv /bin/uv
 
 EXPOSE 5678
 RUN uv pip install debugpy watchdog
