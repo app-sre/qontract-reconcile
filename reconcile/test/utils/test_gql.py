@@ -187,6 +187,10 @@ def test_gqlapi_query_full_stack_with_variables(httpserver: HTTPServer) -> None:
     result = gql_api.query.__wrapped__(gql_api, query, variables={"id": "1"})  # type: ignore[attr-defined]
     assert result["user"]["name"] == "test-user"
 
+    request_body = httpserver.log[0][0].json
+    assert "query" in request_body
+    assert request_body["variables"] == {"id": "1"}
+
 
 def test_gqlapi_query_full_stack_transport_error(httpserver: HTTPServer) -> None:
     httpserver.expect_request("/graphql", method="POST").respond_with_json({
