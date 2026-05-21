@@ -14,11 +14,12 @@ from gql import (
     Client,
     gql,
 )
-from gql.transport.exceptions import TransportQueryError
+from gql.transport.exceptions import (
+    TransportConnectionFailed,
+    TransportQueryError,
+)
 from gql.transport.requests import RequestsHTTPTransport
 from gql.transport.requests import log as requests_logger
-from requests.auth import AuthBase
-from requests.cookies import RequestsCookieJar
 from sentry_sdk import capture_exception
 from sretoolbox.utils import retry
 
@@ -129,11 +130,7 @@ class GqlApi:
 
     def close(self) -> None:
         logging.debug("Closing GqlApi client")
-        if (
-            self.client.transport is not None
-            and hasattr(self.client.transport, "session")
-            and self.client.transport.session
-        ):
+        if hasattr(self.client.transport, "session") and self.client.transport.session:
             self.client.transport.session.close()
 
     @retry(exceptions=GqlApiError, max_attempts=5, hook=capture_and_forget)
@@ -144,10 +141,11 @@ class GqlApi:
         skip_validation: bool = False,
     ) -> dict[str, Any]:
         try:
-            result = self.client.execute(
-                gql(query), variables, get_execution_result=True
-            ).formatted
-        except requests.exceptions.ConnectionError as e:
+            request = gql(query)
+            if variables:
+                request.variable_values = variables
+            result = self.client.execute(request, get_execution_result=True).formatted
+        except (requests.exceptions.ConnectionError, TransportConnectionFailed) as e:
             raise GqlApiError(f"Could not connect to GraphQL server ({e})") from None
         except TransportQueryError as e:
             raise GqlApiError(f"`error` returned with GraphQL response {e}") from None
@@ -306,40 +304,23 @@ def get_resource(path: str) -> dict[str, Any]:
 
 
 class PersistentRequestsHTTPTransport(RequestsHTTPTransport):
-    """A transport for the GQL Client that uses an existing.
-    Is a reduced version of the RequestsHTTPTransport class from gql library
-    with the connect and close methods removed, cause they are implemented
-    to disconnect after each query.
+    """A RequestsHTTPTransport that uses a pre-existing session.
+
+    Overrides connect/close to prevent the base class from creating or
+    destroying the session — we manage its lifecycle externally.
     """
 
     def __init__(
         self,
         session: requests.Session,
         url: str,
+        *,
         headers: dict[str, Any] | None = None,
-        cookies: dict[str, Any] | RequestsCookieJar | None = None,
-        auth: AuthBase | None = None,
-        use_json: bool = True,
         timeout: int | None = None,
-        verify: bool | str = True,
-        retries: int = 0,
-        method: str = "POST",
         **kwargs: Any,
     ):
-        super().__init__(
-            url,
-            headers,
-            cookies,
-            auth,
-            use_json,
-            timeout,
-            verify,
-            retries,
-            method,
-            **kwargs,
-        )
-        # can't directly assign, due to mypy type checking
-        self.session = session  # type: ignore
+        super().__init__(url=url, headers=headers, timeout=timeout, **kwargs)
+        self.session = session
 
     def connect(self) -> None:
         pass
