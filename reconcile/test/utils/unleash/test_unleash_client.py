@@ -206,11 +206,17 @@ def test_get_feature_toggle_state_with_enable_cluster_strategy(
     )
 
 
-def test_get_feature_variant_env_missing() -> None:
+def test_get_feature_variant_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("UNLEASH_API_URL", raising=False)
+    monkeypatch.delenv("UNLEASH_CLIENT_ACCESS_TOKEN", raising=False)
     assert get_feature_variant("foo") == ""  # noqa: PLC1901
 
 
-def test_get_feature_variant_env_missing_custom_default() -> None:
+def test_get_feature_variant_env_missing_custom_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("UNLEASH_API_URL", raising=False)
+    monkeypatch.delenv("UNLEASH_CLIENT_ACCESS_TOKEN", raising=False)
     assert get_feature_variant("foo", default_variant="fallback") == "fallback"
 
 
@@ -246,13 +252,13 @@ def test_get_feature_variant_env_missing_custom_default() -> None:
 def test_get_feature_variant(
     monkeypatch: pytest.MonkeyPatch,
     mock_unleash_client: MagicMock,
-    variant_response: dict,
+    variant_response: dict[str, Any],
     expected: str,
 ) -> None:
     monkeypatch.setenv("UNLEASH_API_URL", "https://u/api")
     monkeypatch.setenv("UNLEASH_CLIENT_ACCESS_TOKEN", "token")
     mock_unleash_client.return_value.get_variant.return_value = variant_response
-    assert get_feature_variant("feat") == expected  # noqa: PLC1901
+    assert get_feature_variant("feat") == expected
 
 
 def test_get_feature_variant_with_context(
