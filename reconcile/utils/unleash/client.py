@@ -1,14 +1,12 @@
 import logging
 import os
 import threading
-from collections.abc import Mapping
 from typing import Any
 
 from UnleashClient import (
     BaseCache,
     UnleashClient,
 )
-from UnleashClient.strategies import Strategy
 
 client: UnleashClient | None = None
 client_lock = threading.Lock()
@@ -34,31 +32,22 @@ class CacheDict(BaseCache):
         self.cache = {}
 
 
-class ClusterStrategy(Strategy):
-    def load_provisioning(self) -> list:
-        return [x.strip() for x in self.parameters["cluster_name"].split(",")]
+def _parse_cluster_names(parameters: dict) -> list[str]:
+    return [x.strip() for x in parameters["cluster_name"].split(",")]
 
 
-class DisableClusterStrategy(ClusterStrategy):
-    def apply(self, context: dict | None = None) -> bool:
-        enable = True
-
+class DisableClusterStrategy:
+    def apply(self, parameters: dict, context: dict | None = None) -> bool:
         if context and "cluster_name" in context:
-            # if cluster in context is in clusters sent from server, disable
-            enable = context["cluster_name"] not in self.parsed_provisioning
-
-        return enable
+            return context["cluster_name"] not in _parse_cluster_names(parameters)
+        return True
 
 
-class EnableClusterStrategy(ClusterStrategy):
-    def apply(self, context: dict | None = None) -> bool:
-        enable = False
-
+class EnableClusterStrategy:
+    def apply(self, parameters: dict, context: dict | None = None) -> bool:
         if context and "cluster_name" in context:
-            # if cluster in context is in clusters sent from server, enable
-            enable = context["cluster_name"] in self.parsed_provisioning
-
-        return enable
+            return context["cluster_name"] in _parse_cluster_names(parameters)
+        return False
 
 
 def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
@@ -74,8 +63,8 @@ def _get_unleash_api_client(api_url: str, auth_head: str) -> UnleashClient:
                 custom_headers=headers,
                 cache=CacheDict(),
                 custom_strategies={
-                    "enableCluster": EnableClusterStrategy,
-                    "disableCluster": DisableClusterStrategy,
+                    "enableCluster": EnableClusterStrategy(),
+                    "disableCluster": DisableClusterStrategy(),
                 },
             )
             client.initialize_client()
@@ -134,9 +123,3 @@ def get_feature_variant(
         if payload:
             return payload.get("value", default_variant)
     return default_variant
-
-
-def get_feature_toggles(api_url: str, client_access_token: str) -> Mapping[str, str]:
-    c = _get_unleash_api_client(api_url, client_access_token)
-
-    return {k: "enabled" if v.enabled else "disabled" for k, v in c.features.items()}
