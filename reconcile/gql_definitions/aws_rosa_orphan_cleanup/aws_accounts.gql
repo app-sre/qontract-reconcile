@@ -1,0 +1,25 @@
+# qenerate: plugin=pydantic_v2
+
+query AWSAccountsRosaOrphanCleanup {
+  accounts: awsaccounts_v1 {
+    ...AWSAccountCommon
+    terraformState {
+      ...TerraformState
+    }
+    rosa {
+      ocm_environments {
+        ocm {
+          name
+          environment {
+            ...OCMEnvironment
+          }
+        }
+        creator_role_arn
+        installer_role_arn
+        support_role_arn
+        controlplane_role_arn
+        worker_role_arn
+      }
+    }
+  }
+}

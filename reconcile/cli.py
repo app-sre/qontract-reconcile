@@ -1300,6 +1300,17 @@ def aws_ami_cleanup(ctx: click.Context, thread_pool_size: int) -> None:
     run_integration(reconcile.aws_ami_cleanup.integration, ctx, thread_pool_size)
 
 
+@integration.command(short_help="Cleanup orphaned ROSA EC2 instances.")
+@threaded()
+@click.pass_context
+def aws_rosa_orphan_cleanup(ctx: click.Context, thread_pool_size: int) -> None:
+    import reconcile.aws_rosa_orphan_cleanup.integration
+
+    run_integration(
+        reconcile.aws_rosa_orphan_cleanup.integration, ctx, thread_pool_size
+    )
+
+
 @integration.command(short_help="Set up retention period and tags for Cloudwatch logs.")
 @click.pass_context
 def aws_cloudwatch_log_retention(ctx: click.Context) -> None:
