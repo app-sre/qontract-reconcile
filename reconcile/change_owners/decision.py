@@ -145,6 +145,13 @@ def apply_decisions_to_changes(
     to generate the coverage report and to reason about the approval
     state of the MR.
     """
+    author_is_approver_anywhere = bool(mr_author) and any(
+        ctx.includes_approver(mr_author)
+        for c in changes
+        for d in c.diff_coverage
+        for ctx in d.coverage
+        if not ctx.disabled
+    )
     return [
         _apply_decision_to_diff(
             c,
@@ -152,6 +159,7 @@ def apply_decisions_to_changes(
             approver_decisions,
             auto_approver_usernames,
             mr_author,
+            author_is_approver_anywhere=author_is_approver_anywhere,
         )
         for c in changes
         for d in c.diff_coverage
@@ -164,6 +172,8 @@ def _apply_decision_to_diff(
     approver_decisions: Iterable[Decision],
     auto_approver_usernames: set[str],
     mr_author: str = "",
+    *,
+    author_is_approver_anywhere: bool = False,
 ) -> ChangeDecision:
     approvers_decisions_by_name = {
         d.approver_name: d.command for d in approver_decisions
@@ -179,7 +189,12 @@ def _apply_decision_to_diff(
         change_decision.coverable_by_fragment_decisions = True
         fragment_decisions = [
             _apply_decision_to_diff(
-                c, fragment, approver_decisions, auto_approver_usernames, mr_author
+                c,
+                fragment,
+                approver_decisions,
+                auto_approver_usernames,
+                mr_author,
+                author_is_approver_anywhere=author_is_approver_anywhere,
             )
             for fragment in diff.diff_fragments
         ]
@@ -217,29 +232,23 @@ def _apply_decision_to_diff(
     # The MR author can /hold their own MR even if they are not a change owner.
     # Only /hold is honored from the author -- /hold cancel from the author is
     # ignored so that only a change owner can release the hold.
-    if mr_author:
-        is_approver = any(
-            ctx.includes_approver(mr_author)
-            for ctx in diff.coverage
-            if not ctx.disabled
-        )
-        if not is_approver:
-            for decision in approver_decisions:
-                is_author_hold = (
-                    decision.approver_name == mr_author
-                    and decision.command == DecisionCommand.HOLD
+    # This path is skipped entirely if the author is an approver on any diff
+    # in the MR, since the normal approver path already handles their hold.
+    if mr_author and not author_is_approver_anywhere:
+        for decision in approver_decisions:
+            is_author_hold = (
+                decision.approver_name == mr_author
+                and decision.command == DecisionCommand.HOLD
+            )
+            is_owner_cancel = (
+                decision.command == DecisionCommand.CANCEL_HOLD
+                and decision.approver_name != mr_author
+                and any(
+                    ctx.includes_approver(decision.approver_name)
+                    for ctx in diff.coverage
+                    if not ctx.disabled
                 )
-                is_owner_cancel = (
-                    decision.command == DecisionCommand.CANCEL_HOLD
-                    and decision.approver_name != mr_author
-                    and any(
-                        ctx.includes_approver(decision.approver_name)
-                        for ctx in diff.coverage
-                        if not ctx.disabled
-                    )
-                )
-                if is_author_hold or is_owner_cancel:
-                    change_decision.apply_context_decision(
-                        "mr-author", decision.command
-                    )
+            )
+            if is_author_hold or is_owner_cancel:
+                change_decision.apply_context_decision("mr-author", decision.command)
     return change_decision
