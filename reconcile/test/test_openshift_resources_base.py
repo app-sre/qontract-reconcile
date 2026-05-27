@@ -104,6 +104,18 @@ def test_route(namespaces: list[dict[str, Any]], mocker: MockerFixture) -> None:
     assert (ns, override) == expected
 
 
+def test_prometheus_rule(
+    namespaces: list[dict[str, Any]], mocker: MockerFixture
+) -> None:
+    mocker.patch.object(ob, "aggregate_shared_resources", autospec=True)
+    _, override = canonicalize_namespaces(namespaces, ["prometheus-rule"])
+    assert override == [
+        "PrometheusRule.monitoring.coreos.com",
+        "PrometheusRule.monitoring.rhobs.io",
+        "PrometheusRule.monitoring.rhobs",
+    ]
+
+
 def test_no_overrides(namespaces: list[dict[str, Any]], mocker: MockerFixture) -> None:
     mocker.patch.object(ob, "aggregate_shared_resources", autospec=True)
     expected = (
