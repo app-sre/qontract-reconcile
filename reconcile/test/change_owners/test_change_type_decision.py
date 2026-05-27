@@ -496,12 +496,11 @@ def test_non_author_non_approver_hold_ignored(
     assert not change_decision[0].is_held()
 
 
-def test_mr_author_hold_cancel_ignored(
+def test_mr_author_hold_cancel(
     change_with_coverage: BundleFileChange,
 ) -> None:
     """
-    The MR author cannot /hold cancel their own hold -- only change owners can
-    release a hold.
+    The MR author can /hold cancel their own hold.
     """
     change_decision = apply_decisions_to_changes(
         approver_decisions=[
@@ -513,7 +512,7 @@ def test_mr_author_hold_cancel_ignored(
         mr_author=MR_AUTHOR,
     )
 
-    assert change_decision[0].is_held()
+    assert not change_decision[0].is_held()
 
 
 def test_mr_author_hold_coexists_with_approval(
@@ -584,10 +583,9 @@ def test_mr_author_hold_mixed_mr_approver_on_one_diff(
 ) -> None:
     """
     Mixed MR: the author is an approver on diff 0 but not on diff 1.
-    Because author_is_approver_anywhere is True, the special author-hold
-    path is skipped entirely — /hold goes through the normal approver path
-    on diff 0 and has no effect on diff 1.  No "mr-author" context hold is
-    created, so there is no stuck state.
+    /hold applies via the normal approver path on diff 0 and via the
+    "mr-author" context on diff 1.  The author can /hold cancel to
+    remove both — no stuck state.
     """
     other_approver = "other-approver"
     change = build_bundle_datafile_change(
@@ -624,7 +622,8 @@ def test_mr_author_hold_mixed_mr_approver_on_one_diff(
         )
     ]
 
-    change_decisions = apply_decisions_to_changes(
+    # both diffs are held after /hold
+    hold_decisions = apply_decisions_to_changes(
         approver_decisions=[
             Decision(approver_name=MR_AUTHOR, command=DecisionCommand.HOLD),
         ],
@@ -632,15 +631,23 @@ def test_mr_author_hold_mixed_mr_approver_on_one_diff(
         auto_approver_usernames=set(),
         mr_author=MR_AUTHOR,
     )
+    assert hold_decisions[0].is_held()
+    assert "author-team" in hold_decisions[0].hold
+    assert hold_decisions[1].is_held()
+    assert "mr-author" in hold_decisions[1].hold
 
-    # diff 0: held via normal approver path
-    assert change_decisions[0].is_held()
-    assert "author-team" in change_decisions[0].hold
-    assert "mr-author" not in change_decisions[0].hold
-
-    # diff 1: NOT held — no stuck "mr-author" context hold
-    assert not change_decisions[1].is_held()
-    assert "mr-author" not in change_decisions[1].hold
+    # author can /hold cancel to remove both — no stuck state
+    cancel_decisions = apply_decisions_to_changes(
+        approver_decisions=[
+            Decision(approver_name=MR_AUTHOR, command=DecisionCommand.HOLD),
+            Decision(approver_name=MR_AUTHOR, command=DecisionCommand.CANCEL_HOLD),
+        ],
+        changes=[change],
+        auto_approver_usernames=set(),
+        mr_author=MR_AUTHOR,
+    )
+    assert not cancel_decisions[0].is_held()
+    assert not cancel_decisions[1].is_held()
 
 
 def test_change_owner_can_unhold_author_hold(
