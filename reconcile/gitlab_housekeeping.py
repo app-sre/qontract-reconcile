@@ -735,6 +735,11 @@ def apply_omm_pending(
                     gl.project.name,
                     mr.iid,
                 ])
+                gl.remove_label(mr, OMM_PENDING)
+                optimistic_merge_rejected.labels(
+                    project_id=mr.target_project_id,
+                    reason="rebase_failed",
+                ).inc()
 
 
 def apply_omm_group_lead(
@@ -839,17 +844,21 @@ def _is_omm_window_open(lead: ProjectMergeRequest, max_interval: timedelta) -> b
 def _check_post_merge_ci(gl: GitLabApi, lead: ProjectMergeRequest) -> bool:
     """Return True if post-merge CI is healthy (not failed).
 
-    Checks the pipeline on the target branch head since the merge.
+    Only considers pipelines created after the lead was merged so that
+    a stale pre-merge failure doesn't cancel a new OMM group.
     """
+    merged_at = from_utc_iso_format(lead.merged_at)
     pipelines = gl.project.pipelines.list(
         ref=lead.target_branch,
         order_by="id",
         sort="desc",
-        per_page=1,
+        per_page=5,
     )
-    if not pipelines:
-        return True
-    return pipelines[0].status != PipelineStatus.FAILED
+    for pipeline in pipelines:
+        if from_utc_iso_format(pipeline.created_at) < merged_at:
+            break
+        return pipeline.status != PipelineStatus.FAILED
+    return True
 
 
 def _rebase_merge_requests_top_k(
