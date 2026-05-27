@@ -50,6 +50,8 @@ from reconcile.utils.mr.labels import (
     LGTM,
     MERGE_ERROR,
     NEEDS_REBASE,
+    OMM_GROUP_LEAD,
+    OMM_PENDING,
     ONBOARDING,
     PIPELINE_ERROR,
     SAAS_FILE_UPDATE,
@@ -78,6 +80,8 @@ HOLD_LABELS = [
 ]
 
 ERROR_LABELS = [MERGE_ERROR, PIPELINE_ERROR]
+
+TENANT_LABEL_PREFIX = "tenant-"
 
 QONTRACT_INTEGRATION = "gitlab-housekeeping"
 EXPIRATION_DATE_FORMAT = "%Y-%m-%d"
@@ -120,9 +124,29 @@ merge_requests_error = Gauge(
     labelnames=["project_id"],
 )
 
+optimistic_merges = Counter(
+    name="qontract_reconcile_optimistic_merges_total",
+    documentation="MRs merged via the optimistic non-overlapping path",
+    labelnames=["project_id"],
+)
+
+optimistic_merge_rejected = Counter(
+    name="qontract_reconcile_optimistic_merge_rejected_total",
+    documentation="MRs skipped during optimistic merge attempt",
+    labelnames=["project_id", "reason"],
+)
+
+merge_batch_size_histogram = Histogram(
+    name="qontract_reconcile_merge_batch_size",
+    documentation="Number of MRs merged per loop iteration",
+    labelnames=["project_id"],
+    buckets=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, float("inf")),
+)
+
 
 class RebaseStrategy(StrEnum):
     ACTIVE_CAP = "active-cap"
+    ACTIVE_CAP_MULTI_MERGE = "active-cap-multi-merge"
     TOP_K = "top-k"
     OLD_BURST = "old-burst"
 
@@ -157,6 +181,18 @@ class ReloadToggle:
     reload: bool = False
 
 
+def get_tenant_labels(mr: ProjectMergeRequest) -> set[str]:
+    return {label for label in mr.labels if label.startswith(TENANT_LABEL_PREFIX)}
+
+
+def is_eligible_for_optimistic_merge(mr: ProjectMergeRequest) -> bool:
+    return bool(get_tenant_labels(mr))
+
+
+def has_overlapping_labels(mr_labels: set[str], merged_labels: set[str]) -> bool:
+    return bool(mr_labels & merged_labels)
+
+
 def _log_exception(ex: Exception) -> None:
     logging.info("Retrying - %s: %s", type(ex).__name__, ex)
 
@@ -168,6 +204,39 @@ def _calculate_time_since_approval(approved_at: str) -> float:
     """
     time_since_approval = utc_now() - from_utc_iso_format(approved_at)
     return time_since_approval.total_seconds() / 60
+
+
+def _get_approval_info(
+    gl: GitLabApi, mr: ProjectMergeRequest
+) -> tuple[str, str] | None:
+    """Return (priority, approved_at) for a single MR by scanning label events.
+
+    Returns None if no approval label is found.
+
+    Unlike the approval scan in ``preprocess_merge_requests``, this does
+    NOT enforce ``users_allowed_to_label`` — any label-add event counts.
+    This is intentional: OMM-merged MRs already passed authorization
+    during preprocessing in the loop that formed the group, so
+    re-checking here would only add API calls for no safety benefit.
+    The trade-off is that ``approved_at`` may differ slightly from what
+    preprocessing would compute if an unauthorized user re-added a label
+    after group formation, but the metric impact is negligible.
+    """
+    label_events = gl.get_merge_request_label_events(mr)
+    labels = set(mr.labels)
+    for label in reversed(label_events):
+        if label.action != "add" or not label.label:
+            continue
+        label_name = label.label["name"]
+        if label_name in MERGE_LABELS_PRIORITY:
+            label_priority = min(
+                MERGE_LABELS_PRIORITY.index(merge_label)
+                for merge_label in MERGE_LABELS_PRIORITY
+                if merge_label in labels
+            )
+            priority = f"{label_priority} - {MERGE_LABELS_PRIORITY[label_priority]}"
+            return priority, label.created_at
+    return None
 
 
 def get_timed_out_pipelines(
@@ -543,6 +612,7 @@ def rebase_merge_requests(
 ) -> None:
     dispatch = {
         RebaseStrategy.ACTIVE_CAP: _rebase_merge_requests_active_cap,
+        RebaseStrategy.ACTIVE_CAP_MULTI_MERGE: _rebase_merge_requests_active_cap,
         RebaseStrategy.TOP_K: _rebase_merge_requests_top_k,
         RebaseStrategy.OLD_BURST: _rebase_merge_requests_old_burst,
     }
@@ -603,6 +673,183 @@ def _try_rebase(
     except gitlab.exceptions.GitlabMRRebaseError as e:
         logging.error(f"unable to rebase {mr.iid}: {e}")
         return False
+
+
+OMM_MAX_INTERVAL_TOGGLE = "gitlab-housekeeping-omm-max-interval"
+DEFAULT_OMM_MAX_INTERVAL_MINUTES = 5
+
+
+def get_omm_max_interval() -> timedelta:
+    """Resolve the OMM group window duration from Unleash."""
+    value = get_feature_variant(
+        OMM_MAX_INTERVAL_TOGGLE,
+        default_variant=str(DEFAULT_OMM_MAX_INTERVAL_MINUTES),
+    )
+    try:
+        return timedelta(minutes=int(value))
+    except (ValueError, TypeError):
+        logging.warning(
+            f"Invalid omm-max-interval variant '{value}', "
+            f"falling back to {DEFAULT_OMM_MAX_INTERVAL_MINUTES}m"
+        )
+        return timedelta(minutes=DEFAULT_OMM_MAX_INTERVAL_MINUTES)
+
+
+def get_omm_group_lead(gl: GitLabApi) -> ProjectMergeRequest | None:
+    """Find the active group lead — a recently merged MR with the omm-group-lead label."""
+    mrs = gl.project.mergerequests.list(
+        state=MRState.MERGED,
+        labels=[OMM_GROUP_LEAD],
+        order_by="updated_at",
+        sort="desc",
+        per_page=1,
+    )
+    return mrs[0] if mrs else None
+
+
+def get_omm_pending_mrs(gl: GitLabApi) -> list[ProjectMergeRequest]:
+    """Return all open MRs with the omm-pending label."""
+    return gl.project.mergerequests.list(
+        state=MRState.OPENED,
+        labels=[OMM_PENDING],
+        get_all=True,
+    )
+
+
+def apply_omm_pending(
+    dry_run: bool,
+    gl: GitLabApi,
+    mrs: list[ProjectMergeRequest],
+) -> None:
+    """Apply omm-pending label and kick rebases for group candidates."""
+    for mr in mrs:
+        logging.info(["omm-group", "add-pending", gl.project.name, mr.iid])
+        if not dry_run:
+            gl.add_label_to_merge_request(mr, OMM_PENDING)
+            try:
+                mr.rebase(skip_ci=False)
+            except gitlab.exceptions.GitlabMRRebaseError:
+                logging.warning([
+                    "omm-group",
+                    "rebase-failed-at-formation",
+                    gl.project.name,
+                    mr.iid,
+                ])
+
+
+def apply_omm_group_lead(
+    dry_run: bool,
+    gl: GitLabApi,
+    mr: ProjectMergeRequest,
+) -> None:
+    """Tag a just-merged MR as the group lead."""
+    logging.info(["omm-group", "set-lead", gl.project.name, mr.iid])
+    if not dry_run:
+        gl.add_label_to_merge_request(mr, OMM_GROUP_LEAD)
+
+
+def clear_omm_group(
+    dry_run: bool,
+    gl: GitLabApi,
+    lead: ProjectMergeRequest | None = None,
+    pending: list[ProjectMergeRequest] | None = None,
+) -> None:
+    """Remove all OMM labels — close the group.
+
+    Also cleans up stale omm-pending labels on MRs that were closed,
+    merged externally, or otherwise left the OPENED state while the
+    group was active.
+
+    Accepts optional pre-fetched ``lead`` and ``pending`` to avoid
+    redundant API calls when the caller already has them.
+    """
+    if lead is None:
+        lead = get_omm_group_lead(gl)
+    if lead:
+        logging.info(["omm-group", "clear-lead", gl.project.name, lead.iid])
+        if not dry_run:
+            gl.remove_label(lead, OMM_GROUP_LEAD)
+
+    if pending is None:
+        pending = get_omm_pending_mrs(gl)
+    for mr in pending:
+        logging.info(["omm-group", "clear-pending", gl.project.name, mr.iid])
+        if not dry_run:
+            gl.remove_label(mr, OMM_PENDING)
+
+    for state in (MRState.CLOSED, MRState.MERGED):
+        stale = gl.project.mergerequests.list(
+            state=state,
+            labels=[OMM_PENDING],
+            get_all=True,
+        )
+        for mr in stale:
+            logging.info(["omm-group", "clear-stale", gl.project.name, mr.iid])
+            if not dry_run:
+                gl.remove_label(mr, OMM_PENDING)
+
+
+def _form_omm_group(
+    gl: GitLabApi,
+    merge_requests: list[dict[str, Any]],
+    merged_labels: set[str],
+) -> list[ProjectMergeRequest]:
+    """Select non-overlapping candidates from the queue for the OMM group.
+
+    Only MRs that are eligible (have tenant labels), don't overlap with
+    already-merged labels, and have an active pipeline are considered.
+
+    Note: this makes one get_merge_request_pipelines API call per candidate,
+    proportional to queue length. Acceptable because it runs at most once per
+    reconcile loop (after the first merge).
+    """
+    candidates: list[ProjectMergeRequest] = []
+    group_labels = set(merged_labels)
+
+    for merge_request in merge_requests:
+        mr: ProjectMergeRequest = merge_request["mr"]
+        if merge_request["error"]:
+            continue
+        if not is_eligible_for_optimistic_merge(mr):
+            continue
+        mr_labels = get_tenant_labels(mr)
+        if has_overlapping_labels(mr_labels, group_labels):
+            continue
+        pipelines = gl.get_merge_request_pipelines(mr)
+        if not pipelines:
+            continue
+        if pipelines[0].status not in {
+            PipelineStatus.RUNNING,
+            PipelineStatus.PENDING,
+            PipelineStatus.SUCCESS,
+        }:
+            continue
+        candidates.append(mr)
+        group_labels.update(mr_labels)
+
+    return candidates
+
+
+def _is_omm_window_open(lead: ProjectMergeRequest, max_interval: timedelta) -> bool:
+    """Check if the OMM group window is still open based on lead's merged_at."""
+    merged_at = from_utc_iso_format(lead.merged_at)
+    return utc_now() - merged_at < max_interval
+
+
+def _check_post_merge_ci(gl: GitLabApi, lead: ProjectMergeRequest) -> bool:
+    """Return True if post-merge CI is healthy (not failed).
+
+    Checks the pipeline on the target branch head since the merge.
+    """
+    pipelines = gl.project.pipelines.list(
+        ref=lead.target_branch,
+        order_by="id",
+        sort="desc",
+        per_page=1,
+    )
+    if not pipelines:
+        return True
+    return pipelines[0].status != PipelineStatus.FAILED
 
 
 def _rebase_merge_requests_top_k(
@@ -759,6 +1006,125 @@ def _rebase_merge_requests_old_burst(
 # InsistOnPipelineException.
 
 
+def _process_omm_group(
+    dry_run: bool,
+    gl: GitLabApi,
+    lead: ProjectMergeRequest,
+    app_sre_usernames: AbstractSet[str],
+    pipeline_timeout: int | None = None,
+) -> int:
+    """Process an active OMM group. Returns number of merges performed.
+
+    Single-pass: check window, verify post-merge CI, process each pending
+    member (merge if ready, eject if failed). Non-blocking.
+    """
+
+    max_interval = get_omm_max_interval()
+
+    if not _is_omm_window_open(lead, max_interval):
+        logging.info(["omm-group", "window-expired", gl.project.name])
+        clear_omm_group(dry_run, gl, lead=lead)
+        return 0
+
+    if not _check_post_merge_ci(gl, lead):
+        logging.warning([
+            "omm-group",
+            "post-merge-ci-failed",
+            gl.project.name,
+            "cancelling group",
+        ])
+        clear_omm_group(dry_run, gl, lead=lead)
+        return 0
+
+    pending = get_omm_pending_mrs(gl)
+    if not pending:
+        logging.info(["omm-group", "no-pending-members", gl.project.name])
+        clear_omm_group(dry_run, gl, lead=lead, pending=pending)
+        return 0
+
+    merges = 0
+    any_active = False
+
+    for mr in pending:
+        pipelines = gl.get_merge_request_pipelines(mr)
+
+        if pipeline_timeout is not None and pipelines:
+            timed_out = get_timed_out_pipelines(pipelines, pipeline_timeout)
+            if timed_out:
+                clean_pipelines(
+                    dry_run=dry_run,
+                    gl=gl,
+                    fork_project_id=mr.source_project_id,
+                    pipelines=timed_out,
+                )
+
+        if not pipelines:
+            continue
+
+        latest_status = pipelines[0].status
+        if latest_status == PipelineStatus.FAILED:
+            logging.info([
+                "omm-group",
+                "eject-failed",
+                gl.project.name,
+                mr.iid,
+            ])
+            if not dry_run:
+                gl.remove_label(mr, OMM_PENDING)
+            optimistic_merge_rejected.labels(
+                project_id=mr.target_project_id, reason="pipeline_failed"
+            ).inc()
+            continue
+
+        if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
+            any_active = True
+            continue
+
+        if latest_status != PipelineStatus.SUCCESS:
+            continue
+
+        if not is_rebased(mr, gl):
+            any_active = True
+            continue
+
+        logging.info(["omm-group", "merge", gl.project.name, mr.iid])
+        if not dry_run:
+            try:
+                squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
+                mr.merge(squash=squash)
+                labels = mr.labels
+                merged_merge_requests.labels(
+                    project_id=mr.target_project_id,
+                    self_service=SELF_SERVICEABLE in labels,
+                    auto_merge=AUTO_MERGE in labels,
+                    app_sre=mr.author["username"] in app_sre_usernames,
+                    onboarding=ONBOARDING in labels,
+                ).inc()
+                optimistic_merges.labels(project_id=mr.target_project_id).inc()
+                gl.remove_label(mr, OMM_PENDING)
+                approval_info = _get_approval_info(gl, mr)
+                if approval_info:
+                    priority, approved_at = approval_info
+                    time_to_merge.labels(
+                        project_id=mr.target_project_id, priority=priority
+                    ).observe(_calculate_time_since_approval(approved_at))
+            except gitlab.exceptions.GitlabMRClosedError as e:
+                logging.error(f"unable to merge {mr.iid}: {e}")
+                gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                gl.remove_label(mr, OMM_PENDING)
+                optimistic_merge_rejected.labels(
+                    project_id=mr.target_project_id, reason="merge_rejected"
+                ).inc()
+                continue
+        merges += 1
+
+    if not any_active:
+        logging.info(["omm-group", "adaptive-close", gl.project.name])
+        clear_omm_group(dry_run, gl, lead=lead)
+
+    return merges
+
+
 @retry(max_attempts=10, hook=_log_exception)
 def merge_merge_requests(
     dry_run: bool,
@@ -774,8 +1140,8 @@ def merge_merge_requests(
     wait_for_pipeline: bool = False,
     users_allowed_to_label: Iterable[str] | None = None,
     must_pass: Iterable[str] | None = None,
+    multi_merge: bool = False,
 ) -> None:
-    merges = 0
     if reload_toggle.reload:
         project_merge_requests = gl.get_merge_requests(state=MRState.OPENED)
     merge_requests = preprocess_merge_requests(
@@ -791,6 +1157,40 @@ def merge_merge_requests(
         sum(1 for item in merge_requests if item["error"])
     )
 
+    # --- OMM group cleanup when feature is disabled ---
+    # If the Unleash variant was changed away from active-cap-multi-merge
+    # while a group was active, clean up orphaned labels.
+    if not multi_merge and rebase:
+        lead = get_omm_group_lead(gl)
+        if lead:
+            logging.info(["omm-group", "feature-disabled-cleanup", gl.project.name])
+            clear_omm_group(dry_run, gl, lead=lead)
+
+    # --- Active group path ---
+    # Early return: insist/retry semantics do not apply here — the group
+    # model is non-blocking and tolerates running pipelines without retrying.
+    if multi_merge and rebase:
+        lead = get_omm_group_lead(gl)
+        if lead:
+            merges = _process_omm_group(
+                dry_run=dry_run,
+                gl=gl,
+                lead=lead,
+                app_sre_usernames=app_sre_usernames,
+                pipeline_timeout=pipeline_timeout,
+            )
+            merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
+            return
+        # Lead disappeared but pending labels remain — clean up.
+        pending = get_omm_pending_mrs(gl)
+        if pending:
+            logging.warning(["omm-group", "lead-missing-cleanup", gl.project.name])
+            clear_omm_group(dry_run, gl, pending=pending)
+
+    # --- No active group: serial merge path ---
+    merges = 0
+    merged_labels: set[str] = set()
+
     for merge_request in merge_requests:
         mr: ProjectMergeRequest = merge_request["mr"]
 
@@ -805,7 +1205,6 @@ def merge_merge_requests(
         if not pipelines:
             continue
 
-        # If pipeline_timeout is None no pipeline will be canceled
         if pipeline_timeout is not None:
             timed_out_pipelines = get_timed_out_pipelines(pipelines, pipeline_timeout)
             if timed_out_pipelines:
@@ -817,19 +1216,11 @@ def merge_merge_requests(
                 )
 
         if wait_for_pipeline:
-            # possible statuses:
-            # running, pending, success, failed, canceled, skipped
             running_pipelines = [
                 p for p in pipelines if p.status == PipelineStatus.RUNNING
             ]
             if running_pipelines:
-                if insist:
-                    # This raise causes the method to restart due to the usage of
-                    # retry(). The purpose of this is to wait for the pipeline to
-                    # finish. This will cause merge requests to be queried again, which
-                    # for now is being considered a feature because a higher priority
-                    # merge request could have become available since we've been waiting
-                    # for this pipeline to complete.
+                if insist and (merges == 0 or not rebase):
                     reload_toggle.reload = True
                     raise InsistOnPipelineError(
                         f"Pipelines for merge request in project '{gl.project.name}' have not completed yet: {mr.iid}"
@@ -841,7 +1232,10 @@ def merge_merge_requests(
             continue
 
         logging.info(["merge", gl.project.name, mr.iid])
-        if not dry_run and merges < merge_limit:
+        if merges >= merge_limit:
+            continue
+
+        if not dry_run:
             try:
                 squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
                 mr.merge(squash=squash)
@@ -856,14 +1250,27 @@ def merge_merge_requests(
                 time_to_merge.labels(
                     project_id=mr.target_project_id, priority=merge_request["priority"]
                 ).observe(_calculate_time_since_approval(merge_request["approved_at"]))
-                if rebase:
-                    # other merge requests need to be rebased first after this one merged, so terminate
-                    return
-                merges += 1
             except gitlab.exceptions.GitlabMRClosedError as e:
                 logging.error(f"unable to merge {mr.iid}: {e}")
-                if not dry_run:
-                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                continue
+
+        merged_labels.update(get_tenant_labels(mr))
+        merges += 1
+
+        if rebase and merges == 1:
+            if multi_merge:
+                candidates = _form_omm_group(
+                    gl=gl,
+                    merge_requests=merge_requests,
+                    merged_labels=merged_labels,
+                )
+                if candidates:
+                    apply_omm_group_lead(dry_run, gl, mr)
+                    apply_omm_pending(dry_run, gl, candidates)
+            break
+
+    merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
 
 
 def run_error_healthcheck(
@@ -1010,6 +1417,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
     repos = [r for r in repos if is_in_shard(r["url"])]
     app_sre_usernames: set[str] = set()
     rebase_strategy = get_rebase_strategy()
+    multi_merge = rebase_strategy == RebaseStrategy.ACTIVE_CAP_MULTI_MERGE
     state = init_state(QONTRACT_INTEGRATION)
 
     for repo in repos:
@@ -1085,6 +1493,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
+                    multi_merge=multi_merge,
                 )
             except Exception:
                 logging.error(
@@ -1104,6 +1513,7 @@ def run(dry_run: bool, wait_for_pipeline: bool) -> None:
                     wait_for_pipeline=wait_for_pipeline,
                     users_allowed_to_label=users_allowed_to_label,
                     must_pass=must_pass,
+                    multi_merge=multi_merge,
                 )
             if rebase:
                 rebase_merge_requests(

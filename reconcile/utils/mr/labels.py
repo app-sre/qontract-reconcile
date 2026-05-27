@@ -28,5 +28,10 @@ def change_owner_label(label: str) -> str:
 SHOW_SELF_SERVICEABLE_IN_REVIEW_QUEUE = change_owner_label(
     "show-self-serviceable-in-review-queue"
 )
+# Optimistic Multi-Merge group labels — must be pre-created in the GitLab
+# project with appropriate color/description before enabling the feature.
+OMM_PENDING = "omm-pending"
+OMM_GROUP_LEAD = "omm-group-lead"
+
 # aws-version-sync
 AVS = "AVS"
