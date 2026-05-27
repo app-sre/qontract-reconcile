@@ -3,4 +3,5 @@
 terraform 1.6.6
 oc 4.19.0
 helm 3.19.2
+sloth 0.12.0
 uv
