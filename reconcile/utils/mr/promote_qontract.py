@@ -220,11 +220,11 @@ Please use `/retest` once the RPA finished (that should be the case after ~5min 
             replace_text=f"    qontract_reconcile_image_tag: '{self.version}'",
         )
 
-        # data/services/app-interface/cicd/ci-ext/saas-qontract-dashboards.yaml
+        # data/services/app-interface/cicd/tekton/saas-qontract-dashboards.yaml
         self._process_by(
             "json_path",
             gitlab_cli=gitlab_cli,
-            path="data/services/app-interface/cicd/ci-ext/saas-qontract-dashboards.yaml",
+            path="data/services/app-interface/cicd/tekton/saas-qontract-dashboards.yaml",
             search_text="$.resourceTemplates[?(@.url == 'https://github.com/app-sre/qontract-reconcile')].targets[?(@.name == 'app-sre-observability-production')].ref",
             replace_text=self.commit_sha,
         )
@@ -294,11 +294,11 @@ class PromoteQontractServer(PromoteQontractReconcileCommercial):
             replace_text=f"export QONTRACT_SERVER_IMAGE_TAG={self.version}",
         )
 
-        # data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml
+        # data/services/app-interface/cicd/tekton/saas-qontract-server.yaml
         # Both the main template and dashboard share the same file — read/write once.
         self._process_file_with_json_paths(
             gitlab_cli=gitlab_cli,
-            path="data/services/app-interface/cicd/ci-ext/saas-qontract-server.yaml",
+            path="data/services/app-interface/cicd/tekton/saas-qontract-server.yaml",
             replacements=[
                 (
                     "$.resourceTemplates[?(@.name == 'qontract-server')].targets[?(@.name == 'app-interface-production')].ref",

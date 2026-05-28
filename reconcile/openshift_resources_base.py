@@ -884,6 +884,7 @@ def canonicalize_namespaces(
                 override = [
                     "PrometheusRule.monitoring.coreos.com",
                     "PrometheusRule.monitoring.rhobs.io",
+                    "PrometheusRule.monitoring.rhobs",
                 ]
 
             namespace_info["openshiftResources"] = ors

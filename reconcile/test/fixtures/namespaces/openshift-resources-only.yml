@@ -11,3 +11,5 @@ openshiftResources:
     path: /secret/place.yml
   - provider: route
     path: /route/network.yml
+  - provider: prometheus-rule
+    path: /observability/rules.yaml
