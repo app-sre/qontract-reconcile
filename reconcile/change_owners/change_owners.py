@@ -498,7 +498,7 @@ def run(
             conditional_labels = {
                 SELF_SERVICEABLE: self_serviceable,
                 NOT_SELF_SERVICEABLE: not self_serviceable,
-                HOLD: self_serviceable and hold,
+                HOLD: hold,
                 RESTRICTED: not change_admitted,
             }
 
