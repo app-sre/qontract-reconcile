@@ -137,8 +137,8 @@ class JenkinsApi:
         return res.json()
 
     def assign_role_to_user(self, role: str, user: str) -> None:
-        url = f"{self.url}/role-strategy/strategy/assignRole"
-        data = {"type": "globalRoles", "roleName": role, "sid": user}
+        url = f"{self.url}/role-strategy/strategy/assignUserRole"
+        data = {"type": "globalRoles", "roleName": role, "user": user}
         res = requests.post(
             url,
             verify=self.ssl_verify,
@@ -150,8 +150,8 @@ class JenkinsApi:
         res.raise_for_status()
 
     def unassign_role_from_user(self, role: str, user: str) -> None:
-        url = f"{self.url}/role-strategy/strategy/unassignRole"
-        data = {"type": "globalRoles", "roleName": role, "sid": user}
+        url = f"{self.url}/role-strategy/strategy/unassignUserRole"
+        data = {"type": "globalRoles", "roleName": role, "user": user}
         res = requests.post(
             url,
             verify=self.ssl_verify,
