@@ -2071,23 +2071,51 @@ def test_multi_merge_skip_ci_rebase_failure_handled(
     mocked_gl.remove_label.assert_called_once_with(mr2, "omm-pending")
 
 
-def test_omm_group_merge_rejected_applies_merge_error(
+def _setup_omm_group_mocks(
     mocker: MockerFixture,
+    *,
+    window_open: bool = True,
+    ci_healthy: bool = True,
 ) -> None:
-    """When a pending MR's merge raises GitlabMRClosedError during OMM
-    group processing, merge-error is applied and omm-pending is removed."""
+    """Shared setup for _process_omm_group tests."""
     mocker.patch(
         "reconcile.gitlab_housekeeping.get_omm_max_interval",
         return_value=timedelta(minutes=10),
     )
     mocker.patch(
         "reconcile.gitlab_housekeeping._is_omm_window_open",
-        return_value=True,
+        return_value=window_open,
     )
     mocker.patch(
         "reconcile.gitlab_housekeeping._check_post_merge_ci",
-        return_value=True,
+        return_value=ci_healthy,
     )
+
+
+def _make_omm_gl(*, head_sha: str = "abc123") -> Mock:
+    """Create a mocked GitLabApi for OMM group tests.
+
+    ``head_sha`` controls what ``project.branches.get().commit["id"]``
+    returns, allowing tests to simulate head-drift.
+    """
+    mocked_gl = create_autospec(GitLabApi)
+    project = Mock()
+    project.id = "proj-1"
+    project.name = "test-project"
+    project.squash_option = "never"
+    branch_mock = Mock()
+    branch_mock.commit = {"id": head_sha}
+    project.branches.get.return_value = branch_mock
+    mocked_gl.project = project
+    return mocked_gl
+
+
+def test_omm_group_merge_rejected_applies_merge_error(
+    mocker: MockerFixture,
+) -> None:
+    """When a pending MR's merge raises GitlabMRClosedError during OMM
+    group processing, merge-error is applied and omm-pending is removed."""
+    _setup_omm_group_mocks(mocker)
     mocker.patch(
         "reconcile.gitlab_housekeeping.is_rebased",
         return_value=True,
@@ -2097,6 +2125,8 @@ def test_omm_group_merge_rejected_applies_merge_error(
     )
 
     lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.target_branch = "master"
 
     mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
     mr.merge.side_effect = GitlabMRClosedError("MR was closed")
@@ -2106,12 +2136,7 @@ def test_omm_group_merge_rejected_applies_merge_error(
         return_value=[mr],
     )
 
-    mocked_gl = create_autospec(GitLabApi)
-    project = create_autospec(Project)
-    project.id = "proj-1"
-    project.name = "test-project"
-    project.squash_option = "never"
-    mocked_gl.project = project
+    mocked_gl = _make_omm_gl(head_sha="abc123")
     mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
 
     merges = gl_h._process_omm_group(
@@ -2125,6 +2150,76 @@ def test_omm_group_merge_rejected_applies_merge_error(
     mr.merge.assert_called_once()
     mocked_gl.add_label_to_merge_request.assert_called_once_with(mr, "merge-error")
     mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
+
+
+def test_omm_group_head_drift_invalidates_group(
+    mocker: MockerFixture,
+) -> None:
+    """When target branch HEAD differs from lead's merge_commit_sha the
+    group is invalidated immediately."""
+    _setup_omm_group_mocks(mocker)
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.target_branch = "master"
+
+    mocked_gl = _make_omm_gl(head_sha="different-sha")
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    clear_mock.assert_called_once_with(False, mocked_gl, lead=lead)
+
+
+def test_omm_group_merge_limit_enforced(
+    mocker: MockerFixture,
+) -> None:
+    """When merge_limit is reached during OMM group processing the group
+    is cleared and processing stops."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.target_branch = "master"
+
+    mr1 = _make_merge_mr(10, ["approved", "tenant-foo", "omm-pending"])
+    mr2 = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr1, mr2],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+        merge_limit=1,
+    )
+
+    assert merges == 1
+    mr1.merge.assert_called_once()
+    mr2.merge.assert_not_called()
+    clear_mock.assert_called_once()
 
 
 def test_multi_merge_running_pipeline_skipped_after_first_merge(

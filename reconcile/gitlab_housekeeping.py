@@ -182,14 +182,32 @@ class ReloadToggle:
 
 
 def get_tenant_labels(mr: ProjectMergeRequest) -> set[str]:
+    """Return the subset of MR labels that start with ``tenant-``.
+
+    Tenant labels identify the namespace an MR touches and are used by
+    the optimistic multi-merge (OMM) logic to determine overlap: two MRs
+    sharing a tenant label cannot be merged concurrently.
+    """
     return {label for label in mr.labels if label.startswith(TENANT_LABEL_PREFIX)}
 
 
 def is_eligible_for_optimistic_merge(mr: ProjectMergeRequest) -> bool:
+    """Return True if the MR carries at least one tenant label.
+
+    Only MRs with tenant labels can participate in OMM groups because the
+    non-overlap guarantee depends on label-based scope tracking.  MRs
+    without tenant labels are conservatively serialised.
+    """
     return bool(get_tenant_labels(mr))
 
 
 def has_overlapping_labels(mr_labels: set[str], merged_labels: set[str]) -> bool:
+    """Return True if any tenant label appears in both sets.
+
+    Used during OMM group formation to ensure that a candidate MR does
+    not touch any namespace that has already been merged or is pending
+    in the current group.
+    """
     return bool(mr_labels & merged_labels)
 
 
@@ -1021,11 +1039,15 @@ def _process_omm_group(
     lead: ProjectMergeRequest,
     app_sre_usernames: AbstractSet[str],
     pipeline_timeout: int | None = None,
+    merge_limit: int = 8,
 ) -> int:
     """Process an active OMM group. Returns number of merges performed.
 
     Single-pass: check window, verify post-merge CI, process each pending
     member (merge if ready, eject if failed). Non-blocking.
+
+    Enforces ``merge_limit`` — when reached the group is cleared so the
+    next loop starts fresh with a serial merge and re-evaluation.
     """
 
     max_interval = get_omm_max_interval()
@@ -1041,6 +1063,17 @@ def _process_omm_group(
             "post-merge-ci-failed",
             gl.project.name,
             "cancelling group",
+        ])
+        clear_omm_group(dry_run, gl, lead=lead)
+        return 0
+
+    current_head = gl.project.branches.get(lead.target_branch).commit["id"]
+    if current_head != lead.merge_commit_sha:
+        logging.warning([
+            "omm-group",
+            "head-moved",
+            gl.project.name,
+            "invalidating",
         ])
         clear_omm_group(dry_run, gl, lead=lead)
         return 0
@@ -1095,6 +1128,16 @@ def _process_omm_group(
         if not is_rebased(mr, gl):
             any_active = True
             continue
+
+        if merges >= merge_limit:
+            logging.info([
+                "omm-group",
+                "merge-limit-reached",
+                gl.project.name,
+                f"limit={merge_limit}",
+            ])
+            clear_omm_group(dry_run, gl, lead=lead, pending=pending)
+            return merges
 
         logging.info(["omm-group", "merge", gl.project.name, mr.iid])
         if not dry_run:
@@ -1187,6 +1230,7 @@ def merge_merge_requests(
                 lead=lead,
                 app_sre_usernames=app_sre_usernames,
                 pipeline_timeout=pipeline_timeout,
+                merge_limit=merge_limit,
             )
             merge_batch_size_histogram.labels(project_id=gl.project.id).observe(merges)
             return
