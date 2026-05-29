@@ -214,9 +214,11 @@ def _apply_decision_to_diff(
             if change_type_context.includes_approver(decision.approver_name):
                 change_decision.apply_decision(change_type_context, decision.command)
 
-    # The MR author can /hold their own MR even if they are not a change owner.
-    # Only /hold is honored from the author -- /hold cancel from the author is
-    # ignored so that only a change owner can release the hold.
+    # The MR author can /hold and /hold cancel their own MR even if they are
+    # not a change owner. A change owner can also /hold cancel an author's hold.
+    # These decisions are tracked under the "mr-author" context, which is
+    # independent of change-owner contexts — so an author /hold cancel cannot
+    # remove a change owner's hold.
     if mr_author:
         is_approver = any(
             ctx.includes_approver(mr_author)
@@ -229,6 +231,10 @@ def _apply_decision_to_diff(
                     decision.approver_name == mr_author
                     and decision.command == DecisionCommand.HOLD
                 )
+                is_author_cancel = (
+                    decision.approver_name == mr_author
+                    and decision.command == DecisionCommand.CANCEL_HOLD
+                )
                 is_owner_cancel = (
                     decision.command == DecisionCommand.CANCEL_HOLD
                     and decision.approver_name != mr_author
@@ -238,7 +244,7 @@ def _apply_decision_to_diff(
                         if not ctx.disabled
                     )
                 )
-                if is_author_hold or is_owner_cancel:
+                if is_author_hold or is_author_cancel or is_owner_cancel:
                     change_decision.apply_context_decision(
                         "mr-author", decision.command
                     )
