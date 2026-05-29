@@ -874,10 +874,7 @@ def run_error_healthcheck(
 ) -> None:
     """Check error labels for queue-eligible MRs. Apply/remove
     pipeline-error based on consecutive failure count, and remove
-    merge-error when the MR is rebased with a passing pipeline or
-    when new notes have been posted since the label was applied.
-    Also apply merge-error to queue-eligible MRs stuck in a
-    cannot-be-merged state (e.g. after a failed async rebase)."""
+    merge-error if any new notes have been posted since the label was applied."""
     for mr in project_merge_requests:
         if mr.draft:
             continue
@@ -886,16 +883,6 @@ def run_error_healthcheck(
             MRStatus.CANNOT_BE_MERGED,
             MRStatus.CANNOT_BE_MERGED_RECHECK,
         }:
-            if is_good_to_merge(mr.labels) and MERGE_ERROR not in mr.labels:
-                logging.warning([
-                    "add_label",
-                    MERGE_ERROR,
-                    gl.project.name,
-                    mr.iid,
-                    "MR cannot be merged (conflicts or unmergeable state)",
-                ])
-                if not dry_run:
-                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
             continue
 
         if not is_good_to_merge(mr.labels):
@@ -930,18 +917,6 @@ def run_error_healthcheck(
                 gl.remove_label(mr, PIPELINE_ERROR)
 
         if MERGE_ERROR in labels:
-            if pipelines[0].status == PipelineStatus.SUCCESS and is_rebased(mr, gl):
-                logging.info([
-                    "remove_label",
-                    MERGE_ERROR,
-                    gl.project.name,
-                    mr.iid,
-                    "rebased with passing pipeline",
-                ])
-                if not dry_run:
-                    gl.remove_label(mr, MERGE_ERROR)
-                continue
-
             label_events = gl.get_merge_request_label_events(mr)
             merge_error_added_at = None
             for event in reversed(label_events):
