@@ -90,7 +90,7 @@ def get_current_state(jenkins_map: Mapping[str, JenkinsApi]) -> list[dict[str, s
                 {
                     "instance": instance,
                     "role": role_name,
-                    "user": user,
+                    "user": user["sid"],
                 }
                 for user in users
             )

@@ -496,12 +496,11 @@ def test_non_author_non_approver_hold_ignored(
     assert not change_decision[0].is_held()
 
 
-def test_mr_author_hold_cancel_ignored(
+def test_mr_author_hold_cancel(
     change_with_coverage: BundleFileChange,
 ) -> None:
     """
-    The MR author cannot /hold cancel their own hold -- only change owners can
-    release a hold.
+    The MR author can /hold cancel their own hold.
     """
     change_decision = apply_decisions_to_changes(
         approver_decisions=[
@@ -513,7 +512,7 @@ def test_mr_author_hold_cancel_ignored(
         mr_author=MR_AUTHOR,
     )
 
-    assert change_decision[0].is_held()
+    assert not change_decision[0].is_held()
 
 
 def test_mr_author_hold_coexists_with_approval(
@@ -577,6 +576,78 @@ def test_mr_author_hold_as_approver_uses_normal_context(
     assert change_decision[0].is_held()
     assert "team-context" in change_decision[0].hold
     assert "mr-author" not in change_decision[0].hold
+
+
+def test_mr_author_hold_mixed_mr_approver_on_one_diff(
+    saas_file_changetype: ChangeTypeV1,
+) -> None:
+    """
+    Mixed MR: the author is an approver on diff 0 but not on diff 1.
+    /hold applies via the normal approver path on diff 0 and via the
+    "mr-author" context on diff 1.  The author can /hold cancel to
+    remove both — no stuck state.
+    """
+    other_approver = "other-approver"
+    change = build_bundle_datafile_change(
+        path="/my/file.yml",
+        schema="/my/schema.yml",
+        old_content={"foo": "bar", "baz": "qux"},
+        new_content={"foo": "changed", "baz": "also-changed"},
+    )
+    assert change and len(change.diff_coverage) == 2
+
+    # diff 0: author IS an approver
+    change.diff_coverage[0].coverage = [
+        ChangeTypeContext(
+            change_type_processor=change_type_to_processor(saas_file_changetype),
+            context="author-team",
+            origin="",
+            approvers=[
+                Approver(org_username=MR_AUTHOR, tag_on_merge_requests=False),
+                Approver(org_username=APPROVER_USER, tag_on_merge_requests=False),
+            ],
+            context_file=change.fileref,
+        )
+    ]
+    # diff 1: author is NOT an approver
+    change.diff_coverage[1].coverage = [
+        ChangeTypeContext(
+            change_type_processor=change_type_to_processor(saas_file_changetype),
+            context="other-team",
+            origin="",
+            approvers=[
+                Approver(org_username=other_approver, tag_on_merge_requests=False),
+            ],
+            context_file=change.fileref,
+        )
+    ]
+
+    # both diffs are held after /hold
+    hold_decisions = apply_decisions_to_changes(
+        approver_decisions=[
+            Decision(approver_name=MR_AUTHOR, command=DecisionCommand.HOLD),
+        ],
+        changes=[change],
+        auto_approver_usernames=set(),
+        mr_author=MR_AUTHOR,
+    )
+    assert hold_decisions[0].is_held()
+    assert "author-team" in hold_decisions[0].hold
+    assert hold_decisions[1].is_held()
+    assert "mr-author" in hold_decisions[1].hold
+
+    # author can /hold cancel to remove both — no stuck state
+    cancel_decisions = apply_decisions_to_changes(
+        approver_decisions=[
+            Decision(approver_name=MR_AUTHOR, command=DecisionCommand.HOLD),
+            Decision(approver_name=MR_AUTHOR, command=DecisionCommand.CANCEL_HOLD),
+        ],
+        changes=[change],
+        auto_approver_usernames=set(),
+        mr_author=MR_AUTHOR,
+    )
+    assert not cancel_decisions[0].is_held()
+    assert not cancel_decisions[1].is_held()
 
 
 def test_change_owner_can_unhold_author_hold(
