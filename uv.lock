@@ -2192,7 +2192,7 @@ requires-dist = [
     { name = "sentry-sdk", specifier = "~=2.0" },
     { name = "setuptools", specifier = "==80.8.0" },
     { name = "slack-sdk", specifier = ">=3.10,<4.0" },
-    { name = "sretoolbox", specifier = "==3.2.1" },
+    { name = "sretoolbox", specifier = "==4.0.0" },
     { name = "sshtunnel", specifier = ">=0.4.0" },
     { name = "tabulate", specifier = "==0.10.0" },
     { name = "terrascript", specifier = "==0.9.0" },
@@ -2569,16 +2569,16 @@ wheels = [
 
 [[package]]
 name = "sretoolbox"
-version = "3.2.1"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-json-logger" },
     { name = "requests" },
     { name = "semver" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2b/53/9d37f5b2e1fd2976b272806a0ff19e20711eaf97b537e03b5e7759819ca4/sretoolbox-3.2.1.tar.gz", hash = "sha256:a8cec8e013c6b8e565590a3439ceeb2ccfa7f97cfabdcf305b4efefae765c77c", size = 22383, upload-time = "2026-03-25T16:36:56.328Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/32/9465740ddf917ac0a37403940ed0a3b1b6615a9a35a18b584bb9bcb39439/sretoolbox-4.0.0.tar.gz", hash = "sha256:504f8cb428e79ab43477e4e905cb4d8b73f47fe769042dcbc7f258dda8d66963", size = 22434, upload-time = "2026-05-29T07:13:34.698Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/59/2be46826db3afe3bd9efde860deaa50e2124543ee8ceb67c538d5e55c92c/sretoolbox-3.2.1-py3-none-any.whl", hash = "sha256:289c2ce26583f3dc8bc7d60ab7cd43ed7bf281c5ac41b6380d11c50f1e029abc", size = 37066, upload-time = "2026-03-25T16:36:57.077Z" },
+    { url = "https://files.pythonhosted.org/packages/47/91/7a020c1a7fa32e7a339da5cbe20230f6b76e0edef5f0a574b89bc3058471/sretoolbox-4.0.0-py3-none-any.whl", hash = "sha256:3f9a5771cf148f022661b2ba8fa43aec90e50092ee9c1f2f036f90b737116424", size = 36963, upload-time = "2026-05-29T07:13:35.722Z" },
 ]
 
 [[package]]
