@@ -12,7 +12,7 @@ dependencies = [
     "fastapi==0.136.1",
     "faststream[cli,redis,prometheus]==0.6.7",
     "prometheus-client==0.25.0",
-    "prometheus-fastapi-instrumentator==7.1.0",
+    "prometheus-fastapi-instrumentator==8.0.0",
     "pydantic-settings==2.14.1",
     "pydantic==2.13.4",
     "python-jose[cryptography]==3.5.0",
