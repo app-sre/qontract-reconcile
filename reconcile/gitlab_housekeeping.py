@@ -1141,7 +1141,9 @@ def _process_omm_group(
             logging.info(["omm-group", "merge", gl.project.name, mr.iid])
             if not dry_run:
                 try:
-                    squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
+                    squash = (
+                        gl.project.squash_option == SQUASH_OPTION_ALWAYS
+                    ) or mr.squash
                     mr.merge(squash=squash)
                     labels = mr.labels
                     merged_merge_requests.labels(
