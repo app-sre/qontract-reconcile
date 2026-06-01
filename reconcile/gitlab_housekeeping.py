@@ -1069,14 +1069,23 @@ def _process_omm_group(
 
     current_head = gl.project.branches.get(lead.target_branch).commit["id"]
     if current_head != lead.merge_commit_sha:
-        logging.warning([
-            "omm-group",
-            "head-moved",
-            gl.project.name,
-            "invalidating",
-        ])
-        clear_omm_group(dry_run, gl, lead=lead)
-        return 0
+        # Head moved since the lead merged.  This is expected when pending
+        # members merge (each advances the target).  Only invalidate if
+        # the lead's commit is no longer reachable — meaning the branch
+        # diverged (force push / external reset).
+        result = cast(
+            "dict",
+            gl.project.repository_compare(current_head, lead.merge_commit_sha),
+        )
+        if len(result["commits"]) > 0:
+            logging.warning([
+                "omm-group",
+                "head-diverged",
+                gl.project.name,
+                "invalidating",
+            ])
+            clear_omm_group(dry_run, gl, lead=lead)
+            return 0
 
     pending = get_omm_pending_mrs(gl)
     if not pending:
@@ -1118,57 +1127,79 @@ def _process_omm_group(
             ).inc()
             continue
 
+        if is_rebased(mr, gl):
+            if merges >= merge_limit:
+                logging.info([
+                    "omm-group",
+                    "merge-limit-reached",
+                    gl.project.name,
+                    f"limit={merge_limit}",
+                ])
+                clear_omm_group(dry_run, gl, lead=lead, pending=pending)
+                return merges
+
+            logging.info(["omm-group", "merge", gl.project.name, mr.iid])
+            if not dry_run:
+                try:
+                    squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
+                    mr.merge(squash=squash)
+                    labels = mr.labels
+                    merged_merge_requests.labels(
+                        project_id=mr.target_project_id,
+                        self_service=SELF_SERVICEABLE in labels,
+                        auto_merge=AUTO_MERGE in labels,
+                        app_sre=mr.author["username"] in app_sre_usernames,
+                        onboarding=ONBOARDING in labels,
+                    ).inc()
+                    optimistic_merges.labels(project_id=mr.target_project_id).inc()
+                    gl.remove_label(mr, OMM_PENDING)
+                    approval_info = _get_approval_info(gl, mr)
+                    if approval_info:
+                        priority, approved_at = approval_info
+                        time_to_merge.labels(
+                            project_id=mr.target_project_id, priority=priority
+                        ).observe(_calculate_time_since_approval(approved_at))
+                except gitlab.exceptions.GitlabMRClosedError as e:
+                    logging.error(f"unable to merge {mr.iid}: {e}")
+                    gl.add_label_to_merge_request(mr, MERGE_ERROR)
+                    gl.remove_label(mr, OMM_PENDING)
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id, reason="merge_rejected"
+                    ).inc()
+                    continue
+            merges += 1
+            continue
+
+        if latest_status == PipelineStatus.SUCCESS:
+            if not dry_run:
+                try:
+                    mr.rebase(skip_ci=True)
+                    logging.info([
+                        "omm-group",
+                        "skip-ci-rebase",
+                        gl.project.name,
+                        mr.iid,
+                    ])
+                except gitlab.exceptions.GitlabMRRebaseError as e:
+                    logging.warning([
+                        "omm-group",
+                        "skip-ci-rebase-failed",
+                        gl.project.name,
+                        mr.iid,
+                        str(e),
+                    ])
+                    gl.remove_label(mr, OMM_PENDING)
+                    optimistic_merge_rejected.labels(
+                        project_id=mr.target_project_id,
+                        reason="skip_ci_rebase_conflict",
+                    ).inc()
+                    continue
+            any_active = True
+            continue
+
         if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
             any_active = True
             continue
-
-        if latest_status != PipelineStatus.SUCCESS:
-            continue
-
-        if not is_rebased(mr, gl):
-            any_active = True
-            continue
-
-        if merges >= merge_limit:
-            logging.info([
-                "omm-group",
-                "merge-limit-reached",
-                gl.project.name,
-                f"limit={merge_limit}",
-            ])
-            clear_omm_group(dry_run, gl, lead=lead, pending=pending)
-            return merges
-
-        logging.info(["omm-group", "merge", gl.project.name, mr.iid])
-        if not dry_run:
-            try:
-                squash = (gl.project.squash_option == SQUASH_OPTION_ALWAYS) or mr.squash
-                mr.merge(squash=squash)
-                labels = mr.labels
-                merged_merge_requests.labels(
-                    project_id=mr.target_project_id,
-                    self_service=SELF_SERVICEABLE in labels,
-                    auto_merge=AUTO_MERGE in labels,
-                    app_sre=mr.author["username"] in app_sre_usernames,
-                    onboarding=ONBOARDING in labels,
-                ).inc()
-                optimistic_merges.labels(project_id=mr.target_project_id).inc()
-                gl.remove_label(mr, OMM_PENDING)
-                approval_info = _get_approval_info(gl, mr)
-                if approval_info:
-                    priority, approved_at = approval_info
-                    time_to_merge.labels(
-                        project_id=mr.target_project_id, priority=priority
-                    ).observe(_calculate_time_since_approval(approved_at))
-            except gitlab.exceptions.GitlabMRClosedError as e:
-                logging.error(f"unable to merge {mr.iid}: {e}")
-                gl.add_label_to_merge_request(mr, MERGE_ERROR)
-                gl.remove_label(mr, OMM_PENDING)
-                optimistic_merge_rejected.labels(
-                    project_id=mr.target_project_id, reason="merge_rejected"
-                ).inc()
-                continue
-        merges += 1
 
     if not any_active:
         logging.info(["omm-group", "adaptive-close", gl.project.name])
