@@ -19,7 +19,7 @@ QONTRACT_INTEGRATION_VERSION = make_semver(0, 1, 0)
 
 def get_jobs(jjb: JJB, instance_name: str) -> list[dict] | None:
     pr_check_jobs = jjb.get_all_jobs(
-        job_types=["gh-pr-check"], instance_name=instance_name
+        job_types=["gh-pr-and-build"], instance_name=instance_name
     ).get(instance_name)
 
     return pr_check_jobs
