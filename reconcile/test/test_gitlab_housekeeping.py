@@ -2190,7 +2190,7 @@ def test_omm_group_head_advanced_but_reachable_continues(
         "reconcile.gitlab_housekeeping.is_rebased",
         return_value=True,
     )
-    clear_mock = mocker.patch(
+    mocker.patch(
         "reconcile.gitlab_housekeeping.clear_omm_group",
     )
 
