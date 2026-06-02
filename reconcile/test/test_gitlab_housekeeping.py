@@ -2167,6 +2167,7 @@ def test_omm_group_head_drift_invalidates_group(
     lead.target_branch = "master"
 
     mocked_gl = _make_omm_gl(head_sha="different-sha")
+    mocked_gl.project.repository_compare.return_value = {"commits": ["x"]}
 
     merges = gl_h._process_omm_group(
         dry_run=False,
@@ -2177,6 +2178,131 @@ def test_omm_group_head_drift_invalidates_group(
 
     assert merges == 0
     clear_mock.assert_called_once_with(False, mocked_gl, lead=lead)
+
+
+def test_omm_group_head_advanced_but_reachable_continues(
+    mocker: MockerFixture,
+) -> None:
+    """When HEAD advanced because a pending member merged (lead commit
+    still reachable), the group stays valid and processing continues."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=True,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="advanced-sha")
+    mocked_gl.project.repository_compare.return_value = {"commits": []}
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 1
+    mr.merge.assert_called_once()
+    mocked_gl.project.repository_compare.assert_called_once_with(
+        "advanced-sha", "abc123"
+    )
+
+
+def test_omm_group_skip_ci_rebase_on_success_not_rebased(
+    mocker: MockerFixture,
+) -> None:
+    """A pending MR with SUCCESS pipeline that is not rebased (HEAD moved)
+    gets a skip_ci rebase and keeps the group active."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=False,
+    )
+    clear_mock = mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.rebase.assert_called_once_with(skip_ci=True)
+    mr.merge.assert_not_called()
+    clear_mock.assert_not_called()
+
+
+def test_omm_group_skip_ci_rebase_failure_ejects_member(
+    mocker: MockerFixture,
+) -> None:
+    """When skip_ci rebase fails during group processing, the MR is
+    ejected (omm-pending removed) and counted as a rejection."""
+    _setup_omm_group_mocks(mocker)
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.is_rebased",
+        return_value=False,
+    )
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.clear_omm_group",
+    )
+
+    lead = create_autospec(ProjectMergeRequest)
+    lead.merge_commit_sha = "abc123"
+    lead.target_branch = "master"
+
+    mr = _make_merge_mr(11, ["approved", "tenant-bar", "omm-pending"])
+    mr.rebase.side_effect = GitlabMRRebaseError("rebase conflict")
+
+    mocker.patch(
+        "reconcile.gitlab_housekeeping.get_omm_pending_mrs",
+        return_value=[mr],
+    )
+
+    mocked_gl = _make_omm_gl(head_sha="abc123")
+    mocked_gl.get_merge_request_pipelines.return_value = [_success_pipeline()]
+
+    merges = gl_h._process_omm_group(
+        dry_run=False,
+        gl=mocked_gl,
+        lead=lead,
+        app_sre_usernames=set(),
+    )
+
+    assert merges == 0
+    mr.merge.assert_not_called()
+    mocked_gl.remove_label.assert_called_once_with(mr, "omm-pending")
 
 
 def test_omm_group_merge_limit_enforced(

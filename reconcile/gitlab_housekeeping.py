@@ -721,6 +721,7 @@ def get_omm_group_lead(gl: GitLabApi) -> ProjectMergeRequest | None:
         order_by="updated_at",
         sort="desc",
         per_page=1,
+        get_all=False,
     )
     return mrs[0] if mrs else None
 
@@ -870,7 +871,8 @@ def _check_post_merge_ci(gl: GitLabApi, lead: ProjectMergeRequest) -> bool:
         ref=lead.target_branch,
         order_by="id",
         sort="desc",
-        per_page=5,
+        per_page=1,
+        get_all=False,
     )
     for pipeline in pipelines:
         if from_utc_iso_format(pipeline.created_at) < merged_at:
@@ -1128,6 +1130,11 @@ def _process_omm_group(
             continue
 
         if is_rebased(mr, gl):
+            if latest_status != PipelineStatus.SUCCESS:
+                if latest_status in {PipelineStatus.RUNNING, PipelineStatus.PENDING}:
+                    any_active = True
+                continue
+
             if merges >= merge_limit:
                 logging.info([
                     "omm-group",
@@ -1173,15 +1180,15 @@ def _process_omm_group(
             continue
 
         if latest_status == PipelineStatus.SUCCESS:
+            logging.info([
+                "omm-group",
+                "skip-ci-rebase",
+                gl.project.name,
+                mr.iid,
+            ])
             if not dry_run:
                 try:
                     mr.rebase(skip_ci=True)
-                    logging.info([
-                        "omm-group",
-                        "skip-ci-rebase",
-                        gl.project.name,
-                        mr.iid,
-                    ])
                 except gitlab.exceptions.GitlabMRRebaseError as e:
                     logging.warning([
                         "omm-group",
