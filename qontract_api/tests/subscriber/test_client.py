@@ -59,7 +59,7 @@ async def test_post_to_slack_sends_chat_request(
 async def test_post_to_slack_raises_when_slack_token_is_none(
     mock_settings: MagicMock,
     mock_post_chat: AsyncMock,
-    _mock_client: MagicMock,
+    mock_client: MagicMock,
 ) -> None:
     """post_to_slack raises RuntimeError when slack_token is None."""
     _configure_settings(mock_settings)
@@ -104,7 +104,7 @@ async def test_send_dm_sends_chat_request_with_user(
 async def test_send_dm_raises_when_slack_token_is_none(
     mock_settings: MagicMock,
     mock_post_chat: AsyncMock,
-    _mock_client: MagicMock,
+    mock_client: MagicMock,
 ) -> None:
     """send_dm raises RuntimeError when slack_token is None."""
     _configure_settings(mock_settings)
