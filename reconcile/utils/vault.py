@@ -13,11 +13,21 @@ import requests
 from hvac.exceptions import InvalidPath
 from requests.adapters import HTTPAdapter
 from sretoolbox.utils import retry
+from urllib3.util.retry import Retry as Urllib3Retry
 
 from reconcile.utils.config import get_config
 
 LOG = logging.getLogger(__name__)
 VAULT_AUTO_REFRESH_INTERVAL = int(os.getenv("VAULT_AUTO_REFRESH_INTERVAL") or 600)
+VAULT_AUTH_MAX_ATTEMPTS = int(os.getenv("VAULT_AUTH_MAX_ATTEMPTS") or 5)
+VAULT_AUTH_BACKOFF_BASE = float(os.getenv("VAULT_AUTH_BACKOFF_BASE") or 2.0)
+VAULT_AUTH_BACKOFF_MAX = float(os.getenv("VAULT_AUTH_BACKOFF_MAX") or 30.0)
+
+_VAULT_RETRYABLE_EXCEPTIONS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+    requests.exceptions.TooManyRedirects,
+)
 
 
 class PathAccessForbiddenError(Exception):
@@ -120,27 +130,40 @@ class VaultClient:
         self._read_all_v2 = lru_cache(maxsize=2048)(self.__read_all_v2)
 
         session = requests.Session()
-        # There are at most 10 working threads in reconcile, plus 1 daemon thread for auto refresh
-        adapter = HTTPAdapter(pool_maxsize=11)
+        transport_retry = Urllib3Retry(
+            total=3,
+            connect=3,
+            backoff_factor=0.5,
+        )
+        adapter = HTTPAdapter(pool_maxsize=11, max_retries=transport_retry)
         session.mount("https://", adapter)
         self._client = hvac.Client(url=server, session=session)
         self._close_lock = threading.Lock()
         self._closed = False
 
         authenticated = False
-        for _ in range(3):
+        last_error: Exception | None = None
+        for attempt in range(VAULT_AUTH_MAX_ATTEMPTS):
             try:
                 self._refresh_client_auth()
                 authenticated = self._client.is_authenticated()
-                break
-            except (
-                requests.exceptions.ConnectionError,
-                requests.exceptions.TooManyRedirects,
-            ):
-                time.sleep(1)
+                if authenticated:
+                    break
+            except _VAULT_RETRYABLE_EXCEPTIONS as exc:
+                last_error = exc
+
+            if attempt < VAULT_AUTH_MAX_ATTEMPTS - 1:
+                backoff = min(VAULT_AUTH_BACKOFF_BASE**attempt, VAULT_AUTH_BACKOFF_MAX)
+                LOG.warning(
+                    "Vault auth attempt %d/%d failed, retrying in %.1fs",
+                    attempt + 1,
+                    VAULT_AUTH_MAX_ATTEMPTS,
+                    backoff,
+                )
+                time.sleep(backoff)
 
         if not authenticated:
-            raise VaultConnectionError()
+            raise VaultConnectionError() from last_error
 
         if auto_refresh:
             t = threading.Thread(target=self._auto_refresh_client_auth, daemon=True)
@@ -163,7 +186,9 @@ class VaultClient:
 
     def _auto_refresh_client_auth(self) -> None:
         """
-        Thread that periodically refreshes the vault token
+        Thread that periodically refreshes the vault token.
+        Failures are logged but do not kill the thread; the next
+        interval will retry.
         """
         while True:
             time.sleep(VAULT_AUTO_REFRESH_INTERVAL)
@@ -172,11 +197,17 @@ class VaultClient:
                     LOG.debug("client is closed, exiting auto refresh")
                     break
                 LOG.debug("auto refresh client auth")
-                self._refresh_client_auth()
+                try:
+                    self._refresh_client_auth()
+                except Exception:
+                    LOG.warning(
+                        "auto refresh auth failed, will retry in %ds",
+                        VAULT_AUTO_REFRESH_INTERVAL,
+                        exc_info=True,
+                    )
 
     def _refresh_client_auth(self) -> None:
         if self.kube_auth_enabled:
-            # must read each time to account for sa token refresh
             with open(self.kube_sa_token_path, encoding="locale") as f:
                 try:
                     self._client.auth.kubernetes.login(
@@ -186,9 +217,14 @@ class VaultClient:
                     )
                 except Exception as e:
                     LOG.error(
-                        f"Failed to authenticate to Vault server {self._client.url} "
-                        f"using role '{self.kube_auth_role}' on mount '{self.kube_auth_mount}': {e}"
+                        "Failed to authenticate to Vault server %s "
+                        "using role '%s' on mount '%s': %s",
+                        self._client.url,
+                        self.kube_auth_role,
+                        self.kube_auth_mount,
+                        e,
                     )
+                    raise
         else:
             self._client.auth.approle.login(
                 role_id=self.role_id, secret_id=self.secret_id
