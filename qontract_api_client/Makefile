@@ -15,14 +15,8 @@ help:
 
 .PHONY: generate-client
 generate-client:
-	@rm -rf $(OUTPUT_DIR)/*
-	@uv tool run openapi-python-client==0.27.1 generate \
-		--path=$(OPENAPI) \
-		--meta=none \
-		--output-path=$(OUTPUT_DIR) \
-		--custom-template-path=openapi_python_client_templates \
-		--overwrite
-	@touch $(OUTPUT_DIR)/py.typed
+	clientele start-api -f $(OPENAPI) -o $(OUTPUT_DIR) --asyncio --regen
+	@rm -f $(OUTPUT_DIR)/pyproject.toml $(OUTPUT_DIR)/MANIFEST.md
 	@$(MAKE) format OUTPUT_DIR=$(OUTPUT_DIR)
 
 .PHONY: test
