@@ -7,29 +7,22 @@ from collections.abc import (
 )
 from urllib.parse import urlencode
 
-from qontract_api_client.api.integrations.glitchtip_project_alerts import (
-    GlitchtipProjectAlertsTaskResponse,
+from qontract_api_client.client import (
+    glitchtip_project_alerts as reconcile_glitchtip_project_alerts,
 )
-from qontract_api_client.api.integrations.glitchtip_project_alerts import (
-    asyncio as reconcile_glitchtip_project_alerts,
-)
-from qontract_api_client.api.integrations.glitchtip_project_alerts_task_status import (
-    GlitchtipProjectAlertsTaskResult,
-)
-from qontract_api_client.models.glitchtip_instance import GlitchtipInstance
-from qontract_api_client.models.glitchtip_organization import GlitchtipOrganization
-from qontract_api_client.models.glitchtip_project import GlitchtipProject
-from qontract_api_client.models.glitchtip_project_alert import GlitchtipProjectAlert
-from qontract_api_client.models.glitchtip_project_alert_recipient import (
+from qontract_api_client.schemas import (
+    GlitchtipInstance,
+    GlitchtipOrganization,
+    GlitchtipProject,
+    GlitchtipProjectAlert,
     GlitchtipProjectAlertRecipient,
-)
-from qontract_api_client.models.glitchtip_project_alerts_reconcile_request import (
     GlitchtipProjectAlertsReconcileRequest,
+    GlitchtipProjectAlertsTaskResponse,
+    GlitchtipProjectAlertsTaskResult,
+    RecipientType,
+    Secret,
+    TaskStatus,
 )
-from qontract_api_client.models.recipient_type import RecipientType
-from qontract_api_client.models.secret import Secret
-from qontract_api_client.models.task_status import TaskStatus
-from qontract_api_client.types import Unset
 
 from reconcile import jira_permissions_validator
 from reconcile.gql_definitions.glitchtip.glitchtip_instance import (
@@ -64,8 +57,6 @@ def webhook_urls_are_unique(alerts: Iterable[GlitchtipProjectAlert]) -> bool:
     """Check that webhook URLs are unique across a project."""
     urls = []
     for alert in alerts:
-        if isinstance(alert.recipients, Unset):
-            continue
         for recipient in alert.recipients:
             if recipient.recipient_type == RecipientType.WEBHOOK:
                 if recipient.url in urls:
@@ -247,9 +238,7 @@ class GlitchtipProjectAlertsIntegration(
             dry_run=dry_run,
         )
 
-        response = await reconcile_glitchtip_project_alerts(
-            client=self.qontract_api_client, body=request_data
-        )
+        response = await reconcile_glitchtip_project_alerts(request_data)
         logging.info(f"request_id: {response.id}")
         return response
 

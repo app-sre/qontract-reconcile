@@ -1,11 +1,9 @@
 """qontract-api client initialization and Slack posting function."""
 
-from qontract_api_client.api.external.slack_chat_post_message import (
-    asyncio as post_chat,
-)
-from qontract_api_client.client import AuthenticatedClient
-from qontract_api_client.models.chat_request import ChatRequest
-from qontract_api_client.models.secret import Secret
+from qontract_api_client.client import client as qontract_api_client
+from qontract_api_client.client import slack_chat_post_message as post_chat
+from qontract_api_client.config import Config as QontractApiClientConfig
+from qontract_api_client.schemas import ChatRequest, Secret
 
 from qontract_api.config import settings
 from qontract_api.logger import get_logger
@@ -13,21 +11,22 @@ from qontract_api.logger import get_logger
 logger = get_logger(__name__)
 
 
-def _get_client() -> AuthenticatedClient:
-    """Create authenticated qontract-api client.
-
-    Returns:
-        AuthenticatedClient configured with base URL and auth token
+def _setup_client() -> None:
+    """Configure the qontract-api client with the server URL and token from the config.
 
     Raises:
         RuntimeError: If subscriber settings not configured or token not set
     """
     if not settings.subscriber.qontract_api_token:
         raise RuntimeError("settings.SubscriberSettings.qontract_api_token not set.")
-
-    return AuthenticatedClient(
-        base_url=settings.subscriber.qontract_api_url,
-        token=settings.subscriber.qontract_api_token,
+    qontract_api_client.configure(
+        config=QontractApiClientConfig(
+            base_url=settings.subscriber.qontract_api_url,
+            headers={
+                "Authorization": f"Bearer {settings.subscriber.qontract_api_token}"
+            },
+            timeout=30,
+        )
     )
 
 
@@ -41,6 +40,7 @@ async def post_to_slack(message: str) -> None:
         RuntimeError: If subscriber settings not configured
         httpx.HTTPError: If API call fails
     """
+    _setup_client()
     if settings.subscriber.slack_token is None:
         raise RuntimeError("Subscriber settings slack_token not configured!")
 
@@ -60,8 +60,7 @@ async def post_to_slack(message: str) -> None:
     )
 
     # Call qontract-api REST endpoint
-    client = _get_client()
-    await post_chat(client=client, body=chat_request)
+    await post_chat(chat_request)
 
     logger.info(
         "Message posted to Slack via qontract-api",
@@ -72,6 +71,7 @@ async def post_to_slack(message: str) -> None:
 
 async def send_dm(org_username: str, text: str) -> None:
     """Send a DM to a user via qontract-api chat endpoint."""
+    _setup_client()
     if settings.subscriber.slack_token is None:
         raise RuntimeError("Subscriber settings slack_token not configured!")
 
@@ -89,8 +89,7 @@ async def send_dm(org_username: str, text: str) -> None:
         icon_emoji=settings.subscriber.slack_icon_emoji,
     )
 
-    client = _get_client()
-    await post_chat(client=client, body=chat_request)
+    await post_chat(chat_request)
 
     logger.info(
         "DM sent via qontract-api",

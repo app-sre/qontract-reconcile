@@ -1,18 +1,16 @@
 """Tests for the github-owners-api client-side integration."""
 
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from qontract_api_client.models.github_org_desired_state import GithubOrgDesiredState
-from qontract_api_client.models.github_owner_action_add_owner import (
+from qontract_api_client.schemas import (
+    GithubOrgDesiredState,
     GithubOwnerActionAddOwner,
-)
-from qontract_api_client.models.github_owners_task_response import (
     GithubOwnersTaskResponse,
+    GithubOwnersTaskResult,
+    Secret,
+    TaskStatus,
 )
-from qontract_api_client.models.github_owners_task_result import GithubOwnersTaskResult
-from qontract_api_client.models.secret import Secret
-from qontract_api_client.models.task_status import TaskStatus
 from qontract_utils.exceptions import IntegrationError
 
 from reconcile.github_owners_api import (
@@ -444,11 +442,6 @@ class TestAsyncRun:
             patch.object(
                 integration, "poll_task_status", new=AsyncMock(return_value=task_result)
             ),
-            patch.object(
-                type(integration),
-                "qontract_api_client",
-                new_callable=PropertyMock,
-            ),
         ):
             mock_gql.get_api.return_value = MagicMock()
             await integration.async_run(dry_run=True)
@@ -481,11 +474,6 @@ class TestAsyncRun:
                 new=AsyncMock(return_value=task_response),
             ),
             patch.object(integration, "poll_task_status") as mock_status,
-            patch.object(
-                type(integration),
-                "qontract_api_client",
-                new_callable=PropertyMock,
-            ),
         ):
             mock_gql.get_api.return_value = MagicMock()
             await integration.async_run(dry_run=False)
@@ -522,11 +510,6 @@ class TestAsyncRun:
             patch.object(
                 integration, "poll_task_status", new=AsyncMock(return_value=task_result)
             ),
-            patch.object(
-                type(integration),
-                "qontract_api_client",
-                new_callable=PropertyMock,
-            ),
             pytest.raises(IntegrationError),
         ):
             mock_gql.get_api.return_value = MagicMock()
@@ -562,11 +545,6 @@ class TestAsyncRun:
             ),
             patch.object(
                 integration, "poll_task_status", new=AsyncMock(return_value=task_result)
-            ),
-            patch.object(
-                type(integration),
-                "qontract_api_client",
-                new_callable=PropertyMock,
             ),
             pytest.raises(IntegrationError),
         ):
