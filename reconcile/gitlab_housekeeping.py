@@ -1069,16 +1069,6 @@ def _process_omm_group(
         clear_omm_group(dry_run, gl, lead=lead)
         return 0
 
-    if not lead.merge_commit_sha:
-        logging.warning([
-            "omm-group",
-            "lead-missing-merge-sha",
-            gl.project.name,
-            lead.iid,
-            "will retry next loop",
-        ])
-        return 0
-
     current_head = gl.project.branches.get(lead.target_branch).commit["id"]
     if current_head != lead.merge_commit_sha:
         # Head moved since the lead merged.  This is expected when pending

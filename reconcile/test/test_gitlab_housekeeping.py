@@ -2180,36 +2180,6 @@ def test_omm_group_head_drift_invalidates_group(
     clear_mock.assert_called_once_with(False, mocked_gl, lead=lead)
 
 
-def test_omm_group_lead_missing_merge_commit_sha(
-    mocker: MockerFixture,
-) -> None:
-    """When lead.merge_commit_sha is None (GitLab hasn't populated it yet),
-    return 0 without crashing and leave the group intact for the next loop."""
-    _setup_omm_group_mocks(mocker)
-    clear_mock = mocker.patch(
-        "reconcile.gitlab_housekeeping.clear_omm_group",
-    )
-
-    lead = create_autospec(ProjectMergeRequest)
-    lead.merge_commit_sha = None
-    lead.target_branch = "master"
-    lead.iid = 99999
-
-    mocked_gl = _make_omm_gl(head_sha="some-sha")
-
-    merges = gl_h._process_omm_group(
-        dry_run=False,
-        gl=mocked_gl,
-        lead=lead,
-        app_sre_usernames=set(),
-    )
-
-    assert merges == 0
-    clear_mock.assert_not_called()
-    mocked_gl.project.branches.get.assert_not_called()
-    mocked_gl.project.repository_compare.assert_not_called()
-
-
 def test_omm_group_head_advanced_but_reachable_continues(
     mocker: MockerFixture,
 ) -> None:
