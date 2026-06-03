@@ -26,7 +26,6 @@ COPY qontract_api_client/README.md ./
 COPY qontract_api_client/pyproject.toml ./
 RUN uv sync --no-install-project
 
-COPY qontract_api_client/openapi_python_client_templates ./openapi_python_client_templates
 COPY qontract_api_client/Makefile ./
 COPY qontract_api_client/tests ./tests
 COPY qontract_api_client/qontract_api_client ./qontract_api_client
