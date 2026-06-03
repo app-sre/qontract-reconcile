@@ -30,54 +30,19 @@ def _setup_client() -> None:
     )
 
 
-async def post_to_slack(message: str) -> None:
-    """Post a message to Slack via qontract-api REST endpoint.
-
-    Args:
-        message: Formatted message text to post
-
-    Raises:
-        RuntimeError: If subscriber settings not configured
-        httpx.HTTPError: If API call fails
-    """
-    _setup_client()
+def _build_chat_request(
+    text: str,
+    *,
+    channel: str | None = None,
+    user: str | None = None,
+) -> ChatRequest:
+    """Build a ChatRequest with shared Secret and subscriber settings."""
     if settings.subscriber.slack_token is None:
         raise RuntimeError("Subscriber settings slack_token not configured!")
-
-    # Build chat request with secret reference for Slack bot token
-    chat_request = ChatRequest(
+    return ChatRequest(
         workspace_name=settings.subscriber.slack_workspace,
-        channel=settings.subscriber.slack_channel,
-        text=message,
-        secret=Secret(
-            path=settings.subscriber.slack_token.path,
-            field=settings.subscriber.slack_token.field,
-            version=settings.subscriber.slack_token.version,
-            secret_manager_url=settings.secrets.default_provider_url,
-        ),
-        username=settings.subscriber.slack_username,
-        icon_emoji=settings.subscriber.slack_icon_emoji,
-    )
-
-    # Call qontract-api REST endpoint
-    await post_chat(chat_request)
-
-    logger.info(
-        "Message posted to Slack via qontract-api",
-        channel=settings.subscriber.slack_channel,
-        workspace=settings.subscriber.slack_workspace,
-    )
-
-
-async def send_dm(org_username: str, text: str) -> None:
-    """Send a DM to a user via qontract-api chat endpoint."""
-    _setup_client()
-    if settings.subscriber.slack_token is None:
-        raise RuntimeError("Subscriber settings slack_token not configured!")
-
-    chat_request = ChatRequest(
-        workspace_name=settings.subscriber.slack_workspace,
-        user=org_username,
+        channel=channel,
+        user=user,
         text=text,
         secret=Secret(
             path=settings.subscriber.slack_token.path,
@@ -89,8 +54,26 @@ async def send_dm(org_username: str, text: str) -> None:
         icon_emoji=settings.subscriber.slack_icon_emoji,
     )
 
-    await post_chat(chat_request)
 
+async def post_to_slack(message: str) -> None:
+    """Post a message to Slack via qontract-api REST endpoint."""
+    _setup_client()
+    chat_request = _build_chat_request(
+        message, channel=settings.subscriber.slack_channel
+    )
+    await post_chat(chat_request)
+    logger.info(
+        "Message posted to Slack via qontract-api",
+        channel=settings.subscriber.slack_channel,
+        workspace=settings.subscriber.slack_workspace,
+    )
+
+
+async def send_dm(org_username: str, text: str) -> None:
+    """Send a DM to a user via qontract-api chat endpoint."""
+    _setup_client()
+    chat_request = _build_chat_request(text, user=org_username)
+    await post_chat(chat_request)
     logger.info(
         "DM sent via qontract-api",
         user=org_username,

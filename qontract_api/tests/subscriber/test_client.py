@@ -53,13 +53,16 @@ async def test_post_to_slack_sends_chat_request(
 
 
 @pytest.mark.asyncio
+@patch(f"{_MOD}.qontract_api_client")
 @patch(f"{_MOD}.post_chat", new_callable=AsyncMock)
 @patch(f"{_MOD}.settings")
 async def test_post_to_slack_raises_when_slack_token_is_none(
     mock_settings: MagicMock,
     mock_post_chat: AsyncMock,
+    _mock_client: MagicMock,
 ) -> None:
     """post_to_slack raises RuntimeError when slack_token is None."""
+    _configure_settings(mock_settings)
     mock_settings.subscriber.slack_token = None
 
     from qontract_api.subscriber._client import post_to_slack
@@ -95,13 +98,16 @@ async def test_send_dm_sends_chat_request_with_user(
 
 
 @pytest.mark.asyncio
+@patch(f"{_MOD}.qontract_api_client")
 @patch(f"{_MOD}.post_chat", new_callable=AsyncMock)
 @patch(f"{_MOD}.settings")
 async def test_send_dm_raises_when_slack_token_is_none(
     mock_settings: MagicMock,
     mock_post_chat: AsyncMock,
+    _mock_client: MagicMock,
 ) -> None:
     """send_dm raises RuntimeError when slack_token is None."""
+    _configure_settings(mock_settings)
     mock_settings.subscriber.slack_token = None
 
     from qontract_api.subscriber._client import send_dm
