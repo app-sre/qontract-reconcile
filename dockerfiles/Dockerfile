@@ -28,7 +28,7 @@ RUN UV_DYNAMIC_VERSIONING_BYPASS="0.0.0" uv sync --frozen --no-group dev
 ###############################################################################
 # STAGE 2 - dev-image
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.5.2-1@sha256:feb8c631c26c0d9ad1ec24903baf0afc20028bd98b0826625ca5389e8ffc6676 AS dev-image
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.0.0-1@sha256:88fe57608407bbe48e96750858909bdcca1d305a26bfc8077ae32a11a7973008 AS dev-image
 COPY --from=ghcr.io/astral-sh/uv:0.11.13@sha256:841c8e6fe30a8b07b4478d12d0c608cba6de66102d29d65d1cc423af86051563 /uv /bin/uv
 
 ENV \
@@ -59,7 +59,7 @@ ENTRYPOINT ["/work/dev/run.sh"]
 ###############################################################################
 # STAGE 3 - prod-image-pre-test
 ###############################################################################
-FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:1.5.2-1@sha256:feb8c631c26c0d9ad1ec24903baf0afc20028bd98b0826625ca5389e8ffc6676 AS prod-image-pre-test
+FROM quay.io/redhat-services-prod/app-sre-tenant/container-images-master/qontract-reconcile-base-master:2.0.0-1@sha256:88fe57608407bbe48e96750858909bdcca1d305a26bfc8077ae32a11a7973008 AS prod-image-pre-test
 
 # Tini
 ENV TINI_VERSION=v0.19.0
