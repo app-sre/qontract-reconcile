@@ -149,15 +149,26 @@ class VaultClient:
                 authenticated = self._client.is_authenticated()
                 if authenticated:
                     break
+                LOG.warning(
+                    "Vault auth attempt %d/%d: server responded but "
+                    "is_authenticated() returned False (token may be "
+                    "invalid or session rejected)",
+                    attempt + 1,
+                    VAULT_AUTH_MAX_ATTEMPTS,
+                )
             except _VAULT_RETRYABLE_EXCEPTIONS as exc:
                 last_error = exc
+                LOG.warning(
+                    "Vault auth attempt %d/%d hit retryable error: %s",
+                    attempt + 1,
+                    VAULT_AUTH_MAX_ATTEMPTS,
+                    exc,
+                )
 
             if attempt < VAULT_AUTH_MAX_ATTEMPTS - 1:
                 backoff = min(VAULT_AUTH_BACKOFF_BASE**attempt, VAULT_AUTH_BACKOFF_MAX)
                 LOG.warning(
-                    "Vault auth attempt %d/%d failed, retrying in %.1fs",
-                    attempt + 1,
-                    VAULT_AUTH_MAX_ATTEMPTS,
+                    "retrying in %.1fs",
                     backoff,
                 )
                 time.sleep(backoff)
