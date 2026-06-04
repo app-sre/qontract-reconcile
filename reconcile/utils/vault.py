@@ -174,6 +174,17 @@ class VaultClient:
                 time.sleep(backoff)
 
         if not authenticated:
+            failure_reason = (
+                f"retryable transport error: {last_error}"
+                if last_error
+                else "is_authenticated() returned False on every attempt"
+            )
+            LOG.error(
+                "Vault auth failed after %d/%d attempts; last failure: %s",
+                VAULT_AUTH_MAX_ATTEMPTS,
+                VAULT_AUTH_MAX_ATTEMPTS,
+                failure_reason,
+            )
             raise VaultConnectionError() from last_error
 
         if auto_refresh:
