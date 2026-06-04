@@ -44,6 +44,7 @@ PROVIDERS = ["prometheus-rule"]
 NAMESPACE_NAMES = frozenset([
     "openshift-customer-monitoring",
     "app-sre-observability-per-cluster",
+    "dvo-tests-ns",
 ])
 DEFAULT_PROMTOOL_VERSION = "3.2.1"
 
